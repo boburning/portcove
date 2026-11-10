@@ -1155,6 +1155,28 @@
         "split_mod_paths": true
       }
     },
+    "alexbeav-medievil-recomp": {
+      "inventory": "alexbeav-medievil-recomp",
+      "selected_assets": [
+        "medievil-recomp-0.1.4-windows-x64.zip",
+        "medievil-recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "medievil-recomp-0.1.4-linux-x64.zip",
+        "medievil-recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SCUS-94227",
+        "track_count": 2,
+        "track_sha1": "928257764f5107c9d27aa3e2d469c43aee591abd",
+        "track_sha256": null,
+        "generated_executable": "MediEvil_Recompiled.exe",
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true,
+        "extra_persistent_paths": ["diagnostics-location.txt"]
+      }
+    },
     "alexbeav-nightmare-creatures-ii-recomp": {
       "inventory": "alexbeav-nightmare-creatures-ii-recomp",
       "selected_assets": [
@@ -6436,6 +6458,96 @@
         ]
       }
     ],
+    "alexbeav-medievil-recomp": [
+      {
+        "id": 416119794,
+        "tag_name": "v0.1.4",
+        "published_at": "2026-10-17T23:02:13Z",
+        "draft": false,
+        "prerelease": false,
+        "assets": [
+          {
+            "id": 651837885,
+            "name": "medievil-recomp-0.1.4-linux-x64.zip",
+            "size": 44267824,
+            "digest": "sha256:26097ec363f6850fbb7575ce2155c7841913f4317b844dca0683ecabc6864d2e",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.4/medievil-recomp-0.1.4-linux-x64.zip"
+          },
+          {
+            "id": 651837886,
+            "name": "medievil-recomp-0.1.4-macos-arm64.zip",
+            "size": 41571960,
+            "digest": "sha256:e7a59fbf44d2aa4bfd198ed6c8390e0877a83234cd1557e3d286d2ebb75308d9",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.4/medievil-recomp-0.1.4-macos-arm64.zip"
+          },
+          {
+            "id": 651837887,
+            "name": "medievil-recomp-0.1.4-macos-x64.zip",
+            "size": 42023338,
+            "digest": "sha256:4c06e0dff6fb83b58867bf498268d049faefd370cafe1285c039a81823751d27",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.4/medievil-recomp-0.1.4-macos-x64.zip"
+          },
+          {
+            "id": 651837888,
+            "name": "medievil-recomp-0.1.4-windows-x64.zip",
+            "size": 46418375,
+            "digest": "sha256:9ce3874f2bdd1ee92b6d91defcf86a35eeccebcb15c5b5fa2e121b22942ef4e2",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.4/medievil-recomp-0.1.4-windows-x64.zip"
+          },
+          {
+            "id": 651837912,
+            "name": "release-manifest.json",
+            "size": 1266,
+            "digest": "sha256:3d716cbfffd23ef865f8455fe848a5bd68d7ade57a8bee8f22faf5d41194285d",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.4/release-manifest.json"
+          },
+          {
+            "id": 651837883,
+            "name": "SHA256SUMS.txt",
+            "size": 416,
+            "digest": "sha256:a4332727a9e580e70e936e06247c8d968b59c0cec61616fd9f2bd1718f326403",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.4/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999981604,
+        "tag_name": "v999.123.456",
+        "published_at": "2027-01-01T00:00:00Z",
+        "draft": false,
+        "prerelease": false,
+        "assets": [
+          {
+            "id": 999965800,
+            "name": "medievil-recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/medievil-recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:7770cefc4c7af3b0d56ed61fcdface8eaacfe941c449f4461bb45bf4cfec93f2"
+          },
+          {
+            "id": 999965801,
+            "name": "medievil-recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/medievil-recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:74c213cce9d977203b4109f6588c4fb927dc625179c76de289db5848d1a97f47"
+          },
+          {
+            "id": 999965802,
+            "name": "medievil-recomp-999.123.456-macos-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/medievil-recomp-999.123.456-macos-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:d5ebe3136fbcb452a6d7622387726d2c8426b74d6ac61f0a8fdd5bc1e8840c34"
+          },
+          {
+            "id": 999965803,
+            "name": "medievil-recomp-999.123.456-macos-arm64.zip",
+            "browser_download_url": "https://downloads.example.invalid/medievil-recomp-999.123.456-macos-arm64.zip",
+            "size": 12345678,
+            "digest": "sha256:ff170875c859ddd9ed56a7fc91252f3e54c157b4c7d95d124451c4e8d6775d56"
+          }
+        ]
+      }
+    ],
     "alexbeav-nightmare-creatures-ii-recomp": [
       {
         "id": 388678026,
@@ -7891,6 +8003,26 @@
       "inventory": "alexbeav-misadventures-of-tron-bonne-recomp",
       "release_index": 0,
       "asset": "misadventuresoftronbonne-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-medievil-recomp",
+      "release_index": 0,
+      "asset": "medievil-recomp-0.1.4-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-medievil-recomp",
+      "release_index": 1,
+      "asset": "medievil-recomp-999.123.456-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-medievil-recomp",
+      "release_index": 0,
+      "asset": "medievil-recomp-0.1.4-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-medievil-recomp",
+      "release_index": 1,
+      "asset": "medievil-recomp-999.123.456-macos-arm64.zip"
     },
     {
       "inventory": "alexbeav-nightmare-creatures-ii-recomp",
