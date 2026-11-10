@@ -155,9 +155,7 @@ pub(crate) fn grant_verified_executable(
     }
     // Verify and change the same open file, so a path swap cannot redirect the grant.
     let file = std::fs::File::open(path)?;
-    if !file.metadata()?.is_file()
-        || !header_is_platform_binary(&read_header(&file)?, platform)?
-    {
+    if !file.metadata()?.is_file() || !header_is_platform_binary(&read_header(&file)?, platform)? {
         return Err(PortcoveError::verification(format!(
             "{label} is not a binary for this platform, so execution is not granted"
         )));
@@ -214,14 +212,28 @@ mod grant_tests {
     #[test]
     fn mach_o_slices_must_match_the_platform_and_links_are_never_followed() {
         let dir = tempfile::tempdir().unwrap();
-        let arm = file(dir.path(), "arm", &[0xcf, 0xfa, 0xed, 0xfe, 0x0c, 0, 0, 1], 0o644);
-        let x86 = file(dir.path(), "x86", &[0xcf, 0xfa, 0xed, 0xfe, 0x07, 0, 0, 1], 0o644);
+        let arm = file(
+            dir.path(),
+            "arm",
+            &[0xcf, 0xfa, 0xed, 0xfe, 0x0c, 0, 0, 1],
+            0o644,
+        );
+        let x86 = file(
+            dir.path(),
+            "x86",
+            &[0xcf, 0xfa, 0xed, 0xfe, 0x07, 0, 0, 1],
+            0o644,
+        );
         assert!(is_platform_binary(&arm, Platform::MacosAarch64).unwrap());
         assert!(!is_platform_binary(&arm, Platform::MacosX86_64).unwrap());
         assert!(is_platform_binary(&x86, Platform::MacosX86_64).unwrap());
         let mut universal = vec![0xca, 0xfe, 0xba, 0xbe, 0, 0, 0, 2];
-        universal.extend([0x01, 0, 0, 0x07, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-        universal.extend([0x01, 0, 0, 0x0c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        universal.extend([
+            0x01, 0, 0, 0x07, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        universal.extend([
+            0x01, 0, 0, 0x0c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
         let fat = file(dir.path(), "fat", &universal, 0o644);
         assert!(is_platform_binary(&fat, Platform::MacosAarch64).unwrap());
         let link = dir.path().join("link");

@@ -4028,10 +4028,7 @@ pub(crate) fn resolve_executable_hints(
 
 /// Grant execution to the declared program of a package whose archive carries no executable
 /// bit, only when the file verifies as a binary for the platform.
-fn grant_declared_executable(
-    root: &Path,
-    qualification: &InstallQualification,
-) -> Result<()> {
+fn grant_declared_executable(root: &Path, qualification: &InstallQualification) -> Result<()> {
     let search_root = qualification
         .runtime_subdirectory
         .as_deref()
