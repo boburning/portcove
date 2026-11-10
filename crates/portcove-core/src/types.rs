@@ -666,6 +666,8 @@ pub enum ExternalProfilePolicy {
     Openrct2MacV1,
     RecompAppimageV1,
     OpenmohaaUnixV1,
+    IronwailLinuxV1,
+    VkquakeLinuxV1,
 }
 
 /// Preserve complete mod package versions without replacing packaged defaults.

@@ -71,7 +71,13 @@ pub(crate) fn require_native_appimage_artifact(
     asset_name: &str,
 ) -> Result<()> {
     if !crate::native_temp::has_sibling_platforms(port)
-        && port.external_profile_policy != Some(crate::ExternalProfilePolicy::RecompAppimageV1)
+        && !matches!(
+            port.external_profile_policy,
+            Some(
+                crate::ExternalProfilePolicy::RecompAppimageV1
+                    | crate::ExternalProfilePolicy::VkquakeLinuxV1
+            )
+        )
     {
         return Ok(());
     }

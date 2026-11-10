@@ -1241,6 +1241,24 @@ impl Installer {
                 request.qualification.platform,
                 &payload_root,
             )?;
+            if request.qualification.platform == Platform::LinuxX86_64
+                && let Some(
+                    policy @ (crate::ExternalProfilePolicy::IronwailLinuxV1
+                    | crate::ExternalProfilePolicy::VkquakeLinuxV1),
+                ) = port.external_profile_policy
+            {
+                if !crate::native_external_profile::quake_linux::matches_ironwail_tar(
+                    port,
+                    request.qualification.platform,
+                    &artifact.asset_name,
+                ) {
+                    return Err(PortcoveError::verification(
+                        "Ironwail archive differs from its retained Linux package selector",
+                    ));
+                }
+                let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
+                crate::native_external_profile::quake_linux::require_payload(&selected, policy)?;
+            }
             crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
             if crate::preparation::source::native(port) {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;

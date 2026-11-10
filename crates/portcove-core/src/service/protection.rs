@@ -218,6 +218,12 @@ impl PortcoveService {
             }) {
                 result.exclusions.push("This installation’s saves and settings are handled outside Portcove. Only the listed local files and files already in Portcove’s saves and settings folder can be included. Back up external profiles separately.".into());
             }
+            if matches!(crate::Platform::current(), Ok(crate::Platform::LinuxX86_64))
+                && contract.port.external_profile_policy
+                    == Some(crate::ExternalProfilePolicy::IronwailLinuxV1)
+            {
+                result.exclusions.push("A Portcove backup can include the listed files in this installation. Back up the game’s external Linux profile separately.".into());
+            }
             if role != ProtectionInstallRole::Active {
                 result.collection = ProtectionCollectionState::Inactive;
                 return Ok(());
