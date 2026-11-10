@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
+import { desktopApi } from "../api";
 import type { DesktopSupportBundleExport } from "../types";
 import { failurePresentation, type FailureDisplay } from "../view-model";
 import { FailureDetails } from "./FailureDetails";
@@ -45,6 +46,7 @@ export function SupportBundleExport({
 }) {
   const [exported, setExported] = useState<DesktopSupportBundleExport>();
   const [pending, setPending] = useState(false);
+  const [folderFailed, setFolderFailed] = useState(false);
   const [failure, setFailure] = useState<{ presentation: FailureDisplay | undefined }>();
   const request = useRef(0);
   const exporting = useRef(false);
@@ -62,6 +64,7 @@ export function SupportBundleExport({
     setPending(true);
     setExported(undefined);
     setFailure(undefined);
+    setFolderFailed(false);
     try {
       const result = await createSupportBundle();
       if (request.current === current) {
@@ -76,6 +79,11 @@ export function SupportBundleExport({
         setPending(false);
       }
     }
+  };
+
+  const openFolder = () => {
+    setFolderFailed(false);
+    desktopApi.openSupportReportFolder().catch(() => setFolderFailed(true));
   };
 
   const incomplete = exported?.manifest.sections.some((section) => section.status !== "included");
@@ -130,6 +138,21 @@ export function SupportBundleExport({
               ? "Some diagnostics are partial or omitted. Review the collection details below."
               : "Only the available diagnostics within collection limits were saved."}
           </p>
+          <Button
+            data-focusable
+            variant="outline"
+            size="sm"
+            className="justify-self-start"
+            onClick={openFolder}
+          >
+            Open support report folder
+          </Button>
+          {folderFailed && (
+            <p role="alert">
+              Couldn’t open the folder. The support report is still saved at the location shown
+              above.
+            </p>
+          )}
           {!exported.manifest.library_available && (
             <p>
               The library was unavailable during collection. Available sections are listed below.

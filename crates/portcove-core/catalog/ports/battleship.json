@@ -18,6 +18,7 @@
     "issue_number": 110,
     "availability": "packages",
     "release_url": "https://github.com/JRickey/BattleShip/releases",
+    "platforms": ["macos-aarch64"],
     "setup_url": "https://github.com/JRickey/BattleShip/blob/78069c1fdac54351612ccf1c99778b51f2db1256/scripts/package-macos.sh",
     "manual_setup": {
       "steps": [
@@ -35,7 +36,7 @@
         }
       ],
       "warnings": [],
-      "help_url": "https://github.com/JRickey/BattleShip/releases/tag/v1.6"
+      "help_url": "https://github.com/JRickey/BattleShip/releases"
     }
   },
   "integration": {

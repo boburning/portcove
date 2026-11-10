@@ -24,13 +24,23 @@ import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 import { requireControllerApplicationJobPublicationAuthorities } from "./release-authority-configuration.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { reconcileCoordinatorSigningContext } from "./release-metadata-context-recovery.mts";
+import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 
 export async function completeCoordinatorSigningContext(
   actualPreparation: object,
   parent: string,
   phaseDeadline?: number,
 ) {
-  const receipt = await prepareCoordinatorSigningContext(actualPreparation, parent, phaseDeadline),
+  const receipt = await prepareCoordinatorSigningContext(
+      actualPreparation,
+      parent,
+      phaseDeadline,
+    ).catch((error: unknown) => {
+      if (error instanceof CoordinatorRemoteError) throw error;
+      throw new CoordinatorRemoteError("actual metadata context preparation refused", {
+        phase: "metadata-context-preparation",
+      });
+    }),
     context = await requireCoordinatorSigningContext(receipt),
     deadline = context.deadline;
   return withCoordinatorDeadline(deadline, async () => {
@@ -158,8 +168,9 @@ export async function completeCoordinatorSigningContext(
         JSON.stringify({ phase, authority: "none", automatic_retry: false }),
         { flag: "wx", mode: 0o600 },
       ).catch(() => {});
-      throw new Error(
+      throw new CoordinatorRemoteError(
         "actual metadata context continuation stopped; retain public context and pending receipts",
+        { phase },
       );
     }
   });

@@ -822,6 +822,31 @@ void test("the exact feed tag route retains uppercase SemVer metadata", async (t
   assert.equal(calls, 1);
 });
 
+void test("the feed reader permits only the appointed forward-adoption tag", async (t) => {
+  const ref = retainedR56FeedRecovery.next_ref;
+  const route = `repos/boburning/portcove/git/ref/${ref.slice("refs/".length)}`;
+  let calls = 0;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      assert.equal(request.method, "GET");
+      assert.equal(request.url, `https://api.github.com/${route}`);
+      calls++;
+      return Response.json({ ref, object: { type: "commit", sha: control } });
+    },
+  );
+  const read = await createApplicationFeedReader(
+    "inert-forward-adoption",
+    performance.now() + 5000,
+  );
+  assert.deepEqual((await read(route)).body, { ref, object: { type: "commit", sha: control } });
+  await assert.rejects(read(`${route}-other`), /observation route differs/);
+  await assert.rejects(read(`${route}?unused=1`), /observation route differs/);
+  assert.equal(calls, 1);
+});
+
 void test("feed selects the serving actor only behind its exact active Actions admission", async () => {
   const tag = "portcove-production-controller-windows-fixture";
   const logUrl = "https://github.com/boburning/portcove/actions/runs/123/job/456";

@@ -105,6 +105,7 @@ export function assemblerIdentityFixture(
       body = {
         ...job(jobId),
         status: faults.value === "job-completed" ? "completed" : "in_progress",
+        conclusion: faults.value === "job-reread-terminal" ? "cancelled" : null,
         name: profile.job,
         check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${checkRunId}`,
       };
@@ -115,6 +116,7 @@ export function assemblerIdentityFixture(
         ...job(faults.value === "duplicate" ? 1 : jobId),
         head_sha: faults.value === "job-source" ? "b".repeat(40) : expected.controller_revision,
         status: "in_progress",
+        conclusion: faults.value === "job-inventory-terminal" ? "cancelled" : null,
         name: profile.job,
         check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${faults.value === "name-only" ? checkRunId + 1 : checkRunId}`,
       };

@@ -415,7 +415,7 @@ class HealthFailure extends Error {
     this.httpStatus = httpStatus;
   }
 }
-const HARD_REQUEST_CEILING: number = 320;
+const HARD_REQUEST_CEILING: number = 352;
 const PRIOR_REPORT_ENTRIES: number = 512;
 // Retained comparison history is independent of one collection's observation cap.
 const HEALTH_HISTORY_BYTES = 16 * 1024 * 1024;

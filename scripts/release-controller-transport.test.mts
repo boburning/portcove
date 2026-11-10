@@ -769,6 +769,7 @@ void test("application coordinator diagnostics retain a closed refusal without e
     CoordinatorRemoteError,
     applicationCoordinatorRefusal,
     applicationCoordinatorRefusalFile,
+    requireApplicationCoordinatorRefusal,
   } = await import("./release-coordinator-errors.mts");
   const { retainControllerDiagnostics } = await import("./release-controller-diagnostics.mts");
   const root = await mkdtemp(path.join(os.tmpdir(), "application-controller-diagnostics-"));
@@ -804,12 +805,56 @@ void test("application coordinator diagnostics retain a closed refusal without e
     attempted_claim: false,
     attempted_commit: false,
   });
+  for (const phase of [
+    "renewal-current-tools",
+    "renewal-public-site",
+    "renewal-tuf-preparation",
+    "renewal-publication-inventory",
+    "actual-maintenance-controls",
+    "durable-maintenance-descriptor",
+    "metadata-context-preparation",
+    "existing-metadata-pending",
+    "fixed-public-context-upload",
+    "metadata-upload-settlement",
+  ]) {
+    const refusal = applicationCoordinatorRefusal(
+      new CoordinatorRemoteError("private", {
+        phase,
+        retained_error: exchange.checkpoint_exchange,
+      }),
+    );
+    assert.equal(refusal.stage, phase);
+    assert.equal("checkpoint_exchange" in refusal, phase === "durable-maintenance-descriptor");
+    assert.doesNotThrow(() => requireApplicationCoordinatorRefusal(refusal));
+  }
 
   assert.equal(
     applicationCoordinatorRefusal(new CoordinatorRemoteError("private", { phase: "unknown" }))
       .stage,
     "fixed-entry",
   );
+  for (const phase of [
+    "withdrawal-source-authority",
+    "withdrawal-journal-preimage",
+    "withdrawal-reader-identity",
+    "withdrawal-protection-observation",
+    "withdrawal-live-controls",
+    "withdrawal-checkpoint-authority",
+    "withdrawal-signed-checkpoint",
+  ]) {
+    const withdrawal = applicationCoordinatorRefusal(
+      new CoordinatorRemoteError("private", {
+        phase,
+        retained_error: { ...exchange.checkpoint_exchange, checkpoint: "private" },
+      }),
+    );
+    assert.equal(withdrawal.stage, phase);
+    assert.equal(JSON.stringify(withdrawal).includes("private"), false);
+    assert.deepEqual(
+      withdrawal.checkpoint_exchange,
+      phase === "withdrawal-signed-checkpoint" ? exchange.checkpoint_exchange : undefined,
+    );
+  }
   const encoded = JSON.stringify(known);
   await writeFile(
     path.join(root, applicationCoordinatorRefusalFile),

@@ -432,10 +432,10 @@
       "port_id": "f-zero-snes-recomp",
       "port_contract_sha256": "329175ad591253c04b8cee4baac67b313ddbeea830fd2f7597f65ff7bdbeb0b3",
       "platform": "windows-x86-64",
-      "url": "https://github.com/mstan/FZeroSNESRecomp/releases/download/v1.8.3/FZeroSNESRecomp-1.8.3-windows-x64.zip",
+      "url": "https://github.com/RetroPortingToolKit/FZeroSNESRecomp/releases/download/v1.8.3/FZeroSNESRecomp-1.8.3-windows-x64.zip",
       "size": 8247843,
       "sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658",
-      "repository": "mstan/FZeroSNESRecomp",
+      "repository": "RetroPortingToolKit/FZeroSNESRecomp",
       "tag": "v1.8.3",
       "name": "FZeroSNESRecomp-1.8.3-windows-x64.zip",
       "repository_id": 1348026644,
@@ -443,7 +443,7 @@
       "release_id": 393440319,
       "asset_id": 580473673,
       "release_facts_sha256": "8f0c24a5ab82057f8b8e3af473b1d2e950d655ba4409446f8438f60b4006a4b3",
-      "asset_facts_sha256": "2d5c2c3e293f57d6aca09bcbbf4aa92d2efd2ffd86a3f771441126ba3e5ca9a5"
+      "asset_facts_sha256": "e045a09c15d29088161e47a06929cc9eba8e31e961fefa8d67dd6487295a57b9"
     },
     {
       "port_id": "dkc3-recomp",

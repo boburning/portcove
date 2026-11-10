@@ -42,6 +42,305 @@ fn observed_rollout_releases(id: &str) -> Vec<serde_json::Value> {
 }
 
 #[tokio::test]
+async fn openmohaa_unix_selects_official_zip_and_compatible_successor() {
+    let id = "medal-of-honor-allied-assault-openmohaa";
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port(id).unwrap();
+    let fixtures: serde_json::Value = serde_json::from_str(include_str!(
+        "../../testdata/native-engine-adoption-2026-11-02.json"
+    ))
+    .unwrap();
+    let case = fixtures["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| case["port_id"] == id)
+        .unwrap();
+    let observed = &case["release"];
+    let assets = observed["assets"].as_array().unwrap();
+    let next = release(
+        "v0.82.2",
+        assets
+            .iter()
+            .map(|original| {
+                let name = original["name"]
+                    .as_str()
+                    .unwrap()
+                    .replace("v0.82.1", "v0.82.2");
+                asset(&name, Some('b'))
+            })
+            .collect(),
+    );
+    for (platform, suffix, digest) in [
+        (
+            Platform::LinuxX86_64,
+            "-linux-amd64.zip",
+            "57692d057a684afb7f7e91a61fcd8c062b29ab1b639f27453830084a88cd653c",
+        ),
+        (
+            Platform::MacosX86_64,
+            "-macos-multiarch-arm64-x86_64.zip",
+            "dd590e887078912e0bd80ad3e9d414ef7611faada064e7e49b4c3eafa59e579a",
+        ),
+        (
+            Platform::MacosAarch64,
+            "-macos-multiarch-arm64-x86_64.zip",
+            "dd590e887078912e0bd80ad3e9d414ef7611faada064e7e49b4c3eafa59e579a",
+        ),
+    ] {
+        let (root, requests, server) = serve_http(vec![
+            metadata(),
+            releases(std::slice::from_ref(observed)),
+            metadata(),
+            releases(std::slice::from_ref(&next)),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(root.clone()).unwrap();
+        let baseline = provider
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        assert_eq!(baseline.asset.name, format!("openmohaa-v0.82.1{suffix}"));
+        assert_eq!(baseline.asset.sha256, digest);
+        let successor = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        assert_eq!(successor.asset.name, format!("openmohaa-v0.82.2{suffix}"));
+        assert_eq!(successor.asset.sha256, "b".repeat(64));
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), 4);
+    }
+}
+
+#[test]
+fn openmohaa_unix_selector_cannot_reuse_a_broader_cached_release() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog
+        .port("medal-of-honor-allied-assault-openmohaa")
+        .unwrap();
+    let mut broader = port.clone();
+    broader.external_profile_policy = None;
+    let channel = ReleaseChannel::Stable;
+    let key = |port, platform| ReleaseSelectionCacheKey::new(port, channel, platform);
+    for platform in [
+        Platform::LinuxX86_64,
+        Platform::MacosX86_64,
+        Platform::MacosAarch64,
+    ] {
+        assert_ne!(key(port, platform), key(&broader, platform));
+    }
+    assert_eq!(
+        key(port, Platform::WindowsX86_64),
+        key(&broader, Platform::WindowsX86_64)
+    );
+}
+
+#[tokio::test]
+async fn quake_linux_selects_the_official_package_and_compatible_successor() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (id, current, next, alternatives, digest, size) in [
+        (
+            "quake-ironwail",
+            "ironwail-0.8.2-linux-x64.tar.gz",
+            "ironwail-0.8.3-linux-x64.tar.gz",
+            [
+                "ironwail-0.8.3-win64.zip",
+                "ironwail-0.8.3-linux-arm64.tar.gz",
+                "ironwail-0.8.3-linux-x64.tar.gz.zip",
+                "mirror-ironwail-0.8.3-linux-x64.tar.gz",
+            ],
+            "fcb0219d13c50f64728892f0558b4761ba5578319a6cc01021fad981c6333aa5",
+            592_534,
+        ),
+        (
+            "quake-vkquake",
+            "vkQuake-1.37.0-x86_64.AppImage",
+            "vkQuake-1.38.0-x86_64.AppImage",
+            [
+                "vkQuake-1.38.0_windows_x64.zip",
+                "vkQuake-1.38.0-aarch64.AppImage",
+                "vkQuake-1.38.0-x86_64.AppImage.zip",
+                "mirror-vkQuake-1.38.0-x86_64.AppImage",
+            ],
+            "abf8546316997d16b86fea242d90afc8203fecb9e5016d6262f7bec1f36a5a9e",
+            9_538_040,
+        ),
+    ] {
+        let port = catalog.port(id).unwrap();
+        let mut broad = port.clone();
+        broad.external_profile_policy = None;
+        let key =
+            |port, platform| ReleaseSelectionCacheKey::new(port, ReleaseChannel::Stable, platform);
+        assert_ne!(
+            key(port, Platform::LinuxX86_64),
+            key(&broad, Platform::LinuxX86_64)
+        );
+        assert_eq!(
+            key(port, Platform::WindowsX86_64),
+            key(&broad, Platform::WindowsX86_64)
+        );
+        let mut observed = asset(current, None);
+        observed["digest"] = serde_json::json!(format!("sha256:{digest}"));
+        observed["size"] = serde_json::json!(size);
+        let mut next_assets = vec![asset(next, Some('a'))];
+        next_assets.extend(alternatives.map(|name| asset(name, Some('b'))));
+        let (root, requests, server) = serve_http(vec![
+            metadata(),
+            releases(&[release(current.split('-').nth(1).unwrap(), vec![observed])]),
+            metadata(),
+            releases(&[release(next.split('-').nth(1).unwrap(), next_assets)]),
+        ]);
+        for (name, expected, root) in [
+            (current, digest.to_string(), root.clone()),
+            (next, "a".repeat(64), root),
+        ] {
+            let release = GithubReleaseProvider::with_api_root(root)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, Platform::LinuxX86_64)
+                .await
+                .unwrap();
+            assert_eq!(release.asset.name, name);
+            assert_eq!(release.asset.sha256, expected);
+        }
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), 4);
+    }
+}
+
+#[tokio::test]
+async fn profile_siblings_select_official_archives_and_compatible_successors() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (id, platform, current, successor, digest, size) in [
+        (
+            "corsixth-corsixth",
+            Platform::LinuxX86_64,
+            "CorsixTH-v0.70.2-x86_64.AppImage",
+            "CorsixTH-v0.70.3-x86_64.AppImage",
+            "106aa756cfbd59be153067f63fa8ac8b2090996752853cd4f03d03425011237e",
+            82_872_824,
+        ),
+        (
+            "openloco-openloco",
+            Platform::LinuxX86_64,
+            "OpenLoco-v26.09-linux-x64.AppImage",
+            "OpenLoco-v26.10.1-linux-x64.AppImage",
+            "353750c8cee127aa24ce2e3cc7e8233c14fe37362bd62f6b3c3d6887a7d16fb3",
+            17_680_888,
+        ),
+        (
+            "openloco-openloco",
+            Platform::MacosAarch64,
+            "OpenLoco-v26.09-macos-arm64.zip",
+            "OpenLoco-v26.10-macos-arm64.zip",
+            "15cd95be662810cae3a16bc8053b2cb3cd2bc680fc29ac486322c3e00fe6da1e",
+            17_557_193,
+        ),
+    ] {
+        let port = catalog.port(id).unwrap();
+        let mut broad = port.clone();
+        broad.external_profile_policy = None;
+        let key = |port| ReleaseSelectionCacheKey::new(port, ReleaseChannel::Stable, platform);
+        assert_ne!(key(port), key(&broad));
+        let mut published = asset(current, None);
+        published["digest"] = serde_json::json!(format!("sha256:{digest}"));
+        published["size"] = serde_json::json!(size);
+        let (root, requests, server) = serve_http(vec![
+            metadata(),
+            releases(&[release(current.split('-').nth(1).unwrap(), vec![published])]),
+            metadata(),
+            releases(&[release(
+                successor.split('-').nth(1).unwrap(),
+                vec![
+                    asset(successor, Some('a')),
+                    asset(&format!("mirror-{successor}"), Some('b')),
+                    asset(&format!("{successor}.zip"), Some('c')),
+                ],
+            )]),
+        ]);
+        for (name, expected, root) in [
+            (current, digest.to_string(), root.clone()),
+            (successor, "a".repeat(64), root),
+        ] {
+            let resolved = GithubReleaseProvider::with_api_root(root)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, platform)
+                .await
+                .unwrap();
+            assert_eq!(resolved.asset.name, name);
+            assert_eq!(resolved.asset.sha256, expected);
+        }
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), 4);
+    }
+}
+
+#[tokio::test]
+async fn archive_siblings_select_two_compatible_publisher_releases() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (id, platform, releases_to_check) in [
+        (
+            "jgrennison-openttd-patches",
+            Platform::LinuxX86_64,
+            [
+                (
+                    "jgrpp-0.73.4",
+                    "openttd-jgrpp-0.73.4-linux-generic-amd64.tar.xz",
+                    "9df78eaa8157fff3c310345554b34dbd3ecc6d14e3988f91e3c25b5330940511",
+                ),
+                (
+                    "jgrpp-0.73.5",
+                    "openttd-jgrpp-0.73.5-linux-generic-amd64.tar.xz",
+                    "2de4dc6fa93115ddc4c2ff58f6a70e78056e726a182d2f986a06c0f07227097d",
+                ),
+            ],
+        ),
+        (
+            "gladiator-openglad",
+            Platform::MacosAarch64,
+            [
+                (
+                    "v2.1097",
+                    "openglad-macos-arm64.zip",
+                    "09ada009f20138f1c592a4edb93809aafcc7058290034ce462e2e71b4028ed89",
+                ),
+                (
+                    "v2.1098",
+                    "openglad-macos-arm64.zip",
+                    "037fbef7fac1460235b39fb923515b72ef7f784967a2f6b6f62194a7b5353a71",
+                ),
+            ],
+        ),
+    ] {
+        let port = catalog.port(id).unwrap();
+        let mut broad = port.clone();
+        broad.external_profile_policy = None;
+        let key = |port| ReleaseSelectionCacheKey::new(port, ReleaseChannel::Stable, platform);
+        assert_ne!(key(port), key(&broad));
+        for (tag, name, digest) in releases_to_check {
+            let mut published = asset(name, None);
+            published["digest"] = serde_json::json!(format!("sha256:{digest}"));
+            let (root, requests, server) = serve_http(vec![
+                metadata(),
+                releases(&[release(
+                    tag,
+                    vec![asset(&format!("mirror-{name}"), Some('b')), published],
+                )]),
+            ]);
+            let resolved = GithubReleaseProvider::with_api_root(root)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, platform)
+                .await
+                .unwrap();
+            assert_eq!(resolved.asset.name, name);
+            assert_eq!(resolved.asset.sha256, digest);
+            server.join().unwrap();
+            assert_eq!(requests.try_iter().count(), 2);
+        }
+    }
+}
+
+#[tokio::test]
 async fn recomp_appimages_select_the_direct_linux_asset_and_compatible_successor() {
     let catalog = crate::Catalog::embedded().unwrap();
     for (id, name, tag, size, sha256) in [
@@ -2396,6 +2695,8 @@ struct ManagedPsxArchiveExpectation {
     crash_diagnostic: bool,
     #[serde(default)]
     split_mod_paths: bool,
+    #[serde(default)]
+    extra_persistent_paths: Vec<String>,
 }
 
 impl ManagedPsxArchiveExpectation {
@@ -2442,7 +2743,10 @@ impl ManagedPsxArchiveExpectation {
             "bios.cfg",
             "disc.cfg",
             "overlay-captures",
-        ] {
+        ]
+        .into_iter()
+        .chain(self.extra_persistent_paths.iter().map(String::as_str))
+        {
             assert!(
                 port.persistent_paths.iter().any(|path| path == owned),
                 "{id}: {owned}"

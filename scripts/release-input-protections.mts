@@ -555,7 +555,13 @@ export function requireCatalogMaintenancePolicy(
               "production-release-coordinator",
               "production-release-protection-observer",
             ].includes(name)) ||
-          (selector.name === "portcove-production-controller-windows-20261105r30" &&
+          ([
+            "portcove-production-controller-windows-20261105r30",
+            "portcove-production-controller-windows-20261108r55",
+            "portcove-production-controller-windows-20261109r56",
+            "portcove-production-controller-windows-20261109r57",
+            "portcove-production-controller-windows-20261109r58",
+          ].includes(selector.name) &&
             (name === "github-pages" || name === "production-release-protection-observer")) ||
           (selector.name === "portcove-upstream-rehearsal-20261104r3" && name === "github-pages");
         if (!retained)
@@ -726,6 +732,14 @@ function requireInputPolicy(
       // The original complete inventory digest is retained separately. Journal
       // head progression is authenticated by the owned checkpoint protocol;
       // it is not a change to writer/retention policy between fresh rounds.
+      if (row.ref.object.url !== undefined) {
+        if (
+          row.ref.object.url !==
+          `https://api.github.com/repos/boburning/portcove/git/commits/${row.ref.object.sha}`
+        )
+          throw new Error("observed journal commit URL differs from its exact identity");
+        delete row.ref.object.url;
+      }
       delete row.ref.object.sha;
     }
     return row;

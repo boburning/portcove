@@ -10,6 +10,13 @@ export class CoordinatorRemoteError extends Error {
   }
 }
 
+const applicationCheckpointStages: readonly string[] = [
+  "durable-neutral-review-request",
+  "retained-application-review-claim",
+  "withdrawal-signed-checkpoint",
+  "durable-maintenance-descriptor",
+];
+
 const applicationRefusalStages: readonly string[] = [
   "remote-recovery",
   "exact-qualified-neutral-request-gate",
@@ -20,8 +27,22 @@ const applicationRefusalStages: readonly string[] = [
   "exact-windows-qualification",
   "complete-publication-baseline-and-source",
   "actual-neutral-request-controls",
-  "durable-neutral-review-request",
-  "retained-application-review-claim",
+  "withdrawal-source-authority",
+  "withdrawal-journal-preimage",
+  "withdrawal-reader-identity",
+  "withdrawal-protection-observation",
+  "withdrawal-live-controls",
+  "withdrawal-checkpoint-authority",
+  "renewal-current-tools",
+  "renewal-public-site",
+  "renewal-tuf-preparation",
+  "renewal-publication-inventory",
+  "actual-maintenance-controls",
+  "metadata-context-preparation",
+  "existing-metadata-pending",
+  "fixed-public-context-upload",
+  "metadata-upload-settlement",
+  ...applicationCheckpointStages,
 ];
 
 export const applicationCoordinatorRefusalFile = "application-coordinator-operation-refusal.json";
@@ -60,8 +81,7 @@ export function applicationCoordinatorRefusal(error: unknown) {
       ? evidence.phase
       : "fixed-entry";
   const exchange =
-    isRecord(evidence) &&
-    (stage === "durable-neutral-review-request" || stage === "retained-application-review-claim")
+    isRecord(evidence) && applicationCheckpointStages.includes(stage)
       ? checkpointExchange(evidence.retained_error)
       : undefined;
   return {
@@ -82,8 +102,8 @@ export function requireApplicationCoordinatorRefusal(raw: unknown) {
         ? "authority,automatic_retry,error_type,schema_version,stage"
         : "authority,automatic_retry,checkpoint_exchange,error_type,schema_version,stage") ||
     (raw.checkpoint_exchange !== undefined &&
-      ((raw.stage !== "durable-neutral-review-request" &&
-        raw.stage !== "retained-application-review-claim") ||
+      (typeof raw.stage !== "string" ||
+        !applicationCheckpointStages.includes(raw.stage) ||
         !isRecord(raw.checkpoint_exchange) ||
         Object.keys(raw.checkpoint_exchange).sort().join(",") !==
           "attempted_claim,attempted_commit,phase" ||

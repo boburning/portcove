@@ -1110,6 +1110,28 @@ void test("scarce capacity completes admitted sources instead of one request eac
   assert.ok(result.report.requests <= 40);
 });
 
+void test("an operation request limit caps admissions below the template budget (#4779)", async () => {
+  const h = harness(400);
+  for (let index = 0; index < 60; index++)
+    h.input.ports.push({
+      id: `limited-${index}`,
+      channels: ["stable"],
+      release: { repository: `owner/limited-${index}` },
+    });
+  const unlimited = await advanceCatalogObservations(h.input, null, h.options);
+  assert.ok(unlimited.report.requests > 40);
+  const limited = harness(400);
+  limited.input.ports.push(...h.input.ports.slice(limited.input.ports.length));
+  const result = await advanceCatalogObservations(limited.input, null, {
+    ...limited.options,
+    requestLimit: 40,
+  });
+  assert.ok(result.report.requests <= 40, String(result.report.requests));
+  assert.ok(result.report.attempted_source_keys.length > 0);
+  // Every provider request passes the capped admission.
+  assert.equal(limited.network.length, result.report.requests);
+});
+
 void test("the configured first turn admits a page set while other sources retain capacity", async () => {
   const h = harness(8);
   for (const name of ["extra-one", "extra-two"]) {
@@ -2458,19 +2480,20 @@ void test("hosted opportunity drains accepted progress without retrying failed s
   assert.deepEqual(result.report.completed_source_keys, ["large"]);
 });
 
-void test("hosted opportunity stops admitting batches at its request ceiling", async () => {
+void test("hosted opportunity hands each batch only its remaining request allowance", async () => {
   const { continueCatalogBatches } = await import("./catalog-observer-continuation.mts");
-  let turns = 0;
+  const limits: number[] = [];
   const result = await continueCatalogBatches(
-    async () => {
-      turns++;
+    async (_excluded, requestLimit) => {
+      limits.push(requestLimit);
+      // A batch honours its allowance, as advanceCatalogObservations does.
       return {
         report: {
           pending_source_keys: ["large"],
           attempted_source_keys: ["large"],
           completed_source_keys: [],
           failures: [],
-          requests: 300,
+          requests: Math.min(300, requestLimit),
           response_bytes_charged: 10,
         },
         made_progress: true,
@@ -2480,8 +2503,9 @@ void test("hosted opportunity stops admitting batches at its request ceiling", a
     },
     { deadline: 100, now: () => 0, maxRequests: 1000 },
   );
-  assert.equal(turns, 4);
-  assert.equal(result.report.requests, 1200);
+  // The ceiling is a hard total, not an admission threshold (#4779).
+  assert.deepEqual(limits, [1000, 700, 400, 100]);
+  assert.equal(result.report.requests, 1000);
   assert.deepEqual(result.report.pending_source_keys, ["large"]);
 });
 
@@ -2644,6 +2668,61 @@ void test("accepted checkpoint advancement ignores request counts, clocks, clear
     ),
     false,
   );
+});
+
+void test("hosted opportunity wires its request ceiling into every batch (#4779)", async (t) => {
+  const work = fileURLToPath(new URL("../work/", import.meta.url));
+  await mkdir(work, { recursive: true });
+  const root = await mkdtemp(path.join(work, "catalog-opportunity-test-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const h = harness(4);
+  await mkdir(path.join(root, "release"), { recursive: true });
+  await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
+  await writeFile(
+    path.join(root, "crates/portcove-core/catalog/listings.json"),
+    JSON.stringify({ format_version: 1, listings: [] }),
+  );
+  const cli = path.join(root, "inspector"),
+    catalog = path.join(root, "crates/portcove-core/catalog/catalog.json");
+  await writeFile(cli, "fixture inspector identity; native execution is mocked");
+  await writeFile(
+    path.join(root, "release/upstream-observer.json"),
+    JSON.stringify(h.options.config),
+  );
+  await writeFile(catalog, JSON.stringify(h.input));
+  const runtime = {
+    root,
+    deadline: h.options.now!() + 500000,
+    now: h.options.now!,
+    inspectCatalog: async () =>
+      new Map(h.input.ports.map((port) => [port.id, observationHash(port)])),
+    observer: { fetch: h.options.fetch!, sleep: h.options.sleep! },
+    project: async (
+      _cli: string,
+      config: Parameters<typeof h.options.load>[0],
+      _directory: string,
+      observation: Parameters<typeof h.options.project>[2],
+    ) => h.options.project(config.port_id, config.repository_id, observation),
+    repositoryMetadata: async (repository: string) => {
+      const body = {
+        id: repository === "owner/shared" ? 7 : 8,
+        full_name: repository,
+        archived: false,
+      };
+      return {
+        status: 200,
+        headers: new Map<string, string>(),
+        body,
+        bodyBytes: Buffer.byteLength(JSON.stringify(body)),
+      };
+    },
+    log: () => {},
+  };
+  // Each batch's template budget is 4 requests. Without the wiring, two batches
+  // would spend 8 against a ceiling of 6; with it the second receives only 2.
+  const result = await runCatalogOpportunity(["--cli", cli], { ...runtime, requestCeiling: 6 });
+  assert.ok(result.batches >= 2, String(result.batches));
+  assert.equal(result.report.requests, 6);
 });
 
 void test("hosted opportunity preserves one aggregate handoff and refuses changed catalog after accepted progress", async (t) => {

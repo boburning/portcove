@@ -43,8 +43,8 @@ export function semanticSourceResourceEnvironment(
   };
 }
 
-/** Inert acquisition. The qualified application snapshot reuses one existing
- * analysis slot across the same bounded Git batches. */
+/** Inert acquisition. Scoped release snapshots reuse one existing analysis
+ * slot across the same bounded Git batches. */
 export async function materializeSemanticSource(
   parent: string,
   expected: Parameters<typeof acquireSemanticSource>[1],
@@ -57,7 +57,9 @@ export async function materializeSemanticSource(
   const deadline = performance.now() + 120000;
   const expiresAt = Date.now() + 120000;
   const reservation =
-    applicationComparison && !qualification?.fetchObjects && process.env.GITHUB_ACTIONS !== "true"
+    (applicationComparison || catalogComparison) &&
+    !qualification?.fetchObjects &&
+    process.env.GITHUB_ACTIONS !== "true"
       ? await acquireSourceBoundCapacity(
           "analysis",
           { workspace: process.cwd(), cwd: process.cwd() },
@@ -427,7 +429,7 @@ async function acquireSemanticSource(
         typeof raw.size !== "number" ||
         !Number.isSafeInteger(raw.size) ||
         raw.size < 0 ||
-        !semanticSourceBlobFits(entry.oid, raw.size, applicationComparison)
+        !semanticSourceBlobFits(entry.oid, raw.size, applicationComparison || catalogComparison)
       )
         throw new Error("semantic source snapshot contains unsupported or oversized object");
       const prior = blobs.get(entry.oid);

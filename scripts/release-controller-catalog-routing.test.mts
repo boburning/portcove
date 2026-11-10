@@ -40,6 +40,36 @@ import {
 import { catalogEnvironmentFixture } from "./fixtures/release-live-control-fixture.mts";
 import { capacityDigest, slice4CapacityResources } from "./release-capacity.mts";
 import { maximumProductionControllerWorkflowBytes } from "./production-controller-admission.mts";
+import { selectCatalogBootstrapRecovery } from "./release-catalog-bootstrap-adoption.mts";
+import {
+  retainedCatalogBootstrapClaim,
+  retainedCatalogForwardAdoptionClaim,
+} from "./release-coordinator-checkpoint-authentication.mts";
+
+void test("catalog recovery distinguishes the exact forward claim from historical bootstrap", () => {
+  const old = retainedCatalogBootstrapClaim;
+  const forward = retainedCatalogForwardAdoptionClaim;
+  assert.equal(selectCatalogBootstrapRecovery(old.successor_ref, 1, old.previous, false), old);
+  assert.equal(
+    selectCatalogBootstrapRecovery(forward.successor_ref, 1, forward.previous, true),
+    forward,
+  );
+  assert.equal(
+    selectCatalogBootstrapRecovery(forward.original_ref, 1, forward.previous, true),
+    undefined,
+  );
+  for (const [ref, attempt, parent, direction] of [
+    [old.successor_ref, 1, old.previous, true],
+    [forward.successor_ref, 1, forward.previous, false],
+    [forward.successor_ref, 2, forward.previous, true],
+    [forward.successor_ref, 1, old.previous, true],
+  ] as const)
+    assert.throws(
+      () => selectCatalogBootstrapRecovery(ref, attempt, parent, direction),
+      /original predecessor and one successor attempt/u,
+    );
+});
+
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 function fixture() {
   const fixed = {
@@ -506,36 +536,46 @@ void test("catalog maintenance authenticates pause and exact catalog environment
     /outside retained appointments/u,
   );
   environments[1]!.policies.pop();
-  const heldTag = "portcove-production-controller-windows-20261105r30";
-  const heldRule = {
-    ...retainedRule,
-    id: 91,
-    conditions: { ref_name: { include: [`refs/tags/${heldTag}`], exclude: [] } },
-  };
-  const heldSelector = { id: 89, name: heldTag, type: "tag" };
-  const protection = environments.find(
-    (row) => row.name === "production-release-protection-observer",
-  )!;
-  const coordinator = environments.find((row) => row.name === "production-release-coordinator")!;
-  environments[0]!.policies.push(applicationSelector, heldSelector);
-  protection.policies.push(heldSelector);
-  rules.push(heldRule);
-  requireCatalogMaintenancePolicy(await observeCatalogMaintenanceProtections(read), controllerRef);
-  coordinator.policies.push(heldSelector);
-  const coordinatorExtra = await observeCatalogMaintenanceProtections(read);
-  assert.throws(
-    () => requireCatalogMaintenancePolicy(coordinatorExtra, controllerRef),
-    /outside retained appointments/u,
-  );
-  coordinator.policies.pop();
-  rules.pop();
-  const unprotectedHeldTag = await observeCatalogMaintenanceProtections(read);
-  assert.throws(
-    () => requireCatalogMaintenancePolicy(unprotectedHeldTag, controllerRef),
-    /additional tag lacks exact immutable protection/u,
-  );
-  protection.policies.pop();
-  environments[0]!.policies.splice(-2);
+  for (const heldTag of [
+    "portcove-production-controller-windows-20261105r30",
+    "portcove-production-controller-windows-20261108r55",
+    "portcove-production-controller-windows-20261109r56",
+    "portcove-production-controller-windows-20261109r57",
+    "portcove-production-controller-windows-20261109r58",
+  ]) {
+    const heldRule = {
+      ...retainedRule,
+      id: 91,
+      conditions: { ref_name: { include: [`refs/tags/${heldTag}`], exclude: [] } },
+    };
+    const heldSelector = { id: 89, name: heldTag, type: "tag" };
+    const protection = environments.find(
+      (row) => row.name === "production-release-protection-observer",
+    )!;
+    const coordinator = environments.find((row) => row.name === "production-release-coordinator")!;
+    environments[0]!.policies.push(applicationSelector, heldSelector);
+    protection.policies.push(heldSelector);
+    rules.push(heldRule);
+    requireCatalogMaintenancePolicy(
+      await observeCatalogMaintenanceProtections(read),
+      controllerRef,
+    );
+    coordinator.policies.push(heldSelector);
+    const coordinatorExtra = await observeCatalogMaintenanceProtections(read);
+    assert.throws(
+      () => requireCatalogMaintenancePolicy(coordinatorExtra, controllerRef),
+      /outside retained appointments/u,
+    );
+    coordinator.policies.pop();
+    rules.pop();
+    const unprotectedHeldTag = await observeCatalogMaintenanceProtections(read);
+    assert.throws(
+      () => requireCatalogMaintenancePolicy(unprotectedHeldTag, controllerRef),
+      /additional tag lacks exact immutable protection/u,
+    );
+    protection.policies.pop();
+    environments[0]!.policies.splice(-2);
+  }
   rules.pop();
   for (const mutate of [
     (row: (typeof environments)[number]) => {

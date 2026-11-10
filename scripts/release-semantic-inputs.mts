@@ -601,6 +601,7 @@ function freezeSemanticSnapshots<T extends SemanticSourceIdentity>(
         .trim() !== tree
     )
       throw new Error("local review tree differs from reconstructed provider tree");
+  const allowPinnedEvidence = applicationComparison || catalogBaseline !== undefined;
   const snapshot = (commit: string) => {
     const rows = git(root, ["ls-tree", "-rz", "--full-tree", commit])
       .toString("utf8")
@@ -647,7 +648,7 @@ function freezeSemanticSnapshots<T extends SemanticSourceIdentity>(
       !match ||
       match[1] !== objects[index] ||
       !Number.isSafeInteger(size) ||
-      !semanticSourceBlobFits(match[1]!, size, applicationComparison) ||
+      !semanticSourceBlobFits(match[1]!, size, allowPinnedEvidence) ||
       (total += size + 100) > 192 * 1024 * 1024
     )
       throw new Error("review object preflight exceeded bound");
@@ -659,7 +660,7 @@ function freezeSemanticSnapshots<T extends SemanticSourceIdentity>(
     const match = /^([a-f0-9]{40}) blob ([0-9]+)$/u.exec(bytes.subarray(cursor, end).toString());
     if (end < cursor || !match || match[1] !== id) throw new Error("review blob batch differs");
     const size = Number(match[2]);
-    if (!Number.isSafeInteger(size) || !semanticSourceBlobFits(id, size, applicationComparison))
+    if (!Number.isSafeInteger(size) || !semanticSourceBlobFits(id, size, allowPinnedEvidence))
       throw new Error("review blob exceeds finite bound");
     cursor = end + 1;
     const blob = bytes.subarray(cursor, cursor + size);

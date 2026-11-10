@@ -49,6 +49,7 @@ struct AssetPreparation<'a> {
     acquisition: Option<AssetAcquisition<'a>>,
     acquired: Option<&'a Path>,
     requires_tar_xz: bool,
+    unwrap_inner_archive: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -1192,6 +1193,13 @@ impl Installer {
                         .map(|inputs| inputs.path(&request.release.asset))
                         .transpose()?,
                     requires_tar_xz: request.qualification.requires_tar_xz,
+                    // Only macOS and Linux routes with a declared executable unwrap a
+                    // package that publishes one inner archive; other payload shapes
+                    // stay as extracted.
+                    unwrap_inner_archive: matches!(
+                        request.qualification.platform,
+                        Platform::MacosX86_64 | Platform::MacosAarch64 | Platform::LinuxX86_64
+                    ) && !request.qualification.executable_hints.is_empty(),
                 },
                 operation,
                 emit,
@@ -1215,11 +1223,87 @@ impl Installer {
         if let Some(contract) = &request.qualification.retained_contract {
             let catalog = contract.catalog(&request.port_id)?;
             let port = catalog.port(&request.port_id)?;
+            if !crate::native_external_profile::openmohaa::matches_asset(
+                port,
+                request.qualification.platform,
+                &artifact.asset_name,
+            ) {
+                return Err(PortcoveError::verification(
+                    "OpenMoHAA archive differs from its retained Unix package selector",
+                ));
+            }
             crate::package_layout::require_reviewed_layout(
                 port,
                 request.qualification.platform,
                 &payload_root,
             )?;
+            crate::native_external_profile::openmohaa::prepare_package(
+                port,
+                request.qualification.platform,
+                &payload_root,
+            )?;
+            if crate::native_external_profile::archive_siblings::requires_archive(
+                port,
+                request.qualification.platform,
+            ) {
+                if !crate::native_external_profile::archive_siblings::matches_asset(
+                    port,
+                    request.qualification.platform,
+                    &artifact.asset_name,
+                ) {
+                    return Err(PortcoveError::verification(
+                        "the archive differs from its retained upstream package selector",
+                    ));
+                }
+                let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
+                crate::native_external_profile::archive_siblings::require_payload(
+                    &selected,
+                    request.qualification.platform,
+                    &|| operation.checkpoint(),
+                )?;
+            }
+            if let Some(
+                policy @ (crate::ExternalProfilePolicy::CorsixthLinuxV1
+                | crate::ExternalProfilePolicy::OpenlocoUnixV1),
+            ) = port.external_profile_policy
+                && crate::native_external_profile::applies_to(
+                    policy,
+                    request.qualification.platform,
+                )
+            {
+                if !crate::native_external_profile::profile_siblings::matches_openloco_zip(
+                    port,
+                    request.qualification.platform,
+                    &artifact.asset_name,
+                ) {
+                    return Err(PortcoveError::verification(
+                        "OpenLoco archive differs from its retained Mac package selector",
+                    ));
+                }
+                let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
+                crate::native_external_profile::profile_siblings::require_payload(
+                    &selected,
+                    request.qualification.platform,
+                )?;
+            }
+            if request.qualification.platform == Platform::LinuxX86_64
+                && let Some(
+                    policy @ (crate::ExternalProfilePolicy::IronwailLinuxV1
+                    | crate::ExternalProfilePolicy::VkquakeLinuxV1),
+                ) = port.external_profile_policy
+            {
+                if !crate::native_external_profile::quake_linux::matches_ironwail_tar(
+                    port,
+                    request.qualification.platform,
+                    &artifact.asset_name,
+                ) {
+                    return Err(PortcoveError::verification(
+                        "Ironwail archive differs from its retained Linux package selector",
+                    ));
+                }
+                let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
+                crate::native_external_profile::quake_linux::require_payload(&selected, policy)?;
+            }
             crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
             if crate::preparation::source::native(port) {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
@@ -1253,6 +1337,7 @@ impl Installer {
                         .map(|inputs| inputs.path(&runtime.asset))
                         .transpose()?,
                     requires_tar_xz: false,
+                    unwrap_inner_archive: false,
                 },
                 operation,
                 emit,
@@ -1532,6 +1617,7 @@ impl Installer {
             acquisition,
             acquired,
             requires_tar_xz,
+            unwrap_inner_archive,
         } = input;
         let (artifact, cache_worker) = self
             .acquire_asset_bytes(asset, download_path, operation, emit, acquisition, acquired)
@@ -1564,6 +1650,7 @@ impl Installer {
                     &extraction_root,
                     &asset_name,
                     expected_size,
+                    unwrap_inner_archive,
                     &checkpoint,
                 )
             };
@@ -4283,11 +4370,23 @@ fn extract_asset(
     destination: &Path,
     asset_name: &str,
     expected_size: u64,
+    unwrap_inner_archive: bool,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     let lower = asset_name.to_ascii_lowercase();
     if lower.ends_with(".zip") || lower.ends_with(".tar.gz") || lower.ends_with(".tgz") {
-        extract_archive_with_checkpoint(source, destination, asset_name, expected_size, checkpoint)
+        extract_archive_with_checkpoint(
+            source,
+            destination,
+            asset_name,
+            expected_size,
+            checkpoint,
+        )?;
+        if unwrap_inner_archive {
+            unwrap_lone_inner_archive(destination, checkpoint)
+        } else {
+            Ok(())
+        }
     } else if lower.ends_with(".exe") || lower.ends_with(".appimage") {
         crate::archive::validate_relative_path(asset_name, false)?;
         let target = destination.join(asset_name);
@@ -4299,6 +4398,51 @@ fn extract_asset(
             "unsupported package format: {asset_name}"
         )))
     }
+}
+
+const INNER_ARCHIVE_STAGE: &str = ".portcove-inner-archive";
+
+/// Some publishers wrap the real package in an outer ZIP as one inner ZIP or TAR.GZ.
+/// When the verified outer archive's whole payload is one regular archive file of
+/// those kinds, extract it through the same bounded extractor and place its contents
+/// at the payload root. This is one level only; any other payload shape is left
+/// exactly as extracted.
+fn unwrap_lone_inner_archive(root: &Path, checkpoint: &dyn Fn() -> Result<()>) -> Result<()> {
+    let mut entries = fs::read_dir(root)?;
+    let Some(only) = entries.next().transpose()? else {
+        return Ok(());
+    };
+    if entries.next().is_some() {
+        return Ok(());
+    }
+    let name = only.file_name();
+    let Some(name) = name.to_str() else {
+        return Ok(());
+    };
+    let path = only.path();
+    let metadata = fs::symlink_metadata(&path)?;
+    let lower = name.to_ascii_lowercase();
+    if !metadata.is_file()
+        || !(lower.ends_with(".zip") || lower.ends_with(".tar.gz") || lower.ends_with(".tgz"))
+    {
+        return Ok(());
+    }
+    let stage = root.join(INNER_ARCHIVE_STAGE);
+    fs::create_dir(&stage)?;
+    extract_archive_with_checkpoint(&path, &stage, name, metadata.len(), checkpoint)?;
+    fs::remove_file(&path)?;
+    for entry in fs::read_dir(&stage)? {
+        checkpoint()?;
+        let entry = entry?;
+        if entry.file_name() == INNER_ARCHIVE_STAGE {
+            return Err(PortcoveError::verification(
+                "inner archive uses a reserved extraction name",
+            ));
+        }
+        fs::rename(entry.path(), root.join(entry.file_name()))?;
+    }
+    fs::remove_dir(&stage)?;
+    Ok(())
 }
 
 fn normalize_standalone_appimage(
@@ -4353,6 +4497,243 @@ mod tests {
     use sha2::{Digest, Sha256};
 
     use super::*;
+
+    fn write_test_zip(path: &Path, files: &[(&str, &[u8], u32)], links: &[(&str, &str)]) {
+        use std::io::Write as _;
+
+        let mut writer = zip::ZipWriter::new(File::create(path).unwrap());
+        for (name, bytes, mode) in files {
+            let options = zip::write::SimpleFileOptions::default().unix_permissions(*mode);
+            writer.start_file(*name, options).unwrap();
+            writer.write_all(bytes).unwrap();
+        }
+        for (name, target) in links {
+            writer
+                .add_symlink(*name, *target, zip::write::SimpleFileOptions::default())
+                .unwrap();
+        }
+        writer.finish().unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn nested_mac_bundle_zip_extracts_to_one_resolvable_executable() {
+        let temporary = tempfile::tempdir().unwrap();
+        let inner = temporary.path().join("Game.zip");
+        write_test_zip(
+            &inner,
+            &[
+                ("Game.app/Contents/MacOS/Game", b"main", 0o755),
+                (
+                    "Game.app/Contents/Frameworks/libz.1.3.2.dylib",
+                    b"zlib",
+                    0o755,
+                ),
+            ],
+            &[(
+                "Game.app/Contents/Frameworks/libz.1.dylib",
+                "libz.1.3.2.dylib",
+            )],
+        );
+        let outer = temporary.path().join("Game-v2.0.0-macOS.zip");
+        write_test_zip(
+            &outer,
+            &[("Game.zip", &fs::read(&inner).unwrap(), 0o644)],
+            &[],
+        );
+        let root = temporary.path().join("payload");
+        fs::create_dir_all(&root).unwrap();
+        extract_asset(
+            &outer,
+            &root,
+            "Game-v2.0.0-macOS.zip",
+            fs::metadata(&outer).unwrap().len(),
+            true,
+            &|| Ok(()),
+        )
+        .unwrap();
+        assert!(!root.join("Game.zip").exists());
+        assert!(!root.join(INNER_ARCHIVE_STAGE).exists());
+        let executable =
+            resolve_executable_hints(&root, Platform::MacosAarch64, &["Game".into()], "test")
+                .unwrap();
+        assert_eq!(executable, root.join("Game.app/Contents/MacOS/Game"));
+        let alias = root.join("Game.app/Contents/Frameworks/libz.1.dylib");
+        assert!(fs::symlink_metadata(&alias).unwrap().file_type().is_file());
+        assert_eq!(fs::read(alias).unwrap(), b"zlib");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn nested_linux_tar_gz_package_extracts_to_one_resolvable_executable() {
+        use std::io::Write as _;
+
+        let temporary = tempfile::tempdir().unwrap();
+        let inner = temporary.path().join("Game.tar.gz");
+        {
+            let encoder = flate2::write::GzEncoder::new(
+                File::create(&inner).unwrap(),
+                flate2::Compression::default(),
+            );
+            let mut builder = tar::Builder::new(encoder);
+            for (name, bytes, mode) in [
+                ("Game", &b"main"[..], 0o755),
+                ("assets/readme.txt", &b"readme"[..], 0o644),
+            ] {
+                let mut header = tar::Header::new_gnu();
+                header.set_entry_type(tar::EntryType::Regular);
+                header.set_size(bytes.len() as u64);
+                header.set_mode(mode);
+                header.set_cksum();
+                builder.append_data(&mut header, name, bytes).unwrap();
+            }
+            builder
+                .into_inner()
+                .unwrap()
+                .finish()
+                .unwrap()
+                .flush()
+                .unwrap();
+        }
+        let outer = temporary.path().join("Game-v2.0.0-Linux-X64.zip");
+        write_test_zip(
+            &outer,
+            &[("Game.tar.gz", &fs::read(&inner).unwrap(), 0o644)],
+            &[],
+        );
+        let root = temporary.path().join("payload");
+        fs::create_dir_all(&root).unwrap();
+        extract_asset(
+            &outer,
+            &root,
+            "Game-v2.0.0-Linux-X64.zip",
+            fs::metadata(&outer).unwrap().len(),
+            true,
+            &|| Ok(()),
+        )
+        .unwrap();
+        assert!(!root.join("Game.tar.gz").exists());
+        assert!(!root.join(INNER_ARCHIVE_STAGE).exists());
+        assert_eq!(
+            resolve_executable_hints(&root, Platform::LinuxX86_64, &["Game".into()], "test")
+                .unwrap(),
+            root.join("Game")
+        );
+        assert_eq!(fs::read(root.join("assets/readme.txt")).unwrap(), b"readme");
+
+        // Without the macOS/Linux route gate the package stays exactly as extracted.
+        let kept = temporary.path().join("kept");
+        fs::create_dir_all(&kept).unwrap();
+        extract_asset(
+            &outer,
+            &kept,
+            "Game-v2.0.0-Linux-X64.zip",
+            fs::metadata(&outer).unwrap().len(),
+            false,
+            &|| Ok(()),
+        )
+        .unwrap();
+        assert!(kept.join("Game.tar.gz").is_file());
+        assert!(!kept.join("Game").exists());
+    }
+
+    #[test]
+    fn only_a_lone_inner_zip_is_unwrapped_and_inner_limits_still_apply() {
+        let temporary = tempfile::tempdir().unwrap();
+        let inner = temporary.path().join("Data.zip");
+        write_test_zip(&inner, &[("data.bin", b"data", 0o644)], &[]);
+        let inner_bytes = fs::read(&inner).unwrap();
+
+        // A package that also ships anything else keeps its ZIP exactly as extracted.
+        let mixed = temporary.path().join("mixed.zip");
+        write_test_zip(
+            &mixed,
+            &[
+                ("Data.zip", &inner_bytes, 0o644),
+                ("readme.txt", b"readme", 0o644),
+            ],
+            &[],
+        );
+        let mixed_root = temporary.path().join("mixed");
+        fs::create_dir_all(&mixed_root).unwrap();
+        extract_asset(
+            &mixed,
+            &mixed_root,
+            "mixed.zip",
+            fs::metadata(&mixed).unwrap().len(),
+            true,
+            &|| Ok(()),
+        )
+        .unwrap();
+        assert_eq!(fs::read(mixed_root.join("Data.zip")).unwrap(), inner_bytes);
+        assert!(!mixed_root.join("data.bin").exists());
+
+        // Outside macOS routes with a declared executable the lone ZIP is left as extracted.
+        let lone_root = temporary.path().join("lone");
+        fs::create_dir_all(&lone_root).unwrap();
+        let lone = temporary.path().join("lone.zip");
+        write_test_zip(&lone, &[("Data.zip", &inner_bytes, 0o644)], &[]);
+        extract_asset(
+            &lone,
+            &lone_root,
+            "lone.zip",
+            fs::metadata(&lone).unwrap().len(),
+            false,
+            &|| Ok(()),
+        )
+        .unwrap();
+        assert_eq!(fs::read(lone_root.join("Data.zip")).unwrap(), inner_bytes);
+        assert!(!lone_root.join("data.bin").exists());
+
+        // Only one level is unwrapped.
+        let doubled = temporary.path().join("doubled.zip");
+        let middle = temporary.path().join("Middle.zip");
+        write_test_zip(&middle, &[("Data.zip", &inner_bytes, 0o644)], &[]);
+        write_test_zip(
+            &doubled,
+            &[("Middle.zip", &fs::read(&middle).unwrap(), 0o644)],
+            &[],
+        );
+        let doubled_root = temporary.path().join("doubled");
+        fs::create_dir_all(&doubled_root).unwrap();
+        extract_asset(
+            &doubled,
+            &doubled_root,
+            "doubled.zip",
+            fs::metadata(&doubled).unwrap().len(),
+            true,
+            &|| Ok(()),
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read(doubled_root.join("Data.zip")).unwrap(),
+            inner_bytes
+        );
+
+        // An unsafe inner archive refuses and leaves no partial inner extraction.
+        let unsafe_inner = temporary.path().join("Unsafe.zip");
+        write_test_zip(&unsafe_inner, &[("../escape.bin", b"x", 0o644)], &[]);
+        let unsafe_outer = temporary.path().join("unsafe.zip");
+        write_test_zip(
+            &unsafe_outer,
+            &[("Unsafe.zip", &fs::read(&unsafe_inner).unwrap(), 0o644)],
+            &[],
+        );
+        let unsafe_root = temporary.path().join("unsafe");
+        fs::create_dir_all(&unsafe_root).unwrap();
+        assert!(
+            extract_asset(
+                &unsafe_outer,
+                &unsafe_root,
+                "unsafe.zip",
+                fs::metadata(&unsafe_outer).unwrap().len(),
+                true,
+                &|| Ok(()),
+            )
+            .is_err()
+        );
+        assert!(!temporary.path().join("escape.bin").exists());
+    }
 
     #[tokio::test]
     async fn uppercase_racewave_without_policy_refuses_before_contact_or_staging() {
@@ -5486,9 +5867,14 @@ mod tests {
                 sha256: hex::encode(Sha256::digest(version)),
                 size: version.len() as u64,
             };
-            extract_asset(&source, &root, &artifact.asset_name, artifact.size, &|| {
-                Ok(())
-            })
+            extract_asset(
+                &source,
+                &root,
+                &artifact.asset_name,
+                artifact.size,
+                false,
+                &|| Ok(()),
+            )
             .unwrap();
             normalize_standalone_appimage(&root, &artifact, &qualification).unwrap();
             if Path::new(&artifact.asset_name) != declared {
@@ -5559,6 +5945,7 @@ mod tests {
                 root,
                 "../escape.AppImage",
                 7,
+                false,
                 &|| Ok(()),
             )
             .is_err()

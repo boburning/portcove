@@ -34,6 +34,7 @@ import {
 import { inspectFixedJobJournalAuthorities } from "./release-authority-configuration.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { assessBoundedCapacity } from "./release-capacity.mts";
+import { inspectReleaseReviewWithdrawal } from "./release-review-withdrawal.mts";
 
 // The original immutable r45 child survives its interrupted publication. A
 // fixed catalog recovery and its exact application handoff own it.
@@ -50,6 +51,20 @@ export const retainedCatalogBootstrapClaim = {
   successor_revision: "525a89cb56a5001cc544fb1a25d1c36101d7d815",
   successor_workflow_sha256: "e8233a09bbd838f2ea551dabbe85592bfcd9776db1bd301fb6be2d502d4bcba0",
   application_ref: "refs/tags/portcove-production-controller-windows-20261108r52",
+} as const;
+
+/** r65 claimed these exact forward-adoption bytes before checkpoint signing stopped. */
+export const retainedCatalogForwardAdoptionClaim = {
+  previous: "da80188916dfc40f5d46c1eb4123bc00b9d68a8b",
+  child: "69b7ebea4a3e6bf624cdb80de5ed83d921a5289e",
+  tree: "569a58df71802fa5df13b5cbbe1a4836cb3a1961",
+  state_sha256: "0205080c70da3c411c95627c36683f13c16bc648ffbc7bc19209437b3f3a97da",
+  clock: "2026-11-10T06:30:35.317Z",
+  original_source: "f8d2429864d2d7da14ed5f47aed143641ae2d86d",
+  original_ref: "portcove-production-controller-20261110r65",
+  original_run: "42767924166",
+  original_job: 129671436946,
+  successor_ref: "refs/tags/portcove-production-controller-20261110r66",
 } as const;
 
 /** The r52 application claim already exists, so r53 may only settle these bytes. */
@@ -70,6 +85,10 @@ export const retainedApplicationReviewClaim = {
   original_run: "42514436313",
   original_job: 128836705670,
   successor_ref: "refs/tags/portcove-production-controller-windows-20261108r53",
+  successor_revision: "8d2573bf510d8c79db9bcc13d05cd927299d6625",
+  successor_workflow_sha256: "1a3c919b259130af66b9e813bc3737c9670bdbcf1a2499b730d43debd5a8d57e",
+  successor_run: "42521028980",
+  successor_job: "128856935921",
 } as const;
 
 export function isRetainedApplicationReviewClaimScope(
@@ -103,6 +122,99 @@ export function matchesRetainedCatalogBootstrapHandoff(
   );
 }
 
+/** The authenticated withdrawal appointment selects one historical input.
+ * The normal provider job and Sigstore checks still authenticate its producer. */
+export function matchesRetainedReviewWithdrawalHandoff(
+  checkpoint: { checkpoint: string; previous: string | null },
+  producer: Record<string, unknown>,
+  rawWithdrawal: unknown,
+) {
+  const withdrawal = inspectReleaseReviewWithdrawal(rawWithdrawal);
+  const retained = retainedApplicationReviewClaim;
+  return (
+    withdrawal !== null &&
+    withdrawal.request_checkpoint === retained.child &&
+    withdrawal.request_id === retained.request_id &&
+    withdrawal.source_commit === retained.source &&
+    withdrawal.source_tree === retained.source_tree &&
+    checkpoint.checkpoint === retained.child &&
+    checkpoint.previous === retained.previous &&
+    producer.controller_revision === retained.successor_revision &&
+    producer.controller_ref === retained.successor_ref &&
+    producer.workflow_sha256 === retained.successor_workflow_sha256 &&
+    producer.run_id === retained.successor_run &&
+    producer.job_id === retained.successor_job
+  );
+}
+
+/** Only catalog-purpose admission can carry the settled fd4 withdrawal into
+ * forward adoption. It still has to verify the original coordinator signature. */
+export function matchesRetainedCatalogAdoptionWithdrawal(
+  checkpoint: { checkpoint: string; previous: string | null },
+  producer: Record<string, unknown>,
+  purpose: "application" | "catalog-publication" | undefined,
+) {
+  return (
+    purpose === "catalog-publication" &&
+    checkpoint.checkpoint === "da80188916dfc40f5d46c1eb4123bc00b9d68a8b" &&
+    checkpoint.previous === retainedApplicationReviewClaim.child &&
+    producer.controller_revision === "5a572c20064f5c7bfc9fadb86996b9f1bef7c812" &&
+    producer.controller_ref === "refs/tags/portcove-production-controller-20261110r63" &&
+    producer.workflow_sha256 ===
+      "9a126152d549d913b57689404ca51bf755d88e2b0aa3d76631c4bb7e487ea136" &&
+    producer.run_id === "42755307254" &&
+    producer.job_id === "129631097635"
+  );
+}
+
+/** Carry the exact r66 adoption into the next separately admitted app or catalog operation. */
+export function matchesRetainedCatalogForwardAdoptionHandoff(
+  checkpoint: { checkpoint: string; previous: string | null },
+  producer: Record<string, unknown>,
+  source: { execution_ref: string },
+  purpose: "application" | "catalog-publication" | undefined,
+) {
+  const claim = retainedCatalogForwardAdoptionClaim;
+  return (
+    (purpose === "application" || purpose === "catalog-publication") &&
+    (source.execution_ref === "refs/tags/portcove-production-controller-20261110r67" ||
+      source.execution_ref === "refs/tags/portcove-production-controller-20261110r68") &&
+    checkpoint.checkpoint === claim.child &&
+    checkpoint.previous === claim.previous &&
+    producer.controller_revision === "d6918c546f8080bf3cb033ddb065ce9a65a4d7f2" &&
+    producer.controller_ref === claim.successor_ref &&
+    producer.workflow_sha256 ===
+      "9a126152d549d913b57689404ca51bf755d88e2b0aa3d76631c4bb7e487ea136" &&
+    producer.run_id === "42774078033" &&
+    producer.run_attempt === 1 &&
+    producer.job_id === "129690072424" &&
+    producer.check_run_id === "129690072424"
+  );
+}
+
+/** Resume the signed r68 descriptor before any context upload or feed write. */
+export function matchesRetainedApplicationRenewalHandoff(
+  checkpoint: { checkpoint: string; previous: string | null },
+  producer: Record<string, unknown>,
+  source: { execution_ref: string },
+  purpose: "application" | "catalog-publication" | undefined,
+) {
+  return (
+    purpose === "application" &&
+    source.execution_ref === "refs/tags/portcove-production-controller-20261110r69" &&
+    checkpoint.checkpoint === "86407ae8bca924200aba304340f33076e635b6e7" &&
+    checkpoint.previous === retainedCatalogForwardAdoptionClaim.child &&
+    producer.controller_revision === "9c5e7f0e33282115235fffa19d073e5cb084ffa0" &&
+    producer.controller_ref === "refs/tags/portcove-production-controller-20261110r68" &&
+    producer.workflow_sha256 ===
+      "9a126152d549d913b57689404ca51bf755d88e2b0aa3d76631c4bb7e487ea136" &&
+    producer.run_id === "42786277008" &&
+    producer.run_attempt === 1 &&
+    producer.job_id === "129733085853" &&
+    producer.check_run_id === "129733085853"
+  );
+}
+
 /** Authenticate one independently selected current head, not an ancestry walk.
  * Selected setup pins authorize only the exact empty seed. Every later head
  * must carry the existing signature plus actual fixed historical job binding.
@@ -114,6 +226,8 @@ export async function authenticateFixedJobCoordinatorHistory(
   rawSource: { revision: string; execution_ref: string; workflow_sha256: string; actor_id: string },
   deadline: number,
   api: CoordinatorCheckpointApi,
+  withdrawal?: ReturnType<typeof inspectReleaseReviewWithdrawal>,
+  purpose?: "application" | "catalog-publication",
 ) {
   const checkpoint = structuredClone(rawCheckpoint);
   const authorities = inspectFixedJobJournalAuthorities(rawAuthorities);
@@ -169,7 +283,12 @@ export async function authenticateFixedJobCoordinatorHistory(
   const subject: unknown = JSON.parse(evidence.subject.toString("utf8"));
   const producer = isRecord(subject) && isRecord(subject.producer) ? subject.producer : null;
   const retainedHandoff =
-    producer !== null && matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, source);
+    producer !== null &&
+    (matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, source) ||
+      matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, withdrawal) ||
+      matchesRetainedCatalogAdoptionWithdrawal(checkpoint, producer, purpose) ||
+      matchesRetainedCatalogForwardAdoptionHandoff(checkpoint, producer, source, purpose) ||
+      matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, purpose));
   if (
     !producer ||
     (!retainedHandoff &&

@@ -1166,3 +1166,84 @@ void test("Windows SDK collection cancels a stalled body at issuer expiry", asyn
   );
   assert.equal(dispatched, 1);
 });
+
+void test("aggregate queue status cannot substitute for the signed exact active job", async () => {
+  const profile = releaseControlPhaseProfile("coordinator");
+  const wanted = {
+    ...expected,
+    run_attempt: 1,
+    audience: profile.reader_audience,
+    subject: controllerOidcSubject(expected.controller_ref, profile.reader_environment),
+  };
+  const cases = [
+    { before: "queued", after: "queued" },
+    { before: "queued", after: "in_progress" },
+    { before: "in_progress", after: "queued" },
+    {
+      before: "queued",
+      after: "queued",
+      jobFault: "job-completed",
+      refusal: /selected assembler job changed/,
+    },
+    {
+      before: "queued",
+      after: "queued",
+      jobFault: "name-only",
+      refusal: /does not identify one active/,
+    },
+    {
+      before: "queued",
+      after: "queued",
+      jobFault: "job-inventory-terminal",
+      refusal: /does not identify one active/,
+    },
+    {
+      before: "queued",
+      after: "queued",
+      jobFault: "job-reread-terminal",
+      refusal: /selected assembler job changed/,
+    },
+    { before: "queued", after: "completed", refusal: /attempt is not active/ },
+    { before: "waiting", after: "in_progress", refusal: /attempt is not active/ },
+    {
+      before: "queued",
+      after: "queued",
+      conclusion: "cancelled",
+      refusal: /attempt is not active/,
+    },
+    { before: "queued", after: "queued", jobFault: "drift", refusal: /run identity differs/ },
+  ];
+  for (const scenario of cases) {
+    const f = fixture(
+      { aud: wanted.audience, sub: wanted.subject, environment: profile.reader_environment },
+      {},
+      { workflow: productionControllerWorkflow, job: profile.reader_name, runAttempt: 1 },
+    );
+    f.faults.value = scenario.jobFault ?? "";
+    let parentReads = 0;
+    const result = verifyReleaseControlReaderJobIdentity("coordinator", f.token, wanted, {
+      readKeys: f.readKeys,
+      transport: {
+        sdkToken: "inert-coordinator-reader",
+        deadline: performance.now() + 10000,
+        async read(route) {
+          const response = f.metadata(route);
+          if (!route.endsWith("/actions/runs/9988")) return response;
+          return {
+            ...(response as object),
+            status: parentReads++ === 0 ? scenario.before : scenario.after,
+            conclusion: scenario.conclusion ?? null,
+          };
+        },
+      },
+    });
+    if (scenario.refusal) await assert.rejects(result, scenario.refusal);
+    else {
+      const verified = await result;
+      assert.equal(verified.job_id, 501);
+      assert.equal(verified.api_requests, 5);
+      assert.equal(verified.authority, "none");
+      assert.equal(parentReads, 2);
+    }
+  }
+});

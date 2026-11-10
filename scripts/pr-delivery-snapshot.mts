@@ -144,7 +144,10 @@ interface WorkflowBinding {
   head: string;
   run: number;
   attempt: number;
+  observePublication?: true;
 }
+
+export const checkPublicationPending = "awaiting-check-publication";
 
 function workflowJobInventory(
   jobs: readonly DeliveryJob[],
@@ -273,6 +276,8 @@ export function requiredCheckContexts(
     const matches = candidates.get(context) ?? [];
     if (lineage && binding) {
       const seen = new Set<number>();
+      const latest = lineage.latestJobs.get(context);
+      let awaitingPublication = false;
       for (const observation of matches) {
         const id = observation.check_run_id;
         const job = id === undefined ? undefined : lineage.checks.get(id);
@@ -296,13 +301,30 @@ export function requiredCheckContexts(
         if (
           observation.outcome !== outcome ||
           observation.conclusion !== (job.conclusion ?? job.status)
-        )
+        ) {
+          if (
+            binding.observePublication &&
+            job === latest &&
+            job.run_attempt === binding.attempt &&
+            ((outcome === "pending" && observation.outcome === "success") ||
+              (outcome === "success" && observation.outcome === "pending"))
+          ) {
+            awaitingPublication = true;
+            continue;
+          }
           throw new Error(`required check ${context} disagrees with its workflow job`);
+        }
       }
       for (const [id, job] of lineage.checks)
         if (job.name === context && !seen.has(id))
           throw new Error(`required check ${context} job has no check observation`);
-      const latest = lineage.latestJobs.get(context);
+      if (awaitingPublication)
+        return {
+          context,
+          outcome: "pending",
+          conclusion: checkPublicationPending,
+          observations: matches,
+        };
       const selected =
         latest &&
         matches.find((observation) => lineage.checks.get(observation.check_run_id!) === latest);

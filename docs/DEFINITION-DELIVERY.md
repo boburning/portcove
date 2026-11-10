@@ -74,12 +74,54 @@ version 12. Linux acquisition binds the provider artifact and launch checks
 the effective external profile and AppImage mount and log paths. The same
 definition retains its existing Windows executable and data fallback.
 
+Native portable version 13 consumes `openmohaa-unix-v1` for the reviewed
+official OpenMoHAA Linux and Mac ZIPs. Fresh and retained entries require
+version 13. The Unix routes verify the title-specific launcher and child,
+establish executable permissions in staging, and check the effective profile
+outside managed runtimes before launch. Windows creating definitions keep
+their existing behavior.
+
+Native portable version 15 consumes the `ironwail-linux-v1` and
+`vkquake-linux-v1` external profile policies for the official Linux
+packages. Fresh and retained entries using either policy require version 15.
+The policies preserve the Windows launch contracts. Ironwail checks the
+Linux account-based profile outside managed storage. vkQuake keeps the
+managed save paths, binds the exact AppImage selection and checks its
+temporary mount location.
+
+Native portable version 16 consumes `corsixth-linux-v1` and
+`openloco-unix-v1` for their official Linux AppImages and the OpenLoco
+Apple Silicon ZIP. Fresh and retained entries require version 16. It binds
+the reviewed package and default external profile, with AppImage mount
+checks on Linux. The creating Windows definitions retain their rules.
+
+Native portable version 17 consumes `jgrpp-linux-v1` and `openglad-mac-v1`
+for the official Linux JGR Patch Pack and Apple silicon OpenGlad archives.
+Fresh and retained entries require version 17. JGR additionally declares
+the archive file links it needs. These guarded routes check default
+external profiles and use the executable's directory for packaged assets.
+The previously managed platform contracts retain their creating rules.
+
 Native portable version 10 adds official sibling packages to verified native
 original-file definitions that keep a Windows temporary directory inside their
 private profile. Fresh and retained indexed entries declaring that combination
 require version 10. The Windows launch environment and creating Windows
 contracts retain their prior semantics. The Linux sibling may use a single
 exact AppImage asset with the existing standalone installer.
+
+N64 recomp version 5 consumes the same `release.archive_file_links` declaration for
+macOS app bundles whose upstream ZIP carries dylib version links, and for macOS or
+Linux packages published as one inner ZIP or TAR.GZ inside the downloaded ZIP. Indexed entries with the declaration require an N64 version 5 lower
+bound for fresh and retained reads; older readers refuse them, and no other adapter
+accepts the declaration.
+
+Native portable version 14 consumes `release.archive_file_links` for a package
+whose archive relies on file links, such as versioned shared-library names. Core
+extracts each link as a regular copy of the file it names, following at most eight
+links inside the same archive, and refuses every other link shape. Indexed entries
+with the declaration require a Native14 lower bound for fresh and retained reads.
+Older readers refuse such an entry; other definitions keep their existing package
+contracts.
 
 Native portable version 9 consumes `external_profile_policy` for the reviewed
 Dune Dynasty and fheroes2 external profile checks. Both fresh and retained

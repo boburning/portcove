@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { coordinatorJobBudgetMilliseconds } from "./release-control-phases.mts";
 import {
   authenticateCapacityExecutor,
@@ -42,6 +43,7 @@ import {
 } from "./release-authority-configuration.mts";
 import {
   authenticateCatalogControlReaderJob,
+  authenticateCatalogReleaseControlRound,
   authenticateCatalogReleaseControlSource,
   requireAuthenticatedCatalogControlSource,
 } from "./release-live-control-admission.mts";
@@ -66,8 +68,13 @@ import { inspectCatalogInitialization } from "./release-catalog-publication-cont
 import {
   assertStandaloneBootstrapAdoptionCapacity,
   authenticateStandaloneBootstrapAdoption,
+  selectCatalogBootstrapRecovery,
 } from "./release-catalog-bootstrap-adoption.mts";
-import { standaloneBootstrapAdoption } from "./release-metadata-contract.mts";
+import {
+  inspectPublishedMetadata,
+  isStandaloneBootstrapForwardPreimage,
+  standaloneBootstrapAdoption,
+} from "./release-metadata-contract.mts";
 import {
   currentPublishedSite,
   inspectPublishedCatalogMetadata,
@@ -87,8 +94,14 @@ import {
   publishCoordinatorCheckpoint,
 } from "./release-coordinator-remote.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
-import { retainedCatalogBootstrapClaim } from "./release-coordinator-checkpoint-authentication.mts";
-import { checkpointReleaseOpportunity } from "./release-coordinator-state.mts";
+import {
+  retainedCatalogBootstrapClaim,
+  retainedCatalogForwardAdoptionClaim,
+} from "./release-coordinator-checkpoint-authentication.mts";
+import {
+  checkpointReleaseOpportunity,
+  exportCoordinatorCheckpoint,
+} from "./release-coordinator-state.mts";
 import { planReleaseOpportunity } from "./release-coordinator.mts";
 import { collectReleaseSourceChangesWithSdk } from "./release-source-changes.mts";
 import { createPublicationInventoryWithSdk } from "./release-publication-inventory.mts";
@@ -103,6 +116,7 @@ import {
   retainControlStepLocator,
   retainCatalogCoordinatorRefusal,
   inspectCatalogCheckpointRefusal,
+  inspectCheckpointSigningProgress,
   type CatalogCoordinatorRefusalStage,
 } from "./release-control-step-bridge.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
@@ -311,7 +325,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
             phaseDeadline: deadline,
           },
         );
-        const controls = await authenticateCatalogReleaseControlSource(
+        let controls = await authenticateCatalogReleaseControlSource(
           { ...process.env, GH_TOKEN: readerToken },
           workflow,
           {
@@ -324,10 +338,35 @@ export async function runFixedCatalogCoordinatorConfiguration(
         requireAuthenticatedCatalogControlSource(controls, "coordinator");
         if (controls.evidence_scope !== "github.com")
           throw new Error("actual catalog controls required");
-        const readMaintenance = () =>
+        const read = () =>
           controls.readSdkMaintenance(undefined, { deadline, maxBytes: 16 * 1024 ** 2 });
-        const observed = await readMaintenance(),
+        const observed = await read(),
           stable = catalogCoordinatorMaintenanceIdentity(observed);
+        let current = observed,
+          round = 0;
+        const readMaintenance = async () => {
+          check();
+          if (Date.now() - Date.parse(current.protection.observed_at) >= 30000) {
+            if (++round > 14) throw new Error("catalog coordinator control rounds exhausted");
+            controls = await authenticateCatalogReleaseControlRound(
+              path.join(directory, `catalog-bootstrap-control-${round}`),
+              subjectSha256,
+              "coordinator",
+              round,
+              { deadline, controlReader: "catalog-maintenance" },
+            );
+          }
+          current = await read();
+          if (
+            controls.evidence_scope !== "github.com" ||
+            current.reader.job_id !== reader.identity.job_id ||
+            current.reader.check_run_id !== reader.identity.check_run_id ||
+            catalogCoordinatorMaintenanceIdentity(current) !== stable
+          )
+            throw new Error("catalog coordinator maintenance identity changed");
+          check();
+          return current;
+        };
         if (
           observed.reader.job_id !== reader.identity.job_id ||
           observed.reader.check_run_id !== reader.identity.check_run_id
@@ -404,6 +443,14 @@ export async function runFixedCatalogCoordinatorConfiguration(
         );
         if (claimedChild !== undefined && persisted.checkpoint !== claimedChild)
           throw new Error("reconstructed adoption differs from the retained claimed child");
+        if (claimedChild === retainedCatalogForwardAdoptionClaim.child) {
+          const exact = await exportCoordinatorCheckpoint(recovered.repository, claimedChild);
+          if (
+            createHash("sha256").update(exact.blob.contents).digest("hex") !==
+            retainedCatalogForwardAdoptionClaim.state_sha256
+          )
+            throw new Error("forward adoption recovery state bytes differ");
+        }
         if (signedJournal)
           await publishOwnedSignedCoordinatorCheckpoint(
             executor,
@@ -423,24 +470,32 @@ export async function runFixedCatalogCoordinatorConfiguration(
           throw new Error("catalog journal CAS readback differs; retain original");
         return readback;
       };
+      const adoptForward =
+        isStandaloneBootstrapForwardPreimage(inspectPublishedMetadata(input.published_metadata)) &&
+        !Object.hasOwn(input, "published_site") &&
+        input.review_request == null &&
+        input.review_disposition == null &&
+        input.metadata_renewal == null &&
+        input.published_catalog_metadata == null &&
+        input.catalog_initialization == null &&
+        input.catalog_publication == null &&
+        input.catalog_review_request == null &&
+        input.catalog_review_disposition == null;
       if (
-        input.published_metadata == null &&
+        (input.published_metadata == null || adoptForward) &&
         input.metadata_bootstrap != null &&
         capacityDigest(input.metadata_bootstrap) ===
           standaloneBootstrapAdoption.abandoned_descriptor_sha256 &&
         input.active_candidate === null &&
         !unresolved(input)
       ) {
-        const resumeClaim =
-          reader.admitted.execution_ref === retainedCatalogBootstrapClaim.successor_ref;
-        if (resumeClaim) {
-          if (
-            reader.admitted.run_attempt !== 1 ||
-            recovered.checkpoint !== retainedCatalogBootstrapClaim.previous
-          )
-            throw new Error(
-              "claimed bootstrap recovery requires its original predecessor and one successor attempt",
-            );
+        const claim = selectCatalogBootstrapRecovery(
+          reader.admitted.execution_ref,
+          reader.admitted.run_attempt,
+          recovered.checkpoint,
+          adoptForward,
+        );
+        if (claim) {
           const provider = await createReleaseCustodyProvider({
             token: readerToken,
             deadline,
@@ -448,18 +503,18 @@ export async function runFixedCatalogCoordinatorConfiguration(
             beforeDispatch: checkDirectSource,
           });
           const [run, job, child] = await Promise.all([
-            provider.attempt(retainedCatalogBootstrapClaim.original_run, 1),
-            provider.job(retainedCatalogBootstrapClaim.original_job),
-            provider.commit(retainedCatalogBootstrapClaim.child),
+            provider.attempt(claim.original_run, 1),
+            provider.job(claim.original_job),
+            provider.commit(claim.child),
           ]);
           if (
             !isRecord(run) ||
-            run.id !== Number(retainedCatalogBootstrapClaim.original_run) ||
+            run.id !== Number(claim.original_run) ||
             run.run_attempt !== 1 ||
             run.event !== "workflow_dispatch" ||
             run.path !== ".github/workflows/application-update-production.yml" ||
-            run.head_sha !== retainedCatalogBootstrapClaim.original_source ||
-            run.head_branch !== retainedCatalogBootstrapClaim.original_ref ||
+            run.head_sha !== claim.original_source ||
+            run.head_branch !== claim.original_ref ||
             run.status !== "completed" ||
             run.conclusion !== "failure" ||
             !isRecord(run.actor) ||
@@ -467,20 +522,20 @@ export async function runFixedCatalogCoordinatorConfiguration(
             !isRecord(run.triggering_actor) ||
             run.triggering_actor.id !== 41898282 ||
             !isRecord(job) ||
-            job.id !== retainedCatalogBootstrapClaim.original_job ||
-            job.run_id !== Number(retainedCatalogBootstrapClaim.original_run) ||
+            job.id !== claim.original_job ||
+            job.run_id !== Number(claim.original_run) ||
             job.run_attempt !== 1 ||
             job.name !== "Coordinate application release" ||
-            job.head_sha !== retainedCatalogBootstrapClaim.original_source ||
+            job.head_sha !== claim.original_source ||
             job.status !== "completed" ||
             job.conclusion !== "failure"
           )
             throw new Error("retained claimed bootstrap producer identity differs");
-          const exact = inspectRemoteCommitObject(child, retainedCatalogBootstrapClaim.child);
+          const exact = inspectRemoteCommitObject(child, claim.child);
           if (
-            exact.tree !== retainedCatalogBootstrapClaim.tree ||
+            exact.tree !== claim.tree ||
             exact.parents.length !== 1 ||
-            exact.parents[0] !== retainedCatalogBootstrapClaim.previous
+            exact.parents[0] !== claim.previous
           )
             throw new Error("retained claimed bootstrap child or parent differs");
         }
@@ -490,6 +545,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
           tools,
           deadline,
           (next) => (stage = next),
+          adoptForward,
         );
         stage = "standalone-application-bootstrap-observer";
         const { readMaintenance, observed, stable } = await observeControls(
@@ -529,7 +585,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
           await assertCurrent();
           check();
         };
-        const now = resumeClaim ? retainedCatalogBootstrapClaim.clock : new Date().toISOString();
+        const now = claim?.clock ?? new Date().toISOString();
         const next = {
           ...input,
           now,
@@ -542,20 +598,21 @@ export async function runFixedCatalogCoordinatorConfiguration(
           published_metadata: metadata,
         };
         stage = "standalone-application-bootstrap-CAS";
-        const readback = await publishCheckpoint(
-          next,
-          checkpointControls,
-          resumeClaim ? retainedCatalogBootstrapClaim.child : undefined,
-        );
+        const readback = await publishCheckpoint(next, checkpointControls, claim?.child);
         if (capacityDigest(readback.input.published_metadata) !== capacityDigest(metadata))
           throw new Error("standalone bootstrap journal adoption readback differs");
         return held(
           directory,
           readback.checkpoint,
-          "exact standalone application bootstrap adopted; next wake can review catalog",
+          adoptForward
+            ? "exact standalone application renewal adopted; next wake can review catalog"
+            : "exact standalone application bootstrap adopted; next wake can review catalog",
         );
       }
-      if (reader.admitted.execution_ref === retainedCatalogBootstrapClaim.successor_ref)
+      if (
+        reader.admitted.execution_ref === retainedCatalogBootstrapClaim.successor_ref ||
+        reader.admitted.execution_ref === retainedCatalogForwardAdoptionClaim.successor_ref
+      )
         throw new Error("claimed bootstrap recovery ref has no further operation authority");
       const pending = inspectCatalogReviewRequest(input.catalog_review_request),
         history = inspectCatalogReviewDisposition(input.catalog_review_disposition),
@@ -966,8 +1023,11 @@ export async function runFixedCatalogCoordinatorConfiguration(
             ) {
               if (failure.phase === "identity" && failure.remote_effect === "not-attempted")
                 exchange.signer = "identity-not-attempted";
-              if (failure.phase === "signing" && failure.remote_effect === "unknown")
+              if (failure.phase === "signing" && failure.remote_effect === "unknown") {
                 exchange.signer = "signing-effect-unknown";
+                const progress = inspectCheckpointSigningProgress(failure.transport);
+                if (progress) exchange.signer_progress = progress;
+              }
             }
           } catch {
             // The exchange phase remains available when signer custody was never created.

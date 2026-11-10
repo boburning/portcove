@@ -138,6 +138,7 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         ("n64-recomp-portable", 2),
         ("n64-recomp-portable", 3),
         ("n64-recomp-portable", 4),
+        ("n64-recomp-portable", 5),
         ("psx-recomp-managed", 2),
         ("native-portable", 2),
         ("native-portable", 3),
@@ -150,6 +151,8 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         ("native-portable", 10),
         ("native-portable", 11),
         ("native-portable", 12),
+        ("native-portable", 13),
+        ("native-portable", 14),
     ] {
         assert!(expected.insert(capability));
     }
@@ -159,6 +162,9 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     for version in staged_versions {
         assert!(expected.insert(("staged-source-portable", version)));
     }
+    assert!(expected.insert(("native-portable", 15)));
+    assert!(expected.insert(("native-portable", 16)));
+    assert!(expected.insert(("native-portable", 17)));
     for retired in [6, 7, 9, 13, 14] {
         assert!(!pairs.contains(&("staged-source-portable", retired)));
     }

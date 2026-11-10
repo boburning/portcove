@@ -336,6 +336,31 @@ export const standaloneBootstrapRenewalAdoption = {
   publication_sha256: "c3b7ee8ace1531e52a4be5bb9b0fac45f4d0f208cabd5d55195f1d351b7e8cb2",
 } as const;
 
+export const standaloneBootstrapForwardAdoption = {
+  prior_run_id: "42459134017",
+  prior_job_id: "128666005038",
+  prior_repository_sha256: "2f09956c9673b69a37fff2556e611af654adf4141f80ffc24a2d207d7873354e",
+  run_id: "42583959281",
+  feed_job_id: "129051933704",
+  revision: "719851091491cb0db93cb0b42fee3838fce9672b",
+  generation: "fa46b99d77acb7bcbd09a699884522cf6afec098692202e13ebd0b627827fada",
+  publication_sha256: "5b320322ad87a97e3fcb307bb6750f0218693993953ee5b7f37be01e9e99fd33",
+} as const;
+
+export function isStandaloneBootstrapForwardPreimage(
+  published: ReturnType<typeof inspectPublishedMetadata>,
+) {
+  const successor = standaloneBootstrapForwardAdoption;
+  return (
+    published?.standalone_bootstrap_run === successor.prior_run_id &&
+    published.repository_sha256 === successor.prior_repository_sha256 &&
+    published.publication.site_generation_sha256 ===
+      standaloneBootstrapRenewalAdoption.generation &&
+    published.publication.remote_identity ===
+      `https://github.com/boburning/portcove/actions/runs/${successor.prior_run_id}/job/${successor.prior_job_id}`
+  );
+}
+
 function isStandaloneBootstrapRun(raw: unknown): raw is string {
   return (
     typeof raw === "string" && /^[1-9][0-9]{0,15}$/u.test(raw) && Number.isSafeInteger(Number(raw))
@@ -360,6 +385,12 @@ function matchesStandaloneBootstrapPublication(
       job === String(standaloneBootstrapAdoption.feed_job_id) &&
       publication.site_generation_sha256 === standaloneBootstrapAdoption.generation &&
       digest(facts) === standaloneBootstrapAdoption.publication_sha256
+    );
+  if (run === standaloneBootstrapForwardAdoption.run_id)
+    return (
+      job === standaloneBootstrapForwardAdoption.feed_job_id &&
+      publication.site_generation_sha256 === standaloneBootstrapForwardAdoption.generation &&
+      digest(facts) === standaloneBootstrapForwardAdoption.publication_sha256
     );
   return (
     isStandaloneBootstrapRun(job) &&
@@ -414,8 +445,13 @@ export function validatePublishedMetadataTransition(
   if (after.standalone_bootstrap_run) {
     const { operation_id, expires } = after;
     const selected = standaloneBootstrapAdoption;
+    const forward = after.standalone_bootstrap_run === standaloneBootstrapForwardAdoption.run_id;
     if (
-      before ||
+      (forward
+        ? !isStandaloneBootstrapForwardPreimage(before) ||
+          Object.hasOwn(previous, "published_site") ||
+          Object.hasOwn(next, "published_site")
+        : before !== null) ||
       operation_id !== null ||
       operation != null ||
       previous.active_candidate !== null ||
@@ -432,7 +468,9 @@ export function validatePublishedMetadataTransition(
       digest(next.metadata_bootstrap) !== selected.abandoned_descriptor_sha256
     )
       throw new Error(
-        "standalone bootstrap adoption differs from exact empty journal and publication",
+        forward
+          ? "standalone bootstrap renewal differs from exact predecessor journal and publication"
+          : "standalone bootstrap adoption differs from exact empty journal and publication",
       );
     const now = typeof next.now === "string" ? Date.parse(next.now) : NaN;
     if (!Number.isFinite(now) || new Date(now).toISOString() !== next.now)

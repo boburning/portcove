@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import { readClosingRelationships } from "./closure-intent.mts";
 import {
   assertSuccessfulWorkflowJobs,
+  checkPublicationPending,
   requiredCheckContexts,
   validateMergeCandidate,
   validateMergeMessage,
@@ -205,7 +206,7 @@ export interface WatchClient {
     number: number,
     head: string,
     contexts: string[],
-    binding?: { run: number; attempt: number },
+    binding?: { run: number; attempt: number; observePublication?: true },
   ): Promise<WatchState>;
   workflowJobs?(run: number, attempt: number): Promise<DeliveryJob[]>;
 }
@@ -573,7 +574,7 @@ export class PullRequestDeliveryClient {
     number: number,
     head: string,
     requiredContexts: string[],
-    binding?: { run: number; attempt: number },
+    binding?: { run: number; attempt: number; observePublication?: true },
   ) {
     const pull = await this.pull(number);
     if (pull.head.sha !== head)
@@ -946,6 +947,7 @@ export async function watchRequiredChecks(
     sleep ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
   let observed: DeliveryWorkflow | null = null;
   let state: WatchState | null = null;
+  let publicationRecheckUsed = false;
   const evidence = () => ({
     pull_request: number,
     head,
@@ -970,7 +972,11 @@ export async function watchRequiredChecks(
     try {
       client.beginObservation?.();
       observed = await client.workflowRun(run);
-      state = await client.requiredCheckState(number, head, requiredContexts, { run, attempt });
+      state = await client.requiredCheckState(number, head, requiredContexts, {
+        run,
+        attempt,
+        observePublication: true,
+      });
       try {
         observe({
           format: 1,
@@ -1027,6 +1033,9 @@ export async function watchRequiredChecks(
           .join(", ")}`,
         evidence(),
       );
+    const publicationPending = state.contexts.some(
+      (context) => context.conclusion === checkPublicationPending,
+    );
     if (observed.status === "completed") {
       if (observed.conclusion !== "success")
         throw deliveryOutcomeError(
@@ -1095,11 +1104,17 @@ export async function watchRequiredChecks(
           },
         };
       }
-      throw deliveryOutcomeError(
-        "failed",
-        "identified workflow succeeded but required exact-head gates remain missing or pending",
-        evidence(),
-      );
+      if (
+        state.contexts.some(
+          (context) =>
+            context.outcome !== "success" && context.conclusion !== checkPublicationPending,
+        )
+      )
+        throw deliveryOutcomeError(
+          "failed",
+          "identified workflow succeeded but required exact-head gates remain missing or pending",
+          evidence(),
+        );
     }
     if (now() >= deadlineMs)
       throw deliveryOutcomeError(
@@ -1110,7 +1125,9 @@ export async function watchRequiredChecks(
           .join(", ")}`,
         evidence(),
       );
-    await pause(Math.min(180_000, Math.max(0, deadlineMs - now())));
+    const interval = publicationPending && !publicationRecheckUsed ? 2_000 : 180_000;
+    publicationRecheckUsed ||= publicationPending;
+    await pause(Math.min(interval, Math.max(0, deadlineMs - now())));
   }
 }
 

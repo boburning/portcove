@@ -57,7 +57,8 @@
       "repository": "HarvestMoon64Recomp/HarvestMoon64Recomp",
       "asset_hints": {
         "linux-x86-64": ["Linux-X64.zip"]
-      }
+      },
+      "archive_file_links": true
     },
     "source_profile": "harvest-moon-64",
     "executable_hints": {

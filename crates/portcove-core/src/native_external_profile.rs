@@ -3,6 +3,7 @@
 use std::{
     ffi::{OsStr, OsString},
     fs,
+    io::Read,
     path::{Component, Path, PathBuf},
     process::Command,
 };
@@ -12,8 +13,49 @@ use crate::{
     PortcoveError, ReleaseSource, Result,
 };
 
+pub(crate) mod archive_siblings;
+pub(crate) mod openmohaa;
+pub(crate) mod profile_siblings;
+pub(crate) mod quake_linux;
+
+fn read_amd64_elf_header(executable: &Path) -> Result<[u8; 20]> {
+    let mut file = crate::external_runtime::open_single_link_file(executable)?;
+    let mut header = [0; 20];
+    file.read_exact(&mut header)?;
+    if !header.starts_with(b"\x7fELF\x02\x01") || !matches!(&header[16..20], [2 | 3, 0, 0x3e, 0]) {
+        return Err(PortcoveError::verification(
+            "the package no longer contains the expected Linux x86-64 executable",
+        ));
+    }
+    Ok(header)
+}
+
+fn require_type2_appimage(executable: &Path) -> Result<()> {
+    let header = read_amd64_elf_header(executable)?;
+    if &header[8..11] != b"AI\x02" {
+        return Err(PortcoveError::verification(
+            "the package is not a type-2 AppImage",
+        ));
+    }
+    Ok(())
+}
+
+fn require_arm64_macho(executable: &Path, message: &str) -> Result<()> {
+    let mut file = crate::external_runtime::open_single_link_file(executable)?;
+    let mut header = [0; 16];
+    file.read_exact(&mut header)?;
+    if !header.starts_with(&[0xcf, 0xfa, 0xed, 0xfe, 12, 0, 0, 1]) || header[12..] != [2, 0, 0, 0] {
+        return Err(PortcoveError::verification(message));
+    }
+    Ok(())
+}
+
 pub(crate) fn minimum_capability(policy: ExternalProfilePolicy) -> u32 {
     match policy {
+        ExternalProfilePolicy::JgrppLinuxV1 | ExternalProfilePolicy::OpengladMacV1 => 17,
+        ExternalProfilePolicy::CorsixthLinuxV1 | ExternalProfilePolicy::OpenlocoUnixV1 => 16,
+        ExternalProfilePolicy::IronwailLinuxV1 | ExternalProfilePolicy::VkquakeLinuxV1 => 15,
+        ExternalProfilePolicy::OpenmohaaUnixV1 => 13,
         ExternalProfilePolicy::RecompAppimageV1 => 12,
         ExternalProfilePolicy::Openrct2MacV1 => 11,
         ExternalProfilePolicy::DuneDynastyAllegroV1 | ExternalProfilePolicy::Fheroes2V1 => 9,
@@ -26,6 +68,15 @@ pub(crate) fn applies_to(policy: ExternalProfilePolicy, platform: Platform) -> b
             matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64)
         }
         ExternalProfilePolicy::RecompAppimageV1 => platform == Platform::LinuxX86_64,
+        ExternalProfilePolicy::OpenmohaaUnixV1 => openmohaa::applies_to(platform),
+        ExternalProfilePolicy::IronwailLinuxV1 | ExternalProfilePolicy::VkquakeLinuxV1 => {
+            platform == Platform::LinuxX86_64
+        }
+        ExternalProfilePolicy::CorsixthLinuxV1 | ExternalProfilePolicy::OpenlocoUnixV1 => {
+            profile_siblings::applies_to(policy, platform)
+        }
+        ExternalProfilePolicy::JgrppLinuxV1 => platform == Platform::LinuxX86_64,
+        ExternalProfilePolicy::OpengladMacV1 => platform == Platform::MacosAarch64,
         _ => true,
     }
 }
@@ -63,6 +114,40 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
         ExternalProfilePolicy::RecompAppimageV1 => {
             (None, &[Platform::WindowsX86_64, Platform::LinuxX86_64])
         }
+        ExternalProfilePolicy::OpenmohaaUnixV1 => (
+            None,
+            &[
+                Platform::WindowsX86_64,
+                Platform::LinuxX86_64,
+                Platform::MacosX86_64,
+                Platform::MacosAarch64,
+            ],
+        ),
+        ExternalProfilePolicy::IronwailLinuxV1
+        | ExternalProfilePolicy::VkquakeLinuxV1
+        | ExternalProfilePolicy::CorsixthLinuxV1 => {
+            (None, &[Platform::WindowsX86_64, Platform::LinuxX86_64])
+        }
+        ExternalProfilePolicy::OpenlocoUnixV1 => (
+            None,
+            &[
+                Platform::WindowsX86_64,
+                Platform::LinuxX86_64,
+                Platform::MacosAarch64,
+            ],
+        ),
+        ExternalProfilePolicy::JgrppLinuxV1 => (
+            Some(("jgrennison-openttd-patches", "JGRennison/OpenTTD-patches")),
+            &[Platform::WindowsX86_64, Platform::LinuxX86_64],
+        ),
+        ExternalProfilePolicy::OpengladMacV1 => (
+            Some(("gladiator-openglad", "openglad/openglad")),
+            &[
+                Platform::WindowsX86_64,
+                Platform::LinuxX86_64,
+                Platform::MacosAarch64,
+            ],
+        ),
     };
     if identity.is_some_and(|(id, repo)| {
         port.id != id || !port.release.repository.eq_ignore_ascii_case(repo)
@@ -72,11 +157,17 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
             .platforms
             .iter()
             .any(|platform| !platforms.contains(platform))
-        || !port.launch_arguments.is_empty()
+        || (!quake_linux::applies(policy) && !port.launch_arguments.is_empty())
         || !port.launch_environment.is_empty()
         || port.user_data_environment.is_some()
         || port.source_environment.is_some()
-        || (policy != ExternalProfilePolicy::RecompAppimageV1 && !port.persistent_paths.is_empty())
+        || (!matches!(
+            policy,
+            ExternalProfilePolicy::RecompAppimageV1
+                | ExternalProfilePolicy::OpenmohaaUnixV1
+                | ExternalProfilePolicy::JgrppLinuxV1
+        ) && !quake_linux::applies(policy)
+            && !port.persistent_paths.is_empty())
         || !port.persistent_file_patterns.is_empty()
         || !port.runtime_mutable_paths.is_empty()
         || !port.runtime_mutable_file_patterns.is_empty()
@@ -91,6 +182,18 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
     }
     if policy == ExternalProfilePolicy::RecompAppimageV1 {
         validate_recomp_appimage_layout(port)?;
+    }
+    if policy == ExternalProfilePolicy::OpenmohaaUnixV1 {
+        openmohaa::validate(port)?;
+    }
+    if quake_linux::applies(policy) {
+        quake_linux::validate(port, policy)?;
+    }
+    if profile_siblings::applies(policy) {
+        profile_siblings::validate(port, policy)?;
+    }
+    if archive_siblings::applies(policy) {
+        archive_siblings::validate(port, policy)?;
     }
     if policy == ExternalProfilePolicy::Openrct2MacV1 {
         let mut mac_routes = port
@@ -221,7 +324,15 @@ fn linux_root(
     root.push(match policy {
         ExternalProfilePolicy::DuneDynastyAllegroV1 => "dunedynasty",
         ExternalProfilePolicy::Fheroes2V1 => "fheroes2",
-        ExternalProfilePolicy::Openrct2MacV1 | ExternalProfilePolicy::RecompAppimageV1 => {
+        ExternalProfilePolicy::Openrct2MacV1
+        | ExternalProfilePolicy::RecompAppimageV1
+        | ExternalProfilePolicy::OpenmohaaUnixV1
+        | ExternalProfilePolicy::IronwailLinuxV1
+        | ExternalProfilePolicy::VkquakeLinuxV1
+        | ExternalProfilePolicy::CorsixthLinuxV1
+        | ExternalProfilePolicy::OpenlocoUnixV1
+        | ExternalProfilePolicy::JgrppLinuxV1
+        | ExternalProfilePolicy::OpengladMacV1 => {
             return Err(PortcoveError::unsupported(
                 "this profile uses a different upstream layout",
             ));
@@ -244,8 +355,8 @@ fn openrct2_mac_root(account_home: Option<&OsStr>) -> Result<PathBuf> {
     Ok(home.join("Library/Application Support/OpenRCT2"))
 }
 
-#[cfg(any(target_os = "macos", all(test, unix)))]
-fn macos_account_home() -> Result<Option<OsString>> {
+#[cfg(unix)]
+fn unix_account_home() -> Result<Option<OsString>> {
     use std::{ffi::CStr, mem::MaybeUninit, os::unix::ffi::OsStrExt, ptr};
 
     let mut entry = MaybeUninit::<libc::passwd>::uninit();
@@ -273,9 +384,7 @@ fn macos_account_home() -> Result<Option<OsString>> {
     let home = unsafe {
         let home = entry.assume_init().pw_dir;
         if home.is_null() {
-            return Err(PortcoveError::launch(
-                "OpenRCT2 account home is unavailable",
-            ));
+            return Ok(None);
         }
         CStr::from_ptr(home)
     };
@@ -288,9 +397,30 @@ fn roots(
     command: &Command,
 ) -> Result<Vec<PathBuf>> {
     match (policy, platform) {
+        #[cfg(unix)]
+        (policy, platform) if archive_siblings::applies(policy) && applies_to(policy, platform) => {
+            archive_siblings::profile_roots(policy, command)
+        }
+        #[cfg(unix)]
+        (policy, platform) if profile_siblings::applies_to(policy, platform) => {
+            Ok(vec![profile_siblings::profile_root(
+                policy, platform, command,
+            )?])
+        }
+        #[cfg(target_os = "linux")]
+        (ExternalProfilePolicy::IronwailLinuxV1, Platform::LinuxX86_64) => {
+            Ok(vec![quake_linux::ironwail_profile_root(
+                unix_account_home()?.as_deref(),
+                environment(command, "HOME").as_deref(),
+            )?])
+        }
+        (ExternalProfilePolicy::VkquakeLinuxV1, Platform::LinuxX86_64) => Ok(Vec::new()),
+        (ExternalProfilePolicy::OpenmohaaUnixV1, platform) if openmohaa::applies_to(platform) => {
+            Ok(vec![openmohaa::profile_root(platform, command)?])
+        }
         #[cfg(any(target_os = "macos", all(test, unix)))]
         (ExternalProfilePolicy::Openrct2MacV1, Platform::MacosX86_64 | Platform::MacosAarch64) => {
-            Ok(vec![openrct2_mac_root(macos_account_home()?.as_deref())?])
+            Ok(vec![openrct2_mac_root(unix_account_home()?.as_deref())?])
         }
         (_, Platform::LinuxX86_64) => Ok(vec![
             linux_root(command, policy, "XDG_CONFIG_HOME", ".config")?,
@@ -337,17 +467,13 @@ fn check_dune_path(path: &Path, platform: Platform) -> Result<()> {
 }
 
 #[cfg(target_os = "linux")]
-fn recomp_appimage_roots(
-    spec: &LaunchSpec,
-    command: &Command,
-    uid: u32,
-) -> Result<(Vec<PathBuf>, PathBuf)> {
+fn require_appimage_layout(spec: &LaunchSpec) -> Result<&str> {
     let stem = spec
         .executable
         .file_name()
         .and_then(OsStr::to_str)
         .and_then(appimage_stem)
-        .ok_or_else(|| PortcoveError::launch("the managed recomp AppImage name changed"))?;
+        .ok_or_else(|| PortcoveError::launch("the managed AppImage name changed"))?;
     if spec.executable.as_os_str().len() >= 4088 {
         return Err(PortcoveError::launch(
             "the AppImage executable path is too long",
@@ -368,7 +494,16 @@ fn recomp_appimage_roots(
             Err(error) => return Err(error.into()),
         }
     }
+    Ok(stem)
+}
 
+#[cfg(target_os = "linux")]
+fn recomp_appimage_roots(
+    spec: &LaunchSpec,
+    command: &Command,
+    uid: u32,
+) -> Result<(Vec<PathBuf>, PathBuf)> {
+    let stem = require_appimage_layout(spec)?;
     let personal_base = |value: Option<&OsStr>, name| {
         let path = require_absolute(value, name)?;
         if path.parent().is_none() {
@@ -390,8 +525,19 @@ fn recomp_appimage_roots(
         // /tmp is not a personal state root.
         None => personal_base(home.as_deref(), "HOME")?.join(".local/state"),
     };
-    // Unlike the player, the AppImage runtime treats an explicitly empty
-    // TMPDIR as a value, yielding a mount path under the filesystem root.
+    Ok((
+        vec![
+            config.join(&data),
+            state.join(&data),
+            PathBuf::from("/tmp").join(format!("{data}-{uid}")),
+        ],
+        appimage_mount_root(command)?,
+    ))
+}
+
+#[cfg(target_os = "linux")]
+fn appimage_mount_root(command: &Command) -> Result<PathBuf> {
+    // An explicitly empty TMPDIR would put the AppImage mount under "/".
     let temporary = environment(command, "TMPDIR");
     let temporary = require_absolute(
         Some(temporary.as_deref().unwrap_or(OsStr::new("/tmp"))),
@@ -400,14 +546,19 @@ fn recomp_appimage_roots(
     if temporary.as_os_str().len() >= 4036 {
         return Err(PortcoveError::launch("the AppImage mount path is too long"));
     }
-    Ok((
-        vec![
-            config.join(&data),
-            state.join(&data),
-            PathBuf::from("/tmp").join(format!("{data}-{uid}")),
-        ],
-        temporary,
-    ))
+    Ok(temporary)
+}
+
+#[cfg(target_os = "linux")]
+fn check_appimage_mount_root(temporary: &Path, uid: u32, owned: &[PathBuf]) -> Result<()> {
+    check_appimage_directory(temporary, uid, true)?;
+    let resolved = crate::path::resolve_existing_ancestor(temporary)?;
+    if owned.iter().any(|root| resolved.starts_with(root)) {
+        return Err(PortcoveError::launch(
+            "The AppImage needs a temporary mount location outside the managed runtime.",
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(target_os = "linux")]
@@ -552,14 +703,27 @@ pub(crate) fn require_external_roots(
             Err(error) => return Err(error.into()),
         }
     }
+    if policy == ExternalProfilePolicy::OpenmohaaUnixV1 {
+        openmohaa::require_launch_paths(spec)?;
+    }
+    if archive_siblings::applies(policy) {
+        archive_siblings::require_launch_layout(policy, spec, command, checkpoint)?;
+    }
     let owned = library
         .output_roots()?
         .into_iter()
         .map(|record| record.path)
         .chain([library.versions_dir(), spec.install_root.clone()])
         .chain(
-            (policy == ExternalProfilePolicy::RecompAppimageV1)
-                .then(|| library.root().to_path_buf()),
+            (quake_linux::applies(policy)
+                || profile_siblings::applies(policy)
+                || archive_siblings::applies(policy)
+                || matches!(
+                    policy,
+                    ExternalProfilePolicy::RecompAppimageV1
+                        | ExternalProfilePolicy::OpenmohaaUnixV1
+                ))
+            .then(|| library.root().to_path_buf()),
         )
         .map(|path| crate::path::resolve_existing_ancestor(&path))
         .collect::<Result<Vec<_>>>()?;
@@ -568,13 +732,7 @@ pub(crate) fn require_external_roots(
         {
             let (roots, temporary) = recomp_appimage_roots(spec, command, uid)?;
             checkpoint()?;
-            check_appimage_directory(&temporary, uid, true)?;
-            let resolved = crate::path::resolve_existing_ancestor(&temporary)?;
-            if owned.iter().any(|root| resolved.starts_with(root)) {
-                return Err(PortcoveError::launch(
-                    "The AppImage needs a temporary mount location outside the managed runtime.",
-                ));
-            }
+            check_appimage_mount_root(&temporary, uid, &owned)?;
             for root in &roots[..2] {
                 checkpoint()?;
                 check_appimage_directory(root, uid, false)?;
@@ -586,8 +744,23 @@ pub(crate) fn require_external_roots(
             "the recomp AppImage requires Linux",
         ));
     } else {
+        #[cfg(target_os = "linux")]
+        if policy == ExternalProfilePolicy::VkquakeLinuxV1
+            || (platform == Platform::LinuxX86_64 && profile_siblings::applies(policy))
+        {
+            require_appimage_layout(spec)?;
+            checkpoint()?;
+            check_appimage_mount_root(&appimage_mount_root(command)?, uid, &owned)?;
+        }
         roots(policy, platform, command)?
     };
+    #[cfg(target_os = "linux")]
+    if profile_siblings::applies(policy) && platform == Platform::LinuxX86_64 {
+        for root in &profile_roots {
+            checkpoint()?;
+            check_appimage_directory(root, uid, false)?;
+        }
+    }
     let mut checked = Vec::new();
     for root in profile_roots {
         checkpoint()?;
@@ -614,8 +787,13 @@ pub(crate) fn require_external_roots(
                 "game profile",
                 |path, _| {
                     checkpoint()?;
+                    if policy == ExternalProfilePolicy::JgrppLinuxV1 {
+                        archive_siblings::check_jgr_profile_plugin(&root, path)?;
+                    }
                     #[cfg(target_os = "linux")]
-                    if policy == ExternalProfilePolicy::RecompAppimageV1 {
+                    if policy == ExternalProfilePolicy::RecompAppimageV1
+                        || (platform == Platform::LinuxX86_64 && profile_siblings::applies(policy))
+                    {
                         check_appimage_profile_entry(path, uid)?;
                     }
                     #[cfg(not(target_os = "linux"))]
@@ -632,6 +810,131 @@ pub(crate) fn require_external_roots(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{ChildProcessClass, ChildProcessPolicy};
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn profile_siblings_hold_library_overlap_and_preserve_external_files() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().canonicalize().unwrap();
+        let library = Library::open(root.join("library")).unwrap();
+        let runtime = library.versions_dir().join("engine");
+        fs::create_dir_all(&runtime).unwrap();
+        let outside = root.join("settings");
+        fs::create_dir(&outside).unwrap();
+        for (policy, leaf) in [
+            (ExternalProfilePolicy::CorsixthLinuxV1, "CorsixTH"),
+            (ExternalProfilePolicy::OpenlocoUnixV1, "OpenLoco"),
+        ] {
+            let external = outside.join(leaf);
+            fs::create_dir(&external).unwrap();
+            let save = external.join("save");
+            fs::write(&save, b"external save").unwrap();
+            let spec = LaunchSpec {
+                executable: runtime.join(format!("{leaf}.AppImage")),
+                install_root: runtime.clone(),
+                working_directory: runtime.clone(),
+                environment: Default::default(),
+                arguments: Vec::new(),
+                fixed_arguments_only: true,
+                launch_kind: crate::LaunchKind::Native,
+            };
+            let mut command = ChildProcessPolicy::game_command(&spec.process_spec(), &[]).unwrap();
+            command
+                .env("XDG_CONFIG_HOME", &outside)
+                .env("TMPDIR", &root);
+            require_external_roots(policy, &library, &spec, &command, &|| Ok(())).unwrap();
+            command.env("XDG_CONFIG_HOME", library.root());
+            assert!(require_external_roots(policy, &library, &spec, &command, &|| Ok(())).is_err());
+            assert_eq!(fs::read(save).unwrap(), b"external save");
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn archive_siblings_guard_jgr_default_roots_without_touching_player_files() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().canonicalize().unwrap();
+        let library = Library::open(root.join("library")).unwrap();
+        let runtime = library.versions_dir().join("jgr");
+        fs::create_dir_all(&runtime).unwrap();
+        archive_siblings::write_jgr_fixture(&runtime);
+        let data = root.join("data");
+        let save = data.join("openttd/save/player.sav");
+        fs::create_dir_all(save.parent().unwrap()).unwrap();
+        fs::write(&save, b"external save").unwrap();
+        let spec = LaunchSpec {
+            executable: runtime.join("openttd"),
+            install_root: runtime.clone(),
+            working_directory: runtime,
+            environment: Default::default(),
+            arguments: vec!["-X".into()],
+            fixed_arguments_only: true,
+            launch_kind: crate::LaunchKind::Native,
+        };
+        let mut command = ChildProcessPolicy::game_command(&spec.process_spec(), &[]).unwrap();
+        command
+            .env("XDG_CONFIG_HOME", root.join("config"))
+            .env("XDG_DATA_HOME", &data)
+            .env_remove("LD_LIBRARY_PATH");
+        let policy = ExternalProfilePolicy::JgrppLinuxV1;
+        let check = |command: &Command| {
+            require_external_roots(policy, &library, &spec, command, &|| Ok(()))
+        };
+        check(&command).unwrap();
+        command.env("LD_LIBRARY_PATH", "/custom/libs");
+        assert!(
+            check(&command)
+                .unwrap_err()
+                .message
+                .contains("LD_LIBRARY_PATH")
+        );
+        command.env_remove("LD_LIBRARY_PATH");
+
+        let plugin = data.join("openttd/content_download/social_integration/user-social.so");
+        fs::create_dir_all(plugin.parent().unwrap()).unwrap();
+        fs::write(&plugin, b"external plugin").unwrap();
+        assert!(
+            check(&command)
+                .unwrap_err()
+                .message
+                .contains("native social plugin")
+        );
+        assert_eq!(fs::read(&plugin).unwrap(), b"external plugin");
+        command.env("XDG_DATA_HOME", library.root());
+        assert!(check(&command).unwrap_err().message.contains("overlaps"));
+        assert_eq!(fs::read(save).unwrap(), b"external save");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn quake_linux_appimage_refuses_portable_profiles_and_owned_mounts() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().canonicalize().unwrap();
+        let spec = LaunchSpec {
+            executable: root.join("vkquake.AppImage"),
+            install_root: root.clone(),
+            working_directory: root.clone(),
+            environment: Default::default(),
+            arguments: Vec::new(),
+            fixed_arguments_only: true,
+            launch_kind: crate::LaunchKind::Native,
+        };
+        assert_eq!(require_appimage_layout(&spec).unwrap(), "vkquake");
+        let mut command = ChildProcessPolicy::game_command(&spec.process_spec(), &[]).unwrap();
+        command.env("TMPDIR", "relative");
+        assert!(appimage_mount_root(&command).is_err());
+        command.env("TMPDIR", "");
+        assert!(appimage_mount_root(&command).is_err());
+        command.env("TMPDIR", &root);
+        let mount = appimage_mount_root(&command).unwrap();
+        // SAFETY: getuid does not take pointers or borrow process state.
+        let uid = unsafe { libc::getuid() };
+        check_appimage_mount_root(&mount, uid, &[]).unwrap();
+        assert!(check_appimage_mount_root(&mount, uid, std::slice::from_ref(&root)).is_err());
+        std::os::unix::fs::symlink(&root, root.join("vkquake.AppImage.home")).unwrap();
+        assert!(require_appimage_layout(&spec).is_err());
+    }
 
     #[test]
     fn openrct2_mac_requires_an_absolute_account_home_for_the_profile_and_steam_probe() {
@@ -650,14 +953,15 @@ mod tests {
     #[test]
     fn openrct2_mac_account_lookup_does_not_substitute_inherited_home() {
         let temporary = tempfile::tempdir().unwrap();
-        let mut command = Command::new("openrct2");
+        let mut command =
+            ChildProcessPolicy::native_command(ChildProcessClass::Game, "openrct2").unwrap();
         command.env("HOME", temporary.path());
         let observed = roots(
             ExternalProfilePolicy::Openrct2MacV1,
             Platform::MacosAarch64,
             &command,
         );
-        match openrct2_mac_root(macos_account_home().unwrap().as_deref()) {
+        match openrct2_mac_root(unix_account_home().unwrap().as_deref()) {
             Ok(expected) => assert_eq!(observed.unwrap(), [expected]),
             Err(_) => assert!(observed.is_err()),
         }
@@ -745,7 +1049,7 @@ mod tests {
             launch_kind: crate::LaunchKind::Native,
         };
         let home = temporary.path().join("home");
-        let mut command = Command::new(&spec.executable);
+        let mut command = ChildProcessPolicy::game_command(&spec.process_spec(), &[]).unwrap();
         command.env_clear().env("HOME", &home);
         let check = |command: &Command| {
             require_external_roots(
@@ -868,7 +1172,8 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let home = temporary.path().join("home");
         let data = temporary.path().join("data");
-        let mut command = Command::new("inert-player");
+        let mut command =
+            ChildProcessPolicy::native_command(ChildProcessClass::Game, "inert-player").unwrap();
         command
             .env_clear()
             .env("HOME", &home)
@@ -935,7 +1240,8 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let home = temporary.path().join("home");
         let appdata = temporary.path().join("roaming");
-        let mut command = Command::new("inert-player");
+        let mut command =
+            ChildProcessPolicy::native_command(ChildProcessClass::Game, "inert-player").unwrap();
         command
             .env_clear()
             .env("home", "relative-home")
@@ -981,7 +1287,7 @@ mod tests {
             .unwrap();
         assert!(dune.external_profile_policy.is_some());
         assert!(fheroes.external_profile_policy.is_some());
-        let mut command = Command::new(&spec.executable);
+        let mut command = ChildProcessPolicy::game_command(&spec.process_spec(), &[]).unwrap();
         command.env_clear().env("HOME", &home);
         let dune = dune.external_profile_policy.unwrap();
         let fheroes = fheroes.external_profile_policy.unwrap();

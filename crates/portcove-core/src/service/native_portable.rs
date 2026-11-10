@@ -483,6 +483,10 @@ mod native_tar_xz_tests;
 #[path = "package_layout_tests.rs"]
 mod package_layout_tests;
 
+#[cfg(all(test, target_os = "linux", target_arch = "x86_64"))]
+#[path = "native_openmohaa_tests.rs"]
+mod native_openmohaa_tests;
+
 #[cfg(all(test, windows))]
 mod tests {
     use super::*;

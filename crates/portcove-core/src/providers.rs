@@ -161,6 +161,7 @@ mod tests {
                 rolling_tag: None,
                 asset_hints: BTreeMap::new(),
                 linux_tar_xz: false,
+                archive_file_links: false,
                 direct,
                 user_prepared: BTreeMap::new(),
             },

@@ -7,7 +7,7 @@
     "project_url": "https://github.com/nemo22/mdk-sdl",
     "issue_number": 1775,
     "availability": "packages",
-    "setup_url": "https://github.com/nautilusbits/mdk-sdl/blob/v1.2.0/README.md",
+    "setup_url": "https://github.com/nautilusbits/mdk-sdl/blob/main/README.md",
     "artwork": {
       "game_id": 219,
       "cover_id": 100005,
@@ -16,36 +16,43 @@
       "game_slug": "mdk",
       "match_kind": "underlying-game"
     },
-    "release_url": "https://github.com/nautilusbits/mdk-sdl/releases/tag/v1.2.0",
+    "release_url": "https://github.com/nautilusbits/mdk-sdl/releases/latest",
     "manual_setup": {
       "steps": [
         {
-          "title": "Prepare your original game",
-          "instruction": "Keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream\u2019s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/v1.2.0/README.md",
-      "references": [
+          "title": "Prepare your original game on Windows",
+          "instruction": "Keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required."
+        },
         {
           "title": "Set up MDK on Linux",
-          "instruction": "Use the upstream v1.2.6 archive for your CPU. The x86-64 player needs glibc 2.43 or later and the ARM64 player needs glibc 2.38 or later. Use a Vulkan driver. Keep libSDL3.so beside mdk_sdl. Point MDK_DATA_DIR or the [paths] mdk entry in mdk_paths.cfg at your complete original MDK installation."
+          "instruction": "Choose mdk-linux-x64.tar.gz or mdk-linux-arm64.tar.gz from the stable releases. Use a Vulkan driver and keep libSDL3.so beside mdk_sdl. Point MDK_DATA_DIR or the [paths] mdk entry in mdk_paths.cfg at your complete original installation. The inspected v1.2.6 x86-64 player needs glibc 2.43 or later and its ARM64 sibling needs glibc 2.38 or later."
         },
         {
           "title": "Set up MDK on an Apple silicon Mac",
-          "instruction": "Use the upstream v1.2.6 Apple silicon ZIP on macOS 12 or later with Metal. Keep libSDL3.dylib beside mdk_sdl and use MDK_DATA_DIR or mdk_paths.cfg to point at your complete original installation. Review the publisher and your Mac’s download security prompts before opening the player."
-        },
-        {
-          "title": "Keep your desktop files",
-          "instruction": "For a Linux or Mac copy you maintain, keep settings.cfg, saves, mods, captures and custom exports. Keep the whole MDK_USER_DIR if you set it, or the actual user-data fallback if the player folder is read-only. Keep mdk_paths.cfg and the original installation separately. Optional upscaling has its own tool download and output files."
+          "instruction": "Choose mdk-osx-arm64.zip from the stable releases. Keep libSDL3.dylib beside mdk_sdl and use MDK_DATA_DIR or mdk_paths.cfg to point at your complete original installation. The inspected v1.2.6 package requires macOS 12 or later with Metal. Review the publisher and your Mac’s download security prompts before opening the player."
         },
         {
           "title": "Set up MDK on Android",
-          "instruction": "Use the upstream v1.2.6 APK on 64-bit Android 8 or later with Vulkan. Select your original MDK folder containing TRAVERSE, MISC, FALL3D and STREAM. To play in place, the app requires All files access and a writable folder. Progress stays in that folder. Choose Copy instead to avoid broad access. The app copies the game to Android/data/io.github.nemo22.mdk/files/mdk and keeps settings and saves in the parent files folder. Keep whichever location the app uses before uninstalling."
+          "instruction": "Choose mdk-android.apk from the stable releases. The inspected v1.2.6 APK needs 64-bit Android 8 or later with Vulkan. Select your original MDK folder containing TRAVERSE, MISC, FALL3D and STREAM. To play in place, the app requires All files access and a writable folder. Progress stays in that folder. Choose Copy instead to avoid broad access. The app copies the game to Android/data/io.github.nemo22.mdk/files/mdk and keeps settings and saves in the parent files folder. Keep whichever location the app uses before uninstalling."
+        }
+      ],
+      "warnings": [
+        "Optional HD texture generation downloads and starts a separate upscaling tool. Let it finish, or cancel and confirm it has stopped before updating, backing up or removing the player. You and upstream maintain the Linux, Mac and Android copies."
+      ],
+      "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/main/README.md",
+      "references": [
+        {
+          "title": "Keep your desktop files",
+          "instruction": "For a Linux or Mac copy you maintain, keep settings.cfg, saves, mods, captures and custom exports. Keep the whole MDK_USER_DIR if you set it, or the actual user-data fallback if the player folder is read-only. On first portable start, upstream can copy settings and saves from an older personal profile. Keep both copies until you know which one the player uses. Keep mdk_paths.cfg and your originals separately."
         }
       ]
     },
-    "original_game_title": "MDK"
+    "original_game_title": "MDK",
+    "platforms": ["linux-x86-64", "macos-aarch64"],
+    "download_asset_hints": {
+      "linux-x86-64": ["mdk-linux-x64.tar.gz"],
+      "macos-aarch64": ["mdk-osx-arm64.zip"]
+    }
   },
   "integration": {
     "support_tier": "beta",

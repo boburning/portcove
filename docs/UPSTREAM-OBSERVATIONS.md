@@ -284,9 +284,15 @@ before checkout and build, reserving the final five minutes for checkpoint and
 artifact publication. Accepted page, validation or Core progress can automatically
 start another operation within that opportunity; each operation keeps its existing
 three-minute admission budget. Request counts and refreshed clocks alone cannot
-authorize another batch. A hosted opportunity also stops admitting batches after
-1,800 provider requests, about a third of the observed hourly allowance, so
-upstream-health and other workflows sharing the token keep capacity. Non-budget failures stay visible and are excluded from
+authorize another batch. A hosted opportunity's observation step spends at most 1,800 GitHub API
+requests, about a third of the observed hourly allowance, so upstream-health and
+other workflows sharing the token keep capacity. The ceiling is a hard total:
+each batch receives only the remaining allowance, and every GitHub request is
+admitted against it. GitLab and direct-manifest sources are counted but keep
+their own per-source bound, and checkpoint recovery, push admission and
+relocation proposals make separately bounded reads outside the step. A
+gap-filling push opportunity (below) spends at most 900, so a push followed by
+the next schedule within one hour stays near half of that allowance. Non-budget failures stay visible and are excluded from
 further attempts in that job. All batches share one aggregate handoff byte budget;
 input or inspector changes stop continuation and preserve earlier evidence. The
 standalone command without this explicit hosted deadline remains one bounded
@@ -438,16 +444,33 @@ the SDK supplies bounded transport and request evidence.
 Conditional requests count against the request budget. No game artifact bytes
 are downloaded. The core input is bounded to 4 MiB, its process to thirty
 seconds, and the entire hosted job to ten minutes on one fixed Linux runner.
-Workflow concurrency permits one active run per ref. The scheduled upper bound
-is four jobs/forty runner-minutes daily, plus explicitly requested manual runs;
-actual usage is lower with a warm build cache. There are no agent/model calls.
+Only observing jobs share the per-ref concurrency slot, with one active and at
+most one pending. Hourly schedules and manual runs always observe. A merge to
+main starts an admission job that lets its run observe only to fill a schedule
+gap: when no schedule or push run of the observer observed, or is observing,
+within the last fifty-five minutes. Admission reads one ten-run page per trigger and the jobs of recent runs; a
+full page still inside the cooldown is incomplete coverage, and that or any
+read failure declines. A declined push run
+finishes without observing, so it neither consumes the slot nor displaces a
+pending scheduled observation. Actual usage is lower with a warm build cache.
+There are no agent/model calls.
 
 The main observer job has `contents: read` and `actions: read`; the latter permits
-retrieval of the preceding scheduled observer's checkpoint artifact. No write,
+retrieval of the preceding observer's checkpoint artifact. No write,
 signing or publication permission follows. The existing cache remains the fast
 path with its original thirty-two-MiB per-file reader limits. On complete cache
 loss, recovery admits only the same repository, workflow and default branch's
-completed scheduled producer, including a failed run carrying a complete snapshot.
+completed producer from a natural schedule or a push to main, including a
+failed run carrying a complete snapshot. GitHub can skip scheduled runs for
+hours, so gap-filling push runs (above) keep progress continuous (#4779). Both triggers run main's reviewed workflow source. Recovery reads one
+provider-filtered inventory per trigger and merges them newest-first, so manual
+dispatches, fork pull requests and other triggers never enter it, consume its
+window or set its age boundary; a listed run whose trigger differs from its
+filter refuses. Each trigger's window must be complete or reach its own age
+boundary; one cannot certify the other. A push run within the
+recovery age without a snapshot is passed over, because declined push runs never
+observe; at the age boundary it reaches the same cutover check as a schedule, so
+missing history still requires explicit recovery. The producer's trigger is re-read after collection.
 Provider run/artifact identity, main ancestry, the exact configuration digest,
 artifact digest, archive structure and the complete checkpoint graph are checked
 before an absent checkpoint tree is published atomically. A partial or foreign
@@ -628,6 +651,18 @@ repository/platform declaration. Historical projection coverage does not claim
 that an old URL is currently monitored or that a new URL has reviewed numeric IDs. Missing, duplicate or unused projections fail. All reviewed policy
 facts and endpoint/source-archive checks remain in place.
 
+After a reviewed same-identity relocation (an accepted `upstream_lineage`
+relocation with an unchanged numeric repository ID), a rebound pin names the
+current repository and download URL. Its retained historical projection keeps
+the former path, because that projection is frozen with its source hash. The
+binding test pairs them by port, platform and historical contract hash, not by
+repository name. The reviewed `upstream_lineage` relocation and the pin's
+unchanged `repository_id` establish that both paths name the same repository.
+Rebinding requires
+read-only evidence that the reviewed repository, release and asset IDs, release
+facts, size and SHA-256 are unchanged at the new name; only the URL-bearing
+asset facts hash is recorded anew.
+
 The retained Star Fox `kandowontu/starfox-enhanced` 404 is an acquisition-endpoint
 condition. Its separately reviewed successor decision and current project
 location are reported from the authoring lineage records. The old endpoint stays
@@ -674,7 +709,7 @@ The coordinator validates the complete inventory and accounting policy before
 network work. It selects ports oldest-attempt-first and admits at most one
 individually oversized port alongside normally fitting scopes. Within that
 scope, locations rotate fairly across owners and oldest actual attempts. Each
-operation permits at most **320 requests**, **512 newly assessed locations**,
+operation permits at most **352 requests**, **512 newly assessed locations**,
 three minutes, fifteen seconds per request, one MiB per response and sixteen MiB
 consumed response bytes. Compatible completed locations may be replayed from the
 validated checkpoint without spending another operation slot or request; their
@@ -828,7 +863,7 @@ inventory, accepted artifact or exception to required hosted validation.
 ### Growing monitoring inventories
 
 The monitor retains fair oldest-attempt rotation across bounded collector runs.
-The collector's 320-request and 512-new-location envelopes bound one operation,
+The collector's 352-request and 512-new-location envelopes bound one operation,
 not the logical catalog or retained cross-run history. Checkpoints use their
 existing 16 MiB physical envelope rather than separate 4,096-port, 8,192-record
 or 512-incident historical count ceilings. Input catalogs are bounded to 4 MiB,

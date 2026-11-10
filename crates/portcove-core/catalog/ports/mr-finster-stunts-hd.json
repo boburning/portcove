@@ -18,6 +18,10 @@
         {
           "title": "Select an existing native player",
           "instruction": "For an existing Windows copy select Stunts HD.exe; on Linux select stunts-hd with its containing folder."
+        },
+        {
+          "title": "Set up the upstream Mac app",
+          "instruction": "If you download the universal Mac ZIP in Portcove, clear Extract the archive after downloading. Expand it with macOS Archive Utility and keep the complete Stunts HD.app. The inspected app needs macOS 11 on Intel or Apple silicon. Start the app and choose your own Stunts 1.1 folder or ZIP. Follow macOS security prompts for a copy you trust."
         }
       ],
       "warnings": [
@@ -28,7 +32,7 @@
       "references": [
         {
           "title": "Profile locations and alternatives",
-          "instruction": "Saves, tracks, replays, high scores, preferences, imported originals and cached maps live outside the runtime: %APPDATA%/Stunts HD on Windows, or $XDG_CONFIG_HOME/Stunts HD (normally ~/.config/Stunts HD) on Linux. The upstream browser player at https://stunts-recomp.pages.dev/ has separate browser-site storage. macOS uses the upstream application through the OS; ARM and AppImage routes remain upstream-owned."
+          "instruction": "Saves, tracks, replays, high scores, preferences, imported originals and cached maps live outside the runtime: %APPDATA%/Stunts HD on Windows, or $XDG_CONFIG_HOME/Stunts HD (normally ~/.config/Stunts HD) on Linux. The upstream browser player at https://stunts-recomp.pages.dev/ has separate browser-site storage. On Mac, preserve the app's effective user profile and export destinations. Mac, Windows ARM64 and Linux ARM64 or AppImage setup stay with upstream."
         }
       ],
       "help_url": "https://github.com/mr-finster/stunts-hd/blob/59b9e1a22c1ecf880a16b199a4a454489b20e59d/README.md"
@@ -42,7 +46,8 @@
       "image_sha256": "40957c6438e7f6979f6ddf943d3be24beea35badb7d88d751236eb2537cc4446",
       "game_slug": "stunts",
       "match_kind": "underlying-game"
-    }
+    },
+    "platforms": ["macos-x86-64", "macos-aarch64"]
   },
   "upstream_lineage": {
     "format_version": 1,

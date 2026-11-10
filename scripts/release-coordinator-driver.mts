@@ -1,5 +1,6 @@
 import {
   inspectReleaseReviewWithdrawal,
+  matchesRetainedReviewWithdrawal,
   matchesWithdrawnReviewRequest,
 } from "./release-review-withdrawal.mts";
 import { coordinatorJobBudgetMilliseconds } from "./release-control-phases.mts";
@@ -794,7 +795,7 @@ export function coordinatorMaintenanceIdentity(raw: unknown) {
 export function catalogCoordinatorMaintenanceIdentity(raw: unknown) {
   return maintenanceIdentity(raw, "catalog-coordinator-controls");
 }
-function maintenanceIdentity(raw: unknown, purpose: string) {
+function maintenanceIdentity(raw: unknown, purpose: string, publicationPaused = false) {
   if (
     !isRecord(raw) ||
     raw.phase !== "coordinator" ||
@@ -803,7 +804,7 @@ function maintenanceIdentity(raw: unknown, purpose: string) {
     !isRecord(raw.reader) ||
     !isRecord(raw.protection) ||
     !isRecord(raw.pause) ||
-    raw.pause.publication_paused !== false ||
+    raw.pause.publication_paused !== publicationPaused ||
     !isRecord(raw.capacity)
   )
     throw new Error("eligible coordinator maintenance facts required");
@@ -1104,7 +1105,7 @@ function guardedCoordinatorJournal(
   };
 }
 
-/** Provider inventory facts only. Every Release is available in Preview; using
+/** Provider inventory facts only. Every application Release is available in Preview; using
  * their latest publication as an explicitly typed upper bound can delay a
  * routine Preview, but never bypass its actual cadence. No urgency is inferred. */
 export function deriveCoordinatorPublication(
@@ -1129,7 +1130,7 @@ export function deriveCoordinatorPublication(
   }
   let latest: number | null = null;
   for (const release of releases) {
-    if (release.draft) continue;
+    if (release.draft || !isApplicationReviewReleaseTag(release.tag_name)) continue;
     if (!release.tag_name.startsWith("v"))
       throw new Error("published application Release has unsupported tag scope");
     const version = classifyApplicationVersion(
@@ -2036,7 +2037,7 @@ async function prepareTrustedCoordinatorRenewalAt(
       typeof published.repository_sha256 !== "string"
     )
       throw new Error("published application root/repository identity unavailable");
-    phase = "actual-current-tool-and-public-feed";
+    phase = "renewal-current-tools";
     const receipt = await receiveControllerTools(
       directory,
       selected.tools.artifact,
@@ -2059,6 +2060,7 @@ async function prepareTrustedCoordinatorRenewalAt(
       tools.identity.run_attempt !== reader.admitted.run_attempt
     )
       throw new Error("metadata verifier tools differ from actual current coordinator");
+    phase = "renewal-public-site";
     const site = await materializeCoordinatorPublishedSite(
       currentApplicationSitePins(recovered.input),
       directory,
@@ -2073,6 +2075,7 @@ async function prepareTrustedCoordinatorRenewalAt(
       typeof existing.generated_at === "string"
         ? existing.generated_at
         : new Date().toISOString().replace(/\.\d{3}Z$/u, "Z");
+    phase = "renewal-tuf-preparation";
     const verifierBytes = await readControllerToolFile(tools.rust);
     const preparation = await prepareAuthenticatedMetadataRenewal({
       verifier: tools.rust,
@@ -2082,10 +2085,11 @@ async function prepareTrustedCoordinatorRenewalAt(
       previous_repository: component.application,
       prior_repository_sha256: published.repository_sha256,
       generated_at: generatedAt,
-      output_parent: directory,
+      output_parent: await mkdtemp(path.join(directory, "renewal-work-")),
       deadline: budget.monotonicDeadline,
     });
     const prepared = await inspectPreparedMetadataRenewal(preparation);
+    phase = "renewal-publication-inventory";
     const sourceOptions = coordinatorSourceReadOptions(budget, 2 * 1024 ** 2);
     const inventory = await createPublicationInventoryWithSdk({
       ...sourceOptions,
@@ -2106,11 +2110,8 @@ async function prepareTrustedCoordinatorRenewalAt(
       recovered.input.active_candidate,
     );
     const inventorySha = capacityDigest({ tags, releases });
-    const ready = prepareControlReadiness(
-      reader.identity,
-      capacityDigest({ checkpoint, descriptor: prepared.descriptor }),
-      "coordinator",
-    );
+    const preparationSubject = capacityDigest({ checkpoint, descriptor: prepared.descriptor });
+    const ready = prepareControlReadiness(reader.identity, preparationSubject, "coordinator");
     await writeFile(path.join(directory, "ready-coordinator.json"), `${JSON.stringify(ready)}\n`, {
       flag: "wx",
       mode: 0o600,
@@ -2134,7 +2135,7 @@ async function prepareTrustedCoordinatorRenewalAt(
         phaseDeadline: budget.monotonicDeadline,
       },
     );
-    const controls = await authenticateReleaseControlSource(process.env, workflow, {
+    let controls = await authenticateReleaseControlSource(process.env, workflow, {
       phase: "coordinator",
       deadline: budget.monotonicDeadline,
       observedArtifact: artifact,
@@ -2174,12 +2175,72 @@ async function prepareTrustedCoordinatorRenewalAt(
       assessBoundedCapacity(input.controller.capacity_attempt).eligibility !== "eligible"
     )
       return { decision: "held", directory, checkpoint, plan, authority: "none" };
+    const controlIdentity = coordinatorMaintenanceIdentity(initial);
+    let nextRound = 0;
+    let refreshing = false;
+    let refreshFailed = false;
+    const refreshMaintenanceRound = async (
+      subject: string,
+      deadline: number,
+      maxBytes?: number,
+    ) => {
+      if (refreshing || refreshFailed)
+        throw new Error("coordinator maintenance continuation already active or refused");
+      refreshing = true;
+      try {
+        budget.check();
+        const index = ++nextRound;
+        if (index > 14) throw new Error("coordinator maintenance control rounds exhausted");
+        const next = await authenticateReleaseControlRound(
+          path.join(directory, `metadata-control-round-${index}`),
+          subject,
+          "coordinator",
+          index,
+          { deadline, controlReader: "metadata-maintenance" },
+        );
+        const fresh = await next.readSdkMaintenance(undefined, {
+          deadline,
+          ...(maxBytes === undefined ? {} : { maxBytes }),
+        });
+        if (
+          next.evidence_scope !== "github.com" ||
+          coordinatorMaintenanceIdentity(fresh) !== controlIdentity
+        )
+          throw new Error("coordinator maintenance authority changed across control rounds");
+        budget.check();
+        coordinatorContinuationDeadline(deadline);
+        return { controls: next, facts: fresh };
+      } catch (error) {
+        refreshFailed = true;
+        throw error;
+      } finally {
+        refreshing = false;
+      }
+    };
+    let observed = initial;
+    const readFreshMaintenance = async () => {
+      budget.check();
+      if (Date.now() - Date.parse(observed.protection.observed_at) >= 30000) {
+        const renewed = await refreshMaintenanceRound(
+          preparationSubject,
+          budget.monotonicDeadline,
+          2 * 1024 ** 2,
+        );
+        controls = renewed.controls;
+        observed = renewed.facts;
+      } else {
+        observed = await readMaintenance();
+      }
+      if (coordinatorMaintenanceIdentity(observed) !== controlIdentity)
+        throw new Error("maintenance controls changed immediately before journal CAS");
+      return observed;
+    };
     await verifiedControllerToolPaths(receipt);
     await inspectPreparedMetadataRenewal(preparation);
     const current = await readRemoteCoordinatorSnapshot(directory, selected.remote_configuration, {
       transport: budget.journalTransport(),
     });
-    const fresh = await readMaintenance();
+    const fresh = await readFreshMaintenance();
     if (
       current.checkpoint !== checkpoint ||
       fresh.pause.publication_paused ||
@@ -2193,8 +2254,7 @@ async function prepareTrustedCoordinatorRenewalAt(
     budget.check();
     const checkpointControls = {
       async readCurrent() {
-        if ((await readMaintenance()).facts_sha256 !== initial.facts_sha256)
-          throw new Error("maintenance controls changed immediately before journal CAS");
+        await readFreshMaintenance();
       },
     };
     const publishCheckpoint = await coordinatorCheckpointPublisher(
@@ -2221,45 +2281,15 @@ async function prepareTrustedCoordinatorRenewalAt(
       evidence_scope: "actual-tool-and-public-feed",
       automatic_retry: false,
     });
-    const controlIdentity = coordinatorMaintenanceIdentity(initial);
-    let nextRound = 0;
-    let refreshing = false;
-    let refreshFailed = false;
     const nextControls = async (phaseDeadline?: number) => {
       const session = metadataPreparations.get(result);
       if (!session) throw new Error("actual metadata continuation session required");
       session.deadline = coordinatorContinuationDeadline(session.deadline, phaseDeadline);
-      if (refreshing || refreshFailed)
-        throw new Error("coordinator maintenance continuation already active or refused");
-      refreshing = true;
-      try {
-        budget.check();
-        const index = ++nextRound;
-        if (index > 14) throw new Error("coordinator maintenance control rounds exhausted");
-        const next = await authenticateReleaseControlRound(
-          path.join(directory, `metadata-control-round-${index}`),
-          capacityDigest({ checkpoint, descriptor: prepared.descriptor }),
-          "coordinator",
-          index,
-          { deadline: session.deadline, controlReader: "metadata-maintenance" },
-        );
-        const fresh = await next.readSdkMaintenance(undefined, {
-          deadline: session.deadline,
-        });
-        if (
-          next.evidence_scope !== "github.com" ||
-          coordinatorMaintenanceIdentity(fresh) !== controlIdentity
-        )
-          throw new Error("coordinator maintenance authority changed across control rounds");
-        budget.check();
-        coordinatorContinuationDeadline(session.deadline);
-        return next;
-      } catch (error) {
-        refreshFailed = true;
-        throw error;
-      } finally {
-        refreshing = false;
-      }
+      const next = await refreshMaintenanceRound(
+        capacityDigest({ checkpoint, descriptor: prepared.descriptor }),
+        session.deadline,
+      );
+      return next.controls;
     };
     metadataPreparations.set(result, {
       preparation,
@@ -2393,7 +2423,7 @@ async function authenticateCoordinatorInitialControls(
   workflow: Buffer,
   budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
   purpose: "application" | "catalog" = "application",
-  controlReader?: "metadata-maintenance" | "catalog-maintenance",
+  controlReader?: "metadata-maintenance" | "catalog-maintenance" | "coordinator-application",
 ) {
   budget.check();
   const ready = prepareControlReadiness(reader.identity, factsSha, "coordinator");
@@ -3417,7 +3447,7 @@ async function recoverTrustedCoordinatorContext(
       previous_repository: currentSite.verified.application,
       prior_repository_sha256: published.repository_sha256,
       generated_at: selected.descriptor.generated_at,
-      output_parent: directory,
+      output_parent: await mkdtemp(path.join(directory, "renewal-work-")),
       deadline: budget.monotonicDeadline,
     });
     const actual = await inspectPreparedMetadataRenewal(preparation);
@@ -3609,13 +3639,16 @@ async function requestTrustedSemanticReviewAt(
     });
     checkpoint = recovered.checkpoint;
     if (selected.review_withdrawal) {
-      phase = "paused-application-review-withdrawal";
+      phase = "withdrawal-source-authority";
       return await withdrawTrustedApplicationReview(
         directory,
         selected.remote_configuration,
         recovered,
         selected.review_withdrawal,
         budget,
+        (stage) => {
+          phase = stage;
+        },
       );
     }
     let recheckQualifiedSource: (() => void) | undefined;
@@ -3854,9 +3887,9 @@ async function requestTrustedSemanticReviewAt(
     const releases = await inventory.releases();
     const { allocations } = await inventory.readAllocations(tags, namespace);
     const now = new Date().toISOString();
-    const baselineReleases = qualified
-      ? releases.filter((release) => isApplicationReviewReleaseTag(release.tag_name))
-      : releases;
+    const baselineReleases = releases.filter((release) =>
+      isApplicationReviewReleaseTag(release.tag_name),
+    );
     const publication = deriveCoordinatorPublication(tags, baselineReleases, allocations, now);
     const { release: baselineRelease, version: baseVersion } = selectCoordinatorPublicationBaseline(
       baselineReleases,
@@ -4281,19 +4314,19 @@ async function withdrawTrustedApplicationReview(
   recovered: Awaited<ReturnType<typeof recoverRemoteCoordinator>>,
   withdrawal: NonNullable<ReturnType<typeof inspectReleaseReviewWithdrawal>>,
   budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
+  reportStage: (stage: string) => void,
 ) {
   const appointed = await requireControllerJobSourceConfiguration("coordinator");
   if (
     appointed.binding.purpose !== "application" ||
     appointed.binding.namespace !== inspectCoordinatorRemoteNamespace(configuration) ||
+    !appointed.binding.review_withdrawal ||
     capacityDigest(appointed.binding.review_withdrawal) !== capacityDigest(withdrawal)
   )
     throw new Error("review withdrawal differs from the source-bound owner grant");
+  reportStage("withdrawal-journal-preimage");
   const { checkpoint, input } = recovered;
-  if (
-    capacityDigest(input.review_withdrawal) === capacityDigest(withdrawal) &&
-    input.review_request === null
-  )
+  if (matchesRetainedReviewWithdrawal(withdrawal, input))
     return {
       decision: "review-withdrawal-already-retained",
       directory,
@@ -4311,29 +4344,43 @@ async function withdrawTrustedApplicationReview(
     !isRecord(input.controller)
   )
     throw new Error("review withdrawal original checkpoint, request or effects differ");
+  reportStage("withdrawal-reader-identity");
   const workflow = await readProductionControllerWorkflowBytes();
   const reader = await authenticateControlReaderJob(process.env, workflow, {
     phase: "coordinator",
     deadline: budget.monotonicDeadline,
   });
-  const controls = await authenticateCoordinatorInitialControls(
+  reportStage("withdrawal-protection-observation");
+  const factsSha = capacityDigest(withdrawal);
+  let controls = await authenticateCoordinatorInitialControls(
     directory,
-    capacityDigest(withdrawal),
+    factsSha,
     reader,
     workflow,
     budget,
+    "application",
+    "coordinator-application",
   );
-  const observed = await controls.readSdkWithdrawal(withdrawal.source_commit);
-  if (!observed.resource_policy_matches_controller)
-    throw new Error("review withdrawal bounded policy differs");
+  reportStage("withdrawal-live-controls");
+  let observed = await controls.readSdkWithdrawal(withdrawal.source_commit);
+  const stable = maintenanceIdentity(observed, "metadata-coordinator-controls", true);
+  let round = 0;
   const checkpointControls = {
     async readCurrent() {
       budget.check();
       appointed.recheck();
-      if (
-        (await controls.readSdkWithdrawal(withdrawal.source_commit)).facts_sha256 !==
-        observed.facts_sha256
-      )
+      if (Date.now() - Date.parse(observed.protection.observed_at) >= 30000) {
+        if (++round > 14) throw new Error("review withdrawal control rounds exhausted");
+        controls = await authenticateReleaseControlRound(
+          path.join(directory, `withdrawal-control-${round}`),
+          factsSha,
+          "coordinator",
+          round,
+          { deadline: budget.monotonicDeadline, controlReader: "coordinator-application" },
+        );
+      }
+      observed = await controls.readSdkWithdrawal(withdrawal.source_commit);
+      if (maintenanceIdentity(observed, "metadata-coordinator-controls", true) !== stable)
         throw new Error("review withdrawal controls changed before journal mutation");
       budget.check();
     },
@@ -4342,6 +4389,7 @@ async function withdrawTrustedApplicationReview(
     transport: budget.journalTransport(),
   });
   if (current.checkpoint !== checkpoint) throw new Error("review withdrawal journal head changed");
+  reportStage("withdrawal-checkpoint-authority");
   const publish = await coordinatorCheckpointPublisher(
     directory,
     budget,
@@ -4359,6 +4407,7 @@ async function withdrawTrustedApplicationReview(
     review_request: null,
     review_withdrawal: withdrawal,
   });
+  reportStage("withdrawal-signed-checkpoint");
   await publish(saved.checkpoint);
   return {
     decision: "review-withdrawn",
