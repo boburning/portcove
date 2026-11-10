@@ -767,13 +767,6 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
       );
       return purpose === "application" ? 12 : 8;
     }
-    if (name === "tool_attest") {
-      assert.equal(
-        job["timeout-minutes"],
-        "${{ inputs.publication_purpose == 'application' && 2 || 1 }}",
-      );
-      return purpose === "application" ? 2 : 1;
-    }
     const value = job["timeout-minutes"];
     assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0, name);
     return value;
@@ -796,7 +789,7 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
     return selected;
   };
   const toolAttest = requiredJob("tool_attest");
-  assert.deepEqual(toolAttest.needs, ["admission", "tool_bootstrap", "tool_bootstrap_windows"]);
+  assert.deepEqual(toolAttest.needs, ["admission", "tool_bootstrap"]);
   assert.match(toolAttest.if!, /needs\.tool_bootstrap\.result == 'success'/u);
   assert.equal(
     toolAttest.steps.find((step) => step.id === "attest")?.with?.["subject-digest"],
@@ -1295,6 +1288,7 @@ void test("Windows proof stays on one bounded job without a payload dependency c
     "independent_admission",
     "attest",
     "tool_bootstrap_windows",
+    "tool_attest_windows",
   ]);
   assert.deepEqual(
     job.steps
