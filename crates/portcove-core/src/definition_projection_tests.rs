@@ -100,11 +100,15 @@ fn entry_with_reference(document: &Value, reference: &str, port_index: usize) ->
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
     let version = if typed.release.grant_declared_executable {
-        20
+        21
     } else if typed.portable_marker_file.is_some() {
         19
     } else if !typed.reviewed_package_layouts.is_empty() {
-        crate::package_layout::NATIVE_CAPABILITY
+        crate::package_layout::NATIVE_CAPABILITY.max(
+            typed
+                .external_profile_policy
+                .map_or(0, crate::native_external_profile::minimum_capability),
+        )
     } else if typed.release.archive_file_links {
         crate::test_fixture::archive_file_links_capability(&typed)
     } else if crate::native_temp::has_sibling_platforms(&typed) {
@@ -311,6 +315,7 @@ fn current_projection_routes_keep_distinct_capability_floors() {
             "gladiator-openglad",
             crate::package_layout::NATIVE_CAPABILITY,
         ),
+        ("troyedwardsjr-z2rs", 20),
     ] {
         let position = document["catalog"]["ports"]
             .as_array()

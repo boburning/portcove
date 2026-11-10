@@ -3299,9 +3299,18 @@ mod tests {
             .map(|path| (*path, b"inert immutable companion".as_slice()))
             .collect::<Vec<_>>();
         let channel = port.channels[0];
+        let include_fixture_texture = !port
+            .reviewed_package_layouts
+            .contains_key(&Platform::WindowsX86_64);
         let release = |version, revision| {
-            let mut release =
-                server.release_with_files(version, revision, folder, executable, &files);
+            let mut release = server.release_with_payload(
+                version,
+                revision,
+                folder,
+                executable,
+                &files,
+                include_fixture_texture,
+            );
             release.channel = channel;
             release
         };

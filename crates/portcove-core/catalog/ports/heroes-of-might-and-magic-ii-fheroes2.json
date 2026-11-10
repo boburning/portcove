@@ -62,6 +62,33 @@
     "channels": ["stable"],
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
     "adapter": "native-portable",
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["files", "maps"],
+        "executables": [
+          "download_demo_version.bat",
+          "download_demo_version.ps1",
+          "extract_homm2_resources.bat",
+          "extract_homm2_resources.ps1",
+          "fheroes2.exe",
+          "resource_extraction_toolset.bat",
+          "resource_extraction_toolset.ps1"
+        ]
+      },
+      "linux-x86-64": {
+        "directories": ["files", "maps", "script"],
+        "executables": [
+          "download_demo_version.sh",
+          "extract_homm2_resources.sh",
+          "fheroes2",
+          "script/linux/install_sdl2.sh"
+        ]
+      },
+      "macos-x86-64": {
+        "directories": ["files", "maps", "script"],
+        "executables": ["download_demo_version.sh", "extract_homm2_resources.sh", "fheroes2"]
+      }
+    },
     "external_profile_policy": "fheroes2-v1",
     "release": {
       "provider": "github",

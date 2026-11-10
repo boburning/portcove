@@ -103,3 +103,30 @@ it("follows an external registration and hides the failure once nothing is insta
   await show(load, undefined);
   expect(document.body.querySelector("[data-launch-failure]")).toBeNull();
 });
+
+it("offers Open Activity only when the host can open it, and calls it", async () => {
+  const load = vi.fn().mockResolvedValue(failure(true));
+  const status = { active: { id: "i1" }, previous: null } as unknown as PortStatus;
+  await show(load, status);
+  expect(buttons()).not.toContain("Open Activity");
+
+  const openActivity = vi.fn();
+  await act(async () => {
+    await root.rerender(
+      <LaunchFailureNotice
+        portId="p"
+        generation={1}
+        status={status}
+        rollback={rollback}
+        load={load}
+        openActivity={openActivity}
+      />,
+    );
+  });
+  expect(buttons()).toEqual(["Copy exit code", "Report a problem", "Open Activity"]);
+  const open = [...document.body.querySelectorAll("button")].find(
+    (button) => button.textContent === "Open Activity",
+  );
+  await act(async () => open?.click());
+  expect(openActivity).toHaveBeenCalledOnce();
+});

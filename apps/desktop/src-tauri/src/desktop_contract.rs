@@ -446,6 +446,7 @@ pub fn export_transport_schemas() -> Value {
             "reconcile_outcome": output::<BatchOutcome<ReconcileResult>>(),
             "source_verification_outcome": output::<SourceBatchOutcome>(),
             "launch_result": output::<LaunchResult>(),
+            "automatic_snapshots_enabled": output::<bool>(),
             "bug_report_draft": output::<portcove_core::BugReportDraft>(),
             "bug_report_link": output::<portcove_core::BugReportLink>(),
             "application_update_preferences": output::<ApplicationUpdatePreferences>(),

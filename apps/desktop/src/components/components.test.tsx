@@ -191,12 +191,12 @@ describe("desktop components", () => {
     );
     const groups = [
       ["appearance", "library-storage", 2],
-      ["library-storage", "game-files", 3],
+      ["library-storage", "game-files", 4],
       ["game-files", "updates", 3],
       ["updates", "integrations", 3],
       ["integrations", "controls", 2],
       ["controls", "advanced", 2],
-      ["advanced", "about", 3],
+      ["advanced", "about", 4],
       ["about", null, 2],
     ] as const;
     for (const [id, next, rowCount] of groups) {
@@ -213,6 +213,11 @@ describe("desktop components", () => {
     );
     expect(appearance.indexOf("Color theme")).toBeLessThan(appearance.indexOf("Language"));
     expect(html.indexOf("Library at startup")).toBeLessThan(html.indexOf("Files and capacity"));
+    const libraryStorage = html.slice(
+      html.indexOf('data-settings-group="library-storage"'),
+      html.indexOf('data-settings-group="game-files"'),
+    );
+    expect(libraryStorage).toContain("Snapshot saved data before version changes");
     expect(html.indexOf("Game-file libraries")).toBeLessThan(html.indexOf("Game files and BIOS"));
     expect(html.indexOf("Game files and BIOS")).toBeLessThan(html.indexOf("Disc tools"));
     expect(html.indexOf("Portcove updates")).toBeLessThan(html.indexOf("Official catalog updates"));
@@ -221,6 +226,7 @@ describe("desktop components", () => {
       advanced.indexOf(">Create a support report</button>"),
     );
     expect(advanced).toContain("Original game files stay local");
+    expect(advanced).toContain("Report a problem");
     const about = html.slice(html.indexOf('data-settings-group="about"'));
     expect(about).toContain("Open project repository");
     expect(about).toContain("Licensed under MIT or Apache-2.0.");

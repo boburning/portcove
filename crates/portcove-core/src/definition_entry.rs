@@ -225,10 +225,10 @@ impl DefinitionContentIndex {
                 ));
             }
             if !document.required_capabilities.iter().any(|requirement| {
-                requirement.template == "native-portable" && requirement.minimum_version >= 20
+                requirement.template == "native-portable" && requirement.minimum_version >= 21
             }) {
                 return Err(PortcoveError::verification(
-                    "granting a declared executable requires native capability version 20",
+                    "granting a declared executable requires native capability version 21",
                 ));
             }
         }

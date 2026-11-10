@@ -220,7 +220,11 @@ impl EngineTemplateCapability {
         });
         supported.push(Self {
             template: AdapterKind::NativePortable,
-            contract_version: 20,
+            contract_version: crate::native_external_profile::z2rs::NATIVE_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 21,
         });
         supported
     }
@@ -453,25 +457,25 @@ mod tests {
     }
 
     #[test]
-    fn native20_declared_executable_grants_exclude_older_readers_without_retiring_native19() {
+    fn native21_declared_executable_grants_exclude_older_readers_without_retiring_native20() {
         let previous: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
             .filter(|entry| {
-                entry.template != AdapterKind::NativePortable || entry.contract_version < 20
+                entry.template != AdapterKind::NativePortable || entry.contract_version < 21
             })
             .collect();
         assert!(
-            !check_with_inventory(&request("native-portable", 20, 20), &previous)
+            !check_with_inventory(&request("native-portable", 21, 21), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 21, 21))
                 .unwrap()
                 .compatible
         );
         assert!(
             check_definition_capabilities(&request("native-portable", 20, 20))
-                .unwrap()
-                .compatible
-        );
-        assert!(
-            check_definition_capabilities(&request("native-portable", 19, 19))
                 .unwrap()
                 .compatible
         );

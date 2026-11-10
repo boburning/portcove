@@ -112,6 +112,15 @@ Indexed entries with the declaration require a Native19 lower bound for fresh an
 retained reads. The retained operational identity gains the name only when it is
 declared, so existing retained contracts keep theirs.
 
+Native portable version 20 consumes `z2rs-desktop-v1` for the official direct
+z2rs player. It verifies the selected Unix executable architecture and matches
+the exact Mac bundle player through at most one archive wrapper. Launch checks
+the effective default profile from the actual child environment. The managed
+route holds relative, library-overlapping and custom profile paths, while
+Windows and Linux retain the owned `.z2rs-data` fallback. The exact older
+Windows layout can use the launch check without rewriting its creating
+definition. New entries declaring the policy require version 20.
+
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
 entry that relies on the package-layout gate. Previously admitted
@@ -138,10 +147,10 @@ with the declaration require a Native14 lower bound for fresh and retained reads
 Older readers refuse such an entry; other definitions keep their existing package
 contracts.
 
-Native portable version 20 consumes `release.grant_declared_executable`, which lets Core
+Native portable version 21 consumes `release.grant_declared_executable`, which lets Core
 grant execution to the declared program of a package whose archive stores it without an
 executable bit, after verifying the file as a binary for the platform. Indexed entries
-with the declaration require a Native20 lower bound for fresh and retained reads; older
+with the declaration require a Native21 lower bound for fresh and retained reads; older
 readers refuse the whole definition, and no other adapter accepts the declaration.
 
 Native portable version 9 consumes `external_profile_policy` for the reviewed

@@ -2165,7 +2165,7 @@ image of at most two slices with a matching one) for the Mac architecture. The c
 of the right architecture also qualifies. An unmarked script, another
 architecture, a link or a non-regular file refuses, a program the publisher already
 marked executable is left unchanged, and Windows grants nothing. Older readers refuse
-the declaration through [native capability 20](DEFINITION-DELIVERY.md); other adapters
+the declaration through [native capability 21](DEFINITION-DELIVERY.md); other adapters
 reject it. The check proves what kind of file is being trusted, not that it runs.
 
 The embedded catalog uses schema 2. It contains reusable identities, logical

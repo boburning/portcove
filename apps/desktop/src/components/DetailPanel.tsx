@@ -559,7 +559,19 @@ function DetailBody(model: {
         )
       }
       attention={(reveal) => (
-        <DetailAttention model={model} setupRoutes={setupRoutes} reveal={reveal} />
+        <>
+          {model.installed && (
+            <LaunchFailureNotice
+              portId={model.port.id}
+              generation={model.libraryGeneration}
+              status={model.status}
+              busy={model.busy}
+              rollback={model.actions.rollback}
+              openActivity={model.openActivity}
+            />
+          )}
+          <DetailAttention model={model} setupRoutes={setupRoutes} reveal={reveal} />
+        </>
       )}
     >
       {(reveal) => ({
@@ -775,15 +787,6 @@ function StatusActionsGroupView({
       >
         {fileSummary}
         <RetiredNotice port={model.port} />
-        {model.installed && (
-          <LaunchFailureNotice
-            portId={model.port.id}
-            generation={model.libraryGeneration}
-            status={model.status}
-            busy={model.busy}
-            rollback={model.actions.rollback}
-          />
-        )}
         <p role="status">{actionPresentation.reason}</p>
         <div className="actions primary-actions mt-[16px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
           <Button data-focusable className="wide flex-1" variant="primary" size="lg" disabled>
@@ -2620,8 +2623,10 @@ function VersionRollback({
         Restore previous version
       </Button>
       <p className="text-sm text-pc-muted-foreground">
-        This switches game software and keeps current saved data. Older software may not understand
-        newer saves or configuration. Saved-data restore is a separate reviewed action in Saves.
+        This switches game software and keeps current saved data. Unless you turned it off in
+        Settings, or this game has no saves that Portcove manages, Portcove first takes an automatic
+        snapshot of its saves and settings. Older software may not understand newer saves or
+        configuration. Saved-data restore is a separate reviewed action in Saves.
       </p>
       {rollback.blocked && (
         <p role="status" data-rollback-assessment>

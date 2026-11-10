@@ -12,10 +12,15 @@ use portcove_core::{
 };
 
 fn environment(names: &[&str]) -> Option<String> {
-    // An empty variable must not shadow the next candidate.
+    first_non_empty(names, |name| std::env::var(name).ok())
+}
+
+/// The first candidate that is set to something other than blank. An empty
+/// variable must not shadow the next candidate.
+fn first_non_empty(names: &[&str], lookup: impl Fn(&str) -> Option<String>) -> Option<String> {
     names
         .iter()
-        .filter_map(|name| std::env::var(name).ok())
+        .filter_map(|name| lookup(name))
         .find(|value| !value.trim().is_empty())
 }
 
@@ -106,4 +111,48 @@ pub(crate) async fn open_bug_report(
         Ok(link)
     })
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::first_non_empty;
+    use std::collections::HashMap;
+
+    fn lookup<'a>(pairs: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String> + 'a {
+        let map: HashMap<_, _> = pairs.iter().copied().collect();
+        move |name| map.get(name).map(|value| (*value).to_owned())
+    }
+
+    #[test]
+    fn an_empty_or_blank_variable_does_not_shadow_the_next_candidate() {
+        let names = ["USERPROFILE", "HOME"];
+        assert_eq!(
+            first_non_empty(
+                &names,
+                lookup(&[("USERPROFILE", ""), ("HOME", "/home/alice")])
+            ),
+            Some("/home/alice".to_owned())
+        );
+        assert_eq!(
+            first_non_empty(
+                &names,
+                lookup(&[("USERPROFILE", "  "), ("HOME", "/home/alice")])
+            ),
+            Some("/home/alice".to_owned())
+        );
+    }
+
+    #[test]
+    fn the_first_usable_candidate_wins_and_nothing_set_is_none() {
+        let names = ["USERPROFILE", "HOME"];
+        assert_eq!(
+            first_non_empty(
+                &names,
+                lookup(&[("USERPROFILE", r"C:\Users\Alice"), ("HOME", "/home/alice")])
+            ),
+            Some(r"C:\Users\Alice".to_owned())
+        );
+        assert_eq!(first_non_empty(&names, lookup(&[])), None);
+        assert_eq!(first_non_empty(&names, lookup(&[("HOME", "")])), None);
+    }
 }

@@ -12,6 +12,8 @@ import { Radio } from "@base-ui/react/radio";
 import { controlFocus } from "./ui/control-style";
 import { ActionRow, Notice, SettingsRow } from "./ui/patterns";
 import { SourceRemovalControl } from "./SourceRemoval";
+import { AutomaticSnapshotsSetting } from "./AutomaticSnapshotsSetting";
+import { ReportProblem } from "./ReportProblem";
 import { SupportBundleExport } from "./SupportBundleExport";
 import { desktopApi } from "../api";
 import {
@@ -1824,6 +1826,7 @@ export function SettingsView(props: SettingsViewProps) {
           librarySelection.root !== (storage?.library_root ?? libraryRoot)
         }
       />
+      <AutomaticSnapshotsSetting key={generation} generation={generation} />
       <LibraryRecovery
         key={generation}
         libraryRoot={storage?.library_root ?? libraryRoot}
@@ -1905,6 +1908,14 @@ export function SettingsView(props: SettingsViewProps) {
         refresh={refreshDiagnostics}
         hasSnapshot={Boolean(doctor)}
       />
+      <SettingsRow data-focus-group>
+        <h2>Report a problem</h2>
+        <p>
+          Review a pre-filled GitHub bug report before anything is sent. Portcove sends nothing
+          itself, and folder paths and your user name are replaced.
+        </p>
+        <ReportProblem key={generation} generation={generation} />
+      </SettingsRow>
       <SettingsRow className="privacy-card">
         <h2>Original game files stay local</h2>
         <p>

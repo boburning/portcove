@@ -291,11 +291,14 @@ impl<'a> IndexedCatalogFixture<'a> {
         let port = self.port.as_ref();
         let port_id = &port.id;
         let capability_version = if port.release.grant_declared_executable {
-            20
+            21
         } else if port.portable_marker_file.is_some() {
             19
         } else if !port.reviewed_package_layouts.is_empty() {
-            crate::package_layout::NATIVE_CAPABILITY
+            crate::package_layout::NATIVE_CAPABILITY.max(
+                port.external_profile_policy
+                    .map_or(0, crate::native_external_profile::minimum_capability),
+            )
         } else if port.release.archive_file_links {
             archive_file_links_capability(port)
         } else if crate::native_temp::has_sibling_platforms(port) {

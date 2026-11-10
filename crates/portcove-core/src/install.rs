@@ -70,6 +70,7 @@ pub struct InstallQualification {
     requires_tar_xz: bool,
     executable_hints: Vec<String>,
     runtime_subdirectory: Option<String>,
+    z2rs_desktop_profile: bool,
     persistent_paths: Vec<String>,
     persistent_file_patterns: Vec<crate::PersistentFilePattern>,
     runtime_mutable_paths: Vec<String>,
@@ -226,6 +227,8 @@ impl InstallQualification {
             requires_tar_xz: port.release.requires_tar_xz(platform),
             executable_hints,
             runtime_subdirectory: port.runtime_subdirectory.clone(),
+            z2rs_desktop_profile: port.external_profile_policy
+                == Some(crate::ExternalProfilePolicy::Z2rsDesktopV1),
             persistent_paths: port.persistent_paths.clone(),
             persistent_file_patterns: port.persistent_file_patterns.clone(),
             runtime_mutable_paths: port.runtime_mutable_paths.clone(),
@@ -4007,12 +4010,20 @@ pub(crate) fn resolve_declared_executable(
         ));
     }
     refuse_symlink_path_within(root, &search_root, "declared runtime directory")?;
-    resolve_executable_hints(
+    let platform = qualification.platform;
+    let allow_one_wrapper = qualification.z2rs_desktop_profile
+        && matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64);
+    let executable = resolve_executable_hints_with_wrapper(
         &search_root,
-        qualification.platform,
+        platform,
         &qualification.executable_hints,
         "declared executable",
-    )
+        allow_one_wrapper,
+    )?;
+    if qualification.z2rs_desktop_profile {
+        crate::native_external_profile::z2rs::require_unix_player(&executable, platform)?;
+    }
+    Ok(executable)
 }
 
 pub(crate) fn resolve_executable_hints(
@@ -4021,7 +4032,17 @@ pub(crate) fn resolve_executable_hints(
     hints: &[String],
     label: &str,
 ) -> Result<PathBuf> {
-    let found = locate_executable_hints(search_root, platform, hints, label)?;
+    resolve_executable_hints_with_wrapper(search_root, platform, hints, label, false)
+}
+
+fn resolve_executable_hints_with_wrapper(
+    search_root: &Path,
+    platform: Platform,
+    hints: &[String],
+    label: &str,
+    allow_one_wrapper: bool,
+) -> Result<PathBuf> {
+    let found = locate_executable_hints(search_root, platform, hints, label, allow_one_wrapper)?;
     crate::permissions::require_platform_executable(&found, platform, label)?;
     Ok(found)
 }
@@ -4045,6 +4066,7 @@ fn grant_declared_executable(root: &Path, qualification: &InstallQualification) 
         qualification.platform,
         &qualification.executable_hints,
         "declared executable",
+        false,
     )?;
     crate::permissions::grant_verified_executable(
         &found,
@@ -4058,6 +4080,7 @@ fn locate_executable_hints(
     platform: Platform,
     hints: &[String],
     label: &str,
+    allow_one_wrapper: bool,
 ) -> Result<PathBuf> {
     if !search_root.is_dir() {
         return Err(PortcoveError::verification(format!(
@@ -4076,8 +4099,13 @@ fn locate_executable_hints(
             .iter()
             .filter(|path| {
                 if path_aware {
-                    manifest_relative(search_root, path)
-                        .is_ok_and(|relative| relative.eq_ignore_ascii_case(hint))
+                    manifest_relative(search_root, path).is_ok_and(|relative| {
+                        relative.eq_ignore_ascii_case(hint)
+                            || (allow_one_wrapper
+                                && relative
+                                    .split_once('/')
+                                    .is_some_and(|(_, inner)| inner.eq_ignore_ascii_case(hint)))
+                    })
                 } else {
                     path.file_name()
                         .and_then(|name| name.to_str())
@@ -4619,14 +4647,16 @@ mod tests {
         fs::write(root.join("pkg/Other"), b"#!/bin/sh\n").unwrap();
         let hint = ["Game".to_string()];
         assert!(resolve_executable_hints(root, Platform::LinuxX86_64, &hint, "t").is_err());
-        let found = locate_executable_hints(root, Platform::LinuxX86_64, &hint, "t").unwrap();
+        let found =
+            locate_executable_hints(root, Platform::LinuxX86_64, &hint, "t", false).unwrap();
         crate::permissions::grant_verified_executable(&found, Platform::LinuxX86_64, "t").unwrap();
         assert_eq!(
             resolve_executable_hints(root, Platform::LinuxX86_64, &hint, "t").unwrap(),
             root.join("pkg/Game")
         );
         let other = ["Other".to_string()];
-        let found = locate_executable_hints(root, Platform::LinuxX86_64, &other, "t").unwrap();
+        let found =
+            locate_executable_hints(root, Platform::LinuxX86_64, &other, "t", false).unwrap();
         assert!(
             crate::permissions::grant_verified_executable(&found, Platform::LinuxX86_64, "t")
                 .is_err()

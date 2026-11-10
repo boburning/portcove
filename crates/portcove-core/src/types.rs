@@ -613,7 +613,7 @@ pub struct ReleaseSpec {
     /// regular copies of the files they name.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub archive_file_links: bool,
-    /// Native20 (native definitions only): after extraction on a Unix platform, grant
+    /// Native21 (native definitions only): after extraction on a Unix platform, grant
     /// execute permission to the declared executable only when it verifies as a binary for
     /// that platform. The publisher's own executable bit, when present, is never changed.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -681,6 +681,7 @@ pub enum ExternalProfilePolicy {
     OpenlocoUnixV1,
     JgrppLinuxV1,
     OpengladMacV1,
+    Z2rsDesktopV1,
 }
 
 /// Preserve complete mod package versions without replacing packaged defaults.
