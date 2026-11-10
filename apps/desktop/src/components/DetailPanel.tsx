@@ -559,7 +559,19 @@ function DetailBody(model: {
         )
       }
       attention={(reveal) => (
-        <DetailAttention model={model} setupRoutes={setupRoutes} reveal={reveal} />
+        <>
+          {model.installed && (
+            <LaunchFailureNotice
+              portId={model.port.id}
+              generation={model.libraryGeneration}
+              status={model.status}
+              busy={model.busy}
+              rollback={model.actions.rollback}
+              openActivity={model.openActivity}
+            />
+          )}
+          <DetailAttention model={model} setupRoutes={setupRoutes} reveal={reveal} />
+        </>
       )}
     >
       {(reveal) => ({
@@ -3618,16 +3630,6 @@ function DetailOverviewActions({
 }) {
   return (
     <>
-      {model.installed && (
-        <LaunchFailureNotice
-          portId={model.port.id}
-          generation={model.libraryGeneration}
-          status={model.status}
-          busy={model.busy}
-          rollback={model.actions.rollback}
-          openActivity={model.openActivity}
-        />
-      )}
       {model.displayPort &&
         setupRoutePresentation(model.displayPort, model.status).promoteAlternative && (
           <Button
