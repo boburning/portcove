@@ -20956,7 +20956,8 @@
           "macos-aarch64": [
             "macos-release"
           ]
-        }
+        },
+        "archive_file_links": true
       },
       "source_profile": "extreme-g",
       "executable_hints": {
