@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { copyText } from "../clipboard";
 import type { BugReportDraft, BugReportField, BugReportLink } from "../types";
@@ -18,6 +18,7 @@ type Phase =
   | { kind: "ready"; fields: BugReportField[] }
   | { kind: "opening"; fields: BugReportField[] }
   | { kind: "copied" }
+  | { kind: "copy_failed"; text: string }
   | { kind: "failed"; message: string };
 
 /**
@@ -36,12 +37,30 @@ export function ReportProblem({
   open?: (fields: BugReportField[]) => Promise<BugReportLink>;
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "closed" });
-  const close = () => setPhase({ kind: "closed" });
+  // Only the newest request may update the dialog; closing or switching games
+  // invalidates an earlier preview that is still loading.
+  const request = useRef(0);
+  const close = () => {
+    request.current += 1;
+    setPhase({ kind: "closed" });
+  };
+  useLayoutEffect(
+    () => () => {
+      request.current += 1;
+    },
+    [],
+  );
   const start = () => {
+    const current = ++request.current;
     setPhase({ kind: "loading" });
     preview(portId, generation).then(
-      (draft) => setPhase({ kind: "ready", fields: draft.fields }),
-      (value) => setPhase({ kind: "failed", message: failureMessage(value) }),
+      (draft) => {
+        if (request.current === current) setPhase({ kind: "ready", fields: draft.fields });
+      },
+      (value) => {
+        if (request.current === current)
+          setPhase({ kind: "failed", message: failureMessage(value) });
+      },
     );
   };
   const submit = async (fields: BugReportField[]) => {
@@ -52,8 +71,13 @@ export function ReportProblem({
         close();
         return;
       }
-      await copyText(link.clipboard_text);
-      setPhase({ kind: "copied" });
+      try {
+        await copyText(link.clipboard_text);
+        setPhase({ kind: "copied" });
+      } catch {
+        // Keep the report on screen so the player can still copy it by hand.
+        setPhase({ kind: "copy_failed", text: link.clipboard_text });
+      }
     } catch (value) {
       setPhase({ kind: "failed", message: failureMessage(value) });
     }
@@ -111,10 +135,21 @@ export function ReportProblem({
               GitHub and paste it in.
             </p>
           )}
+          {phase.kind === "copy_failed" && (
+            <div className="grid gap-2">
+              <p role="alert">
+                This report is too long for a link and could not be copied automatically. Select and
+                copy the text below, then paste it into a new bug report on GitHub.
+              </p>
+              <textarea className={textareaClassName} readOnly value={phase.text} />
+            </div>
+          )}
           {phase.kind === "failed" && <p role="alert">{phase.message}</p>}
           <DialogFooter>
             <Button variant="secondary" disabled={phase.kind === "opening"} onClick={close}>
-              {phase.kind === "copied" || phase.kind === "failed" ? "Close" : "Cancel"}
+              {phase.kind === "copied" || phase.kind === "copy_failed" || phase.kind === "failed"
+                ? "Close"
+                : "Cancel"}
             </Button>
             {fields && (
               <Button

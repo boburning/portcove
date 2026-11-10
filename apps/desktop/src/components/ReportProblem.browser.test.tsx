@@ -90,3 +90,33 @@ it("shows a failed preview instead of an empty dialog", async () => {
   expect(document.body.querySelector("[role=alert]")).not.toBeNull();
   expect(button("Open on GitHub")).toBeUndefined();
 });
+
+it("keeps the report on screen for manual copying when the clipboard fails", async () => {
+  const { copyText } = await import("../clipboard");
+  vi.mocked(copyText).mockRejectedValueOnce(new Error("denied"));
+  const open = vi.fn().mockResolvedValue({ url: null, clipboard_text: "full report text" });
+  await mount(open);
+  await click("Report a problem");
+  await click("Open on GitHub");
+  const readOnly = document.body.querySelector("textarea[readonly]") as HTMLTextAreaElement | null;
+  expect(readOnly?.value).toBe("full report text");
+  expect(document.body.querySelector("[role=alert]")?.textContent).toContain("copy the text");
+});
+
+it("ignores a preview that finishes after the dialog was closed", async () => {
+  let finish: (value: BugReportDraft) => void = () => undefined;
+  const preview = vi.fn().mockReturnValue(
+    new Promise<BugReportDraft>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  await act(async () => {
+    await root.rerender(<ReportProblem generation={1} preview={preview} open={vi.fn()} />);
+  });
+  await click("Report a problem");
+  await act(async () => {
+    await root.unmount();
+  });
+  await act(async () => finish(draft));
+  expect(document.body.textContent).not.toContain("Crash in <home>/game");
+});

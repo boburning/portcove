@@ -12,22 +12,22 @@ use portcove_core::{
 };
 
 fn environment(names: &[&str]) -> Option<String> {
+    // An empty variable must not shadow the next candidate.
     names
         .iter()
-        .find_map(|name| std::env::var(name).ok())
-        .filter(|value| !value.trim().is_empty())
+        .filter_map(|name| std::env::var(name).ok())
+        .find(|value| !value.trim().is_empty())
 }
 
-fn redactions(service: &PortcoveService) -> ReportRedactions {
-    ReportRedactions {
+/// Fails closed: without the library folder the report cannot promise it is
+/// redacted, so no draft or link is produced.
+fn redactions(service: &PortcoveService) -> DesktopResult<ReportRedactions> {
+    let storage = service.library().storage_summary()?;
+    Ok(ReportRedactions {
         home_dir: environment(&["USERPROFILE", "HOME"]),
         user_name: environment(&["USERNAME", "USER"]),
-        library_root: service
-            .library()
-            .storage_summary()
-            .ok()
-            .map(|storage| storage.library_root.to_string_lossy().into_owned()),
-    }
+        library_root: Some(storage.library_root.to_string_lossy().into_owned()),
+    })
 }
 
 #[tauri::command]
@@ -85,7 +85,7 @@ pub(crate) async fn preview_bug_report(
             last_exit_code,
             doctor_summary: summary,
         };
-        Ok(draft_bug_report(&inputs, &redactions(&service)))
+        Ok(draft_bug_report(&inputs, &redactions(&service)?))
     })
     .await
 }
@@ -99,7 +99,7 @@ pub(crate) async fn open_bug_report(
 ) -> DesktopResult<BugReportLink> {
     let state = state.inner().clone();
     blocking_worker(move || {
-        let redactions = redactions(&service(&state)?);
+        let redactions = redactions(&service(&state)?)?;
         let link = bug_report_link(&fields, &redactions);
         if let Some(url) = &link.url {
             open_host_target(std::ffi::OsStr::new(url))?;

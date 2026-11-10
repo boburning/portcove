@@ -69,8 +69,10 @@ fn platform_label(platform: Platform) -> &'static str {
 }
 
 /// Removes secrets, then replaces the library root, home directory and user
-/// name with neutral placeholders. Path matching ignores ASCII case and treats
-/// `/` and `\` alike, because Windows paths appear in both forms.
+/// name with neutral placeholders. Path matching ignores ASCII case, treats `/`
+/// and `\` alike, also catches the `%20` form of a path, and only matches whole
+/// path segments (`C:\Users\Al` never rewrites `C:\Users\Alice`). The user name
+/// matches whole words only, so it cannot rewrite unrelated text.
 pub fn redact_report_text(input: &str, redactions: &ReportRedactions) -> String {
     let mut text = redact_diagnostic_text(input);
     // Most specific first, so a library inside the home directory reads <library>.
@@ -78,8 +80,17 @@ pub fn redact_report_text(input: &str, redactions: &ReportRedactions) -> String 
         (&redactions.library_root, "<library>"),
         (&redactions.home_dir, "<home>"),
     ] {
-        if let Some(path) = path.as_deref().filter(|path| path.trim().len() >= 3) {
-            text = replace_path(&text, path, placeholder);
+        let Some(path) = path.as_deref() else {
+            continue;
+        };
+        let trimmed = path.trim().trim_end_matches(['/', '\\']);
+        // A bare drive or root ("C:", "/") identifies nothing and would match everywhere.
+        if trimmed.chars().count() < 3 {
+            continue;
+        }
+        text = replace_path(&text, trimmed, placeholder);
+        if trimmed.contains(' ') {
+            text = replace_path(&text, &trimmed.replace(' ', "%20"), placeholder);
         }
     }
     if let Some(name) = redactions
@@ -88,26 +99,45 @@ pub fn redact_report_text(input: &str, redactions: &ReportRedactions) -> String 
         .map(str::trim)
         .filter(|name| name.chars().count() >= 3)
     {
-        text = replace_ignoring_case(&text, name, "<user>");
+        text = replace_word(&text, name, "<user>");
     }
     text
 }
 
-fn replace_path(text: &str, path: &str, placeholder: &str) -> String {
-    let canonical = |value: &str| value.replace('\\', "/");
-    let wanted = canonical(path.trim_end_matches(['/', '\\']));
-    if wanted.is_empty() {
-        return text.to_owned();
+fn is_word(character: char) -> bool {
+    character.is_alphanumeric() || character == '_'
+}
+
+/// Byte ranges of `needle` in `text` (ASCII-case-insensitive) that satisfy `accept`.
+fn matches(
+    text: &str,
+    needle: &str,
+    accept: impl Fn(Option<char>, Option<char>) -> bool,
+) -> Vec<(usize, usize)> {
+    let lower_text = text.to_ascii_lowercase();
+    let lower_needle = needle.to_ascii_lowercase();
+    let mut found = Vec::new();
+    let mut cursor = 0;
+    while let Some(offset) = lower_text[cursor..].find(&lower_needle) {
+        let start = cursor + offset;
+        let end = start + lower_needle.len();
+        let before = text[..start].chars().next_back();
+        let after = text[end..].chars().next();
+        if accept(before, after) {
+            found.push((start, end));
+            cursor = end;
+        } else {
+            // Step one character so overlapping candidates are still considered.
+            cursor = start + lower_text[start..].chars().next().map_or(1, char::len_utf8);
+        }
     }
-    let haystack = canonical(text);
-    // `canonical` keeps byte lengths equal, so offsets map back onto `text`.
+    found
+}
+
+fn splice(text: &str, ranges: &[(usize, usize)], placeholder: &str) -> String {
     let mut output = String::with_capacity(text.len());
     let mut cursor = 0;
-    let lower_haystack = haystack.to_ascii_lowercase();
-    let lower_wanted = wanted.to_ascii_lowercase();
-    while let Some(found) = lower_haystack[cursor..].find(&lower_wanted) {
-        let start = cursor + found;
-        let end = start + lower_wanted.len();
+    for &(start, end) in ranges {
         output.push_str(&text[cursor..start]);
         output.push_str(placeholder);
         cursor = end;
@@ -116,23 +146,22 @@ fn replace_path(text: &str, path: &str, placeholder: &str) -> String {
     output
 }
 
-fn replace_ignoring_case(text: &str, needle: &str, placeholder: &str) -> String {
-    let lower_text = text.to_ascii_lowercase();
-    let lower_needle = needle.to_ascii_lowercase();
-    // Non-ASCII names change length when lowercased; skip rather than misalign.
-    if lower_text.len() != text.len() || lower_needle.len() != needle.len() {
-        return text.replace(needle, placeholder);
-    }
-    let mut output = String::with_capacity(text.len());
-    let mut cursor = 0;
-    while let Some(found) = lower_text[cursor..].find(&lower_needle) {
-        let start = cursor + found;
-        output.push_str(&text[cursor..start]);
-        output.push_str(placeholder);
-        cursor = start + lower_needle.len();
-    }
-    output.push_str(&text[cursor..]);
-    output
+/// Replaces `needle` where it is not glued to a longer word on either side.
+fn replace_word(text: &str, needle: &str, placeholder: &str) -> String {
+    let ranges = matches(text, needle, |before, after| {
+        !before.is_some_and(is_word) && !after.is_some_and(is_word)
+    });
+    splice(text, &ranges, placeholder)
+}
+
+/// Replaces a path where it ends on a segment boundary. `/` and `\` are alike.
+fn replace_path(text: &str, path: &str, placeholder: &str) -> String {
+    // The swap keeps byte lengths, so ranges found on the canonical copy apply to `text`.
+    let canonical = |value: &str| value.replace('\\', "/");
+    let ranges = matches(&canonical(text), &canonical(path), |_, after| {
+        !after.is_some_and(|next| is_word(next) || next == '-')
+    });
+    splice(text, &ranges, placeholder)
 }
 
 /// Builds the editable draft. Every value is redacted before the player sees it.
@@ -157,7 +186,7 @@ pub fn draft_bug_report(inputs: &BugReportInputs, redactions: &ReportRedactions)
     let field = |id: &str, label: &str, value: String| BugReportField {
         id: id.to_owned(),
         label: label.to_owned(),
-        value: redact_report_text(&value, redactions),
+        value: redact_for_field(id, &value, redactions),
     };
     BugReportDraft {
         fields: vec![
@@ -181,6 +210,15 @@ pub fn draft_bug_report(inputs: &BugReportInputs, redactions: &ReportRedactions)
     }
 }
 
+/// `version` and `platform` are fixed facts matched against the issue template, so
+/// a user name that happens to be a word inside them must not rewrite them.
+fn redact_for_field(id: &str, value: &str, redactions: &ReportRedactions) -> String {
+    match id {
+        "version" | "platform" => redact_diagnostic_text(value),
+        _ => redact_report_text(value, redactions),
+    }
+}
+
 /// Builds the pre-filled link from the player's final text. Unknown field ids
 /// are ignored, and the text is redacted again, so an edit cannot add a path.
 pub fn bug_report_link(fields: &[BugReportField], redactions: &ReportRedactions) -> BugReportLink {
@@ -190,7 +228,7 @@ pub fn bug_report_link(fields: &[BugReportField], redactions: &ReportRedactions)
         let Some(field) = fields.iter().find(|field| field.id == wanted) else {
             continue;
         };
-        let value = redact_report_text(&field.value, redactions);
+        let value = redact_for_field(wanted, &field.value, redactions);
         if value.trim().is_empty() {
             continue;
         }
@@ -331,6 +369,91 @@ mod tests {
         let link = bug_report_link(&fields, &ReportRedactions::default());
         assert!(link.url.is_none());
         assert!(link.clipboard_text.contains(&"x".repeat(100)));
+    }
+
+    #[test]
+    fn paths_match_whole_segments_only() {
+        let home = ReportRedactions {
+            home_dir: Some(r"C:\Users\Alice".to_owned()),
+            ..ReportRedactions::default()
+        };
+        assert_eq!(
+            redact_report_text(
+                r"C:\Users\Alice\x and C:\Users\Alicia\y and C:\Users\Alice.",
+                &home
+            ),
+            r"<home>\x and C:\Users\Alicia\y and <home>."
+        );
+        let prefix = ReportRedactions {
+            home_dir: Some("/home/bob".to_owned()),
+            ..ReportRedactions::default()
+        };
+        assert_eq!(
+            redact_report_text("/home/bobby/x /home/bob/x", &prefix),
+            "/home/bobby/x <home>/x"
+        );
+    }
+
+    #[test]
+    fn a_bare_drive_or_root_is_never_a_redaction_target() {
+        for home in [r"C:\", "C:", "/", "/h"] {
+            let redactions = ReportRedactions {
+                home_dir: Some(home.to_owned()),
+                ..ReportRedactions::default()
+            };
+            assert_eq!(
+                redact_report_text(r"C:\Games and /usr/bin", &redactions),
+                r"C:\Games and /usr/bin"
+            );
+        }
+    }
+
+    #[test]
+    fn user_names_match_whole_words_and_never_rewrite_fixed_fields() {
+        let redactions = ReportRedactions {
+            user_name: Some("win".to_owned()),
+            ..ReportRedactions::default()
+        };
+        assert_eq!(
+            redact_report_text("Windows by win and WIN's win", &redactions),
+            "Windows by <user> and <user>'s <user>"
+        );
+        let mut facts = inputs();
+        facts.platform = Platform::WindowsX86_64;
+        facts.portcove_version = "0.1.0-win".to_owned();
+        let draft = draft_bug_report(&facts, &redactions);
+        assert_eq!(value(&draft, "platform"), "Windows");
+        assert_eq!(value(&draft, "version"), "0.1.0-win");
+        let link = bug_report_link(&draft.fields, &redactions).url.unwrap();
+        assert!(link.contains("platform=Windows&") && link.contains("version=0.1.0-win&"));
+    }
+
+    #[test]
+    fn percent_encoded_space_paths_and_unc_paths_are_redacted() {
+        let redactions = ReportRedactions {
+            home_dir: Some(r"C:\Users\Alice Smith".to_owned()),
+            library_root: Some(r"\\nas\games\library".to_owned()),
+            ..ReportRedactions::default()
+        };
+        assert_eq!(
+            redact_report_text(
+                "file:///C:/Users/Alice%20Smith/x and //NAS/Games/Library/save",
+                &redactions
+            ),
+            "file:///<home>/x and <library>/save"
+        );
+    }
+
+    #[test]
+    fn non_ascii_text_keeps_its_offsets() {
+        let redactions = ReportRedactions {
+            home_dir: Some("/home/zoë".to_owned()),
+            ..ReportRedactions::default()
+        };
+        assert_eq!(
+            redact_report_text("café /home/zoë/ünï ok", &redactions),
+            "café <home>/ünï ok"
+        );
     }
 
     #[test]
