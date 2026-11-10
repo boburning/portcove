@@ -43287,6 +43287,79 @@
         "macos-aarch64"
       ],
       "adapter": "native-portable",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "builtin",
+            "cfg",
+            "packs",
+            "pix",
+            "sound"
+          ],
+          "executables": [
+            "openglad.exe",
+            "openscen.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "builtin",
+            "cfg",
+            "packs",
+            "pix",
+            "sound"
+          ],
+          "executables": [
+            "openglad",
+            "openscen",
+            "sound/blast1.wav",
+            "sound/bolt1.wav",
+            "sound/boom.wav",
+            "sound/charge.wav",
+            "sound/clang.wav",
+            "sound/die1.wav",
+            "sound/die2.wav",
+            "sound/eat.wav",
+            "sound/explode1.wav",
+            "sound/faerie1.wav",
+            "sound/fwip.wav",
+            "sound/heal1.wav",
+            "sound/money.wav",
+            "sound/roar.wav",
+            "sound/teleport.wav",
+            "sound/twang.wav"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [
+            "builtin",
+            "cfg",
+            "packs",
+            "pix",
+            "sound"
+          ],
+          "executables": [
+            "openglad",
+            "openscen",
+            "sound/blast1.wav",
+            "sound/bolt1.wav",
+            "sound/boom.wav",
+            "sound/charge.wav",
+            "sound/clang.wav",
+            "sound/die1.wav",
+            "sound/die2.wav",
+            "sound/eat.wav",
+            "sound/explode1.wav",
+            "sound/faerie1.wav",
+            "sound/fwip.wav",
+            "sound/heal1.wav",
+            "sound/money.wav",
+            "sound/roar.wav",
+            "sound/teleport.wav",
+            "sound/twang.wav"
+          ]
+        }
+      },
       "release": {
         "repository": "openglad/openglad",
         "asset_hints": {
@@ -44603,6 +44676,36 @@
         "linux-x86-64"
       ],
       "adapter": "native-portable",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "ai",
+            "baseset",
+            "docs",
+            "game",
+            "lang",
+            "scripts"
+          ],
+          "executables": [
+            "openttd.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "ai",
+            "baseset",
+            "docs",
+            "game",
+            "lang",
+            "lib",
+            "scripts",
+            "share"
+          ],
+          "executables": [
+            "openttd"
+          ]
+        }
+      },
       "release": {
         "repository": "JGRennison/OpenTTD-patches",
         "asset_hints": {

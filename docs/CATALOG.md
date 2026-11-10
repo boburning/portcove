@@ -1491,9 +1491,11 @@ compatible release; plain data files, documentation and libraries may change. A
 different layout is refused with a player-facing reason naming the new or missing
 programs and folders, leaves the installed copy untouched, and uses the existing
 unsupported-acquisition surface, not a new hold authority. Platforms without a
-fingerprint keep today's behavior, and older clients ignore the field. A selected
-independent definition may replace a fingerprint after review but cannot remove
-one. The fingerprint is a gate, not part of the installed contract, and grants no
+fingerprint keep today's behavior. Independent definitions using this gate
+require [NativePortable version 18](DEFINITION-DELIVERY.md) so readers that
+would ignore the field cannot accept them. A selected independent definition
+may replace a fingerprint after review but cannot remove one. The fingerprint
+applies to staging and grants no
 qualification. Persistent-path anchors stay in the existing `persistent_paths`
 data. Exact-name matching means a route whose executable name carries a version
 needs a reviewed fingerprint update, which is the safe direction.

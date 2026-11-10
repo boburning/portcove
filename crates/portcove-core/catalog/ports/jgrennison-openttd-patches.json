@@ -45,6 +45,16 @@
     "channels": ["stable"],
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["ai", "baseset", "docs", "game", "lang", "scripts"],
+        "executables": ["openttd.exe"]
+      },
+      "linux-x86-64": {
+        "directories": ["ai", "baseset", "docs", "game", "lang", "lib", "scripts", "share"],
+        "executables": ["openttd"]
+      }
+    },
     "release": {
       "repository": "JGRennison/OpenTTD-patches",
       "asset_hints": {
