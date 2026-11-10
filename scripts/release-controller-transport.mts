@@ -22,6 +22,10 @@ import {
 } from "./release-control-step-bridge.mts";
 import { inspectCatalogSigningBinding } from "./release-catalog-signing-contract.mts";
 import { retainReleaseRoutingMarker as retain } from "./release-routing-marker.mts";
+import {
+  applicationCoordinatorRefusalFile,
+  requireApplicationCoordinatorRefusal,
+} from "./release-coordinator-errors.mts";
 
 const kinds = [
   "role-key",
@@ -643,6 +647,15 @@ export async function nextControllerTransport(
   }
   for (;;) {
     active(deadline);
+    if (phase === "coordinator") {
+      const refusal = await optional(path.join(root, applicationCoordinatorRefusalFile));
+      if (refusal !== undefined) {
+        requireApplicationCoordinatorRefusal(refusal);
+        throw new Error(
+          "application coordinator refused; retain its public stage and pending effects",
+        );
+      }
+    }
     for (let index = 0; index <= 14; index++) {
       if (await optional(filename(root, phase, `control-${index}-ack`))) continue;
       const pointer = await optional(path.join(root, `control-step-ready-${phase}-r${index}.json`));
@@ -682,6 +695,31 @@ export async function nextControllerTransport(
       const requiresAttestation = endedState(ended);
       if (!requiresAttestation || (await optional(filename(root, phase, "attest-ack"))))
         return { kind: "done" };
+    }
+    if (phase === "coordinator" && ended === undefined) {
+      const worker = await optional(path.join(root, "controller-worker-coordinator-started.json"));
+      if (worker !== undefined) {
+        if (
+          !exact(worker, "operation,phase,pid,start_ticks") ||
+          worker.operation !== "coordinator" ||
+          worker.phase !== phase ||
+          typeof worker.pid !== "number" ||
+          !Number.isSafeInteger(worker.pid) ||
+          worker.pid < 1 ||
+          typeof worker.start_ticks !== "string" ||
+          !/^[1-9][0-9]*$/u.test(worker.start_ticks)
+        )
+          throw new Error("fixed coordinator worker identity changed");
+        const current = await observeLinuxControllerProcessStart(worker.pid);
+        if (
+          (current === null ||
+            current.state === "Z" ||
+            current.start_ticks !== worker.start_ticks) &&
+          (await optional(path.join(root, "controller-job-settlement-coordinator.json"))) ===
+            undefined
+        )
+          throw new Error("fixed coordinator exited without settlement; retain pending effects");
+      }
     }
     await delay(Math.min(100, Math.max(1, deadline - performance.now())));
   }
