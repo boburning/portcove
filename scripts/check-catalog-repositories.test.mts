@@ -471,13 +471,13 @@ function requiredFixture<T>(value: T | null | undefined): T {
     assert.equal(report.request_plan.status, "admitted");
     assert.equal(report.limits.requests, 130);
     const atCeiling = await collect(
-      catalog(...Array.from({ length: 320 }, (_, i) => port(`ceiling-${i}`))),
+      catalog(...Array.from({ length: 352 }, (_, i) => port(`ceiling-${i}`))),
     );
-    assert.equal(atCeiling.consumed.requests, 320);
+    assert.equal(atCeiling.consumed.requests, 352);
     assert.equal(atCeiling.request_plan.status, "admitted");
     let overflowCalls = 0;
     const overflow = await collect(
-      catalog(...Array.from({ length: 321 }, (_, i) => port(`overflow-${i}`))),
+      catalog(...Array.from({ length: 353 }, (_, i) => port(`overflow-${i}`))),
       async () => {
         overflowCalls += 1;
         assert.fail("overflow must refuse before network");
@@ -486,7 +486,7 @@ function requiredFixture<T>(value: T | null | undefined): T {
     assert.equal(overflow.request_plan.status, "overflow");
     assert.equal(overflow.consumed.requests, 0);
     assert.equal(overflowCalls, 0);
-    assert.equal(overflow.observations.length, 321);
+    assert.equal(overflow.observations.length, 353);
     assert.ok(
       overflow.observations.every(
         (record) => record.reason === "budget" && record.attempted === false,

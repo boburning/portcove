@@ -686,7 +686,7 @@ The coordinator validates the complete inventory and accounting policy before
 network work. It selects ports oldest-attempt-first and admits at most one
 individually oversized port alongside normally fitting scopes. Within that
 scope, locations rotate fairly across owners and oldest actual attempts. Each
-operation permits at most **320 requests**, **512 newly assessed locations**,
+operation permits at most **352 requests**, **512 newly assessed locations**,
 three minutes, fifteen seconds per request, one MiB per response and sixteen MiB
 consumed response bytes. Compatible completed locations may be replayed from the
 validated checkpoint without spending another operation slot or request; their
@@ -840,7 +840,7 @@ inventory, accepted artifact or exception to required hosted validation.
 ### Growing monitoring inventories
 
 The monitor retains fair oldest-attempt rotation across bounded collector runs.
-The collector's 320-request and 512-new-location envelopes bound one operation,
+The collector's 352-request and 512-new-location envelopes bound one operation,
 not the logical catalog or retained cross-run history. Checkpoints use their
 existing 16 MiB physical envelope rather than separate 4,096-port, 8,192-record
 or 512-incident historical count ceilings. Input catalogs are bounded to 4 MiB,
