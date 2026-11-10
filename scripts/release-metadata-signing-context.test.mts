@@ -171,7 +171,11 @@ void test("serialized coordinator results or caller pending cannot mint context 
     prepareCoordinatorSigningContext(imported, parent, performance.now() + 1000),
     /same-process/,
   );
-  await assert.rejects(completeCoordinatorSigningContext(imported, parent), /same-process/);
+  const { applicationCoordinatorRefusal } = await import("./release-coordinator-errors.mts");
+  await assert.rejects(
+    completeCoordinatorSigningContext(imported, parent),
+    (error) => applicationCoordinatorRefusal(error).stage === "metadata-context-preparation",
+  );
   await assert.rejects(requireCoordinatorSigningContext(imported), /actual coordinator/);
   await assert.rejects(readCoordinatorSigningContextFiles(imported), /actual coordinator/);
   await assert.rejects(

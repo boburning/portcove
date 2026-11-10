@@ -915,6 +915,9 @@ void test("selected fixed writer joins original source/OIDC objects and preserve
   const journalBranch = structuredClone(protectedStorage.inventory.branches[0]!);
   journalBranch.branch = branch;
   journalBranch.ref.ref = `refs/heads/${branch}`;
+  Object.assign(journalBranch.ref.object, {
+    url: `https://api.github.com/repos/boburning/portcove/git/commits/${journalBranch.ref.object.sha}`,
+  });
   journalBranch.effective_rules.forEach((rule) => {
     rule.ruleset_id += 4;
   });
@@ -926,12 +929,20 @@ void test("selected fixed writer joins original source/OIDC objects and preserve
   );
   const advancedStorage = structuredClone(protectedStorage);
   advancedStorage.inventory.branches.at(-1)!.ref.object.sha = "f".repeat(40);
+  Object.assign(advancedStorage.inventory.branches.at(-1)!.ref.object, {
+    url: `https://api.github.com/repos/boburning/portcove/git/commits/${"f".repeat(40)}`,
+  });
   advancedStorage.inventory_sha256 = capacityDigest(advancedStorage.inventory);
   const oldPolicy = requireFixedClassificationStoragePolicy(protectedStorage, storagePrincipal);
   const newPolicy = requireFixedClassificationStoragePolicy(advancedStorage, storagePrincipal);
   assert.notEqual(oldPolicy.inventory_sha256, newPolicy.inventory_sha256);
   assert.equal(oldPolicy.journal_policy_sha256, newPolicy.journal_policy_sha256);
   for (const mutation of [
+    (raw: typeof protectedStorage) => {
+      Object.assign(raw.inventory.branches.at(-1)!.ref.object, {
+        url: "https://api.github.com/repos/boburning/portcove/git/commits/" + "0".repeat(40),
+      });
+    },
     (raw: typeof protectedStorage) => {
       raw.inventory.branches.pop();
     },

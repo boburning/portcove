@@ -732,6 +732,14 @@ function requireInputPolicy(
       // The original complete inventory digest is retained separately. Journal
       // head progression is authenticated by the owned checkpoint protocol;
       // it is not a change to writer/retention policy between fresh rounds.
+      if (row.ref.object.url !== undefined) {
+        if (
+          row.ref.object.url !==
+          `https://api.github.com/repos/boburning/portcove/git/commits/${row.ref.object.sha}`
+        )
+          throw new Error("observed journal commit URL differs from its exact identity");
+        delete row.ref.object.url;
+      }
       delete row.ref.object.sha;
     }
     return row;
