@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 // Wire-contract review is explicit; the manifest consistency test makes a new
 // dependency proposal fail until its report consumer has been reviewed too.
-export const reviewedFallowVersion = "3.39.0";
+export const reviewedFallowVersion = "3.41.0";
 
 function object(value: unknown, field: string) {
   if (!isRecord(value)) throw new Error(`Invalid Fallow ${field}: expected object`);
