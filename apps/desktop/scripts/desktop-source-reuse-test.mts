@@ -17,7 +17,7 @@ import { captureKeyboardTarget } from "./desktop-capture-target.mts";
 import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import type { ScenarioContext } from "./desktop-scenario-context.mts";
 import type {
-  LaunchSessionRecord,
+  LaunchSessionView,
   PortDefinition,
   SourceRecord,
 } from "../src/transport-types.generated.d.ts";
@@ -45,7 +45,7 @@ const portIds = ["2ship2harkinian", "zelda64-recomp"] as const;
 // A known nonzero game exit can leave later observations safe, never successful.
 export function retainSettledRuntimeOutcome(
   route: Record<string, unknown>,
-  terminal: LaunchSessionRecord,
+  terminal: LaunchSessionView,
 ) {
   route.terminal = terminal;
   if (
@@ -96,8 +96,8 @@ export async function observeRegisteredRuntimeStartup({
   inspectArchive,
   wait,
 }: {
-  session: LaunchSessionRecord;
-  readSession: () => LaunchSessionRecord | null | undefined;
+  session: LaunchSessionView;
+  readSession: () => LaunchSessionView | null | undefined;
   inspectArchive: () => Promise<FileIdentity | undefined>;
   wait: (
     observe: () => Promise<FileIdentity | false>,
@@ -213,7 +213,7 @@ interface Context extends ScenarioContext {
   confirmNative: ReturnType<typeof nativeConfirmation>;
   application: string;
   ownedGameProcess: AcquisitionGameObserver;
-  ownedLaunchSessions: () => LaunchSessionRecord[];
+  ownedLaunchSessions: () => LaunchSessionView[];
 }
 
 export async function registeredSourceReuseScenario(context: Context) {

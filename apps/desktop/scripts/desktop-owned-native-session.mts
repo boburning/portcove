@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import type { InstallRecord, LaunchSessionRecord } from "../src/transport-types.generated.d.ts";
+import type { InstallRecord, LaunchSessionView } from "../src/transport-types.generated.d.ts";
 
 export const nativeSessionScript = fileURLToPath(new URL("./native-session.ps1", import.meta.url));
 
@@ -29,7 +29,7 @@ function sameNativeProcess(left: CapturedNativeProcess, right: CapturedNativePro
   );
 }
 
-function sameManagedInstallation(session: LaunchSessionRecord, game: NativeManagedGame) {
+function sameManagedInstallation(session: LaunchSessionView, game: NativeManagedGame) {
   return (
     session.port_id === game.installation.port_id &&
     session.install_id === game.installation.id &&
@@ -41,7 +41,7 @@ export function assertNativeApplicationInventory(
   captured: NativeProcessSnapshot,
   application: CapturedNativeProcess,
   game: NativeManagedGame | undefined,
-  sessions: readonly LaunchSessionRecord[],
+  sessions: readonly LaunchSessionView[],
   previousGames: readonly NativeManagedGame[] = [],
 ) {
   assert.equal(
@@ -276,7 +276,7 @@ export interface NativeQualificationInventoryOptions {
   application: string;
   nativeDriverPath: string;
   acquisitionJourney: boolean | undefined;
-  acquisitionLaunchSessions: () => readonly LaunchSessionRecord[];
+  acquisitionLaunchSessions: () => readonly LaunchSessionView[];
 }
 
 // Ephemeral harness ownership, never durable operation or product authority.
