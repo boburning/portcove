@@ -446,6 +446,8 @@ pub fn export_transport_schemas() -> Value {
             "reconcile_outcome": output::<BatchOutcome<ReconcileResult>>(),
             "source_verification_outcome": output::<SourceBatchOutcome>(),
             "launch_result": output::<LaunchResult>(),
+            "bug_report_draft": output::<portcove_core::BugReportDraft>(),
+            "bug_report_link": output::<portcove_core::BugReportLink>(),
             "application_update_preferences": output::<ApplicationUpdatePreferences>(),
             "application_update_production_transition": output::<ApplicationUpdateProductionTransition>(),
             "application_update_production_transition_result": output::<ApplicationUpdateProductionTransitionResult>(),
@@ -477,6 +479,7 @@ pub fn export_transport_schemas() -> Value {
         },
         "input": {
             "game_comparison_request": schemars::schema_for!(portcove_core::GameComparisonRequest),
+            "bug_report_field": schemars::schema_for!(portcove_core::BugReportField),
             "install_input": schemars::schema_for!(InstallInput),
             "organization_change": schemars::schema_for!(portcove_core::OrganizationChange),
             "catalog_download_request": schemars::schema_for!(portcove_core::CatalogDownloadRequest),
