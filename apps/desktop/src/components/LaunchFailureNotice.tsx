@@ -17,6 +17,7 @@ export function LaunchFailureNotice({
   status,
   busy,
   rollback,
+  openActivity,
   load = desktopApi.launchFailure,
 }: {
   portId: string;
@@ -24,6 +25,8 @@ export function LaunchFailureNotice({
   status?: PortStatus | undefined;
   busy?: string | undefined;
   rollback: () => void | Promise<unknown>;
+  /** Opens Portcove's Activity history, where the launch and its log are recorded. */
+  openActivity?: (() => void) | undefined;
   load?: (portId: string, generation: number) => Promise<LaunchSessionView | null>;
 }) {
   // State is keyed by what was loaded, so a stale answer for another game or
@@ -83,6 +86,11 @@ export function LaunchFailureNotice({
           {copied ? "Copied" : "Copy exit code"}
         </Button>
         <ReportProblem portId={portId} generation={generation} />
+        {openActivity && (
+          <Button variant="outline" onClick={openActivity}>
+            Open Activity
+          </Button>
+        )}
         {status?.previous && !portActionPresentation(status, "rollback").blocked && (
           <Button
             variant="outline"

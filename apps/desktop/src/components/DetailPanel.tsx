@@ -775,15 +775,6 @@ function StatusActionsGroupView({
       >
         {fileSummary}
         <RetiredNotice port={model.port} />
-        {model.installed && (
-          <LaunchFailureNotice
-            portId={model.port.id}
-            generation={model.libraryGeneration}
-            status={model.status}
-            busy={model.busy}
-            rollback={model.actions.rollback}
-          />
-        )}
         <p role="status">{actionPresentation.reason}</p>
         <div className="actions primary-actions mt-[16px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
           <Button data-focusable className="wide flex-1" variant="primary" size="lg" disabled>
@@ -3627,6 +3618,16 @@ function DetailOverviewActions({
 }) {
   return (
     <>
+      {model.installed && (
+        <LaunchFailureNotice
+          portId={model.port.id}
+          generation={model.libraryGeneration}
+          status={model.status}
+          busy={model.busy}
+          rollback={model.actions.rollback}
+          openActivity={model.openActivity}
+        />
+      )}
       {model.displayPort &&
         setupRoutePresentation(model.displayPort, model.status).promoteAlternative && (
           <Button
