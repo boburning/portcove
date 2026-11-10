@@ -2139,8 +2139,8 @@ missing, directory, cyclic, overlong-chain and malformed targets refuse before a
 write, and the copied bytes count toward the same size and compression-ratio limits.
 A definition whose package relies on this declares `release.archive_file_links`,
 which older readers refuse through [native capability 14](DEFINITION-DELIVERY.md). N64 recomp definitions with macOS app-bundle packages declare it and require [N64 capability 5](DEFINITION-DELIVERY.md). This covers the dylib version aliases
-in macOS app bundles. A package whose whole payload is one ZIP file is unwrapped one
-level through the same extractor. The exact upstream asset keeps its own identity,
+in macOS app bundles. A package whose whole payload is one ZIP or TAR.GZ file is unwrapped one
+level through the same extractor on macOS and Linux routes that declare an executable. The exact upstream asset keeps its own identity,
 and any other payload shape is unchanged. These are extraction facts, not native
 Mac execution evidence.
 

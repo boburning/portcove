@@ -49,7 +49,7 @@ struct AssetPreparation<'a> {
     acquisition: Option<AssetAcquisition<'a>>,
     acquired: Option<&'a Path>,
     requires_tar_xz: bool,
-    unwrap_inner_zip: bool,
+    unwrap_inner_archive: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -1193,11 +1193,12 @@ impl Installer {
                         .map(|inputs| inputs.path(&request.release.asset))
                         .transpose()?,
                     requires_tar_xz: request.qualification.requires_tar_xz,
-                    // Only macOS routes with a declared executable can have an app bundle
-                    // wrapped in an outer ZIP; other payload shapes stay as extracted.
-                    unwrap_inner_zip: matches!(
+                    // Only macOS and Linux routes with a declared executable unwrap a
+                    // package that publishes one inner archive; other payload shapes
+                    // stay as extracted.
+                    unwrap_inner_archive: matches!(
                         request.qualification.platform,
-                        Platform::MacosX86_64 | Platform::MacosAarch64
+                        Platform::MacosX86_64 | Platform::MacosAarch64 | Platform::LinuxX86_64
                     ) && !request.qualification.executable_hints.is_empty(),
                 },
                 operation,
@@ -1316,7 +1317,7 @@ impl Installer {
                         .map(|inputs| inputs.path(&runtime.asset))
                         .transpose()?,
                     requires_tar_xz: false,
-                    unwrap_inner_zip: false,
+                    unwrap_inner_archive: false,
                 },
                 operation,
                 emit,
@@ -1596,7 +1597,7 @@ impl Installer {
             acquisition,
             acquired,
             requires_tar_xz,
-            unwrap_inner_zip,
+            unwrap_inner_archive,
         } = input;
         let (artifact, cache_worker) = self
             .acquire_asset_bytes(asset, download_path, operation, emit, acquisition, acquired)
@@ -1629,7 +1630,7 @@ impl Installer {
                     &extraction_root,
                     &asset_name,
                     expected_size,
-                    unwrap_inner_zip,
+                    unwrap_inner_archive,
                     &checkpoint,
                 )
             };
@@ -4349,7 +4350,7 @@ fn extract_asset(
     destination: &Path,
     asset_name: &str,
     expected_size: u64,
-    unwrap_inner_zip: bool,
+    unwrap_inner_archive: bool,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     let lower = asset_name.to_ascii_lowercase();
@@ -4361,8 +4362,8 @@ fn extract_asset(
             expected_size,
             checkpoint,
         )?;
-        if unwrap_inner_zip {
-            unwrap_lone_inner_zip(destination, checkpoint)
+        if unwrap_inner_archive {
+            unwrap_lone_inner_archive(destination, checkpoint)
         } else {
             Ok(())
         }
@@ -4381,11 +4382,12 @@ fn extract_asset(
 
 const INNER_ARCHIVE_STAGE: &str = ".portcove-inner-archive";
 
-/// Some publishers wrap a ZIP of the real package in an outer ZIP. When the verified
-/// outer archive's whole payload is one regular ZIP file, extract that inner archive
-/// through the same bounded extractor and place its contents at the payload root.
-/// This is one level only; any other payload shape is left exactly as extracted.
-fn unwrap_lone_inner_zip(root: &Path, checkpoint: &dyn Fn() -> Result<()>) -> Result<()> {
+/// Some publishers wrap the real package in an outer ZIP as one inner ZIP or TAR.GZ.
+/// When the verified outer archive's whole payload is one regular archive file of
+/// those kinds, extract it through the same bounded extractor and place its contents
+/// at the payload root. This is one level only; any other payload shape is left
+/// exactly as extracted.
+fn unwrap_lone_inner_archive(root: &Path, checkpoint: &dyn Fn() -> Result<()>) -> Result<()> {
     let mut entries = fs::read_dir(root)?;
     let Some(only) = entries.next().transpose()? else {
         return Ok(());
@@ -4399,7 +4401,10 @@ fn unwrap_lone_inner_zip(root: &Path, checkpoint: &dyn Fn() -> Result<()>) -> Re
     };
     let path = only.path();
     let metadata = fs::symlink_metadata(&path)?;
-    if !metadata.is_file() || !name.to_ascii_lowercase().ends_with(".zip") {
+    let lower = name.to_ascii_lowercase();
+    if !metadata.is_file()
+        || !(lower.ends_with(".zip") || lower.ends_with(".tar.gz") || lower.ends_with(".tgz"))
+    {
         return Ok(());
     }
     let stage = root.join(INNER_ARCHIVE_STAGE);
@@ -4536,6 +4541,80 @@ mod tests {
         let alias = root.join("Game.app/Contents/Frameworks/libz.1.dylib");
         assert!(fs::symlink_metadata(&alias).unwrap().file_type().is_file());
         assert_eq!(fs::read(alias).unwrap(), b"zlib");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn nested_linux_tar_gz_package_extracts_to_one_resolvable_executable() {
+        use std::io::Write as _;
+
+        let temporary = tempfile::tempdir().unwrap();
+        let inner = temporary.path().join("Game.tar.gz");
+        {
+            let encoder = flate2::write::GzEncoder::new(
+                File::create(&inner).unwrap(),
+                flate2::Compression::default(),
+            );
+            let mut builder = tar::Builder::new(encoder);
+            for (name, bytes, mode) in [
+                ("Game", &b"main"[..], 0o755),
+                ("assets/readme.txt", &b"readme"[..], 0o644),
+            ] {
+                let mut header = tar::Header::new_gnu();
+                header.set_entry_type(tar::EntryType::Regular);
+                header.set_size(bytes.len() as u64);
+                header.set_mode(mode);
+                header.set_cksum();
+                builder.append_data(&mut header, name, bytes).unwrap();
+            }
+            builder
+                .into_inner()
+                .unwrap()
+                .finish()
+                .unwrap()
+                .flush()
+                .unwrap();
+        }
+        let outer = temporary.path().join("Game-v2.0.0-Linux-X64.zip");
+        write_test_zip(
+            &outer,
+            &[("Game.tar.gz", &fs::read(&inner).unwrap(), 0o644)],
+            &[],
+        );
+        let root = temporary.path().join("payload");
+        fs::create_dir_all(&root).unwrap();
+        extract_asset(
+            &outer,
+            &root,
+            "Game-v2.0.0-Linux-X64.zip",
+            fs::metadata(&outer).unwrap().len(),
+            true,
+            &|| Ok(()),
+        )
+        .unwrap();
+        assert!(!root.join("Game.tar.gz").exists());
+        assert!(!root.join(INNER_ARCHIVE_STAGE).exists());
+        assert_eq!(
+            resolve_executable_hints(&root, Platform::LinuxX86_64, &["Game".into()], "test")
+                .unwrap(),
+            root.join("Game")
+        );
+        assert_eq!(fs::read(root.join("assets/readme.txt")).unwrap(), b"readme");
+
+        // Without the macOS/Linux route gate the package stays exactly as extracted.
+        let kept = temporary.path().join("kept");
+        fs::create_dir_all(&kept).unwrap();
+        extract_asset(
+            &outer,
+            &kept,
+            "Game-v2.0.0-Linux-X64.zip",
+            fs::metadata(&outer).unwrap().len(),
+            false,
+            &|| Ok(()),
+        )
+        .unwrap();
+        assert!(kept.join("Game.tar.gz").is_file());
+        assert!(!kept.join("Game").exists());
     }
 
     #[test]

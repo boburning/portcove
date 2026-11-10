@@ -103,8 +103,8 @@ contracts retain their prior semantics. The Linux sibling may use a single
 exact AppImage asset with the existing standalone installer.
 
 N64 recomp version 5 consumes the same `release.archive_file_links` declaration for
-macOS app bundles whose upstream ZIP carries dylib version links, optionally wrapped in
-one inner ZIP. Indexed entries with the declaration require an N64 version 5 lower
+macOS app bundles whose upstream ZIP carries dylib version links, and for macOS or
+Linux packages published as one inner ZIP or TAR.GZ inside the downloaded ZIP. Indexed entries with the declaration require an N64 version 5 lower
 bound for fresh and retained reads; older readers refuse them, and no other adapter
 accepts the declaration.
 
