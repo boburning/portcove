@@ -2107,11 +2107,8 @@ async function prepareTrustedCoordinatorRenewalAt(
       recovered.input.active_candidate,
     );
     const inventorySha = capacityDigest({ tags, releases });
-    const ready = prepareControlReadiness(
-      reader.identity,
-      capacityDigest({ checkpoint, descriptor: prepared.descriptor }),
-      "coordinator",
-    );
+    const preparationSubject = capacityDigest({ checkpoint, descriptor: prepared.descriptor });
+    const ready = prepareControlReadiness(reader.identity, preparationSubject, "coordinator");
     await writeFile(path.join(directory, "ready-coordinator.json"), `${JSON.stringify(ready)}\n`, {
       flag: "wx",
       mode: 0o600,
@@ -2135,7 +2132,7 @@ async function prepareTrustedCoordinatorRenewalAt(
         phaseDeadline: budget.monotonicDeadline,
       },
     );
-    const controls = await authenticateReleaseControlSource(process.env, workflow, {
+    let controls = await authenticateReleaseControlSource(process.env, workflow, {
       phase: "coordinator",
       deadline: budget.monotonicDeadline,
       observedArtifact: artifact,
@@ -2175,12 +2172,72 @@ async function prepareTrustedCoordinatorRenewalAt(
       assessBoundedCapacity(input.controller.capacity_attempt).eligibility !== "eligible"
     )
       return { decision: "held", directory, checkpoint, plan, authority: "none" };
+    const controlIdentity = coordinatorMaintenanceIdentity(initial);
+    let nextRound = 0;
+    let refreshing = false;
+    let refreshFailed = false;
+    const refreshMaintenanceRound = async (
+      subject: string,
+      deadline: number,
+      maxBytes?: number,
+    ) => {
+      if (refreshing || refreshFailed)
+        throw new Error("coordinator maintenance continuation already active or refused");
+      refreshing = true;
+      try {
+        budget.check();
+        const index = ++nextRound;
+        if (index > 14) throw new Error("coordinator maintenance control rounds exhausted");
+        const next = await authenticateReleaseControlRound(
+          path.join(directory, `metadata-control-round-${index}`),
+          subject,
+          "coordinator",
+          index,
+          { deadline, controlReader: "metadata-maintenance" },
+        );
+        const fresh = await next.readSdkMaintenance(undefined, {
+          deadline,
+          ...(maxBytes === undefined ? {} : { maxBytes }),
+        });
+        if (
+          next.evidence_scope !== "github.com" ||
+          coordinatorMaintenanceIdentity(fresh) !== controlIdentity
+        )
+          throw new Error("coordinator maintenance authority changed across control rounds");
+        budget.check();
+        coordinatorContinuationDeadline(deadline);
+        return { controls: next, facts: fresh };
+      } catch (error) {
+        refreshFailed = true;
+        throw error;
+      } finally {
+        refreshing = false;
+      }
+    };
+    let observed = initial;
+    const readFreshMaintenance = async () => {
+      budget.check();
+      if (Date.now() - Date.parse(observed.protection.observed_at) >= 30000) {
+        const renewed = await refreshMaintenanceRound(
+          preparationSubject,
+          budget.monotonicDeadline,
+          2 * 1024 ** 2,
+        );
+        controls = renewed.controls;
+        observed = renewed.facts;
+      } else {
+        observed = await readMaintenance();
+      }
+      if (coordinatorMaintenanceIdentity(observed) !== controlIdentity)
+        throw new Error("maintenance controls changed immediately before journal CAS");
+      return observed;
+    };
     await verifiedControllerToolPaths(receipt);
     await inspectPreparedMetadataRenewal(preparation);
     const current = await readRemoteCoordinatorSnapshot(directory, selected.remote_configuration, {
       transport: budget.journalTransport(),
     });
-    const fresh = await readMaintenance();
+    const fresh = await readFreshMaintenance();
     if (
       current.checkpoint !== checkpoint ||
       fresh.pause.publication_paused ||
@@ -2194,8 +2251,7 @@ async function prepareTrustedCoordinatorRenewalAt(
     budget.check();
     const checkpointControls = {
       async readCurrent() {
-        if ((await readMaintenance()).facts_sha256 !== initial.facts_sha256)
-          throw new Error("maintenance controls changed immediately before journal CAS");
+        await readFreshMaintenance();
       },
     };
     const publishCheckpoint = await coordinatorCheckpointPublisher(
@@ -2222,45 +2278,15 @@ async function prepareTrustedCoordinatorRenewalAt(
       evidence_scope: "actual-tool-and-public-feed",
       automatic_retry: false,
     });
-    const controlIdentity = coordinatorMaintenanceIdentity(initial);
-    let nextRound = 0;
-    let refreshing = false;
-    let refreshFailed = false;
     const nextControls = async (phaseDeadline?: number) => {
       const session = metadataPreparations.get(result);
       if (!session) throw new Error("actual metadata continuation session required");
       session.deadline = coordinatorContinuationDeadline(session.deadline, phaseDeadline);
-      if (refreshing || refreshFailed)
-        throw new Error("coordinator maintenance continuation already active or refused");
-      refreshing = true;
-      try {
-        budget.check();
-        const index = ++nextRound;
-        if (index > 14) throw new Error("coordinator maintenance control rounds exhausted");
-        const next = await authenticateReleaseControlRound(
-          path.join(directory, `metadata-control-round-${index}`),
-          capacityDigest({ checkpoint, descriptor: prepared.descriptor }),
-          "coordinator",
-          index,
-          { deadline: session.deadline, controlReader: "metadata-maintenance" },
-        );
-        const fresh = await next.readSdkMaintenance(undefined, {
-          deadline: session.deadline,
-        });
-        if (
-          next.evidence_scope !== "github.com" ||
-          coordinatorMaintenanceIdentity(fresh) !== controlIdentity
-        )
-          throw new Error("coordinator maintenance authority changed across control rounds");
-        budget.check();
-        coordinatorContinuationDeadline(session.deadline);
-        return next;
-      } catch (error) {
-        refreshFailed = true;
-        throw error;
-      } finally {
-        refreshing = false;
-      }
+      const next = await refreshMaintenanceRound(
+        capacityDigest({ checkpoint, descriptor: prepared.descriptor }),
+        session.deadline,
+      );
+      return next.controls;
     };
     metadataPreparations.set(result, {
       preparation,

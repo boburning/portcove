@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
+import { applicationReleaseTrust } from "./application-release-policy.mts";
 import {
   inspectMetadataRenewalDescriptor,
   inspectMetadataRoleVersions,
@@ -283,7 +284,10 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
   const selected = {
     ...structuredClone(request),
     initial_root_profile: inspectInitialRootProfile(
-      request.initial_root_profile ?? "legacy-two-of-three-v1",
+      request.initial_root_profile ??
+        (request.trusted_root_sha256 === applicationReleaseTrust.root.sha256
+          ? "single-owner-one-of-one-v1"
+          : "legacy-two-of-three-v1"),
     ),
     top_level_targets_profile: inspectTopLevelTargetsProfile(
       request.top_level_targets_profile ?? "offline-pinned-v1",
@@ -291,13 +295,13 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
   };
   if (
     selected.top_level_targets_profile === "online-unchanged-authority-v1" &&
-    selected.initial_root_profile !== "single-owner-one-of-one-v1"
+    request.initial_root_profile !== "single-owner-one-of-one-v1"
   )
     throw new Error("online Targets requires explicit single-owner profile");
   if (
     selected.prior_expiration_policy !== undefined &&
     (selected.prior_expiration_policy !== "historical-online-expired-v1" ||
-      selected.initial_root_profile !== "single-owner-one-of-one-v1" ||
+      request.initial_root_profile !== "single-owner-one-of-one-v1" ||
       selected.top_level_targets_profile !== "offline-pinned-v1")
   )
     throw new Error("historical prior requires explicit single-owner offline-pinned profile");
@@ -306,7 +310,7 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
       selected.previous_reserved_versions,
     );
     if (
-      selected.initial_root_profile !== "single-owner-one-of-one-v1" ||
+      request.initial_root_profile !== "single-owner-one-of-one-v1" ||
       selected.top_level_targets_profile !== "offline-pinned-v1"
     )
       throw new Error("native reserved floors require single-owner offline-pinned profile");

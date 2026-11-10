@@ -167,6 +167,30 @@ export function matchesRetainedCatalogAdoptionWithdrawal(
   );
 }
 
+/** Carry the exact r66 adoption into the next separately admitted app or catalog operation. */
+export function matchesRetainedCatalogForwardAdoptionHandoff(
+  checkpoint: { checkpoint: string; previous: string | null },
+  producer: Record<string, unknown>,
+  source: { execution_ref: string },
+  purpose: "application" | "catalog-publication" | undefined,
+) {
+  const claim = retainedCatalogForwardAdoptionClaim;
+  return (
+    (purpose === "application" || purpose === "catalog-publication") &&
+    source.execution_ref === "refs/tags/portcove-production-controller-20261110r67" &&
+    checkpoint.checkpoint === claim.child &&
+    checkpoint.previous === claim.previous &&
+    producer.controller_revision === "d6918c546f8080bf3cb033ddb065ce9a65a4d7f2" &&
+    producer.controller_ref === claim.successor_ref &&
+    producer.workflow_sha256 ===
+      "9a126152d549d913b57689404ca51bf755d88e2b0aa3d76631c4bb7e487ea136" &&
+    producer.run_id === "42774078033" &&
+    producer.run_attempt === 1 &&
+    producer.job_id === "129690072424" &&
+    producer.check_run_id === "129690072424"
+  );
+}
+
 /** Authenticate one independently selected current head, not an ancestry walk.
  * Selected setup pins authorize only the exact empty seed. Every later head
  * must carry the existing signature plus actual fixed historical job binding.
@@ -238,7 +262,8 @@ export async function authenticateFixedJobCoordinatorHistory(
     producer !== null &&
     (matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, source) ||
       matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, withdrawal) ||
-      matchesRetainedCatalogAdoptionWithdrawal(checkpoint, producer, purpose));
+      matchesRetainedCatalogAdoptionWithdrawal(checkpoint, producer, purpose) ||
+      matchesRetainedCatalogForwardAdoptionHandoff(checkpoint, producer, source, purpose));
   if (
     !producer ||
     (!retainedHandoff &&
