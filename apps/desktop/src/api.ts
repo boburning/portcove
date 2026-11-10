@@ -73,6 +73,8 @@ import type {
   BackupInventory,
   BackupRecord,
   BootstrapStatus,
+  CapabilityDocument,
+  CatalogDocument,
   CatalogDownloadCandidates,
   CatalogDownloadPreview,
   CatalogDownloadRequest,
@@ -358,6 +360,7 @@ export const desktopApi = {
     });
   },
   catalogStatus: () => invoke<CatalogStatus>("get_catalog_status"),
+  engineCapabilities: () => invoke<CapabilityDocument>("get_engine_capabilities"),
   checkDefinitionCapabilities: (request: DefinitionCapabilityRequest) =>
     invoke<DefinitionCapabilityReport>("check_definition_capabilities", { request }),
   trustCatalogKey: (publicKey: string) =>
@@ -396,6 +399,8 @@ export const desktopApi = {
   beginGithubDeviceLogin: () => invoke<GithubDeviceLogin>("begin_github_device_login"),
   pollGithubDeviceLogin: (sessionId: string) =>
     invoke<GithubDeviceLoginResult>("poll_github_device_login", { sessionId }),
+  catalog: () => invoke<CatalogDocument>("get_catalog"),
+  statuses: () => invoke<PortStatus[]>("get_statuses"),
   workspaceSnapshot: (generation: number, knownCatalogDigest?: string | null) =>
     invoke<WorkspaceSnapshotTransport>("get_workspace_snapshot", {
       generation,
@@ -542,6 +547,7 @@ export const desktopApi = {
       portId,
       generation,
     }),
+  sources: () => invoke<SourceRecord[]>("get_sources"),
   activities: () => invoke<ActivityFeed>("get_activities"),
   activityDiagnostic: (activityId: string, generation: number) =>
     invoke<ActivityDiagnostic>("get_activity_diagnostic", {
@@ -635,6 +641,8 @@ export const desktopApi = {
       onEvent: channel,
     });
   },
+  sourceInboxPaths: (profileId: string) =>
+    invoke<SourceInboxPaths>("get_source_inbox_paths", { profileId }),
   openSourceInbox: (profileId: string) =>
     invoke<SourceInboxPaths>("open_source_inbox", { profileId }),
   scanSourceInbox: (
@@ -719,6 +727,7 @@ export const desktopApi = {
       expectedPreview,
       generation,
     }),
+  hostTools: () => invoke<HostToolStatus[]>("get_host_tools"),
   setHostToolPath: (toolId: string, path: string) =>
     invoke<HostToolProbeResult>("set_host_tool_path", { toolId, path }),
   clearHostToolPath: (toolId: string) => invoke<HostToolStatus>("clear_host_tool_path", { toolId }),
@@ -727,6 +736,7 @@ export const desktopApi = {
     invoke<void>("open_host_tool_official_site", { toolId }),
   createSupportBundle: () => invoke<DesktopSupportBundleExport>("create_support_bundle"),
   openSupportReportFolder: () => invoke<void>("open_support_report_folder"),
+  runtimeDiagnosticHealth: () => invoke<string>("get_runtime_diagnostic_health"),
   exportLibraryMetadata: (path: string) =>
     invoke<LibraryMetadataFile>("export_library_metadata", { path }),
   planLibraryMove: (destination: string) =>

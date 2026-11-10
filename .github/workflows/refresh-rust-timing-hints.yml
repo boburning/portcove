@@ -27,6 +27,11 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
+      - name: Require a numeric run ID
+        env:
+          RUN_ID: ${{ inputs.run_id }}
+        run: |
+          case "$RUN_ID" in ''|*[!0-9]*) echo "run_id must be numeric" >&2; exit 1 ;; esac
       - name: Download the run's Windows partition reports
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -38,11 +43,10 @@ jobs:
         env:
           RUN_ID: ${{ inputs.run_id }}
         run: |
-          case "$RUN_ID" in ''|*[!0-9]*) echo "run_id must be numeric" >&2; exit 1 ;; esac
           node scripts/rust-timing-hints.mts generate \
             --source "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" \
             --out work/rust-test-timing-hints.json \
-            work/timing-reports/*/target/nextest/hosted-windows/junit.xml
+            $(find work/timing-reports -name junit.xml | sort)
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: rust-test-timing-hints
