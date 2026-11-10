@@ -46,7 +46,7 @@ import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
 import {
   capacityDigest,
-  slice4CapacityResourceDigest,
+  retainedRenewalCapacityBinding,
   inspectCapacityOperation,
   assessBoundedCapacity,
 } from "./release-capacity.mts";
@@ -2454,29 +2454,13 @@ export function matchesRetainedRenewalCapacityRebind(
   const rebound = structuredClone(current);
   if (!isRecord(retained.controller) || !isRecord(rebound.controller)) return false;
   const prior = retained.controller.capacity_attempt;
-  if (!isRecord(prior) || !isRecord(prior.boundary) || !isRecord(prior.ratification)) return false;
-  const originalPolicy = "b553063de9c8d9c6c6412fbed7b607bdc5a1bb509a06b38e4f25e2c68c0f7b38";
-  if (
-    prior.boundary.resource_policy_sha256 !== originalPolicy ||
-    prior.ratification.resource_policy_sha256 !== originalPolicy ||
-    prior.ratification.boundary_sha256 !== capacityDigest(prior.boundary)
-  )
-    return false;
-  const boundary = { ...prior.boundary, resource_policy_sha256: slice4CapacityResourceDigest };
-  const expected = {
-    ...prior,
-    boundary,
-    ratification: {
-      ...prior.ratification,
-      resource_policy_sha256: slice4CapacityResourceDigest,
-      boundary_sha256: capacityDigest(boundary),
-    },
-  };
-  if (
-    !isRecord(rebound.controller.capacity_attempt) ||
-    capacityDigest(rebound.controller.capacity_attempt) !== capacityDigest(expected)
-  )
-    return false;
+  const live = rebound.controller.capacity_attempt;
+  if (!isRecord(prior) || !isRecord(live)) return false;
+  const binding = retainedRenewalCapacityBinding(prior, {
+    boundary: live.boundary,
+    ratification: live.ratification,
+  });
+  if (!binding || capacityDigest(live) !== capacityDigest({ ...prior, ...binding })) return false;
   rebound.controller.capacity_attempt = prior;
   return metadataRenewalInputIdentity(retained) === metadataRenewalInputIdentity(rebound);
 }

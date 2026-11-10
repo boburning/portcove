@@ -352,7 +352,8 @@ void test("actual metadata controller boundary binds maintained Git pending befo
   const { checkpointReleaseOpportunity, recoverReleaseOpportunity } =
     await import("./release-coordinator-state.mts");
   const { runBoundedMetadataBootstrapOperation } = await import("./release-capacity-operation.mts");
-  const { inspectCapacityOperation } = await import("./release-capacity.mts");
+  const { inspectCapacityOperation, retainedRenewalCapacityRebind } =
+    await import("./release-capacity.mts");
   const { isRecord } = await import("./runtime-values.mts");
   const repository = await mkdtemp(path.join(os.tmpdir(), "metadata-pending-"));
   t.after(() => rm(repository, { recursive: true, force: true }));
@@ -514,11 +515,13 @@ void test("actual metadata controller boundary binds maintained Git pending befo
   sandbox.requireCoordinatorSigningContext = async () => {
     const state = await recoverReleaseOpportunity(repository, observedCheckpoint);
     await bindings.verifyState(owned, state);
-    return { capacity_source: { capacity: { boundary: capacity.boundary } } } as never;
+    return { capacity_source: { capacity } } as never;
   };
   const boundaryStart = controllerSource.indexOf("async (pending) => {"),
     boundaryEnd = controllerSource.indexOf("\n        async (pending) =>", boundaryStart);
   assert(boundaryStart > 0 && boundaryEnd > boundaryStart);
+  const controllerInvocation = { mode: "bootstrap", checkpoint: first.checkpoint };
+  const controllerIdentity = { controller_ref: identity.execution_ref };
   const callback = runInNewContext(
     stripTypeScriptTypes(
       "const callback=" +
@@ -531,8 +534,22 @@ void test("actual metadata controller boundary binds maintained Git pending befo
       executor,
       deadline: performance.now() + 20000,
       requireCoordinatorSigningContext: sandbox.requireCoordinatorSigningContext,
+      current: controllerInvocation,
+      identity: controllerIdentity,
+      retainedRenewalCapacityRebind,
     },
   ) as (p?: object) => Promise<unknown>;
+  assert.deepEqual(await callback(), capacity.boundary);
+  controllerInvocation.mode = "renewal";
+  controllerInvocation.checkpoint = retainedRenewalCapacityRebind.checkpoint;
+  controllerIdentity.controller_ref = retainedRenewalCapacityRebind.execution_ref;
+  assert.deepEqual(structuredClone(await callback()), {
+    boundary: capacity.boundary,
+    ratification: capacity.ratification,
+  });
+  controllerInvocation.mode = "bootstrap";
+  controllerInvocation.checkpoint = first.checkpoint;
+  controllerIdentity.controller_ref = identity.execution_ref;
   const wrapper = take(
     executorSource,
     "const readOwnedBoundary: CapacityBoundaryReader =",

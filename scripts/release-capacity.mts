@@ -80,6 +80,38 @@ export const slice4CapacityResources = Object.freeze({
   unrelated_evidence_deletion: false,
 });
 export const slice4CapacityResourceDigest = capacityDigest(slice4CapacityResources);
+
+export const retainedRenewalCapacityRebind = Object.freeze({
+  execution_ref: "refs/tags/portcove-production-controller-20261110r74",
+  checkpoint: "ef9b0664069a9c2dff4a9cf18ce86b3d964a4ac8",
+  original_policy_sha256: "b553063de9c8d9c6c6412fbed7b607bdc5a1bb509a06b38e4f25e2c68c0f7b38",
+});
+
+/** Replace only the resource binding of the exact retained operation. The
+ * authenticated live boundary and ratification must equal this projection. */
+export function retainedRenewalCapacityBinding(prior: unknown, live: unknown) {
+  if (
+    !isRecord(prior) ||
+    !isRecord(prior.boundary) ||
+    !isRecord(prior.ratification) ||
+    prior.boundary.resource_policy_sha256 !==
+      retainedRenewalCapacityRebind.original_policy_sha256 ||
+    prior.ratification.resource_policy_sha256 !==
+      retainedRenewalCapacityRebind.original_policy_sha256 ||
+    prior.ratification.boundary_sha256 !== capacityDigest(prior.boundary) ||
+    !isRecord(live)
+  )
+    return null;
+  const boundary = { ...prior.boundary, resource_policy_sha256: slice4CapacityResourceDigest };
+  const ratification = {
+    ...prior.ratification,
+    resource_policy_sha256: slice4CapacityResourceDigest,
+    boundary_sha256: capacityDigest(boundary),
+  };
+  const expected = { boundary, ratification };
+  return capacityDigest(live) === capacityDigest(expected) ? expected : null;
+}
+
 function exact(value: unknown, keys: string): asserts value is Record<string, unknown> {
   if (!isRecord(value) || Object.keys(value).sort().join(",") !== keys)
     throw new Error("bounded capacity schema differs");
