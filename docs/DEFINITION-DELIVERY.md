@@ -160,7 +160,7 @@ Native portable version 22 consumes `release.grant_declared_executable`, which l
 grant execution to the declared program of a package whose archive stores it without an
 executable bit, after verifying the file as a binary for the platform. Indexed entries
 with the declaration require a Native22 lower bound for fresh and retained reads; older
-readers refuse the whole definition, and no other adapter accepts the declaration.
+readers refuse the whole definition. Libultraship portable version 4 and generated-cache version 2 consume the same declaration for their Unix routes, with the same lower-bound rule; no other adapter accepts it.
 
 Native portable version 9 consumes `external_profile_policy` for the reviewed
 Dune Dynasty and fheroes2 external profile checks. Both fresh and retained

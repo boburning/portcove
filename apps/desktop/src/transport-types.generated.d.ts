@@ -2111,7 +2111,7 @@ export interface ReleaseSpec {
     "windows-x86-64"?: DirectReleaseSpec;
   };
   /**
-   * Native22 (native definitions only): after extraction on a Unix platform, grant
+   * Native22, Libultraship4 or GeneratedCache2 (by adapter): after extraction on a Unix platform, grant
    * execute permission to the declared executable only when it verifies as a binary for
    * that platform. The publisher's own executable bit, when present, is never changed.
    */

@@ -586,13 +586,18 @@ impl Catalog {
             crate::native_temp::validate(port)?;
             validate_portable_marker_file(port)?;
             if port.release.grant_declared_executable
-                && (port.adapter != AdapterKind::NativePortable
-                    || !port.platforms.iter().any(|platform| {
-                        crate::permissions::platform_requires_executable(*platform)
-                    }))
+                && (!matches!(
+                    port.adapter,
+                    AdapterKind::NativePortable
+                        | AdapterKind::LibultrashipPortable
+                        | AdapterKind::GeneratedCache
+                ) || !port
+                    .platforms
+                    .iter()
+                    .any(|platform| crate::permissions::platform_requires_executable(*platform)))
             {
                 return Err(PortcoveError::verification(format!(
-                    "{} declares a declared-executable grant outside a native Unix route",
+                    "{} declares a declared-executable grant outside a Unix route of a supporting adapter",
                     port.id
                 )));
             }
@@ -3374,17 +3379,6 @@ mod tests {
             port.release
                 .asset_hints
                 .insert(Platform::LinuxX86_64, vec![hint.into()]);
-        }
-        // Two Linux packages store their program without an executable bit, which Core
-        // refuses by design. Fresh creation stops offering Linux while the frozen reader
-        // keeps the old claim. OpenJazz is offered again through a verified grant.
-        for id in ["paperboat", "perfect-dark"] {
-            if let Some(port) = expected_ports.iter_mut().find(|port| port.id == id) {
-                port.platforms
-                    .retain(|platform| *platform != Platform::LinuxX86_64);
-                port.executable_hints.remove(&Platform::LinuxX86_64);
-                port.release.asset_hints.remove(&Platform::LinuxX86_64);
-            }
         }
         // Reviewed macOS additions after the frozen input: universal app bundles for
         // three ports and an Apple Silicon bundle for Donkey Kong 64.

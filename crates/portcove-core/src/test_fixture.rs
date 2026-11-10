@@ -72,6 +72,15 @@ pub(crate) fn versioned_mod_catalog() -> crate::Catalog {
     .unwrap()
 }
 
+/// The capability a port's declared-executable grant requires, by adapter.
+pub(crate) fn grant_declared_executable_capability(port: &crate::PortDefinition) -> u32 {
+    match port.adapter {
+        crate::AdapterKind::LibultrashipPortable => 4,
+        crate::AdapterKind::GeneratedCache => 2,
+        _ => 22,
+    }
+}
+
 /// A fixture using archive file links may also declare an external profile guard.
 pub(crate) fn archive_file_links_capability(port: &crate::PortDefinition) -> u32 {
     let archive = match port.adapter {
@@ -291,7 +300,7 @@ impl<'a> IndexedCatalogFixture<'a> {
         let port = self.port.as_ref();
         let port_id = &port.id;
         let capability_version = if port.release.grant_declared_executable {
-            22
+            crate::test_fixture::grant_declared_executable_capability(port)
         } else if port.portable_marker_file.is_some() {
             19
         } else if !port.reviewed_package_layouts.is_empty() {
