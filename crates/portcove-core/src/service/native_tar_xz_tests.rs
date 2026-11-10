@@ -39,6 +39,22 @@ fn release(version: &str) -> (ResolvedRelease, crate::test_http::HttpServer) {
         executable.as_bytes(),
     )
     .unwrap();
+    for (path, mode) in [
+        ("lib/libavcodec.so.62", 0o755),
+        ("lib/libavformat.so.62", 0o755),
+        ("lib/libavutil.so.60", 0o755),
+        ("lib/libspeexdsp.so.1", 0o755),
+        ("lib/libswresample.so.6", 0o755),
+        ("licenses/fixture.txt", 0o644),
+        ("resources/fixture.txt", 0o644),
+        ("shaders/fixture.txt", 0o644),
+        ("share/fixture.txt", 0o644),
+    ] {
+        header.set_mode(mode);
+        header.set_size(1);
+        tar.append_data(&mut header, format!("player-{version}/{path}"), &b"x"[..])
+            .unwrap();
+    }
     let payload = crate::archive::encode_xz_fixture(&tar.into_inner().unwrap());
     let asset_name = format!("openxw-{version}-linux-x86_64-release.tar.xz");
     let size = payload.len() as u64;

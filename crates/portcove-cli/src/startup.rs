@@ -94,6 +94,7 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | CatalogCommand::Status
             | CatalogCommand::ListingStatus
             | CatalogCommand::InspectProposal { .. }
+            | CatalogCommand::InspectPackageLayout { .. }
             | CatalogCommand::InspectSettingsQualification { .. } => ReadOnly,
             CatalogCommand::InspectDefinitionPublication { .. } => ReadOnly,
             CatalogCommand::DefinitionAuthority { apply, .. }
@@ -343,6 +344,7 @@ mod tests {
             "catalog show p",
             "catalog status",
             "catalog inspect-proposal file",
+            "catalog inspect-package-layout file --platform windows-x86-64 --size 1 --sha256 hash",
             "catalog inspect-definition-publication directory",
             "catalog definition-authority",
             "catalog update --file file",

@@ -488,6 +488,18 @@ Legacy parsing tolerates unknown fields: raw input hashes bind them, but typed
 port hashes and declaration checks do not validate discarded fields.
 Malformed/duplicate-key inputs and unsupported or unsafe declarations fail.
 
+### Reviewed package layout inspection
+
+Run `portcove --json catalog inspect-package-layout ARCHIVE --platform PLATFORM --size BYTES --sha256 SHA256`
+with the publisher's independently obtained size and digest. The command
+captures the exact local bytes in temporary storage, verifies them, and uses
+the managed archive and layout readers to report directories and program paths.
+It supports ZIP and TAR.GZ, plus Linux x86-64 TAR.XZ. Inspect Unix packages on a
+Unix host to preserve executable modes. The Unix ZIP and TAR.GZ path uses the
+managed profile for a declared executable, which unwraps a lone inner archive.
+The command runs before opening a library and does not execute the package or
+establish release authority.
+
 ### Standalone package and focused build
 
 `catalog inspect-observation <port-id> <file> --repository-id <numeric-id>`

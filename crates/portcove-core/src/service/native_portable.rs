@@ -602,6 +602,17 @@ mod tests {
             program_name: &str,
             files: &[(&str, &[u8])],
         ) -> ResolvedRelease {
+            self.release_with_payload(version, revision, folder, program_name, files, true)
+        }
+        fn release_with_payload(
+            &self,
+            version: &str,
+            revision: u8,
+            folder: &str,
+            program_name: &str,
+            files: &[(&str, &[u8])],
+            include_fixture_texture: bool,
+        ) -> ResolvedRelease {
             crate::test_fixture::assert_fixture_archive_prefix(program_name, folder);
             let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
             zip.start_file(
@@ -618,7 +629,7 @@ mod tests {
             )
             .unwrap();
             zip.write_all(&[revision]).unwrap();
-            if !folder.is_empty() {
+            if include_fixture_texture && !folder.is_empty() {
                 zip.start_file(
                     format!("{folder}data/textures/100.txm"),
                     zip::write::SimpleFileOptions::default(),
@@ -6938,13 +6949,35 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let server = Server::new();
+        let openx_files: &[(&str, &[u8])] = match id {
+            "star-wars-x-wing-openxw" => &[
+                ("licenses/fixture.txt", b"fixture"),
+                ("resources/fixture.txt", b"fixture"),
+                ("shaders/fixture.txt", b"fixture"),
+                ("share/fixture.txt", b"fixture"),
+            ],
+            "star-wars-x-wing-alliance-openxwa"
+            | "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt" => &[
+                ("licenses/fixture.txt", b"fixture"),
+                ("resources/fixture.txt", b"fixture"),
+                ("shaders/fixture.txt", b"fixture"),
+            ],
+            _ => &[],
+        };
         let release = |version: &str, revision| {
             let folder = if wrapped {
                 format!("engine-{version}/")
             } else {
                 String::new()
             };
-            let mut release = server.release_in_folder(version, revision, &folder, executable);
+            let mut release = server.release_with_payload(
+                version,
+                revision,
+                &folder,
+                executable,
+                openx_files,
+                openx_files.is_empty(),
+            );
             release.asset.name = asset_name.to_string();
             release
         };
