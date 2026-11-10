@@ -2362,6 +2362,50 @@ void test("watch REST collection resolves complete replay lineage without hiding
       /required checks failed/,
     );
   }
+  const currentCheck = checks.at(-1)!;
+  for (const lagging of [newer, currentCheck]) {
+    newer.conclusion = currentCheck.conclusion = "success";
+    lagging.status = "in_progress";
+    lagging.conclusion = null;
+    await assert.rejects(
+      client.requiredCheckState(7, head, required, { run: 42, attempt: 2 }),
+      /disagrees with its workflow job/,
+    );
+    await assert.rejects(
+      watchRequiredChecks(client, {
+        ...watchOptions,
+        attempt: 2,
+        now: () => Date.parse(watchOptions.deadline),
+      }),
+      /deadline expired.*catalog=awaiting-check-publication/,
+    );
+    const pauses: number[] = [];
+    const recovered = await watchRequiredChecks(client, {
+      ...watchOptions,
+      attempt: 2,
+      sleep: async (milliseconds) => {
+        pauses.push(milliseconds);
+        lagging.status = "completed";
+        lagging.conclusion = "success";
+      },
+    });
+    assert.deepEqual(pauses, [2000]);
+    assert.equal(recovered.contexts[0]!.check_run_id, 100);
+    assert.equal(recovered.watch.deadline, watchOptions.deadline);
+  }
+  currentCheck.status = "in_progress";
+  currentCheck.conclusion = null;
+  old[1]!.conclusion = checks[1]!.conclusion = "failure";
+  await assert.rejects(
+    watchRequiredChecks(client, { ...watchOptions, attempt: 2 }),
+    /required checks failed/,
+  );
+  old[1]!.conclusion = checks[1]!.conclusion = "success";
+  newer.conclusion = "failure";
+  await assert.rejects(
+    watchRequiredChecks(client, { ...watchOptions, attempt: 2 }),
+    /disagrees with its workflow job/,
+  );
   newer.status = checks.at(-1)!.status = "in_progress";
   newer.conclusion = checks.at(-1)!.conclusion = null;
   runState = workflow({ run_attempt: 2 });
