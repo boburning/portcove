@@ -126,6 +126,7 @@ impl Catalog {
             .ports()
             .iter()
             .map(|port| {
+                crate::package_layout::validate(port)?;
                 if repository_authoring {
                     check_repository_original_game_title(port)?;
                     check_repository_summary(port)?;

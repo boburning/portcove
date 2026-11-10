@@ -102,6 +102,11 @@ the archive file links it needs. These guarded routes check default
 external profiles and use the executable's directory for packaged assets.
 The previously managed platform contracts retain their creating rules.
 
+Native portable version 18 binds `reviewed_package_layouts` in new
+independent entries. A reader without version 18 cannot accept a new
+entry that relies on the package-layout gate. Previously admitted
+retained entries keep their creating capability and shape rules.
+
 Native portable version 10 adds official sibling packages to verified native
 original-file definitions that keep a Windows temporary directory inside their
 private profile. Fresh and retained indexed entries declaring that combination
