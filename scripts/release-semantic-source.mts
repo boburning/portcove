@@ -52,6 +52,7 @@ export async function materializeSemanticSource(
   tools: Parameters<typeof acquireSemanticSource>[3],
   qualification?: Parameters<typeof acquireSemanticSource>[4],
   applicationComparison = false,
+  catalogComparison = false,
 ) {
   const deadline = performance.now() + 120000;
   const expiresAt = Date.now() + 120000;
@@ -88,6 +89,7 @@ export async function materializeSemanticSource(
       deadline,
       expiresAt,
       reservation?.childEnvironment,
+      catalogComparison,
     );
   } finally {
     await reservation?.release();
@@ -117,6 +119,7 @@ async function acquireSemanticSource(
   deadline = performance.now() + 120000,
   expiresAt = Date.now() + 120000,
   reservationEnvironment: NodeJS.ProcessEnv = {},
+  catalogComparison = false,
 ) {
   expected = structuredClone(expected);
   tools = structuredClone(tools);
@@ -405,7 +408,12 @@ async function acquireSemanticSource(
       Buffer.byteLength(JSON.stringify(response.body)) > 16 * 1024 * 1024
     )
       throw new Error("semantic source tree response unavailable or oversized");
-    const inventory = inspectReleaseSourceTree(response.body, tree, applicationComparison);
+    const inventory = inspectReleaseSourceTree(
+      response.body,
+      tree,
+      applicationComparison,
+      catalogComparison,
+    );
     if (!isRecord(response.body) || !Array.isArray(response.body.tree))
       throw new Error("semantic source tree missing");
     for (const raw of response.body.tree) {

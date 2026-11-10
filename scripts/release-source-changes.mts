@@ -16,6 +16,7 @@ export const maximumReleaseSourceCommits = 2048;
 // 5,153 tree entries. The other source readers retain their original envelopes.
 export const maximumApplicationSourceCommits = 3072;
 export const maximumApplicationSourceTreeEntries = 6144;
+export const maximumCatalogSourceTreeEntries = 5500;
 const base = "repos/boburning/portcove";
 const byteOrder = (left: string, right: string) =>
   Buffer.compare(Buffer.from(left), Buffer.from(right));
@@ -38,7 +39,11 @@ export type ReleaseSourceRead = { endpoint: string; deadline: number };
 export function collectReleaseSourceChanges(
   reader: GitHubRestReader,
   rawOpportunity: unknown,
-  options: { readCommitObject?: (oid: string) => Buffer; applicationComparison?: boolean } = {},
+  options: {
+    readCommitObject?: (oid: string) => Buffer;
+    applicationComparison?: boolean;
+    catalogComparison?: boolean;
+  } = {},
 ) {
   const collection = releaseSourceChangeRequests(rawOpportunity, options);
   let step = collection.next();
@@ -58,12 +63,14 @@ export async function collectReleaseSourceChangesWithSdk(
     maxBytes?: number;
     requestTimeoutMs?: number;
     applicationCommitObjects?: ReadonlyMap<string, Buffer>;
+    catalogComparison?: boolean;
   },
   rawOpportunity: unknown,
 ) {
   const application = options.applicationCommitObjects;
   const collection = releaseSourceChangeRequests(rawOpportunity, {
     deadline: options.deadline,
+    catalogComparison: options.catalogComparison ?? false,
     ...(application && {
       applicationComparison: true,
       readCommitObject(oid: string) {
@@ -131,6 +138,7 @@ export function* releaseSourceChangeRequests(
     readCommitObject?: (oid: string) => Buffer;
     deadline?: number;
     applicationComparison?: boolean;
+    catalogComparison?: boolean;
   } = {},
 ) {
   const opportunity = object(structuredClone(rawOpportunity));
@@ -272,6 +280,7 @@ export function* releaseSourceChangeRequests(
       (yield* request(`${base}/git/trees/${id}?recursive=1`)).body,
       id,
       options.applicationComparison,
+      options.catalogComparison,
     ).entries;
   };
   const oldTree = yield* tree(previous.tree);
@@ -309,7 +318,17 @@ export function* releaseSourceChangeRequests(
 
 /** Reconstruct the complete bounded tree closure. Returned objects are inert
  * digest-verified bytes, not source selection or execution authority. */
-export function inspectReleaseSourceTree(raw: unknown, id: string, applicationComparison = false) {
+export function inspectReleaseSourceTree(
+  raw: unknown,
+  id: string,
+  applicationComparison = false,
+  catalogComparison = false,
+) {
+  const maximumEntries = applicationComparison
+    ? maximumApplicationSourceTreeEntries
+    : catalogComparison
+      ? maximumCatalogSourceTreeEntries
+      : 5000;
   oid(id);
   const response = object(raw);
   const objects: ReturnType<typeof inspectRemoteGitObject>[] = [];
@@ -317,7 +336,7 @@ export function inspectReleaseSourceTree(raw: unknown, id: string, applicationCo
     response.sha !== id ||
     response.truncated !== false ||
     !Array.isArray(response.tree) ||
-    response.tree.length > (applicationComparison ? maximumApplicationSourceTreeEntries : 5000)
+    response.tree.length > maximumEntries
   )
     throw new Error("release source tree is truncated, unavailable or oversized");
   const entries = new Map<string, Entry>();
