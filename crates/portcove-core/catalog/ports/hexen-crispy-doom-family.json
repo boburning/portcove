@@ -68,6 +68,12 @@
     "channels": ["stable"],
     "platforms": ["windows-x86-64"],
     "adapter": "native-portable",
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["crispy-hexen-setup.exe", "crispy-hexen-truecolor.exe", "crispy-hexen.exe"]
+      }
+    },
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {

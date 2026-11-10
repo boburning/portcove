@@ -55,6 +55,44 @@
     "channels": ["stable"],
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["data", "licenses"],
+        "executables": [
+          "data/file0001.exe",
+          "data/file0002.exe",
+          "data/helpme.exe",
+          "data/netarena.exe",
+          "data/netipx.exe",
+          "data/netmodem.exe",
+          "data/netterm.exe",
+          "data/order.exe",
+          "data/rtm.exe",
+          "data/setup.exe",
+          "data/shipedit.exe",
+          "data/tyrian.exe",
+          "opentyrian.exe"
+        ]
+      },
+      "linux-x86-64": {
+        "directories": ["data", "licenses"],
+        "executables": [
+          "data/file0001.exe",
+          "data/file0002.exe",
+          "data/helpme.exe",
+          "data/netarena.exe",
+          "data/netipx.exe",
+          "data/netmodem.exe",
+          "data/netterm.exe",
+          "data/order.exe",
+          "data/rtm.exe",
+          "data/setup.exe",
+          "data/shipedit.exe",
+          "data/tyrian.exe",
+          "opentyrian"
+        ]
+      }
+    },
     "release": {
       "repository": "opentyrian/opentyrian",
       "asset_hints": {

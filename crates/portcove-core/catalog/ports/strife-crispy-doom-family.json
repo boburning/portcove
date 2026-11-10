@@ -76,6 +76,16 @@
     "channels": ["stable"],
     "platforms": ["windows-x86-64"],
     "adapter": "native-portable",
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": [
+          "crispy-strife-setup.exe",
+          "crispy-strife-truecolor.exe",
+          "crispy-strife.exe"
+        ]
+      }
+    },
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {

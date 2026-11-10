@@ -123,7 +123,9 @@ fn quake_linux_entries_require_native15_for_fresh_and_retained_reads() {
 fn profile_siblings_require_native16_for_fresh_and_retained_reads() {
     let catalog = crate::Catalog::embedded().unwrap();
     for id in ["corsixth-corsixth", "openloco-openloco"] {
-        let mut entry = entry_for_port(catalog.port(id).unwrap());
+        let mut creating_port = catalog.port(id).unwrap().clone();
+        creating_port.reviewed_package_layouts.clear();
+        let mut entry = entry_for_port(&creating_port);
         entry["required_capabilities"][0]["maximum_version"] = json!(16);
         for minimum in [15, 16] {
             entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
@@ -450,6 +452,7 @@ fn native_ascii_paths_require_version7_instead_of_silently_using_an_older_reader
     let mut port = crate::test_fixture::legacy_opentyrian_indexed_port(
         catalog.port("opentyrian-opentyrian").unwrap(),
     );
+    port.reviewed_package_layouts.clear();
     port.windows_runtime_path_policy = Some(crate::WindowsRuntimePathPolicy::PrintableAsciiMaxPath);
     let mut entry = entry_for_port(&port);
     for version in 1..=6 {
@@ -1693,9 +1696,10 @@ fn native_original_siblings_require_native10_in_fresh_and_retained_readers() {
         "diablo-devilutionx",
         "diablo-hellfire-devilutionx",
     ] {
-        let port = catalog.port(id).unwrap();
-        assert!(crate::native_temp::has_sibling_platforms(port));
-        let mut entry = entry_for_port(port);
+        let mut creating_port = catalog.port(id).unwrap().clone();
+        creating_port.reviewed_package_layouts.clear();
+        assert!(crate::native_temp::has_sibling_platforms(&creating_port));
+        let mut entry = entry_for_port(&creating_port);
         entry["required_capabilities"][0]["maximum_version"] = json!(10);
         for minimum in [9, 10] {
             entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
