@@ -67,7 +67,11 @@ import {
   assertStandaloneBootstrapAdoptionCapacity,
   authenticateStandaloneBootstrapAdoption,
 } from "./release-catalog-bootstrap-adoption.mts";
-import { standaloneBootstrapAdoption } from "./release-metadata-contract.mts";
+import {
+  inspectPublishedMetadata,
+  isStandaloneBootstrapForwardPreimage,
+  standaloneBootstrapAdoption,
+} from "./release-metadata-contract.mts";
 import {
   currentPublishedSite,
   inspectPublishedCatalogMetadata,
@@ -423,8 +427,19 @@ export async function runFixedCatalogCoordinatorConfiguration(
           throw new Error("catalog journal CAS readback differs; retain original");
         return readback;
       };
+      const adoptForward =
+        isStandaloneBootstrapForwardPreimage(inspectPublishedMetadata(input.published_metadata)) &&
+        !Object.hasOwn(input, "published_site") &&
+        input.review_request == null &&
+        input.review_disposition == null &&
+        input.metadata_renewal == null &&
+        input.published_catalog_metadata == null &&
+        input.catalog_initialization == null &&
+        input.catalog_publication == null &&
+        input.catalog_review_request == null &&
+        input.catalog_review_disposition == null;
       if (
-        input.published_metadata == null &&
+        (input.published_metadata == null || adoptForward) &&
         input.metadata_bootstrap != null &&
         capacityDigest(input.metadata_bootstrap) ===
           standaloneBootstrapAdoption.abandoned_descriptor_sha256 &&
@@ -435,6 +450,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
           reader.admitted.execution_ref === retainedCatalogBootstrapClaim.successor_ref;
         if (resumeClaim) {
           if (
+            adoptForward ||
             reader.admitted.run_attempt !== 1 ||
             recovered.checkpoint !== retainedCatalogBootstrapClaim.previous
           )
@@ -490,6 +506,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
           tools,
           deadline,
           (next) => (stage = next),
+          adoptForward,
         );
         stage = "standalone-application-bootstrap-observer";
         const { readMaintenance, observed, stable } = await observeControls(
@@ -552,7 +569,9 @@ export async function runFixedCatalogCoordinatorConfiguration(
         return held(
           directory,
           readback.checkpoint,
-          "exact standalone application bootstrap adopted; next wake can review catalog",
+          adoptForward
+            ? "exact standalone application renewal adopted; next wake can review catalog"
+            : "exact standalone application bootstrap adopted; next wake can review catalog",
         );
       }
       if (reader.admitted.execution_ref === retainedCatalogBootstrapClaim.successor_ref)
