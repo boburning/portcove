@@ -58,12 +58,9 @@ export async function admitObservation(options: {
     const page = runs(await options.read(`${base}&event=${event}`), event);
     // A full page whose oldest row is still inside the cooldown may omit an
     // observing run; unknown coverage declines rather than admitting.
-    const oldest = page.at(-1);
-    if (
-      page.length >= pageSize &&
-      oldest &&
-      options.now - Date.parse(String(oldest.created_at)) <= pushCooldownMs
-    )
+    // The oldest row is taken by time, not by the provider's listing order.
+    const oldest = Math.min(...page.map((run) => Date.parse(String(run.created_at))));
+    if (page.length >= pageSize && options.now - oldest <= pushCooldownMs)
       return { observe: false, reason: `${event} runs exceed one page within the cooldown` };
     listed.push(...page);
   }
