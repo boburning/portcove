@@ -3,52 +3,51 @@
   "listing": {
     "id": "medal-of-honor-allied-assault-spearhead-openmohaa",
     "name": "Medal of Honor: Allied Assault Spearhead (OpenMoHAA)",
-    "summary": "Use the official OpenMoHAA Windows player for Spearhead with your own matching PC data. Keep original files and the external save profile backed up.",
+    "summary": "Use the official OpenMoHAA player on Windows, Linux or Mac for Spearhead with your own matching PC data. Keep original files and the external save profile backed up.",
     "original_game_title": "Medal of Honor: Allied Assault Spearhead",
     "project_url": "https://github.com/openmoh/openmohaa",
     "availability": "packages",
-    "setup_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/README.md",
+    "setup_url": "https://github.com/openmoh/openmohaa#readme",
     "issue_number": 2593,
-    "release_url": "https://github.com/openmoh/openmohaa/releases/tag/v0.82.1",
+    "release_url": "https://github.com/openmoh/openmohaa/releases/latest",
     "download_asset_hints": {
       "windows-x86-64": ["openmohaa-", "-windows-x64.zip"],
-      "linux-x86-64": ["-linux-amd64.zip"],
-      "macos-x86-64": ["-macos-multiarch-", "arm64", "x86_64", ".zip"],
-      "macos-aarch64": ["-macos-multiarch-", "arm64", "x86_64", ".zip"]
+      "linux-x86-64": ["openmohaa-", "-linux-amd64.zip"],
+      "macos-x86-64": ["openmohaa-", "-macos-multiarch-arm64-x86_64.zip"],
+      "macos-aarch64": ["openmohaa-", "-macos-multiarch-arm64-x86_64.zip"]
     },
     "recommended_download_channel": "stable",
     "manual_setup": {
       "steps": [
         {
           "title": "Prepare the matching PC game",
-          "instruction": "Before Play, prepare your own complete Spearhead PC data and its Allied Assault base game. Upstream recommends GOG Warchest; CD copies need the matching language patches (Allied Assault 1.11 and Spearhead 2.11 followed by 2.15). Keep the originals unchanged in a separate installation. Copy only the original PK3 files and sound/video resources into main, mainta beside the official player. Preserve the matching folder names and all required original resources; do not copy old executables, DLLs or unrelated expansion files over this runtime. Portcove does not verify original-game identity. Console editions and demos are different products. Keep the complete official Windows x64 package and its own DLLs together, including openmohaa.exe and launch_openmohaa_spearhead.exe. Follow upstream Visual C++ x64 runtime prerequisites when needed."
+          "instruction": "Before Play, prepare your own complete Spearhead PC data and its Allied Assault base game. Upstream recommends GOG Warchest; CD copies need the matching language patches (Allied Assault 1.11 and Spearhead 2.11 followed by 2.15). Keep the originals unchanged in a separate installation. Copy only the original PK3 files and sound/video resources into main, mainta beside the official player. Preserve the matching folder names and all required original resources; do not copy old executables, DLLs or unrelated expansion files over this runtime. Portcove does not verify original-game identity. Console editions and demos are different products. Keep the whole official runtime together. On Windows x64, install the upstream Visual C++ runtime if needed and use a short plain ASCII library path. Linux x64 needs glibc 2.34, libstdc++ with GLIBCXX_3.4.29 and system SDL2. The universal Mac package needs macOS 10.15 on Intel or macOS 11 on Apple Silicon."
         },
         {
           "title": "Keep an existing prepared copy",
-          "instruction": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_spearhead.exe with the game root as working directory. This title-specific launcher selects Spearhead and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher. This remains a non-owning external registration. You and upstream own runtime replacement and every file; removing its registration preserves them. A catalog update does not migrate or adopt that copy."
+          "instruction": "Use a private working copy of the original game folder. Extract the complete official Windows x64 ZIP into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_spearhead.exe with the game root as working directory. This title-specific launcher selects Spearhead and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher. This remains a non-owning external registration. You and upstream own runtime replacement and every file; removing its registration preserves them. A catalog update does not migrate or adopt that copy."
         }
       ],
       "warnings": [
-        "Back up that profile and the originals separately before changing runtimes.",
-        "If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified."
+        "Back up the actual external profile and your originals separately before changing runtimes.",
+        "A separately prepared copy can use a custom profile or fall back to its runtime when the engine cannot find a home directory. Preserve the actual profile with its creating runtime."
       ],
-      "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/01-installation.md",
+      "help_url": "https://github.com/openmoh/openmohaa/blob/main/docs/markdown/01-intro/01-installation.md",
       "references": [
         {
           "title": "Preserve your actual game data",
-          "instruction": "Normal Windows saves, settings, screenshots, downloads and logs use the engine's actual roaming application-data openmohaa profile, with game-specific subfolders. Back up that profile and the originals separately before changing runtimes. If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified."
+          "instruction": "Back up the game’s external profile separately. The normal locations are roaming application data on Windows, ~/.openmohaa on Linux and ~/Library/Application Support/openmohaa on Mac. When FLATPAK_ID is set and nonempty on Linux, the engine uses openmohaa under XDG_DATA_HOME or ~/.local/share. The Unix managed offer checks that the selected profile is outside the managed runtime and leaves it in place."
         },
         {
           "title": "Set up the native Linux or Mac archive",
-          "instruction": "Choose the official Linux amd64 or arm64 ZIP, or the universal Mac ZIP. The reviewed Linux builds need glibc 2.34, libstdc++ with GLIBCXX_3.4.29 and SDL2. Keep the executable and libraries together in a separately prepared copy with your own patched PC data in main and mainta. If downloading through Portcove, clear “Extract the archive after downloading” and extract with your system tool so executable permissions are preserved. From that folder, run ./launch_openmohaa_spearhead to select this game. The launch helper starts the game itself."
+          "instruction": "For a separately prepared copy, extract the official Linux amd64 or arm64 ZIP or the universal Mac ZIP. Keep the executables and libraries together. If the extracted launcher and engine have no execute permission, make those two files executable with chmod u+x launch_openmohaa_spearhead openmohaa. From that folder, run ./launch_openmohaa_spearhead with your own patched PC data in main, mainta."
         },
         {
-          "title": "Use the ARM64 Windows package or preserve your Unix profile",
-          "instruction": "On Windows ARM64, select the official ARM64 ZIP and use launch_openmohaa_spearhead.exe after preparing the same title data. Linux normally writes under ~/.openmohaa and Mac under ~/Library/Application Support/openmohaa. Keep the actual game folders, configuration, saves and any custom fs_homepath or com_homepath selections. You own these copies and profiles."
+          "title": "Use the Windows ARM64 package",
+          "instruction": "On Windows ARM64, choose the official ARM64 ZIP. After preparing the same original files, use launch_openmohaa_spearhead.exe in the extracted folder. You and upstream own that copy and its profile."
         }
       ]
-    },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -65,7 +64,7 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "adapter": "native-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
@@ -73,19 +72,26 @@
       "provider": "github",
       "repository": "openmoh/openmohaa",
       "asset_hints": {
-        "windows-x86-64": ["openmohaa-", "-windows-x64.zip"]
+        "windows-x86-64": ["openmohaa-", "-windows-x64.zip"],
+        "linux-x86-64": ["openmohaa-", "-linux-amd64.zip"],
+        "macos-x86-64": ["openmohaa-", "-macos-multiarch-arm64-x86_64.zip"],
+        "macos-aarch64": ["openmohaa-", "-macos-multiarch-arm64-x86_64.zip"]
       }
     },
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "Before Play, prepare your own complete Spearhead PC data and its Allied Assault base game. Upstream recommends GOG Warchest; CD copies need the matching language patches (Allied Assault 1.11 and Spearhead 2.11 followed by 2.15). Keep the originals unchanged in a separate installation. Copy only the original PK3 files and sound/video resources into main, mainta beside the official player. Preserve the matching folder names and all required original resources; do not copy old executables, DLLs or unrelated expansion files over this runtime. Portcove does not verify original-game identity. Console editions and demos are different products. Keep the complete official Windows x64 package and its own DLLs together, including openmohaa.exe and launch_openmohaa_spearhead.exe. Follow upstream Visual C++ x64 runtime prerequisites when needed. Normal Windows saves, settings, screenshots, downloads and logs use the engine's actual roaming application-data openmohaa profile, with game-specific subfolders. Back up that profile and the originals separately before changing runtimes. If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified. Portcove replaces only its separate official managed runtime. It preserves the declared original-data folders during compatible replacement and backup, including originals added before first Play. That backup excludes external profiles. Runtime rollback carries the current declared data; it does not rewind saves or promise old-runtime or mod compatibility. Use a short Windows library path containing plain ASCII characters; external profile locations retain their upstream path limits. Older installations keep their original path contract. Custom paths, mods, other expansions and dedicated servers can retain an external registration. Existing registrations retain their files and user/upstream owner. Gameplay and populated-save compatibility remain unqualified."
+      "manual_preparation": "Before Play, prepare your own complete Spearhead PC data and its Allied Assault base game. Upstream recommends GOG Warchest; CD copies need the matching language patches (Allied Assault 1.11 and Spearhead 2.11 followed by 2.15). Keep the originals unchanged in a separate installation. Copy only the original PK3 files and sound/video resources into main, mainta beside the official player. Preserve the matching folder names and all required original resources; do not copy old executables, DLLs or unrelated expansion files over this runtime. Portcove does not verify original-game identity. Console editions and demos are different products. Keep the whole official runtime together. On Windows x64, install the upstream Visual C++ runtime if needed and use a short plain ASCII library path. Linux x64 needs glibc 2.34, libstdc++ with GLIBCXX_3.4.29 and system SDL2. The universal Mac package needs macOS 10.15 on Intel or macOS 11 on Apple Silicon. Back up the game’s external profile separately. The normal locations are roaming application data on Windows, ~/.openmohaa on Linux and ~/Library/Application Support/openmohaa on Mac. When FLATPAK_ID is set and nonempty on Linux, the engine uses openmohaa under XDG_DATA_HOME or ~/.local/share. The Unix managed offer checks that the selected profile is outside the managed runtime and leaves it in place. Portcove replaces its separate runtime and preserves the declared original-data folders during compatible updates and backups. A runtime backup excludes the external profile. Rollback carries current originals and leaves the external profile in place. Existing registrations and custom game paths stay with the player. Populated saves, mods and gameplay across versions remain unqualified."
     },
     "executable_hints": {
-      "windows-x86-64": ["launch_openmohaa_spearhead.exe"]
+      "windows-x86-64": ["launch_openmohaa_spearhead.exe"],
+      "linux-x86-64": ["launch_openmohaa_spearhead"],
+      "macos-x86-64": ["launch_openmohaa_spearhead"],
+      "macos-aarch64": ["launch_openmohaa_spearhead"]
     },
     "persistent_paths": ["main", "mainta"],
-    "windows_runtime_path_policy": "printable-ascii-max-path"
+    "windows_runtime_path_policy": "printable-ascii-max-path",
+    "external_profile_policy": "openmohaa-unix-v1"
   }
 }

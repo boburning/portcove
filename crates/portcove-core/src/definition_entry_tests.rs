@@ -75,6 +75,28 @@ fn recomp_appimage_entries_require_native12_for_fresh_and_retained_reads() {
 }
 
 #[test]
+fn openmohaa_unix_entries_require_native13_for_fresh_and_retained_reads() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let id = "medal-of-honor-allied-assault-openmohaa";
+    let mut entry = entry_for_port(catalog.port(id).unwrap());
+    entry["required_capabilities"][0]["maximum_version"] = json!(13);
+    for minimum in [12, 13] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, id).inspect_retained_entry("official", id, &bytes),
+        ] {
+            if minimum == 12 {
+                assert!(result.unwrap_err().message.contains("version 13"));
+            } else {
+                assert!(result.unwrap().capabilities().compatible);
+            }
+        }
+    }
+}
+
+#[test]
 fn managed_external_profiles_require_version_9_in_fresh_and_retained_readers() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("dune-ii-dune-dynasty").unwrap();
@@ -1416,8 +1438,8 @@ fn windows_temporary_data_requires_native5_in_fresh_and_retained_interpretation(
     entry["required_capabilities"][0]["maximum_version"] = json!(4);
     assert!(inspect(&entry).is_err());
     // Keep the upper-edge check on an unimplemented future reader.
-    entry["required_capabilities"][0]["minimum_version"] = json!(13);
-    entry["required_capabilities"][0]["maximum_version"] = json!(13);
+    entry["required_capabilities"][0]["minimum_version"] = json!(u32::MAX);
+    entry["required_capabilities"][0]["maximum_version"] = json!(u32::MAX);
     assert!(!inspect(&entry).unwrap().capabilities().compatible);
 }
 

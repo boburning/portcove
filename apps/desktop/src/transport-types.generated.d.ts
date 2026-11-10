@@ -321,7 +321,7 @@ export type AdapterKind =
  * Closed upstream profile resolution for managed portable players.
  */
 export type ExternalProfilePolicy =
-  "dune-dynasty-allegro-v1" | "fheroes2-v1" | "openrct2-mac-v1" | "recomp-appimage-v1";
+  "dune-dynasty-allegro-v1" | "fheroes2-v1" | "openrct2-mac-v1" | "recomp-appimage-v1" | "openmohaa-unix-v1";
 export type GameSettingsFormat = "json" | "ini";
 export type GameSettingType =
   | {

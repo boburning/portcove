@@ -105,6 +105,7 @@ pub(crate) struct ReleaseSelectionCacheKey {
     partitioned_archive: bool,
     requires_tar_xz: bool,
     native_appimage: bool,
+    openmohaa_zip: bool,
     repository: String,
     channel: ReleaseChannel,
     platform: Platform,
@@ -121,6 +122,7 @@ impl ReleaseSelectionCacheKey {
             partitioned_archive: port.archive_data_compatibility_v1.is_some(),
             requires_tar_xz: port.release.requires_tar_xz(platform),
             native_appimage: native_appimage(port, platform).is_some(),
+            openmohaa_zip: crate::native_external_profile::openmohaa::requires_zip(port, platform),
             scope_binding: None,
             repository: port.release.repository.clone(),
             channel,
@@ -1748,6 +1750,9 @@ fn choose_asset<'a>(
         .iter()
         .filter_map(|asset| {
             let name = asset.name.to_ascii_lowercase();
+            if !crate::native_external_profile::openmohaa::matches_asset(port, platform, &name) {
+                return None;
+            }
             let supported_package = if let Some(expected) = &standalone {
                 expected.matches(&name)
             } else if requires_tar_xz {
@@ -2605,6 +2610,7 @@ mod tests {
             partitioned_archive: false,
             requires_tar_xz: false,
             native_appimage: false,
+            openmohaa_zip: false,
             scope_binding: None,
             repository: "owner/repository-0".into(),
             channel: ReleaseChannel::Stable,
@@ -2631,6 +2637,7 @@ mod tests {
                         partitioned_archive: false,
                         requires_tar_xz: false,
                         native_appimage: false,
+                        openmohaa_zip: false,
                         scope_binding: None,
                         repository: format!("owner/repository-{index}"),
                         channel: ReleaseChannel::Stable,

@@ -42,6 +42,101 @@ fn observed_rollout_releases(id: &str) -> Vec<serde_json::Value> {
 }
 
 #[tokio::test]
+async fn openmohaa_unix_selects_official_zip_and_compatible_successor() {
+    let id = "medal-of-honor-allied-assault-openmohaa";
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port(id).unwrap();
+    let fixtures: serde_json::Value = serde_json::from_str(include_str!(
+        "../../testdata/native-engine-adoption-2026-11-02.json"
+    ))
+    .unwrap();
+    let case = fixtures["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| case["port_id"] == id)
+        .unwrap();
+    let observed = &case["release"];
+    let assets = observed["assets"].as_array().unwrap();
+    let next = release(
+        "v0.82.2",
+        assets
+            .iter()
+            .map(|original| {
+                let name = original["name"]
+                    .as_str()
+                    .unwrap()
+                    .replace("v0.82.1", "v0.82.2");
+                asset(&name, Some('b'))
+            })
+            .collect(),
+    );
+    for (platform, suffix, digest) in [
+        (
+            Platform::LinuxX86_64,
+            "-linux-amd64.zip",
+            "57692d057a684afb7f7e91a61fcd8c062b29ab1b639f27453830084a88cd653c",
+        ),
+        (
+            Platform::MacosX86_64,
+            "-macos-multiarch-arm64-x86_64.zip",
+            "dd590e887078912e0bd80ad3e9d414ef7611faada064e7e49b4c3eafa59e579a",
+        ),
+        (
+            Platform::MacosAarch64,
+            "-macos-multiarch-arm64-x86_64.zip",
+            "dd590e887078912e0bd80ad3e9d414ef7611faada064e7e49b4c3eafa59e579a",
+        ),
+    ] {
+        let (root, requests, server) = serve_http(vec![
+            metadata(),
+            releases(std::slice::from_ref(observed)),
+            metadata(),
+            releases(std::slice::from_ref(&next)),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(root.clone()).unwrap();
+        let baseline = provider
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        assert_eq!(baseline.asset.name, format!("openmohaa-v0.82.1{suffix}"));
+        assert_eq!(baseline.asset.sha256, digest);
+        let successor = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        assert_eq!(successor.asset.name, format!("openmohaa-v0.82.2{suffix}"));
+        assert_eq!(successor.asset.sha256, "b".repeat(64));
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), 4);
+    }
+}
+
+#[test]
+fn openmohaa_unix_selector_cannot_reuse_a_broader_cached_release() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog
+        .port("medal-of-honor-allied-assault-openmohaa")
+        .unwrap();
+    let mut broader = port.clone();
+    broader.external_profile_policy = None;
+    let channel = ReleaseChannel::Stable;
+    let key = |port, platform| ReleaseSelectionCacheKey::new(port, channel, platform);
+    for platform in [
+        Platform::LinuxX86_64,
+        Platform::MacosX86_64,
+        Platform::MacosAarch64,
+    ] {
+        assert_ne!(key(port, platform), key(&broader, platform));
+    }
+    assert_eq!(
+        key(port, Platform::WindowsX86_64),
+        key(&broader, Platform::WindowsX86_64)
+    );
+}
+
+#[tokio::test]
 async fn recomp_appimages_select_the_direct_linux_asset_and_compatible_successor() {
     let catalog = crate::Catalog::embedded().unwrap();
     for (id, name, tag, size, sha256) in [

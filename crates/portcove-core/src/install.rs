@@ -1222,7 +1222,21 @@ impl Installer {
         if let Some(contract) = &request.qualification.retained_contract {
             let catalog = contract.catalog(&request.port_id)?;
             let port = catalog.port(&request.port_id)?;
+            if !crate::native_external_profile::openmohaa::matches_asset(
+                port,
+                request.qualification.platform,
+                &artifact.asset_name,
+            ) {
+                return Err(PortcoveError::verification(
+                    "OpenMoHAA archive differs from its retained Unix package selector",
+                ));
+            }
             crate::package_layout::require_reviewed_layout(
+                port,
+                request.qualification.platform,
+                &payload_root,
+            )?;
+            crate::native_external_profile::openmohaa::prepare_package(
                 port,
                 request.qualification.platform,
                 &payload_root,

@@ -299,6 +299,21 @@ reserves the launcher’s predictable log fallback under sticky system `/tmp`
 and preserves safe existing user-owned contents. The original ROM and the
 Linux profile remain the player’s files.
 
+Native portable capability 13 covers the official OpenMoHAA Linux x86-64
+and universal Mac ZIPs. The three titles retain separate launcher and
+original-data mappings. Core verifies the exact root launcher, engine and
+companions, then enables execution for the selected launcher and its engine
+before recording the installed package. The upstream launcher replaces its
+own process with the engine. Existing Windows and external registrations keep
+their respective runtime and data owners.
+
+The Unix managed launch uses the archive root and checks the upstream-selected
+profile before starting the launcher. Linux uses HOME, or the effective
+XDG_DATA_HOME under a nonempty FLATPAK_ID. Mac uses inherited HOME. Relative
+or overlapping profiles require a separate player-managed copy. Portcove
+preserves the declared original-data directories and leaves the shared
+external profile with the player.
+
 The `external_profile_policy` declaration requires NativePortable capability 9 or
 the higher version specified for the selected layout.
 It checks the effective profile selected by the final managed game environment

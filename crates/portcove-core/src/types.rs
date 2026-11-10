@@ -665,6 +665,7 @@ pub enum ExternalProfilePolicy {
     Fheroes2V1,
     Openrct2MacV1,
     RecompAppimageV1,
+    OpenmohaaUnixV1,
 }
 
 /// Preserve complete mod package versions without replacing packaged defaults.
