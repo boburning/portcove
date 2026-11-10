@@ -126,6 +126,7 @@ impl Catalog {
             .ports()
             .iter()
             .map(|port| {
+                crate::package_layout::validate(port)?;
                 if repository_authoring {
                     check_repository_original_game_title(port)?;
                     check_repository_summary(port)?;
@@ -2597,7 +2598,10 @@ mod tests {
         assert_eq!(port.release.provider, ReleaseSource::Github);
         assert!(port.release.user_prepared.is_empty());
         assert!(port.release.direct.is_empty());
-        assert_eq!(port.release.repository, "mstan/FZeroSNESRecomp");
+        assert_eq!(
+            port.release.repository,
+            "RetroPortingToolKit/FZeroSNESRecomp"
+        );
         assert_eq!(
             port.release.asset_hints[&Platform::WindowsX86_64],
             ["FZeroSNESRecomp-", "-windows-x64.zip"]
@@ -2976,6 +2980,106 @@ mod tests {
         assert!(gen1.launch_environment.is_empty());
         gen1.launch_environment
             .insert("POKEPORT_PORTMASTER_MANAGED".into(), "1".into());
+        // The frozen reader still lists the Mac bundle as managed. Its LOVE-based app
+        // has no executable named like the declared hint and links framework folders,
+        // so fresh creation no longer offers that route.
+        assert!(gen1.platforms.contains(&Platform::MacosAarch64));
+        gen1.platforms
+            .retain(|platform| !matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64));
+        gen1.executable_hints.remove(&Platform::MacosX86_64);
+        gen1.executable_hints.remove(&Platform::MacosAarch64);
+        // Reviewed Unix route corrections after the frozen input. Three disk-image-only
+        // Mac routes became a handoff, and the Linux AppImage and Spaghettify
+        // executables are now named in the declared hints.
+        for id in ["shipwright", "2ship2harkinian", "lighthouse"] {
+            let port = expected_ports
+                .iter_mut()
+                .find(|port| port.id == id)
+                .unwrap();
+            port.platforms.retain(|platform| {
+                !matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64)
+            });
+            for platform in [Platform::MacosX86_64, Platform::MacosAarch64] {
+                port.executable_hints.remove(&platform);
+                port.release.asset_hints.remove(&platform);
+            }
+        }
+        // Tomba Recompiled's upstream publishes no current Linux or macOS package, so
+        // fresh creation offers Windows only while the frozen reader keeps the old claim.
+        let tomba = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "tomba-recompiled")
+            .unwrap();
+        tomba
+            .platforms
+            .retain(|platform| *platform == Platform::WindowsX86_64);
+        for platform in [
+            Platform::LinuxX86_64,
+            Platform::MacosX86_64,
+            Platform::MacosAarch64,
+        ] {
+            tomba.executable_hints.remove(&platform);
+            tomba.release.asset_hints.remove(&platform);
+        }
+        // Thirteen managed PSX Linux packages bundle a Python terminfo tree whose paths
+        // collide by letter case, which extraction refuses. Fresh creation stops offering
+        // Linux for them while the frozen reader keeps the old claim.
+        for id in [
+            "bomberman-fantasy-race-recompiled",
+            "bomberman-party-edition-recompiled",
+            "bomberman-world-recompiled",
+            "final-fantasy-vii-recompiled",
+            "jedi-power-battles-recompiled",
+            "klonoa-door-to-phantomile-recompiled",
+            "legend-of-mana-recompiled",
+            "marvel-vs-capcom-recompiled",
+            "masters-of-teras-kasi-recompiled",
+            "metal-slug-x-recompiled",
+            "rampage-through-time-recompiled",
+            "street-fighter-alpha-3-recompiled",
+            "twisted-metal-4-recompiled",
+        ] {
+            if let Some(port) = expected_ports.iter_mut().find(|port| port.id == id) {
+                port.platforms
+                    .retain(|platform| *platform != Platform::LinuxX86_64);
+                port.executable_hints.remove(&Platform::LinuxX86_64);
+                port.release.asset_hints.remove(&Platform::LinuxX86_64);
+            }
+        }
+        for (id, platform, hints) in [
+            (
+                "2ship2harkinian",
+                Platform::LinuxX86_64,
+                &["2ship", "2ship2harkinian", "2ship.appimage"][..],
+            ),
+            (
+                "lighthouse",
+                Platform::LinuxX86_64,
+                &["lighthouse.appimage"][..],
+            ),
+            (
+                "spaghetti-kart",
+                Platform::LinuxX86_64,
+                &["spaghettikart", "spaghetti.appimage"][..],
+            ),
+            (
+                "spaghetti-kart",
+                Platform::MacosX86_64,
+                &["spaghettikart", "Spaghettify"][..],
+            ),
+            (
+                "spaghetti-kart",
+                Platform::MacosAarch64,
+                &["spaghettikart", "Spaghettify"][..],
+            ),
+        ] {
+            let port = expected_ports
+                .iter_mut()
+                .find(|port| port.id == id)
+                .unwrap();
+            port.executable_hints
+                .insert(platform, hints.iter().map(|hint| (*hint).into()).collect());
+        }
         let battleship = expected_ports
             .iter_mut()
             .find(|port| port.id == "battleship")
@@ -3186,6 +3290,47 @@ mod tests {
                 .asset_hints
                 .insert(Platform::LinuxX86_64, vec![hint.into()]);
         }
+        // Reviewed macOS additions after the frozen input: universal app bundles for
+        // three ports and an Apple Silicon bundle for Donkey Kong 64.
+        for (id, platforms, hint, executable) in [
+            (
+                "bm64-recomp",
+                &[Platform::MacosX86_64, Platform::MacosAarch64][..],
+                "macOS-Release.zip",
+                "BM64Recompiled",
+            ),
+            (
+                "bomberman-hero-recomp",
+                &[Platform::MacosX86_64, Platform::MacosAarch64][..],
+                "macOS-Release.zip",
+                "BMHeroRecompiled",
+            ),
+            (
+                "goemon64-recomp",
+                &[Platform::MacosX86_64, Platform::MacosAarch64][..],
+                "macOS-Release.zip",
+                "Goemon64Recompiled",
+            ),
+            (
+                "donkey-kong-64-recompiled",
+                &[Platform::MacosAarch64][..],
+                "macOS-ARM64",
+                "DK64Recompiled",
+            ),
+        ] {
+            let port = expected_ports
+                .iter_mut()
+                .find(|port| port.id == id)
+                .unwrap();
+            for platform in platforms {
+                port.platforms.push(*platform);
+                port.release
+                    .asset_hints
+                    .insert(*platform, vec![hint.into()]);
+                port.executable_hints
+                    .insert(*platform, vec![executable.into()]);
+            }
+        }
         for id in ["opengoal-jak1", "opengoal-jak2", "opengoal-jak3"] {
             let port = expected_ports
                 .iter_mut()
@@ -3219,6 +3364,9 @@ mod tests {
                 .unwrap();
             assert!(legacy.game_settings.is_none());
             port.game_settings = None;
+            // Archive file links are a later additive release declaration.
+            assert!(!legacy.release.archive_file_links);
+            port.release.archive_file_links = false;
             port.presentation = None;
             port.summary = expected_ports
                 .iter()

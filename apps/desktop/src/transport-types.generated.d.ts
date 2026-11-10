@@ -321,7 +321,17 @@ export type AdapterKind =
  * Closed upstream profile resolution for managed portable players.
  */
 export type ExternalProfilePolicy =
-  "dune-dynasty-allegro-v1" | "fheroes2-v1" | "openrct2-mac-v1" | "recomp-appimage-v1";
+  | "dune-dynasty-allegro-v1"
+  | "fheroes2-v1"
+  | "openrct2-mac-v1"
+  | "recomp-appimage-v1"
+  | "openmohaa-unix-v1"
+  | "ironwail-linux-v1"
+  | "vkquake-linux-v1"
+  | "corsixth-linux-v1"
+  | "openloco-unix-v1"
+  | "jgrpp-linux-v1"
+  | "openglad-mac-v1";
 export type GameSettingsFormat = "json" | "ini";
 export type GameSettingType =
   | {
@@ -2046,6 +2056,11 @@ export interface SourceEdition {
   title: string;
 }
 export interface ReleaseSpec {
+  /**
+   * Native13: the package relies on in-archive file links, which extraction writes as
+   * regular copies of the files they name.
+   */
+  archive_file_links?: boolean;
   asset_hints: {
     "linux-x86-64"?: string[];
     "macos-aarch64"?: string[];

@@ -53,6 +53,14 @@ Catalog generation, catalog invariants, prepared guide lifecycle and CLI
 presentation checks still apply. Changes to route facts, guide structure,
 enrollment or other inputs use ordinary affected-input selection.
 
+The Rust impact selector can focus upstream-only discovery platform additions
+when each authored listing and the generated directory agree on the added
+platforms and asset hints, and the operational catalog is byte-identical.
+The producer checks the actual checkout against the proof. Core directory
+and package tests and both executable adapter suites still run, along with
+catalog validation and workspace compilation. Mixed, unproven and
+qualification changes retain ordinary coverage.
+
 Ordinary catalog changes are meant to be data-only. On pull requests, the CI plan
 job runs `scripts/catalog-rust-edit-report.mts` over the plan's complete changed-file
 list and, when port data under `crates/portcove-core/catalog/ports/` or `catalog.json`

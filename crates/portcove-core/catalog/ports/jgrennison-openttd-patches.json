@@ -7,7 +7,7 @@
     "project_url": "https://github.com/JGRennison/OpenTTD-patches",
     "issue_number": 1859,
     "availability": "packages",
-    "setup_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp-0.73.4/README.md",
+    "setup_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp/installation.md",
     "artwork": {
       "game_id": 5502,
       "cover_id": 85659,
@@ -16,32 +16,57 @@
       "game_slug": "transport-tycoon-deluxe",
       "match_kind": "underlying-game"
     },
-    "release_url": "https://github.com/JGRennison/OpenTTD-patches/releases/tag/jgrpp-0.73.4",
+    "release_url": "https://github.com/JGRennison/OpenTTD-patches/releases",
     "manual_setup": {
       "steps": [
         {
           "title": "Start the game",
           "instruction": "On first Play, choose a base graphics set when requested. Upstream supports the free OpenGFX/OpenSFX/OpenMSX sets or your own compatible original Transport Tycoon Deluxe data. JGR Patch Pack is a separate game build, not a loadable mod; its saves and multiplayer peers must be compatible with that build."
+        },
+        {
+          "title": "Use the Linux managed player",
+          "instruction": "Portcove installs the official generic Linux AMD64 archive and starts it with the default XDG profile. The inspected player needs glibc 2.28 or newer. Keep your configuration under XDG_CONFIG_HOME/openttd and your saves and downloaded content under XDG_DATA_HOME/openttd, or the usual home-folder defaults. These folders can be shared with other OpenTTD copies and stay outside Portcove backups."
+        },
+        {
+          "title": "Set up the Mac app yourself",
+          "instruction": "Mount the upstream universal Mac DMG and copy OpenTTD.app into your Applications folder. The inspected player needs macOS 10.15 on Intel or macOS 11 on Apple silicon. Keep the JGR Patch Pack app and its effective profile with saves created by that build."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp-0.73.4/README.md"
+      "warnings": [
+        "On Linux, use a separately prepared copy for a portable configuration, native social plugins or a custom library search path. Keep the effective OpenTTD profile and the runtime that created your saves."
+      ],
+      "help_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp/installation.md"
     },
-    "original_game_title": "OpenTTD"
+    "original_game_title": "OpenTTD",
+    "platforms": ["macos-x86-64", "macos-aarch64"]
   },
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["ai", "baseset", "docs", "game", "lang", "scripts"],
+        "executables": ["openttd.exe"]
+      },
+      "linux-x86-64": {
+        "directories": ["ai", "baseset", "docs", "game", "lang", "lib", "scripts", "share"],
+        "executables": ["openttd"]
+      }
+    },
     "release": {
       "repository": "JGRennison/OpenTTD-patches",
       "asset_hints": {
-        "windows-x86-64": ["openttd-jgrpp-", "-windows-win64.zip"]
-      }
+        "windows-x86-64": ["openttd-jgrpp-", "-windows-win64.zip"],
+        "linux-x86-64": ["openttd-jgrpp-", "-linux-generic-amd64.tar.xz"]
+      },
+      "linux_tar_xz": true,
+      "archive_file_links": true
     },
     "executable_hints": {
-      "windows-x86-64": ["openttd.exe"]
+      "windows-x86-64": ["openttd.exe"],
+      "linux-x86-64": ["openttd"]
     },
     "persistent_paths": [
       "openttd.cfg",
@@ -60,6 +85,7 @@
       "screenshot",
       "content_download"
     ],
+    "external_profile_policy": "jgrpp-linux-v1",
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],

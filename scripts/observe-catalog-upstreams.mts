@@ -154,6 +154,13 @@ export async function retireObserverConfigurations(
 export const hostedOpportunityMs = 40 * 60000;
 export const hostedHandoffByteLimit = 32 * 1024 * 1024;
 export const hostedRequestLimit = 1800;
+/** Push runs only fill schedule gaps (#4779). Half the ceiling keeps the
+ * worst case of a gap-filling push followed by the next schedule within the
+ * same hour at about half of the shared hourly allowance. */
+export const pushRequestLimit = hostedRequestLimit / 2;
+export function hostedRequestCeiling(event: string | undefined) {
+  return event === "push" ? pushRequestLimit : hostedRequestLimit;
+}
 
 export async function runCatalogUpstreams(
   args: string[],
@@ -169,6 +176,7 @@ export async function runCatalogUpstreams(
     log?: (value: string) => void;
     deadline?: number;
     excludedSources?: ReadonlySet<string>;
+    requestLimit?: number;
     prioritizeConfigured?: boolean;
     scheduledPrioritySources?: ReadonlySet<string>;
     handoff?: { directory: string; sizes: Map<string, number>; bytes: number };
@@ -298,6 +306,7 @@ export async function runCatalogUpstreams(
       now,
       deadline: operationDeadline,
       ...(runtime.excludedSources ? { excludedSources: runtime.excludedSources } : {}),
+      ...(runtime.requestLimit === undefined ? {} : { requestLimit: runtime.requestLimit }),
       prioritizeConfigured: runtime.prioritizeConfigured === true,
       ...(runtime.scheduledPrioritySources
         ? { scheduledPrioritySources: runtime.scheduledPrioritySources }
@@ -593,7 +602,11 @@ export async function runCatalogUpstreams(
 /** Use only a positively bounded caller opportunity; retain the same per-operation config. */
 export async function runCatalogOpportunity(
   args: string[],
-  runtime: NonNullable<Parameters<typeof runCatalogUpstreams>[1]> & { deadline: number },
+  runtime: NonNullable<Parameters<typeof runCatalogUpstreams>[1]> & {
+    deadline: number;
+    /** Fixture override of the trigger's hosted request ceiling. */
+    requestCeiling?: number;
+  },
 ) {
   const root = runtime.root ?? defaultRoot,
     now = runtime.now ?? Date.now;
@@ -675,7 +688,7 @@ export async function runCatalogOpportunity(
   try {
     let prioritizeConfigured = true;
     const result = await continueCatalogBatches(
-      async (excluded) => {
+      async (excluded, requestLimit) => {
         await assertInputs();
         const batch = await runCatalogUpstreams(fixedArgs, {
           ...runtime,
@@ -687,6 +700,7 @@ export async function runCatalogOpportunity(
           repositoryMetadata,
           handoff,
           excludedSources: excluded,
+          requestLimit,
           prioritizeConfigured,
           handoffByteLimit: hostedHandoffByteLimit,
           log: () => {},
@@ -697,7 +711,7 @@ export async function runCatalogOpportunity(
       },
       {
         deadline: runtime.deadline,
-        maxRequests: hostedRequestLimit,
+        maxRequests: runtime.requestCeiling ?? hostedRequestCeiling(process.env.GITHUB_EVENT_NAME),
         now,
         ...(runtime.observer?.signal ? { signal: runtime.observer.signal } : {}),
         onBatch: (batch) => {
@@ -784,7 +798,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   try {
     const deadline = process.env.PORTCOVE_OBSERVER_OPPORTUNITY_DEADLINE_UTC;
     const scheduledPrioritySource =
-      process.env.GITHUB_EVENT_NAME === "schedule"
+      // Gap-filling push runs stand in for skipped schedules (#4779).
+      ["schedule", "push"].includes(process.env.GITHUB_EVENT_NAME ?? "")
         ? process.env.PORTCOVE_OBSERVER_SCHEDULED_PRIORITY_SOURCE
         : undefined;
     if (scheduledPrioritySource !== undefined && !/^[a-f0-9]{64}$/u.test(scheduledPrioritySource))

@@ -54,7 +54,8 @@
     "automated_tested_platforms": ["windows-x86-64"],
     "manually_validated_platforms": ["windows-x86-64"],
     "release": {
-      "repository": "cdlewis/snowboardkids2-recomp"
+      "repository": "cdlewis/snowboardkids2-recomp",
+      "archive_file_links": true
     },
     "source_profile": "snowboard-kids-2",
     "executable_hints": {

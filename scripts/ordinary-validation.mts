@@ -1869,6 +1869,8 @@ for (const [file, tests] of [
   // Relocation tools keep their contract tests in the repository-health suite.
   ["scripts/upstream-relocation-candidates.mts", ["scripts/check-catalog-repositories.test.mts"]],
   ["scripts/upstream-relocation-evidence.mts", ["scripts/check-catalog-repositories.test.mts"]],
+  ["scripts/observer-push-admission.mts", ["scripts/upstream-observer.test.mts"]],
+  ["scripts/catalog-observer-continuation.mts", ["scripts/catalog-upstream-observer.test.mts"]],
   ["scripts/upstream-health-inputs.mts", upstreamHealthContractTests],
   [
     "scripts/upstream-health-plan.mts",

@@ -25,9 +25,16 @@ import {
   requireAuthenticatedCheckpointEvidence,
   authenticateFixedJobCoordinatorHistory,
   matchesRetainedCatalogBootstrapHandoff,
+  matchesRetainedCatalogAdoptionWithdrawal,
+  matchesRetainedCatalogForwardAdoptionHandoff,
+  matchesRetainedApplicationRenewalHandoff,
+  retainedCatalogForwardAdoptionClaim,
+  matchesRetainedReviewWithdrawalHandoff,
   retainedCatalogBootstrapClaim,
   retainedApplicationReviewClaim,
   isRetainedApplicationReviewClaimScope,
+  isRetainedApplicationRenewalClaimScope,
+  retainedApplicationRenewalClaim,
 } from "./release-coordinator-checkpoint-authentication.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { inspectCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-evidence.mts";
@@ -998,6 +1005,55 @@ void test("the exact historical r51 adoption can hand off to only the r52 applic
   );
 });
 
+void test("appointed withdrawal authenticates only the exact retained r53 producer", () => {
+  const retained = retainedApplicationReviewClaim;
+  const checkpoint = { checkpoint: retained.child, previous: retained.previous };
+  const producer = {
+    controller_revision: retained.successor_revision,
+    controller_ref: retained.successor_ref,
+    workflow_sha256: retained.successor_workflow_sha256,
+    run_id: retained.successor_run,
+    job_id: retained.successor_job,
+  };
+  const withdrawal = {
+    schema_version: 1,
+    kind: "application-review-safety-withdrawal",
+    request_id: retained.request_id,
+    source_commit: retained.source,
+    source_tree: retained.source_tree,
+    request_checkpoint: retained.child,
+    approval_sha256: "a".repeat(64),
+    technical_stop_sha256: "b".repeat(64),
+  };
+  assert.ok(matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, withdrawal));
+  assert.ok(!matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, undefined));
+  assert.ok(
+    !matchesRetainedReviewWithdrawalHandoff(
+      { ...checkpoint, previous: null },
+      producer,
+      withdrawal,
+    ),
+  );
+  assert.ok(
+    !matchesRetainedReviewWithdrawalHandoff(checkpoint, { ...producer, run_id: "1" }, withdrawal),
+  );
+  assert.ok(
+    !matchesRetainedReviewWithdrawalHandoff(checkpoint, { ...producer, job_id: "1" }, withdrawal),
+  );
+  assert.ok(
+    !matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, {
+      ...withdrawal,
+      request_id: "a".repeat(64),
+    }),
+  );
+  assert.ok(
+    !matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, {
+      ...withdrawal,
+      source_tree: "a".repeat(40),
+    }),
+  );
+});
+
 void test("retained application claim admits only its exact successor and original child", () => {
   const claim = retainedApplicationReviewClaim;
   assert.equal(
@@ -1018,6 +1074,176 @@ void test("retained application claim admits only its exact successor and origin
   );
   assert.equal(
     isRetainedApplicationReviewClaimScope(claim.child, claim.child, claim.successor_ref, 1),
+    false,
+  );
+});
+
+void test("catalog adoption can authenticate only the exact settled r63 withdrawal predecessor", () => {
+  const checkpoint = {
+    checkpoint: "da80188916dfc40f5d46c1eb4123bc00b9d68a8b",
+    previous: retainedApplicationReviewClaim.child,
+  };
+  const producer = {
+    controller_revision: "5a572c20064f5c7bfc9fadb86996b9f1bef7c812",
+    controller_ref: "refs/tags/portcove-production-controller-20261110r63",
+    workflow_sha256: "9a126152d549d913b57689404ca51bf755d88e2b0aa3d76631c4bb7e487ea136",
+    run_id: "42755307254",
+    job_id: "129631097635",
+  };
+  assert.equal(
+    matchesRetainedCatalogAdoptionWithdrawal(checkpoint, producer, "catalog-publication"),
+    true,
+  );
+  for (const purpose of ["application", undefined] as const)
+    assert.equal(matchesRetainedCatalogAdoptionWithdrawal(checkpoint, producer, purpose), false);
+  for (const field of Object.keys(checkpoint))
+    assert.equal(
+      matchesRetainedCatalogAdoptionWithdrawal(
+        { ...checkpoint, [field]: "0".repeat(40) },
+        producer,
+        "catalog-publication",
+      ),
+      false,
+    );
+  for (const field of Object.keys(producer))
+    assert.equal(
+      matchesRetainedCatalogAdoptionWithdrawal(
+        checkpoint,
+        { ...producer, [field]: "0" },
+        "catalog-publication",
+      ),
+      false,
+    );
+});
+
+void test("only the appointed successor and exact r66 adoption producer can carry the shared journal", () => {
+  const claim = retainedCatalogForwardAdoptionClaim;
+  const checkpoint = { checkpoint: claim.child, previous: claim.previous };
+  const source = { execution_ref: "refs/tags/portcove-production-controller-20261110r67" };
+  const producer = {
+    controller_revision: "d6918c546f8080bf3cb033ddb065ce9a65a4d7f2",
+    controller_ref: claim.successor_ref,
+    workflow_sha256: "9a126152d549d913b57689404ca51bf755d88e2b0aa3d76631c4bb7e487ea136",
+    run_id: "42774078033",
+    run_attempt: 1,
+    job_id: "129690072424",
+    check_run_id: "129690072424",
+  };
+  for (const purpose of ["application", "catalog-publication"] as const)
+    for (const execution_ref of [
+      source.execution_ref,
+      "refs/tags/portcove-production-controller-20261110r68",
+    ])
+      assert.equal(
+        matchesRetainedCatalogForwardAdoptionHandoff(
+          checkpoint,
+          producer,
+          { execution_ref },
+          purpose,
+        ),
+        true,
+      );
+  assert.equal(
+    matchesRetainedCatalogForwardAdoptionHandoff(checkpoint, producer, source, undefined),
+    false,
+  );
+  assert.equal(
+    matchesRetainedCatalogForwardAdoptionHandoff(
+      checkpoint,
+      producer,
+      { execution_ref: claim.successor_ref },
+      "application",
+    ),
+    false,
+  );
+  for (const [key, value] of Object.entries(producer))
+    assert.equal(
+      matchesRetainedCatalogForwardAdoptionHandoff(
+        checkpoint,
+        { ...producer, [key]: typeof value === "number" ? 2 : value + "0" },
+        source,
+        "catalog-publication",
+      ),
+      false,
+      key,
+    );
+  for (const key of ["checkpoint", "previous"] as const)
+    assert.equal(
+      matchesRetainedCatalogForwardAdoptionHandoff(
+        { ...checkpoint, [key]: "0".repeat(40) },
+        producer,
+        source,
+        "catalog-publication",
+      ),
+      false,
+      key,
+    );
+});
+
+void test("r69 can resume only the signed r68 application renewal descriptor", () => {
+  const checkpoint = {
+    checkpoint: "86407ae8bca924200aba304340f33076e635b6e7",
+    previous: retainedCatalogForwardAdoptionClaim.child,
+  };
+  const producer = {
+    controller_revision: "9c5e7f0e33282115235fffa19d073e5cb084ffa0",
+    controller_ref: "refs/tags/portcove-production-controller-20261110r68",
+    workflow_sha256: "9a126152d549d913b57689404ca51bf755d88e2b0aa3d76631c4bb7e487ea136",
+    run_id: "42786277008",
+    run_attempt: 1,
+    job_id: "129733085853",
+    check_run_id: "129733085853",
+  };
+  const source = { execution_ref: "refs/tags/portcove-production-controller-20261110r69" };
+  assert.ok(matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "application"));
+  assert.equal(
+    matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "catalog-publication"),
+    false,
+  );
+  assert.equal(
+    matchesRetainedApplicationRenewalHandoff(
+      checkpoint,
+      producer,
+      { execution_ref: producer.controller_ref },
+      "application",
+    ),
+    false,
+  );
+  for (const [key, value] of Object.entries(producer))
+    assert.equal(
+      matchesRetainedApplicationRenewalHandoff(
+        checkpoint,
+        { ...producer, [key]: typeof value === "number" ? 2 : value + "0" },
+        source,
+        "application",
+      ),
+      false,
+      key,
+    );
+  assert.equal(
+    matchesRetainedApplicationRenewalHandoff(
+      { ...checkpoint, previous: null },
+      producer,
+      source,
+      "application",
+    ),
+    false,
+  );
+});
+
+void test("only the exact r70 attempt may resume the retained r69 renewal claim", () => {
+  const pin = retainedApplicationRenewalClaim;
+  assert.ok(isRetainedApplicationRenewalClaimScope(pin.previous, pin.child, pin.successor_ref, 1));
+  assert.equal(
+    isRetainedApplicationRenewalClaimScope(pin.previous, pin.child, pin.original_ref, 1),
+    false,
+  );
+  assert.equal(
+    isRetainedApplicationRenewalClaimScope(pin.previous, pin.child, pin.successor_ref, 2),
+    false,
+  );
+  assert.equal(
+    isRetainedApplicationRenewalClaimScope(pin.previous, pin.previous, pin.successor_ref, 1),
     false,
   );
 });

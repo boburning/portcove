@@ -299,6 +299,59 @@ reserves the launcher’s predictable log fallback under sticky system `/tmp`
 and preserves safe existing user-owned contents. The original ROM and the
 Linux profile remain the player’s files.
 
+Native portable capability 13 covers the official OpenMoHAA Linux x86-64
+and universal Mac ZIPs. The three titles retain separate launcher and
+original-data mappings. Core verifies the exact root launcher, engine and
+companions, then enables execution for the selected launcher and its engine
+before recording the installed package. The upstream launcher replaces its
+own process with the engine. Existing Windows and external registrations keep
+their respective runtime and data owners.
+
+The Unix managed launch uses the archive root and checks the upstream-selected
+profile before starting the launcher. Linux uses HOME, or the effective
+XDG_DATA_HOME under a nonempty FLATPAK_ID. Mac uses inherited HOME. Relative
+or overlapping profiles require a separate player-managed copy. Portcove
+preserves the declared original-data directories and leaves the shared
+external profile with the player.
+
+Native portable capability 15 covers the official Ironwail Linux x86-64
+TAR.GZ and vkQuake Linux x86-64 AppImage. The two titles retain their
+Windows launch and data declarations. The fixed classic Quake launch uses
+the player's managed `id1` data. On Linux, Ironwail uses the account-based
+external game profile, with HOME as a fallback. Portcove checks this profile
+outside the library and leaves it with the player.
+
+Ironwail requires its `ironwail.pak` beside the engine. vkQuake keeps the
+provider-bound AppImage intact and checks its mount directory and adjacent
+portable profile locations before launch. vkQuake uses the managed working
+folder for saves and settings. The fixed data path avoids the upstream
+store picker, and `-userdir .` keeps the same directory when a compatible
+build enables account-based user directories.
+
+Native portable capability 16 covers the official CorsixTH and OpenLoco
+Linux x86-64 AppImages and the OpenLoco Apple Silicon ZIP. The Linux routes
+check the AppImage mount and adjacent portable profile locations. The
+OpenLoco Mac route keeps the whole bundle and checks its account profile.
+The guarded profiles stay outside the managed library. CorsixTH uses
+its defined XDG_CONFIG_HOME or inherited HOME. OpenLoco uses a nonempty
+XDG_CONFIG_HOME on Linux, with the account home as the ordinary fallback.
+
+The managed offer covers the normal external profiles. Custom save,
+landscape, campaign and other locations stay with separately prepared
+copies. Keep those locations outside the library. The managed runtime
+inventory holds updates, switches and removal if unrecognized files appear.
+Windows creating contracts retain their previous rules.
+
+Native portable capability 17 covers the generic JGR Patch Pack Linux
+x86-64 TAR.XZ and the OpenGlad Apple silicon ZIP. JGR reuses archive file
+link extraction and launches with its default XDG configuration and
+data roots. The guard holds a portable configuration or native social
+plugin in a searched directory. OpenGlad launches the packaged player
+beside its assets and uses the default HOME/.openglad profile.
+Use a separately prepared copy for OpenGlad's custom profile override or
+a custom Unix library search path. Existing platform contracts keep their
+creating definitions.
+
 The `external_profile_policy` declaration requires NativePortable capability 9 or
 the higher version specified for the selected layout.
 It checks the effective profile selected by the final managed game environment
@@ -1438,9 +1491,11 @@ compatible release; plain data files, documentation and libraries may change. A
 different layout is refused with a player-facing reason naming the new or missing
 programs and folders, leaves the installed copy untouched, and uses the existing
 unsupported-acquisition surface, not a new hold authority. Platforms without a
-fingerprint keep today's behavior, and older clients ignore the field. A selected
-independent definition may replace a fingerprint after review but cannot remove
-one. The fingerprint is a gate, not part of the installed contract, and grants no
+fingerprint keep today's behavior. Independent definitions using this gate
+require [NativePortable version 18](DEFINITION-DELIVERY.md) so readers that
+would ignore the field cannot accept them. A selected independent definition
+may replace a fingerprint after review but cannot remove one. The fingerprint
+applies to staging and grants no
 qualification. Persistent-path anchors stay in the existing `persistent_paths`
 data. Exact-name matching means a route whose executable name carries a version
 needs a reviewed fingerprint update, which is the safe direction.
@@ -2088,6 +2143,18 @@ Catalog changes must preserve source identity, checksums, bounded archive
 extraction, symlink refusal, persistent-data ownership, per-port locking,
 atomic activation, rollback, credential boundaries, and executable trust. See
 [ARCHITECTURE.md](ARCHITECTURE.md) and [PROJECT-GOVERNANCE.md](PROJECT-GOVERNANCE.md).
+
+Managed ZIP and TAR extraction never creates a link. A symlink entry is written as a
+regular copy of its target only when its relative target resolves, inside the same
+archive and through at most eight links, to a regular file; absolute, escaping,
+missing, directory, cyclic, overlong-chain and malformed targets refuse before any
+write, and the copied bytes count toward the same size and compression-ratio limits.
+A definition whose package relies on this declares `release.archive_file_links`,
+which older readers refuse through [native capability 14](DEFINITION-DELIVERY.md). N64 recomp definitions with macOS app-bundle packages declare it and require [N64 capability 5](DEFINITION-DELIVERY.md). This covers the dylib version aliases
+in macOS app bundles. A package whose whole payload is one ZIP or TAR.GZ file is unwrapped one
+level through the same extractor on macOS and Linux routes that declare an executable. The exact upstream asset keeps its own identity,
+and any other payload shape is unchanged. These are extraction facts, not native
+Mac execution evidence.
 
 The embedded catalog uses schema 2. It contains reusable identities, logical
 variants, tagged physical representations, explicitly scoped conjunctive digest
@@ -2892,7 +2959,7 @@ never ownership or continuity evidence. The standalone `--previous-report=PATH`
 accepts bounded comparison evidence and writes no state or issue comments.
 
 The workflow coordinator persists validated main-only observation history and
-automatically drains checkpointed operations of at most 320 requests and 512 new
+automatically drains checkpointed operations of at most 352 requests and 512 new
 location assessments. Individually oversized collections continue by endpoint
 without starving smaller scopes; compatible completed facts retain their original
 24-hour clocks and do not consume another request or new-location slot.

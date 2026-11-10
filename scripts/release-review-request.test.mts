@@ -140,12 +140,30 @@ void test("paused safety withdrawal clears only the exact request and refuses it
     approval_sha256: "1".repeat(64),
     technical_stop_sha256: "2".repeat(64),
   };
+  const { inspectReleaseReviewWithdrawal, matchesRetainedReviewWithdrawal } =
+    await import("./release-review-withdrawal.mts");
+  const inspected = inspectReleaseReviewWithdrawal(withdrawal);
+  assert.ok(inspected);
+  assert.equal(matchesRetainedReviewWithdrawal(inspected, state), false);
+  assert.equal(matchesRetainedReviewWithdrawal(inspected, { review_request: null }), false);
   const next = {
     ...state,
     controller: { ...controller, publication_paused: true },
     review_request: null,
     review_withdrawal: withdrawal,
   };
+  assert.equal(matchesRetainedReviewWithdrawal(inspected, next), true);
+  assert.equal(
+    matchesRetainedReviewWithdrawal(inspected, { ...next, review_request: f.request }),
+    false,
+  );
+  assert.equal(
+    matchesRetainedReviewWithdrawal(inspected, {
+      ...next,
+      review_withdrawal: { ...withdrawal, approval_sha256: "3".repeat(64) },
+    }),
+    false,
+  );
   for (const changed of [
     { ...next, controller: controller },
     { ...next, opportunity: null },

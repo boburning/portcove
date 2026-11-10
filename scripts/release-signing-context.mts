@@ -275,7 +275,7 @@ export async function prepareControllerReleaseSigningContext(
     previous_repository: currentSite.application,
     prior_repository_sha256: published.repository_sha256,
     generated_at: generatedAt,
-    output_parent: outputParent,
+    output_parent: await mkdtemp(path.join(outputParent, "renewal-work-")),
     deadline,
   });
   const actualPrior = await inspectPreparedMetadataRenewal(prior);

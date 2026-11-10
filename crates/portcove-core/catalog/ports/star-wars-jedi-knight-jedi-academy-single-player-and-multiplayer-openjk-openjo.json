@@ -44,7 +44,7 @@
         },
         {
           "title": "Prepare the upstream Mac player",
-          "instruction": "Unpack the official OpenJK Mac tarball for your Mac with the system archive tools. Keep the app and its required game data in the matching Jedi Academy GameData layout. Open openjk_sp.arm64.app or openjk_sp.x86_64.app for the campaign. Use openjk.arm64.app or openjk.x86_64.app for multiplayer. Keep the supplied SDL2 framework with the app and follow the project’s data setup instructions."
+          "instruction": "Unpack the official OpenJK Mac tarball for your Mac with the system archive tools. Keep the app and its required game data in the matching Jedi Academy GameData layout. Open openjk_sp.arm64.app or openjk_sp.x86_64.app for the campaign. Use openjk.arm64.app or openjk.x86_64.app for multiplayer. Keep the complete app, including libSDL2-2.0.0.dylib in Contents/Frameworks and follow the project’s data setup instructions. The inspected packages require macOS 14 or later on Intel and macOS 15 or later on Apple Silicon."
         }
       ],
       "warnings": [

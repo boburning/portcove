@@ -16,13 +16,33 @@
         "match_kind": "port"
       },
       "issue_number": 58,
+      "availability": "packages",
+      "release_url": "https://github.com/HarbourMasters/Shipwright/releases",
+      "setup_url": "https://github.com/HarbourMasters/Shipwright/releases",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "macOS: get the upstream application",
+            "instruction": "Windows and Linux use Portcove’s managed Install route where offered. On macOS, get the Mac ZIP from the upstream Releases page. The release is a ZIP holding a disk image, and Portcove cannot extract or manage replacement of a disk image. Open the disk image yourself and copy the complete application to a permanent folder you choose."
+          },
+          {
+            "title": "macOS: register the copy and choose Play",
+            "instruction": "Use Choose existing installation and select the Ship of Harkinian executable inside the copied application bundle (in its Contents/MacOS folder). Review the executable and launch location, then choose Play explicitly. Supply your own matching original in the game’s own picker. Follow upstream instructions for updates to this copy."
+          },
+          {
+            "title": "macOS: keep the app data separate",
+            "instruction": "Portcove does not own this copy, its data, update, backup or rollback. Check the upstream readme for where this build keeps settings and saves, and preserve that folder and your original separately before replacing the application."
+          }
+        ],
+        "warnings": [
+          "Portcove has no native macOS execution result for this port. An external registration gives Portcove no ownership of the copy."
+        ],
+        "help_url": "https://github.com/HarbourMasters/Shipwright/releases"
+      },
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
-      "availability": "unknown"
+        "linux-x86-64"
+      ]
     },
     {
       "id": "2ship2harkinian",
@@ -67,13 +87,33 @@
         "match_kind": "port"
       },
       "issue_number": 59,
+      "availability": "packages",
+      "release_url": "https://github.com/2ship2harkinian/2ship2harkinian/releases",
+      "setup_url": "https://github.com/2ship2harkinian/2ship2harkinian/releases",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "macOS: get the upstream application",
+            "instruction": "Windows and Linux use Portcove’s managed Install route where offered. On macOS, get the Mac ZIP from the upstream Releases page. The release is a ZIP holding a disk image, and Portcove cannot extract or manage replacement of a disk image. Open the disk image yourself and copy the complete application to a permanent folder you choose."
+          },
+          {
+            "title": "macOS: register the copy and choose Play",
+            "instruction": "Use Choose existing installation and select the 2Ship2Harkinian executable inside the copied application bundle (in its Contents/MacOS folder). Review the executable and launch location, then choose Play explicitly. Supply your own matching original in the game’s own picker. Follow upstream instructions for updates to this copy."
+          },
+          {
+            "title": "macOS: keep the app data separate",
+            "instruction": "Portcove does not own this copy, its data, update, backup or rollback. Check the upstream readme for where this build keeps settings and saves, and preserve that folder and your original separately before replacing the application."
+          }
+        ],
+        "warnings": [
+          "Portcove has no native macOS execution result for this port. An external registration gives Portcove no ownership of the copy."
+        ],
+        "help_url": "https://github.com/2ship2harkinian/2ship2harkinian/releases"
+      },
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
-      "availability": "unknown"
+        "linux-x86-64"
+      ]
     },
     {
       "id": "spaghetti-kart",
@@ -254,13 +294,33 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 62,
+      "availability": "packages",
+      "release_url": "https://github.com/HarbourMasters/Lighthouse/releases",
+      "setup_url": "https://github.com/HarbourMasters/Lighthouse/releases",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "macOS: get the upstream application",
+            "instruction": "Windows and Linux use Portcove’s managed Install route where offered. On macOS, get the Mac ZIP from the upstream Releases page. The release is a ZIP holding a disk image, and Portcove cannot extract or manage replacement of a disk image. Open the disk image yourself and copy the complete application to a permanent folder you choose."
+          },
+          {
+            "title": "macOS: register the copy and choose Play",
+            "instruction": "Use Choose existing installation and select the Lighthouse executable inside the copied application bundle (in its Contents/MacOS folder). Review the executable and launch location, then choose Play explicitly. Supply your own matching original in the game’s own picker. Follow upstream instructions for updates to this copy."
+          },
+          {
+            "title": "macOS: keep the app data separate",
+            "instruction": "Portcove does not own this copy, its data, update, backup or rollback. Check the upstream readme for where this build keeps settings and saves, and preserve that folder and your original separately before replacing the application."
+          }
+        ],
+        "warnings": [
+          "Portcove has no native macOS execution result for this port. An external registration gives Portcove no ownership of the copy."
+        ],
+        "help_url": "https://github.com/HarbourMasters/Lighthouse/releases"
+      },
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
-      "availability": "unknown"
+        "linux-x86-64"
+      ]
     },
     {
       "id": "dusklight",
@@ -422,7 +482,9 @@
       "issue_number": 66,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "unknown"
     },
@@ -534,17 +596,6 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 69,
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-aarch64"
-      ],
-      "download_asset_hints": {
-        "macos-aarch64": [
-          "macOS-ARM64-Release",
-          ".zip"
-        ]
-      },
       "availability": "packages",
       "release_url": "https://github.com/Rainchus/Donkey-Kong-64-Recompiled/releases",
       "setup_url": "https://github.com/Rainchus/Donkey-Kong-64-Recompiled#readme",
@@ -559,25 +610,27 @@
             "instruction": "Extract the Flatpak x64 ZIP to get io.github.dk64recompiled.dk64recompiled.flatpak. Install the file with Flatpak, then start io.github.dk64recompiled.dk64recompiled from the app menu or with flatpak run io.github.dk64recompiled.dk64recompiled."
           },
           {
-            "title": "Open the Mac app",
-            "instruction": "Choose the official Apple Silicon ZIP. Extract the outer release ZIP, then use Archive Utility to extract DK64Recompiled.zip to get DK64Recompiled.app. Open the app from its permanent folder."
-          },
-          {
             "title": "Select your original",
             "instruction": "In the upstream game picker choose your own USA 1.0 Donkey Kong 64 cartridge dump. The game validates the matching original before play."
           }
         ],
         "warnings": [
-          "These packages use upstream or player-managed setup, replacement and data backups. Portcove has no native execution or populated-save result for these sibling packages."
+          "Portcove manages the official Windows, Linux x64 and Apple Silicon Mac packages. The Linux ARM64 and Flatpak packages use upstream or player-managed setup, replacement and data backups.",
+          "Portcove has no native Mac execution, macOS first-launch (Gatekeeper) result or populated-save result for this package."
         ],
         "help_url": "https://github.com/Rainchus/Donkey-Kong-64-Recompiled#readme",
         "references": [
           {
-            "title": "Keep the external profile",
-            "instruction": "Preserve ~/.config/DK64Recompiled on Linux and the DK64Recompiled profile under ~/Library/Application Support on Mac, or your actual custom profile. For Flatpak also keep ~/.var/app/io.github.dk64recompiled.dk64recompiled. Back up the original, saves, mods and settings before replacing an upstream copy."
+            "title": "Keep an upstream-managed profile",
+            "instruction": "If you already use an upstream-managed copy, preserve ~/.config/DK64Recompiled on Linux, the DK64Recompiled profile under ~/Library/Application Support on Mac, or your actual custom profile. For Flatpak also keep ~/.var/app/io.github.dk64recompiled.dk64recompiled. Back up the original, saves, mods and settings before replacing it. Portcove-managed installs keep their data in the Portcove profile and do not adopt these folders."
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "automobili-lamborghini-recompiled",
@@ -717,7 +770,6 @@
       "issue_number": 73,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -740,7 +792,6 @@
       "issue_number": 74,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -763,7 +814,6 @@
       "issue_number": 75,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -787,7 +837,6 @@
       "issue_number": 76,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -810,7 +859,6 @@
       "issue_number": 77,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -833,7 +881,6 @@
       "issue_number": 78,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -856,7 +903,6 @@
       "issue_number": 79,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -879,7 +925,6 @@
       "issue_number": 80,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -902,7 +947,6 @@
       "issue_number": 81,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -949,7 +993,6 @@
       "issue_number": 83,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -973,7 +1016,6 @@
       "issue_number": 84,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -997,7 +1039,6 @@
       "issue_number": 85,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -1019,10 +1060,7 @@
       },
       "issue_number": 86,
       "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
+        "windows-x86-64"
       ],
       "availability": "unknown"
     },
@@ -1043,7 +1081,6 @@
       "issue_number": 87,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -1327,9 +1364,7 @@
       "issue_number": 98,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
+        "linux-x86-64"
       ],
       "availability": "unknown"
     },
@@ -1501,7 +1536,9 @@
       "issue_number": 102,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "unknown"
     },
@@ -1594,7 +1631,9 @@
       "issue_number": 105,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "unknown"
     },
@@ -1719,6 +1758,11 @@
       "issue_number": 110,
       "availability": "packages",
       "release_url": "https://github.com/JRickey/BattleShip/releases",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
       "setup_url": "https://github.com/JRickey/BattleShip/blob/78069c1fdac54351612ccf1c99778b51f2db1256/scripts/package-macos.sh",
       "manual_setup": {
         "steps": [
@@ -1736,12 +1780,8 @@
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/JRickey/BattleShip/releases/tag/v1.6"
-      },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ]
+        "help_url": "https://github.com/JRickey/BattleShip/releases"
+      }
     },
     {
       "id": "g-diffuser",
@@ -1998,32 +2038,14 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 281,
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
-      "download_asset_hints": {
-        "macos-x86-64": [
-          "-macos-universal.zip"
-        ],
-        "macos-aarch64": [
-          "-macos-universal.zip"
-        ]
-      },
       "availability": "packages",
       "release_url": "https://github.com/JackandBeans/Snap64Recomp/releases",
       "setup_url": "https://github.com/JackandBeans/Snap64Recomp#readme",
       "manual_setup": {
         "steps": [
           {
-            "title": "Choose the Linux package",
-            "instruction": "Use the official x86-64 or ARM64 tarball for your machine and open Snap64Recomp from the extracted folder. It needs SDL2, GTK 3 and a Vulkan 1.2 driver. Both current tarballs need glibc 2.38 or newer. On x86-64 you can instead install the official .flatpak bundle and start io.github.jackandbeans.Snap64Recomp."
-          },
-          {
-            "title": "Open the Mac app",
-            "instruction": "Choose the official universal ZIP and open Snap64Recomp.app from its permanent folder on Intel or Apple Silicon with macOS 14 or newer. Follow the project’s instructions for the first launch of its unsigned app."
+            "title": "Choose another Linux package",
+            "instruction": "Portcove manages the official x86-64 tarball. For Linux ARM64, use the official ARM64 tarball and open Snap64Recomp from the extracted folder. On x86-64 you can instead install the official .flatpak bundle and start io.github.jackandbeans.Snap64Recomp. Both tarballs need glibc 2.38 or newer, SDL2, GTK 3 and a Vulkan 1.2 driver."
           },
           {
             "title": "Set up the Android beta",
@@ -2035,20 +2057,28 @@
           }
         ],
         "warnings": [
-          "These packages use upstream or player-managed setup, replacement and data backups. Portcove has no native execution or populated-save result for these sibling packages."
+          "Portcove manages the official Windows, Linux x86-64 and universal Mac packages. The Linux ARM64 and Flatpak packages and the Android APK use upstream or player-managed setup, replacement and data backups.",
+          "The Mac app needs macOS 14 or newer and is unsigned. If macOS refuses its first launch, follow the upstream instructions in its START HERE.txt (Open Anyway in Privacy & Security).",
+          "Upstream reports that its Mac app has run on GitHub-hosted Macs but not yet on physical ones; Portcove has no native Mac execution result for it."
         ],
         "help_url": "https://github.com/JackandBeans/Snap64Recomp#readme",
         "references": [
           {
-            "title": "Keep each upstream profile",
-            "instruction": "Back up your actual Linux game folder or ~/.config/Snap64Recomp. Flatpak uses ~/.var/app/io.github.jackandbeans.Snap64Recomp, and Mac uses ~/Library/Application Support/Snap64 Recomp. Preserve photos, saves, mods and settings before replacement."
+            "title": "Keep an upstream-managed profile",
+            "instruction": "If you already use an upstream-managed copy, back up your actual Linux game folder or ~/.config/Snap64Recomp, the Flatpak folder ~/.var/app/io.github.jackandbeans.Snap64Recomp, or the Mac folder ~/Library/Application Support/Snap64 Recomp before replacement. Portcove-managed installs keep their data in the Portcove-managed profile and do not adopt these folders."
           },
           {
             "title": "Keep the Android game folder",
             "instruction": "Back up Internal storage > Snap64 if you use the shared folder. If you chose the private folder, keep an accessible backup before uninstalling or clearing app data. Install updates over the same upstream signer."
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "cvlod-recomp",
@@ -2128,23 +2158,6 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 140,
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
-      "download_asset_hints": {
-        "linux-x86-64": [
-          "Flatpak-X64-Release.zip"
-        ],
-        "macos-x86-64": [
-          "macOS-Release.zip"
-        ],
-        "macos-aarch64": [
-          "macOS-Release.zip"
-        ]
-      },
       "availability": "packages",
       "release_url": "https://github.com/sonicdcer/DNZHRecomp/releases",
       "setup_url": "https://github.com/sonicdcer/DNZHRecomp#readme",
@@ -2159,25 +2172,28 @@
             "instruction": "Extract the Flatpak x64 ZIP to get io.github.dnzhrecomp.dnzhrecomp.flatpak. Install the file with Flatpak, then start io.github.dnzhrecomp.dnzhrecomp from the app menu or with flatpak run io.github.dnzhrecomp.dnzhrecomp."
           },
           {
-            "title": "Open the Mac app",
-            "instruction": "Choose the official Intel and Apple Silicon ZIP. Extract the outer release ZIP, then use Archive Utility to extract DNZHRecompiled.zip to get DNZHRecompiled.app. Open the app from its permanent folder."
-          },
-          {
             "title": "Select your original",
             "instruction": "In the upstream game picker choose your own USA Duke Nukem: Zero Hour cartridge dump. The game validates the matching original before play."
           }
         ],
         "warnings": [
-          "These packages use upstream or player-managed setup, replacement and data backups. Portcove has no native execution or populated-save result for these sibling packages."
+          "Portcove manages the official Windows, Linux x64 and Intel and Apple Silicon Mac packages. The Linux ARM64 and Flatpak packages use upstream or player-managed setup, replacement and data backups.",
+          "Portcove has no native Linux or Mac execution, macOS first-launch (Gatekeeper) result or populated-save result for the managed Linux and Mac packages."
         ],
         "help_url": "https://github.com/sonicdcer/DNZHRecomp#readme",
         "references": [
           {
-            "title": "Keep the external profile",
-            "instruction": "Preserve ~/.config/DNZHRecompiled on Linux and the DNZHRecompiled profile under ~/Library/Application Support on Mac, or your actual custom profile. For Flatpak also keep ~/.var/app/io.github.dnzhrecomp.dnzhrecomp. Back up the original, saves, mods and settings before replacing an upstream copy."
+            "title": "Keep an upstream-managed profile",
+            "instruction": "If you already use an upstream-managed copy, preserve ~/.config/DNZHRecompiled on Linux, the DNZHRecompiled profile under ~/Library/Application Support on Mac, or your actual custom profile. For Flatpak also keep ~/.var/app/io.github.dnzhrecomp.dnzhrecomp. Back up the original, saves, mods and settings before replacing it. Portcove-managed installs keep their data in the Portcove profile and do not adopt these folders."
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "ape-escape-recompiled",
@@ -2362,7 +2378,7 @@
       "id": "f-zero-snes-recomp",
       "name": "F-Zero SNES Recomp",
       "summary": "Native F-Zero recompilation.",
-      "project_url": "https://github.com/mstan/FZeroSNESRecomp",
+      "project_url": "https://github.com/RetroPortingToolKit/FZeroSNESRecomp",
       "original_game_title": "F-Zero",
       "variant_label": "SNES",
       "artwork": {
@@ -4453,7 +4469,9 @@
       },
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "download_block_reason": "Fresh bundled-package acquisition remains held for the documented mixed/uncertain game-data, music and soundfont permissions. Reconsider after exact component grants or a compatible clean official data/package route is accepted. A conditional permitted-existing-copy route does not clear those assets.",
       "artwork": {
@@ -7877,7 +7895,7 @@
     {
       "id": "alexbeav-medievil-recomp",
       "name": "MediEvil / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build a native MediEvil player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp",
       "issue_number": 461,
       "platforms": [
@@ -7899,26 +7917,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "title": "Use your original disc and BIOS",
+            "instruction": "Use your own MediEvil (USA) disc (SCUS-94227) with both its data and audio tracks, and your own retail SCPH-1001 BIOS. Keep the original files separately."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            "title": "Build the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both files in place. Choose Play after Portcove builds the game."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "The current Intel and Apple Silicon generators require macOS 15 or later. Extract the matching official ZIP into a writable folder. Make the Xcode Command Line Tools, CMake, Ninja and Python 3 available for your architecture. Open the upstream MediEvil_Recompiled setup host and choose Generate & rebuild with the matching CUE, both BIN files and your retail BIOS."
+          },
+          {
+            "title": "Add the completed Mac player",
+            "instruction": "In Portcove, select build-release/MediEvil_Recompiled and use build-release as the start folder. Keep the complete working kit and its companion files. You manage replacement and backups for this copy."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "The game records offline diagnostics by default, including starting memory cards, settings and inputs. Turn off Input Recording to stop new recordings. Review diagnostic contents before sharing."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp#readme",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Keep your saves and diagnostics",
+            "instruction": "Close the game before backing up. Portcove retains the declared files of its managed Windows and Linux players. For a Mac copy, preserve the complete working folder, including saves, settings, installed mods and any diagnostic location named beside the player."
           }
         ]
       },
@@ -7941,7 +7964,8 @@
           "-macos-arm64.zip"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "original_game_title": "MediEvil"
     },
     {
       "id": "alexbeav-mega-man-legends-2-recomp",
@@ -13113,7 +13137,7 @@
           },
           {
             "title": "Choose a fresh managed runtime or keep your external player",
-            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
@@ -13138,7 +13162,8 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -15060,7 +15085,12 @@
       "summary": "Prepare a permitted OpenCiv3 player and choose your own Civilization III files or permitted standalone content.",
       "project_url": "https://github.com/C7-Game/OpenCiv3",
       "issue_number": 1850,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "availability": "packages",
       "setup_url": "https://github.com/C7-Game/OpenCiv3/blob/5a2a868b3411db71528d7b0fd51d80cdbb37aac1/README.md",
       "artwork": {
@@ -15077,7 +15107,11 @@
         "steps": [
           {
             "title": "Keep a permitted player and its companions",
-            "instruction": "For an existing permitted Windows copy, select OpenCiv3.exe with its folder as the working directory. Keep the complete extracted player folder, including OpenCiv3.pck, data_C7_windows_x86_64, Assets, Text and Lua. Linux and macOS packages are published separately; follow their upstream preparation instructions rather than reusing Windows launch details."
+            "instruction": "For a permitted Windows copy, select OpenCiv3.exe with its folder as the working directory. Keep the complete extracted player folder, including OpenCiv3.pck, data_C7_windows_x86_64, Assets, Text and Lua."
+          },
+          {
+            "title": "Keep the complete Linux or Mac player",
+            "instruction": "For a permitted Linux x86-64 copy, unpack the ZIP and its inner TGZ, then run OpenCiv3.x86_64 from the complete extracted folder. On Intel and Apple Silicon Macs, unpack both ZIP layers and open OpenCiv3.app through macOS. Keep the adjacent Assets, Text and Lua with the app. These are upstream setup instructions for a permitted copy."
           },
           {
             "title": "Choose game content on first Play",
@@ -15667,7 +15701,7 @@
           },
           {
             "title": "Choose a fresh managed runtime or keep your external player",
-            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
@@ -15692,7 +15726,8 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -16945,7 +16980,7 @@
         "references": [
           {
             "title": "Set up CorsixTH on Linux",
-            "instruction": "Use the official x86-64 AppImage. Keep it in a writable folder, make it executable and open it yourself. The inspected build needs glibc 2.34 and libstdc++ with GLIBCXX_3.4.30. CorsixTH also documents the Flathub package com.corsixth.corsixth for x86-64 and ARM64. Open the installed app and select the folder with your Theme Hospital data. The Flatpak uses its own profile."
+            "instruction": "For a separately prepared copy, use the official x86-64 AppImage with FUSE support. Keep it in a writable folder, make it executable and open it yourself. The inspected build needs glibc 2.34 and libstdc++ with GLIBCXX_3.4.30. CorsixTH also documents the Flathub package com.corsixth.corsixth for x86-64 and ARM64. Open the installed app and select the folder with your Theme Hospital data. The Flatpak uses its own profile."
           },
           {
             "title": "Set up CorsixTH on Mac",
@@ -16973,8 +17008,8 @@
       ],
       "download_asset_hints": {
         "linux-x86-64": [
-          "CorsixTH-v",
-          "-x86_64.AppImage"
+          "corsixth-",
+          "-x86_64.appimage"
         ],
         "macos-x86-64": [
           "CorsixTH-",
@@ -22786,8 +22821,8 @@
         "linux-x86-64"
       ],
       "availability": "packages",
-      "release_url": "https://github.com/power-pudu/egg-of-time/releases/tag/v1.1.0",
-      "setup_url": "https://github.com/power-pudu/egg-of-time/blob/022434b1e7f309673a11c226e0cccf13b2140226/README.md",
+      "release_url": "https://github.com/power-pudu/egg-of-time/releases",
+      "setup_url": "https://github.com/power-pudu/egg-of-time#readme",
       "download_block_reason": "Portcove downloads are paused while the first-start build tools and recovery are being reviewed. The guide covers a copy you already trust and are permitted to use.",
       "manual_setup": {
         "steps": [
@@ -22797,11 +22832,11 @@
           },
           {
             "title": "Start the Windows x64 package",
-            "instruction": "Extract EggOfTime-v1.1.0-windows-x64.zip into a writable folder and open Egg of Time.exe. The package includes the tools for the first-start build."
+            "instruction": "Use a trusted EggOfTime Windows x64 ZIP ending in -windows-x64.zip. Extract it into a writable folder and open Egg of Time.exe. The package includes the tools for the local first-start build."
           },
           {
             "title": "Start the Linux x64 package",
-            "instruction": "Use glibc 2.35 or newer, Python 3, a C compiler and libcurl. For the file picker, use xdg-desktop-portal or zenity. Extract EggOfTime-v1.1.0-linux-x64.tar.gz and run ./\"Egg of Time\" from its folder, or make the separate EggOfTime-v1.1.0-x86_64.AppImage executable and open it."
+            "instruction": "The current Linux x64 packages need glibc 2.35 or newer, Python 3 and libcurl. They include Zig for the first-start build. The file picker uses xdg-desktop-portal or zenity. Extract the -linux-x64.tar.gz package and start Egg of Time from its folder, or make the separate x86-64 AppImage executable and open it."
           },
           {
             "title": "Let Egg of Time build your game",
@@ -22813,7 +22848,7 @@
           "Keep your ROM, extracted assets, generated game code and saves private. Close Egg of Time and wait for any build to finish before replacing the package or copying its data.",
           "The upstream macOS runtime compiles from source. Upstream lists a full Mac game build as untested."
         ],
-        "help_url": "https://github.com/power-pudu/egg-of-time/blob/022434b1e7f309673a11c226e0cccf13b2140226/README.md",
+        "help_url": "https://github.com/power-pudu/egg-of-time#readme",
         "references": [
           {
             "title": "Find the data for your package",
@@ -25048,12 +25083,17 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Start playing",
-            "instruction": "The official package includes the game. Choose Play after installation; no separate commercial files, extraction step or installer is required."
+            "title": "Start the managed Windows game",
+            "instruction": "The official Windows package includes the game. Choose Play after installation."
+          },
+          {
+            "title": "Install the upstream Mac app",
+            "instruction": "Choose the ZIP for your Mac processor, extract its DMG and copy SDL Sopwith.app into Applications. The inspected Intel build needs macOS 13 and the Apple silicon build needs macOS 15. Keep your SDL Sopwith settings and high scores before replacing the Mac app."
           }
         ],
         "warnings": [
-          "This project has not been verified for play through Portcove."
+          "This project has not been verified for play through Portcove.",
+          "You and upstream own the Mac setup, updates and preference files."
         ],
         "help_url": "https://github.com/fragglet/sdl-sopwith/blob/sdl-sopwith-2.9.0/README.md"
       },
@@ -25066,7 +25106,9 @@
         "match_kind": "underlying-game"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -25899,7 +25941,7 @@
       "project_url": "https://github.com/openglad/openglad",
       "issue_number": 1917,
       "availability": "packages",
-      "setup_url": "https://github.com/openglad/openglad/blob/v2.1092/README.md",
+      "setup_url": "https://github.com/openglad/openglad#readme",
       "artwork": {
         "game_id": 100047,
         "cover_id": 563025,
@@ -25908,21 +25950,28 @@
         "game_slug": "gladiator--1",
         "match_kind": "underlying-game"
       },
-      "release_url": "https://github.com/openglad/openglad/releases/tag/v2.1092",
+      "release_url": "https://github.com/openglad/openglad/releases",
       "manual_setup": {
         "steps": [
           {
             "title": "Start the game",
             "instruction": "The official archive includes the Gladiator campaigns and the native game. Choose Play after installation; no original commercial files or separate setup program are required. openscen.exe is the optional level editor, not this route’s play target."
+          },
+          {
+            "title": "Prepare your Apple silicon Mac",
+            "instruction": "The inspected ARM64 player needs macOS 26 and the Apple silicon Homebrew libraries libyaml, physfs, libzip and sdl3 under /opt/homebrew. Follow the upstream Mac setup for those libraries before Play. The managed player opens from its own folder and keeps your saves, campaigns and settings under ~/.openglad."
           }
         ],
-        "warnings": [],
-        "help_url": "https://github.com/openglad/openglad/blob/v2.1092/README.md"
+        "warnings": [
+          "Use a separately prepared copy for OPENGLAD_CONFIG_DIR or a custom Mac library search path. Keep the actual OpenGlad profile and its creating runtime before changing versions."
+        ],
+        "help_url": "https://github.com/openglad/openglad/blob/master/docs/INSTALL.md"
       },
       "original_game_title": "Gladiator",
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -29902,7 +29951,7 @@
           },
           {
             "title": "Choose the Linux AppImage for your processor",
-            "instruction": "The v0.22.1 x86-64 AppImage opens the upstream launcher. The aarch64 and armhf AppImages start ja2 directly. For the direct entry, configure game_dir in ~/.ja2/ja2.json and use -resversion with your localization if needed. The armhf runtime uses libfuse.so.2. Keep the x86-64 launcher open until its game exits."
+            "instruction": "The inspected x86-64 AppImage opens the upstream launcher. The aarch64 and armhf AppImages start ja2 directly. For the direct entry, configure game_dir in ~/.ja2/ja2.json and use -resversion with your localization if needed. The armhf runtime uses libfuse.so.2. Keep the x86-64 launcher open until its game exits."
           }
         ],
         "warnings": [
@@ -29911,11 +29960,11 @@
         "references": [
           {
             "title": "Open the Apple silicon Mac app",
-            "instruction": "Mount the v0.22.1 DMG and copy JA2 Stracciatella.app out of it. Both the launcher and player in this build need Apple silicon and macOS 15 or later. Start the app to configure your original data and localization."
+            "instruction": "Mount the Apple silicon DMG and copy JA2 Stracciatella.app out of it. Both the launcher and player in this build need Apple silicon and macOS 15 or later. Start the app to configure your original data and localization."
           },
           {
             "title": "Configure the Android APK",
-            "instruction": "Use the v0.22.1 APK on a compatible device that allows its storage access. In the Data tab choose your original game folder and version, then choose a separate Save Game Directory if needed. Keep the originals and your effective save location before replacing the app. This APK uses io.github.ja2stracciatella and targets Android API 26."
+            "instruction": "Use the upstream APK on a compatible device that allows its storage access. In the Data tab choose your original game folder and version, then choose a separate Save Game Directory if needed. Keep the originals and your effective save location before replacing the app. The inspected APK uses io.github.ja2stracciatella, targets Android API 26, and contains ARM64, ARMv7, x86 and x86-64 native libraries."
           }
         ],
         "help_url": "https://github.com/ja2-stracciatella/ja2-stracciatella/blob/11e9430b67d788b73f7a57d22166e8b500c23dab/README.md"
@@ -30211,7 +30260,7 @@
       "project_url": "https://github.com/JGRennison/OpenTTD-patches",
       "issue_number": 1859,
       "availability": "packages",
-      "setup_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp-0.73.4/README.md",
+      "setup_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp/installation.md",
       "artwork": {
         "game_id": 5502,
         "cover_id": 85659,
@@ -30220,20 +30269,33 @@
         "game_slug": "transport-tycoon-deluxe",
         "match_kind": "underlying-game"
       },
-      "release_url": "https://github.com/JGRennison/OpenTTD-patches/releases/tag/jgrpp-0.73.4",
+      "release_url": "https://github.com/JGRennison/OpenTTD-patches/releases",
       "manual_setup": {
         "steps": [
           {
             "title": "Start the game",
             "instruction": "On first Play, choose a base graphics set when requested. Upstream supports the free OpenGFX/OpenSFX/OpenMSX sets or your own compatible original Transport Tycoon Deluxe data. JGR Patch Pack is a separate game build, not a loadable mod; its saves and multiplayer peers must be compatible with that build."
+          },
+          {
+            "title": "Use the Linux managed player",
+            "instruction": "Portcove installs the official generic Linux AMD64 archive and starts it with the default XDG profile. The inspected player needs glibc 2.28 or newer. Keep your configuration under XDG_CONFIG_HOME/openttd and your saves and downloaded content under XDG_DATA_HOME/openttd, or the usual home-folder defaults. These folders can be shared with other OpenTTD copies and stay outside Portcove backups."
+          },
+          {
+            "title": "Set up the Mac app yourself",
+            "instruction": "Mount the upstream universal Mac DMG and copy OpenTTD.app into your Applications folder. The inspected player needs macOS 10.15 on Intel or macOS 11 on Apple silicon. Keep the JGR Patch Pack app and its effective profile with saves created by that build."
           }
         ],
-        "warnings": [],
-        "help_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp-0.73.4/README.md"
+        "warnings": [
+          "On Linux, use a separately prepared copy for a portable configuration, native social plugins or a custom library search path. Keep the effective OpenTTD profile and the runtime that created your saves."
+        ],
+        "help_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp/installation.md"
       },
       "original_game_title": "OpenTTD",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -30909,7 +30971,8 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -32530,12 +32593,16 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Windows setup",
-            "instruction": "Run the upstream Windows Installer EXE yourself. Choose a separate TRX folder and the packs you want. Point the installer to supported Steam, GOG or disc installations for the corresponding games. After setup, register the installed TRX.exe and its containing folder."
+            "title": "Windows installer setup",
+            "instruction": "Run the upstream Windows Installer EXE. Choose a separate TRX folder and the packs you want. Point it to your supported Steam, GOG or disc installation for each game. In Portcove, select the installed TRX.exe and use its containing folder as the start folder."
+          },
+          {
+            "title": "Windows portable ZIP setup",
+            "instruction": "For manual setup, open the upstream release page and choose the combined Windows ZIP. Extract it into a new writable folder. Follow the upstream file map to copy your own original files into the correct games/<game-id>/ folders. Select TRX.exe and its containing folder. Keep the complete extracted package with the player."
           },
           {
             "title": "Linux x86-64 setup",
-            "instruction": "Extract the complete Linux ZIP into a writable folder. Use the upstream manual setup guide to place your original files under the matching games/<game-id>/ folders. Start TRX with its containing folder as the working directory. After setup, use that same native executable and folder for Portcove registration."
+            "instruction": "Extract the complete Linux x64 ZIP into a new writable folder. Follow the same upstream file map for your own originals. Select the TRX executable in the extracted folder and use that folder as the start folder."
           },
           {
             "title": "Intel and Apple Silicon Mac setup",
@@ -32551,6 +32618,10 @@
           {
             "title": "Preserve the TRX game data and profiles",
             "instruction": "Keep a backup of your original game files, cfg, saves, screenshots and any custom profile directories before replacing the runtime. On Mac, preserve any original game files or player data stored inside the bundle before replacing TRX.app. The upstream guide explains migration from the older combined layout."
+          },
+          {
+            "title": "Keep a working copy before updating",
+            "instruction": "Extract each new ZIP into a separate folder. Follow the upstream file map for the originals you supply and keep the build-provided files with their version. Preserve saves, screenshots, configuration and any paths selected through TRX_DIR or the documented TRX path overrides before switching your registration."
           }
         ]
       },
@@ -33557,7 +33628,7 @@
       "project_url": "https://github.com/nemo22/mdk-sdl",
       "issue_number": 1775,
       "availability": "packages",
-      "setup_url": "https://github.com/nautilusbits/mdk-sdl/blob/v1.2.0/README.md",
+      "setup_url": "https://github.com/nautilusbits/mdk-sdl/blob/main/README.md",
       "artwork": {
         "game_id": 219,
         "cover_id": 100005,
@@ -33566,39 +33637,51 @@
         "game_slug": "mdk",
         "match_kind": "underlying-game"
       },
-      "release_url": "https://github.com/nautilusbits/mdk-sdl/releases/tag/v1.2.0",
+      "release_url": "https://github.com/nautilusbits/mdk-sdl/releases/latest",
       "manual_setup": {
         "steps": [
           {
-            "title": "Prepare your original game",
+            "title": "Prepare your original game on Windows",
             "instruction": "Keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required."
-          }
-        ],
-        "warnings": [],
-        "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/v1.2.0/README.md",
-        "references": [
+          },
           {
             "title": "Set up MDK on Linux",
-            "instruction": "Use the upstream v1.2.6 archive for your CPU. The x86-64 player needs glibc 2.43 or later and the ARM64 player needs glibc 2.38 or later. Use a Vulkan driver. Keep libSDL3.so beside mdk_sdl. Point MDK_DATA_DIR or the [paths] mdk entry in mdk_paths.cfg at your complete original MDK installation."
+            "instruction": "Choose mdk-linux-x64.tar.gz or mdk-linux-arm64.tar.gz from the stable releases. Use a Vulkan driver and keep libSDL3.so beside mdk_sdl. Point MDK_DATA_DIR or the [paths] mdk entry in mdk_paths.cfg at your complete original installation. The inspected v1.2.6 x86-64 player needs glibc 2.43 or later and its ARM64 sibling needs glibc 2.38 or later."
           },
           {
             "title": "Set up MDK on an Apple silicon Mac",
-            "instruction": "Use the upstream v1.2.6 Apple silicon ZIP on macOS 12 or later with Metal. Keep libSDL3.dylib beside mdk_sdl and use MDK_DATA_DIR or mdk_paths.cfg to point at your complete original installation. Review the publisher and your Mac’s download security prompts before opening the player."
-          },
-          {
-            "title": "Keep your desktop files",
-            "instruction": "For a Linux or Mac copy you maintain, keep settings.cfg, saves, mods, captures and custom exports. Keep the whole MDK_USER_DIR if you set it, or the actual user-data fallback if the player folder is read-only. Keep mdk_paths.cfg and the original installation separately. Optional upscaling has its own tool download and output files."
+            "instruction": "Choose mdk-osx-arm64.zip from the stable releases. Keep libSDL3.dylib beside mdk_sdl and use MDK_DATA_DIR or mdk_paths.cfg to point at your complete original installation. The inspected v1.2.6 package requires macOS 12 or later with Metal. Review the publisher and your Mac’s download security prompts before opening the player."
           },
           {
             "title": "Set up MDK on Android",
-            "instruction": "Use the upstream v1.2.6 APK on 64-bit Android 8 or later with Vulkan. Select your original MDK folder containing TRAVERSE, MISC, FALL3D and STREAM. To play in place, the app requires All files access and a writable folder. Progress stays in that folder. Choose Copy instead to avoid broad access. The app copies the game to Android/data/io.github.nemo22.mdk/files/mdk and keeps settings and saves in the parent files folder. Keep whichever location the app uses before uninstalling."
+            "instruction": "Choose mdk-android.apk from the stable releases. The inspected v1.2.6 APK needs 64-bit Android 8 or later with Vulkan. Select your original MDK folder containing TRAVERSE, MISC, FALL3D and STREAM. To play in place, the app requires All files access and a writable folder. Progress stays in that folder. Choose Copy instead to avoid broad access. The app copies the game to Android/data/io.github.nemo22.mdk/files/mdk and keeps settings and saves in the parent files folder. Keep whichever location the app uses before uninstalling."
+          }
+        ],
+        "warnings": [
+          "Optional HD texture generation downloads and starts a separate upscaling tool. Let it finish, or cancel and confirm it has stopped before updating, backing up or removing the player. You and upstream maintain the Linux, Mac and Android copies."
+        ],
+        "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/main/README.md",
+        "references": [
+          {
+            "title": "Keep your desktop files",
+            "instruction": "For a Linux or Mac copy you maintain, keep settings.cfg, saves, mods, captures and custom exports. Keep the whole MDK_USER_DIR if you set it, or the actual user-data fallback if the player folder is read-only. On first portable start, upstream can copy settings and saves from an older personal profile. Keep both copies until you know which one the player uses. Keep mdk_paths.cfg and your originals separately."
           }
         ]
       },
       "original_game_title": "MDK",
       "platforms": [
-        "windows-x86-64"
-      ]
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "mdk-linux-x64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "mdk-osx-arm64.zip"
+        ]
+      }
     },
     {
       "id": "mdomangue26-thebigs2",
@@ -33728,32 +33811,29 @@
     {
       "id": "medal-of-honor-allied-assault-breakthrough-openmohaa",
       "name": "Medal of Honor: Allied Assault Breakthrough (OpenMoHAA)",
-      "summary": "Use the official OpenMoHAA Windows player for Breakthrough with your own matching PC data. Keep original files and the external save profile backed up.",
+      "summary": "Use the official OpenMoHAA player on Windows, Linux or Mac for Breakthrough with your own matching PC data. Keep original files and the external save profile backed up.",
       "original_game_title": "Medal of Honor: Allied Assault Breakthrough",
       "project_url": "https://github.com/openmoh/openmohaa",
       "availability": "packages",
-      "setup_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/README.md",
+      "setup_url": "https://github.com/openmoh/openmohaa#readme",
       "issue_number": 2594,
-      "release_url": "https://github.com/openmoh/openmohaa/releases/tag/v0.82.1",
+      "release_url": "https://github.com/openmoh/openmohaa/releases/latest",
       "download_asset_hints": {
         "windows-x86-64": [
           "openmohaa-",
           "-windows-x64.zip"
         ],
         "linux-x86-64": [
+          "openmohaa-",
           "-linux-amd64.zip"
         ],
         "macos-x86-64": [
-          "-macos-multiarch-",
-          "arm64",
-          "x86_64",
-          ".zip"
+          "openmohaa-",
+          "-macos-multiarch-arm64-x86_64.zip"
         ],
         "macos-aarch64": [
-          "-macos-multiarch-",
-          "arm64",
-          "x86_64",
-          ".zip"
+          "openmohaa-",
+          "-macos-multiarch-arm64-x86_64.zip"
         ]
       },
       "recommended_download_channel": "stable",
@@ -33761,30 +33841,30 @@
         "steps": [
           {
             "title": "Prepare the matching PC game",
-            "instruction": "Before Play, prepare your own complete Breakthrough PC data and its Allied Assault base game. Upstream recommends GOG Warchest; CD copies need the matching language patches (Allied Assault 1.11 and Breakthrough 2.40b). Keep the originals unchanged in a separate installation. Copy only the original PK3 files and sound/video resources into main, maintt beside the official player. Preserve the matching folder names and all required original resources; do not copy old executables, DLLs or unrelated expansion files over this runtime. Portcove does not verify original-game identity. Console editions and demos are different products. Keep the complete official Windows x64 package and its own DLLs together, including openmohaa.exe and launch_openmohaa_breakthrough.exe. Follow upstream Visual C++ x64 runtime prerequisites when needed."
+            "instruction": "Before Play, prepare your own complete Breakthrough PC data and its Allied Assault base game. Upstream recommends GOG Warchest; CD copies need the matching language patches (Allied Assault 1.11 and Breakthrough 2.40b). Keep the originals unchanged in a separate installation. Copy only the original PK3 files and sound/video resources into main, maintt beside the official player. Preserve the matching folder names and all required original resources; do not copy old executables, DLLs or unrelated expansion files over this runtime. Portcove does not verify original-game identity. Console editions and demos are different products. Keep the whole official runtime together. On Windows x64, install the upstream Visual C++ runtime if needed and use a short plain ASCII library path. Linux x64 needs glibc 2.34, libstdc++ with GLIBCXX_3.4.29 and system SDL2. The universal Mac package needs macOS 10.15 on Intel or macOS 11 on Apple Silicon."
           },
           {
             "title": "Keep an existing prepared copy",
-            "instruction": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_breakthrough.exe with the game root as working directory. This title-specific launcher selects Breakthrough and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher. This remains a non-owning external registration. You and upstream own runtime replacement and every file; removing its registration preserves them. A catalog update does not migrate or adopt that copy."
+            "instruction": "Use a private working copy of the original game folder. Extract the complete official Windows x64 ZIP into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_breakthrough.exe with the game root as working directory. This title-specific launcher selects Breakthrough and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher. This remains a non-owning external registration. You and upstream own runtime replacement and every file; removing its registration preserves them. A catalog update does not migrate or adopt that copy."
           }
         ],
         "warnings": [
-          "Back up that profile and the originals separately before changing runtimes.",
-          "If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified."
+          "Back up the actual external profile and your originals separately before changing runtimes.",
+          "A separately prepared copy can use a custom profile or fall back to its runtime when the engine cannot find a home directory. Preserve the actual profile with its creating runtime."
         ],
-        "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/01-installation.md",
+        "help_url": "https://github.com/openmoh/openmohaa/blob/main/docs/markdown/01-intro/01-installation.md",
         "references": [
           {
             "title": "Preserve your actual game data",
-            "instruction": "Normal Windows saves, settings, screenshots, downloads and logs use the engine's actual roaming application-data openmohaa profile, with game-specific subfolders. Back up that profile and the originals separately before changing runtimes. If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified."
+            "instruction": "Back up the game’s external profile separately. The normal locations are roaming application data on Windows, ~/.openmohaa on Linux and ~/Library/Application Support/openmohaa on Mac. When FLATPAK_ID is set and nonempty on Linux, the engine uses openmohaa under XDG_DATA_HOME or ~/.local/share. The Unix managed offer checks that the selected profile is outside the managed runtime and leaves it in place."
           },
           {
             "title": "Set up the native Linux or Mac archive",
-            "instruction": "Choose the official Linux amd64 or arm64 ZIP, or the universal Mac ZIP. The reviewed Linux builds need glibc 2.34, libstdc++ with GLIBCXX_3.4.29 and SDL2. Keep the executable and libraries together in a separately prepared copy with your own patched PC data in main and maintt. If downloading through Portcove, clear “Extract the archive after downloading” and extract with your system tool so executable permissions are preserved. From that folder, run ./launch_openmohaa_breakthrough to select this game. The launch helper starts the game itself."
+            "instruction": "For a separately prepared copy, extract the official Linux amd64 or arm64 ZIP or the universal Mac ZIP. Keep the executables and libraries together. If the extracted launcher and engine have no execute permission, make those two files executable with chmod u+x launch_openmohaa_breakthrough openmohaa. From that folder, run ./launch_openmohaa_breakthrough with your own patched PC data in main, maintt."
           },
           {
-            "title": "Use the ARM64 Windows package or preserve your Unix profile",
-            "instruction": "On Windows ARM64, select the official ARM64 ZIP and use launch_openmohaa_breakthrough.exe after preparing the same title data. Linux normally writes under ~/.openmohaa and Mac under ~/Library/Application Support/openmohaa. Keep the actual game folders, configuration, saves and any custom fs_homepath or com_homepath selections. You own these copies and profiles."
+            "title": "Use the Windows ARM64 package",
+            "instruction": "On Windows ARM64, choose the official ARM64 ZIP. After preparing the same original files, use launch_openmohaa_breakthrough.exe in the extracted folder. You and upstream own that copy and its profile."
           }
         ]
       },
@@ -33798,11 +33878,11 @@
     {
       "id": "medal-of-honor-allied-assault-openmohaa",
       "name": "Medal of Honor: Allied Assault (OpenMoHAA)",
-      "summary": "Use the official OpenMoHAA Windows player for Allied Assault with your own matching PC data. Keep original files and the external save profile backed up.",
+      "summary": "Use the official OpenMoHAA player on Windows, Linux or Mac for Allied Assault with your own matching PC data. Keep original files and the external save profile backed up.",
       "original_game_title": "Medal of Honor: Allied Assault",
       "project_url": "https://github.com/openmoh/openmohaa",
       "availability": "packages",
-      "setup_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/README.md",
+      "setup_url": "https://github.com/openmoh/openmohaa#readme",
       "artwork": {
         "game_id": 326,
         "cover_id": 357183,
@@ -33812,26 +33892,23 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2592,
-      "release_url": "https://github.com/openmoh/openmohaa/releases/tag/v0.82.1",
+      "release_url": "https://github.com/openmoh/openmohaa/releases/latest",
       "download_asset_hints": {
         "windows-x86-64": [
           "openmohaa-",
           "-windows-x64.zip"
         ],
         "linux-x86-64": [
+          "openmohaa-",
           "-linux-amd64.zip"
         ],
         "macos-x86-64": [
-          "-macos-multiarch-",
-          "arm64",
-          "x86_64",
-          ".zip"
+          "openmohaa-",
+          "-macos-multiarch-arm64-x86_64.zip"
         ],
         "macos-aarch64": [
-          "-macos-multiarch-",
-          "arm64",
-          "x86_64",
-          ".zip"
+          "openmohaa-",
+          "-macos-multiarch-arm64-x86_64.zip"
         ]
       },
       "recommended_download_channel": "stable",
@@ -33839,30 +33916,30 @@
         "steps": [
           {
             "title": "Prepare the matching PC game",
-            "instruction": "Before Play, prepare your own complete Allied Assault PC data. Upstream recommends GOG Warchest; CD copies need the matching language patches (Allied Assault 1.11). Keep the originals unchanged in a separate installation. Copy only the original PK3 files and sound/video resources into main beside the official player. Preserve the matching folder names and all required original resources; do not copy old executables, DLLs or unrelated expansion files over this runtime. Portcove does not verify original-game identity. Console editions and demos are different products. Keep the complete official Windows x64 package and its own DLLs together, including openmohaa.exe and launch_openmohaa_base.exe. Follow upstream Visual C++ x64 runtime prerequisites when needed."
+            "instruction": "Before Play, prepare your own complete Allied Assault PC data. Upstream recommends GOG Warchest; CD copies need the matching language patches (Allied Assault 1.11). Keep the originals unchanged in a separate installation. Copy only the original PK3 files and sound/video resources into main beside the official player. Preserve the matching folder names and all required original resources; do not copy old executables, DLLs or unrelated expansion files over this runtime. Portcove does not verify original-game identity. Console editions and demos are different products. Keep the whole official runtime together. On Windows x64, install the upstream Visual C++ runtime if needed and use a short plain ASCII library path. Linux x64 needs glibc 2.34, libstdc++ with GLIBCXX_3.4.29 and system SDL2. The universal Mac package needs macOS 10.15 on Intel or macOS 11 on Apple Silicon."
           },
           {
             "title": "Keep an existing prepared copy",
-            "instruction": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_base.exe with the game root as working directory. This title-specific launcher selects Allied Assault and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher. This remains a non-owning external registration. You and upstream own runtime replacement and every file; removing its registration preserves them. A catalog update does not migrate or adopt that copy."
+            "instruction": "Use a private working copy of the original game folder. Extract the complete official Windows x64 ZIP into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_base.exe with the game root as working directory. This title-specific launcher selects Allied Assault and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher. This remains a non-owning external registration. You and upstream own runtime replacement and every file; removing its registration preserves them. A catalog update does not migrate or adopt that copy."
           }
         ],
         "warnings": [
-          "Back up that profile and the originals separately before changing runtimes.",
-          "If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified."
+          "Back up the actual external profile and your originals separately before changing runtimes.",
+          "A separately prepared copy can use a custom profile or fall back to its runtime when the engine cannot find a home directory. Preserve the actual profile with its creating runtime."
         ],
-        "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/01-installation.md",
+        "help_url": "https://github.com/openmoh/openmohaa/blob/main/docs/markdown/01-intro/01-installation.md",
         "references": [
           {
             "title": "Preserve your actual game data",
-            "instruction": "Normal Windows saves, settings, screenshots, downloads and logs use the engine's actual roaming application-data openmohaa profile, with game-specific subfolders. Back up that profile and the originals separately before changing runtimes. If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified."
+            "instruction": "Back up the game’s external profile separately. The normal locations are roaming application data on Windows, ~/.openmohaa on Linux and ~/Library/Application Support/openmohaa on Mac. When FLATPAK_ID is set and nonempty on Linux, the engine uses openmohaa under XDG_DATA_HOME or ~/.local/share. The Unix managed offer checks that the selected profile is outside the managed runtime and leaves it in place."
           },
           {
             "title": "Set up the native Linux or Mac archive",
-            "instruction": "Choose the official Linux amd64 or arm64 ZIP, or the universal Mac ZIP. The reviewed Linux builds need glibc 2.34, libstdc++ with GLIBCXX_3.4.29 and SDL2. Keep the executable and libraries together in a separately prepared copy with your own patched PC data in main. If downloading through Portcove, clear “Extract the archive after downloading” and extract with your system tool so executable permissions are preserved. From that folder, run ./launch_openmohaa_base to select this game. The launch helper starts the game itself."
+            "instruction": "For a separately prepared copy, extract the official Linux amd64 or arm64 ZIP or the universal Mac ZIP. Keep the executables and libraries together. If the extracted launcher and engine have no execute permission, make those two files executable with chmod u+x launch_openmohaa_base openmohaa. From that folder, run ./launch_openmohaa_base with your own patched PC data in main."
           },
           {
-            "title": "Use the ARM64 Windows package or preserve your Unix profile",
-            "instruction": "On Windows ARM64, select the official ARM64 ZIP and use launch_openmohaa_base.exe after preparing the same title data. Linux normally writes under ~/.openmohaa and Mac under ~/Library/Application Support/openmohaa. Keep the actual game folders, configuration, saves and any custom fs_homepath or com_homepath selections. You own these copies and profiles."
+            "title": "Use the Windows ARM64 package",
+            "instruction": "On Windows ARM64, choose the official ARM64 ZIP. After preparing the same original files, use launch_openmohaa_base.exe in the extracted folder. You and upstream own that copy and its profile."
           }
         ]
       },
@@ -33876,32 +33953,29 @@
     {
       "id": "medal-of-honor-allied-assault-spearhead-openmohaa",
       "name": "Medal of Honor: Allied Assault Spearhead (OpenMoHAA)",
-      "summary": "Use the official OpenMoHAA Windows player for Spearhead with your own matching PC data. Keep original files and the external save profile backed up.",
+      "summary": "Use the official OpenMoHAA player on Windows, Linux or Mac for Spearhead with your own matching PC data. Keep original files and the external save profile backed up.",
       "original_game_title": "Medal of Honor: Allied Assault Spearhead",
       "project_url": "https://github.com/openmoh/openmohaa",
       "availability": "packages",
-      "setup_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/README.md",
+      "setup_url": "https://github.com/openmoh/openmohaa#readme",
       "issue_number": 2593,
-      "release_url": "https://github.com/openmoh/openmohaa/releases/tag/v0.82.1",
+      "release_url": "https://github.com/openmoh/openmohaa/releases/latest",
       "download_asset_hints": {
         "windows-x86-64": [
           "openmohaa-",
           "-windows-x64.zip"
         ],
         "linux-x86-64": [
+          "openmohaa-",
           "-linux-amd64.zip"
         ],
         "macos-x86-64": [
-          "-macos-multiarch-",
-          "arm64",
-          "x86_64",
-          ".zip"
+          "openmohaa-",
+          "-macos-multiarch-arm64-x86_64.zip"
         ],
         "macos-aarch64": [
-          "-macos-multiarch-",
-          "arm64",
-          "x86_64",
-          ".zip"
+          "openmohaa-",
+          "-macos-multiarch-arm64-x86_64.zip"
         ]
       },
       "recommended_download_channel": "stable",
@@ -33909,30 +33983,30 @@
         "steps": [
           {
             "title": "Prepare the matching PC game",
-            "instruction": "Before Play, prepare your own complete Spearhead PC data and its Allied Assault base game. Upstream recommends GOG Warchest; CD copies need the matching language patches (Allied Assault 1.11 and Spearhead 2.11 followed by 2.15). Keep the originals unchanged in a separate installation. Copy only the original PK3 files and sound/video resources into main, mainta beside the official player. Preserve the matching folder names and all required original resources; do not copy old executables, DLLs or unrelated expansion files over this runtime. Portcove does not verify original-game identity. Console editions and demos are different products. Keep the complete official Windows x64 package and its own DLLs together, including openmohaa.exe and launch_openmohaa_spearhead.exe. Follow upstream Visual C++ x64 runtime prerequisites when needed."
+            "instruction": "Before Play, prepare your own complete Spearhead PC data and its Allied Assault base game. Upstream recommends GOG Warchest; CD copies need the matching language patches (Allied Assault 1.11 and Spearhead 2.11 followed by 2.15). Keep the originals unchanged in a separate installation. Copy only the original PK3 files and sound/video resources into main, mainta beside the official player. Preserve the matching folder names and all required original resources; do not copy old executables, DLLs or unrelated expansion files over this runtime. Portcove does not verify original-game identity. Console editions and demos are different products. Keep the whole official runtime together. On Windows x64, install the upstream Visual C++ runtime if needed and use a short plain ASCII library path. Linux x64 needs glibc 2.34, libstdc++ with GLIBCXX_3.4.29 and system SDL2. The universal Mac package needs macOS 10.15 on Intel or macOS 11 on Apple Silicon."
           },
           {
             "title": "Keep an existing prepared copy",
-            "instruction": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_spearhead.exe with the game root as working directory. This title-specific launcher selects Spearhead and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher. This remains a non-owning external registration. You and upstream own runtime replacement and every file; removing its registration preserves them. A catalog update does not migrate or adopt that copy."
+            "instruction": "Use a private working copy of the original game folder. Extract the complete official Windows x64 ZIP into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_spearhead.exe with the game root as working directory. This title-specific launcher selects Spearhead and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher. This remains a non-owning external registration. You and upstream own runtime replacement and every file; removing its registration preserves them. A catalog update does not migrate or adopt that copy."
           }
         ],
         "warnings": [
-          "Back up that profile and the originals separately before changing runtimes.",
-          "If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified."
+          "Back up the actual external profile and your originals separately before changing runtimes.",
+          "A separately prepared copy can use a custom profile or fall back to its runtime when the engine cannot find a home directory. Preserve the actual profile with its creating runtime."
         ],
-        "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/01-installation.md",
+        "help_url": "https://github.com/openmoh/openmohaa/blob/main/docs/markdown/01-intro/01-installation.md",
         "references": [
           {
             "title": "Preserve your actual game data",
-            "instruction": "Normal Windows saves, settings, screenshots, downloads and logs use the engine's actual roaming application-data openmohaa profile, with game-specific subfolders. Back up that profile and the originals separately before changing runtimes. If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified."
+            "instruction": "Back up the game’s external profile separately. The normal locations are roaming application data on Windows, ~/.openmohaa on Linux and ~/Library/Application Support/openmohaa on Mac. When FLATPAK_ID is set and nonempty on Linux, the engine uses openmohaa under XDG_DATA_HOME or ~/.local/share. The Unix managed offer checks that the selected profile is outside the managed runtime and leaves it in place."
           },
           {
             "title": "Set up the native Linux or Mac archive",
-            "instruction": "Choose the official Linux amd64 or arm64 ZIP, or the universal Mac ZIP. The reviewed Linux builds need glibc 2.34, libstdc++ with GLIBCXX_3.4.29 and SDL2. Keep the executable and libraries together in a separately prepared copy with your own patched PC data in main and mainta. If downloading through Portcove, clear “Extract the archive after downloading” and extract with your system tool so executable permissions are preserved. From that folder, run ./launch_openmohaa_spearhead to select this game. The launch helper starts the game itself."
+            "instruction": "For a separately prepared copy, extract the official Linux amd64 or arm64 ZIP or the universal Mac ZIP. Keep the executables and libraries together. If the extracted launcher and engine have no execute permission, make those two files executable with chmod u+x launch_openmohaa_spearhead openmohaa. From that folder, run ./launch_openmohaa_spearhead with your own patched PC data in main, mainta."
           },
           {
-            "title": "Use the ARM64 Windows package or preserve your Unix profile",
-            "instruction": "On Windows ARM64, select the official ARM64 ZIP and use launch_openmohaa_spearhead.exe after preparing the same title data. Linux normally writes under ~/.openmohaa and Mac under ~/Library/Application Support/openmohaa. Keep the actual game folders, configuration, saves and any custom fs_homepath or com_homepath selections. You own these copies and profiles."
+            "title": "Use the Windows ARM64 package",
+            "instruction": "On Windows ARM64, choose the official ARM64 ZIP. After preparing the same original files, use launch_openmohaa_spearhead.exe in the extracted folder. You and upstream own that copy and its profile."
           }
         ]
       },
@@ -35433,8 +35507,45 @@
       },
       "original_game_title": "Zombies Ate My Neighbors",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "zamn-linux-x86_64.tar.gz"
+        ]
+      },
+      "release_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port/releases/latest",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your original USA ROM",
+            "instruction": "Use your own uncompressed 1,048,576-byte USA Zombies Ate My Neighbors ROM. Keep it outside the player folder. Select it in the launcher, then choose Play."
+          },
+          {
+            "title": "Start the managed Windows player",
+            "instruction": "Open the installed zamn_launcher.exe and select your original ROM in the game settings. Keep zamn.exe and SDL2 beside the launcher."
+          },
+          {
+            "title": "Run the upstream Linux launcher",
+            "instruction": "Extract zamn-linux-x86_64.tar.gz and run ./zamn_launcher from the extracted zamn folder. Keep the launcher, zamn and the bundled SDL2 library together. On Linux you can type the ROM path or drop the file onto the launcher."
+          }
+        ],
+        "warnings": [
+          "The upstream Linux build is experimental and player-managed. Close both the launcher and the game before replacing the runtime or backing up its files. Keep the creating version with its configuration, quicksave and high scores."
+        ],
+        "references": [
+          {
+            "title": "Check the inspected Linux build",
+            "instruction": "The 20261028 Linux launcher and bundled library need glibc 2.38 or later. The launcher needs an available system font in a supported location, such as DejaVu Sans. The expected USA ROM has SHA-256 b27e2e957fa760f4f483e2af30e03062034a6c0066984f2e284cc2cb430b2059."
+          },
+          {
+            "title": "Keep the default player data",
+            "instruction": "Preserve zamn.ini, zamn.quicksave, zamn.hiscore and any matching .tmp files in your working copy. Preserve custom config, high-score and output locations separately."
+          }
+        ],
+        "help_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port"
+      },
       "availability": "unknown"
     },
     {
@@ -35510,6 +35621,10 @@
           {
             "title": "Select an existing native player",
             "instruction": "For an existing Windows copy select Stunts HD.exe; on Linux select stunts-hd with its containing folder."
+          },
+          {
+            "title": "Set up the upstream Mac app",
+            "instruction": "If you download the universal Mac ZIP in Portcove, clear Extract the archive after downloading. Expand it with macOS Archive Utility and keep the complete Stunts HD.app. The inspected app needs macOS 11 on Intel or Apple silicon. Start the app and choose your own Stunts 1.1 folder or ZIP. Follow macOS security prompts for a copy you trust."
           }
         ],
         "warnings": [
@@ -35520,7 +35635,7 @@
         "references": [
           {
             "title": "Profile locations and alternatives",
-            "instruction": "Saves, tracks, replays, high scores, preferences, imported originals and cached maps live outside the runtime: %APPDATA%/Stunts HD on Windows, or $XDG_CONFIG_HOME/Stunts HD (normally ~/.config/Stunts HD) on Linux. The upstream browser player at https://stunts-recomp.pages.dev/ has separate browser-site storage. macOS uses the upstream application through the OS; ARM and AppImage routes remain upstream-owned."
+            "instruction": "Saves, tracks, replays, high scores, preferences, imported originals and cached maps live outside the runtime: %APPDATA%/Stunts HD on Windows, or $XDG_CONFIG_HOME/Stunts HD (normally ~/.config/Stunts HD) on Linux. The upstream browser player at https://stunts-recomp.pages.dev/ has separate browser-site storage. On Mac, preserve the app's effective user profile and export destinations. Mac, Windows ARM64 and Linux ARM64 or AppImage setup stay with upstream."
           }
         ],
         "help_url": "https://github.com/mr-finster/stunts-hd/blob/59b9e1a22c1ecf880a16b199a4a454489b20e59d/README.md"
@@ -35537,7 +35652,9 @@
       },
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -37782,6 +37899,18 @@
         "windows-x86-64": [
           "OpenSC2K-",
           "windows-x64-portable.zip"
+        ],
+        "linux-x86-64": [
+          "OpenSC2K-",
+          "-linux-x64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "OpenSC2K-",
+          "-macos-universal.dmg"
+        ],
+        "macos-aarch64": [
+          "OpenSC2K-",
+          "-macos-universal.dmg"
         ]
       },
       "manual_setup": {
@@ -37793,16 +37922,38 @@
           {
             "title": "Keep your existing copy available",
             "instruction": "For an existing upstream installation, select OpenSC2K.exe and its folder. Portable copies use the data folder beside the player; standard Windows copies use the OpenSC2K Godot user profile. Keep the profile used by that copy when updating it."
+          },
+          {
+            "title": "Open the upstream Linux archive",
+            "instruction": "Choose the x64 or ARM64 archive for your Linux system. Extract it completely and run OpenSC2K.x86_64 or OpenSC2K.arm64 from its folder. Keep the PCK, shared libraries and bundled SoundFont beside the player."
+          },
+          {
+            "title": "Copy the upstream Mac app to Applications",
+            "instruction": "Open the universal Mac DMG and drag OpenSC2K.app to Applications. Keep the app intact and preserve its OpenSC2K Godot profile when updating it."
+          },
+          {
+            "title": "Choose the Windows on Arm package",
+            "instruction": "On Windows on Arm, extract the ARM64 portable ZIP into its own writable folder. Run its OpenSC2K.exe and keep its PCK, DLLs and data folder together."
           }
         ],
         "warnings": [
-          "Extended .sc2x cities cannot be opened by the original game. Keep backup copies of your cities."
+          "Extended .sc2x cities cannot be opened by the original game. Keep backup copies of your cities.",
+          "Save cities normally before backing up. Recent autosaves live in OpenSC2K Autosaves under the system temporary directory and upstream prunes older autosaves. Preserve the profile and any custom save or export locations used by your copy."
         ],
-        "help_url": "https://github.com/OpenSC2K/OpenSC2K/blob/main/docs/install.md"
+        "help_url": "https://github.com/OpenSC2K/OpenSC2K/blob/main/docs/install.md",
+        "references": [
+          {
+            "title": "Check the inspected desktop packages",
+            "instruction": "The v0.3.0 Linux archives require glibc 2.34 or later. The universal Mac app requires macOS 11 on Intel or macOS 13 on Apple Silicon. Linux standard copies use the Godot profile by default. The Mac app always uses that profile. You and upstream maintain these Linux, Mac and Windows on Arm copies."
+          }
+        ]
       },
       "original_game_title": "SimCity 2000",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -38609,7 +38760,7 @@
       "project_url": "https://github.com/omf2097/openomf",
       "issue_number": 1856,
       "availability": "packages",
-      "setup_url": "https://github.com/omf2097/openomf/blob/0.8.6/README.md",
+      "setup_url": "https://github.com/omf2097/openomf/blob/master/README.md",
       "artwork": {
         "game_id": 14429,
         "cover_id": 128159,
@@ -38618,21 +38769,54 @@
         "game_slug": "one-must-fall-2097",
         "match_kind": "underlying-game"
       },
-      "release_url": "https://github.com/omf2097/openomf/releases/tag/0.8.6",
+      "release_url": "https://github.com/omf2097/openomf/releases/latest",
       "manual_setup": {
         "steps": [
           {
-            "title": "Start the game",
+            "title": "Start the managed Windows player",
             "instruction": "The official archive includes the freeware One Must Fall 2097 resources and the native OpenOMF player. Choose Play after installation; no commercial source files or generation step are needed. The package also includes an ARM64 player; this route uses openomf.exe for x86-64."
+          },
+          {
+            "title": "Open the upstream Linux AppImage",
+            "instruction": "Choose the stable x86-64 AppImage and use your Linux system’s AppImage support. Keep it executable. It includes the freeware resources and its own SDL2 libraries."
+          },
+          {
+            "title": "Prepare the upstream Apple Silicon package",
+            "instruction": "Extract the stable Apple Silicon ZIP into a separate folder. If it contains usr/bin/openomf, check the Homebrew library requirements below and keep the entire usr tree. Set OPENOMF_RESOURCE_PATH to the absolute path to the extracted usr/share/games/openomf folder when launching that player. If the package instead contains OpenOMF.app, keep the app intact and follow its release instructions."
           }
         ],
-        "warnings": [],
-        "help_url": "https://github.com/omf2097/openomf/blob/0.8.6/README.md"
+        "warnings": [
+          "You and upstream maintain the Linux and Mac packages. Back up the configuration and state folders your copy actually uses before replacement. An explicit OPENOMF_CONFIG_PATH or OPENOMF_STATE_PATH can change those locations."
+        ],
+        "help_url": "https://github.com/omf2097/openomf/blob/master/PATHS.md",
+        "references": [
+          {
+            "title": "Check the inspected stable packages",
+            "instruction": "The 0.8.6 AppImage player needs glibc 2.34 or later. The separate 0.8.6 Linux TAR.GZ needs glibc 2.43 and system libraries. The loose 0.8.6 Apple Silicon ZIP needs macOS 14 and Homebrew libepoxy, confuse, enet, sdl2_mixer, libxmp, libpng, opusfile, miniupnpc, libnatpmp and sdl2-compat. The binary loads specific library versions from /opt/homebrew. The macOS 15 app layout was observed on the separate rolling channel."
+          },
+          {
+            "title": "Find the effective OpenOMF profile",
+            "instruction": "After explicit OpenOMF overrides, upstream checks XDG_CONFIG_HOME for configuration and XDG_STATE_HOME for state, then the SDL preference directory. Preserve settings, saves, scores, recordings, screenshots and user mods at their effective locations."
+          }
+        ]
       },
       "original_game_title": "One Must Fall: 2097",
       "platforms": [
-        "windows-x86-64"
-      ]
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "OpenOMF-",
+          "-x86_64.AppImage"
+        ],
+        "macos-aarch64": [
+          "openomf_",
+          "_macos",
+          "_arm.zip"
+        ]
+      }
     },
     {
       "id": "oogie-s-revenge-recomp-josiahg2502-glitch-tim-burton-s-the-nightmare-before-christmas-oogie-s-revenge",
@@ -38979,7 +39163,7 @@
     {
       "id": "openloco-openloco",
       "name": "Chris Sawyer's Locomotion / OpenLoco (OpenLoco)",
-      "summary": "Explore Chris Sawyer's Locomotion / OpenLoco (OpenLoco) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Play Chris Sawyer’s Locomotion with OpenLoco on Windows x64, Linux x64 or Apple Silicon Mac. Bring your own Locomotion data.",
       "project_url": "https://github.com/OpenLoco/OpenLoco",
       "issue_number": 1855,
       "availability": "packages",
@@ -39005,30 +39189,30 @@
         "references": [
           {
             "title": "Set up OpenLoco on Linux",
-            "instruction": "Use the official x86-64 AppImage. The reviewed player needs glibc 2.28 or newer. Make it executable and run it directly to select your installed Locomotion directory containing Data/g1.DAT. Preserve the whole profile under ~/.config/OpenLoco or the actual XDG_CONFIG_HOME location. Keep separately selected saves, landscapes, custom objects and original-game folders."
+            "instruction": "For a separately prepared copy, use the official x86-64 AppImage with FUSE support. The reviewed player needs glibc 2.28 or newer. Make it executable and run it directly to select your installed Locomotion directory containing Data/g1.DAT. Preserve the whole profile under ~/.config/OpenLoco or the actual XDG_CONFIG_HOME location. Keep separately selected saves, landscapes, custom objects and original-game folders."
           },
           {
             "title": "Set up OpenLoco on Apple Silicon",
-            "instruction": "Use the upstream macos-arm64 ZIP. If downloading through Portcove, clear “Extract the archive after downloading”. Extract it with the system archive tool and keep the entire OpenLoco.app bundle. Upstream describes this build as unsigned and unnotarized. Follow its Mac instructions if Gatekeeper blocks it. Start it directly, select the Locomotion directory containing Data/g1.DAT and preserve ~/Library/Application Support/OpenLoco and custom locations. You manage this external copy and its updates."
+            "instruction": "For a separately prepared copy, use the upstream macos-arm64 ZIP on macOS 15 or newer. If downloading through Portcove, clear “Extract the archive after downloading”. Extract it with the system archive tool and keep the entire OpenLoco.app bundle. Upstream describes this build as unsigned and unnotarized. Follow its Mac instructions if Gatekeeper blocks it. Start it directly, select the Locomotion directory containing Data/g1.DAT and preserve ~/Library/Application Support/OpenLoco and custom locations. You manage this external copy and its updates."
           }
         ]
       },
       "original_game_title": "Chris Sawyer's Locomotion",
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "openloco-",
+          "-linux-x64.appimage"
+        ],
+        "macos-aarch64": [
+          "openloco-",
+          "-macos-arm64.zip"
+        ]
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
         "macos-aarch64"
-      ],
-      "download_asset_hints": {
-        "linux-x86-64": [
-          "OpenLoco-",
-          "-linux-x64.AppImage"
-        ],
-        "macos-aarch64": [
-          "OpenLoco-",
-          "-macos-arm64.zip"
-        ]
-      }
+      ]
     },
     {
       "id": "openport-labs-galaxy-android",
@@ -40708,7 +40892,8 @@
       "original_game_title": "Alley Cat",
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/petarov/alleycat.exe#readme",
@@ -40727,7 +40912,7 @@
           },
           {
             "title": "Keep a permitted existing player together",
-            "instruction": "If you already have a native copy you are permitted to use, keep its complete matching runtime. On Windows x64 choose alleycat.exe beside SDL2.dll, with its folder as the working directory. Linux x64 uses alleycat and requires system SDL2 and glibc 2.34 or newer according to upstream. Save launch details, then choose Play deliberately. Mac versions follow their own upstream instructions. Registration preserves external ownership and does not grant permission to use a copy."
+            "instruction": "If you already have a native copy you are permitted to use, keep its complete matching runtime. On Windows x64 choose alleycat.exe beside SDL2.dll, with its folder as the working directory. Linux x64 uses alleycat and requires system SDL2 and glibc 2.34 or newer according to upstream. Save launch details, then choose Play deliberately. For a permitted existing Mac copy, keep the Intel alleycat player next to its original SDL2.framework and follow upstream's Mac instructions. Apple silicon uses Rosetta 2 for this Intel build. Registration preserves external ownership and does not grant permission to use a copy."
           }
         ],
         "references": [
@@ -40747,7 +40932,8 @@
       "original_game_title": "Saboteur II: Avenging Angel",
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/petarov/saboteur2#readme",
@@ -40765,7 +40951,7 @@
           },
           {
             "title": "Keep a permitted existing player together",
-            "instruction": "If you already have a native copy you are permitted to use, keep its complete matching runtime. On Windows x64 choose saboteur2.exe beside SDL2.dll, with its folder as the working directory. Linux x64 uses saboteur2 and requires system SDL2 and glibc 2.34 or newer according to upstream. Save launch details, then choose Play deliberately. Mac versions follow their own upstream instructions. Registration preserves external ownership and does not grant permission to use a copy."
+            "instruction": "If you already have a native copy you are permitted to use, keep its complete matching runtime. On Windows x64 choose saboteur2.exe beside SDL2.dll, with its folder as the working directory. Linux x64 uses saboteur2 and requires system SDL2 and glibc 2.34 or newer according to upstream. Save launch details, then choose Play deliberately. For a permitted existing Mac copy, keep the Intel saboteur2 player next to its original SDL2.framework and follow upstream's Mac instructions. Apple silicon uses Rosetta 2 for this Intel build. Registration preserves external ownership and does not grant permission to use a copy."
           }
         ],
         "references": [
@@ -43684,13 +43870,9 @@
     {
       "id": "quake-ironwail",
       "name": "Quake (Ironwail)",
-      "summary": "A native Quake engine for the classic base game on Windows x64. Use your own compatible Quake files or register a separately prepared copy.",
+      "summary": "A native Quake engine for the classic base game on Windows or Linux x64. Use your own compatible Quake files or register a separately prepared copy.",
       "original_game_title": "Quake",
       "project_url": "https://github.com/andrei-drexler/ironwail",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/andrei-drexler/ironwail",
       "issue_number": 2698,
@@ -43711,10 +43893,10 @@
           },
           {
             "title": "Run the upstream Linux build",
-            "instruction": "Unpack the official Linux x64 tarball. Keep ironwail and ironwail.pak together. The current build needs glibc 2.29 or newer, OpenGL, SDL2, libcurl, libvorbisfile and libmpg123. Supply your matching classic Quake id1 data and use the upstream engine with the intended data folder and profile. Follow the project’s Linux setup and update instructions. Preserve the Quake id1 originals, settings, saves, mods and any configured profile or portable game folder. Keep the creating Ironwail version before replacement."
+            "instruction": "For a separately prepared Linux copy, unpack the official x64 tarball and keep ironwail and ironwail.pak together. Use glibc 2.29 or newer, OpenGL 4.3, SDL2, libcurl, libvorbisfile and libmpg123. Keep your own matching classic Quake id1 data and your external .ironwail profile. Store-selected profiles and migration files stay with your separately prepared copy."
           },
           {
-            "title": "Select the prepared Windows player",
+            "title": "Select the prepared player",
             "instruction": "Select ironwail.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
           }
         ],
@@ -43745,12 +43927,16 @@
           "ironwail-",
           "-linux-x64.tar.gz"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ]
     },
     {
       "id": "quake-vkquake",
       "name": "Quake (vkQuake)",
-      "summary": "A Vulkan Quake engine for the classic base game on Windows x64. Use your own compatible Quake files or register a separately prepared copy.",
+      "summary": "A Vulkan Quake engine for the classic base game on Windows or Linux x64. Use your own compatible Quake files or register a separately prepared copy.",
       "original_game_title": "Quake",
       "project_url": "https://github.com/Novum/vkQuake",
       "platforms": [
@@ -43791,7 +43977,7 @@
         "references": [
           {
             "title": "Use an upstream Linux, Mac or Windows ARM64 package",
-            "instruction": "On Linux x86-64, download the official AppImage and mark it executable. Use a Vulkan-capable driver, your own Quake data, and lowercase id1 and pak filenames. On Intel or Apple Silicon Mac, follow the upstream Mac Source Ports link, keep vkQuake.app together and put your own id1 folder beside it. On Windows ARM64, use the official windows_arm64 ZIP and keep vkQuake.exe and its libraries together with your own data. Maintain these copies upstream and preserve their actual game-data and preference locations."
+            "instruction": "For a separately prepared Linux x86-64 copy, make the official AppImage executable and use a Vulkan-capable driver and AppImage FUSE support. Keep your own Quake data, lowercase id1 and pak filenames, and the actual game-data and preference locations. On Intel or Apple Silicon Mac, follow the upstream Mac Source Ports link, keep vkQuake.app together and put your own id1 folder beside it. On Windows ARM64, use the official windows_arm64 ZIP and keep vkQuake.exe and its libraries together with your own data. Maintain these copies upstream and preserve their actual game-data and preference locations."
           },
           {
             "title": "Registration ownership and removal",
@@ -43818,11 +44004,12 @@
     {
       "id": "r-e-l-i-v-e-oddworld-abe-s-exoddus",
       "name": "R.E.L.I.V.E. / Oddworld: Abe's Exoddus",
-      "summary": "Use an existing permitted R.E.L.I.V.E. copy for Oddworld: Abe’s Exoddus; fresh package acquisition awaits upstream license and integrity evidence.",
+      "summary": "Use an existing permitted R.E.L.I.V.E. copy for Oddworld: Abe’s Exoddus. Fresh downloads require distribution permission and a supported release package.",
       "project_url": "https://github.com/AliveTeam/alive_reversing",
       "issue_number": 122,
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/AliveTeam/alive_reversing#readme",
@@ -43838,27 +44025,34 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Keep your permitted working copy",
-            "instruction": "If you already have a permitted working R.E.L.I.V.E. installation for Oddworld: Abe’s Exoddus, keep its corresponding original game files and any progress and settings with that copy."
+            "title": "Keep this game’s permitted working copy",
+            "instruction": "Keep a separate working folder for Abe’s Exoddus, with your own complete original game files including st.lvl and mi.lvl. The player uses these files to choose the game. Keep the other Oddworld game in a separate folder."
           },
           {
-            "title": "Select that game’s player",
-            "instruction": "Choose the native game player and working folder from that completed installation. Upstream setup and runtime updates remain with that copy. The two Oddworld games retain separate registrations and original-data identities."
+            "title": "Select the Windows player",
+            "instruction": "Select relive.exe from your permitted working copy and use the folder with your original game files as the start folder. Keep SDL3.dll beside relive.exe. Leave arguments empty to select Exoddus. Save the details, then choose Play."
+          },
+          {
+            "title": "Use an already prepared Linux x64 copy",
+            "instruction": "For an existing permitted Debian-style installation, use the relive player with the folder containing your original game files as the start folder. The packaged player needs SDL3. Upstream’s relive-ae shortcut uses Zenity to pick a folder when needed. For direct Portcove registration, select relive and the actual original-game folder. Leave arguments empty to select Exoddus."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Keep the complete original game files, working folder and existing saves backed up. Runtime replacement and backups belong to you or your upstream package manager."
+        ],
         "help_url": "https://github.com/AliveTeam/alive_reversing#readme"
       },
-      "download_block_reason": "New downloads are waiting for upstream to publish a clearly licensed stable package, a verifiable download checksum and supported original-game requirements."
+      "download_block_reason": "Fresh downloads remain held pending an attributable distribution grant for the shipped engine and assets and a supported release package. The current debug packages have publisher checksums. Use an existing copy you are permitted to use."
     },
     {
       "id": "r-e-l-i-v-e-oddworld-abe-s-oddysee",
       "name": "R.E.L.I.V.E. / Oddworld: Abe's Oddysee",
-      "summary": "Use an existing permitted R.E.L.I.V.E. copy for Oddworld: Abe’s Oddysee; fresh package acquisition awaits upstream license and integrity evidence.",
+      "summary": "Use an existing permitted R.E.L.I.V.E. copy for Oddworld: Abe’s Oddysee. Fresh downloads require distribution permission and a supported release package.",
       "project_url": "https://github.com/AliveTeam/alive_reversing",
       "issue_number": 133,
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/AliveTeam/alive_reversing#readme",
@@ -43874,18 +44068,24 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Keep your permitted working copy",
-            "instruction": "If you already have a permitted working R.E.L.I.V.E. installation for Oddworld: Abe’s Oddysee, keep its corresponding original game files and any progress and settings with that copy."
+            "title": "Keep this game’s permitted working copy",
+            "instruction": "Keep a separate working folder for Abe’s Oddysee, with your own complete original game files including s1.lvl and r1.lvl. The player uses these files to choose the game. Keep the other Oddworld game in a separate folder."
           },
           {
-            "title": "Select that game’s player",
-            "instruction": "Choose the native game player and working folder from that completed installation. Upstream setup and runtime updates remain with that copy. The two Oddworld games retain separate registrations and original-data identities."
+            "title": "Select the Windows player",
+            "instruction": "Select relive.exe from your permitted working copy and use the folder with your original game files as the start folder. Keep SDL3.dll beside relive.exe. Enter AO on a single argument line to select Oddysee. Save the details, then choose Play."
+          },
+          {
+            "title": "Use an already prepared Linux x64 copy",
+            "instruction": "For an existing permitted Debian-style installation, use the relive player with the folder containing your original game files as the start folder. The packaged player needs SDL3. Upstream’s relive-ao shortcut uses Zenity to pick a folder when needed. For direct Portcove registration, select relive and the actual original-game folder. Enter AO on a single argument line to select Oddysee."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Keep the complete original game files, working folder and existing saves backed up. Runtime replacement and backups belong to you or your upstream package manager."
+        ],
         "help_url": "https://github.com/AliveTeam/alive_reversing#readme"
       },
-      "download_block_reason": "New downloads are waiting for upstream to publish a clearly licensed stable package, a verifiable download checksum and supported original-game requirements."
+      "download_block_reason": "Fresh downloads remain held pending an attributable distribution grant for the shipped engine and assets and a supported release package. The current debug packages have publisher checksums. Use an existing copy you are permitted to use."
     },
     {
       "id": "r4-douglasjv-r4-ridge-racer-type-4",
@@ -46666,12 +46866,17 @@
             "instruction": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTFE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTFE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE."
           },
           {
-            "title": "Add the game and manage your files",
-            "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
+            "title": "Add the prepared Windows game",
+            "instruction": "On Windows, finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions."
+          },
+          {
+            "title": "Prepare the upstream Linux player",
+            "instruction": "Use the Linux AMD64 archive ending in -lnx-amd64-bin.tar.xz. Keep x64/SamTFE together and copy your own matching classic .gro files and the Help and Levels folders into that encounter folder. The player is x64/SamTFE/Bin/SeriousSam. Use glibc 2.34 or newer, system SDL2 and zlib. From that encounter's Bin directory, run LD_LIBRARY_PATH=. ./SeriousSam yourself. Keep your effective user profile."
           }
         ],
         "warnings": [
-          "The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement."
+          "The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement.",
+          "The inspected Intel Mac archive refers to the build machine for engine libraries and expects SDL2 at a system path. Keep using a working upstream build or wait for a compatible package."
         ],
         "help_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md",
         "references": [
@@ -46682,7 +46887,8 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -46721,12 +46927,17 @@
             "instruction": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTSE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTSE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE."
           },
           {
-            "title": "Add the game and manage your files",
-            "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
+            "title": "Add the prepared Windows game",
+            "instruction": "On Windows, finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions."
+          },
+          {
+            "title": "Prepare the upstream Linux player",
+            "instruction": "Use the Linux AMD64 archive ending in -lnx-amd64-bin.tar.xz. Keep x64/SamTSE together and copy your own matching classic .gro files and the Help folder into that encounter folder. The player is x64/SamTSE/Bin/SeriousSam. Use glibc 2.34 or newer, system SDL2 and zlib. From that encounter's Bin directory, run LD_LIBRARY_PATH=. ./SeriousSam yourself. Keep your effective user profile."
           }
         ],
         "warnings": [
-          "The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement."
+          "The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement.",
+          "The inspected Intel Mac archive refers to the build machine for engine libraries and expects SDL2 at a system path. Keep using a working upstream build or wait for a compatible package."
         ],
         "help_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md",
         "references": [
@@ -46737,7 +46948,8 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -48797,7 +49009,7 @@
           },
           {
             "title": "Choose a fresh managed runtime or keep your external player",
-            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
@@ -48822,7 +49034,8 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -49482,7 +49695,7 @@
           },
           {
             "title": "Prepare the upstream Mac player",
-            "instruction": "Unpack the official OpenJO Mac tarball for your Mac with the system archive tools. Keep the app and its required game data in the matching Jedi Outcast GameData layout. Open openjo_sp.arm64.app or openjo_sp.x86_64.app for the campaign. Keep the supplied SDL2 framework with the app and follow the project’s data setup instructions."
+            "instruction": "Unpack the official OpenJO Mac tarball for your Mac with the system archive tools. Keep the app and its required game data in the matching Jedi Outcast GameData layout. Open openjo_sp.arm64.app or openjo_sp.x86_64.app for the campaign. Keep the complete app, including libSDL2-2.0.0.dylib in Contents/Frameworks and follow the project’s data setup instructions. The inspected packages require macOS 14 or later on Intel and macOS 15 or later on Apple Silicon."
           }
         ],
         "warnings": [
@@ -49565,7 +49778,7 @@
           },
           {
             "title": "Prepare the upstream Mac player",
-            "instruction": "Unpack the official OpenJK Mac tarball for your Mac with the system archive tools. Keep the app and its required game data in the matching Jedi Academy GameData layout. Open openjk_sp.arm64.app or openjk_sp.x86_64.app for the campaign. Use openjk.arm64.app or openjk.x86_64.app for multiplayer. Keep the supplied SDL2 framework with the app and follow the project’s data setup instructions."
+            "instruction": "Unpack the official OpenJK Mac tarball for your Mac with the system archive tools. Keep the app and its required game data in the matching Jedi Academy GameData layout. Open openjk_sp.arm64.app or openjk_sp.x86_64.app for the campaign. Use openjk.arm64.app or openjk.x86_64.app for multiplayer. Keep the complete app, including libSDL2-2.0.0.dylib in Contents/Frameworks and follow the project’s data setup instructions. The inspected packages require macOS 14 or later on Intel and macOS 15 or later on Apple Silicon."
           }
         ],
         "warnings": [
@@ -50597,7 +50810,7 @@
           },
           {
             "title": "Choose a fresh managed runtime or keep your external player",
-            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
@@ -50622,7 +50835,8 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -52857,7 +53071,7 @@
           },
           {
             "title": "Choose a fresh managed runtime or keep your external player",
-            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
@@ -52882,7 +53096,8 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -52962,7 +53177,7 @@
           },
           {
             "title": "Choose a fresh managed runtime or keep your external player",
-            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
@@ -52987,7 +53202,8 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -53067,7 +53283,7 @@
           },
           {
             "title": "Choose a fresh managed runtime or keep your external player",
-            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
@@ -53092,7 +53308,8 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -56226,7 +56443,7 @@
           },
           {
             "title": "Prepare upstream and select the real player",
-            "instruction": "Use the official Exult download/installer or a complete upstream-prepared player with its runtime data. The selected stable GitHub release has no binary assets; use upstream’s actual distribution route. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. Register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --si. Do not register Exult Studio or a usecode/compiler helper as the player."
+            "instruction": "Choose the official Windows installer from Exult’s download page, or keep a complete upstream-prepared player with its runtime data. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. Register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --si. Do not register Exult Studio or a usecode/compiler helper as the player."
           },
           {
             "title": "Set up the upstream Linux package",
@@ -56238,7 +56455,7 @@
           },
           {
             "title": "Import this edition in the Android launcher",
-            "instruction": "Install the official Exult 1.12.1 APK from Exult’s download page on Android 9 or later. Zip your own Serpent Isle STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Exult installs the files in its app-private serpentisle/static directory. Keep your original ZIP separately. It does not contain Exult’s settings or saves. Use an in-place update from the same signer and keep the app data intact unless you have a verified backup of the actual profile."
+            "instruction": "Choose the official Android APK under the stable release on Exult’s download page and check its Android version requirement. Zip your own Serpent Isle STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Exult installs the files in its app-private serpentisle/static directory. Keep your original ZIP separately. It does not contain Exult’s settings or saves. Use an in-place update from the same signer and keep the app data intact unless you have a verified backup of the actual profile."
           },
           {
             "title": "Add the game and manage your files",
@@ -56267,7 +56484,8 @@
         "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
-      ]
+      ],
+      "release_url": "https://exult.info/download.html"
     },
     {
       "id": "ultima-vii-the-black-gate-exult",
@@ -56294,7 +56512,7 @@
           },
           {
             "title": "Prepare upstream and select the real player",
-            "instruction": "Use the official Exult download/installer or a complete upstream-prepared player with its runtime data. The selected stable GitHub release has no binary assets; use upstream’s actual distribution route. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. Register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --bg. Do not register Exult Studio or a usecode/compiler helper as the player."
+            "instruction": "Choose the official Windows installer from Exult’s download page, or keep a complete upstream-prepared player with its runtime data. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. Register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --bg. Do not register Exult Studio or a usecode/compiler helper as the player."
           },
           {
             "title": "Set up the upstream Linux package",
@@ -56306,7 +56524,7 @@
           },
           {
             "title": "Import this edition in the Android launcher",
-            "instruction": "Install the official Exult 1.12.1 APK from Exult’s download page on Android 9 or later. Zip your own Black Gate STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Exult installs the files in its app-private blackgate/static directory. Keep your original ZIP separately. It does not contain Exult’s settings or saves. Use an in-place update from the same signer and keep the app data intact unless you have a verified backup of the actual profile."
+            "instruction": "Choose the official Android APK under the stable release on Exult’s download page and check its Android version requirement. Zip your own Black Gate STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Exult installs the files in its app-private blackgate/static directory. Keep your original ZIP separately. It does not contain Exult’s settings or saves. Use an in-place update from the same signer and keep the app data intact unless you have a verified backup of the actual profile."
           },
           {
             "title": "Add the game and manage your files",
@@ -56335,7 +56553,8 @@
         "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
-      ]
+      ],
+      "release_url": "https://exult.info/download.html"
     },
     {
       "id": "umjamlamrecomp-njh-1001-um-jammer-lammy",
@@ -56661,20 +56880,25 @@
       "summary": "Choose your own Doom-family game data and mods in UZDoom; the upstream launcher provides runtime updates.",
       "project_url": "https://github.com/UZDoom/UZDoom",
       "issue_number": 1899,
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
       "availability": "packages",
       "setup_url": "https://github.com/UZDoom/UZDoom/blob/7910df7102033fd7754a317f3254f24101135926/README.md",
       "manual_setup": {
         "steps": [
           {
             "title": "Use the upstream-owned player",
-            "instruction": "Extract the complete official Windows x64 archive into a separate folder. Choose uzdoom.exe with that folder as its working directory and save launch details, then choose Play deliberately. updater.exe is the upstream runtime replacement helper, not the player to register. Other upstream platforms use their own AppImage or Mac disk-image setup; this Windows package does not establish their operation."
+            "instruction": "On Windows, extract the complete official x64 archive into a separate folder. Choose uzdoom.exe with that folder as its working directory and save launch details, then choose Play deliberately. updater.exe is the upstream runtime replacement helper, not the player to register."
           },
           {
             "title": "Choose your game data",
             "instruction": "Use the launcher to select your own supported IWAD or compatible free game data. Keep mods and game data under the upstream documented setup. Adding launch details does not start a game; choose Play separately."
           },
           {
-            "title": "Register your prepared player",
+            "title": "Register your prepared Windows player",
             "instruction": "Complete the upstream setup in your permitted working copy first. Select the actual uzdoom.exe and its containing folder as the working directory; keep all companions. Normally leave arguments empty. Enter separate literal arguments only when deliberately following documented options. Confirm the selected player, folder and arguments; registration does not start a game. Choose Play separately when ready."
           }
         ],
@@ -56692,8 +56916,8 @@
             "instruction": "UZDoom’s launcher checks for updates and can use updater.exe to replace package files. Keep that runtime ownership with upstream. Portcove leaves these external files untouched and offers no managed Update, Backup or Rollback promise for them. Before changing versions, close the game and back up your actual IWADs, mods and configured save paths. Windows normally stores uzdoom.ini under Documents/My Games/UZDoom and saves under the Windows Saved Games/UZDoom folder. Portable mode uses uzdoom_portable.ini and the local Save and Screenshots folders. Custom config/save overrides and relocated Windows user folders need their own backup. Keep the working copy recoverable; upstream update_backup is not a Portcove-verified player-data backup."
           },
           {
-            "title": "Keep your runtime and data recoverable",
-            "instruction": "You and upstream own runtime replacement, originals, saves, settings and profiles. Close all actual players and preserve the working copy and every actual data location before upstream changes. Removing the registration leaves all external files untouched. Managed Install, Update, Backup, Rollback, migration, original authentication and external deletion are unavailable for this route."
+            "title": "Use the Linux or Apple Silicon package yourself",
+            "instruction": "On Linux x86-64, make the official AppImage executable and open it with AppImage support. The inspected player needs glibc 2.34 or newer. On Apple Silicon, open the ARM64 DMG, copy the complete UZDoom.app to Applications and open it through macOS. The inspected Mac executable targets macOS 12 or later. These packages use upstream setup outside Portcove registration. On Linux, keep configuration in $XDG_CONFIG_HOME/uzdoom (default ~/.config/uzdoom) and saves under $XDG_DATA_HOME/games/uzdoom/savegames (default ~/.local/share/games/uzdoom/savegames). Screenshots have a separate Pictures location. On Mac, preserve ~/Library/Preferences/uzdoom.ini and ~/Documents/UZDoom."
           }
         ]
       },
@@ -56703,11 +56927,14 @@
       "download_asset_hints": {
         "windows-x86-64": [
           "Windows-UZDoom-Release-x86_64.zip"
+        ],
+        "linux-x86-64": [
+          "Linux-UZDoom-Release-x86_64.AppImage"
+        ],
+        "macos-aarch64": [
+          "MacOS-UZDoom-Release-ARM64.dmg"
         ]
-      },
-      "platforms": [
-        "windows-x86-64"
-      ]
+      }
     },
     {
       "id": "v64recomp-1080-us-polaco1782-1080-snowboarding",
@@ -57611,7 +57838,7 @@
           },
           {
             "title": "Upstream iPhone and iPad setup",
-            "instruction": "On iOS or iPadOS 12 or later, use VCMI’s upstream TestFlight route when available, or provision the official 1.7.5 IPA yourself through the upstream sideloading guide. In VCMI Launcher, select your owned Heroes III Complete GOG installer EXE and its matching BIN. Alternatively, copy owned Complete or Shadow of Death Data and Maps, plus optional Mp3, into the VCMI folder in Files. Keep the app’s Documents folder, including Saves and config, before changing its channel or identity. iOS guide at https://vcmi.eu/players/Installation_iOS/."
+            "instruction": "Check the upstream iOS guide for the current system requirements. Use VCMI’s upstream TestFlight route when available, or provision the official IPA yourself through the upstream sideloading guide. In VCMI Launcher, select your owned Heroes III Complete GOG installer EXE and its matching BIN. Alternatively, copy owned Complete or Shadow of Death Data and Maps, plus optional Mp3, into the VCMI folder in Files. Keep the app’s Documents folder, including Saves and config, before changing its channel or identity. iOS guide at https://vcmi.eu/players/Installation_iOS/."
           }
         ]
       },
@@ -59233,7 +59460,7 @@
           },
           {
             "title": "Choose a fresh managed runtime or keep your external player",
-            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
@@ -59258,7 +59485,8 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -61064,7 +61292,10 @@
       "project_url": "https://github.com/ZDoom/gzdoom",
       "issue_number": 1824,
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/ZDoom/gzdoom#readme",
@@ -61074,6 +61305,10 @@
           {
             "title": "Use the Windows player ZIP",
             "instruction": "Choose the Windows runtime ZIP. Finish setup with gzdoom.exe in the extracted game folder. Keep your original game files and mods available."
+          },
+          {
+            "title": "Use the upstream Linux or Mac package",
+            "instruction": "On Debian-based Linux, install the upstream DEB for your CPU through your package manager, then launch /usr/games/gzdoom. Upstream publishes both amd64 and arm64 packages. On Intel and Apple Silicon Macs, extract the universal macOS ZIP and open the complete GZDoom.app through macOS. Use your operating system or upstream to update these players."
           },
           {
             "title": "Choose your original game",
@@ -61087,7 +61322,7 @@
         "references": [
           {
             "title": "Keep your profile and saved games",
-            "instruction": "GZDoom normally keeps Windows settings in Documents/My Games/GZDoom and saved games in Saved Games/GZDoom. Portable mode uses gzdoom_portable.ini and Save beside the player instead. Keep the locations you use, original files and mods backed up when updating the upstream runtime."
+            "instruction": "GZDoom normally keeps Windows settings in Documents/My Games/GZDoom and saved games in Saved Games/GZDoom. Portable Windows mode uses gzdoom_portable.ini and Save beside the player instead. On Linux, preserve ~/.config/gzdoom. On Mac, preserve its Preferences and Documents data. Keep your actual data locations, original files and mods when updating the upstream runtime."
           }
         ]
       },
@@ -61095,6 +61330,10 @@
         "windows-x86-64": [
           "gzdoom-",
           "-windows.zip"
+        ],
+        "linux-x86-64": [
+          "gzdoom_",
+          "_amd64.deb"
         ]
       }
     },

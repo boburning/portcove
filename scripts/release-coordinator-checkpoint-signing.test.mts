@@ -152,6 +152,12 @@ for (const status of [302, 409, 429, 503]) {
     await assert.rejects(network.request(endpoints[0], request), /recovery/);
     await assert.rejects(network.request(endpoints[0], request), /recovery/);
     assert.equal(calls, 1);
+    assert.deepEqual(network.progress, {
+      request: "fulcio",
+      phase: "response",
+      completed_requests: 0,
+      response_status: status,
+    });
     assert.ok(f.files.has("fulcio-intent.json"));
     assert.ok(
       !Buffer.concat([...f.files.values()])
@@ -285,8 +291,9 @@ function producerFixture() {
     publicKey = "";
   const posts: string[] = [];
   function identityResponse(endpoint: string | undefined) {
-    const job = { ...f.job, status: "in_progress", completed_at: null };
-    if (endpoint?.endsWith("/actions/runs/9988")) return { ...f.attempt, status: "in_progress" };
+    const job = { ...f.job, status: "in_progress", conclusion: null, completed_at: null };
+    if (endpoint?.endsWith("/actions/runs/9988"))
+      return { ...f.attempt, status: "in_progress", conclusion: null };
     if (endpoint?.includes("/jobs?")) return { total_count: 1, jobs: [job] };
     if (endpoint?.endsWith("/actions/jobs/501")) return job;
     assert.fail(`unexpected inert provider route ${endpoint}`);
@@ -427,7 +434,13 @@ for (const refused of ["fulcio", "rekor"] as const) {
     });
     assert.deepEqual(gates, refused === "fulcio" ? ["fulcio"] : ["fulcio", "rekor"]);
     assert.equal(f.posts.length, refused === "fulcio" ? 0 : 1);
-    assert.ok(f.files.has("signing-failure.json"));
+    const failure: unknown = JSON.parse(f.files.get("signing-failure.json")!.toString());
+    assert.ok(isRecord(failure));
+    assert.deepEqual(failure.transport, {
+      request: refused,
+      phase: "control",
+      completed_requests: refused === "fulcio" ? 0 : 1,
+    });
   });
 }
 

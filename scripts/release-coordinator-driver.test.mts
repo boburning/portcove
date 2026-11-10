@@ -1,3 +1,4 @@
+import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { stripTypeScriptTypes } from "node:module";
@@ -7,6 +8,7 @@ import {
   inspectPreparedReceiptInventoryAdvance,
   selectCoordinatorPublicationBaseline,
   selectCoordinatorMetadataRenewal,
+  metadataRenewalInputIdentity,
   requireActualCoordinatorMetadataPreparation,
   coordinatorMaintenanceIdentity,
   coordinatorContinuationDeadline,
@@ -24,6 +26,7 @@ import { performance } from "node:perf_hooks";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { pagesRecoveryOperationFixture } from "./fixtures/release-pages-recovery-fixture.mts";
+import { isApplicationReviewReleaseTag } from "./release-review-request.mts";
 
 void test("actual catalog receiver comparison refuses grant-only drift before inspection (controlled retained map)", async () => {
   const source = await readFile(
@@ -677,6 +680,30 @@ void test("publication facts refuse missing tags, duplicate versions, changed pr
     /publication time/,
   );
 });
+void test("publication planning excludes metadata and rehearsal releases from the application baseline", () => {
+  const alpha = release("0.1.0-alpha.2", "2026-10-18T00:00:00Z");
+  const tags = [ref(alpha.tag_name, "a".repeat(40))];
+  const rows = [
+    alpha,
+    { ...alpha, id: 2, tag_name: `portcove-production-candidate-${"b".repeat(64)}` },
+    { ...alpha, id: 3, tag_name: "v0.0.0-rehearsal.123.1" },
+  ];
+  const now = "2026-10-20T00:00:00.000Z";
+  assert.deepEqual(
+    deriveCoordinatorPublication(tags, rows, [], now),
+    deriveCoordinatorPublication(tags, [alpha], [], now),
+  );
+  assert.throws(
+    () =>
+      deriveCoordinatorPublication(
+        tags,
+        [...rows, { ...alpha, id: 4, tag_name: "unknown" }],
+        [],
+        now,
+      ),
+    /unsupported tag scope/,
+  );
+});
 void test("late publication bracket permits only the exact two own immutable preparation receipts", () => {
   const candidate = {
     version: "0.1.0-alpha.3",
@@ -1210,7 +1237,7 @@ void test("actual neutral review entry awaits fixed SDK source and complete inve
     },
   );
   const tags = [{ name: "v1.2.3" }];
-  const releases = [{ id: 7 }];
+  const releases = [{ id: 7, tag_name: "v1.2.3" }];
   const deadline = performance.now() + 15000;
   const { createGitHubClient } = await import("./github-client.mts");
   const run = runInNewContext(
@@ -1267,6 +1294,7 @@ void test("actual neutral review entry awaits fixed SDK source and complete inve
         };
       },
       deriveCoordinatorPublication: () => ({ published_versions: ["1.2.3"] }),
+      isApplicationReviewReleaseTag,
       selectCoordinatorPublicationBaseline: () => ({ release: releases[0], version: "1.2.3" }),
       peelReleaseReference: () => commit,
       inspectPublishedApplicationSourceWithSdk: async (
@@ -1693,4 +1721,130 @@ void test("coordinator journal rechecks its cutoff after the awaited SDK mutatio
   expired = false;
   await journal.graphql("mutation { exactCAS }");
   assert.deepEqual(calls, ["controls", "controls", "CAS"]);
+});
+
+void test("paused withdrawal rechecks the same controls and refreshes aging observations", async () => {
+  const source = await readFile(
+    new URL("./release-coordinator-driver.mts", import.meta.url),
+    "utf8",
+  );
+  const identityStart = source.indexOf("function maintenanceIdentity(");
+  const identityEnd = source.indexOf("/** Budget derivation", identityStart);
+  const start = source.indexOf("async function withdrawTrustedApplicationReview(");
+  const end = source.indexOf("/** Resolve the exact outstanding request", start);
+  const implementation = stripTypeScriptTypes(
+    source.slice(identityStart, identityEnd) + source.slice(start, end),
+  );
+  const withdrawal = { request_checkpoint: "parent", source_commit: "withdrawn" };
+  let now = 0;
+  let refreshes = 0;
+  let changeOnRefresh = false;
+  let published = false;
+  const observations = (round: number) => ({
+    async readSdkWithdrawal(commit: string) {
+      assert.equal(commit, withdrawal.source_commit);
+      return {
+        phase: "coordinator",
+        purpose: "metadata-coordinator-controls",
+        resource_policy_matches_controller: true,
+        reader: { round },
+        pause: {
+          publication_paused: true,
+          commit: changeOnRefresh && round > 0 ? "changed" : "closed",
+        },
+        protection: { observed_at: new Date(round === 0 ? 0 : now).toISOString() },
+        capacity: {},
+      };
+    },
+  });
+  const run = runInNewContext(`${implementation}; withdrawTrustedApplicationReview;`, {
+    path,
+    capacityDigest,
+    isRecord,
+    structuredClone,
+    process: { env: {} },
+    Date: { parse: Date.parse, now: () => now },
+    inspectCoordinatorRemoteNamespace: () => "portcove-production",
+    requireControllerJobSourceConfiguration: async () => ({
+      binding: {
+        purpose: "application",
+        namespace: "portcove-production",
+        review_withdrawal: withdrawal,
+      },
+      recheck() {},
+    }),
+    matchesRetainedReviewWithdrawal: () => false,
+    matchesWithdrawnReviewRequest: () => true,
+    inspectReleaseReviewRequest: () => ({}),
+    coordinatorHasUnresolvedEffect: () => false,
+    selectCoordinatorPendingContextRecovery: () => null,
+    selectCoordinatorPendingPagesRecovery: () => null,
+    inspectSettledPagesMetadataHandoff: () => null,
+    selectCoordinatorCandidateSigningRecovery: () => null,
+    readProductionControllerWorkflowBytes: async () => Buffer.alloc(0),
+    authenticateControlReaderJob: async () => ({}),
+    authenticateCoordinatorInitialControls: async (...args: unknown[]) => {
+      assert.equal(args[6], "coordinator-application");
+      return observations(0);
+    },
+    authenticateReleaseControlRound: async (...args: unknown[]) => {
+      assert.equal(args[3], 1);
+      assert.equal((args[4] as { controlReader: string }).controlReader, "coordinator-application");
+      refreshes++;
+      return observations(1);
+    },
+    readRemoteCoordinatorSnapshot: async () => ({ checkpoint: "parent" }),
+    coordinatorCheckpointPublisher: async (...args: unknown[]) => {
+      assert.equal(args[8], true);
+      const controls = args[6] as { readCurrent(): Promise<void> };
+      await controls.readCurrent();
+      return async () => {
+        now = 30000;
+        await controls.readCurrent();
+        published = true;
+      };
+    },
+    checkpointReleaseOpportunity: async () => ({ checkpoint: "child" }),
+  }) as (...args: unknown[]) => Promise<{ decision: string }>;
+  const invoke = () =>
+    run(
+      "inert",
+      {},
+      { checkpoint: "parent", input: { controller: {} } },
+      withdrawal,
+      {
+        check() {},
+        monotonicDeadline: 100000,
+        journalTransport() {},
+      },
+      () => {},
+    );
+  assert.equal((await invoke()).decision, "review-withdrawn");
+  assert.equal(refreshes, 1);
+  assert.equal(published, true);
+
+  now = 0;
+  published = false;
+  changeOnRefresh = true;
+  await assert.rejects(invoke(), /controls changed before journal mutation/);
+  assert.equal(published, false);
+});
+
+void test("authenticated renewal reuse ignores only the journal observation clocks", () => {
+  const saved = {
+    now: "2026-11-10T09:06:43.487Z",
+    publication: { observed_at: "2026-11-10T09:06:43.487Z", complete: true },
+    metadata_renewal: { generated_at: "2026-11-10T09:06:10Z" },
+    controller: { capacity_attempt: { operation: null } },
+  };
+  const observed = structuredClone(saved);
+  observed.now = observed.publication.observed_at = "2026-11-10T12:43:45.742Z";
+  assert.equal(metadataRenewalInputIdentity(saved), metadataRenewalInputIdentity(observed));
+  for (const changed of [
+    { ...observed, publication: { ...observed.publication, complete: false } },
+    { ...observed, metadata_renewal: { generated_at: observed.now } },
+    { ...observed, controller: { capacity_attempt: { operation: "pending" } } },
+  ])
+    assert.notEqual(metadataRenewalInputIdentity(saved), metadataRenewalInputIdentity(changed));
+  assert.equal(saved.now, "2026-11-10T09:06:43.487Z");
 });

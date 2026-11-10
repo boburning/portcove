@@ -15,7 +15,34 @@ use crate::{Platform, PortDefinition, PortcoveError, Result, ReviewedPackageLayo
 
 /// Upper bound on entries inspected; extraction already bounds the staged tree.
 const MAXIMUM_ENTRIES: usize = 200_000;
+const MAXIMUM_REVIEWED_PATHS: usize = 4_096;
 const REPORTED_NAMES: usize = 3;
+pub(crate) const NATIVE_CAPABILITY: u32 = 18;
+
+pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
+    for (platform, layout) in &port.reviewed_package_layouts {
+        let canonical = |paths: &[String]| {
+            paths.windows(2).all(|pair| pair[0] < pair[1])
+                && paths.iter().all(|path| {
+                    !path.bytes().any(|byte| byte.is_ascii_uppercase())
+                        && crate::archive::validate_relative_path(path, false).is_ok()
+                })
+        };
+        if !port.platforms.contains(platform)
+            || layout.directories.len() + layout.executables.len() > MAXIMUM_REVIEWED_PATHS
+            || layout.executables.is_empty()
+            || layout.directories.iter().any(|name| name.contains('/'))
+            || !canonical(&layout.directories)
+            || !canonical(&layout.executables)
+        {
+            return Err(PortcoveError::verification(format!(
+                "{} has an invalid reviewed package layout for {platform:?}",
+                port.id
+            )));
+        }
+    }
+    Ok(())
+}
 
 pub(crate) fn require_reviewed_layout(
     port: &PortDefinition,

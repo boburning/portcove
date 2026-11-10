@@ -609,6 +609,10 @@ pub struct ReleaseSpec {
     /// Native8: select the checked TAR.XZ player archive on Linux x86-64.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub linux_tar_xz: bool,
+    /// Native13: the package relies on in-archive file links, which extraction writes as
+    /// regular copies of the files they name.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub archive_file_links: bool,
     #[serde(default)]
     pub direct: BTreeMap<Platform, DirectReleaseSpec>,
     #[serde(default)]
@@ -665,6 +669,13 @@ pub enum ExternalProfilePolicy {
     Fheroes2V1,
     Openrct2MacV1,
     RecompAppimageV1,
+    OpenmohaaUnixV1,
+    IronwailLinuxV1,
+    VkquakeLinuxV1,
+    CorsixthLinuxV1,
+    OpenlocoUnixV1,
+    JgrppLinuxV1,
+    OpengladMacV1,
 }
 
 /// Preserve complete mod package versions without replacing packaged defaults.

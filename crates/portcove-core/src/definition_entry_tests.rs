@@ -75,6 +75,99 @@ fn recomp_appimage_entries_require_native12_for_fresh_and_retained_reads() {
 }
 
 #[test]
+fn openmohaa_unix_entries_require_native13_for_fresh_and_retained_reads() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let id = "medal-of-honor-allied-assault-openmohaa";
+    let mut entry = entry_for_port(catalog.port(id).unwrap());
+    entry["required_capabilities"][0]["maximum_version"] = json!(13);
+    for minimum in [12, 13] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, id).inspect_retained_entry("official", id, &bytes),
+        ] {
+            if minimum == 12 {
+                assert!(result.unwrap_err().message.contains("version 13"));
+            } else {
+                assert!(result.unwrap().capabilities().compatible);
+            }
+        }
+    }
+}
+
+#[test]
+fn quake_linux_entries_require_native15_for_fresh_and_retained_reads() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for id in ["quake-ironwail", "quake-vkquake"] {
+        let mut entry = entry_for_port(catalog.port(id).unwrap());
+        entry["required_capabilities"][0]["maximum_version"] = json!(15);
+        for minimum in [14, 15] {
+            entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+            let bytes = serde_json::to_vec(&entry).unwrap();
+            for result in [
+                inspect(&entry),
+                index(&bytes, id).inspect_retained_entry("official", id, &bytes),
+            ] {
+                if minimum == 14 {
+                    assert!(result.unwrap_err().message.contains("version 15"));
+                } else {
+                    assert!(result.unwrap().capabilities().compatible);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn profile_siblings_require_native16_for_fresh_and_retained_reads() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for id in ["corsixth-corsixth", "openloco-openloco"] {
+        let mut entry = entry_for_port(catalog.port(id).unwrap());
+        entry["required_capabilities"][0]["maximum_version"] = json!(16);
+        for minimum in [15, 16] {
+            entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+            let bytes = serde_json::to_vec(&entry).unwrap();
+            for result in [
+                inspect(&entry),
+                index(&bytes, id).inspect_retained_entry("official", id, &bytes),
+            ] {
+                if minimum == 15 {
+                    assert!(result.unwrap_err().message.contains("version 16"));
+                } else {
+                    assert!(result.unwrap().capabilities().compatible);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn archive_siblings_require_native17_for_fresh_and_retained_reads() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for id in ["jgrennison-openttd-patches", "gladiator-openglad"] {
+        let mut creating_port = catalog.port(id).unwrap().clone();
+        creating_port.reviewed_package_layouts.clear();
+        let mut entry = entry_for_port(&creating_port);
+        entry["required_capabilities"][0]["maximum_version"] = json!(17);
+        for minimum in [16, 17] {
+            entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+            let bytes = serde_json::to_vec(&entry).unwrap();
+            for result in [
+                inspect(&entry),
+                index(&bytes, id).inspect_retained_entry("official", id, &bytes),
+            ] {
+                if minimum == 16 {
+                    assert!(result.unwrap_err().message.contains("version 17"));
+                } else {
+                    assert!(result.unwrap().capabilities().compatible);
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn managed_external_profiles_require_version_9_in_fresh_and_retained_readers() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("dune-ii-dune-dynasty").unwrap();
@@ -133,6 +226,140 @@ fn native_linux_tar_xz_requires_version_8_in_fresh_and_retained_readers() {
             .unwrap()
             .capabilities()
             .compatible
+    );
+}
+
+#[test]
+fn native_archive_file_links_require_version_14_in_fresh_and_retained_readers() {
+    let mut port = fixture_catalog().ports()[0].clone();
+    port.adapter = crate::AdapterKind::NativePortable;
+    port.release.linux_tar_xz = true;
+    port.release.archive_file_links = true;
+    port.release.asset_hints.insert(
+        crate::Platform::LinuxX86_64,
+        vec!["-linux-x86_64.tar.xz".into()],
+    );
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["minimum_version"] = json!(13);
+    entry["required_capabilities"][0]["maximum_version"] = json!(14);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap_err().message.contains("version 14"));
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap_err()
+            .message
+            .contains("version 14")
+    );
+    entry["required_capabilities"][0]["minimum_version"] = json!(14);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap()
+            .capabilities()
+            .compatible
+    );
+}
+
+#[test]
+fn reviewed_package_layouts_require_a_capable_native_reader() {
+    let mut port = fixture_catalog().ports()[0].clone();
+    port.adapter = crate::AdapterKind::NativePortable;
+    port.reviewed_package_layouts.insert(
+        port.platforms[0],
+        crate::ReviewedPackageLayout {
+            directories: vec![],
+            executables: vec!["fixture.exe".to_owned()],
+        },
+    );
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["minimum_version"] = json!(17);
+    entry["required_capabilities"][0]["maximum_version"] = json!(18);
+    assert!(inspect(&entry).unwrap_err().message.contains("version 18"));
+    let mut retained = entry.clone();
+    retained["required_capabilities"][0]["maximum_version"] = json!(17);
+    retained["port"]["reviewed_package_layouts"]["linux-x86-64"]["executables"] =
+        json!(["fixture.exe", "fixture.exe"]);
+    assert!(inspect(&retained).is_err());
+    let retained_bytes = serde_json::to_vec(&retained).unwrap();
+    assert!(
+        index(&retained_bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &retained_bytes)
+            .unwrap()
+            .capabilities()
+            .compatible
+    );
+    assert!(
+        crate::Catalog::from_json(
+            &json!({"schema_version":1,"ports":[retained["port"]]}).to_string()
+        )
+        .is_ok()
+    );
+    entry["required_capabilities"][0]["minimum_version"] = json!(18);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap()
+            .capabilities()
+            .compatible
+    );
+    for paths in [
+        json!([]),
+        json!(["Fixture.exe"]),
+        json!(["../fixture.exe"]),
+        json!(["fixture.exe", "fixture.exe"]),
+        json!(["second.exe", "first.exe"]),
+    ] {
+        let mut invalid = entry.clone();
+        invalid["port"]["reviewed_package_layouts"]["linux-x86-64"]["executables"] = paths;
+        assert!(inspect(&invalid).is_err());
+    }
+}
+
+#[test]
+fn n64_archive_file_links_require_n64_version_5_and_other_adapters_refuse_the_flag() {
+    let mut port = fixture_catalog().ports()[0].clone();
+    port.adapter = crate::AdapterKind::N64RecompPortable;
+    port.release.archive_file_links = true;
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["minimum_version"] = json!(4);
+    entry["required_capabilities"][0]["maximum_version"] = json!(5);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(
+        inspect(&entry)
+            .unwrap_err()
+            .message
+            .contains("n64-recomp-portable capability version 5")
+    );
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap_err()
+            .message
+            .contains("version 5")
+    );
+    entry["required_capabilities"][0]["minimum_version"] = json!(5);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap()
+            .capabilities()
+            .compatible
+    );
+
+    port.adapter = crate::AdapterKind::GeneratedCache;
+    let entry = entry_for_port(&port);
+    assert!(
+        inspect(&entry)
+            .unwrap_err()
+            .message
+            .contains("only by native and N64 recomp")
     );
 }
 
@@ -758,7 +985,11 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if crate::native_temp::has_sibling_platforms(port) {
+        let version = if !port.reviewed_package_layouts.is_empty() {
+            crate::package_layout::NATIVE_CAPABILITY
+        } else if port.release.archive_file_links {
+            crate::test_fixture::archive_file_links_capability(port)
+        } else if crate::native_temp::has_sibling_platforms(port) {
             10
         } else if let Some(policy) = port.external_profile_policy {
             crate::native_external_profile::minimum_capability(policy)
@@ -1416,8 +1647,8 @@ fn windows_temporary_data_requires_native5_in_fresh_and_retained_interpretation(
     entry["required_capabilities"][0]["maximum_version"] = json!(4);
     assert!(inspect(&entry).is_err());
     // Keep the upper-edge check on an unimplemented future reader.
-    entry["required_capabilities"][0]["minimum_version"] = json!(13);
-    entry["required_capabilities"][0]["maximum_version"] = json!(13);
+    entry["required_capabilities"][0]["minimum_version"] = json!(u32::MAX);
+    entry["required_capabilities"][0]["maximum_version"] = json!(u32::MAX);
     assert!(!inspect(&entry).unwrap().capabilities().compatible);
 }
 

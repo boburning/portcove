@@ -64,7 +64,7 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
@@ -72,11 +72,15 @@
     "release": {
       "repository": "ReflectionHLE/ReflectionHLE",
       "asset_hints": {
-        "windows-x86-64": ["reflectionhle-win64-", ".zip"]
-      }
+        "windows-x86-64": ["reflectionhle-win64-", ".zip"],
+        "linux-x86-64": ["reflectionhle-linux-x86_64-", ".tar.xz"]
+      },
+      "linux_tar_xz": true,
+      "archive_file_links": true
     },
     "executable_hints": {
-      "windows-x86-64": ["reflectionhle.exe"]
+      "windows-x86-64": ["reflectionhle.exe"],
+      "linux-x86-64": ["reflectionhle"]
     },
     "launch_arguments": ["-datadir", ".", "-cfgdir", "."],
     "persistent_paths": [

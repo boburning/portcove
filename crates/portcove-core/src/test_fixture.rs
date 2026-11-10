@@ -72,6 +72,17 @@ pub(crate) fn versioned_mod_catalog() -> crate::Catalog {
     .unwrap()
 }
 
+/// A fixture using archive file links may also declare an external profile guard.
+pub(crate) fn archive_file_links_capability(port: &crate::PortDefinition) -> u32 {
+    let archive = match port.adapter {
+        crate::AdapterKind::N64RecompPortable => 5,
+        _ => 14,
+    };
+    port.external_profile_policy
+        .map(crate::native_external_profile::minimum_capability)
+        .map_or(archive, |profile| profile.max(archive))
+}
+
 pub(crate) fn definition_requirements(
     port: &crate::PortDefinition,
     default_version: u32,
@@ -279,7 +290,11 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = format!("sha256/{}.json", self.contract_sha256);
         let port = self.port.as_ref();
         let port_id = &port.id;
-        let capability_version = if crate::native_temp::has_sibling_platforms(port) {
+        let capability_version = if !port.reviewed_package_layouts.is_empty() {
+            crate::package_layout::NATIVE_CAPABILITY
+        } else if port.release.archive_file_links {
+            archive_file_links_capability(port)
+        } else if crate::native_temp::has_sibling_platforms(port) {
             10
         } else if let Some(policy) = port.external_profile_policy {
             crate::native_external_profile::minimum_capability(policy)

@@ -5,6 +5,8 @@ import path from "node:path";
 import { readApplicationPriorPublication } from "./application-release-feed.mts";
 import {
   immutableApplicationBootstrap,
+  retainedR55Renewal,
+  retainedR56FeedRecovery,
   retainedServedRenewal,
 } from "./application-release-run.mts";
 import {
@@ -16,10 +18,15 @@ import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
+import {
+  retainedCatalogBootstrapClaim,
+  retainedCatalogForwardAdoptionClaim,
+} from "./release-coordinator-checkpoint-authentication.mts";
 import type { CatalogCoordinatorRefusalStage } from "./release-control-step-bridge.mts";
 import {
   inspectTufPublicationFacts,
   standaloneBootstrapAdoption,
+  standaloneBootstrapForwardAdoption,
   standaloneBootstrapRenewalAdoption,
 } from "./release-metadata-contract.mts";
 import {
@@ -31,6 +38,30 @@ import {
   readPublicApplicationSite,
   readPublicApplicationSiteMarker,
 } from "./release-site-readback.mts";
+
+export function selectCatalogBootstrapRecovery(
+  executionRef: string,
+  attempt: number,
+  previous: string,
+  forward: boolean,
+) {
+  const claim =
+    executionRef === retainedCatalogForwardAdoptionClaim.successor_ref
+      ? retainedCatalogForwardAdoptionClaim
+      : executionRef === retainedCatalogBootstrapClaim.successor_ref
+        ? retainedCatalogBootstrapClaim
+        : undefined;
+  if (
+    claim &&
+    (forward !== (claim === retainedCatalogForwardAdoptionClaim) ||
+      attempt !== 1 ||
+      previous !== claim.previous)
+  )
+    throw new Error(
+      "claimed bootstrap recovery requires its original predecessor and one successor attempt",
+    );
+  return claim;
+}
 
 /** This checks the current authenticated coordinator observation; the
  * historical journal counters remain untouched by the app-only import. */
@@ -104,32 +135,76 @@ export function assertRetainedBootstrapRenewal({ discovered, prior }: ActualPubl
   assert.equal(metadata.sha256, retainedAssembly.metadata_sha256);
 }
 
+export function assertRetainedBootstrapForwardRenewal({ discovered, prior }: ActualPublication) {
+  const forward = standaloneBootstrapForwardAdoption;
+  const assembly = retainedR56FeedRecovery;
+  assert.equal(discovered.release_id, retainedR55Renewal.release_id);
+  assert.equal(discovered.custody.opportunity, retainedR55Renewal.opportunity);
+  assert.equal(discovered.custody.preparation, null);
+  assert.deepEqual(discovered.execution.run, {
+    id: forward.run_id,
+    control_commit: forward.revision,
+    control_ref: assembly.next_ref,
+  });
+  assert.equal(discovered.execution.attempt, 1);
+  assert.equal(discovered.execution.conclusion, "success");
+  assert.equal(discovered.execution.job_id, Number(forward.feed_job_id));
+  assert.equal(
+    discovered.state.log_url,
+    `https://github.com/boburning/portcove/actions/runs/${forward.run_id}/job/${forward.feed_job_id}`,
+  );
+  assert.deepEqual(prior.receipt.producer, {
+    id: assembly.run_id,
+    control_commit: assembly.control_commit,
+    control_ref: retainedR55Renewal.next_ref,
+  });
+  assert.equal(prior.receipt.producer_attempt, 1);
+  assert.equal(
+    prior.receipt.site.previous_generation,
+    standaloneBootstrapRenewalAdoption.generation,
+  );
+  assert.equal(prior.receipt.site.generation, forward.generation);
+  assert.equal(digest(prior.receipt.publication), forward.publication_sha256);
+  assert.ok(isRecord(prior.metadata));
+  assert.equal(prior.metadata.purpose, "metadata-renewal");
+  assert.equal(prior.metadata.prior_generation, standaloneBootstrapRenewalAdoption.generation);
+  assert.equal(prior.metadata.prior_repository_sha256, forward.prior_repository_sha256);
+  assert.equal(prior.metadata.context_sha256, assembly.context_sha256);
+  assert.equal(prior.assets.length, 2);
+  for (const [name, expected] of Object.entries(assembly.assets)) {
+    const asset = prior.assets.find((candidate) => candidate.name === name);
+    assert.ok(asset);
+    assert.equal(asset.id, expected.id);
+    assert.equal(asset.bytes, expected.bytes);
+    assert.equal(asset.sha256, expected.sha256);
+  }
+}
+
 async function assertSettledRenewalFeed(
   discovered: ActualPublication["discovered"],
   deadline: number,
+  appointment: { ref: string; opportunity: string } = {
+    ref: standaloneBootstrapRenewalAdoption.feed_ref,
+    opportunity: retainedServedRenewal.opportunity,
+  },
 ) {
   const read = await createApplicationFeedReader(fixedReleaseReaderToken(), deadline);
   const actor = discovered.execution.run;
   const repository = "repos/boburning/portcove";
   const run = await read(`${repository}/actions/runs/${actor.id}/attempts/1`);
-  const ref = await read(
-    `${repository}/git/ref/${standaloneBootstrapRenewalAdoption.feed_ref.slice("refs/".length)}`,
-  );
+  const ref = await read(`${repository}/git/ref/${appointment.ref.slice("refs/".length)}`);
   assert.equal(run.status, 200);
   assert.ok(isRecord(run.body));
   assert.equal(run.body.id, Number(actor.id));
   assert.equal(run.body.run_attempt, 1);
   assert.equal(run.body.head_sha, actor.control_commit);
-  assert.equal(
-    run.body.head_branch,
-    standaloneBootstrapRenewalAdoption.feed_ref.slice("refs/tags/".length),
-  );
+  assert.equal(run.body.head_branch, appointment.ref.slice("refs/tags/".length));
   assert.equal(run.body.status, "completed");
   assert.equal(run.body.conclusion, "success");
-  assert.equal(run.body.display_title, `Application ${retainedServedRenewal.opportunity}`);
+  assert.equal(run.body.display_title, `Application ${appointment.opportunity}`);
   assert.equal(ref.status, 200);
   assert.ok(isRecord(ref.body) && isRecord(ref.body.object));
-  assert.equal(ref.body.ref, standaloneBootstrapRenewalAdoption.feed_ref);
+  assert.equal(ref.body.ref, appointment.ref);
   assert.equal(ref.body.object.type, "commit");
   assert.equal(ref.body.object.sha, actor.control_commit);
 }
@@ -141,14 +216,25 @@ export async function authenticateStandaloneBootstrapAdoption(
   tools: object,
   deadline: number,
   stage: (value: CatalogCoordinatorRefusalStage<"operation">) => void = () => {},
+  forward = false,
 ) {
   const originalSelection = standaloneBootstrapAdoption;
   const original = immutableApplicationBootstrap;
   const actual = await readApplicationPriorPublication(directory);
   const { discovered, prior } = actual;
   const renewal = discovered.release_id === retainedServedRenewal.release_id;
-  const selected = renewal ? standaloneBootstrapRenewalAdoption : originalSelection;
-  if (renewal) {
+  const selected = forward
+    ? standaloneBootstrapForwardAdoption
+    : renewal
+      ? standaloneBootstrapRenewalAdoption
+      : originalSelection;
+  if (forward) {
+    assertRetainedBootstrapForwardRenewal(actual);
+    await assertSettledRenewalFeed(discovered, deadline, {
+      ref: retainedR56FeedRecovery.next_ref,
+      opportunity: retainedR55Renewal.opportunity,
+    });
+  } else if (renewal) {
     assertRetainedBootstrapRenewal(actual);
     await assertSettledRenewalFeed(discovered, deadline);
   } else {
@@ -177,9 +263,8 @@ export async function authenticateStandaloneBootstrapAdoption(
   assert.equal(prior.receipt.site.generation, selected.generation);
 
   stage("standalone-application-bootstrap-site");
-  const completeSite = renewal
-    ? await readPublicApplicationSite(prior.receipt.site, deadline)
-    : undefined;
+  const completeSite =
+    renewal || forward ? await readPublicApplicationSite(prior.receipt.site, deadline) : undefined;
   const site = await materializePublishedApplicationComponent(
     {
       site_generation_sha256: selected.generation,

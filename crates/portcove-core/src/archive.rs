@@ -22,6 +22,8 @@ const MAX_ENTRY_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_ENTRIES: usize = 100_000;
 const MAX_PATH_DEPTH: usize = 32;
 const MAX_PATH_BYTES: usize = 1024;
+const MAX_LINK_TARGET_BYTES: u64 = 1024;
+const MAX_LINK_CHAIN: usize = 8;
 const MAX_COMPONENT_BYTES: usize = 255;
 const MAX_COMPRESSION_RATIO: u64 = 200;
 const TAR_BLOCK_BYTES: u64 = 512;
@@ -366,19 +368,26 @@ fn extract_zip(
     }
     let mut collisions = CollisionSet::default();
     let mut plans = Vec::with_capacity(archive.len());
+    // The ZIP entry whose bytes populate each plan. A file alias reuses its target's entry.
+    let mut sources = Vec::with_capacity(archive.len());
+    let mut files = BTreeMap::<String, usize>::new();
+    let mut aliases = Vec::new();
     for index in 0..archive.len() {
         checkpoint()?;
-        let entry = archive
+        let mut entry = archive
             .by_index(index)
             .map_err(|error| PortcoveError::verification(format!("invalid ZIP entry: {error}")))?;
-        if !entry.is_file() && !entry.is_dir() {
+        let alias = entry
+            .unix_mode()
+            .is_some_and(|mode| mode & 0o170000 == 0o120000);
+        if !alias && !entry.is_file() && !entry.is_dir() {
             return Err(PortcoveError::verification(
                 "ZIP contains an unsupported entry type",
             ));
         }
         if let Some(mode) = entry.unix_mode() {
             let kind = mode & 0o170000;
-            if kind != 0 && kind != 0o100000 && kind != 0o040000 {
+            if kind != 0 && kind != 0o100000 && kind != 0o040000 && !alias {
                 return Err(PortcoveError::verification(
                     "ZIP links and special files are not allowed",
                 ));
@@ -394,7 +403,28 @@ fn extract_zip(
             })?
             .replace('\\', "/");
         let (relative, key) = validate_relative_path(&portable_name, entry.is_dir())?;
-        collisions.insert(key, entry.is_dir())?;
+        let target = if alias {
+            if entry.is_dir() || entry.size() > MAX_LINK_TARGET_BYTES {
+                return Err(PortcoveError::verification(
+                    "ZIP links and special files are not allowed",
+                ));
+            }
+            let mut target = String::new();
+            (&mut entry)
+                .take(MAX_LINK_TARGET_BYTES + 1)
+                .read_to_string(&mut target)
+                .map_err(|_| PortcoveError::verification("ZIP link target is not valid text"))?;
+            Some(target)
+        } else {
+            None
+        };
+        collisions.insert(key.clone(), entry.is_dir())?;
+        if let Some(target) = target {
+            aliases.push((plans.len(), key, target));
+        } else if !entry.is_dir() {
+            files.insert(key, plans.len());
+        }
+        sources.push(index);
         plans.push(EntryPlan {
             relative,
             directory: entry.is_dir(),
@@ -402,15 +432,91 @@ fn extract_zip(
             size: entry.size(),
         });
     }
+    // A link that names a regular file in this archive, directly or through other links,
+    // is written as a copy of that file. No link is created, and every other link shape
+    // remains refused.
+    let finals = resolve_alias_chains(&plans, &files, &aliases)?;
+    for ((plan_index, _, _), target_plan) in aliases.iter().zip(finals) {
+        plans[*plan_index].size = plans[target_plan].size;
+        plans[*plan_index].executable = plans[target_plan].executable;
+        sources[*plan_index] = sources[target_plan];
+    }
     validate_plan(destination, &plans, compressed_size)?;
     for (index, plan) in plans.iter().enumerate() {
         checkpoint()?;
         let mut entry = archive
-            .by_index(index)
+            .by_index(sources[index])
             .map_err(|error| PortcoveError::verification(format!("invalid ZIP entry: {error}")))?;
         write_entry(destination, plan, &mut entry, checkpoint)?;
     }
     Ok(())
+}
+
+/// Follow link chains of at most `MAX_LINK_CHAIN` links to the regular file each names.
+/// Cycles, directories, escaping and missing targets refuse.
+fn resolve_alias_chains(
+    plans: &[EntryPlan],
+    files: &BTreeMap<String, usize>,
+    aliases: &[(usize, String, String)],
+) -> Result<Vec<usize>> {
+    let refused = || PortcoveError::verification("archive links and special files are not allowed");
+    let by_key = aliases
+        .iter()
+        .enumerate()
+        .map(|(index, (_, key, _))| (key.as_str(), index))
+        .collect::<BTreeMap<_, _>>();
+    aliases
+        .iter()
+        .map(|(plan_index, _, target)| {
+            let mut current_plan = *plan_index;
+            let mut current_target = target.as_str();
+            for _ in 0..MAX_LINK_CHAIN {
+                let resolved = resolve_alias_target(&plans[current_plan].relative, current_target)?;
+                let (_, key) = validate_relative_path(&resolved, false)?;
+                if let Some(&found) = files.get(&key) {
+                    return Ok(found);
+                }
+                let next = *by_key.get(key.as_str()).ok_or_else(refused)?;
+                current_plan = aliases[next].0;
+                current_target = aliases[next].2.as_str();
+            }
+            Err(refused())
+        })
+        .collect()
+}
+
+/// Resolve a relative archive link target lexically against the link's directory.
+/// Absolute, empty, backslash, control-character and archive-escaping spellings refuse.
+fn resolve_alias_target(alias: &Path, target: &str) -> Result<String> {
+    let refused = || PortcoveError::verification("archive links and special files are not allowed");
+    if target.is_empty()
+        || target.starts_with('/')
+        || target.contains('\\')
+        || target.bytes().any(|byte| byte < 0x20)
+    {
+        return Err(refused());
+    }
+    let mut parts = alias
+        .parent()
+        .into_iter()
+        .flat_map(Path::components)
+        .map(|component| component.as_os_str().to_str().map(str::to_owned))
+        .collect::<Option<Vec<_>>>()
+        .ok_or_else(refused)?;
+    for part in target.split('/') {
+        match part {
+            "" => return Err(refused()),
+            "." => {}
+            ".." => {
+                parts.pop().ok_or_else(refused)?;
+            }
+            name => parts.push(name.to_owned()),
+        }
+    }
+    if parts.is_empty() {
+        return Err(refused());
+    }
+    Ok(parts.join("/"))
 }
 
 fn extract_tar_gz(
@@ -475,6 +581,8 @@ fn extract_tar<R: Read>(
     let mut archive = tar::Archive::new(open_checked()?);
     let mut collisions = CollisionSet::default();
     let mut plans = Vec::new();
+    let mut files = BTreeMap::<String, usize>::new();
+    let mut aliases = Vec::new();
     let mut expanded_size = 0_u64;
     for entry in archive
         .entries()
@@ -488,7 +596,8 @@ fn extract_tar<R: Read>(
             ));
         }
         let directory = entry.header().entry_type().is_dir();
-        if !directory && !entry.header().entry_type().is_file() {
+        let alias = entry.header().entry_type().is_symlink();
+        if !directory && !alias && !entry.header().entry_type().is_file() {
             return Err(PortcoveError::verification(
                 "TAR links and special files are not allowed",
             ));
@@ -499,53 +608,129 @@ fn extract_tar<R: Read>(
         let name = path
             .to_str()
             .ok_or_else(|| PortcoveError::verification("TAR contains a non-Unicode path"))?;
-        let (relative, key) = validate_relative_path(name, directory)?;
-        collisions.insert(key, directory)?;
+        // A leading "./" only spells the archive root and is harmless. Archives written
+        // as `./path` are accepted; every other path rule, including "..", is unchanged.
+        let name = strip_leading_current_directory(name);
+        let root_directory = name.is_empty();
+        if root_directory && !directory {
+            return Err(PortcoveError::verification(
+                "archive contains an unsafe path component: .",
+            ));
+        }
+        let (relative, key) = if root_directory {
+            (PathBuf::new(), String::new())
+        } else {
+            validate_relative_path(name, directory)?
+        };
+        if !root_directory {
+            collisions.insert(key.clone(), directory)?;
+        }
         let size = entry.size();
-        validate_declared_entry(&relative, size, &mut expanded_size, compressed_size)?;
+        if alias {
+            let target = entry
+                .link_name()
+                .ok()
+                .flatten()
+                .and_then(|target| target.to_str().map(str::to_owned))
+                .filter(|target| size == 0 && target.len() as u64 <= MAX_LINK_TARGET_BYTES)
+                .ok_or_else(|| {
+                    PortcoveError::verification("TAR links and special files are not allowed")
+                })?;
+            aliases.push((plans.len(), key, target));
+        } else {
+            validate_declared_entry(&relative, size, &mut expanded_size, compressed_size)?;
+            if !directory {
+                files.insert(key, plans.len());
+            }
+        }
         plans.push(EntryPlan {
             relative,
             directory,
-            executable: crate::permissions::archive_executable(Some(
-                entry.header().mode().map_err(|error| {
-                    PortcoveError::verification(format!("invalid TAR mode: {error}"))
-                })?,
-            )),
+            // A link takes its target's mode, so its own mode field is not consulted.
+            executable: if alias {
+                false
+            } else {
+                crate::permissions::archive_executable(Some(entry.header().mode().map_err(
+                    |error| PortcoveError::verification(format!("invalid TAR mode: {error}")),
+                )?))
+            },
             size,
         });
+    }
+    // A link to a regular file in this archive is written as a copy once that file exists.
+    let finals = resolve_alias_chains(&plans, &files, &aliases)?;
+    let mut alias_of = vec![None; plans.len()];
+    for ((plan_index, _, _), target_plan) in aliases.iter().zip(finals) {
+        plans[*plan_index].size = plans[target_plan].size;
+        plans[*plan_index].executable = plans[target_plan].executable;
+        alias_of[*plan_index] = Some(target_plan);
     }
     validate_plan(destination, &plans, compressed_size)?;
     drop(archive);
 
-    write_tar_entries(open_checked()?, destination, &plans, checkpoint)
+    write_tar_entries(open_checked()?, destination, &plans, &alias_of, checkpoint)
+}
+
+/// Remove leading `./` segments, so a root entry spelled `.` or `./` becomes empty.
+fn strip_leading_current_directory(mut name: &str) -> &str {
+    loop {
+        if name == "." {
+            return "";
+        }
+        match name.strip_prefix("./") {
+            Some(rest) => name = rest,
+            None => return name,
+        }
+    }
 }
 
 fn write_tar_entries(
     reader: impl Read,
     destination: &Path,
     plans: &[EntryPlan],
+    alias_of: &[Option<usize>],
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     let mut archive = tar::Archive::new(reader);
     let mut entries = archive
         .entries()
         .map_err(|error| map_tar_error("invalid TAR", error, checkpoint))?;
-    for plan in plans {
+    for (index, plan) in plans.iter().enumerate() {
         checkpoint()?;
         let mut entry = entries
             .next()
             .ok_or_else(|| PortcoveError::verification("TAR has fewer entries than planned"))?
             .map_err(|error| map_tar_error("invalid TAR entry", error, checkpoint))?;
-        write_entry(destination, plan, &mut entry, checkpoint)?;
+        if alias_of[index].is_none() && !plan.relative.as_os_str().is_empty() {
+            write_entry(destination, plan, &mut entry, checkpoint)?;
+        }
     }
     checkpoint()?;
     match entries.next() {
-        None => Ok(()),
-        Some(Ok(_)) => Err(PortcoveError::verification(
-            "TAR has more entries than planned",
-        )),
-        Some(Err(error)) => Err(map_tar_error("invalid TAR entry", error, checkpoint)),
+        None => {}
+        Some(Ok(_)) => {
+            return Err(PortcoveError::verification(
+                "TAR has more entries than planned",
+            ));
+        }
+        Some(Err(error)) => return Err(map_tar_error("invalid TAR entry", error, checkpoint)),
     }
+    for (index, target) in alias_of.iter().enumerate() {
+        let Some(target) = target else { continue };
+        let source = destination.join(&plans[*target].relative);
+        if !fs::symlink_metadata(&source)?.file_type().is_file() {
+            return Err(PortcoveError::verification(
+                "TAR link target is not a regular extracted file",
+            ));
+        }
+        write_entry(
+            destination,
+            &plans[index],
+            &mut File::open(source)?,
+            checkpoint,
+        )?;
+    }
+    Ok(())
 }
 
 fn preflight_raw_tar(
@@ -602,6 +787,9 @@ fn preflight_raw_tar(
                     "TAR directory entries must not contain data",
                 ));
             }
+            continue;
+        }
+        if kind.is_symlink() && size == 0 {
             continue;
         }
         if !kind.is_file() {
@@ -1012,6 +1200,7 @@ mod tests {
             GzDecoder::new(File::open(&source).unwrap()),
             &destination,
             &plans,
+            &vec![None; plans.len()],
             &|| Ok(()),
         )
         .unwrap_err();
@@ -1029,6 +1218,7 @@ mod tests {
             GzDecoder::new(File::open(&source).unwrap()),
             &destination,
             &plans,
+            &vec![None; plans.len()],
             &|| Ok(()),
         )
         .unwrap_err();
@@ -1040,8 +1230,14 @@ mod tests {
     #[test]
     fn tar_write_pass_propagates_a_trailing_enumeration_error() {
         let temporary = tempdir().unwrap();
-        let error = write_tar_entries(&b"incomplete header"[..], temporary.path(), &[], &|| Ok(()))
-            .unwrap_err();
+        let error = write_tar_entries(
+            &b"incomplete header"[..],
+            temporary.path(),
+            &[],
+            &[],
+            &|| Ok(()),
+        )
+        .unwrap_err();
         assert!(error.message.starts_with("invalid TAR entry:"));
     }
 
@@ -1209,6 +1405,165 @@ mod tests {
         assert_eq!(fs::read_dir(destination).unwrap().count(), 0);
     }
 
+    fn write_zip_with_links(path: &Path, files: &[(&str, &[u8], u32)], links: &[(&str, &str)]) {
+        let mut writer = zip::ZipWriter::new(File::create(path).unwrap());
+        for (name, bytes, mode) in files {
+            let options = zip::write::SimpleFileOptions::default().unix_permissions(*mode);
+            writer.start_file(*name, options).unwrap();
+            writer.write_all(bytes).unwrap();
+        }
+        for (name, target) in links {
+            writer
+                .add_symlink(*name, *target, zip::write::SimpleFileOptions::default())
+                .unwrap();
+        }
+        writer.finish().unwrap();
+    }
+
+    #[test]
+    fn zip_file_links_inside_the_archive_extract_as_regular_copies() {
+        let temporary = tempdir().unwrap();
+        let source = temporary.path().join("bundle.zip");
+        let destination = temporary.path().join("out");
+        fs::create_dir_all(&destination).unwrap();
+        write_zip_with_links(
+            &source,
+            &[
+                (
+                    "App.app/Contents/Frameworks/libz.1.3.2.dylib",
+                    b"zlib",
+                    0o755,
+                ),
+                ("App.app/Contents/MacOS/App", b"main", 0o755),
+                ("App.app/Contents/Resources/notes.txt", b"notes", 0o644),
+            ],
+            &[
+                (
+                    "App.app/Contents/Frameworks/libz.1.dylib",
+                    "libz.1.3.2.dylib",
+                ),
+                (
+                    "App.app/Contents/MacOS/libz",
+                    "../Frameworks/./libz.1.3.2.dylib",
+                ),
+                ("App.app/Contents/Resources/Notes.link", "NOTES.TXT"),
+                ("App.app/Contents/Frameworks/libz.dylib", "libz.1.dylib"),
+            ],
+        );
+        extract_archive(
+            &source,
+            &destination,
+            "bundle.zip",
+            fs::metadata(&source).unwrap().len(),
+        )
+        .unwrap();
+        for copy in [
+            "App.app/Contents/Frameworks/libz.1.dylib",
+            "App.app/Contents/Frameworks/libz.dylib",
+            "App.app/Contents/MacOS/libz",
+        ] {
+            let path = destination.join(copy);
+            assert!(fs::symlink_metadata(&path).unwrap().file_type().is_file());
+            assert_eq!(fs::read(&path).unwrap(), b"zlib");
+            #[cfg(unix)]
+            assert_eq!(mode(&path), 0o755);
+        }
+        let notes = destination.join("App.app/Contents/Resources/Notes.link");
+        assert!(fs::symlink_metadata(&notes).unwrap().file_type().is_file());
+        assert_eq!(fs::read(&notes).unwrap(), b"notes");
+        #[cfg(unix)]
+        assert_eq!(mode(&notes), 0o644);
+        assert_eq!(
+            fs::read(destination.join("App.app/Contents/MacOS/App")).unwrap(),
+            b"main"
+        );
+    }
+
+    #[test]
+    fn zip_links_that_do_not_name_a_regular_archive_file_are_refused_before_writing() {
+        let temporary = tempdir().unwrap();
+        for (name, links) in [
+            ("absolute", vec![("dir/link", "/etc/passwd")]),
+            ("escape", vec![("dir/link", "../../outside")]),
+            ("above-root", vec![("link", "../real.bin")]),
+            ("missing", vec![("dir/link", "missing.bin")]),
+            ("directory", vec![("link", "dir")]),
+            ("self", vec![("dir/link", "link")]),
+            ("cycle", vec![("dir/a", "b"), ("dir/b", "a")]),
+            ("backslash", vec![("dir/link", "..\\real.bin")]),
+            ("empty", vec![("dir/link", "")]),
+            ("doubled-separator", vec![("dir/link", ".//real.bin")]),
+            ("trailing-separator", vec![("dir/link", "real.bin/")]),
+            ("control", vec![("dir/link", "real\u{1}.bin")]),
+        ] {
+            let source = temporary.path().join(format!("{name}.zip"));
+            let destination = temporary.path().join(format!("out-{name}"));
+            fs::create_dir_all(&destination).unwrap();
+            write_zip_with_links(
+                &source,
+                &[
+                    ("dir/real.bin", b"real", 0o644),
+                    ("real.bin", b"top", 0o644),
+                ],
+                &links,
+            );
+            let outcome = extract_archive(
+                &source,
+                &destination,
+                "fixture.zip",
+                fs::metadata(&source).unwrap().len(),
+            );
+            assert!(outcome.is_err(), "{name}");
+            assert_eq!(fs::read_dir(&destination).unwrap().count(), 0, "{name}");
+        }
+    }
+
+    #[test]
+    fn zip_links_are_counted_against_the_expanded_size_limit() {
+        let temporary = tempdir().unwrap();
+        let mut state = 0x9e37_79b9_7f4a_7c15_u64;
+        let payload = (0..64 * 1024)
+            .map(|_| {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                (state >> 24) as u8
+            })
+            .collect::<Vec<_>>();
+        let plain = temporary.path().join("plain.zip");
+        write_zip_with_links(&plain, &[("real.bin", &payload, 0o644)], &[]);
+        let plain_output = temporary.path().join("plain-out");
+        fs::create_dir_all(&plain_output).unwrap();
+        extract_archive(
+            &plain,
+            &plain_output,
+            "plain.zip",
+            fs::metadata(&plain).unwrap().len(),
+        )
+        .unwrap();
+
+        let source = temporary.path().join("linked.zip");
+        let destination = temporary.path().join("out");
+        fs::create_dir_all(&destination).unwrap();
+        let names = (0..400)
+            .map(|index| format!("copies/link-{index}"))
+            .collect::<Vec<_>>();
+        let links = names
+            .iter()
+            .map(|name| (name.as_str(), "../real.bin"))
+            .collect::<Vec<_>>();
+        write_zip_with_links(&source, &[("real.bin", &payload, 0o644)], &links);
+        let error = extract_archive(
+            &source,
+            &destination,
+            "linked.zip",
+            fs::metadata(&source).unwrap().len(),
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("compression ratio"), "{error}");
+        assert_eq!(fs::read_dir(&destination).unwrap().count(), 0);
+    }
+
     #[test]
     fn zip_preflight_rejects_traversal_links_collisions_and_aliases_before_writing() {
         let temporary = tempdir().unwrap();
@@ -1338,6 +1693,231 @@ mod tests {
                 "{name}"
             );
             assert_eq!(fs::read_dir(destination).unwrap().count(), 0, "{name}");
+        }
+    }
+
+    fn write_tar_gz_with_links(path: &Path, files: &[(&str, &[u8], u32)], links: &[(&str, &str)]) {
+        let encoder = flate2::write::GzEncoder::new(
+            File::create(path).unwrap(),
+            flate2::Compression::default(),
+        );
+        let mut builder = tar::Builder::new(encoder);
+        for (name, link) in links {
+            let mut header = tar::Header::new_gnu();
+            header.set_entry_type(tar::EntryType::Symlink);
+            header.set_size(0);
+            header.set_mode(0o777);
+            header.set_link_name(link).unwrap();
+            header.set_cksum();
+            builder
+                .append_data(&mut header, name, Cursor::new(Vec::<u8>::new()))
+                .unwrap();
+        }
+        for (name, bytes, mode) in files {
+            let mut header = tar::Header::new_gnu();
+            header.set_entry_type(tar::EntryType::Regular);
+            header.set_size(bytes.len() as u64);
+            header.set_mode(*mode);
+            header.set_cksum();
+            builder.append_data(&mut header, name, *bytes).unwrap();
+        }
+        builder.into_inner().unwrap().finish().unwrap();
+    }
+
+    #[test]
+    fn tar_file_links_and_chains_extract_as_regular_copies_even_before_their_target() {
+        let temporary = tempdir().unwrap();
+        let source = temporary.path().join("package.tar.gz");
+        let destination = temporary.path().join("out");
+        fs::create_dir_all(&destination).unwrap();
+        write_tar_gz_with_links(
+            &source,
+            &[
+                ("pkg/libSDL3.so.0.4.10", b"sdl", 0o755),
+                ("pkg/run", b"main", 0o755),
+                ("pkg/readme.txt", b"readme", 0o644),
+            ],
+            &[
+                ("pkg/libSDL3.so", "libSDL3.so.0"),
+                ("pkg/libSDL3.so.0", "libSDL3.so.0.4.10"),
+                ("pkg/docs.txt", "./readme.txt"),
+            ],
+        );
+        extract_archive(
+            &source,
+            &destination,
+            "package.tar.gz",
+            fs::metadata(&source).unwrap().len(),
+        )
+        .unwrap();
+        for copy in ["pkg/libSDL3.so", "pkg/libSDL3.so.0"] {
+            let path = destination.join(copy);
+            assert!(fs::symlink_metadata(&path).unwrap().file_type().is_file());
+            assert_eq!(fs::read(&path).unwrap(), b"sdl");
+            #[cfg(unix)]
+            assert_eq!(mode(&path), 0o755);
+        }
+        let docs = destination.join("pkg/docs.txt");
+        assert!(fs::symlink_metadata(&docs).unwrap().file_type().is_file());
+        assert_eq!(fs::read(&docs).unwrap(), b"readme");
+        #[cfg(unix)]
+        assert_eq!(mode(&docs), 0o644);
+    }
+
+    fn write_tar_gz_raw_paths(path: &Path, entries: &[(&str, tar::EntryType, &[u8], u32)]) {
+        let encoder = flate2::write::GzEncoder::new(
+            File::create(path).unwrap(),
+            flate2::Compression::default(),
+        );
+        let mut builder = tar::Builder::new(encoder);
+        for (name, kind, bytes, mode) in entries {
+            let mut header = tar::Header::new_gnu();
+            header.set_entry_type(*kind);
+            header.set_size(bytes.len() as u64);
+            header.set_mode(*mode);
+            // Write the name bytes directly so a leading "./" survives exactly as written.
+            let field = &mut header.as_old_mut().name;
+            field.fill(0);
+            field[..name.len()].copy_from_slice(name.as_bytes());
+            header.set_cksum();
+            builder.append(&header, *bytes).unwrap();
+        }
+        builder.into_inner().unwrap().finish().unwrap();
+    }
+
+    #[test]
+    fn tar_entries_written_with_a_leading_current_directory_extract_normally() {
+        let temporary = tempdir().unwrap();
+        let source = temporary.path().join("dotted.tar.gz");
+        let destination = temporary.path().join("out");
+        fs::create_dir_all(&destination).unwrap();
+        write_tar_gz_raw_paths(
+            &source,
+            &[
+                ("./", tar::EntryType::Directory, b"", 0o755),
+                ("./lib/", tar::EntryType::Directory, b"", 0o755),
+                ("./launch", tar::EntryType::Regular, b"run", 0o755),
+                ("././lib/data.bin", tar::EntryType::Regular, b"data", 0o644),
+            ],
+        );
+        extract_archive(
+            &source,
+            &destination,
+            "dotted.tar.gz",
+            fs::metadata(&source).unwrap().len(),
+        )
+        .unwrap();
+        assert_eq!(fs::read(destination.join("launch")).unwrap(), b"run");
+        assert_eq!(fs::read(destination.join("lib/data.bin")).unwrap(), b"data");
+        #[cfg(unix)]
+        assert_eq!(mode(&destination.join("launch")), 0o755);
+        assert_eq!(
+            fs::read_dir(&destination).unwrap().count(),
+            2,
+            "the root entry must not create anything"
+        );
+    }
+
+    #[test]
+    fn only_a_leading_current_directory_is_normalized_in_tar_paths() {
+        let temporary = tempdir().unwrap();
+        for (name, entries) in [
+            ("parent", vec![("./../escape", tar::EntryType::Regular)]),
+            ("inner-dot", vec![("./a/./b", tar::EntryType::Regular)]),
+            ("dot-file", vec![(".", tar::EntryType::Regular)]),
+            ("dot-slash-file", vec![("./", tar::EntryType::Regular)]),
+            ("double-slash", vec![(".//file", tar::EntryType::Regular)]),
+            ("dot-dot-only", vec![("./..", tar::EntryType::Directory)]),
+        ] {
+            let source = temporary.path().join(format!("{name}.tar.gz"));
+            let destination = temporary.path().join(format!("out-{name}"));
+            fs::create_dir_all(&destination).unwrap();
+            let raw = entries
+                .iter()
+                .map(|(entry, kind)| (*entry, *kind, &b"x"[..], 0o644_u32))
+                .collect::<Vec<_>>();
+            write_tar_gz_raw_paths(&source, &raw);
+            assert!(
+                extract_archive(
+                    &source,
+                    &destination,
+                    "refused.tar.gz",
+                    fs::metadata(&source).unwrap().len(),
+                )
+                .is_err(),
+                "{name}"
+            );
+            assert_eq!(fs::read_dir(&destination).unwrap().count(), 0, "{name}");
+        }
+    }
+
+    #[test]
+    fn tar_links_that_do_not_name_a_regular_archive_file_are_refused_before_writing() {
+        let temporary = tempdir().unwrap();
+        for (name, links) in [
+            ("absolute", vec![("dir/link", "/etc/passwd")]),
+            ("escape", vec![("dir/link", "../../outside")]),
+            ("missing", vec![("dir/link", "missing.bin")]),
+            ("directory", vec![("link", "dir")]),
+            ("self", vec![("dir/link", "link")]),
+            ("cycle", vec![("dir/a", "b"), ("dir/b", "a")]),
+            ("backslash", vec![("dir/link", "..\\real.bin")]),
+        ] {
+            let source = temporary.path().join(format!("{name}.tar.gz"));
+            let destination = temporary.path().join(format!("out-{name}"));
+            fs::create_dir_all(&destination).unwrap();
+            write_tar_gz_with_links(&source, &[("dir/real.bin", b"real", 0o644)], &links);
+            assert!(
+                extract_archive(
+                    &source,
+                    &destination,
+                    "fixture.tar.gz",
+                    fs::metadata(&source).unwrap().len(),
+                )
+                .is_err(),
+                "{name}"
+            );
+            assert_eq!(fs::read_dir(&destination).unwrap().count(), 0, "{name}");
+        }
+    }
+
+    #[test]
+    fn link_chains_deeper_than_the_limit_are_refused_and_the_limit_itself_extracts() {
+        let temporary = tempdir().unwrap();
+        for (depth, accepted) in [(MAX_LINK_CHAIN, true), (MAX_LINK_CHAIN + 1, false)] {
+            let names = (0..depth)
+                .map(|index| format!("l{index}"))
+                .collect::<Vec<_>>();
+            let targets = (0..depth)
+                .map(|index| {
+                    if index + 1 == depth {
+                        "real.bin".to_owned()
+                    } else {
+                        format!("l{}", index + 1)
+                    }
+                })
+                .collect::<Vec<_>>();
+            let links = names
+                .iter()
+                .zip(&targets)
+                .map(|(name, target)| (name.as_str(), target.as_str()))
+                .collect::<Vec<_>>();
+            let source = temporary.path().join(format!("chain-{depth}.tar.gz"));
+            let destination = temporary.path().join(format!("out-{depth}"));
+            fs::create_dir_all(&destination).unwrap();
+            write_tar_gz_with_links(&source, &[("real.bin", b"real", 0o644)], &links);
+            let outcome = extract_archive(
+                &source,
+                &destination,
+                "chain.tar.gz",
+                fs::metadata(&source).unwrap().len(),
+            );
+            assert_eq!(outcome.is_ok(), accepted, "{depth}");
+            if accepted {
+                assert_eq!(fs::read(destination.join("l0")).unwrap(), b"real");
+            } else {
+                assert_eq!(fs::read_dir(&destination).unwrap().count(), 0);
+            }
         }
     }
 

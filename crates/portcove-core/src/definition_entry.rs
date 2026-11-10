@@ -168,6 +168,19 @@ impl DefinitionContentIndex {
             return Err(crate::cartridge_build::retired_creation());
         }
         let adapter = serde_json::to_value(port.adapter)?;
+        if !retained && !port.reviewed_package_layouts.is_empty() {
+            crate::package_layout::validate(&port)?;
+            if port.adapter != crate::AdapterKind::NativePortable
+                || !document.required_capabilities.iter().any(|requirement| {
+                    requirement.template == "native-portable"
+                        && requirement.minimum_version >= crate::package_layout::NATIVE_CAPABILITY
+                })
+            {
+                return Err(PortcoveError::verification(
+                    "reviewed package layouts require native-portable capability version 18",
+                ));
+            }
+        }
         if crate::native_temp::has_sibling_platforms(&port)
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "native-portable" && requirement.minimum_version >= 10
@@ -195,6 +208,24 @@ impl DefinitionContentIndex {
             return Err(PortcoveError::verification(
                 "managed Linux TAR.XZ requires native capability version 8",
             ));
+        }
+        if port.release.archive_file_links {
+            let (template, minimum) = match port.adapter {
+                crate::AdapterKind::NativePortable => ("native-portable", 14),
+                crate::AdapterKind::N64RecompPortable => ("n64-recomp-portable", 5),
+                _ => {
+                    return Err(PortcoveError::verification(
+                        "archive file links are supported only by native and N64 recomp definitions",
+                    ));
+                }
+            };
+            if !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == template && requirement.minimum_version >= minimum
+            }) {
+                return Err(PortcoveError::verification(format!(
+                    "packages relying on archive file links require {template} capability version {minimum}"
+                )));
+            }
         }
         if port.n64_runtime_at_executable_parent
             && !document.required_capabilities.iter().any(|requirement| {

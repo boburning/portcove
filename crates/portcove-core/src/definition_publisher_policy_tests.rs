@@ -2275,7 +2275,14 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
                 CacheIntervention::ArtifactRevocationRestore
                     | CacheIntervention::ArtifactWithdrawalRestore
             ));
-    let latch_timeout = if slow_retention_setup {
+    // Windows CI 42741019876/1 partition 7 reached download about 14.08s
+    // after installer start on both attempts. The 15s latch expired before
+    // the first partial copy. Give only CancelRetain more setup headroom.
+    let windows_cancel_retention =
+        cfg!(target_os = "windows") && matches!(intervention, CacheIntervention::CancelRetain);
+    let latch_timeout = if windows_cancel_retention {
+        Duration::from_secs(30)
+    } else if slow_retention_setup {
         Duration::from_secs(15)
     } else if cfg!(all(target_os = "macos", target_arch = "x86_64"))
         && matches!(

@@ -41,6 +41,11 @@ import { observerCheckpointByteLimit } from "./observe-configured-upstream.mts";
 import { isRecord } from "./runtime-values.mts";
 import { parseDocument } from "yaml";
 
+/** The provider filters each recovery inventory by trigger (#4779). */
+function providerFiltered<T extends Record<string, unknown>>(endpoint: string, runs: T[]): T[] {
+  const event = new URLSearchParams(endpoint.split("?")[1]).get("event");
+  return event === null ? runs : runs.filter((run) => run.event === event);
+}
 const digest = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
 const configBytes = "fixture config",
   config = digest(configBytes);
@@ -97,6 +102,7 @@ function transport() {
       head_sha: source.source,
     },
   };
+  const extraRuns: unknown[] = [];
   let artifacts: unknown[] = [artifact],
     oldPublisher = false,
     downloads = 0;
@@ -107,9 +113,24 @@ function transport() {
       let body: unknown;
       if (endpoint === "repos/boburning/portcove")
         body = { id: 1354613114, full_name: "boburning/portcove", default_branch: "main" };
-      else if (endpoint.includes("/actions/workflows/"))
-        body = { total_count: 1, workflow_runs: [run] };
-      else if (endpoint.includes("/compare/"))
+      else if (endpoint.includes("/actions/workflows/")) {
+        // The provider filters each inventory by trigger.
+        const event = new URLSearchParams(endpoint.split("?")[1]).get("event");
+        const runs = (extraRuns as Record<string, unknown>[])
+          .concat([run])
+          .filter((value) => event === null || value.event === event)
+          .toSorted(
+            (left, right) =>
+              Date.parse(String(right.created_at)) - Date.parse(String(left.created_at)),
+          );
+        const query = new URLSearchParams(endpoint.split("?")[1]);
+        const size = Number(query.get("per_page") ?? 100),
+          page = Number(query.get("page") ?? 1);
+        body = {
+          total_count: runs.length,
+          workflow_runs: runs.slice((page - 1) * size, page * size),
+        };
+      } else if (endpoint.includes("/compare/"))
         body = { status: "ahead", merge_base_commit: { sha: source.source } };
       else if (endpoint.includes("/contents/"))
         body = {
@@ -147,6 +168,7 @@ function transport() {
       return archive;
     },
     count: () => downloads,
+    extraRuns,
     missing: () => {
       artifacts = [];
     },
@@ -306,9 +328,10 @@ void test("live-shaped discovery pages history and excludes comparison patches w
       const query = new URL(`https://api.github.com/${endpoint}`).searchParams,
         size = Number(query.get("per_page")),
         page = Number(query.get("page") ?? 1);
+      const listed = providerFiltered(endpoint, runs);
       body = {
-        total_count: runs.length,
-        workflow_runs: runs.slice((page - 1) * size, page * size),
+        total_count: listed.length,
+        workflow_runs: listed.slice((page - 1) * size, page * size),
       };
     } else if (endpoint.includes("/compare/")) {
       const base = endpoint.match(/compare\/([a-f0-9]{40})\.\.\./u)?.[1];
@@ -343,7 +366,8 @@ void test("live-shaped discovery pages history and excludes comparison patches w
   assert.equal(result.origin, "artifact");
   assert.equal(f.count(), 1);
   const pages = measured.filter((event) => event.route.includes("actions/workflows/"));
-  assert.equal(pages.length, 2);
+  // Two schedule pages reach the age boundary; the empty push inventory is one page.
+  assert.equal(pages.length, 3);
   assert.ok(pages.every((event) => event.route.includes("per_page=10")));
   assert.ok(
     measured
@@ -520,7 +544,9 @@ async function baselineTransport(t: Parameters<typeof directory>[0], realCatalog
       if (endpoint === "repos/boburning/portcove")
         body = { id: 1354613114, full_name: "boburning/portcove", default_branch: "main" };
       else if (endpoint.includes("/actions/workflows/"))
-        body = { total_count: state.total, workflow_runs: state.runs };
+        body = providerFiltered(endpoint, state.runs).length
+          ? { total_count: state.total, workflow_runs: state.runs }
+          : { total_count: 0, workflow_runs: [] };
       else if (endpoint.includes("/compare/"))
         body = {
           status: "ahead",
@@ -940,7 +966,13 @@ void test("foreign producers, altered artifact metadata and bounded-read failure
       f.run.head_branch = "feature";
     },
     (f: ReturnType<typeof transport>) => {
+      // A provider that ignores the trigger filter is refused, not trusted.
       f.run.event = "pull_request";
+      const original = f.api.read;
+      f.api.read = async (endpoint) =>
+        endpoint.includes("/actions/workflows/")
+          ? { ...(await original(endpoint.replace(/event=\w+&/u, ""))) }
+          : original(endpoint);
     },
     (f: ReturnType<typeof transport>) => {
       f.run.head_repository.id = 3;
@@ -1549,4 +1581,161 @@ void test("snapshot workflow keeps job-only read permission and shares the origi
     text,
     /actions: write|contents: write|id-token: write|secrets\.(?!GITHUB_TOKEN)/,
   );
+});
+
+void test("push producers on main are recoverable; other triggers never enter the inventory (#4779)", async (t) => {
+  const recover = (root: string, f: ReturnType<typeof transport>) =>
+    recoverObserverCheckpoint({
+      root,
+      config,
+      current,
+      deadline: Date.now() + 60000,
+      api: f.api,
+      download: f.download,
+    });
+
+  // A push run on main restores like a natural schedule.
+  const pushed = transport();
+  pushed.run.event = "push";
+  const pushedRoot = await directory(t);
+  const restored = await recover(pushedRoot, pushed);
+  assert.equal(restored.origin, "artifact");
+  assert.equal(pushed.count(), 1);
+  const inventories = pushed.routes.filter((route) => route.includes("/actions/workflows/"));
+  assert.ok(inventories.some((route) => route.includes("event=schedule")));
+  assert.ok(inventories.some((route) => route.includes("event=push")));
+  assert.ok(inventories.every((route) => /event=(schedule|push)&/u.test(route)));
+  assert.deepEqual(
+    JSON.parse(
+      await readFile(
+        path.join(pushedRoot, "work/upstream-observer/catalog/checkpoint.json"),
+        "utf8",
+      ),
+    ),
+    pushed.value.files["catalog/checkpoint.json"],
+  );
+
+  // Newer dispatch and fork pull-request runs are filtered out by the provider
+  // and cannot displace the trusted schedule producer or refuse recovery.
+  const crowded = transport();
+  const newer = new Date(Date.parse(crowded.run.created_at) + 60000).toISOString();
+  for (const [id, event, headRepository] of [
+    [201, "pull_request", 99],
+    [202, "workflow_dispatch", 1354613114],
+  ] as const)
+    crowded.extraRuns.push({
+      ...crowded.run,
+      id,
+      event,
+      head_repository: { id: headRepository },
+      created_at: newer,
+      conclusion: "success",
+    });
+  const crowdedRoot = await directory(t);
+  const kept = await recover(crowdedRoot, crowded);
+  assert.equal(kept.origin, "artifact");
+  assert.equal(crowded.count(), 1);
+
+  // A newer push run without its artifact is examined before an older schedule;
+  // the merged window is ordered newest-first across both triggers.
+  const ordered = transport();
+  const pushedAt = ordered.run.created_at;
+  ordered.run.created_at = new Date(Date.parse(pushedAt) - 60000).toISOString();
+  ordered.extraRuns.push({ ...ordered.run, id: 203, event: "push", created_at: pushedAt });
+  const orderedRoot = await directory(t);
+  await recover(orderedRoot, ordered);
+  const compared = ordered.routes.filter((route) => route.includes("/actions/runs/"));
+  assert.ok(compared[0]?.includes("/actions/runs/203/"), String(compared[0]));
+
+  // The provider filter is verified, never trusted blindly.
+  const mislabeled = transport();
+  mislabeled.extraRuns.push({ ...mislabeled.run, id: 204, event: "pull_request" });
+  const original = mislabeled.api.read;
+  mislabeled.api.read = async (endpoint) => {
+    const response = await original(endpoint);
+    return endpoint.includes("event=push")
+      ? {
+          ...response,
+          body: {
+            total_count: 1,
+            workflow_runs: [{ ...mislabeled.run, id: 204, event: "pull_request" }],
+          },
+        }
+      : response;
+  };
+  const mislabeledRoot = await directory(t);
+  await assert.rejects(recover(mislabeledRoot, mislabeled), /run inventory invalid/u);
+  await assert.rejects(
+    readFile(path.join(mislabeledRoot, "work/upstream-observer/catalog/checkpoint.json")),
+    { code: "ENOENT" },
+  );
+});
+
+void test("gated push runs are not history loss and each trigger window must cover itself (#4779)", async (t) => {
+  const recover = (root: string, f: ReturnType<typeof transport>) =>
+    recoverObserverCheckpoint({
+      root,
+      config,
+      current,
+      deadline: Date.now() + 60000,
+      api: f.api,
+      download: f.download,
+    });
+
+  // A newer push run that skipped observing has no snapshot, even though its
+  // source has the snapshot publisher; recovery passes it and restores the
+  // older schedule instead of demanding explicit recovery.
+  const gated = transport();
+  gated.publisher();
+  const pushedAt = gated.run.created_at;
+  gated.run.created_at = new Date(Date.parse(pushedAt) - 60000).toISOString();
+  gated.extraRuns.push({ ...gated.run, id: 205, event: "push", created_at: pushedAt });
+  const gatedRoot = await directory(t);
+  const restored = await recover(gatedRoot, gated);
+  assert.equal(restored.origin, "artifact");
+  assert.equal(gated.count(), 1);
+
+  // A full ten-page push window that neither completes nor reaches its age
+  // boundary refuses, even when the schedule window is bounded.
+  const crowded = transport();
+  crowded.missing();
+  const old = new Date(Date.now() - 30 * 3600000).toISOString();
+  crowded.run.created_at = old;
+  for (let i = 0; i < 101; i++)
+    crowded.extraRuns.push({
+      ...crowded.run,
+      id: 1000 + i,
+      event: "push",
+      conclusion: "cancelled",
+      created_at: new Date(Date.now() - (i + 1) * 60000).toISOString(),
+    });
+  const crowdedRoot = await directory(t);
+  await assert.rejects(recover(crowdedRoot, crowded), /coverage incomplete/u);
+  await assert.rejects(
+    readFile(path.join(crowdedRoot, "work/upstream-observer/catalog/checkpoint.json")),
+    { code: "ENOENT" },
+  );
+});
+
+void test("a push run at the age boundary keeps missing-history detection (#4779 review)", async (t) => {
+  for (const event of ["push", "schedule"]) {
+    const f = transport();
+    f.missing();
+    f.publisher();
+    f.run.event = event;
+    f.run.created_at = new Date(Date.now() - 25 * 3600000).toISOString();
+    const root = await directory(t);
+    await assert.rejects(
+      recoverObserverCheckpoint({
+        root,
+        config,
+        current,
+        deadline: Date.now() + 60000,
+        api: f.api,
+        download: f.download,
+      }),
+      /history missing after cutover/u,
+      event,
+    );
+  }
 });

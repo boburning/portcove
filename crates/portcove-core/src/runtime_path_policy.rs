@@ -37,7 +37,8 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     if port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::RelativeFileMaxPath) {
         let supported_route = (port.adapter == AdapterKind::NativePortable
             && (port.platforms == [Platform::WindowsX86_64]
-                || crate::native_temp::has_sibling_platforms(port)))
+                || crate::native_temp::has_sibling_platforms(port)
+                || windows_with_linux_tar_xz(port)))
             || (port.adapter == AdapterKind::LibultrashipPortable
                 && port.platforms.contains(&Platform::WindowsX86_64));
         return if supported_route
@@ -91,6 +92,14 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
         ));
     }
     Ok(())
+}
+
+/// A Windows-first native archive whose only other platform is the managed Linux TAR.XZ.
+fn windows_with_linux_tar_xz(port: &PortDefinition) -> bool {
+    port.platforms.len() == 2
+        && port.platforms.contains(&Platform::WindowsX86_64)
+        && port.platforms.contains(&Platform::LinuxX86_64)
+        && port.release.linux_tar_xz
 }
 
 pub(crate) fn minimum_capability(port: &PortDefinition) -> u32 {

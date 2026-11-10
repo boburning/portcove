@@ -732,7 +732,7 @@ async function main(args: string[]) {
     const project = (observation: Observation) =>
       projectObservation(cli, config, path.dirname(statePath), observation);
     const execution = {
-      kind: ["schedule", "workflow_dispatch"].includes(process.env.GITHUB_EVENT_NAME ?? "")
+      kind: ["schedule", "push", "workflow_dispatch"].includes(process.env.GITHUB_EVENT_NAME ?? "")
         ? process.env.GITHUB_EVENT_NAME
         : "local",
       source_commit: /^[a-f0-9]{40}$/.test(process.env.GITHUB_SHA ?? "")

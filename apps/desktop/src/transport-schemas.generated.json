@@ -4442,7 +4442,14 @@
           "dune-dynasty-allegro-v1",
           "fheroes2-v1",
           "openrct2-mac-v1",
-          "recomp-appimage-v1"
+          "recomp-appimage-v1",
+          "openmohaa-unix-v1",
+          "ironwail-linux-v1",
+          "vkquake-linux-v1",
+          "corsixth-linux-v1",
+          "openloco-unix-v1",
+          "jgrpp-linux-v1",
+          "openglad-mac-v1"
         ],
         "type": "string"
       },
@@ -5754,6 +5761,10 @@
       },
       "ReleaseSpec": {
         "properties": {
+          "archive_file_links": {
+            "description": "Native13: the package relies on in-archive file links, which extraction writes as\nregular copies of the files they name.",
+            "type": "boolean"
+          },
           "asset_hints": {
             "additionalProperties": false,
             "default": {},
@@ -27140,7 +27151,14 @@
           "dune-dynasty-allegro-v1",
           "fheroes2-v1",
           "openrct2-mac-v1",
-          "recomp-appimage-v1"
+          "recomp-appimage-v1",
+          "openmohaa-unix-v1",
+          "ironwail-linux-v1",
+          "vkquake-linux-v1",
+          "corsixth-linux-v1",
+          "openloco-unix-v1",
+          "jgrpp-linux-v1",
+          "openglad-mac-v1"
         ],
         "type": "string"
       },
@@ -27845,6 +27863,10 @@
       },
       "ReleaseSpec": {
         "properties": {
+          "archive_file_links": {
+            "description": "Native13: the package relies on in-archive file links, which extraction writes as\nregular copies of the files they name.",
+            "type": "boolean"
+          },
           "asset_hints": {
             "additionalProperties": false,
             "default": {},
@@ -36874,7 +36896,14 @@
           "dune-dynasty-allegro-v1",
           "fheroes2-v1",
           "openrct2-mac-v1",
-          "recomp-appimage-v1"
+          "recomp-appimage-v1",
+          "openmohaa-unix-v1",
+          "ironwail-linux-v1",
+          "vkquake-linux-v1",
+          "corsixth-linux-v1",
+          "openloco-unix-v1",
+          "jgrpp-linux-v1",
+          "openglad-mac-v1"
         ],
         "type": "string"
       },
@@ -38186,6 +38215,10 @@
       },
       "ReleaseSpec": {
         "properties": {
+          "archive_file_links": {
+            "description": "Native13: the package relies on in-archive file links, which extraction writes as\nregular copies of the files they name.",
+            "type": "boolean"
+          },
           "asset_hints": {
             "additionalProperties": false,
             "default": {},
