@@ -41,6 +41,11 @@ import { observerCheckpointByteLimit } from "./observe-configured-upstream.mts";
 import { isRecord } from "./runtime-values.mts";
 import { parseDocument } from "yaml";
 
+/** The provider filters each recovery inventory by trigger (#4779). */
+function providerFiltered<T extends Record<string, unknown>>(endpoint: string, runs: T[]): T[] {
+  const event = new URLSearchParams(endpoint.split("?")[1]).get("event");
+  return event === null ? runs : runs.filter((run) => run.event === event);
+}
 const digest = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
 const configBytes = "fixture config",
   config = digest(configBytes);
@@ -97,6 +102,7 @@ function transport() {
       head_sha: source.source,
     },
   };
+  const extraRuns: unknown[] = [];
   let artifacts: unknown[] = [artifact],
     oldPublisher = false,
     downloads = 0;
@@ -107,9 +113,18 @@ function transport() {
       let body: unknown;
       if (endpoint === "repos/boburning/portcove")
         body = { id: 1354613114, full_name: "boburning/portcove", default_branch: "main" };
-      else if (endpoint.includes("/actions/workflows/"))
-        body = { total_count: 1, workflow_runs: [run] };
-      else if (endpoint.includes("/compare/"))
+      else if (endpoint.includes("/actions/workflows/")) {
+        // The provider filters each inventory by trigger.
+        const event = new URLSearchParams(endpoint.split("?")[1]).get("event");
+        const runs = (extraRuns as Record<string, unknown>[])
+          .concat([run])
+          .filter((value) => event === null || value.event === event)
+          .toSorted(
+            (left, right) =>
+              Date.parse(String(right.created_at)) - Date.parse(String(left.created_at)),
+          );
+        body = { total_count: runs.length, workflow_runs: runs };
+      } else if (endpoint.includes("/compare/"))
         body = { status: "ahead", merge_base_commit: { sha: source.source } };
       else if (endpoint.includes("/contents/"))
         body = {
@@ -147,6 +162,7 @@ function transport() {
       return archive;
     },
     count: () => downloads,
+    extraRuns,
     missing: () => {
       artifacts = [];
     },
@@ -306,9 +322,10 @@ void test("live-shaped discovery pages history and excludes comparison patches w
       const query = new URL(`https://api.github.com/${endpoint}`).searchParams,
         size = Number(query.get("per_page")),
         page = Number(query.get("page") ?? 1);
+      const listed = providerFiltered(endpoint, runs);
       body = {
-        total_count: runs.length,
-        workflow_runs: runs.slice((page - 1) * size, page * size),
+        total_count: listed.length,
+        workflow_runs: listed.slice((page - 1) * size, page * size),
       };
     } else if (endpoint.includes("/compare/")) {
       const base = endpoint.match(/compare\/([a-f0-9]{40})\.\.\./u)?.[1];
@@ -343,7 +360,8 @@ void test("live-shaped discovery pages history and excludes comparison patches w
   assert.equal(result.origin, "artifact");
   assert.equal(f.count(), 1);
   const pages = measured.filter((event) => event.route.includes("actions/workflows/"));
-  assert.equal(pages.length, 2);
+  // Two schedule pages reach the age boundary; the empty push inventory is one page.
+  assert.equal(pages.length, 3);
   assert.ok(pages.every((event) => event.route.includes("per_page=10")));
   assert.ok(
     measured
@@ -520,7 +538,9 @@ async function baselineTransport(t: Parameters<typeof directory>[0], realCatalog
       if (endpoint === "repos/boburning/portcove")
         body = { id: 1354613114, full_name: "boburning/portcove", default_branch: "main" };
       else if (endpoint.includes("/actions/workflows/"))
-        body = { total_count: state.total, workflow_runs: state.runs };
+        body = providerFiltered(endpoint, state.runs).length
+          ? { total_count: state.total, workflow_runs: state.runs }
+          : { total_count: 0, workflow_runs: [] };
       else if (endpoint.includes("/compare/"))
         body = {
           status: "ahead",
@@ -940,7 +960,13 @@ void test("foreign producers, altered artifact metadata and bounded-read failure
       f.run.head_branch = "feature";
     },
     (f: ReturnType<typeof transport>) => {
+      // A provider that ignores the trigger filter is refused, not trusted.
       f.run.event = "pull_request";
+      const original = f.api.read;
+      f.api.read = async (endpoint) =>
+        endpoint.includes("/actions/workflows/")
+          ? { ...(await original(endpoint.replace(/event=\w+&/u, ""))) }
+          : original(endpoint);
     },
     (f: ReturnType<typeof transport>) => {
       f.run.head_repository.id = 3;
@@ -1551,12 +1577,7 @@ void test("snapshot workflow keeps job-only read permission and shares the origi
   );
 });
 
-void test("owner dispatches on main are recoverable producers; other dispatches are skipped (#4779)", async (t) => {
-  const owner = { id: 43177418 },
-    other = { id: 7 };
-  const dispatched = (f: ReturnType<typeof transport>, actor: object, triggering: object) => {
-    Object.assign(f.run, { event: "workflow_dispatch", actor, triggering_actor: triggering });
-  };
+void test("push producers on main are recoverable; other triggers never enter the inventory (#4779)", async (t) => {
   const recover = (root: string, f: ReturnType<typeof transport>) =>
     recoverObserverCheckpoint({
       root,
@@ -1567,60 +1588,79 @@ void test("owner dispatches on main are recoverable producers; other dispatches 
       download: f.download,
     });
 
-  const trusted = transport();
-  dispatched(trusted, owner, owner);
-  const trustedRoot = await directory(t);
-  const restored = await recover(trustedRoot, trusted);
+  // A push run on main restores like a natural schedule.
+  const pushed = transport();
+  pushed.run.event = "push";
+  const pushedRoot = await directory(t);
+  const restored = await recover(pushedRoot, pushed);
   assert.equal(restored.origin, "artifact");
-  assert.equal(trusted.count(), 1);
-  // The producer inventory spans schedules and dispatches on main.
-  assert.ok(
-    trusted.routes.some(
-      (route) => route.includes("/actions/workflows/") && !route.includes("event=schedule"),
-    ),
-  );
+  assert.equal(pushed.count(), 1);
+  const inventories = pushed.routes.filter((route) => route.includes("/actions/workflows/"));
+  assert.ok(inventories.some((route) => route.includes("event=schedule")));
+  assert.ok(inventories.some((route) => route.includes("event=push")));
+  assert.ok(inventories.every((route) => /event=(schedule|push)&/u.test(route)));
   assert.deepEqual(
     JSON.parse(
       await readFile(
-        path.join(trustedRoot, "work/upstream-observer/catalog/checkpoint.json"),
+        path.join(pushedRoot, "work/upstream-observer/catalog/checkpoint.json"),
         "utf8",
       ),
     ),
-    trusted.value.files["catalog/checkpoint.json"],
+    pushed.value.files["catalog/checkpoint.json"],
   );
 
-  for (const [name, actor, triggering] of [
-    ["another dispatcher", other, other],
-    ["owner run re-run by another account", owner, other],
-    ["missing actor identity", {}, owner],
-  ] as const) {
-    const f = transport();
-    dispatched(f, actor, triggering);
-    const root = await directory(t);
-    const result = await recover(root, f);
-    assert.equal(result.origin, "initial-baseline", name);
-    assert.equal(f.count(), 0, name);
-    await assert.rejects(
-      readFile(path.join(root, "work/upstream-observer/catalog/checkpoint.json")),
-      { code: "ENOENT" },
-      name,
-    );
-  }
+  // Newer dispatch and fork pull-request runs are filtered out by the provider
+  // and cannot displace the trusted schedule producer or refuse recovery.
+  const crowded = transport();
+  const newer = new Date(Date.parse(crowded.run.created_at) + 60000).toISOString();
+  for (const [id, event, headRepository] of [
+    [201, "pull_request", 99],
+    [202, "workflow_dispatch", 1354613114],
+  ] as const)
+    crowded.extraRuns.push({
+      ...crowded.run,
+      id,
+      event,
+      head_repository: { id: headRepository },
+      created_at: newer,
+      conclusion: "success",
+    });
+  const crowdedRoot = await directory(t);
+  const kept = await recover(crowdedRoot, crowded);
+  assert.equal(kept.origin, "artifact");
+  assert.equal(crowded.count(), 1);
 
-  // A trusted producer whose identity changes during collection never publishes.
-  const changed = transport();
-  dispatched(changed, owner, owner);
-  const original = changed.api.read;
-  changed.api.read = async (endpoint) => {
+  // A newer push run without its artifact is examined before an older schedule;
+  // the merged window is ordered newest-first across both triggers.
+  const ordered = transport();
+  const pushedAt = ordered.run.created_at;
+  ordered.run.created_at = new Date(Date.parse(pushedAt) - 60000).toISOString();
+  ordered.extraRuns.push({ ...ordered.run, id: 203, event: "push", created_at: pushedAt });
+  const orderedRoot = await directory(t);
+  await recover(orderedRoot, ordered);
+  const compared = ordered.routes.filter((route) => route.includes("/actions/runs/"));
+  assert.ok(compared[0]?.includes("/actions/runs/203/"), String(compared[0]));
+
+  // The provider filter is verified, never trusted blindly.
+  const mislabeled = transport();
+  mislabeled.extraRuns.push({ ...mislabeled.run, id: 204, event: "pull_request" });
+  const original = mislabeled.api.read;
+  mislabeled.api.read = async (endpoint) => {
     const response = await original(endpoint);
-    return endpoint.endsWith("/runs/101")
-      ? { ...response, body: { ...changed.run, triggering_actor: other } }
+    return endpoint.includes("event=push")
+      ? {
+          ...response,
+          body: {
+            total_count: 1,
+            workflow_runs: [{ ...mislabeled.run, id: 204, event: "pull_request" }],
+          },
+        }
       : response;
   };
-  const changedRoot = await directory(t);
-  await assert.rejects(recover(changedRoot, changed), /producer changed during collection/u);
+  const mislabeledRoot = await directory(t);
+  await assert.rejects(recover(mislabeledRoot, mislabeled), /run inventory invalid/u);
   await assert.rejects(
-    readFile(path.join(changedRoot, "work/upstream-observer/catalog/checkpoint.json")),
+    readFile(path.join(mislabeledRoot, "work/upstream-observer/catalog/checkpoint.json")),
     { code: "ENOENT" },
   );
 });

@@ -42,23 +42,12 @@ const repository = "boburning/portcove",
   repositoryId = 1354613114;
 const workflow = ".github/workflows/configured-upstream-observer.yml";
 const workflowId = 354075266;
-/** Repository owner account. Only its own dispatches on main may produce
- * recoverable history besides natural schedules (#4779); a dispatch by any other
- * account is skipped, never trusted. Numeric identity, not login, is compared. */
-const ownerAccountId = 43177418;
-
-type ProducerTrust = "trusted" | "untrusted-dispatch" | "foreign";
-/** Classify a completed run's trigger as a checkpoint producer. */
-export function producerTrust(raw: Record<string, unknown>): ProducerTrust {
-  if (raw.event === "schedule") return "trusted";
-  if (raw.event !== "workflow_dispatch") return "foreign";
-  return isRecord(raw.actor) &&
-    raw.actor.id === ownerAccountId &&
-    isRecord(raw.triggering_actor) &&
-    raw.triggering_actor.id === ownerAccountId
-    ? "trusted"
-    : "untrusted-dispatch";
-}
+/** Natural schedules and pushes to main run main's reviewed workflow source.
+ * GitHub can skip schedules for hours, so push runs also produce recoverable
+ * history (#4779). Each is listed through a server-filtered inventory, so runs
+ * of any other trigger, including fork pull requests, never enter recovery. */
+export const producerEvents = ["schedule", "push"] as const;
+type ProducerEvent = (typeof producerEvents)[number];
 const maximumAge = 24 * 3600000;
 const member = "checkpoint.json";
 const binarySnapshotMagic = Buffer.from("PORTCOVE-OBSERVER-SNAPSHOT-3\n", "ascii");
@@ -731,7 +720,7 @@ async function scheduledRunWindow(
   read: (route: string) => Promise<unknown>,
   currentRun: number,
   now: number,
-  events: "schedule" | "schedule-and-dispatch" = "schedule",
+  event: ProducerEvent = "schedule",
 ) {
   const runs: Record<string, unknown>[] = [],
     seen = new Set<number>();
@@ -739,7 +728,7 @@ async function scheduledRunWindow(
     previousCreated = Infinity;
   for (let page = 1; page <= 10; page++) {
     const raw = await read(
-      `actions/workflows/${workflowId}/runs?branch=main${events === "schedule" ? "&event=schedule" : ""}&per_page=10&page=${page}`,
+      `actions/workflows/${workflowId}/runs?branch=main&event=${event}&per_page=10&page=${page}`,
     );
     requireValue(
       isRecord(raw) &&
@@ -760,6 +749,7 @@ async function scheduledRunWindow(
           Number.isSafeInteger(value.id) &&
           Number(value.id) > 0 &&
           !seen.has(Number(value.id)) &&
+          value.event === event &&
           typeof value.created_at === "string" &&
           Number.isFinite(Date.parse(value.created_at)) &&
           Date.parse(value.created_at) <= previousCreated,
@@ -1066,9 +1056,19 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
   } catch (error) {
     if (errorCode(error) !== "ENOENT") throw error;
   }
-  // Owner dispatches on main are producers too, so their progress survives a
-  // missed schedule. Untrusted dispatches are skipped; other triggers refuse.
-  const inventory = await scheduledRunWindow(read, current.run, now(), "schedule-and-dispatch");
+  // Each trusted trigger has its own complete, server-filtered window; merging
+  // them newest-first keeps the most recent producer of either kind first.
+  const windows = [];
+  for (const event of producerEvents)
+    windows.push(await scheduledRunWindow(read, current.run, now(), event));
+  const inventory = {
+    runs: windows
+      .flatMap((window) => window.runs)
+      .toSorted(
+        (left, right) => Date.parse(String(right.created_at)) - Date.parse(String(left.created_at)),
+      ),
+    complete: windows.every((window) => window.complete),
+  };
   let expectedHistory = false;
   let reachedAgeBoundary = false;
   for (const raw of inventory.runs) {
@@ -1077,7 +1077,7 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
     requireValue(
       raw.workflow_id === workflowId &&
         raw.path === workflow &&
-        producerTrust(raw) !== "foreign" &&
+        producerEvents.includes(raw.event as ProducerEvent) &&
         raw.head_branch === "main" &&
         isRecord(raw.repository) &&
         raw.repository.id === repositoryId &&
@@ -1085,7 +1085,6 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
         raw.head_repository.id === repositoryId,
       "foreign scheduled producer",
     );
-    if (producerTrust(raw) !== "trusted") continue;
     requireValue(
       typeof raw.created_at === "string" &&
         Number.isFinite(Date.parse(raw.created_at)) &&
@@ -1202,7 +1201,6 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
         runAfter.workflow_id === workflowId &&
         runAfter.path === workflow &&
         runAfter.event === raw.event &&
-        producerTrust(runAfter) === "trusted" &&
         runAfter.head_branch === "main" &&
         isRecord(runAfter.repository) &&
         runAfter.repository.id === repositoryId &&
@@ -1281,7 +1279,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     requireValue(
       process.env.GITHUB_REPOSITORY === repository &&
         process.env.GITHUB_REF === "refs/heads/main" &&
-        ["schedule", "workflow_dispatch"].includes(process.env.GITHUB_EVENT_NAME ?? ""),
+        ["schedule", "push", "workflow_dispatch"].includes(process.env.GITHUB_EVENT_NAME ?? ""),
       "only the appointed main observer may recover checkpoints",
     );
     const current = {

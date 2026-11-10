@@ -3,6 +3,11 @@ name: Configured upstream observer
 on:
   schedule:
     - cron: "31 * * * *"
+  # GitHub can skip schedules for hours (#4779). Merges to main also start an
+  # observation; the per-ref concurrency group keeps one active run and at most
+  # one pending, so frequent merges cannot exceed back-to-back opportunities.
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:

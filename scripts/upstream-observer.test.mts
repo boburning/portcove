@@ -354,6 +354,10 @@ void test("scheduled observation keeps the configured cadence, read-only authori
   const hours = schedule.split(" ")[1]!;
   const intervalHours = hours === "*" ? 1 : Number(hours.replace(/^\*\//u, ""));
   assert.ok(Number.isInteger(intervalHours) && intervalHours <= config.cadence_hours);
+  // Pushes to main are a second trigger because GitHub skips schedules (#4779);
+  // no other branch or pull request event may start an observation.
+  assert.match(workflow, /\n  push:\n    branches: \[main\]\n/u);
+  assert.doesNotMatch(workflow, /\n  pull_request|\n  workflow_run|branches-ignore/u);
   assert.match(workflow, /permissions:\s+contents: read/);
   assert.doesNotMatch(
     workflow,
