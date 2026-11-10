@@ -291,6 +291,7 @@ export function BackupHistory({
       {renderRestoreAssessment()}
       {visible.map((backup, index) => {
         const createdLabel = new Date(backup.created_at * 1000).toLocaleString();
+        const automaticLabel = automaticSnapshotLabel(backup);
         return (
           <div
             className="backup-row grid min-w-0 gap-3 border-b border-pc-border py-4"
@@ -305,12 +306,12 @@ export function BackupHistory({
                 {backup.file_count} {backup.file_count === 1 ? "file" : "files"} ·{" "}
                 {formatBytes(backup.size)}
               </small>
-              {automaticSnapshotLabel(backup) && (
+              {automaticLabel && (
                 <small
-                  className="mt-[3px] block text-xs text-[var(--color-text-muted)]"
+                  className="mt-[3px] block text-xs [overflow-wrap:anywhere] text-[var(--color-text-muted)]"
                   data-automatic-snapshot
                 >
-                  {automaticSnapshotLabel(backup)}
+                  {automaticLabel}
                 </small>
               )}
             </span>

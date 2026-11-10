@@ -123,6 +123,7 @@ export function BackupReviewDialog({
 function BackupReviewDetails({ review }: { review: BackupReview }) {
   const { preview, port_name: portName, persistent_data_path: dataPath } = review;
   const { backup, action } = preview;
+  const automaticLabel = automaticSnapshotLabel(backup);
   return (
     <section className="backup-review-details" aria-label="Backup changes and preserved data">
       <p>
@@ -135,10 +136,12 @@ function BackupReviewDetails({ review }: { review: BackupReview }) {
       <p>
         {backup.file_count} {backup.file_count === 1 ? "file" : "files"} ·{" "}
         {formatBytes(backup.size)}
-        {automaticSnapshotLabel(backup) && (
+        {automaticLabel && (
           <>
             <br />
-            <small data-automatic-snapshot>{automaticSnapshotLabel(backup)}</small>
+            <small className="[overflow-wrap:anywhere]" data-automatic-snapshot>
+              {automaticLabel}
+            </small>
           </>
         )}
       </p>
