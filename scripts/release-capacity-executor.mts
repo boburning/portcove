@@ -380,6 +380,7 @@ async function authenticateOwnedCheckpointJournalHistoryWithinScope(
     deadline,
     reader.api,
     selected.review_withdrawal,
+    value.role === "coordinator" ? selected.purpose : undefined,
   );
   await exportCoordinatorCheckpoint(repository, expected);
   await reader.assertCurrentHead(claimedChild);
