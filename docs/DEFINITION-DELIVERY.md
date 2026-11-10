@@ -121,6 +121,15 @@ Windows and Linux retain the owned `.z2rs-data` fallback. The exact older
 Windows layout can use the launch check without rewriting its creating
 definition. New entries declaring the policy require version 20.
 
+Native portable version 21 consumes `recomp-direct-v1` for Body Harvest's
+official Windows and Linux x86-64 packages. The Linux package selects the
+direct AMD64 ELF player. Launch uses the upstream default profile lookup, holds
+portable markers and ambiguous or managed-overlapping profiles, and leaves
+profile data under player ownership.
+The exact retained Windows layout can apply this guard without recapturing its
+creating contract. Fresh and retained independent entries declaring the policy
+require version 21.
+
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
 entry that relies on the package-layout gate. Previously admitted
@@ -147,10 +156,10 @@ with the declaration require a Native14 lower bound for fresh and retained reads
 Older readers refuse such an entry; other definitions keep their existing package
 contracts.
 
-Native portable version 21 consumes `release.grant_declared_executable`, which lets Core
+Native portable version 22 consumes `release.grant_declared_executable`, which lets Core
 grant execution to the declared program of a package whose archive stores it without an
 executable bit, after verifying the file as a binary for the platform. Indexed entries
-with the declaration require a Native21 lower bound for fresh and retained reads; older
+with the declaration require a Native22 lower bound for fresh and retained reads; older
 readers refuse the whole definition, and no other adapter accepts the declaration.
 
 Native portable version 9 consumes `external_profile_policy` for the reviewed

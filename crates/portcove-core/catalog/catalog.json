@@ -39223,14 +39223,15 @@
     {
       "id": "body-harvest-recompiled",
       "name": "Body Harvest: Recompiled",
-      "summary": "Select your own North American cartridge dump on first Play. Portcove can manage a separate Windows copy or launch a copy you prepared.",
+      "summary": "Select your own North American cartridge dump on first Play. Portcove can manage a separate Windows or Linux x86-64 runtime or launch a copy you prepared.",
       "project_url": "https://github.com/mcsoderh/BodyHarvestRecomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -39240,12 +39241,19 @@
           "windows-x86-64": [
             "BodyHarvestRecompiled-",
             "-Windows.zip"
+          ],
+          "linux-x86-64": [
+            "BodyHarvestRecompiled-",
+            "-Linux-X64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "BodyHarvestRecompiled.exe"
+        ],
+        "linux-x86-64": [
+          "BodyHarvestRecompiled"
         ]
       },
       "persistent_paths": [],
@@ -39253,13 +39261,13 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use Load ROM to select your own North American Body Harvest cartridge dump. The player verifies the original and stores its private copy, settings and saves under %LOCALAPPDATA%\\BodyHarvestRecompiled. Back up that profile separately. Leave portable.txt out of the managed runtime to keep the profile outside it. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately. The managed route covers Windows x86-64. Use a separate upstream copy for portable.txt mode, Linux or macOS. Managed and external Windows copies can share the default profile. Check save compatibility before changing versions.",
+        "manual_preparation": "Use Load ROM to select your own North American Body Harvest cartridge dump. The player verifies and remembers a private copy in its profile, alongside settings and saves. Back up that profile separately before changing versions. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately. Use a separate upstream copy for portable.txt mode, an APP_FOLDER_PATH override, Linux ARM64, Flatpak or macOS. Managed and separately prepared copies can share the default profile. The official Linux x86-64 package needs glibc 2.35 and system SDL2, GTK 3, FreeType and GCC runtime libraries.",
         "original_game_title": "Body Harvest",
         "manual_setup": {
           "steps": [
             {
-              "title": "Set up the managed Windows copy on first Play",
-              "instruction": "Use Load ROM to select your own North American Body Harvest cartridge dump. The player verifies the original and stores its private copy, settings and saves under %LOCALAPPDATA%\\BodyHarvestRecompiled. Back up that profile separately. Leave portable.txt out of the managed runtime to keep the profile outside it."
+              "title": "Set up the managed copy on first Play",
+              "instruction": "Use Load ROM to select your own North American Body Harvest cartridge dump. The player verifies and remembers a private copy in its profile, alongside settings and saves. Back up that profile separately before changing versions."
             },
             {
               "title": "Keep a complete permitted player",
@@ -39276,13 +39284,15 @@
           ],
           "warnings": [
             "On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback.",
-            "The managed route covers Windows x86-64. Use a separate upstream copy for portable.txt mode, Linux or macOS. Managed and external Windows copies can share the default profile. Check save compatibility before changing versions."
+            "Use the complete upstream Mac application with its bundled libraries. The libraries in v1.0.0 target macOS 14 or later on both Mac architectures.",
+            "Use a separate upstream copy for portable.txt mode, an APP_FOLDER_PATH override, Linux ARM64, Flatpak or macOS. Managed and separately prepared copies can share the default profile.",
+            "The official Linux x86-64 package needs glibc 2.35 and system SDL2, GTK 3, FreeType and GCC runtime libraries."
           ],
           "help_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md",
           "references": [
             {
               "title": "Preserve the actual profile and working copy",
-              "instruction": "You or upstream provide updates to a copy you prepared yourself. Portcove updates its managed Windows runtime. Keep the complete external copy and actual profile: normally %LOCALAPPDATA%\\BodyHarvestRecompiled, ~/.config/BodyHarvestRecompiled, or ~/Library/Application Support/BodyHarvestRecompiled. On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback."
+              "instruction": "You or upstream provide updates to a copy you prepared yourself. Portcove updates its managed Windows or Linux x86-64 runtime. Keep the complete external copy and actual profile: normally %LOCALAPPDATA%\\BodyHarvestRecompiled, ~/.config/BodyHarvestRecompiled, or ~/Library/Application Support/BodyHarvestRecompiled. On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback."
             },
             {
               "title": "Registration ownership and removal",
@@ -39305,6 +39315,17 @@
           "image_sha256": "c14ab273e1271bb4fdee7feebc3bc6e9a34e7835e9fc42754f547fbbd853324a",
           "game_slug": "body-harvest",
           "match_kind": "underlying-game"
+        }
+      },
+      "external_profile_policy": "recomp-direct-v1",
+      "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "bodyharvestrecompiled"
+          ]
         }
       }
     },

@@ -291,7 +291,7 @@ impl<'a> IndexedCatalogFixture<'a> {
         let port = self.port.as_ref();
         let port_id = &port.id;
         let capability_version = if port.release.grant_declared_executable {
-            21
+            22
         } else if port.portable_marker_file.is_some() {
             19
         } else if !port.reviewed_package_layouts.is_empty() {

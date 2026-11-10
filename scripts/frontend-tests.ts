@@ -91,6 +91,9 @@ const browserProject = {
   },
 } satisfies TestProjectConfiguration;
 
+// Hosted CI runs every browser project below in sharded jobs. A new browser project must also be
+// added to the `frontend:browser` task in vite.config.ts and to `browserShardProjects` in
+// scripts/ci-baseline.mts; a contract test checks that those two lists agree.
 export const desktopProjects = [
   {
     extends: fileURLToPath(new URL("../apps/desktop/vite.config.ts", import.meta.url)),

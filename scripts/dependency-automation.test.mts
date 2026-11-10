@@ -155,7 +155,10 @@ void test("Rust Node and pnpm authorities and isolated runtime representations s
     assert.doesNotMatch(workflow, /uses: pnpm\/action-setup@[\s\S]{0,160}\n\s+version:/u);
   }
   for (const [filename, jobs] of [
-    [".github/workflows/application-update-production.yml", ["tool_attest", "attest"]],
+    [
+      ".github/workflows/application-update-production.yml",
+      ["tool_attest", "tool_attest_windows", "attest"],
+    ],
     ["docs/qualification/application-update-production.complete.yml", ["tool_attest", "attest"]],
     ["docs/qualification/application-update-production.controller-tools.yml", ["tool_attest"]],
   ] as const) {
@@ -839,7 +842,12 @@ void test("Node proposals update every maintained isolated pin without rewriting
             }
           }
         }
-        assert.equal(isolatedPins, filename.endsWith("controller-tools.yml") ? 1 : 2, filename);
+        const expectedPins = filename.startsWith(".github/")
+          ? 3
+          : filename.endsWith("controller-tools.yml")
+            ? 1
+            : 2;
+        assert.equal(isolatedPins, expectedPins, filename);
       }
     }
   }

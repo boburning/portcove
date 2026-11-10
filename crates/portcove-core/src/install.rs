@@ -70,7 +70,7 @@ pub struct InstallQualification {
     requires_tar_xz: bool,
     executable_hints: Vec<String>,
     runtime_subdirectory: Option<String>,
-    z2rs_desktop_profile: bool,
+    external_profile_policy: Option<crate::ExternalProfilePolicy>,
     persistent_paths: Vec<String>,
     persistent_file_patterns: Vec<crate::PersistentFilePattern>,
     runtime_mutable_paths: Vec<String>,
@@ -227,8 +227,7 @@ impl InstallQualification {
             requires_tar_xz: port.release.requires_tar_xz(platform),
             executable_hints,
             runtime_subdirectory: port.runtime_subdirectory.clone(),
-            z2rs_desktop_profile: port.external_profile_policy
-                == Some(crate::ExternalProfilePolicy::Z2rsDesktopV1),
+            external_profile_policy: port.external_profile_policy,
             persistent_paths: port.persistent_paths.clone(),
             persistent_file_patterns: port.persistent_file_patterns.clone(),
             runtime_mutable_paths: port.runtime_mutable_paths.clone(),
@@ -1242,6 +1241,14 @@ impl Installer {
             )?;
             if port.release.grant_declared_executable {
                 grant_declared_executable(&payload_root, &request.qualification)?;
+            }
+            if port.external_profile_policy == Some(crate::ExternalProfilePolicy::RecompDirectV1) {
+                let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
+                let working_directory =
+                    request.qualification.runtime_root(&payload_root, &selected);
+                crate::native_external_profile::recomp_direct::require_default_profile(
+                    &working_directory,
+                )?;
             }
             crate::native_external_profile::openmohaa::prepare_package(
                 port,
@@ -4011,7 +4018,8 @@ pub(crate) fn resolve_declared_executable(
     }
     refuse_symlink_path_within(root, &search_root, "declared runtime directory")?;
     let platform = qualification.platform;
-    let allow_one_wrapper = qualification.z2rs_desktop_profile
+    let allow_one_wrapper = qualification.external_profile_policy
+        == Some(crate::ExternalProfilePolicy::Z2rsDesktopV1)
         && matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64);
     let executable = resolve_executable_hints_with_wrapper(
         &search_root,
@@ -4020,8 +4028,14 @@ pub(crate) fn resolve_declared_executable(
         "declared executable",
         allow_one_wrapper,
     )?;
-    if qualification.z2rs_desktop_profile {
-        crate::native_external_profile::z2rs::require_unix_player(&executable, platform)?;
+    match qualification.external_profile_policy {
+        Some(crate::ExternalProfilePolicy::Z2rsDesktopV1) => {
+            crate::native_external_profile::z2rs::require_unix_player(&executable, platform)?;
+        }
+        Some(crate::ExternalProfilePolicy::RecompDirectV1) if platform == Platform::LinuxX86_64 => {
+            crate::native_external_profile::recomp_direct::require_linux_player(&executable)?;
+        }
+        _ => {}
     }
     Ok(executable)
 }

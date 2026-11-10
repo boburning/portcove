@@ -218,16 +218,13 @@ jobs:
     needs:
       - admission
       - tool_bootstrap
-      - tool_bootstrap_windows
     if: ${{ !cancelled() && needs.admission.result == 'success' &&
+      (needs.admission.outputs.publication_purpose == 'application' || needs.admission.outputs.publication_purpose == 'catalog-publication') &&
       ((needs.admission.outputs.publication_paused == 'false' && needs.admission.outputs.review_withdrawal != 'true') ||
       (needs.admission.outputs.publication_paused == 'true' && needs.admission.outputs.review_withdrawal == 'true' &&
-      needs.admission.outputs.publication_purpose == 'application')) && needs.tool_bootstrap.result == 'success' && ((needs.admission.outputs.publication_purpose == 'application' &&
-      needs.tool_bootstrap_windows.result == 'success') ||
-      (needs.admission.outputs.publication_purpose == 'catalog-publication' &&
-      needs.tool_bootstrap_windows.result == 'skipped')) }}
+      needs.admission.outputs.publication_purpose == 'application')) && needs.tool_bootstrap.result == 'success' }}
     runs-on: ubuntu-22.04
-    timeout-minutes: ${{ inputs.publication_purpose == 'application' && 2 || 1 }}
+    timeout-minutes: 1
     permissions:
       contents: read
       id-token: write
@@ -235,8 +232,6 @@ jobs:
     outputs:
       bundle_artifact_id: ${{ steps.bundle.outputs.artifact-id }}
       bundle_artifact_sha256: ${{ steps.bundle.outputs.artifact-digest }}
-      windows_bundle_artifact_id: ${{ steps.bundle_windows.outputs.artifact-id }}
-      windows_bundle_artifact_sha256: ${{ steps.bundle_windows.outputs.artifact-digest }}
     steps:
       - &a4
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
@@ -331,8 +326,21 @@ jobs:
           if-no-files-found: warn
           overwrite: false
           retention-days: 7
-      - if: ${{ needs.admission.outputs.publication_purpose == 'application' }}
-        name: Write only the fixed bootstrap's bounded structured predicate
+  tool_attest_windows:
+    name: Attest trusted Windows controller tools
+    needs: tool_bootstrap_windows
+    runs-on: ubuntu-22.04
+    timeout-minutes: 1
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    outputs:
+      windows_bundle_artifact_id: ${{ steps.bundle_windows.outputs.artifact-id }}
+      windows_bundle_artifact_sha256: ${{ steps.bundle_windows.outputs.artifact-digest }}
+    steps:
+      - *a4
+      - name: Write only the fixed bootstrap's bounded structured predicate
         env:
           PORTCOVE_PREDICATE: ${{ needs.tool_bootstrap_windows.outputs.predicate }}
         run: >
@@ -356,15 +364,13 @@ jobs:
 
           NODE
       - id: attest_windows
-        if: ${{ needs.admission.outputs.publication_purpose == 'application' }}
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
         with:
           subject-name: controller-tools-windows-manifest
           subject-digest: ${{ format('sha256:{0}', needs.tool_bootstrap_windows.outputs.manifest_sha256) }}
           predicate-type: https://portcove.dev/attestations/controller-tools/windows-v1
           predicate-path: ${{ runner.temp }}/controller-tools-windows-predicate.json
-      - if: ${{ needs.admission.outputs.publication_purpose == 'application' }}
-        name: Normalize only the completed bounded public bundle
+      - name: Normalize only the completed bounded public bundle
         env:
           PORTCOVE_ATTESTATION_BUNDLE_PATH: ${{ steps.attest_windows.outputs.bundle-path }}
         run: >
@@ -400,7 +406,6 @@ jobs:
 
           NODE
       - id: bundle_windows
-        if: ${{ needs.admission.outputs.publication_purpose == 'application' }}
         name: Upload only the exact normalized bundle
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
@@ -410,7 +415,7 @@ jobs:
           overwrite: false
           retention-days: 7
       - name: Retain declared predicate and any completed public bundle
-        if: ${{ always() && needs.admission.outputs.publication_purpose == 'application' }}
+        if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: trusted-controller-tools-windows-attestation-evidence-${{ github.run_id }}-${{
@@ -425,8 +430,12 @@ jobs:
           overwrite: false
           retention-days: 7
   tool_bootstrap_windows:
-    needs: admission
-    if: ${{ needs.admission.outputs.publication_purpose == 'application' }}
+    needs: [admission, coordinator]
+    if: &fresh_windows ${{ needs.admission.outputs.release_profile == 'initial-beta-windows-x86_64-v1' &&
+      needs.admission.outputs.publication_purpose == 'application' &&
+      needs.admission.outputs.classification_transport == 'fixed-job' &&
+      needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody !=
+      'reused' }}
     name: Prepare trusted Windows controller tools
     runs-on: windows-2022
     timeout-minutes: 22
@@ -1885,11 +1894,7 @@ jobs:
           installation_id: ${{ needs.admission.outputs.protection_installation_id }}
   native_windows:
     name: Qualify hosted Windows installed continuity
-    if: ${{ needs.admission.outputs.release_profile == 'initial-beta-windows-x86_64-v1' &&
-      needs.admission.outputs.publication_purpose == 'application' &&
-      needs.admission.outputs.classification_transport == 'fixed-job' &&
-      needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody !=
-      'reused' }}
+    if: *fresh_windows
     needs:
       - admission
       - tool_bootstrap
@@ -1898,6 +1903,7 @@ jobs:
       - independent_admission
       - attest
       - tool_bootstrap_windows
+      - tool_attest_windows
     runs-on: windows-2022
     timeout-minutes: 35
     environment: production-native-windows

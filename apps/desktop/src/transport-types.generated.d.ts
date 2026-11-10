@@ -336,7 +336,8 @@ export type ExternalProfilePolicy =
   | "openloco-unix-v1"
   | "jgrpp-linux-v1"
   | "openglad-mac-v1"
-  | "z2rs-desktop-v1";
+  | "z2rs-desktop-v1"
+  | "recomp-direct-v1";
 export type GameSettingsFormat = "json" | "ini";
 export type GameSettingType =
   | {
@@ -2110,7 +2111,7 @@ export interface ReleaseSpec {
     "windows-x86-64"?: DirectReleaseSpec;
   };
   /**
-   * Native21 (native definitions only): after extraction on a Unix platform, grant
+   * Native22 (native definitions only): after extraction on a Unix platform, grant
    * execute permission to the declared executable only when it verifies as a binary for
    * that platform. The publisher's own executable bit, when present, is never changed.
    */

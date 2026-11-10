@@ -1546,7 +1546,7 @@ void test("held receiver leaves both tool producers available and fences protect
     "${{ steps.pause.outputs.publication_paused }}",
   );
   assert.equal(jobs.tool_bootstrap?.needs, "admission");
-  assert.equal(jobs.tool_bootstrap_windows?.needs, "admission");
+  assert.deepEqual(jobs.tool_bootstrap_windows?.needs, ["admission", "coordinator"]);
   assert.match(
     jobs.tool_attest?.if ?? "",
     /needs\.admission\.outputs\.publication_paused == 'false'/u,

@@ -21,6 +21,10 @@ import {
   baselineRequiresPython,
   baselineRequiresRust,
   baselineRequiresDesktopDependencies,
+  baselineBrowserShardsRequired,
+  baselineBrowserShardPlan,
+  browserShardProjects,
+  parseBrowserShard,
 } from "./ci-baseline.mts";
 
 void test("Vite+ matcher exposes source locations and rule identities without private diagnostic text", () => {
@@ -616,6 +620,61 @@ void test("shared and unknown frontend inputs use full units; sources use the re
     assert.ok(!full.some((entry) => entry.id === "ui-related-tests"));
   }
   assert.throws(() => baselineFrontendPlan(make(["docs/QUALITY.md"])));
+});
+
+void test("sharded browser execution splits only the complete suite and cannot drift from the frontend:tests task", () => {
+  const full = make(["apps/desktop/tsconfig.json"]);
+  const related = make(["apps/desktop/src/App.tsx"]);
+  assert.equal(baselineBrowserShardsRequired(full), true);
+  assert.equal(baselineBrowserShardsRequired(related), false);
+  assert.equal(baselineBrowserShardsRequired(make(["docs/QUALITY.md"])), false);
+
+  // The main job swaps the combined test task for its unit half, in place and nothing else.
+  const sharded = baselineFrontendPlan(full, {}, true);
+  assert.deepEqual(
+    sharded.map((entry) => entry.id),
+    baselineFrontendPlan(full).map((entry) =>
+      entry.id === "ui-tests" ? "ui-unit-tests" : entry.id,
+    ),
+  );
+  const unit = sharded.find((entry) => entry.id === "ui-unit-tests");
+  assert.ok(unit);
+  assert.deepEqual(unit.args, ["scripts/run-viteplus.mts", "run", "frontend:unit"]);
+  // A related-test plan must never silently lose its browser coverage.
+  assert.throws(() => baselineFrontendPlan(related, {}, true), /complete frontend test plan/u);
+
+  const [shard, ...rest] = baselineBrowserShardPlan(full, { index: 2, total: 3 });
+  assert.ok(shard && rest.length === 0);
+  assert.equal(shard.id, "ui-browser-shard");
+  assert.deepEqual(shard.args, [
+    "scripts/run-viteplus.mts",
+    "test",
+    ...browserShardProjects.flatMap((project) => ["--project", project]),
+    "--shard=2/3",
+  ]);
+  assert.throws(() => baselineBrowserShardPlan(related, { index: 1, total: 3 }));
+
+  // Unit plus the sharded browser projects must be exactly what frontend:tests runs today.
+  const config = readFileSync(new URL("../vite.config.ts", import.meta.url), "utf8");
+  assert.match(
+    config,
+    /"frontend:tests": \{\s*command: \["vp run frontend:unit", "vp run frontend:browser"\]/u,
+  );
+  const browserTask = /"frontend:browser": \{\s*command:\s*"([^"]+)"/u.exec(config)?.[1];
+  assert.ok(browserTask);
+  assert.deepEqual(
+    [...browserTask.matchAll(/--project (\S+)/gu)].map((match) => match[1]),
+    [...browserShardProjects],
+  );
+  assert.match(
+    config,
+    /"frontend:unit": \{\s*command: "node scripts\/run-viteplus\.mts test --project unit"/u,
+  );
+
+  assert.deepEqual(parseBrowserShard("1/3"), { index: 1, total: 3 });
+  assert.deepEqual(parseBrowserShard("16/16"), { index: 16, total: 16 });
+  for (const bad of [undefined, "", "0/3", "4/3", "1/0", "1/17", "a/b", "1/3/5", "01/3", " 1/3"])
+    assert.throws(() => parseBrowserShard(bad), /PORTCOVE_BROWSER_SHARD/u, String(bad));
 });
 
 void test("selected contract tests retain cheap actual-checkout integrity", () => {

@@ -100,7 +100,7 @@ fn entry_with_reference(document: &Value, reference: &str, port_index: usize) ->
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
     let version = if typed.release.grant_declared_executable {
-        21
+        22
     } else if typed.portable_marker_file.is_some() {
         19
     } else if !typed.reviewed_package_layouts.is_empty() {
@@ -316,6 +316,7 @@ fn current_projection_routes_keep_distinct_capability_floors() {
             crate::package_layout::NATIVE_CAPABILITY,
         ),
         ("troyedwardsjr-z2rs", 20),
+        ("body-harvest-recompiled", 21),
     ] {
         let position = document["catalog"]["ports"]
             .as_array()

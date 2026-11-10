@@ -1263,6 +1263,8 @@ void test("fixed controller tool senders use the locked SDK before signing exact
       const prefix = "/repos/boburning/portcove";
       if (url.pathname === `${prefix}/actions/artifacts/99`) {
         artifactReads++;
+        if (refuseAt === "artifact-not-visible")
+          return Response.json({ message: "private diagnostic fixture" }, { status: 404 });
         if (refuseAt === "artifact-recheck" && artifactReads === 2)
           throw new Error("private diagnostic fixture");
         process.env.GH_TOKEN = "unrelated-mutated-token";
@@ -1305,6 +1307,7 @@ void test("fixed controller tool senders use the locked SDK before signing exact
       ]);
       assert.equal(oidc.counts().requests, 5);
       for (const [failurePath, phase, identityRefusal] of [
+        ["artifact-not-visible", "provider-before"],
         ["/oidc", "producer-token-request"],
         ["/.well-known/jwks", "producer-identity-verification", "provider-keys"],
         [
@@ -1343,6 +1346,7 @@ void test("fixed controller tool senders use the locked SDK before signing exact
           directory,
           phase,
           ...(identityRefusal ? { identity_refusal: identityRefusal } : {}),
+          ...(failurePath === "artifact-not-visible" ? { provider_status: 404 } : {}),
           authority: "none",
           automatic_retry: false,
         });
@@ -2064,8 +2068,9 @@ void test("held Windows producer joins the exact platform artifact to an isolate
   assert.deepEqual(document.errors, []);
   const jobs = record(record(document.toJS()).jobs);
   const producer = record(jobs.tool_bootstrap_windows);
-  const attester = record(jobs.tool_attest);
-  assert.equal(producer.if, "${{ needs.admission.outputs.publication_purpose == 'application' }}");
+  const linuxAttester = record(jobs.tool_attest);
+  const attester = record(jobs.tool_attest_windows);
+  assert.deepEqual(producer.needs, ["admission", "coordinator"]);
   for (const job of [producer, attester]) {
     assert.doesNotMatch(
       JSON.stringify(job),
@@ -2128,25 +2133,22 @@ void test("held Windows producer joins the exact platform artifact to an isolate
       ],
     ],
   );
-  assert.deepEqual(attester.needs, ["admission", "tool_bootstrap", "tool_bootstrap_windows"]);
-  assert.ok(typeof attester.if === "string");
-  for (const [purpose, windows, linux, admission, cancelled, expected, paused = "false"] of [
-    ["application", "success", "success", "success", false, true],
-    ["application", "success", "success", "success", false, false, "true"],
-    ["application", "success", "success", "success", false, false, ""],
-    ["application", "success", "success", "success", true, false],
-    ["application", "failure", "success", "success", false, false],
-    ["application", "skipped", "success", "success", false, false],
-    ["application", "success", "failure", "success", false, false],
-    ["application", "success", "success", "failure", false, false],
-    ["catalog-publication", "skipped", "success", "success", false, true],
-    ["catalog-publication", "success", "success", "success", false, false],
-    ["catalog-publication", "skipped", "failure", "success", false, false],
-    ["unknown", "success", "success", "success", false, false],
+  assert.deepEqual(linuxAttester.needs, ["admission", "tool_bootstrap"]);
+  assert.deepEqual(attester.needs, "tool_bootstrap_windows");
+  assert.ok(typeof linuxAttester.if === "string");
+  for (const [purpose, linux, admission, cancelled, expected, paused = "false"] of [
+    ["application", "success", "success", false, true],
+    ["application", "success", "success", false, false, "true"],
+    ["application", "success", "success", false, false, ""],
+    ["application", "success", "success", true, false],
+    ["application", "failure", "success", false, false],
+    ["application", "success", "failure", false, false],
+    ["catalog-publication", "success", "success", false, true],
+    ["catalog-publication", "failure", "success", false, false],
+    ["unknown", "success", "success", false, false],
   ] as const) {
     assert.equal(
-      runInNewContext(attester.if.slice(3, -2), {
-        always: () => true,
+      runInNewContext(linuxAttester.if.slice(3, -2), {
         cancelled: () => cancelled,
         needs: {
           admission: {
@@ -2154,17 +2156,14 @@ void test("held Windows producer joins the exact platform artifact to an isolate
             outputs: { publication_purpose: purpose, publication_paused: paused },
           },
           tool_bootstrap: { result: linux },
-          tool_bootstrap_windows: { result: windows },
         },
       }),
       expected,
-      `${purpose}/${windows}/${linux}/${admission}/${paused}`,
+      `${purpose}/${linux}/${admission}/${paused}`,
     );
   }
-  assert.equal(
-    attester["timeout-minutes"],
-    "${{ inputs.publication_purpose == 'application' && 2 || 1 }}",
-  );
+  assert.equal(linuxAttester["timeout-minutes"], 1);
+  assert.equal(attester["timeout-minutes"], 1);
   assert.deepEqual(attester.permissions, {
     contents: "read",
     "id-token": "write",
@@ -2207,29 +2206,40 @@ void test("held Windows producer joins the exact platform artifact to an isolate
     nativeWindows.if,
     "${{ needs.admission.outputs.release_profile == 'initial-beta-windows-x86_64-v1' && needs.admission.outputs.publication_purpose == 'application' && needs.admission.outputs.classification_transport == 'fixed-job' && needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused' }}",
   );
-  assert.equal(jobs.tool_attest_windows, undefined);
+  assert.ok(nativeWindows.needs.includes("tool_attest_windows"));
+  assert.equal(producer.if, nativeWindows.if);
+  assert.ok(typeof producer.if === "string");
+  for (const [mode, custody, purpose, expected] of [
+    ["release", "fresh", "application", true],
+    ["release", "reused", "application", false],
+    ["metadata", "fresh", "application", false],
+    ["release", "fresh", "catalog-publication", false],
+  ] as const) {
+    assert.equal(
+      runInNewContext(producer.if.slice(3, -2), {
+        needs: {
+          admission: {
+            outputs: {
+              release_profile: "initial-beta-windows-x86_64-v1",
+              publication_purpose: purpose,
+              classification_transport: "fixed-job",
+            },
+          },
+          coordinator: { outputs: { mode, signing_custody: custody } },
+        },
+      }),
+      expected,
+      `${mode}/${custody}/${purpose}`,
+    );
+  }
   assert.equal(
     record(attester.outputs).windows_bundle_artifact_id,
     "${{ steps.bundle_windows.outputs.artifact-id }}",
   );
   assert.equal(
-    record(attester.outputs).bundle_artifact_id,
+    record(linuxAttester.outputs).bundle_artifact_id,
     "${{ steps.bundle.outputs.artifact-id }}",
   );
-  for (const step of attesterSteps.filter(
-    (step) =>
-      JSON.stringify(step).includes("controller-tools-windows") || step.id === "bundle_windows",
-  )) {
-    assert.ok(typeof step.if === "string");
-    assert.equal(
-      runInNewContext(step.if.slice(3, -2), {
-        always: () => true,
-        cancelled: () => false,
-        needs: { admission: { outputs: { publication_purpose: "catalog-publication" } } },
-      }),
-      false,
-    );
-  }
   const { hostedWindowsAccountQualificationEnabled } =
     await import("./qualify-controller-tools-windows.mts");
   assert.equal(hostedWindowsAccountQualificationEnabled, false);

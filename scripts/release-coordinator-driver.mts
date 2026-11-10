@@ -115,6 +115,7 @@ import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import {
   isRetainedApplicationReviewClaimScope,
   isRetainedApplicationRenewalClaimScope,
+  isSettledApplicationRenewalRecoveryRef,
   retainedApplicationReviewClaim,
   retainedApplicationRenewalClaim,
 } from "./release-coordinator-checkpoint-authentication.mts";
@@ -2262,9 +2263,7 @@ async function prepareTrustedCoordinatorRenewalAt(
       },
     };
     const pin = retainedApplicationRenewalClaim;
-    const settledRecovery =
-      reader.admitted.execution_ref === pin.settled_successor_ref ||
-      reader.admitted.execution_ref === pin.latency_successor_ref;
+    const settledRecovery = isSettledApplicationRenewalRecoveryRef(reader.admitted.execution_ref);
     const appointedRecovery =
       settledRecovery || reader.admitted.execution_ref === pin.successor_ref;
     const resumingClaim = appointedRecovery && checkpoint !== pin.child;

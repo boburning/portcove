@@ -249,7 +249,10 @@ void test("per-port source projects all accepted operations unchanged and listin
 void test("upstream package platforms extend only the descriptive listing", () => {
   const { records, catalog, directory } = readCatalogSource(catalogRoot);
   const id = "body-harvest-recompiled";
-  assert.deepEqual(catalog.ports.find((port) => port.id === id)?.platforms, ["windows-x86-64"]);
+  assert.deepEqual(catalog.ports.find((port) => port.id === id)?.platforms, [
+    "windows-x86-64",
+    "linux-x86-64",
+  ]);
   assert.deepEqual(directory.listings.find((port) => port.id === id)?.platforms, [
     "windows-x86-64",
     "linux-x86-64",
