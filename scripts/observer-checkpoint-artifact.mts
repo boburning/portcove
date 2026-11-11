@@ -1105,17 +1105,6 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
       source: String(raw.head_sha),
     };
     producer(source);
-    // GitHub includes file patches only on comparison page one. Global status
-    // and merge-base identity remain present on page two, even with no commits.
-    // No commit/file inventory is claimed or needed for this ancestry predicate.
-    const comparison = await read(`compare/${source.source}...${current.source}?per_page=1&page=2`);
-    requireValue(
-      isRecord(comparison) &&
-        ["ahead", "identical"].includes(String(comparison.status)) &&
-        isRecord(comparison.merge_base_commit) &&
-        comparison.merge_base_commit.sha === source.source,
-      "producer is not retained main ancestry",
-    );
     const tooOld = now() - Date.parse(raw.created_at) > maximumAge;
     const artifacts = tooOld
       ? { artifacts: [] }
@@ -1133,6 +1122,17 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
       // so missing history still requires explicit recovery.
       continue;
     }
+    // GitHub includes file patches only on comparison page one. Global status
+    // and merge-base identity remain present on page two, even with no commits.
+    // No commit/file inventory is claimed or needed for this ancestry predicate.
+    const comparison = await read(`compare/${source.source}...${current.source}?per_page=1&page=2`);
+    requireValue(
+      isRecord(comparison) &&
+        ["ahead", "identical"].includes(String(comparison.status)) &&
+        isRecord(comparison.merge_base_commit) &&
+        comparison.merge_base_commit.sha === source.source,
+      "producer is not retained main ancestry",
+    );
     if (!matches.length) {
       // Explicit migration only: inspect trusted old source, never silently cold-start
       // after a deployed snapshot publisher failed to retain its history.

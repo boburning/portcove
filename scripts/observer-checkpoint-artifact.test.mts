@@ -1699,10 +1699,43 @@ void test("gated push runs are not history loss and each trigger window must cov
   gated.publisher();
   const pushedAt = gated.run.created_at;
   gated.run.created_at = new Date(Date.parse(pushedAt) - 60000).toISOString();
-  gated.extraRuns.push({ ...gated.run, id: 205, event: "push", created_at: pushedAt });
+  const laterSource = "f".repeat(40);
+  gated.extraRuns.push({
+    ...gated.run,
+    id: 205,
+    head_sha: laterSource,
+    event: "push",
+    created_at: pushedAt,
+  });
+  const read = gated.api.read;
+  const laterArtifacts: unknown[] = [];
+  gated.api.read = async (endpoint) => {
+    const body = endpoint.includes("/actions/runs/205/artifacts?")
+      ? { total_count: laterArtifacts.length, artifacts: laterArtifacts }
+      : endpoint.includes(`/compare/${laterSource}...`)
+        ? { status: "behind", merge_base_commit: { sha: current.source } }
+        : null;
+    if (body === null) return read(endpoint);
+    return {
+      status: 200,
+      headers: new Map<string, string>(),
+      body,
+      bodyBytes: Buffer.byteLength(JSON.stringify(body)),
+    };
+  };
   const gatedRoot = await directory(t);
   const restored = await recover(gatedRoot, gated);
   assert.equal(restored.origin, "artifact");
+  assert.equal(gated.count(), 1);
+
+  laterArtifacts.push({
+    ...gated.artifact,
+    name: snapshotName(config, { run: 205, attempt: 1, source: laterSource }),
+  });
+  await assert.rejects(
+    recover(await directory(t), gated),
+    /producer is not retained main ancestry/u,
+  );
   assert.equal(gated.count(), 1);
 
   // A full ten-page push window that neither completes nor reaches its age
