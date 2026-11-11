@@ -177,8 +177,8 @@ export function InstallBatchPanel({
           <h3>{stillRunning(phase.record) ? "Setup batch in progress" : "Setup batch results"}</h3>
           {stillRunning(phase.record) && (
             <p role="status">
-              Another Portcove window is still installing part of this batch. Check again after it
-              finishes.
+              Part of this batch is still in progress or its game is busy with another task. Check
+              again later; nothing more was started for those games.
             </p>
           )}
           <ul>

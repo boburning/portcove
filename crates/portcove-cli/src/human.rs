@@ -929,6 +929,12 @@ pub(crate) fn install_batch(record: &portcove_core::InstallBatchRecord) -> Strin
         lines.push(format!("{}: {state}{detail}", clean(&item.port_id)));
     }
     let summary = record.summary();
+    if summary.queued + summary.running > 0 {
+        lines.push(
+            "Part of this batch is still in progress elsewhere or its game is busy with another task; nothing more was started for those games here. Check again later with `portcove games batch-show`."
+                .to_owned(),
+        );
+    }
     lines.push(format!(
         "{} ready, {} waiting, {} failed, {} cancelled, {} interrupted, {} not finished. No game was launched.",
         summary.ready,
