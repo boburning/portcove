@@ -549,6 +549,15 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-automatic-snapshots",
+    "The Settings control, a real Desktop rollback and backup history agree with Core's automatic snapshot.",
+    {
+      prerequisites: ["desktop", "owned-fixture"],
+      source: "desktop-automatic-snapshot-test.mts",
+      qualification_only: true,
+    },
+  ),
+  scenario(
     "native-reviewed-steam-entry-add-and-remove",
     "Steam entry Add and Remove use the reviewed isolated profile and native consent.",
     {

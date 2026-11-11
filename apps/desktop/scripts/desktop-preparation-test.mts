@@ -120,6 +120,7 @@ import { spawnCommand } from "../../../scripts/dev-storage.mts";
 import type { FileIdentity } from "../../../scripts/development-evidence.mts";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import { backupReviewScenario } from "./desktop-backup-review-test.mts";
+import { automaticSnapshotScenario } from "./desktop-automatic-snapshot-test.mts";
 import { removalReviewScenario } from "./desktop-removal-review-test.mts";
 import { cliHandoffScenario } from "./desktop-cli-handoff-test.mts";
 import { artworkScenario } from "./desktop-artwork-test.mts";
@@ -4152,6 +4153,16 @@ export async function preparationScenarios({
     seed,
     open,
     confirmNative,
+  });
+  await automaticSnapshotScenario({
+    browser,
+    invoke,
+    scenario,
+    output,
+    artifacts,
+    command,
+    seed,
+    open,
   });
   await steamEntryScenario({
     browser,
