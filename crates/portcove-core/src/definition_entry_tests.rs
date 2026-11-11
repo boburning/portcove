@@ -78,7 +78,9 @@ fn recomp_appimage_entries_require_native12_for_fresh_and_retained_reads() {
 fn openmohaa_unix_entries_require_native13_for_fresh_and_retained_reads() {
     let catalog = crate::Catalog::embedded().unwrap();
     let id = "medal-of-honor-allied-assault-openmohaa";
-    let mut entry = entry_for_port(catalog.port(id).unwrap());
+    let mut creating_port = catalog.port(id).unwrap().clone();
+    creating_port.reviewed_package_layouts.clear();
+    let mut entry = entry_for_port(&creating_port);
     entry["required_capabilities"][0]["maximum_version"] = json!(13);
     for minimum in [12, 13] {
         entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
@@ -100,7 +102,9 @@ fn openmohaa_unix_entries_require_native13_for_fresh_and_retained_reads() {
 fn quake_linux_entries_require_native15_for_fresh_and_retained_reads() {
     let catalog = crate::Catalog::embedded().unwrap();
     for id in ["quake-ironwail", "quake-vkquake"] {
-        let mut entry = entry_for_port(catalog.port(id).unwrap());
+        let mut creating_port = catalog.port(id).unwrap().clone();
+        creating_port.reviewed_package_layouts.clear();
+        let mut entry = entry_for_port(&creating_port);
         entry["required_capabilities"][0]["maximum_version"] = json!(15);
         for minimum in [14, 15] {
             entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
@@ -114,6 +118,28 @@ fn quake_linux_entries_require_native15_for_fresh_and_retained_reads() {
                 } else {
                     assert!(result.unwrap().capabilities().compatible);
                 }
+            }
+        }
+    }
+}
+
+#[test]
+fn z2rs_desktop_profile_requires_native20_in_fresh_and_retained_readers() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("troyedwardsjr-z2rs").unwrap();
+    let mut entry = entry_for_port(port);
+    entry["required_capabilities"][0]["maximum_version"] = json!(20);
+    for minimum in [19, 20] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ] {
+            if minimum == 19 {
+                assert!(result.unwrap_err().message.contains("version 20"));
+            } else {
+                assert!(result.unwrap().capabilities().compatible);
             }
         }
     }
@@ -172,9 +198,10 @@ fn archive_siblings_require_native17_for_fresh_and_retained_reads() {
 #[test]
 fn managed_external_profiles_require_version_9_in_fresh_and_retained_readers() {
     let catalog = crate::Catalog::embedded().unwrap();
-    let port = catalog.port("dune-ii-dune-dynasty").unwrap();
+    let mut port = catalog.port("dune-ii-dune-dynasty").unwrap().clone();
     assert!(port.external_profile_policy.is_some());
-    let mut entry = entry_for_port(port);
+    port.reviewed_package_layouts.clear();
+    let mut entry = entry_for_port(&port);
     entry["required_capabilities"][0]["minimum_version"] = json!(8);
     entry["required_capabilities"][0]["maximum_version"] = json!(9);
     let bytes = serde_json::to_vec(&entry).unwrap();
@@ -1018,10 +1045,15 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if port.portable_marker_file.is_some() {
+        let version = if port.release.grant_declared_executable {
+            22
+        } else if port.portable_marker_file.is_some() {
             19
         } else if !port.reviewed_package_layouts.is_empty() {
-            crate::package_layout::NATIVE_CAPABILITY
+            crate::package_layout::NATIVE_CAPABILITY.max(
+                port.external_profile_policy
+                    .map_or(0, crate::native_external_profile::minimum_capability),
+            )
         } else if port.release.archive_file_links {
             crate::test_fixture::archive_file_links_capability(port)
         } else if crate::native_temp::has_sibling_platforms(port) {

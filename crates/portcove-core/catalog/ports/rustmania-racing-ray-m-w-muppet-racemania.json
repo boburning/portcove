@@ -77,6 +77,12 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "portcove-managed"
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["rustmania-racing.exe"]
+      }
     }
   },
   "route_facts_v1": {

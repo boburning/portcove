@@ -5146,6 +5146,12 @@ impl PortcoveService {
                             &command,
                             &|| operation.checkpoint(),
                         )?;
+                        if policy == crate::ExternalProfilePolicy::Doom3LinuxV1 {
+                            crate::native_external_profile::doom3_linux::pin_profile_paths(
+                                &spec.executable,
+                                &mut command,
+                            )?;
+                        }
                     }
                     crate::native_temp::recheck(retained_port, platform, &spec, &|| {
                         operation.checkpoint()

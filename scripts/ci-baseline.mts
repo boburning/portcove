@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 import {
   classifyChanges,
   buildPlan,
+  command,
+  environmentDependentContractSkip,
   executePlan,
   pythonContractTests,
   nodeTestOwnership,
@@ -158,15 +160,77 @@ export function baselineIntegrityCommands(plan: ValidationPlan, options: Classif
   return checks.filter(([test]) => tests.has(test)).map(([, args]) => args);
 }
 
-export function baselineFrontendPlan(plan: ValidationPlan, options: ClassifyOptions = {}) {
+// The browser projects that the sharded hosted jobs execute. This must stay the project list of
+// the `frontend:browser` task in vite.config.ts; a contract test compares the two.
+export const browserShardProjects = ["browser", "browser-locale", "browser-forced-colors"] as const;
+
+export function baselineFrontendPlan(
+  plan: ValidationPlan,
+  options: ClassifyOptions = {},
+  browserSharded = false,
+) {
   const selection = baselineSelection(plan, options);
   if (!plan.groups.includes("frontend")) throw new Error("Plan omitted frontend execution");
   // A missing graph input or shared/unknown input executes the complete unit suite.
   selection.ui = true;
   selection.uiFullTests ||= Boolean(plan.fallback) || !selection.uiRelatedFiles.size;
-  return buildPlan(selection, { validationPlan: plan }).filter((entry) =>
+  const entries = buildPlan(selection, { validationPlan: plan }).filter((entry) =>
     ["ui-content", "ui-check", "ui-build", "ui-tests", "ui-related-tests"].includes(entry.id),
   );
+  if (!browserSharded) return entries;
+  // Sharded browser jobs own the browser project only when the complete suite is selected.
+  // Refuse rather than silently drop browser coverage from the job that owns everything else.
+  if (!entries.some((entry) => entry.id === "ui-tests"))
+    throw new Error("Browser sharding requires the complete frontend test plan");
+  return entries.map((entry) =>
+    entry.id === "ui-tests"
+      ? command(
+          "ui-unit-tests",
+          "unit frontend test project (browser projects run in sharded jobs)",
+          process.execPath,
+          ["scripts/run-viteplus.mts", "run", "frontend:unit"],
+        )
+      : entry,
+  );
+}
+
+// True only when the complete frontend suite is selected, so the browser projects can be split.
+export function baselineBrowserShardsRequired(plan: ValidationPlan, options: ClassifyOptions = {}) {
+  if (plan.mode !== "fast" || !plan.groups.includes("frontend")) return false;
+  return baselineFrontendPlan(plan, options).some((entry) => entry.id === "ui-tests");
+}
+
+export function parseBrowserShard(value: string | undefined) {
+  const match = /^([1-9][0-9]?)\/([1-9][0-9]?)$/u.exec(value ?? "");
+  const index = Number(match?.[1]);
+  const total = Number(match?.[2]);
+  if (!match || index > total || total > 16)
+    throw new Error(
+      "PORTCOVE_BROWSER_SHARD must be <index>/<total> with 1 <= index <= total <= 16",
+    );
+  return { index, total };
+}
+
+export function baselineBrowserShardPlan(
+  plan: ValidationPlan,
+  shard: { index: number; total: number },
+  options: ClassifyOptions = {},
+) {
+  if (!baselineBrowserShardsRequired(plan, options))
+    throw new Error("Plan does not select sharded browser execution");
+  return [
+    command(
+      "ui-browser-shard",
+      `browser test projects, shard ${shard.index}/${shard.total}`,
+      process.execPath,
+      [
+        "scripts/run-viteplus.mts",
+        "test",
+        ...browserShardProjects.flatMap((project) => ["--project", project]),
+        `--shard=${shard.index}/${shard.total}`,
+      ],
+    ),
+  ];
 }
 
 export function baselineLintPlan(plan: ValidationPlan, options: ClassifyOptions = {}) {
@@ -197,7 +261,7 @@ export function baselineTestArguments(tests: string[], contracts = false) {
     "--test-timeout=60000",
     "--experimental-test-module-mocks",
     "--test-reporter=./scripts/required-node-test-reporter.mts",
-    ...(contracts ? ["--test-skip-pattern=pnpm uses|direct just recipes"] : []),
+    ...(contracts ? [environmentDependentContractSkip] : []),
     ...tests,
   ];
 }
@@ -263,9 +327,17 @@ function main() {
         return;
       }
     }
-  } else if (process.argv[2] === "frontend" || process.argv[2] === "lint") {
+  } else if (["frontend", "frontend-browser", "lint"].includes(process.argv[2] ?? "")) {
     const commands =
-      process.argv[2] === "lint" ? baselineLintPlan(plan) : baselineFrontendPlan(plan);
+      process.argv[2] === "lint"
+        ? baselineLintPlan(plan)
+        : process.argv[2] === "frontend-browser"
+          ? baselineBrowserShardPlan(plan, parseBrowserShard(process.env.PORTCOVE_BROWSER_SHARD))
+          : baselineFrontendPlan(
+              plan,
+              {},
+              process.env.PORTCOVE_FRONTEND_BROWSER_SHARDED === "true",
+            );
     const annotateLint = process.argv[2] === "lint" && process.env.GITHUB_ACTIONS === "true";
     if (annotateLint) console.log("::add-matcher::.github/viteplus-problem-matcher.json");
     try {
@@ -301,7 +373,7 @@ function main() {
         console.log("::remove-matcher owner=portcove-viteplus-graphic-rule::");
       }
     }
-  } else throw new Error("Expected bootstrap, frontend, lint or contracts");
+  } else throw new Error("Expected bootstrap, frontend, frontend-browser, lint or contracts");
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {

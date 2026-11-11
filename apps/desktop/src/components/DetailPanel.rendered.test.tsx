@@ -1476,6 +1476,11 @@ describe("desktop components", () => {
     ).toContain(' disabled=""');
     expect(buttonLabels).toContain("Check installed files");
     expect(buttonLabels).toContain("Restore previous version");
+    // Reachable on the page, not just rendered by its own component test.
+    expect(buttonLabels).toContain("Report a problem");
+    expect(installed).toContain(
+      "Portcove first takes an automatic snapshot of its saves and settings",
+    );
     expect(buttonLabels).not.toContain("Check update");
     expect(buttonLabels).not.toContain("Verify");
     expect(buttonLabels).not.toContain("Rollback");

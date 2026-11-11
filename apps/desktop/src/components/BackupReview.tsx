@@ -4,6 +4,7 @@ import { useActionReview, type ReviewOutcome } from "../use-action-review";
 import { desktopApi } from "../api";
 import type { BackupAction, BackupRecord, BackupReview } from "../types";
 import { formatBytes } from "../view-model";
+import { automaticSnapshotLabel } from "../features/backups/snapshot-label";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 
@@ -122,6 +123,7 @@ export function BackupReviewDialog({
 function BackupReviewDetails({ review }: { review: BackupReview }) {
   const { preview, port_name: portName, persistent_data_path: dataPath } = review;
   const { backup, action } = preview;
+  const automaticLabel = automaticSnapshotLabel(backup);
   return (
     <section className="backup-review-details" aria-label="Backup changes and preserved data">
       <p>
@@ -134,6 +136,14 @@ function BackupReviewDetails({ review }: { review: BackupReview }) {
       <p>
         {backup.file_count} {backup.file_count === 1 ? "file" : "files"} ·{" "}
         {formatBytes(backup.size)}
+        {automaticLabel && (
+          <>
+            <br />
+            <small className="[overflow-wrap:anywhere]" data-automatic-snapshot>
+              {automaticLabel}
+            </small>
+          </>
+        )}
       </p>
       <dl>
         <div>

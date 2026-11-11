@@ -120,6 +120,8 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       }
     | undefined;
   const calls: string[] = [];
+  // The library's snapshot setting, on by default like Core's.
+  let automaticSnapshots = true;
   const unsupported = (command: string): never => {
     const message = `Unsupported fixture action: ${command}. No native action was performed.`;
     refuse(message);
@@ -167,6 +169,25 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     get_library_organization: (args) => {
       requireArgs("get_library_organization", args, { generation });
       return structuredClone(organization);
+    },
+    // The details page asks for the last failed launch of an installed game; the
+    // fixtures never run a game, so there is nothing to explain.
+    get_launch_failure: (args) => {
+      if (typeof args?.portId !== "string")
+        return unsupported("get_launch_failure (unexpected arguments)");
+      requireArgs("get_launch_failure", args, { portId: args.portId, generation });
+      return null;
+    },
+    get_automatic_snapshots: (args) => {
+      requireArgs("get_automatic_snapshots", args, { generation });
+      return automaticSnapshots;
+    },
+    set_automatic_snapshots: (args) => {
+      if (typeof args?.enabled !== "boolean")
+        return unsupported("set_automatic_snapshots (unexpected arguments)");
+      requireArgs("set_automatic_snapshots", args, { enabled: args.enabled, generation });
+      automaticSnapshots = args.enabled;
+      return automaticSnapshots;
     },
     change_library_organization: (args) => {
       if (args?.generation !== generation || args.expectedRevision !== organization.revision)

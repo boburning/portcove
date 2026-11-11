@@ -273,3 +273,77 @@ void test("malformed lane result JSON cannot authorize an aggregate", () => {
   }
   assert.throws(() => evaluate({ reuse: false }), /postmerge reuse binding/u);
 });
+
+void test("sharded browser results are mandatory exactly when the classifier flag selects them", () => {
+  const sharded = (overrides: Partial<CiResultInputs> = {}) =>
+    evaluate({
+      frontendBrowserSharded: "true",
+      targeted: { fast_frontend_browser: "success" },
+      ...overrides,
+    });
+  assert.match(sharded(), /Accepted fast plan/u);
+  for (const result of ["failure", "cancelled", "skipped", "timed_out"])
+    assert.throws(
+      () => sharded({ targeted: { fast_frontend_browser: result } }),
+      /fast_frontend_browser was .*expected success/u,
+      result,
+    );
+  // A workflow that drops the shard job entirely cannot pass by omission.
+  assert.throws(() => sharded({ targeted: {} }), /fast_frontend_browser was missing/u);
+  assert.throws(() => sharded({ targeted: { fast_platform: "skipped" } }), /missing/u);
+
+  // Unsharded runs keep the browser projects in the main job and require the shards skipped.
+  assert.match(
+    evaluate({
+      frontendBrowserSharded: "false",
+      targeted: { fast_frontend_browser: "skipped" },
+    }),
+    /Accepted fast plan/u,
+  );
+  assert.throws(
+    () =>
+      evaluate({
+        frontendBrowserSharded: "false",
+        targeted: { fast_frontend_browser: "success" },
+      }),
+    /expected skipped/u,
+  );
+  assert.throws(() => sharded({ frontendBrowserSharded: "yes" }), /must be true or false/u);
+  assert.throws(() => sharded({ frontendBrowserSharded: "" }), /must be true or false/u);
+
+  // The main frontend job must still pass for the sharded case to be accepted.
+  assert.throws(
+    () => sharded({ fast: { fast_frontend: "failure" } }),
+    /fast_frontend was failure/u,
+  );
+
+  // The flag never affects another group, and qualification keeps its own unsharded producer.
+  assert.match(
+    evaluate({
+      group: "rust",
+      plan: plan("crates/portcove-core/src/lib.rs"),
+      fast: { fast_rust: "success", fast_rust_tests: "success", fast_rust_transport: "success" },
+      qualification: { rust_tests: "skipped" },
+      targeted: {},
+      frontendBrowserSharded: "true",
+    }),
+    /Accepted fast plan/u,
+  );
+  const qualification = discoverCiPlan({
+    eventName: "workflow_dispatch",
+    checkoutSha: sha("d"),
+    forceQualification: true,
+    qualificationCaller: "release",
+    callerWorkflow: "release.yml",
+  });
+  assert.match(
+    evaluate({
+      plan: qualification,
+      frontendBrowserSharded: "true",
+      fast: { fast_frontend: "skipped" },
+      targeted: { fast_frontend_browser: "skipped" },
+      qualification: { frontend_full: "success" },
+    }),
+    /Accepted qualification plan/u,
+  );
+});

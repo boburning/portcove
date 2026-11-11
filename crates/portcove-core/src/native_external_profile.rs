@@ -14,9 +14,12 @@ use crate::{
 };
 
 pub(crate) mod archive_siblings;
+pub(crate) mod doom3_linux;
 pub(crate) mod openmohaa;
 pub(crate) mod profile_siblings;
 pub(crate) mod quake_linux;
+pub(crate) mod recomp_direct;
+pub(crate) mod z2rs;
 
 fn read_amd64_elf_header(executable: &Path) -> Result<[u8; 20]> {
     let mut file = crate::external_runtime::open_single_link_file(executable)?;
@@ -52,6 +55,9 @@ fn require_arm64_macho(executable: &Path, message: &str) -> Result<()> {
 
 pub(crate) fn minimum_capability(policy: ExternalProfilePolicy) -> u32 {
     match policy {
+        ExternalProfilePolicy::Z2rsDesktopV1 => z2rs::NATIVE_CAPABILITY,
+        ExternalProfilePolicy::RecompDirectV1 => recomp_direct::NATIVE_CAPABILITY,
+        ExternalProfilePolicy::Doom3LinuxV1 => doom3_linux::NATIVE_CAPABILITY,
         ExternalProfilePolicy::JgrppLinuxV1 | ExternalProfilePolicy::OpengladMacV1 => 17,
         ExternalProfilePolicy::CorsixthLinuxV1 | ExternalProfilePolicy::OpenlocoUnixV1 => 16,
         ExternalProfilePolicy::IronwailLinuxV1 | ExternalProfilePolicy::VkquakeLinuxV1 => 15,
@@ -67,7 +73,9 @@ pub(crate) fn applies_to(policy: ExternalProfilePolicy, platform: Platform) -> b
         ExternalProfilePolicy::Openrct2MacV1 => {
             matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64)
         }
-        ExternalProfilePolicy::RecompAppimageV1 => platform == Platform::LinuxX86_64,
+        ExternalProfilePolicy::RecompAppimageV1 | ExternalProfilePolicy::Doom3LinuxV1 => {
+            platform == Platform::LinuxX86_64
+        }
         ExternalProfilePolicy::OpenmohaaUnixV1 => openmohaa::applies_to(platform),
         ExternalProfilePolicy::IronwailLinuxV1 | ExternalProfilePolicy::VkquakeLinuxV1 => {
             platform == Platform::LinuxX86_64
@@ -76,6 +84,9 @@ pub(crate) fn applies_to(policy: ExternalProfilePolicy, platform: Platform) -> b
             profile_siblings::applies_to(policy, platform)
         }
         ExternalProfilePolicy::JgrppLinuxV1 => platform == Platform::LinuxX86_64,
+        ExternalProfilePolicy::RecompDirectV1 => {
+            matches!(platform, Platform::WindowsX86_64 | Platform::LinuxX86_64)
+        }
         ExternalProfilePolicy::OpengladMacV1 => platform == Platform::MacosAarch64,
         _ => true,
     }
@@ -111,7 +122,7 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
                 Platform::MacosAarch64,
             ],
         ),
-        ExternalProfilePolicy::RecompAppimageV1 => {
+        ExternalProfilePolicy::RecompAppimageV1 | ExternalProfilePolicy::Doom3LinuxV1 => {
             (None, &[Platform::WindowsX86_64, Platform::LinuxX86_64])
         }
         ExternalProfilePolicy::OpenmohaaUnixV1 => (
@@ -148,6 +159,19 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
                 Platform::MacosAarch64,
             ],
         ),
+        ExternalProfilePolicy::RecompDirectV1 => (
+            Some(("body-harvest-recompiled", "mcsoderh/BodyHarvestRecomp")),
+            &[Platform::WindowsX86_64, Platform::LinuxX86_64],
+        ),
+        ExternalProfilePolicy::Z2rsDesktopV1 => (
+            Some(("troyedwardsjr-z2rs", "troyedwardsjr/z2rs")),
+            &[
+                Platform::WindowsX86_64,
+                Platform::LinuxX86_64,
+                Platform::MacosX86_64,
+                Platform::MacosAarch64,
+            ],
+        ),
     };
     if identity.is_some_and(|(id, repo)| {
         port.id != id || !port.release.repository.eq_ignore_ascii_case(repo)
@@ -157,7 +181,9 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
             .platforms
             .iter()
             .any(|platform| !platforms.contains(platform))
-        || (!quake_linux::applies(policy) && !port.launch_arguments.is_empty())
+        || (!quake_linux::applies(policy)
+            && policy != ExternalProfilePolicy::Doom3LinuxV1
+            && !port.launch_arguments.is_empty())
         || !port.launch_environment.is_empty()
         || port.user_data_environment.is_some()
         || port.source_environment.is_some()
@@ -166,6 +192,8 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
             ExternalProfilePolicy::RecompAppimageV1
                 | ExternalProfilePolicy::OpenmohaaUnixV1
                 | ExternalProfilePolicy::JgrppLinuxV1
+                | ExternalProfilePolicy::Z2rsDesktopV1
+                | ExternalProfilePolicy::Doom3LinuxV1
         ) && !quake_linux::applies(policy)
             && !port.persistent_paths.is_empty())
         || !port.persistent_file_patterns.is_empty()
@@ -194,6 +222,15 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
     }
     if archive_siblings::applies(policy) {
         archive_siblings::validate(port, policy)?;
+    }
+    if policy == ExternalProfilePolicy::Z2rsDesktopV1 {
+        z2rs::validate(port)?;
+    }
+    if policy == ExternalProfilePolicy::RecompDirectV1 {
+        recomp_direct::validate(port)?;
+    }
+    if policy == ExternalProfilePolicy::Doom3LinuxV1 {
+        doom3_linux::validate(port)?;
     }
     if policy == ExternalProfilePolicy::Openrct2MacV1 {
         let mut mac_routes = port
@@ -272,8 +309,8 @@ pub(crate) fn launch_policy(
 ) -> Option<ExternalProfilePolicy> {
     retained.external_profile_policy.or_else(|| {
         let policy = current?.external_profile_policy?;
-        // Both previously offered managed routes were Windows-only. Apply the
-        // current safety check to that exact older layout without recapturing it.
+        // Apply the current safety check to a matching older Windows layout
+        // without recapturing its installed contract.
         (applies_to(policy, Platform::WindowsX86_64)
             && retained.platforms == [Platform::WindowsX86_64]
             && validate_layout(retained, policy).is_ok())
@@ -332,7 +369,10 @@ fn linux_root(
         | ExternalProfilePolicy::CorsixthLinuxV1
         | ExternalProfilePolicy::OpenlocoUnixV1
         | ExternalProfilePolicy::JgrppLinuxV1
-        | ExternalProfilePolicy::OpengladMacV1 => {
+        | ExternalProfilePolicy::OpengladMacV1
+        | ExternalProfilePolicy::Z2rsDesktopV1
+        | ExternalProfilePolicy::RecompDirectV1
+        | ExternalProfilePolicy::Doom3LinuxV1 => {
             return Err(PortcoveError::unsupported(
                 "this profile uses a different upstream layout",
             ));
@@ -397,6 +437,10 @@ fn roots(
     command: &Command,
 ) -> Result<Vec<PathBuf>> {
     match (policy, platform) {
+        #[cfg(any(target_os = "linux", windows))]
+        (ExternalProfilePolicy::RecompDirectV1, _) => {
+            Ok(vec![recomp_direct::profile_root(command)?])
+        }
         #[cfg(unix)]
         (policy, platform) if archive_siblings::applies(policy) && applies_to(policy, platform) => {
             archive_siblings::profile_roots(policy, command)
@@ -709,6 +753,11 @@ pub(crate) fn require_external_roots(
     if archive_siblings::applies(policy) {
         archive_siblings::require_launch_layout(policy, spec, command, checkpoint)?;
     }
+    if policy == ExternalProfilePolicy::RecompDirectV1 {
+        let configured_override = std::env::var_os("APP_FOLDER_PATH");
+        recomp_direct::require_no_profile_override(platform, configured_override.as_deref())?;
+        recomp_direct::require_default_profile(&spec.working_directory)?;
+    }
     let owned = library
         .output_roots()?
         .into_iter()
@@ -722,6 +771,9 @@ pub(crate) fn require_external_roots(
                     policy,
                     ExternalProfilePolicy::RecompAppimageV1
                         | ExternalProfilePolicy::OpenmohaaUnixV1
+                        | ExternalProfilePolicy::Z2rsDesktopV1
+                        | ExternalProfilePolicy::RecompDirectV1
+                        | ExternalProfilePolicy::Doom3LinuxV1
                 ))
             .then(|| library.root().to_path_buf()),
         )
@@ -743,6 +795,22 @@ pub(crate) fn require_external_roots(
         return Err(PortcoveError::unsupported(
             "the recomp AppImage requires Linux",
         ));
+    } else if policy == ExternalProfilePolicy::Doom3LinuxV1 {
+        doom3_linux::profile_roots(spec, command, checkpoint)?
+    } else if policy == ExternalProfilePolicy::Z2rsDesktopV1 {
+        match z2rs::external_root(platform, command)? {
+            Some(root) => vec![root],
+            None => {
+                let root = spec.working_directory.join(z2rs::FALLBACK_ROOT);
+                crate::external_runtime::shared_preferences::check_bounded_tree(
+                    &root,
+                    "game profile",
+                    |_, _| checkpoint(),
+                )?;
+                z2rs::require_default_config(&root, checkpoint)?;
+                Vec::new()
+            }
+        }
     } else {
         #[cfg(target_os = "linux")]
         if policy == ExternalProfilePolicy::VkquakeLinuxV1
@@ -787,6 +855,9 @@ pub(crate) fn require_external_roots(
                 "game profile",
                 |path, _| {
                     checkpoint()?;
+                    if policy == ExternalProfilePolicy::Doom3LinuxV1 {
+                        doom3_linux::refuse_alternate_module(path)?;
+                    }
                     if policy == ExternalProfilePolicy::JgrppLinuxV1 {
                         archive_siblings::check_jgr_profile_plugin(&root, path)?;
                     }
@@ -801,6 +872,9 @@ pub(crate) fn require_external_roots(
                     Ok(())
                 },
             )?;
+            if policy == ExternalProfilePolicy::Z2rsDesktopV1 {
+                z2rs::require_default_config(&root, checkpoint)?;
+            }
             checked.push(root);
         }
     }

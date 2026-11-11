@@ -112,6 +112,32 @@ Indexed entries with the declaration require a Native19 lower bound for fresh an
 retained reads. The retained operational identity gains the name only when it is
 declared, so existing retained contracts keep theirs.
 
+Native portable version 20 consumes `z2rs-desktop-v1` for the official direct
+z2rs player. It verifies the selected Unix executable architecture and matches
+the exact Mac bundle player through at most one archive wrapper. Launch checks
+the effective default profile from the actual child environment. The managed
+route holds relative, library-overlapping and custom profile paths, while
+Windows and Linux retain the owned `.z2rs-data` fallback. The exact older
+Windows layout can use the launch check without rewriting its creating
+definition. New entries declaring the policy require version 20.
+
+Native portable version 21 consumes `recomp-direct-v1` for Body Harvest's
+official Windows and Linux x86-64 packages. The Linux package selects the
+direct AMD64 ELF player. Launch uses the upstream default profile lookup, holds
+portable markers and ambiguous or managed-overlapping profiles, and leaves
+profile data under player ownership.
+The exact retained Windows layout can apply this guard without recapturing its
+creating contract. Fresh and retained independent entries declaring the policy
+require version 21.
+
+Native portable version 23 consumes `doom3-linux-v1` for the reviewed
+direct dhewm3 and DUDE Linux x86-64 packages. It checks the packaged
+executable and native modules, starts with the managed base and module
+paths, and checks the effective external config and save directories.
+It holds a DUDE first launch that would copy a legacy profile. Earlier
+creating definitions keep their Windows launch and ownership contracts.
+Fresh and retained indexed entries declaring the policy require version 23.
+
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
 entry that relies on the package-layout gate. Previously admitted
@@ -137,6 +163,12 @@ links inside the same archive, and refuses every other link shape. Indexed entri
 with the declaration require a Native14 lower bound for fresh and retained reads.
 Older readers refuse such an entry; other definitions keep their existing package
 contracts.
+
+Native portable version 22 consumes `release.grant_declared_executable`, which lets Core
+grant execution to the declared program of a package whose archive stores it without an
+executable bit, after verifying the file as a binary for the platform. Indexed entries
+with the declaration require a Native22 lower bound for fresh and retained reads; older
+readers refuse the whole definition, and no other adapter accepts the declaration.
 
 Native portable version 9 consumes `external_profile_policy` for the reviewed
 Dune Dynasty and fheroes2 external profile checks. Both fresh and retained

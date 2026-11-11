@@ -1,5 +1,15 @@
 {
   "cases": {
+    "doom-3-classic-dude-doom-3-unified-development-engine": {
+      "inventory": "dude",
+      "selected_assets": ["dude-0.9.7-win64.zip", "dude-0.9.8-win64.zip"],
+      "linux_selected_assets": ["dude-0.9.7-linux-x86_64.tar.gz", "dude-0.9.8-linux-x86_64.tar.gz"]
+    },
+    "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine": {
+      "inventory": "dude",
+      "selected_assets": ["dude-0.9.7-win64.zip", "dude-0.9.8-win64.zip"],
+      "linux_selected_assets": ["dude-0.9.7-linux-x86_64.tar.gz", "dude-0.9.8-linux-x86_64.tar.gz"]
+    },
     "super-metroid-recomp": {
       "inventory": "super_metroid",
       "repository_id": 1263295135,
@@ -32,6 +42,18 @@
       "selected_assets": [
         "z2rs-0.5.2-x86_64-pc-windows-msvc.zip",
         "z2rs-0.6.0-x86_64-pc-windows-msvc.zip"
+      ],
+      "linux_selected_assets": [
+        "z2rs-0.5.2-x86_64-unknown-linux-gnu.tar.gz",
+        "z2rs-0.6.0-x86_64-unknown-linux-gnu.tar.gz"
+      ],
+      "macos_x86_64_selected_assets": [
+        "z2rs-0.5.2-x86_64-apple-darwin.zip",
+        "z2rs-0.6.0-x86_64-apple-darwin.zip"
+      ],
+      "macos_aarch64_selected_assets": [
+        "z2rs-0.5.2-aarch64-apple-darwin.zip",
+        "z2rs-0.6.0-aarch64-apple-darwin.zip"
       ]
     },
     "nhl-94-genesis-ninety-four": {
@@ -39,6 +61,10 @@
       "selected_assets": [
         "ninety-four-0.3.5-windows-x86_64.zip",
         "ninety-four-0.3.6-windows-x86_64.zip"
+      ],
+      "linux_selected_assets": [
+        "ninety-four-0.3.5-linux-x86_64.tar.gz",
+        "ninety-four-0.3.6-linux-x86_64.tar.gz"
       ]
     },
     "jgrennison-openttd-patches": {
@@ -82,6 +108,10 @@
       "selected_assets": [
         "BodyHarvestRecompiled-v1.0.0-Windows.zip",
         "BodyHarvestRecompiled-v1.0.1-Windows.zip"
+      ],
+      "linux_selected_assets": [
+        "BodyHarvestRecompiled-v1.0.0-Linux-X64.tar.gz",
+        "BodyHarvestRecompiled-v1.0.1-Linux-X64.tar.gz"
       ]
     },
     "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger": {
@@ -136,11 +166,19 @@
     },
     "doom-3-classic-dhewm3": {
       "inventory": "dhewm3",
-      "selected_assets": ["dhewm3-1.5.5_win32.zip", "dhewm3-1.5.6_win32.zip"]
+      "selected_assets": ["dhewm3-1.5.5_win32.zip", "dhewm3-1.5.6_win32.zip"],
+      "linux_selected_assets": [
+        "dhewm3-1.5.5_Linux_amd64.tar.gz",
+        "dhewm3-1.5.6_Linux_amd64.tar.gz"
+      ]
     },
     "doom-3-resurrection-of-evil-classic-dhewm3": {
       "inventory": "dhewm3",
-      "selected_assets": ["dhewm3-1.5.5_win32.zip", "dhewm3-1.5.6_win32.zip"]
+      "selected_assets": ["dhewm3-1.5.5_win32.zip", "dhewm3-1.5.6_win32.zip"],
+      "linux_selected_assets": [
+        "dhewm3-1.5.5_Linux_amd64.tar.gz",
+        "dhewm3-1.5.6_Linux_amd64.tar.gz"
+      ]
     },
     "alexbeav-tony-hawk-s-pro-skater-2-recomp": {
       "inventory": "alexbeav-tony-hawk-s-pro-skater-2-recomp",
@@ -1366,6 +1404,117 @@
     }
   },
   "inventories": {
+    "dude": [
+      {
+        "id": 427859119,
+        "tag_name": "v0.9.7",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-29T12:58:18Z",
+        "assets": [
+          {
+            "id": 688547370,
+            "name": "dude-0.9.7-baked-ao-lm.zip",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.7/dude-0.9.7-baked-ao-lm.zip",
+            "size": 19561302,
+            "digest": "sha256:af456a1d6ef32b3944fae6a277f9fcf26630424635a137123db735d740cec782"
+          },
+          {
+            "id": 688547367,
+            "name": "dude-0.9.7-baked-ao-roe.zip",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.7/dude-0.9.7-baked-ao-roe.zip",
+            "size": 47645769,
+            "digest": "sha256:789f0bf124f82db4e1d5fc4fd859edd28bde961e6913d1a1e55cd9fb5aa2dbe3"
+          },
+          {
+            "id": 688547369,
+            "name": "dude-0.9.7-baked-ao.zip",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.7/dude-0.9.7-baked-ao.zip",
+            "size": 116499986,
+            "digest": "sha256:136079f03d8e267549b3bb0d8011c5f9b1ccb405294e2ff304b4b0ddbc8576a1"
+          },
+          {
+            "id": 688547366,
+            "name": "dude-0.9.7-linux-x86_64.tar.gz",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.7/dude-0.9.7-linux-x86_64.tar.gz",
+            "size": 73992196,
+            "digest": "sha256:f44a0489c60217a1bbb6eb383348159812cd2ef7a344db92b10e06205e8efece"
+          },
+          {
+            "id": 688547368,
+            "name": "dude-0.9.7-win64.zip",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.7/dude-0.9.7-win64.zip",
+            "size": 84217872,
+            "digest": "sha256:6c12ec45f9172dc5729e84a06afc44e7f41b71415fe98dd45b75886881f3bb7a"
+          }
+        ]
+      },
+      {
+        "id": 435773137,
+        "tag_name": "v0.9.8",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-05T22:05:00Z",
+        "assets": [
+          {
+            "id": 714906406,
+            "name": "dude-0.9.8-linux-x86_64.tar.gz",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.8/dude-0.9.8-linux-x86_64.tar.gz",
+            "size": 74529292,
+            "digest": "sha256:3aac3774f2285c9fc3d0eba8d6fc439a8affd266d491ccd84db2fcbe361f8b5e"
+          },
+          {
+            "id": 714906404,
+            "name": "dude-0.9.8-win64.zip",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.8/dude-0.9.8-win64.zip",
+            "size": 84998749,
+            "digest": "sha256:ddea3d128b9d182e42a09e636e7a06fbc0c916641963a8f7860f16c24bdc90a2"
+          },
+          {
+            "id": 728984522,
+            "name": "dude-linux-x86_64.tar.gz",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.8/dude-linux-x86_64.tar.gz",
+            "size": 74529292,
+            "digest": "sha256:3aac3774f2285c9fc3d0eba8d6fc439a8affd266d491ccd84db2fcbe361f8b5e"
+          },
+          {
+            "id": 714973197,
+            "name": "dude-q4-0.9.8-linux-x86_64.tar.gz",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.8/dude-q4-0.9.8-linux-x86_64.tar.gz",
+            "size": 24074232,
+            "digest": "sha256:b18360d235609366dea6efce61946ad1ac2f8e30f3d24c9b55b73fa6f7611f48"
+          },
+          {
+            "id": 714973198,
+            "name": "dude-q4-0.9.8-win64.zip",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.8/dude-q4-0.9.8-win64.zip",
+            "size": 28434262,
+            "digest": "sha256:b84877d8d12cfade1ff0db7450d5d7a3da6085d682b87895067b25da499faa8c"
+          },
+          {
+            "id": 728984521,
+            "name": "dude-q4-linux-x86_64.tar.gz",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.8/dude-q4-linux-x86_64.tar.gz",
+            "size": 24074232,
+            "digest": "sha256:b18360d235609366dea6efce61946ad1ac2f8e30f3d24c9b55b73fa6f7611f48"
+          },
+          {
+            "id": 728984524,
+            "name": "dude-q4-win64.zip",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.8/dude-q4-win64.zip",
+            "size": 28434262,
+            "digest": "sha256:b84877d8d12cfade1ff0db7450d5d7a3da6085d682b87895067b25da499faa8c"
+          },
+          {
+            "id": 728984520,
+            "name": "dude-win64.zip",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.8/dude-win64.zip",
+            "size": 84998749,
+            "digest": "sha256:ddea3d128b9d182e42a09e636e7a06fbc0c916641963a8f7860f16c24bdc90a2"
+          }
+        ]
+      }
+    ],
     "super_metroid": [
       {
         "tag_name": "v0.4.4",
@@ -2058,6 +2207,13 @@
             "browser_download_url": "https://downloads.example.invalid/BodyHarvestRecompiled-v1.0.1-Windows.zip",
             "size": 17969512,
             "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999144802,
+            "name": "BodyHarvestRecompiled-v1.0.1-Linux-X64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/BodyHarvestRecompiled-v1.0.1-Linux-X64.tar.gz",
+            "size": 7838601,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
           }
         ]
       }
@@ -7235,24 +7391,34 @@
   },
   "other_zip_assets": [
     {
-      "inventory": "z2rs",
+      "inventory": "dude",
       "release_index": 0,
-      "asset": "z2rs-0.5.2-aarch64-apple-darwin.zip"
+      "asset": "dude-0.9.7-baked-ao-lm.zip"
     },
     {
-      "inventory": "z2rs",
+      "inventory": "dude",
       "release_index": 0,
-      "asset": "z2rs-0.5.2-x86_64-apple-darwin.zip"
+      "asset": "dude-0.9.7-baked-ao-roe.zip"
     },
     {
-      "inventory": "z2rs",
-      "release_index": 1,
-      "asset": "z2rs-0.6.0-aarch64-apple-darwin.zip"
+      "inventory": "dude",
+      "release_index": 0,
+      "asset": "dude-0.9.7-baked-ao.zip"
     },
     {
-      "inventory": "z2rs",
+      "inventory": "dude",
       "release_index": 1,
-      "asset": "z2rs-0.6.0-x86_64-apple-darwin.zip"
+      "asset": "dude-q4-0.9.8-win64.zip"
+    },
+    {
+      "inventory": "dude",
+      "release_index": 1,
+      "asset": "dude-q4-win64.zip"
+    },
+    {
+      "inventory": "dude",
+      "release_index": 1,
+      "asset": "dude-win64.zip"
     },
     {
       "inventory": "ninety_four",

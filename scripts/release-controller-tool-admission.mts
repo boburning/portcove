@@ -12,6 +12,7 @@ import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
 import { verifyControllerArtifactStatement } from "./github-controller-attestation.mts";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { isRecord } from "./runtime-values.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import {
   controllerToolPredicateType,
@@ -353,6 +354,9 @@ export async function prepareControllerToolPredicate(
         directory: attempt,
         phase,
         ...(identityRefusal ? { identity_refusal: identityRefusal } : {}),
+        ...(error instanceof GitHubApiError && error.status
+          ? { provider_status: error.status }
+          : {}),
         authority: "none",
         automatic_retry: false,
       }),

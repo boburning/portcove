@@ -940,6 +940,10 @@ export const desktopApi = {
       source: source || null,
       arguments: [],
     }),
+  automaticSnapshots: (generation: number) =>
+    invoke<boolean>("get_automatic_snapshots", { generation }),
+  setAutomaticSnapshots: (enabled: boolean, generation: number) =>
+    invoke<boolean>("set_automatic_snapshots", { enabled, generation }),
   previewBugReport: (portId: string | undefined, generation: number) =>
     invoke<BugReportDraft>("preview_bug_report", { portId: portId ?? null, generation }),
   openBugReport: (fields: BugReportField[]) => invoke<BugReportLink>("open_bug_report", { fields }),

@@ -46,6 +46,7 @@ import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
 import {
   capacityDigest,
+  retainedRenewalCapacityBinding,
   inspectCapacityOperation,
   assessBoundedCapacity,
 } from "./release-capacity.mts";
@@ -115,6 +116,7 @@ import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import {
   isRetainedApplicationReviewClaimScope,
   isRetainedApplicationRenewalClaimScope,
+  isSettledApplicationRenewalRecoveryRef,
   retainedApplicationReviewClaim,
   retainedApplicationRenewalClaim,
 } from "./release-coordinator-checkpoint-authentication.mts";
@@ -2262,15 +2264,17 @@ async function prepareTrustedCoordinatorRenewalAt(
       },
     };
     const pin = retainedApplicationRenewalClaim;
-    const settledRecovery =
-      reader.admitted.execution_ref === pin.settled_successor_ref ||
-      reader.admitted.execution_ref === pin.latency_successor_ref;
+    const settledRecovery = isSettledApplicationRenewalRecoveryRef(reader.admitted.execution_ref);
     const appointedRecovery =
       settledRecovery || reader.admitted.execution_ref === pin.successor_ref;
     const resumingClaim = appointedRecovery && checkpoint !== pin.child;
     const reuseDescriptor =
       inspectSelectedJournalRequirement(process.env) &&
-      metadataRenewalInputIdentity(recovered.input) === metadataRenewalInputIdentity(input);
+      (reader.admitted.execution_ref === pin.capacity_rebind_successor_ref
+        ? reader.admitted.workflow_sha256 === pin.native_split_workflow_sha256 &&
+          matchesRetainedRenewalCapacityRebind(recovered.input, input)
+        : metadataRenewalInputIdentity(recovered.input) === metadataRenewalInputIdentity(input));
+    phase = "retained-renewal-descriptor-identity";
     if (
       appointedRecovery &&
       (!reuseDescriptor ||
@@ -2285,6 +2289,7 @@ async function prepareTrustedCoordinatorRenewalAt(
           )))
     )
       throw new Error("retained renewal claim requires the exact prepared descriptor and parent");
+    phase = "durable-maintenance-descriptor";
     if (resumingClaim) await authenticateRetainedRenewalClaim(recovered, budget);
     const publishCheckpoint = await coordinatorCheckpointPublisher(
       directory,
@@ -2437,6 +2442,27 @@ export function metadataRenewalInputIdentity(input: Record<string, unknown>) {
   delete stable.now;
   if (isRecord(stable.publication)) delete stable.publication.observed_at;
   return capacityDigest(stable);
+}
+
+/** The signed r70 claim records its original resource policy. Its appointed
+ * successor must separately admit the current resource policy before reusing
+ * that claim. Verify the exact rebind before comparing the operation inputs. */
+export function matchesRetainedRenewalCapacityRebind(
+  retained: Record<string, unknown>,
+  current: Record<string, unknown>,
+) {
+  const rebound = structuredClone(current);
+  if (!isRecord(retained.controller) || !isRecord(rebound.controller)) return false;
+  const prior = retained.controller.capacity_attempt;
+  const live = rebound.controller.capacity_attempt;
+  if (!isRecord(prior) || !isRecord(live)) return false;
+  const binding = retainedRenewalCapacityBinding(prior, {
+    boundary: live.boundary,
+    ratification: live.ratification,
+  });
+  if (!binding || capacityDigest(live) !== capacityDigest({ ...prior, ...binding })) return false;
+  rebound.controller.capacity_attempt = prior;
+  return metadataRenewalInputIdentity(retained) === metadataRenewalInputIdentity(rebound);
 }
 
 async function authenticateRetainedRenewalClaim(

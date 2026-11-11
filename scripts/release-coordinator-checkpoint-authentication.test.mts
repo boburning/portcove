@@ -1260,8 +1260,18 @@ void test("the repaired application controller accepts only the settled renewal 
     job_id: "129885597891",
     check_run_id: "129885597891",
   };
-  for (const execution_ref of [pin.settled_successor_ref, pin.latency_successor_ref]) {
-    const source = { execution_ref };
+  for (const source of [
+    { execution_ref: pin.settled_successor_ref },
+    { execution_ref: pin.latency_successor_ref },
+    {
+      execution_ref: pin.native_split_successor_ref,
+      workflow_sha256: pin.native_split_workflow_sha256,
+    },
+    {
+      execution_ref: pin.capacity_rebind_successor_ref,
+      workflow_sha256: pin.native_split_workflow_sha256,
+    },
+  ]) {
     assert.equal(
       matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "application"),
       true,
@@ -1287,5 +1297,16 @@ void test("the repaired application controller accepts only the settled renewal 
         key,
       );
     }
+  }
+  for (const source of [
+    { execution_ref: pin.native_split_successor_ref },
+    { execution_ref: pin.native_split_successor_ref, workflow_sha256: producer.workflow_sha256 },
+    { execution_ref: pin.capacity_rebind_successor_ref },
+    { execution_ref: pin.capacity_rebind_successor_ref, workflow_sha256: producer.workflow_sha256 },
+  ]) {
+    assert.equal(
+      matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "application"),
+      false,
+    );
   }
 });

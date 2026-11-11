@@ -70,6 +70,7 @@ pub struct InstallQualification {
     requires_tar_xz: bool,
     executable_hints: Vec<String>,
     runtime_subdirectory: Option<String>,
+    external_profile_policy: Option<crate::ExternalProfilePolicy>,
     persistent_paths: Vec<String>,
     persistent_file_patterns: Vec<crate::PersistentFilePattern>,
     runtime_mutable_paths: Vec<String>,
@@ -226,6 +227,7 @@ impl InstallQualification {
             requires_tar_xz: port.release.requires_tar_xz(platform),
             executable_hints,
             runtime_subdirectory: port.runtime_subdirectory.clone(),
+            external_profile_policy: port.external_profile_policy,
             persistent_paths: port.persistent_paths.clone(),
             persistent_file_patterns: port.persistent_file_patterns.clone(),
             runtime_mutable_paths: port.runtime_mutable_paths.clone(),
@@ -1237,6 +1239,17 @@ impl Installer {
                 request.qualification.platform,
                 &payload_root,
             )?;
+            if port.release.grant_declared_executable {
+                grant_declared_executable(&payload_root, &request.qualification)?;
+            }
+            if port.external_profile_policy == Some(crate::ExternalProfilePolicy::RecompDirectV1) {
+                let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
+                let working_directory =
+                    request.qualification.runtime_root(&payload_root, &selected);
+                crate::native_external_profile::recomp_direct::require_default_profile(
+                    &working_directory,
+                )?;
+            }
             crate::native_external_profile::openmohaa::prepare_package(
                 port,
                 request.qualification.platform,
@@ -4004,12 +4017,30 @@ pub(crate) fn resolve_declared_executable(
         ));
     }
     refuse_symlink_path_within(root, &search_root, "declared runtime directory")?;
-    resolve_executable_hints(
+    let platform = qualification.platform;
+    let allow_one_wrapper = qualification.external_profile_policy
+        == Some(crate::ExternalProfilePolicy::Z2rsDesktopV1)
+        && matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64);
+    let executable = resolve_executable_hints_with_wrapper(
         &search_root,
-        qualification.platform,
+        platform,
         &qualification.executable_hints,
         "declared executable",
-    )
+        allow_one_wrapper,
+    )?;
+    match qualification.external_profile_policy {
+        Some(crate::ExternalProfilePolicy::Z2rsDesktopV1) => {
+            crate::native_external_profile::z2rs::require_unix_player(&executable, platform)?;
+        }
+        Some(crate::ExternalProfilePolicy::RecompDirectV1) if platform == Platform::LinuxX86_64 => {
+            crate::native_external_profile::recomp_direct::require_linux_player(&executable)?;
+        }
+        Some(crate::ExternalProfilePolicy::Doom3LinuxV1) if platform == Platform::LinuxX86_64 => {
+            crate::native_external_profile::doom3_linux::require_payload(&executable)?;
+        }
+        _ => {}
+    }
+    Ok(executable)
 }
 
 pub(crate) fn resolve_executable_hints(
@@ -4017,6 +4048,56 @@ pub(crate) fn resolve_executable_hints(
     platform: Platform,
     hints: &[String],
     label: &str,
+) -> Result<PathBuf> {
+    resolve_executable_hints_with_wrapper(search_root, platform, hints, label, false)
+}
+
+fn resolve_executable_hints_with_wrapper(
+    search_root: &Path,
+    platform: Platform,
+    hints: &[String],
+    label: &str,
+    allow_one_wrapper: bool,
+) -> Result<PathBuf> {
+    let found = locate_executable_hints(search_root, platform, hints, label, allow_one_wrapper)?;
+    crate::permissions::require_platform_executable(&found, platform, label)?;
+    Ok(found)
+}
+
+/// Grant execution to the declared program of a package whose archive carries no executable
+/// bit, only when the file verifies as a binary for the platform.
+fn grant_declared_executable(root: &Path, qualification: &InstallQualification) -> Result<()> {
+    let search_root = qualification
+        .runtime_subdirectory
+        .as_deref()
+        .map(|relative| root.join(relative))
+        .unwrap_or_else(|| root.to_path_buf());
+    if !search_root.starts_with(root) {
+        return Err(PortcoveError::verification(
+            "declared runtime directory escaped the install",
+        ));
+    }
+    refuse_symlink_path_within(root, &search_root, "declared runtime directory")?;
+    let found = locate_executable_hints(
+        &search_root,
+        qualification.platform,
+        &qualification.executable_hints,
+        "declared executable",
+        false,
+    )?;
+    crate::permissions::grant_verified_executable(
+        &found,
+        qualification.platform,
+        "declared executable",
+    )
+}
+
+fn locate_executable_hints(
+    search_root: &Path,
+    platform: Platform,
+    hints: &[String],
+    label: &str,
+    allow_one_wrapper: bool,
 ) -> Result<PathBuf> {
     if !search_root.is_dir() {
         return Err(PortcoveError::verification(format!(
@@ -4035,8 +4116,13 @@ pub(crate) fn resolve_executable_hints(
             .iter()
             .filter(|path| {
                 if path_aware {
-                    manifest_relative(search_root, path)
-                        .is_ok_and(|relative| relative.eq_ignore_ascii_case(hint))
+                    manifest_relative(search_root, path).is_ok_and(|relative| {
+                        relative.eq_ignore_ascii_case(hint)
+                            || (allow_one_wrapper
+                                && relative
+                                    .split_once('/')
+                                    .is_some_and(|(_, inner)| inner.eq_ignore_ascii_case(hint)))
+                    })
                 } else {
                     path.file_name()
                         .and_then(|name| name.to_str())
@@ -4058,7 +4144,6 @@ pub(crate) fn resolve_executable_hints(
             );
         }
         if let Some(found) = matches.pop() {
-            crate::permissions::require_platform_executable(&found, platform, label)?;
             return Ok(found);
         }
     }
@@ -4245,7 +4330,7 @@ fn is_regular_file_without_symlink(path: &Path) -> bool {
         .is_ok_and(|metadata| metadata.is_file() && !metadata.file_type().is_symlink())
 }
 
-fn refuse_symlink_path_within(root: &Path, path: &Path, label: &str) -> Result<()> {
+pub(crate) fn refuse_symlink_path_within(root: &Path, path: &Path, label: &str) -> Result<()> {
     for candidate in path
         .ancestors()
         .take_while(|candidate| candidate.starts_with(root))
@@ -4561,6 +4646,93 @@ mod tests {
         let alias = root.join("Game.app/Contents/Frameworks/libz.1.dylib");
         assert!(fs::symlink_metadata(&alias).unwrap().file_type().is_file());
         assert_eq!(fs::read(alias).unwrap(), b"zlib");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_unmarked_zip_program_is_granted_after_extraction_inside_the_declared_runtime() {
+        let temporary = tempfile::tempdir().unwrap();
+        let mut elf = vec![0_u8; 64];
+        elf[..4].copy_from_slice(&[0x7f, b'E', b'L', b'F']);
+        elf[4] = 2;
+        elf[5] = 1;
+        elf[16] = 3;
+        elf[18] = 62;
+        let package = temporary.path().join("Game-linux-x86_64.zip");
+        write_test_zip(
+            &package,
+            &[
+                ("pkg-1/Game", &elf, 0o644),
+                ("pkg-1/data.bin", b"data", 0o644),
+                ("outside/Game", b"not a binary", 0o644),
+            ],
+            &[],
+        );
+        let root = temporary.path().join("payload");
+        fs::create_dir_all(&root).unwrap();
+        extract_asset(
+            &package,
+            &root,
+            "Game-linux-x86_64.zip",
+            fs::metadata(&package).unwrap().len(),
+            false,
+            &|| Ok(()),
+        )
+        .unwrap();
+        let mut qualification = InstallQualification::test("Game");
+        qualification.platform = Platform::LinuxX86_64;
+        qualification.runtime_subdirectory = Some("pkg-1".into());
+        // Core honors only the publisher's own bit, so nothing resolves before the grant.
+        assert!(resolve_declared_executable(&root, &qualification).is_err());
+        grant_declared_executable(&root, &qualification).unwrap();
+        assert_eq!(
+            resolve_declared_executable(&root, &qualification).unwrap(),
+            root.join("pkg-1/Game")
+        );
+        // Only the declared program changes; the same-named file outside the runtime and
+        // ordinary data keep their extracted modes.
+        assert!(!crate::permissions::executable_intent(&root.join("outside/Game")).unwrap());
+        assert!(!crate::permissions::executable_intent(&root.join("pkg-1/data.bin")).unwrap());
+        // A package whose declared program is not a platform binary is refused.
+        qualification.runtime_subdirectory = Some("outside".into());
+        assert!(grant_declared_executable(&root, &qualification).is_err());
+        assert!(!crate::permissions::executable_intent(&root.join("outside/Game")).unwrap());
+        // Windows grants nothing and a missing runtime directory is refused.
+        qualification.runtime_subdirectory = Some("absent".into());
+        assert!(grant_declared_executable(&root, &qualification).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_unmarked_binary_resolves_only_after_the_verified_grant() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        let mut elf = vec![0_u8; 64];
+        elf[..4].copy_from_slice(&[0x7f, b'E', b'L', b'F']);
+        elf[4] = 2;
+        elf[5] = 1;
+        elf[16] = 2;
+        elf[18] = 62;
+        fs::create_dir_all(root.join("pkg")).unwrap();
+        fs::write(root.join("pkg/Game"), &elf).unwrap();
+        fs::write(root.join("pkg/Other"), b"#!/bin/sh\n").unwrap();
+        let hint = ["Game".to_string()];
+        assert!(resolve_executable_hints(root, Platform::LinuxX86_64, &hint, "t").is_err());
+        let found =
+            locate_executable_hints(root, Platform::LinuxX86_64, &hint, "t", false).unwrap();
+        crate::permissions::grant_verified_executable(&found, Platform::LinuxX86_64, "t").unwrap();
+        assert_eq!(
+            resolve_executable_hints(root, Platform::LinuxX86_64, &hint, "t").unwrap(),
+            root.join("pkg/Game")
+        );
+        let other = ["Other".to_string()];
+        let found =
+            locate_executable_hints(root, Platform::LinuxX86_64, &other, "t", false).unwrap();
+        assert!(
+            crate::permissions::grant_verified_executable(&found, Platform::LinuxX86_64, "t")
+                .is_err()
+        );
+        assert!(resolve_executable_hints(root, Platform::LinuxX86_64, &other, "t").is_err());
     }
 
     #[cfg(unix)]

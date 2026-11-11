@@ -214,8 +214,7 @@
       },
       "issue_number": 909,
       "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
+        "windows-x86-64"
       ],
       "availability": "unknown"
     },
@@ -1653,8 +1652,7 @@
       },
       "issue_number": 106,
       "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
+        "windows-x86-64"
       ],
       "availability": "unknown"
     },
@@ -14150,15 +14148,9 @@
     {
       "id": "body-harvest-recompiled",
       "name": "Body Harvest: Recompiled",
-      "summary": "Select your own North American cartridge dump on first Play. Portcove can manage a separate Windows copy or launch a copy you prepared.",
+      "summary": "Select your own North American cartridge dump on first Play. Portcove can manage a separate Windows or Linux x86-64 runtime or launch a copy you prepared.",
       "project_url": "https://github.com/mcsoderh/BodyHarvestRecomp",
       "issue_number": 1448,
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md",
       "artwork": {
@@ -14179,13 +14171,21 @@
         "linux-x86-64": [
           "BodyHarvestRecompiled-",
           "-Linux-X64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "BodyHarvestRecompiled-",
+          "-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "BodyHarvestRecompiled-",
+          "-macOS.zip"
         ]
       },
       "manual_setup": {
         "steps": [
           {
-            "title": "Set up the managed Windows copy on first Play",
-            "instruction": "Use Load ROM to select your own North American Body Harvest cartridge dump. The player verifies the original and stores its private copy, settings and saves under %LOCALAPPDATA%\\BodyHarvestRecompiled. Back up that profile separately. Leave portable.txt out of the managed runtime to keep the profile outside it."
+            "title": "Set up the managed copy on first Play",
+            "instruction": "Use Load ROM to select your own North American Body Harvest cartridge dump. The player verifies and remembers a private copy in its profile, alongside settings and saves. Back up that profile separately before changing versions."
           },
           {
             "title": "Keep a complete permitted player",
@@ -14202,13 +14202,15 @@
         ],
         "warnings": [
           "On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback.",
-          "The managed route covers Windows x86-64. Use a separate upstream copy for portable.txt mode, Linux or macOS. Managed and external Windows copies can share the default profile. Check save compatibility before changing versions."
+          "Use the complete upstream Mac application with its bundled libraries. The libraries in v1.0.0 target macOS 14 or later on both Mac architectures.",
+          "Use a separate upstream copy for portable.txt mode, an APP_FOLDER_PATH override, Linux ARM64, Flatpak or macOS. Managed and separately prepared copies can share the default profile.",
+          "The official Linux x86-64 package needs glibc 2.35 and system SDL2, GTK 3, FreeType and GCC runtime libraries."
         ],
         "help_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md",
         "references": [
           {
             "title": "Preserve the actual profile and working copy",
-            "instruction": "You or upstream provide updates to a copy you prepared yourself. Portcove updates its managed Windows runtime. Keep the complete external copy and actual profile: normally %LOCALAPPDATA%\\BodyHarvestRecompiled, ~/.config/BodyHarvestRecompiled, or ~/Library/Application Support/BodyHarvestRecompiled. On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback."
+            "instruction": "You or upstream provide updates to a copy you prepared yourself. Portcove updates its managed Windows or Linux x86-64 runtime. Keep the complete external copy and actual profile: normally %LOCALAPPDATA%\\BodyHarvestRecompiled, ~/.config/BodyHarvestRecompiled, or ~/Library/Application Support/BodyHarvestRecompiled. On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback."
           },
           {
             "title": "Registration ownership and removal",
@@ -14223,7 +14225,13 @@
             "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately."
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "bof4-recomp-plaught-armor-breath-of-fire-iv",
@@ -20902,7 +20910,7 @@
         "steps": [
           {
             "title": "Prepare your original game",
-            "instruction": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration."
+            "instruction": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe on Windows or dhewm3 on Linux. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration. On managed Linux x86-64, keep the packaged modules together and install SDL2, OpenAL, libcurl and the GNU C++ and GCC runtime libraries. Back up the actual external dhewm3 config and save folders separately. Use a separately prepared copy for custom paths or native mods."
           },
           {
             "title": "Keep an existing prepared copy",
@@ -20921,8 +20929,8 @@
         "help_url": "https://dhewm3.org/#how-to-install",
         "references": [
           {
-            "title": "Prepare the upstream Linux player",
-            "instruction": "Choose the official dhewm3 amd64 or arm64 game tarball. Extract the complete folder and keep its game libraries. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 in matching folders. Start ./dhewm3 from the prepared directory. Preserve ~/.config/dhewm3 and ~/.local/share/dhewm3 or their XDG equivalents, plus any custom paths. Install SDL2, OpenAL and libcurl through your distribution. The inspected ARM64 executable needs glibc 2.38."
+            "title": "Choose your Linux setup",
+            "instruction": "Choose the official dhewm3 amd64 or arm64 game tarball. Extract the complete folder and keep its game libraries. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 in matching folders. Start ./dhewm3 from the prepared directory. Preserve ~/.config/dhewm3 and ~/.local/share/dhewm3 or their XDG equivalents, plus any custom paths. Install SDL2, OpenAL, libcurl and the GNU C++ and GCC runtime libraries through your distribution. The inspected ARM64 executable needs glibc 2.38. The managed Linux x86-64 copy reads your PK4s from its own runtime and starts with its packaged modules. Use a separate upstream copy for custom paths, native mods or a custom library search path."
           },
           {
             "title": "Set up dhewm3 on Mac",
@@ -20974,11 +20982,11 @@
         "steps": [
           {
             "title": "Prepare your original game",
-            "instruction": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official Windows player package and all its own DLLs and resources together; do not overwrite them with old engine files. Optional baked-AO packages and custom mods use their own setup instructions and are outside this managed route. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification."
+            "instruction": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe on Windows or dude on Linux. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official Windows player package and all its own DLLs and resources together; do not overwrite them with old engine files. Optional baked-AO packages and custom mods use their own setup instructions and are outside this managed route. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification."
           },
           {
             "title": "Review first-launch profile copying",
-            "instruction": "Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Linux uses its own upstream location; no cross-engine or mod save compatibility is inferred. Before first Play, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play."
+            "instruction": "Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Before first Play on Windows, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play."
           },
           {
             "title": "Keep an existing prepared copy",
@@ -20991,8 +20999,8 @@
         "help_url": "https://github.com/Inkub0/dude/blob/e703ab270064eef8ead6ae3abbb4b0762bddecd8/README.md",
         "references": [
           {
-            "title": "Prepare the upstream Linux player",
-            "instruction": "Choose the DUDE x86-64 Doom 3 game tarball. The separately named dude-q4 package is a Quake 4 add-on. Extract the complete folder and keep its game libraries and bundled Vulkan loader. The reviewed executable needs glibc 2.34, SDL2, OpenAL and libcurl. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 in matching folders. Start ./dude from the prepared directory. Preserve ~/.config/dude and ~/.local/share/dude or their XDG equivalents, plus any custom paths. DUDE can copy the legacy dhewm3 config on first run. Preserve both config trees before opening DUDE."
+            "title": "Choose your Linux setup",
+            "instruction": "Choose the DUDE x86-64 Doom 3 game tarball. The separately named dude-q4 package is a Quake 4 add-on. Extract the complete folder and keep its game libraries and bundled Vulkan loader. The reviewed executable needs glibc 2.34, SDL2, OpenAL and the OpenSSL variant of libcurl. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 in matching folders. Start ./dude from the prepared directory. Preserve ~/.config/dude and ~/.local/share/dude or their XDG equivalents, plus any custom paths. DUDE can copy the legacy dhewm3 config on first run. Preserve both config trees before opening DUDE. The managed Linux x86-64 copy reads your PK4s from its own runtime and starts with its packaged modules. Use a separate upstream copy for custom paths, native mods or a custom library search path. If a managed first launch would copy a legacy profile, complete that setup in an upstream copy first."
           }
         ]
       },
@@ -21026,7 +21034,7 @@
         "steps": [
           {
             "title": "Prepare your original game",
-            "instruction": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe. Also copy your own Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp beside the player. Both the complete base game and expansion are required; the maintained launch arguments select d3xp. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration."
+            "instruction": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe on Windows or dhewm3 on Linux. Also copy your own Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp beside the player. Both the complete base game and expansion are required; the maintained launch arguments select d3xp. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration."
           },
           {
             "title": "Keep an existing prepared copy",
@@ -21043,8 +21051,8 @@
             "instruction": "Normal Windows saves, settings, screenshots, demos and logs are in your actual Documents/My Games/dhewm3 profile, with separate base and d3xp scopes. Back up that external profile and your original game separately before changing engines or versions. Existing customized copies keep their own launch details and runtime owner."
           },
           {
-            "title": "Prepare the upstream Linux player",
-            "instruction": "Choose the official dhewm3 amd64 or arm64 game tarball. Extract the complete folder and keep its game libraries. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 and Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 in matching folders. Start ./dhewm3 with +set fs_game d3xp from the prepared directory. Preserve ~/.config/dhewm3 and ~/.local/share/dhewm3 or their XDG equivalents, plus any custom paths. Install SDL2, OpenAL and libcurl through your distribution. The inspected ARM64 executable needs glibc 2.38."
+            "title": "Choose your Linux setup",
+            "instruction": "Choose the official dhewm3 amd64 or arm64 game tarball. Extract the complete folder and keep its game libraries. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 and Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 in matching folders. Start ./dhewm3 with +set fs_game d3xp from the prepared directory. Preserve ~/.config/dhewm3 and ~/.local/share/dhewm3 or their XDG equivalents, plus any custom paths. Install SDL2, OpenAL, libcurl and the GNU C++ and GCC runtime libraries through your distribution. The inspected ARM64 executable needs glibc 2.38. The managed Linux x86-64 copy reads your PK4s from its own runtime and starts with its packaged modules. Use a separate upstream copy for custom paths, native mods or a custom library search path."
           },
           {
             "title": "Set up dhewm3 on Mac",
@@ -21084,11 +21092,11 @@
         "steps": [
           {
             "title": "Prepare your original game",
-            "instruction": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe. Also copy your own classic Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp; the base game is required and the maintained arguments select the expansion. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official Windows player package and all its own DLLs and resources together; do not overwrite them with old engine files. Optional baked-AO packages and custom mods use their own setup instructions and are outside this managed route. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification."
+            "instruction": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe on Windows or dude on Linux. Also copy your own classic Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp; the base game is required and the maintained arguments select the expansion. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official Windows player package and all its own DLLs and resources together; do not overwrite them with old engine files. Optional baked-AO packages and custom mods use their own setup instructions and are outside this managed route. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification."
           },
           {
             "title": "Review first-launch profile copying",
-            "instruction": "Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Linux uses its own upstream location; no cross-engine or mod save compatibility is inferred. Before first Play, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play."
+            "instruction": "Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Before first Play on Windows, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play."
           },
           {
             "title": "Keep an existing prepared copy",
@@ -21101,8 +21109,8 @@
         "help_url": "https://github.com/Inkub0/dude/blob/e703ab270064eef8ead6ae3abbb4b0762bddecd8/README.md",
         "references": [
           {
-            "title": "Prepare the upstream Linux player",
-            "instruction": "Choose the DUDE x86-64 Doom 3 game tarball. The separately named dude-q4 package is a Quake 4 add-on. Extract the complete folder and keep its game libraries and bundled Vulkan loader. The reviewed executable needs glibc 2.34, SDL2, OpenAL and libcurl. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 and Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 in matching folders. Start ./dude with +set fs_game d3xp from the prepared directory. Preserve ~/.config/dude and ~/.local/share/dude or their XDG equivalents, plus any custom paths. DUDE can copy the legacy dhewm3 config on first run. Preserve both config trees before opening DUDE."
+            "title": "Choose your Linux setup",
+            "instruction": "Choose the DUDE x86-64 Doom 3 game tarball. The separately named dude-q4 package is a Quake 4 add-on. Extract the complete folder and keep its game libraries and bundled Vulkan loader. The reviewed executable needs glibc 2.34, SDL2, OpenAL and the OpenSSL variant of libcurl. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 and Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 in matching folders. Start ./dude with +set fs_game d3xp from the prepared directory. Preserve ~/.config/dude and ~/.local/share/dude or their XDG equivalents, plus any custom paths. DUDE can copy the legacy dhewm3 config on first run. Preserve both config trees before opening DUDE. The managed Linux x86-64 copy reads your PK4s from its own runtime and starts with its packaged modules. Use a separate upstream copy for custom paths, native mods or a custom library search path. If a managed first launch would copy a legacy profile, complete that setup in an upstream copy first."
           }
         ]
       },
@@ -37727,6 +37735,12 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2597,
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/1nputs/ninety-four/blob/1b0b30e7bf6ee4e66ab33ef10acbeec55442b021/README.md",
         "steps": [
@@ -37739,21 +37753,22 @@
             "instruction": "Use a complete player and components you are independently permitted to use, with your own 1 MiB retail NHL ’94 Genesis US/Europe ROM. Finish the upstream first-launch ROM picker and saved settings before attachment; retain the independent original. Optional larger ROM hacks and roster imports are separate upstream operations, not another accepted retail revision by title alone. This guide obtains or executes no ROM, converter, helper or game. The inspected official 0.3.6 ZIP contains ninety-four-windows-x86_64/nhl94.exe as an AMD64 native player with matching library and notices. Keep that complete directory. This is the native rewrite using the linked pulseman hardware/audio/frontend facilities; it is not an original Genesis executable or a generic emulator admission. A source build and another platform’s application are separate artifacts. Upstream documents the remembered ROM picker for normal windowed starts; the native entry runs the game in the selected process. Complete a missing-ROM prompt outside the attached attempt. Do not add headless, finite-frame, trace, ROM-extraction or network-server arguments as normal Play."
           },
           {
-            "title": "Preserve the actual working-directory data",
-            "instruction": "Preserve any older working-directory data before choosing a different folder. SRAM and whole-machine states are different objects; the source checks a session state against its roster set, which does not prove observed restore or cross-version compatibility. This guide performs no import, migration, backup or deletion. Quit the actual game normally before upstream replacement, restoring SRAM/states or changing roster sets. Keep independent recovery copies and review/relink changed executable bytes; forced termination is not a save-flush guarantee. Upstream whole-game, 60 FPS, rewind and online reports remain upstream claims. No native/installed-app, gameplay, save/reload or Supported acceptance is asserted."
+            "title": "Preserve the actual Linux and Mac data locations",
+            "instruction": "Preserve any older working-directory data before choosing a different folder. SRAM and whole-machine states are different objects; the source checks a session state against its roster set, which does not prove observed restore or cross-version compatibility. This guide performs no import, migration, backup or deletion. Quit the actual game normally before upstream replacement, restoring SRAM/states or changing roster sets. Keep independent recovery copies and review/relink changed executable bytes; forced termination is not a save-flush guarantee. Upstream whole-game, 60 FPS, rewind and online reports remain upstream claims. No native/installed-app, gameplay, save/reload or Supported acceptance is asserted. On Linux x86-64, the upstream archive needs glibc 2.34 or newer, SDL2 and the GNU C++ and GCC support runtimes. For an existing copy, keep nhl94 and its full archive together and run it from that folder. On macOS 11 or newer, use the upstream universal application for Intel or Apple Silicon. Finder launches keep settings and saves under ~/Library/Application Support/ninety-four. A shell launch can use the working directory instead. Keep the complete application bundle and back up the data location your copy actually uses. Portcove manages the separate Linux runtime, while the Mac application stays with upstream setup."
           },
           {
             "title": "Keep original, roster and component terms separate",
             "instruction": "Retain the project MIT notice and pulseman/component notices, including Nuked-OPN2 LGPL-2.1, ymfm BSD-3 and the separately credited upscalers. They grant nothing over the original NHL ’94 name or game data. Use only originals, roster art and modified content you are independently permitted to use. Online peers need matching releases and applicable roster/state data; no account, relay/server, real multiplayer or full user-content corpus qualification is provided."
           },
           {
-            "title": "Select the prepared player",
+            "title": "Select the prepared Windows player",
             "instruction": "Select nhl94.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
           }
         ],
         "warnings": [
           "Keep the original retail ROM and actual working-directory data. Cartridge SRAM, states, modified rosters and online session compatibility are separate.",
-          "Use the default data paths with the managed runtime. Keep an independent copy of your ROM, and use a separately prepared copy for custom data paths. Runtime rollback does not establish save-state compatibility."
+          "Use the default data paths with the managed runtime. Keep an independent copy of your ROM, and use a separately prepared copy for custom data paths. Runtime rollback does not establish save-state compatibility.",
+          "On Linux x86-64, use glibc 2.34 or newer with SDL2, libstdc++.so.6 and libgcc_s.so.1."
         ],
         "references": [
           {
@@ -37769,10 +37784,7 @@
             "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: out, rosters, screenshots, settings.ini, states, videos. Its backup does not include external profiles."
           }
         ]
-      },
-      "platforms": [
-        "windows-x86-64"
-      ]
+      }
     },
     {
       "id": "nhl-legacy-recomp-puckhead73-nhl-legacy-edition",
@@ -55518,7 +55530,10 @@
       "project_url": "https://github.com/troyedwardsjr/z2rs",
       "issue_number": 1911,
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "unknown",
       "setup_url": "https://github.com/troyedwardsjr/z2rs",
@@ -55535,11 +55550,11 @@
         "steps": [
           {
             "title": "Drop your own Zelda II USA ROM into the game window",
-            "instruction": "Choose Play to start z2rs.exe directly. Drag your own supported USA NES ROM onto the window. The game reads it in place and remembers its path. Keep the ROM outside the managed runtime."
+            "instruction": "Choose Play to start the direct z2rs player. Drag your own supported USA NES ROM onto the game window. The player reads it in place and remembers its path. Keep the ROM outside the managed runtime. Use upstream setup for the separate launcher and Android."
           },
           {
-            "title": "Keep the Windows release archive intact",
-            "instruction": "Use the complete extracted official Windows x64 z2rs package (the ZIP ending in -x86_64-pc-windows-msvc.zip) with z2rs-launcher.exe, z2rs.exe, companions and notices. z2-signal.exe is an optional signalling server, not the player. This is a Rust reconstruction with a native desktop frontend; upstream frame-comparison and enhancement claims do not establish a Portcove playthrough or native/controller observation. In the upstream launcher choose your own Zelda II: The Adventure of Link (USA) NES ROM. Its accepted ROM body, after stripping the 16-byte iNES header, has CRC32 BA322865 and SHA-1 11333adb723a5975e0ecca3aee8f4747aa8d2d26. These identify the body, not the complete headered file. The game reads the ROM in place and remembers its path; keep it at that location. The project’s MIT code grant and original-ROM/HD-pack rights are separate; no ROM or extracted asset redistribution is granted."
+            "title": "Keep the upstream package and prepare your own original",
+            "instruction": "Use the complete extracted official Windows x64 z2rs package (the ZIP ending in -x86_64-pc-windows-msvc.zip) with z2rs-launcher.exe, z2rs.exe, companions and notices. z2-signal.exe is an optional signalling server, not the player. This is a Rust reconstruction with a native desktop frontend; upstream frame-comparison and enhancement claims do not establish a Portcove playthrough or native/controller observation. In the upstream launcher choose your own Zelda II: The Adventure of Link (USA) NES ROM. Its accepted ROM body, after stripping the 16-byte iNES header, has CRC32 BA322865 and SHA-1 11333adb723a5975e0ecca3aee8f4747aa8d2d26. These identify the body, not the complete headered file. The game reads the ROM in place and remembers its path; keep it at that location. The project’s MIT code grant and original-ROM/HD-pack rights are separate; no ROM or extracted asset redistribution is granted. On Linux x86-64, keep the complete official archive together and start z2rs-launcher. On macOS, choose the archive for Intel or Apple Silicon and start z2rs.app. Pick your own supported USA ROM in the launcher. Preserve the actual profile, normally ~/.local/share/z2rs on Linux or ~/Library/Application Support/z2rs on Mac, including any XDG_DATA_HOME or custom data directory. On Android 8 or newer, use the official release APK and choose the ROM with Android's file picker. Keep an independent copy of the original. The app copies the ROM and keeps saves in private storage. A same-signature update preserves that data, while uninstalling deletes the private copy and saves. Use the upstream app and its backup guidance for these platforms."
           },
           {
             "title": "Attach a separate prepared launcher",
@@ -55556,7 +55571,8 @@
         ],
         "warnings": [
           "Use your own exact USA ROM. If you attach the prepared launcher, select z2rs-launcher.exe from the complete external package. Preserve %APPDATA%/z2rs and the ROM’s original path; the selected launcher does not establish full-game lifetime.",
-          "Back up your external z2rs profile before changing versions. Upstream checks XDG_DATA_HOME, APPDATA, then HOME. For the managed player, any of those roots that you set must be absolute. Use a separately prepared copy for relative roots, a custom data_dir_override, or launcher-only options. Portcove preserves the fixed .z2rs-data fallback. Runtime rollback does not establish save-state compatibility."
+          "Back up your external z2rs profile before changing versions. Use an absolute personal profile and the default data directory. Use a separately prepared copy for relative paths, a custom data_dir_override or launcher-only options. Windows and Linux can use the fixed .z2rs-data fallback when the upstream environment supplies no profile root. On Mac, use an absolute XDG_DATA_HOME or HOME outside the managed library. Runtime rollback does not establish save-state compatibility.",
+          "The inspected Linux packages require glibc 2.39, libudev.so.1, libasound.so.2 and libgcc_s.so.1."
         ],
         "references": [
           {

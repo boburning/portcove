@@ -240,6 +240,11 @@ export async function writeGithubOutputs(
         (selection.repositoryLint || Boolean(plan.fallback) || plan.changes.length === 0),
     ),
     windows_helpers: String(windowsHelperChecksRequired(plan)),
+    // Only a complete frontend suite that CI will actually execute is split across browser shards.
+    frontend_browser_shards: String(
+      !reuse?.groups.includes("frontend") &&
+        (await import("./ci-baseline.mts")).baselineBrowserShardsRequired(plan),
+    ),
     native_tools: String(windowsNativeToolsRequired(plan)),
     linux_diagnostics: String(linuxRuntimeDiagnosticsRequired(plan)),
     frontend_tools: String(

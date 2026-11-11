@@ -9,7 +9,7 @@
 
 ## Verification
 
-<!-- Link required exact-head CI. Add explicit native/manual acceptance when required. Local checks are optional. -->
+<!-- Link required exact-head CI. Add explicit native/manual acceptance when required. Local checks need no omission narrative. -->
 
 ## Review and risk
 

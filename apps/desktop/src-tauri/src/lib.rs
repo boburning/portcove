@@ -33,6 +33,7 @@ pub mod application_update_trust;
 #[cfg(any(windows, test))]
 pub mod application_update_windows;
 mod artwork;
+mod automatic_snapshots;
 mod backup_review;
 mod bug_report;
 mod catalog;
@@ -2927,6 +2928,8 @@ pub fn run() -> std::process::ExitCode {
             preparation::preview_preparation_cleanup,
             preparation::cleanup_preparation,
             launch_port,
+            automatic_snapshots::get_automatic_snapshots,
+            automatic_snapshots::set_automatic_snapshots,
             bug_report::preview_bug_report,
             bug_report::open_bug_report,
             get_launch_failure,

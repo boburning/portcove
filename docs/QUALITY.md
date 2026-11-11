@@ -10,8 +10,15 @@ remote readback succeed. The contexts remain `catalog`, `dependency-review`,
 the delivery operations. Supplementary runs, diagnostics and personal preferences
 do not become merge prerequisites merely because somebody invoked them.
 
-Local commands are optional feedback. Bare `just`, `just local-check`, focused
-tests and analyzers may help development; omitted local checks need no explanation.
+One local step is expected before pushing a candidate: `just push-check` runs the
+cheap, area-selected stages of `just local-check` (formatting, lint and type checks,
+selected contract tests, related UI tests) without the heavy Rust workspace tests,
+production build or complete browser suite. A Rust-only change therefore gets a
+format check but no compile or type check locally; hosted CI is the first compile. It exists so a failure visible in under
+two minutes does not cost a 15 to 25 minute hosted cycle; it is not a merge
+prerequisite and needs no omission narrative. Bare `just`, `just local-check`,
+focused tests and analyzers remain optional feedback; omitted local checks need no
+explanation.
 Native, installed-app, physical-device or human observations are required only by
 explicit owning-issue acceptance or a release contract. Fixtures establish their
 tested contracts and cannot establish those observations.
@@ -305,6 +312,19 @@ build and public CLI/Playnite consumer, and Clippy remains independent. Archive
 sharing removes per-worker Core test builds; it does not establish an elapsed-time
 improvement or replace full qualification evidence.
 
+Ordinary frontend coverage splits the browser projects across jobs only when the
+complete frontend suite is selected. The classifier sets `frontend_browser_shards`;
+`fast_frontend` then runs content, static checks, the production build and the unit
+project, and the `fast-frontend-browser` matrix runs the `browser`, `browser-locale`
+and `browser-forced-colors` projects with Vitest `--shard`. The shard count is the
+matrix length, so the shards cover the suite. Import-related selections, reused
+postmerge results and qualification run unsharded. The required `frontend` result
+waits for every shard and requires success exactly when the flag is true; with the
+flag false, `fast_frontend` owns every project and the shards must be skipped. A
+wrong flag therefore cannot omit coverage. Sharding changes where the same tests run,
+not what is required, and it adds runner jobs per full run, so queue time still
+counts toward latency.
+
 Retain failures, diagnose the smallest useful reproduction, and repeat only
 invalidated obligations. Preserve assertions, coverage, cleanup and finite
 termination; an unchanged later pass does not establish a causal repair.
@@ -419,6 +439,10 @@ tested-tree equality and existing workflow provenance. Executable frontend sourc
 workflow and uncertain inputs retain fresh work in this bounded implementation.
 Proven equivalent postmerge work must report original evidence separately from freshly executed obligations;
 release/stateful requirements stay fresh. Guard the merge by exact source SHA.
+Pull request CI already validates the pull request merged with the target tip at run
+start, so merging `main` into a candidate only because `main` advanced adds a full
+hosted run on a new head without new evidence. Merge `main` for a conflict, a relevant
+interaction or changed composition.
 
 ## Formatting contract
 

@@ -76,6 +76,40 @@ for (const id of ["road-rash-64-recompiled", "sonic-3-and-knuckles-recomp"]) {
   }
 }
 
+it("shows why the last launch failed on an installed game's details page, with Open Activity", async () => {
+  const props = installedSourceDetail("road-rash-64-recompiled", "not_checked");
+  const installId = props.status.active.id;
+  vi.spyOn(desktopApi, "launchFailure").mockResolvedValue({
+    id: "launch-1",
+    install_id: installId,
+    exit_code: -1073741515,
+    outcome: "failed",
+    exit_explanation: {
+      table_version: 1,
+      key: "dll_not_found",
+      raw_code: "0xC0000135",
+      explanation: "A required DLL or runtime is most likely missing.",
+      next_action: "Install the runtime the game's page lists, then try again.",
+    },
+  } as never);
+  const openActivity = vi.fn();
+  await render(<DetailPanel {...props} libraryGeneration={3} openActivity={openActivity} />);
+  await expect
+    .element(page.getByText("A required DLL or runtime is most likely missing."))
+    .toBeVisible();
+  expect(desktopApi.launchFailure).toHaveBeenCalledWith(props.port.id, 3);
+  await page.getByRole("button", { name: "Open Activity", exact: true }).first().click();
+  expect(openActivity).toHaveBeenCalled();
+});
+
+it("shows no launch-failure notice when the last launch has nothing to explain", async () => {
+  const props = installedSourceDetail("road-rash-64-recompiled", "not_checked");
+  vi.spyOn(desktopApi, "launchFailure").mockResolvedValue(null);
+  await render(<DetailPanel {...props} libraryGeneration={3} />);
+  await expect.poll(() => vi.mocked(desktopApi.launchFailure).mock.calls.length).toBeGreaterThan(0);
+  expect(document.querySelector("[data-launch-failure]")).toBeNull();
+});
+
 it.each([
   ["missing", "missing_source"],
   ["unreadable", "unreadable_source"],

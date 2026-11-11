@@ -13,6 +13,13 @@ import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { isRecord } from "./runtime-values.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
+import { retainReleaseRoutingMarker } from "./release-routing-marker.mts";
+import { retainControllerJobSettlement } from "./release-controller-transport.mts";
+import {
+  applicationCoordinatorRefusal,
+  applicationCoordinatorRefusalFile,
+  CoordinatorRemoteError,
+} from "./release-coordinator-errors.mts";
 import {
   retainCatalogCoordinatorRefusal,
   type CatalogCoordinatorRefusalStage,
@@ -70,6 +77,18 @@ export async function launchFixedControllerJob(rawOperation: unknown) {
     }
     return await launch();
   } catch (error) {
+    const root = process.env.RUNNER_TEMP;
+    if (root && path.isAbsolute(root) && rawOperation === "coordinator") {
+      if (process.env.PORTCOVE_EXECUTION_PURPOSE === "application")
+        await retainReleaseRoutingMarker(
+          path.join(root, applicationCoordinatorRefusalFile),
+          applicationCoordinatorRefusal(
+            new CoordinatorRemoteError("fixed controller bootstrap refused", {
+              phase: `bootstrap-${stage}`,
+            }),
+          ),
+        ).catch(() => {});
+    }
     if (
       rawOperation === "coordinator" &&
       process.env.PORTCOVE_EXECUTION_PURPOSE === "catalog-publication"
@@ -77,6 +96,10 @@ export async function launchFixedControllerJob(rawOperation: unknown) {
       await retainCatalogCoordinatorRefusal(process.env.RUNNER_TEMP ?? "", "launch", stage).catch(
         () => {},
       );
+    // The bundle publishes its own settlement after entry. Preserve it if
+    // present, and settle an earlier bootstrap failure for the waiting action.
+    if (root && path.isAbsolute(root) && rawOperation === "coordinator")
+      await retainControllerJobSettlement(root, "coordinator", 1, false).catch(() => {});
     throw error;
   }
 }

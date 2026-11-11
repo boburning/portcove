@@ -335,7 +335,10 @@ export type ExternalProfilePolicy =
   | "corsixth-linux-v1"
   | "openloco-unix-v1"
   | "jgrpp-linux-v1"
-  | "openglad-mac-v1";
+  | "openglad-mac-v1"
+  | "z2rs-desktop-v1"
+  | "recomp-direct-v1"
+  | "doom3-linux-v1";
 export type GameSettingsFormat = "json" | "ini";
 export type GameSettingType =
   | {
@@ -884,6 +887,7 @@ export type ApplicationUpdateObservedTermination =
 export type ApplicationUpdateInstallEligibility =
   "eligible" | "package-managed-deb" | "package-managed-rpm" | "not-configured" | "unavailable";
 export type ApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
+export type OutputDesktopAutomaticSnapshotsEnabled = boolean;
 export type InstallationContext =
   | {
       installation_id: string;
@@ -1057,6 +1061,7 @@ export interface TransportOutputs {
   desktop_application_update_production_transition: ApplicationUpdateProductionTransition;
   desktop_application_update_production_transition_result: OutputDesktopApplicationUpdateProductionTransitionResult;
   desktop_application_update_status: OutputDesktopApplicationUpdateStatus;
+  desktop_automatic_snapshots_enabled: OutputDesktopAutomaticSnapshotsEnabled;
   desktop_backup_review: OutputDesktopBackupReview;
   desktop_bootstrap_status: OutputDesktopBootstrapStatus;
   desktop_bug_report_draft: OutputDesktopBugReportDraft;
@@ -2107,6 +2112,12 @@ export interface ReleaseSpec {
     "macos-x86-64"?: DirectReleaseSpec;
     "windows-x86-64"?: DirectReleaseSpec;
   };
+  /**
+   * Native22 (native definitions only): after extraction on a Unix platform, grant
+   * execute permission to the declared executable only when it verifies as a binary for
+   * that platform. The publisher's own executable bit, when present, is never changed.
+   */
+  grant_declared_executable?: boolean;
   /**
    * Native8: select the checked TAR.XZ player archive on Linux x86-64.
    */

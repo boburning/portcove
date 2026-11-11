@@ -543,6 +543,44 @@ void test("fixed job adapter and source bootstrap refuse unknown operations with
   assert.deepEqual(await readdir(root), []);
 });
 
+void test("coordinator bootstrap failures retain a public stage and settle the waiting action", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "fixed-controller-bootstrap-refusal-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const source = new URL("./release-controller-job-bootstrap.mts", import.meta.url).href;
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `import assert from 'node:assert/strict';
+       import {readFile} from 'node:fs/promises';
+       const {launchFixedControllerJob}=await import(${JSON.stringify(source)});
+       const root=process.env.RUNNER_TEMP;
+       await assert.rejects(launchFixedControllerJob('coordinator'), /forbids inherited/);
+       const refusal=await readFile(root+'/application-coordinator-operation-refusal.json','utf8');
+       assert.deepEqual(JSON.parse(refusal),{schema_version:1,stage:'bootstrap-source-admission',error_type:'coordinator-remote',authority:'none',automatic_retry:false});
+       assert.ok(!refusal.includes('fixture-private-bootstrap-key'));
+       assert.deepEqual(JSON.parse(await readFile(root+'/controller-job-settlement-coordinator.json','utf8')),{exit_code:1,requires_attestation:false});
+       await assert.rejects(launchFixedControllerJob('coordinator'), /forbids inherited/);
+       assert.equal(await readFile(root+'/application-coordinator-operation-refusal.json','utf8'),refusal);
+       console.log('retained bootstrap refusal and settlement');`,
+    ],
+    {
+      env: {
+        ...process.env,
+        RUNNER_TEMP: root,
+        PORTCOVE_EXECUTION_PURPOSE: "application",
+        PORTCOVE_ROLE_KEY: "fixture-private-bootstrap-key",
+        PORTCOVE_STORAGE_APP_TOKEN: "",
+      },
+      timeout: 15000,
+      maxBuffer: 16384,
+      windowsHide: true,
+    },
+  );
+  assert.match(stdout, /retained bootstrap refusal and settlement/);
+});
+
 void test("same-job aggregate outputs carry exact original custody to the maintained payload locator", async () => {
   const { projectFixedControllerJobOutputs } = await import("./release-controller-job-output.mts");
   const { prepareFixedControllerConfiguration } =
