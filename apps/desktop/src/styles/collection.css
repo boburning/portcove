@@ -395,8 +395,7 @@
     -webkit-line-clamp: unset;
   }
   .collection-identity:focus-visible .collection-project,
-  .discover-game-identity:focus-visible .collection-project,
-  .collection-identity:hover .collection-project {
+  .discover-game-identity:focus-visible .collection-project {
     display: block;
     overflow: visible;
     white-space: normal;

@@ -315,6 +315,7 @@ describe("desktop components", () => {
     expect(emptyLibrary).toContain("Your library is empty");
     // First run explains Portcove plainly and leads with Discover.
     expect(emptyLibrary).toContain("community-made versions of games, called ports");
+    expect(emptyLibrary).toContain("doesn’t upload them");
     expect(emptyLibrary).toContain("your own copy of the original game");
     const firstRunButtons = [...emptyLibrary.matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/gu)].map(
       ([button]) => button,

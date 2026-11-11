@@ -937,7 +937,7 @@ function BrowserEmptyState({
           </span>
         }
         title="Your library is empty"
-        description="Portcove installs community-made versions of games, called ports, and keeps them updated. Some ports need files from your own copy of the original game; Portcove checks them and keeps them on this computer. You can also copy a supported installation without changing its original folder."
+        description="Portcove helps you find and install community-made versions of games, called ports, and can keep many of them updated. Some ports need files from your own copy of the original game; Portcove checks them on this computer and doesn’t upload them. You can also copy a supported installation without changing its original folder."
         action={
           <>
             {onDiscover && (

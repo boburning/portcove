@@ -202,6 +202,12 @@
       min-block-size: 1.5em;
       -webkit-line-clamp: 1;
     }
+    /* The one-line project reveals its full name on hover as well as focus. */
+    .collection-cover .collection-identity:hover .collection-project {
+      display: block;
+      overflow: visible;
+      -webkit-line-clamp: unset;
+    }
     .collection-cover .library-entry-footer {
       margin-block-start: var(--space-1);
       padding-block-start: var(--space-1);
