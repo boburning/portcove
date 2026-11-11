@@ -89,6 +89,7 @@ unless the copy change is intended and reviewed.
 | Official setup information               | `components/OfficialDefinitionUpdates.tsx`                 | `catalogUpdates`    |
 | Official catalog updates                 | `components/OfficialCatalogUpdates.tsx`                    | `catalogUpdates`    |
 | Custom catalog sources and game listings | `components/CatalogUpdates.tsx`                            | `catalogUpdates`    |
+| Uninstall review                         | `components/RemovalReview.tsx`                             | `removal`           |
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-11 it
@@ -100,7 +101,7 @@ inventory, not a coverage claim.
 
 Narrow technical-literal exclusions: the lint ignores the `aria-live`,
 `aria-atomic`, `aria-describedby`, `aria-labelledby`, `data-settings-control`,
-`data-slot`, `intent`, `reviewSize`, `size`, `triggerId` and `variant`
+`data-slot`, `dir`, `intent`, `reviewSize`, `size`, `triggerId` and `variant`
 attributes, which carry design-system tokens, element ids or ARIA references,
 never player copy.
 Thrown `Error` messages that are caught and never displayed, stable state codes,

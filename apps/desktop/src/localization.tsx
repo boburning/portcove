@@ -18,11 +18,13 @@ import {
 } from "react";
 import englishApplicationUpdate from "./locales/en/applicationUpdate.json";
 import englishCatalogUpdates from "./locales/en/catalogUpdates.json";
+import englishRemoval from "./locales/en/removal.json";
 import englishCounts from "./locales/en/counts.json";
 import englishSettings from "./locales/en/settings.json";
 import englishShell from "./locales/en/shell.json";
 import engineeringApplicationUpdate from "./locales/ar-XB/applicationUpdate.json";
 import engineeringCatalogUpdates from "./locales/ar-XB/catalogUpdates.json";
+import engineeringRemoval from "./locales/ar-XB/removal.json";
 import engineeringSettings from "./locales/ar-XB/settings.json";
 import engineeringShell from "./locales/ar-XB/shell.json";
 import type { LocalePreferenceSnapshot } from "./types";
@@ -94,16 +96,18 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(englishShell, "shell");
   assertCatalog(englishApplicationUpdate, "applicationUpdate");
   assertCatalog(englishCatalogUpdates, "catalogUpdates");
+  assertCatalog(englishRemoval, "removal");
   assertCatalog(engineeringSettings);
   assertCatalog(engineeringShell, "shell");
   assertCatalog(engineeringApplicationUpdate, "applicationUpdate");
   assertCatalog(engineeringCatalogUpdates, "catalogUpdates");
+  assertCatalog(engineeringRemoval, "removal");
   if (!i18next.isInitialized) {
     void i18next.use(initReactI18next).init({
       lng: resolveLocale(null, initialLocales),
       fallbackLng: "en",
       supportedLngs: [...supportedLocales],
-      ns: ["settings", "counts", "shell", "applicationUpdate", "catalogUpdates"],
+      ns: ["settings", "counts", "shell", "applicationUpdate", "catalogUpdates", "removal"],
       defaultNS: "settings",
       resources: {
         en: {
@@ -112,12 +116,14 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           shell: englishShell,
           applicationUpdate: englishApplicationUpdate,
           catalogUpdates: englishCatalogUpdates,
+          removal: englishRemoval,
         },
         "ar-XB": {
           settings: engineeringSettings,
           shell: engineeringShell,
           applicationUpdate: engineeringApplicationUpdate,
           catalogUpdates: engineeringCatalogUpdates,
+          removal: engineeringRemoval,
         },
       },
       initAsync: false,
