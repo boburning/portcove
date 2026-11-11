@@ -210,6 +210,12 @@ fn lock_slot(root: &Path, name: &str, create: bool) -> io::Result<Option<Slot>> 
             bytes = bytes.saturating_add(file.metadata()?.len());
         }
     }
+    if let Some(file) =
+        inspect_optional(&directory.join(portcove_core::runtime_diagnostics::PANIC_RECORD_NAME))?
+    {
+        has_logs = true;
+        bytes = bytes.saturating_add(file.metadata()?.len());
+    }
     // An unmarked namespace may contain user/older-version files. Do not adopt
     // or erase them merely because their leaf names resemble ours.
     if marker.is_none() && has_logs {
@@ -231,6 +237,12 @@ fn clear_slot(slot: &mut Slot) -> io::Result<()> {
             index,
         ))?;
     }
+    validate_held(&slot.directory.join(writer::WRITER_LOCK_NAME), &slot.lease)?;
+    safe_remove(
+        &slot
+            .directory
+            .join(portcove_core::runtime_diagnostics::PANIC_RECORD_NAME),
+    )?;
     validate_held(&slot.directory.join(writer::WRITER_LOCK_NAME), &slot.lease)?;
     safe_remove(&slot.directory.join(SESSION_MARKER))?;
     slot.bytes = 0;

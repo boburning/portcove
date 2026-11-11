@@ -20,6 +20,8 @@ use crate::{
 };
 
 const MIB: usize = 1024 * 1024;
+use crate::runtime_diagnostics::{PANIC_RECORD, PANIC_RECORD_NAME};
+
 const LOG_NAME: &str = "portcove-desktop.jsonl";
 const ROTATIONS: usize = 5;
 const SESSION_SLOTS: usize = 8;
@@ -504,12 +506,24 @@ impl Collector {
         // No directory walk or name from log content: eight fixed session
         // namespaces, then the six legacy files. Preserve the legacy aggregate
         // raw-input budget even when many invalid records produce no payload.
-        let candidates = (0..SESSION_SLOTS)
+        let panic_records =
+            (0..SESSION_SLOTS).map(|slot| (Some(slot), PANIC_RECORD_NAME.to_owned()));
+        let ordinary_logs = (0..SESSION_SLOTS)
             .map(Some)
             .chain(std::iter::once(None))
-            .flat_map(|slot| (0..=ROTATIONS).map(move |index| (slot, index)));
+            .flat_map(|slot| {
+                (0..=ROTATIONS).map(move |index| {
+                    let filename = if index == 0 {
+                        LOG_NAME.into()
+                    } else {
+                        format!("{LOG_NAME}.{index}")
+                    };
+                    (slot, filename)
+                })
+            });
         let mut input_remaining = self.manifest.limits.log_input_bytes;
-        for (slot, index) in candidates {
+        for (slot, filename) in panic_records.chain(ordinary_logs) {
+            let panic_record = filename == PANIC_RECORD_NAME;
             let mut section = section(SupportBundleSectionKind::RuntimeLog);
             if slot.is_some() {
                 section.provenance = SupportBundleProvenance::HostRuntimeLog;
@@ -522,17 +536,18 @@ impl Collector {
                 self.omitted_section(section, SupportBundleReason::SectionLimit);
                 break;
             }
-            let filename = if index == 0 {
-                LOG_NAME.into()
-            } else {
-                format!("{LOG_NAME}.{index}")
-            };
             let name = match slot {
                 Some(slot) => format!("session-{slot:02}/{filename}"),
                 None => filename,
             };
             let path = directory.join(&name);
             let file = match crate::external_runtime::open_single_link_file(&path) {
+                Ok(file)
+                    if panic_record
+                        && file.metadata().is_ok_and(|metadata| metadata.len() == 0) =>
+                {
+                    continue;
+                }
                 Ok(file) => file,
                 Err(error) => {
                     let reason = if error.code == crate::ErrorCode::Verification {
@@ -544,14 +559,20 @@ impl Collector {
                     } else {
                         SupportBundleReason::ReadFailed
                     };
-                    self.omitted_section(section, reason);
+                    if !panic_record || reason != SupportBundleReason::Unavailable {
+                        self.omitted_section(section, reason);
+                    }
                     continue;
                 }
             };
             let limit = self.remaining.min(self.manifest.limits.section_bytes);
             let mut limits = self.manifest.limits.clone();
             limits.log_bytes = limits.log_bytes.min(input_remaining);
-            let log = read_log(file, &limits, limit, self.started);
+            let log = if panic_record {
+                read_panic_record(file, &limits, limit, self.started)
+            } else {
+                read_log(file, &limits, limit, self.started)
+            };
             input_remaining -= log.read;
             self.bytes(
                 section,
@@ -602,6 +623,36 @@ impl<R: Read> Read for CountedInput<R> {
         let count = self.input.read(bytes)?;
         self.read += count;
         Ok(count)
+    }
+}
+
+fn read_panic_record(
+    file: File,
+    limits: &SupportBundleLimits,
+    output_limit: usize,
+    started: Instant,
+) -> LogRead {
+    // A modified panic file cannot consume the normal per-file log budget or
+    // contribute arbitrary records. Read one extra byte to distinguish surplus.
+    let max_bytes = (PANIC_RECORD.len() + 1).min(limits.log_bytes);
+    let mut input = Vec::with_capacity(max_bytes);
+    let observed = file.take(max_bytes as u64).read_to_end(&mut input);
+    if observed.is_ok() && input == PANIC_RECORD && max_bytes > PANIC_RECORD.len() {
+        let mut limits = limits.clone();
+        limits.log_bytes = max_bytes;
+        return read_log(input.as_slice(), &limits, output_limit, started);
+    }
+    LogRead {
+        bytes: Vec::new(),
+        reasons: vec![if observed.is_err() {
+            SupportBundleReason::ReadFailed
+        } else if max_bytes <= PANIC_RECORD.len() {
+            SupportBundleReason::SectionLimit
+        } else {
+            SupportBundleReason::InvalidRecord
+        }],
+        read: input.len(),
+        records: 0,
     }
 }
 

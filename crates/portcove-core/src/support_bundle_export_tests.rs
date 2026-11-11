@@ -1267,3 +1267,25 @@ fn archive_entry_write_reports_real_writer_failure() {
     let mut writer = zip::ZipWriter::new(FailWrites);
     assert!(write_entry(&mut writer, "startup.json", b"{}\n").is_err());
 }
+
+#[test]
+fn a_modified_panic_file_cannot_displace_the_ordinary_runtime_log() {
+    let temporary = tempfile::tempdir().unwrap();
+    let logs = temporary.path().join("logs");
+    let session = logs.join("session-00");
+    log_fixture(&session, "retained ordinary log");
+    let mut surplus = PANIC_RECORD.to_vec();
+    surplus.extend_from_slice(b"unexpected surplus");
+    fs::write(session.join(PANIC_RECORD_NAME), surplus).unwrap();
+    let exported = export_support_bundle(SupportBundleRequest {
+        destination_dir: &temporary.path().join("exports"),
+        logs_dir: Some(&logs),
+        library: None,
+        startup_failure: None,
+    })
+    .unwrap();
+    let files = members(&exported.path);
+    let ordinary = files.get("logs/session-00/portcove-desktop.jsonl").unwrap();
+    assert!(String::from_utf8_lossy(ordinary).contains("retained ordinary log"));
+    assert!(!files.contains_key("logs/session-00/portcove-panic.jsonl"));
+}

@@ -1835,6 +1835,13 @@ for the bounded file queue to flush; forced termination can lose records. A
 previous session without a completed close is reported as unclean with an unknown
 cause, never as proof of a crash or failed operation. Logs are redacted, not anonymous.
 
+After a diagnostic session starts, CLI and Desktop can write a single local
+event for the first Rust panic in that process. A subsequent support bundle
+includes the event when the session is retained and the file is readable. The
+record contains a fixed message without the panic payload, source location or
+backtrace. A caught panic can produce the same event as an uncaught panic.
+Hard kills, native crashes and direct aborts can bypass the Rust panic hook.
+
 ### Route-bound game-file observations
 
 `source query PORT_ID --route managed-install --channel stable` explicitly
