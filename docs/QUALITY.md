@@ -325,6 +325,16 @@ wrong flag therefore cannot omit coverage. Sharding changes where the same tests
 not what is required, and it adds runner jobs per full run, so queue time still
 counts toward latency.
 
+The root Vitest sequencer in `scripts/browser-shard-balance.mts` assigns shards by
+recorded file duration instead of path hash: longest file first, onto the lightest
+shard, with ties broken by path hash. Every current spec still lands in exactly one
+shard. `.config/browser-test-weights.json` holds scheduling estimates only. A file
+without a weight gets the median weight, and a missing or malformed weights file
+fails the shard run instead of falling back. Regenerate the weights from a Vitest
+JSON report of the three browser projects with
+`node scripts/browser-shard-balance.mts --report <report.json> --source <description>`.
+Stale weights can only make the shards uneven; they cannot drop a file.
+
 Retain failures, diagnose the smallest useful reproduction, and repeat only
 invalidated obligations. Preserve assertions, coverage, cleanup and finite
 termination; an unchanged later pass does not establish a causal repair.
