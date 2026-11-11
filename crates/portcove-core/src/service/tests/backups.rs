@@ -3682,7 +3682,7 @@ fn a_deletion_that_failed_on_retry_holds_until_recovery_finishes_it() {
         .unwrap_err();
     assert!(preview.message.contains("unfinished backup deletion"));
 
-    // A restore attempt (here through the locked path) retries and fails.
+    // The next locked backup action (here Back up now) retries and fails.
     let refusal = service.create_backup(ZELDA).unwrap_err();
     assert!(refusal.message.contains("unfinished backup deletion"));
     let operation = OperationStore::new(library.clone())
@@ -3701,6 +3701,19 @@ fn a_deletion_that_failed_on_retry_holds_until_recovery_finishes_it() {
     // holding until recovery finishes it, rather than promising the next action will.
     fs::remove_file(&companion).unwrap();
     assert!(held(&service));
+    // A startup attempt that fails also keeps holding.
+    fs::write(&companion, b"{}").unwrap();
+    let restarted = PortcoveService::new(library.clone()).unwrap();
+    assert!(held(&restarted));
+    assert!(
+        OperationStore::new(library.clone())
+            .get("stuck-prune")
+            .unwrap()
+            .unwrap()
+            .last_error
+            .is_some_and(|error| error.starts_with("could not be finished on retry: "))
+    );
+    fs::remove_file(&companion).unwrap();
     let recovered = PortcoveService::new(library.clone()).unwrap();
     assert!(!quarantine.exists());
     let inventory = recovered.list_backups(ZELDA).unwrap();

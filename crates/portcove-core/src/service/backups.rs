@@ -335,8 +335,9 @@ impl RestoreOperation {
     }
 }
 
-/// Marks a pending deletion that a later backup action already failed to finish.
-const RESUME_FAILED: &str = "could not be finished on retry: ";
+/// Marks a pending deletion that a later backup action or startup recovery already
+/// failed to finish.
+pub(super) const RESUME_FAILED: &str = "could not be finished on retry: ";
 
 /// Internal interpretation of the released deletion envelope, never consent or path authority.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
