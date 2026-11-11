@@ -3,6 +3,7 @@ import { desktopApi } from "../api";
 import type { PortIntent, PortIntentMode } from "../types";
 import { errorText } from "../view-model";
 import { Button } from "./ui/button";
+import { requestStandingSetup } from "../features/game-file-discovery/use-standing-setup";
 
 const choices: { mode: PortIntentMode; label: string; detail: string }[] = [
   {
@@ -13,7 +14,8 @@ const choices: { mode: PortIntentMode; label: string; detail: string }[] = [
   {
     mode: "notify",
     label: "Tell me when it's ready",
-    detail: "You're told once when it can be installed. Nothing is installed.",
+    detail:
+      "Portcove tells you when it can be installed, and again only if its setup changes. Nothing is installed.",
   },
   {
     mode: "set_up_when_ready",
@@ -65,6 +67,7 @@ export function SetupIntentChoice({ portId, generation }: { portId: string; gene
     try {
       const saved = await desktopApi.setPortIntent(portId, mode, expected);
       if (owner.current === expected) setIntent(saved);
+      if (mode === "set_up_when_ready") requestStandingSetup();
     } catch (value) {
       if (owner.current === expected) setError(errorText(value));
     } finally {
@@ -82,7 +85,6 @@ export function SetupIntentChoice({ portId, generation }: { portId: string; gene
           aria-label={choice.label}
         >
           <input
-            aria-label={choice.label}
             aria-describedby={`${name}-${choice.mode}`}
             type="radio"
             name={name}

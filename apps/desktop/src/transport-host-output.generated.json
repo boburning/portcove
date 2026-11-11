@@ -7925,7 +7925,7 @@
           },
           {
             "const": "notify",
-            "description": "Tell the player once each time the game becomes ready to install.",
+            "description": "Tell the player when the game becomes ready to install, again only if\nits ready plan changes.",
             "type": "string"
           },
           {
@@ -7959,8 +7959,13 @@
           "null"
         ]
       },
+      "failed_attempts": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
       "failed_plan_sha256": {
-        "description": "The plan whose standing setup last failed. It is not retried until the\nplan changes, so a permanent failure does not recur on every refresh.",
+        "description": "The plan whose standing setup last failed, and how many times it has\nfailed. It is retried on later passes up to a small limit, then waits\nuntil the plan changes, so a permanent failure does not recur.",
         "type": [
           "string",
           "null"
@@ -8040,7 +8045,7 @@
           },
           {
             "const": "notify",
-            "description": "Tell the player once each time the game becomes ready to install.",
+            "description": "Tell the player when the game becomes ready to install, again only if\nits ready plan changes.",
             "type": "string"
           },
           {
@@ -8157,8 +8162,13 @@
               "null"
             ]
           },
+          "failed_attempts": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
           "failed_plan_sha256": {
-            "description": "The plan whose standing setup last failed. It is not retried until the\nplan changes, so a permanent failure does not recur on every refresh.",
+            "description": "The plan whose standing setup last failed, and how many times it has\nfailed. It is retried on later passes up to a small limit, then waits\nuntil the plan changes, so a permanent failure does not recur.",
             "type": [
               "string",
               "null"
@@ -8204,7 +8214,7 @@
           },
           {
             "const": "notify",
-            "description": "Tell the player once each time the game becomes ready to install.",
+            "description": "Tell the player when the game becomes ready to install, again only if\nits ready plan changes.",
             "type": "string"
           },
           {
@@ -12814,7 +12824,7 @@
           },
           {
             "const": "notify",
-            "description": "Tell the player once each time the game becomes ready to install.",
+            "description": "Tell the player when the game becomes ready to install, again only if\nits ready plan changes.",
             "type": "string"
           },
           {
@@ -12887,11 +12897,30 @@
             "type": "object"
           }
         ]
+      },
+      "StandingSetupFailure": {
+        "properties": {
+          "port_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "reason"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "description": "What one standing-setup pass did for each game it considered.",
     "properties": {
+      "already_running": {
+        "description": "Another process is already running a pass; this one did nothing.",
+        "type": "boolean"
+      },
       "assessments": {
         "items": {
           "$ref": "#/$defs/PortIntentAssessment"
@@ -12905,6 +12934,13 @@
         },
         "type": "array"
       },
+      "failures": {
+        "description": "Games that could not start; the others were not affected.",
+        "items": {
+          "$ref": "#/$defs/StandingSetupFailure"
+        },
+        "type": "array"
+      },
       "not_assessed": {
         "format": "uint32",
         "minimum": 0,
@@ -12912,9 +12948,11 @@
       }
     },
     "required": [
+      "already_running",
       "assessments",
       "not_assessed",
-      "batches"
+      "batches",
+      "failures"
     ],
     "title": "StandingSetupResult",
     "type": "object"

@@ -2055,6 +2055,8 @@ function useWorkspaceLibrary({
   useStandingSetupCatchUp(
     bootstrap.generation,
     Boolean(data.catalog) && !data.recoveryFailure,
+    data.catalog,
+    data.sources,
     data.refreshAfterMutation,
   );
   const favorites = useFavorites(bootstrap.generation);

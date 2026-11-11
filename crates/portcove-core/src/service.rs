@@ -136,9 +136,9 @@ pub use install_batch::{
     MAX_INSTALL_BATCH_ITEMS,
 };
 pub use port_intent::{
-    MAX_PORT_INTENT_ASSESSMENTS, PORT_INTENT_FORMAT_VERSION, PortIntent, PortIntentAssessment,
-    PortIntentAssessments, PortIntentMode, PortReadiness, PortReadinessAcknowledgement,
-    StandingSetupResult,
+    MAX_PORT_INTENT_ASSESSMENTS, MAX_STANDING_SETUP_ATTEMPTS, PORT_INTENT_FORMAT_VERSION,
+    PortIntent, PortIntentAssessment, PortIntentAssessments, PortIntentMode, PortReadiness,
+    PortReadinessAcknowledgement, StandingSetupFailure, StandingSetupResult,
 };
 mod game_settings;
 #[path = "game_update_acquisition.rs"]
@@ -4574,6 +4574,10 @@ impl PortcoveService {
             }
             let mut removal = RemovalOperation::decode(&self.library, &lifecycle)?;
             removal.require_retained_outputs(self, &lifecycle)?;
+            // Remember the explicit uninstall before the removal starts, so a
+            // removal that later needs recovery is still never undone by
+            // standing setup. Failing here changes nothing.
+            self.library.record_explicit_uninstall(port_id)?;
             store.put(&mut lifecycle)?;
             intent_persisted = true;
             for removal in &removals {
@@ -4622,14 +4626,6 @@ impl PortcoveService {
             }
             lifecycle.last_error = Some(error.message.clone());
             let _ = store.put(&mut lifecycle);
-        }
-        // Remember the completed explicit uninstall so standing setup and
-        // notifications do not bring the game back without a new choice. The
-        // removal already committed, so a failure here is logged, not returned.
-        if result.is_ok()
-            && let Err(error) = self.library.record_explicit_uninstall(port_id)
-        {
-            tracing::warn!(port_id, error = %error.message, "could not remember the uninstall");
         }
         self.finish_activity(activity, result)
     }

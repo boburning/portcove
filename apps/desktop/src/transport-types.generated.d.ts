@@ -5070,9 +5070,11 @@ export interface PortIntent {
    * notifications stay quiet until the player chooses a mode again.
    */
   explicitly_uninstalled_at?: number | null;
+  failed_attempts?: number;
   /**
-   * The plan whose standing setup last failed. It is not retried until the
-   * plan changes, so a permanent failure does not recur on every refresh.
+   * The plan whose standing setup last failed, and how many times it has
+   * failed. It is retried on later passes up to a small limit, then waits
+   * until the plan changes, so a permanent failure does not recur.
    */
   failed_plan_sha256?: string | null;
   failure?: string | null;
@@ -5107,12 +5109,25 @@ export interface PortIntentAssessment {
  * What one standing-setup pass did for each game it considered.
  */
 export interface OutputDesktopStandingSetup {
+  /**
+   * Another process is already running a pass; this one did nothing.
+   */
+  already_running: boolean;
   assessments: PortIntentAssessment[];
   /**
    * One single-game batch per game that started, in order.
    */
   batches: InstallBatchRecord[];
+  /**
+   * Games that could not start; the others were not affected.
+   */
+  failures: StandingSetupFailure[];
   not_assessed: number;
+  [k: string]: unknown;
+}
+export interface StandingSetupFailure {
+  port_id: string;
+  reason: string;
   [k: string]: unknown;
 }
 export interface OutputDesktopSteamArtworkApplyResult {

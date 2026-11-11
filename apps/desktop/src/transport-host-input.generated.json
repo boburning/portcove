@@ -996,7 +996,7 @@
       },
       {
         "const": "notify",
-        "description": "Tell the player once each time the game becomes ready to install.",
+        "description": "Tell the player when the game becomes ready to install, again only if\nits ready plan changes.",
         "type": "string"
       },
       {

@@ -1012,7 +1012,7 @@ pub(crate) fn port_intent_assessments(value: &portcove_core::PortIntentAssessmen
         .collect::<Vec<_>>();
     if value.not_assessed > 0 {
         lines.push(format!(
-            "{} more choices were not assessed in this pass; run it again to continue.",
+            "{} more choices were not assessed; one pass covers the first 512 choices by game ID.",
             value.not_assessed
         ));
     }
@@ -1021,6 +1021,9 @@ pub(crate) fn port_intent_assessments(value: &portcove_core::PortIntentAssessmen
 }
 
 pub(crate) fn standing_setup(value: &portcove_core::StandingSetupResult) -> String {
+    if value.already_running {
+        return "Another Portcove process is already setting up ready games, so this pass changed nothing. Check again with `portcove games intents`.".to_owned();
+    }
     let mut lines = value
         .assessments
         .iter()
@@ -1032,9 +1035,16 @@ pub(crate) fn standing_setup(value: &portcove_core::StandingSetupResult) -> Stri
     for batch in &value.batches {
         lines.push(install_batch(batch));
     }
+    for failure in &value.failures {
+        lines.push(format!(
+            "{}: couldn't start setup - {}",
+            clean(&failure.port_id),
+            clean(&failure.reason)
+        ));
+    }
     if value.not_assessed > 0 {
         lines.push(format!(
-            "{} more choices were not assessed in this pass; run it again to continue.",
+            "{} more choices were not assessed; one pass covers the first 512 choices by game ID.",
             value.not_assessed
         ));
     }

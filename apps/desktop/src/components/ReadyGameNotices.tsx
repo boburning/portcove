@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import type { PortDefinition, PortIntentAssessment } from "../types";
 import { Button } from "./ui/button";
+import { onStandingSetupPass } from "../features/game-file-discovery/use-standing-setup";
 
 /**
  * Games the player asked to hear about that became ready to install. Core
@@ -24,18 +25,23 @@ export function ReadyGameNotices({
   }, [generation]);
   useEffect(() => {
     const expected = generation;
-    desktopApi
-      .assessPortIntents(expected)
-      .then((assessed) => {
-        if (owner.current !== expected) return;
-        setReady(
-          assessed.assessments.filter(
-            (item) =>
-              item.mode === "notify" && item.newly_ready && item.readiness.state === "ready",
-          ),
-        );
-      })
-      .catch(() => undefined);
+    const assess = () =>
+      desktopApi
+        .assessPortIntents(expected)
+        .then((assessed) => {
+          if (owner.current !== expected) return;
+          setReady(
+            assessed.assessments.filter(
+              (item) =>
+                item.mode === "notify" && item.newly_ready && item.readiness.state === "ready",
+            ),
+          );
+        })
+        .catch(() => undefined);
+    void assess();
+    // Reassess after each standing-setup pass, which follows catalog, file and
+    // choice changes.
+    return onStandingSetupPass(() => void assess());
   }, [generation]);
 
   if (!ready.length) return null;
@@ -55,7 +61,7 @@ export function ReadyGameNotices({
     }
   };
   return (
-    <section aria-label="Games ready to install" className="col-span-full">
+    <section aria-label="Games ready to install" role="status" className="col-span-full">
       <h3>Ready to install</h3>
       <ul>
         {ready.map((item) => (
