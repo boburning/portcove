@@ -25,6 +25,7 @@ import {
 import type { CatalogCoordinatorRefusalStage } from "./release-control-step-bridge.mts";
 import {
   inspectTufPublicationFacts,
+  servedNativeBootstrapRenewal,
   standaloneBootstrapAdoption,
   standaloneBootstrapForwardAdoption,
   standaloneBootstrapRenewalAdoption,
@@ -216,19 +217,46 @@ export async function authenticateStandaloneBootstrapAdoption(
   tools: object,
   deadline: number,
   stage: (value: CatalogCoordinatorRefusalStage<"operation">) => void = () => {},
-  forward = false,
+  forward: boolean | "native" = false,
 ) {
   const originalSelection = standaloneBootstrapAdoption;
   const original = immutableApplicationBootstrap;
   const actual = await readApplicationPriorPublication(directory);
   const { discovered, prior } = actual;
   const renewal = discovered.release_id === retainedServedRenewal.release_id;
-  const selected = forward
-    ? standaloneBootstrapForwardAdoption
-    : renewal
-      ? standaloneBootstrapRenewalAdoption
-      : originalSelection;
-  if (forward) {
+  const selected =
+    forward === "native"
+      ? servedNativeBootstrapRenewal
+      : forward
+        ? standaloneBootstrapForwardAdoption
+        : renewal
+          ? standaloneBootstrapRenewalAdoption
+          : originalSelection;
+  if (forward === "native") {
+    const native = servedNativeBootstrapRenewal;
+    assert.equal(discovered.release_id, native.release_id);
+    assert.equal(discovered.custody.opportunity, native.opportunity);
+    assert.equal(discovered.custody.preparation, null);
+    assert.deepEqual(discovered.execution.run, {
+      id: native.run_id,
+      control_commit: native.revision,
+      control_ref: native.ref,
+    });
+    assert.equal(discovered.execution.attempt, 1);
+    assert.equal(discovered.execution.conclusion, "success");
+    assert.equal(discovered.execution.job_id, Number(native.feed_job_id));
+    assert.deepEqual(prior.receipt.producer, discovered.execution.run);
+    assert.equal(prior.receipt.producer_attempt, 1);
+    assert.equal(
+      prior.receipt.site.previous_generation,
+      standaloneBootstrapForwardAdoption.generation,
+    );
+    assert.ok(isRecord(prior.metadata));
+    assert.equal(prior.metadata.purpose, "metadata-renewal");
+    assert.equal(prior.metadata.prior_generation, standaloneBootstrapForwardAdoption.generation);
+    assert.equal(prior.metadata.prior_repository_sha256, native.prior_repository_sha256);
+    await assertSettledRenewalFeed(discovered, deadline, native);
+  } else if (forward) {
     assertRetainedBootstrapForwardRenewal(actual);
     await assertSettledRenewalFeed(discovered, deadline, {
       ref: retainedR56FeedRecovery.next_ref,

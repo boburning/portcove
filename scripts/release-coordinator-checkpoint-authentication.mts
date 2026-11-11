@@ -327,6 +327,29 @@ export function matchesRetainedApplicationRenewalHandoff(
   );
 }
 
+/** The catalog coordinator can authenticate this exact signed application
+ * predecessor for readback. Its own appointment still gates every operation. */
+export function matchesRetainedNativeAdoptionPredecessor(
+  checkpoint: { checkpoint: string; previous: string | null },
+  producer: Record<string, unknown>,
+  source: { workflow_sha256: string },
+  purpose: "application" | "catalog-publication" | undefined,
+) {
+  return (
+    purpose === "catalog-publication" &&
+    source.workflow_sha256 === retainedApplicationContextSettlement.workflow_sha256 &&
+    checkpoint.checkpoint === "006439a83c66cc3c1fa3fa142d7e4a6ed27f8553" &&
+    checkpoint.previous === retainedApplicationContextSettlement.checkpoint &&
+    producer.controller_revision === "ddf7e1ff74ced4ae988b089bf2ba9951d4de9964" &&
+    producer.controller_ref === retainedApplicationContextSettlement.successor_ref &&
+    producer.workflow_sha256 === retainedApplicationContextSettlement.workflow_sha256 &&
+    producer.run_id === "43061111295" &&
+    producer.run_attempt === 1 &&
+    producer.job_id === "130666640318" &&
+    producer.check_run_id === "130666640318"
+  );
+}
+
 /** Authenticate one independently selected current head, not an ancestry walk.
  * Selected setup pins authorize only the exact empty seed. Every later head
  * must carry the existing signature plus actual fixed historical job binding.
@@ -400,7 +423,8 @@ export async function authenticateFixedJobCoordinatorHistory(
       matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, withdrawal) ||
       matchesRetainedCatalogAdoptionWithdrawal(checkpoint, producer, purpose) ||
       matchesRetainedCatalogForwardAdoptionHandoff(checkpoint, producer, source, purpose) ||
-      matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, purpose));
+      matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, purpose) ||
+      matchesRetainedNativeAdoptionPredecessor(checkpoint, producer, source, purpose));
   if (
     !producer ||
     (!retainedHandoff &&

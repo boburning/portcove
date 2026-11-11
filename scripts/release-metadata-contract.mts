@@ -347,6 +347,55 @@ export const standaloneBootstrapForwardAdoption = {
   publication_sha256: "5b320322ad87a97e3fcb307bb6750f0218693993953ee5b7f37be01e9e99fd33",
 } as const;
 
+// The native metadata-only release advanced Pages while the signed journal
+// retained an earlier, settled no-effect renewal.
+export const servedNativeBootstrapRenewal = {
+  run_id: "43019180783",
+  feed_job_id: "130527865397",
+  revision: "207819b2a6e89a7801b8722f0b7e7229d4fc4968",
+  ref: "refs/tags/portcove-production-controller-windows-20261111r78",
+  release_id: 441659465,
+  opportunity: "4748878692c8fd350045bbedfedbebc70789b72c3bfa811c30c8d302ec896348",
+  generation: "5ced5fe15999ce976eaf3b793d70c76108a432d699ee293bc33d4e1576adf4d3",
+  publication_sha256: "cd94458c83aeab9641837f8a77414304b79d4410679877a12b194e61b391975f",
+  prior_repository_sha256: "c60ac310b3f6a7ccd118dce45314fa40e09b5db9c397fde469d546541b80c014",
+  superseded_descriptor_sha256: "e2cf6e64f8c4d6b3cad2123caf67fe70ee9d3b438dc2ff38d9879dbbb930a413",
+  settled_operation_id: "f7468b3daade44b98d7dde0af13f6cc81bbdc03d8b9c838ff8336e0a3a73e542",
+} as const;
+
+export function isServedNativeBootstrapRenewalPreimage(input: Record<string, unknown>) {
+  const published = inspectPublishedMetadata(input.published_metadata);
+  const controller = input.controller;
+  const capacity = isRecord(controller) ? controller.capacity_attempt : null;
+  const operation = isRecord(capacity) ? capacity.operation : null;
+  const prior = standaloneBootstrapForwardAdoption;
+  const renewal = servedNativeBootstrapRenewal;
+  return (
+    published?.standalone_bootstrap_run === prior.run_id &&
+    published.repository_sha256 === renewal.prior_repository_sha256 &&
+    digest(input.metadata_renewal ?? null) === renewal.superseded_descriptor_sha256 &&
+    isRecord(operation) &&
+    operation.id === renewal.settled_operation_id &&
+    operation.kind === "upload" &&
+    isRecord(operation.metadata_renewal) &&
+    operation.metadata_renewal.descriptor_sha256 === renewal.superseded_descriptor_sha256 &&
+    operation.outcome === "recovered" &&
+    isRecord(operation.recovery) &&
+    operation.recovery.resolution === "effect-not-applied" &&
+    Array.isArray(operation.completed_effects) &&
+    operation.completed_effects.length === 0 &&
+    !Object.hasOwn(input, "published_site") &&
+    input.active_candidate === null &&
+    input.published_catalog_metadata == null &&
+    input.catalog_initialization == null &&
+    input.catalog_publication == null &&
+    input.catalog_review_request == null &&
+    input.catalog_review_disposition == null &&
+    digest(input.metadata_bootstrap ?? null) ===
+      standaloneBootstrapAdoption.abandoned_descriptor_sha256
+  );
+}
+
 export function isStandaloneBootstrapForwardPreimage(
   published: ReturnType<typeof inspectPublishedMetadata>,
 ) {
@@ -385,6 +434,12 @@ function matchesStandaloneBootstrapPublication(
       job === String(standaloneBootstrapAdoption.feed_job_id) &&
       publication.site_generation_sha256 === standaloneBootstrapAdoption.generation &&
       digest(facts) === standaloneBootstrapAdoption.publication_sha256
+    );
+  if (run === servedNativeBootstrapRenewal.run_id)
+    return (
+      job === servedNativeBootstrapRenewal.feed_job_id &&
+      publication.site_generation_sha256 === servedNativeBootstrapRenewal.generation &&
+      digest(facts) === servedNativeBootstrapRenewal.publication_sha256
     );
   if (run === standaloneBootstrapForwardAdoption.run_id)
     return (
@@ -446,7 +501,35 @@ export function validatePublishedMetadataTransition(
     const { operation_id, expires } = after;
     const selected = standaloneBootstrapAdoption;
     const forward = after.standalone_bootstrap_run === standaloneBootstrapForwardAdoption.run_id;
-    if (
+    const native = after.standalone_bootstrap_run === servedNativeBootstrapRenewal.run_id;
+    if (native) {
+      const priorController = previous.controller;
+      const priorCapacity = isRecord(priorController) ? priorController.capacity_attempt : null;
+      const nextController = next.controller;
+      const nextCapacity = isRecord(nextController) ? nextController.capacity_attempt : null;
+      if (
+        !isServedNativeBootstrapRenewalPreimage(previous) ||
+        !isRecord(priorCapacity) ||
+        !isRecord(nextCapacity) ||
+        digest(priorCapacity.operation) !== digest(nextCapacity.operation) ||
+        !isRecord(operation) ||
+        operation.id !== servedNativeBootstrapRenewal.settled_operation_id ||
+        operation.outcome !== "recovered" ||
+        digest(operation.recovery) !==
+          digest(isRecord(priorCapacity.operation) ? priorCapacity.operation.recovery : null) ||
+        next.metadata_renewal !== null ||
+        Object.hasOwn(next, "published_site") ||
+        digest(previous.review_request ?? null) !== digest(next.review_request ?? null) ||
+        digest(previous.review_disposition ?? null) !== digest(next.review_disposition ?? null) ||
+        digest(next.metadata_bootstrap) !== selected.abandoned_descriptor_sha256 ||
+        next.published_catalog_metadata != null ||
+        next.catalog_initialization != null ||
+        next.catalog_publication != null ||
+        next.catalog_review_request != null ||
+        next.catalog_review_disposition != null
+      )
+        throw new Error("served native renewal differs from its exact settled journal preimage");
+    } else if (
       (forward
         ? !isStandaloneBootstrapForwardPreimage(before) ||
           Object.hasOwn(previous, "published_site") ||

@@ -6,6 +6,7 @@ import {
 } from "./release-capacity-operation.mts";
 import { metadataFixture } from "./fixtures/release-metadata-fixture.mts";
 import {
+  servedNativeBootstrapRenewal,
   standaloneBootstrapAdoption,
   standaloneBootstrapForwardAdoption,
   standaloneBootstrapRenewalAdoption,
@@ -280,6 +281,99 @@ void test("one settled standalone bootstrap can seed the app-only cursor without
         predecessor,
         { ...forward, now: "2026-11-11T08:00:00.000Z" },
         null,
+      ),
+    /expired standalone bootstrap/u,
+  );
+  const native = servedNativeBootstrapRenewal;
+  const superseded = {
+    schema_version: 1,
+    kind: "application-tuf-metadata-renewal",
+    generated_at: "2026-11-10T09:06:10Z",
+    root_sha256: forwardFacts.root_sha256,
+    offline_targets_sha256: forwardFacts.offline_targets_sha256,
+    unchanged_records_sha256: forwardFacts.records_sha256,
+    prior_repository_sha256: forwardFacts.repository_sha256,
+    prior_timestamp_sha256: forwardFacts.timestamp_sha256,
+    prior_snapshot_sha256: forwardFacts.snapshot_sha256,
+    current_versions: forwardFacts.versions,
+    current_expires: forwardFacts.expires,
+    next_versions: {
+      targets: "1",
+      releases: "8",
+      preview: "8",
+      stable: "8",
+      snapshot: "8",
+      timestamp: "8",
+    },
+    next_expires: {
+      targets: offlineExpiry,
+      releases: "2027-02-08T09:06:10Z",
+      preview: "2026-11-17T09:06:10Z",
+      stable: "2026-11-17T09:06:10Z",
+      snapshot: "2026-11-17T09:06:10Z",
+      timestamp: "2026-11-12T09:06:10Z",
+    },
+  };
+  const operation = {
+    id: native.settled_operation_id,
+    kind: "upload",
+    outcome: "recovered",
+    completed_effects: [],
+    metadata_renewal: { descriptor_sha256: native.superseded_descriptor_sha256 },
+    recovery: { resolution: "effect-not-applied" },
+  };
+  const servedBefore = {
+    ...forward,
+    metadata_renewal: superseded,
+    review_request: { preserved: "exact request" },
+    controller: { capacity_attempt: { operation } },
+  };
+  const servedAfter = {
+    ...servedBefore,
+    now: "2026-11-11T17:00:00.000Z",
+    metadata_renewal: null,
+    published_metadata: {
+      ...forward.published_metadata,
+      standalone_bootstrap_run: native.run_id,
+      repository_sha256: "666abbccb87032ddd004bdeff0b70a3b7a01288baa21adb9811c8c1f9d753489",
+      timestamp_sha256: "8f8be74a893ee13e9323febbf86dd20ebbc5b18b849b41a2a2d2c659504504cd",
+      snapshot_sha256: "28cb551261a42f71cdfd744c8025121f41141f44293e17ca02277e083fe26045",
+      versions: superseded.next_versions,
+      expires: {
+        targets: offlineExpiry,
+        releases: "2027-02-09T12:28:07.71Z",
+        preview: "2026-11-18T12:28:07.71Z",
+        stable: "2026-11-18T12:28:07.71Z",
+        snapshot: "2026-11-18T12:28:07.71Z",
+        timestamp: "2026-11-13T12:28:07.71Z",
+      },
+      publication: {
+        ...forward.published_metadata.publication,
+        remote_identity: `https://github.com/boburning/portcove/actions/runs/${native.run_id}/job/${native.feed_job_id}`,
+        site_generation_sha256: native.generation,
+      },
+    },
+  };
+  validatePublishedMetadataTransition(servedBefore, servedAfter, operation);
+  assert.equal(currentPublishedSite(servedAfter)?.generation_sha256, native.generation);
+  for (const edited of [
+    { ...servedAfter, metadata_renewal: superseded },
+    { ...servedAfter, review_request: null },
+    {
+      ...servedAfter,
+      controller: { capacity_attempt: { operation: { ...operation, completed_effects: [{}] } } },
+    },
+  ])
+    assert.throws(
+      () => validatePublishedMetadataTransition(servedBefore, edited, operation),
+      /exact settled journal preimage/u,
+    );
+  assert.throws(
+    () =>
+      validatePublishedMetadataTransition(
+        servedBefore,
+        { ...servedAfter, now: "2026-11-13T12:28:07.710Z" },
+        operation,
       ),
     /expired standalone bootstrap/u,
   );

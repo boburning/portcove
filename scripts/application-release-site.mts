@@ -8,7 +8,10 @@ import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mt
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { inspectSiteGeneration } from "./release-site-generation.mts";
-import { standaloneBootstrapRenewalAdoption } from "./release-metadata-contract.mts";
+import {
+  servedNativeBootstrapRenewal,
+  standaloneBootstrapRenewalAdoption,
+} from "./release-metadata-contract.mts";
 import {
   failedBootstrapRecovery,
   immutableApplicationBootstrap,
@@ -45,6 +48,7 @@ export async function createApplicationFeedReader(token: string, originalDeadlin
         suffix === `pages/deployments/${recoveredApplicationBootstrap.control_commit}` ||
         suffix === `git/ref/${recoveredApplicationBootstrap.control_ref.slice("refs/".length)}` ||
         suffix === `git/ref/${standaloneBootstrapRenewalAdoption.feed_ref.slice("refs/".length)}` ||
+        suffix === `git/ref/${servedNativeBootstrapRenewal.ref.slice("refs/".length)}` ||
         suffix === `git/ref/${retainedR56FeedRecovery.next_ref.slice("refs/".length)}` ||
         /^deployments\/[1-9][0-9]*$/u.test(suffix) ||
         /^actions\/(?:jobs\/[1-9][0-9]*|runs\/[1-9][0-9]*\/attempts\/[1-3])$/u.test(suffix) ||
