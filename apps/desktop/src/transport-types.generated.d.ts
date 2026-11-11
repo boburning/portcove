@@ -407,9 +407,15 @@ export type ExternalRuntimeTrust = "accepted-package" | "user-selected";
  * Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.
  */
 export type RuntimeDataPolicy = "racewave46-v1.0.0-windows" | "version-local-retroachievements-v1";
+/**
+ * Disc file-system an image is read as.
+ */
+export type DiscImageFormat = "xdvdfs" | "iso9660";
 export type RuntimeSourceMaterialization =
   | ("n64-big-endian" | "copy" | "gamecube-iso" | "psx-bin-cue" | "psx-raw-set" | "ps2-iso" | "stfs-directory")
-  | "regaiden-gbc";
+  | "regaiden-gbc"
+  | "xdvdfs-directory"
+  | "iso9660-directory";
 export type SupportTier = "stable" | "beta" | "rolling";
 /**
  * A declared upstream limitation, checked by Core rather than left to the game.
@@ -1874,6 +1880,11 @@ export interface PortDefinition {
     "windows-x86-64"?: ReviewedPackageLayout;
   };
   runtime_data_policy?: RuntimeDataPolicy | null;
+  /**
+   * Required by, and only valid with, the disc-image unpacking
+   * materializations: image kind, size bound and accepted game identifiers.
+   */
+  runtime_disc_image?: DiscImageProfile | null;
   runtime_mutable_file_patterns?: PersistentFilePattern[];
   runtime_mutable_paths: string[];
   runtime_source_filename: string | null;
@@ -2232,6 +2243,24 @@ export interface ReviewedPackageLayout {
    * any depth, sorted.
    */
   executables: string[];
+}
+/**
+ * Port declaration for a disc image that Portcove unpacks into a runtime
+ * directory. Limits and identifiers are evidence-bound; none are inferred.
+ */
+export interface DiscImageProfile {
+  format: DiscImageFormat;
+  /**
+   * Explicit bound on the selected image in bytes; at most 16 GiB.
+   */
+  max_image_bytes: number;
+  /**
+   * Game identifiers accepted from the disc: the `default.xex`/`default.xbe`
+   * title ID (eight hex digits), the PS2 `SYSTEM.CNF` boot serial or the PSP
+   * `PARAM.SFO` `DISC_ID`. At least one is required.
+   */
+  product_codes: string[];
+  [k: string]: unknown;
 }
 export interface RuntimeSourceTarget {
   destination: string;

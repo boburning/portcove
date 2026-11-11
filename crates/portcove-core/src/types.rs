@@ -307,6 +307,42 @@ pub enum RuntimeSourceMaterialization {
     PsxRawSet,
     Ps2Iso,
     StfsDirectory,
+    /// Unpack an Xbox or Xbox 360 disc image into a verified runtime directory.
+    XdvdfsDirectory,
+    /// Unpack a PS2 or PSP disc image (ISO or CHD) into a verified runtime directory.
+    Iso9660Directory,
+}
+
+impl RuntimeSourceMaterialization {
+    /// Disc file-system read by a disc-image unpacking materialization.
+    pub fn disc_image_format(self) -> Option<DiscImageFormat> {
+        match self {
+            Self::XdvdfsDirectory => Some(DiscImageFormat::Xdvdfs),
+            Self::Iso9660Directory => Some(DiscImageFormat::Iso9660),
+            _ => None,
+        }
+    }
+}
+
+/// Disc file-system an image is read as.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum DiscImageFormat {
+    Xdvdfs,
+    Iso9660,
+}
+
+/// Port declaration for a disc image that Portcove unpacks into a runtime
+/// directory. Limits and identifiers are evidence-bound; none are inferred.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct DiscImageProfile {
+    pub format: DiscImageFormat,
+    /// Explicit bound on the selected image in bytes; at most 16 GiB.
+    pub max_image_bytes: u64,
+    /// Game identifiers accepted from the disc: the `default.xex`/`default.xbe`
+    /// title ID (eight hex digits), the PS2 `SYSTEM.CNF` boot serial or the PSP
+    /// `PARAM.SFO` `DISC_ID`. At least one is required.
+    pub product_codes: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
@@ -807,6 +843,10 @@ pub struct PortDefinition {
     pub runtime_source_materialization: Option<RuntimeSourceMaterialization>,
     #[serde(default)]
     pub runtime_source_hashes: BTreeMap<String, String>,
+    /// Required by, and only valid with, the disc-image unpacking
+    /// materializations: image kind, size bound and accepted game identifiers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime_disc_image: Option<DiscImageProfile>,
     #[serde(default)]
     pub runtime_source_set: Vec<RuntimeSourceTarget>,
     #[serde(default)]

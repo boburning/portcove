@@ -1441,6 +1441,29 @@ impl Catalog {
                                 })
                             })
                     }
+                    RuntimeSourceMaterialization::XdvdfsDirectory
+                    | RuntimeSourceMaterialization::Iso9660Directory => {
+                        port.adapter == AdapterKind::StagedSourcePortable
+                            && Path::new(filename).extension().is_none()
+                            && port
+                                .runtime_mutable_paths
+                                .iter()
+                                .any(|path| path == filename)
+                            && port
+                                .runtime_disc_image
+                                .as_ref()
+                                .is_some_and(|image| {
+                                    Some(image.format) == materialization.disc_image_format()
+                                })
+                            && port.source_profile.as_ref().is_some_and(|profile_id| {
+                                self.document.source_profiles.iter().any(|profile| {
+                                    profile.id == *profile_id
+                                        && profile.kind == SourceKind::File
+                                        && (!profile.accepted_sha1.is_empty()
+                                            || !profile.accepted_sha256.is_empty())
+                                })
+                            })
+                    }
                     RuntimeSourceMaterialization::StfsDirectory => {
                         port.adapter == AdapterKind::StagedSourcePortable
                             && Path::new(filename).extension().is_none()
@@ -1464,7 +1487,50 @@ impl Catalog {
                     )));
                 }
             }
+            if port.runtime_disc_image.is_some()
+                && port
+                    .runtime_source_materialization
+                    .is_none_or(|materialization| materialization.disc_image_format().is_none())
+            {
+                return Err(PortcoveError::usage(format!(
+                    "{} declares a disc image without disc-image unpacking",
+                    port.id
+                )));
+            }
             match port.runtime_source_materialization {
+                Some(materialization) if materialization.disc_image_format().is_some() => {
+                    let image_valid = port.runtime_disc_image.as_ref().is_some_and(|image| {
+                        !image.product_codes.is_empty()
+                            && image.product_codes.len() <= 16
+                            && image.product_codes.iter().all(|code| {
+                                (4..=16).contains(&code.len())
+                                    && code
+                                        .bytes()
+                                        .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+                                    && code.bytes().filter(u8::is_ascii_alphanumeric).count() >= 4
+                            })
+                            && image.max_image_bytes > 0
+                            && image.max_image_bytes <= crate::disc_filesystem::MAX_IMAGE_BYTES
+                    });
+                    if !image_valid {
+                        return Err(PortcoveError::usage(format!(
+                            "{} has an invalid disc-image declaration",
+                            port.id
+                        )));
+                    }
+                    let anchors_valid = !port.runtime_source_hashes.is_empty()
+                        && port.runtime_source_hashes.len() <= 16
+                        && port.runtime_source_hashes.iter().all(|(path, digest)| {
+                            is_sha256(digest)
+                                && crate::archive::validate_relative_path(path, false).is_ok()
+                        });
+                    if !anchors_valid {
+                        return Err(PortcoveError::usage(format!(
+                            "{} has an incomplete disc-image runtime identity",
+                            port.id
+                        )));
+                    }
+                }
                 Some(RuntimeSourceMaterialization::StfsDirectory) => {
                     if port.runtime_source_hashes.is_empty() {
                         return Err(PortcoveError::usage(format!(
@@ -4868,6 +4934,88 @@ mod tests {
             port.automated_tested_platforms,
             [crate::Platform::WindowsX86_64]
         );
+    }
+
+    fn disc_image_catalog(mutate: impl FnOnce(&mut PortDefinition)) -> Result<Catalog> {
+        let mut document = Catalog::embedded().unwrap().document().clone();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "nocturne-recomp")
+            .unwrap();
+        port.runtime_source_materialization = Some(RuntimeSourceMaterialization::XdvdfsDirectory);
+        port.runtime_disc_image = Some(crate::DiscImageProfile {
+            format: crate::DiscImageFormat::Xdvdfs,
+            max_image_bytes: 9 * 1024 * 1024 * 1024,
+            product_codes: vec!["4D5307E6".into()],
+        });
+        mutate(port);
+        Catalog::from_document(document)
+    }
+
+    #[test]
+    fn disc_image_materializations_require_a_complete_exact_declaration() {
+        disc_image_catalog(|_| {}).expect("a complete synthetic declaration is valid");
+        type Mutation = fn(&mut PortDefinition);
+        let rejected: [(&str, Mutation); 11] = [
+            ("missing declaration", |port| port.runtime_disc_image = None),
+            ("wrong format", |port| {
+                port.runtime_disc_image.as_mut().unwrap().format = crate::DiscImageFormat::Iso9660;
+            }),
+            ("no product codes", |port| {
+                port.runtime_disc_image
+                    .as_mut()
+                    .unwrap()
+                    .product_codes
+                    .clear();
+            }),
+            ("unsafe product code", |port| {
+                port.runtime_disc_image.as_mut().unwrap().product_codes = vec!["../x".into()];
+            }),
+            ("zero image bound", |port| {
+                port.runtime_disc_image.as_mut().unwrap().max_image_bytes = 0;
+            }),
+            ("image bound above the fixed ceiling", |port| {
+                port.runtime_disc_image.as_mut().unwrap().max_image_bytes = 17 * 1024 * 1024 * 1024;
+            }),
+            ("no anchors", |port| port.runtime_source_hashes.clear()),
+            ("traversing anchor", |port| {
+                port.runtime_source_hashes
+                    .insert("../outside.xex".into(), "0".repeat(64));
+            }),
+            ("malformed anchor digest", |port| {
+                port.runtime_source_hashes
+                    .insert("default.xbe".into(), "not-a-digest".into());
+            }),
+            ("destination not declared mutable", |port| {
+                port.runtime_mutable_paths.retain(|path| path != "assets");
+            }),
+            ("declaration without disc unpacking", |port| {
+                port.runtime_source_materialization = Some(RuntimeSourceMaterialization::Copy);
+            }),
+        ];
+        for (label, mutate) in rejected {
+            let error = disc_image_catalog(mutate)
+                .err()
+                .unwrap_or_else(|| panic!("{label} must be rejected"));
+            assert_eq!(
+                error.code,
+                crate::ErrorCode::Usage,
+                "{label}: {}",
+                error.message
+            );
+        }
+    }
+
+    #[test]
+    fn shipped_definitions_do_not_declare_disc_images_yet() {
+        let catalog = Catalog::embedded().unwrap();
+        assert!(catalog.ports().iter().all(|port| {
+            port.runtime_disc_image.is_none()
+                && port
+                    .runtime_source_materialization
+                    .is_none_or(|materialization| materialization.disc_image_format().is_none())
+        }));
     }
 
     #[test]

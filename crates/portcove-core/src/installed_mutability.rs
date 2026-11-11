@@ -253,6 +253,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         runtime_source_filename,
         runtime_source_materialization,
         runtime_source_hashes,
+        runtime_disc_image,
         runtime_source_set,
         launch_from_install_root,
         setup_executable_hints,
@@ -309,6 +310,10 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
     // Only a declared marker joins the identity, so existing retained contracts keep theirs.
     if let Some(marker) = portable_marker_file {
         compatibility["portable_marker_file"] = serde_json::json!(marker);
+    }
+    // Likewise, disc-image unpacking limits and game identifiers join only when declared.
+    if let Some(image) = runtime_disc_image {
+        compatibility["runtime_disc_image"] = serde_json::json!(image);
     }
     compatibility
 }

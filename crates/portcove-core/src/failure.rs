@@ -131,6 +131,21 @@ pub(crate) enum KnownFailureCause {
     UnicodePath,
     RuntimePathRequirement,
     UnsupportedStfs,
+    /// The selected file is not a disc image the read-only readers accept.
+    UnsupportedDiscImage,
+    /// A disc image exceeded a fixed unpacking safety limit.
+    DiscImageLimit,
+    /// The disc is a different game or region than the port requires.
+    DiscProductMismatch {
+        found: String,
+        expected: Vec<String>,
+    },
+    /// Unpacking would not fit on the destination volume.
+    DiscSpace {
+        required_bytes: u64,
+        available_bytes: u64,
+        volume: String,
+    },
     DeviceLoginUnavailable,
     ProviderRequest {
         provider: FailureProvider,
@@ -144,6 +159,11 @@ pub(crate) enum KnownFailureCause {
 pub(crate) enum FailureProvider {
     Github,
     Gitlab,
+}
+
+fn decimal_gigabytes(bytes: u64) -> String {
+    let tenths = bytes.saturating_add(50_000_000) / 100_000_000;
+    format!("{}.{} GB", tenths / 10, tenths % 10)
 }
 
 impl KnownFailureCause {
@@ -292,6 +312,37 @@ impl KnownFailureCause {
                 "stfs_format_unsupported",
                 "This source is not a supported read-only Xbox LIVE STFS package. Select the required original package format and review the source again.",
             ),
+            Self::UnsupportedDiscImage => (
+                "disc_image_unsupported",
+                "Portcove can’t read this disc image safely. Select an unmodified original image in a supported format, then review the source again.",
+            ),
+            Self::DiscImageLimit => (
+                "disc_image_limit",
+                "This disc image is larger or more complex than Portcove will unpack safely. Select an unmodified original image; do not use partly unpacked files.",
+            ),
+            Self::DiscProductMismatch { found, expected } => {
+                return (
+                    "disc_product_mismatch",
+                    format!(
+                        "This disc is a different game or region (found {found}, needs {}). Select the matching disc image.",
+                        expected.join(" or ")
+                    ),
+                );
+            }
+            Self::DiscSpace {
+                required_bytes,
+                available_bytes,
+                volume,
+            } => {
+                return (
+                    "disc_space_insufficient",
+                    format!(
+                        "Unpacking needs {} free on {volume} ({} free). Free some space or choose another location, then try again.",
+                        decimal_gigabytes(*required_bytes),
+                        decimal_gigabytes(*available_bytes)
+                    ),
+                );
+            }
             Self::DeviceLoginUnavailable => (
                 "device_login_unavailable",
                 "GitHub device sign-in is unavailable in this build. Use the offered token sign-in, or continue anonymously where supported.",

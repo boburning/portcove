@@ -13884,6 +13884,41 @@
         ],
         "type": "object"
       },
+      "DiscImageFormat": {
+        "description": "Disc file-system an image is read as.",
+        "enum": [
+          "xdvdfs",
+          "iso9660"
+        ],
+        "type": "string"
+      },
+      "DiscImageProfile": {
+        "description": "Port declaration for a disc image that Portcove unpacks into a runtime\ndirectory. Limits and identifiers are evidence-bound; none are inferred.",
+        "properties": {
+          "format": {
+            "$ref": "#/$defs/DiscImageFormat"
+          },
+          "max_image_bytes": {
+            "description": "Explicit bound on the selected image in bytes; at most 16 GiB.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "product_codes": {
+            "description": "Game identifiers accepted from the disc: the `default.xex`/`default.xbe`\ntitle ID (eight hex digits), the PS2 `SYSTEM.CNF` boot serial or the PSP\n`PARAM.SFO` `DISC_ID`. At least one is required.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format",
+          "max_image_bytes",
+          "product_codes"
+        ],
+        "type": "object"
+      },
       "DiscSourceProfile": {
         "properties": {
           "discs": {
@@ -16185,6 +16220,17 @@
               }
             ]
           },
+          "runtime_disc_image": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DiscImageProfile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required by, and only valid with, the disc-image unpacking\nmaterializations: image kind, size bound and accepted game identifiers."
+          },
           "runtime_mutable_file_patterns": {
             "items": {
               "$ref": "#/$defs/PersistentFilePattern"
@@ -17591,6 +17637,16 @@
           {
             "const": "regaiden-gbc",
             "description": "Closed, consent-bearing ReGaiden route; older engines reject this value.",
+            "type": "string"
+          },
+          {
+            "const": "xdvdfs-directory",
+            "description": "Unpack an Xbox or Xbox 360 disc image into a verified runtime directory.",
+            "type": "string"
+          },
+          {
+            "const": "iso9660-directory",
+            "description": "Unpack a PS2 or PSP disc image (ISO or CHD) into a verified runtime directory.",
             "type": "string"
           }
         ]
