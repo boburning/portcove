@@ -2959,6 +2959,31 @@ policy case stays complete; #2440 owns this finite transition. #251 consumes the
 shared contract; #1306 owns preservation/failover, #315 release/distribution
 authority, #246 protected delivery and #254 proposals.
 
+### Artifact preservation capture
+
+`scripts/artifact-preservation.mts` is the maintainer-side capture contract for
+[#1306](https://github.com/boburning/portcove/issues/1306). It covers an
+explicitly declared finite scope of accepted artifacts, keyed by port, platform
+and numeric asset ID, and only for listed distribution bases. Anything outside
+that scope is recorded as `ineligible` and is never fetched. Capture streams the
+original bytes against the accepted size bound, rejects a differing SHA-256
+before publication, and publishes `<sha256>.asset` without replacing an existing
+object. A record becomes `verified` only after a separate complete read of the
+stored object matches the accepted size and SHA-256. Upload success and stream
+hashing never qualify.
+
+A replay or backfill verifies an existing object instead of uploading it again.
+A differing stored object becomes `failed` and is preserved for review, not
+overwritten. Exhausted capacity defers capture and evicts nothing. Inventory
+export includes verified records only. Restore re-verifies each object in the
+source and target stores and never changes accepted identity.
+
+This tooling grants no authority and changes no client behavior. Core
+acquisition still freshly observes upstream metadata as described in
+[definition delivery](DEFINITION-DELIVERY.md). No backend, credential,
+preserved location or failover path is configured. Those depend on the owner
+decision recorded on #1306.
+
 ## Read-only disappearance reporting
 
 `scripts/check-catalog-repositories.mts` reports six separate facts for each

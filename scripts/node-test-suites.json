@@ -458,6 +458,13 @@
       ]
     },
     {
+      "file": "scripts/artifact-preservation.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8915],
+        ["repository-tools-2", 3915]
+      ]
+    },
+    {
       "file": "scripts/package-player-observation.test.mts",
       "memberships": [
         ["catalog-full-2", 8912],
