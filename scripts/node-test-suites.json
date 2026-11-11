@@ -1380,6 +1380,28 @@
       ]
     },
     {
+      "file": "scripts/maintenance-store.test.mts",
+      "memberships": [
+        ["catalog-full", 1270],
+        ["repository-tools", 405]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "darwin"],
+          "owner": "catalog-full",
+          "category": "prerequisite",
+          "prerequisite": "Non-root PostgreSQL 16+ server binaries (initdb, pg_ctl) for disposable clusters",
+          "reason": "The integration proof needs real PostgreSQL clusters; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full on ubuntu-latest",
+          "cases": [
+            "maintenance store guards history and survives an independent PostgreSQL restore",
+            "an interrupted maintenance migration leaves no partial schema and resumes cleanly"
+          ],
+          "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
+        }
+      ]
+    },
+    {
       "file": "scripts/migrate-catalog-schema2.test.mts",
       "memberships": [
         ["catalog-full-2", 9500],
