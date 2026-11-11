@@ -63,6 +63,10 @@ pub struct ProviderProject {
     pub profile_url: String,
     pub submitter: Option<String>,
     pub files: Vec<ProviderFileCandidate>,
+    /// File records the adapter could not read. Non-zero means the file list is
+    /// incomplete, so "no newer file" or "file removed" cannot be concluded.
+    #[serde(default)]
+    pub unreadable_files: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

@@ -162,6 +162,11 @@ impl PortcoveService {
             .detail("accepted", extensions.join(", ")));
         }
         fs::create_dir_all(layout.tmp())?;
+        if !crate::profile::valid_native_id(&file.file_name) {
+            return Err(PortcoveError::unsupported(
+                "the provider's file name is not a plain file name; it cannot be installed",
+            ));
+        }
         let staging = tempfile::tempdir_in(layout.tmp())?;
         let download = staging.path().join("download.bin");
         let (download_sha256, download_size) = client
@@ -384,6 +389,13 @@ impl PortcoveService {
 
     /// Discards a reviewed plan's private staging.
     pub fn discard_provider_install(&self, plan: &ProviderInstallPlan) -> Result<()> {
+        // The plan is caller-supplied: its digest names a directory only when it
+        // is the digest of the plan itself.
+        if digest(plan)? != plan.plan_sha256 {
+            return Err(PortcoveError::conflict(
+                "this plan was changed after review; nothing was discarded",
+            ));
+        }
         let layout = self.deploy_layout(&plan.port_id)?;
         let staged = layout.staged(&plan.plan_sha256);
         if staged.exists() {

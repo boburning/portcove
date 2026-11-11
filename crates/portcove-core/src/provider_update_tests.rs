@@ -137,3 +137,54 @@ async fn an_obsolete_project_is_called_out_even_when_the_file_is_current() {
             .is_some_and(|r| r.contains("obsolete"))
     );
 }
+
+#[tokio::test]
+async fn an_incomplete_file_list_is_unavailable_not_removed() {
+    // The installed file's record cannot be read (no size): coverage is
+    // incomplete, so "removed" or "current" cannot be concluded.
+    let body = serde_json::json!({
+        "_sName": "HD Link", "_sVersion": "2.0", "_bIsObsolete": false,
+        "_tsDateUpdated": 5, "_aGame": {"_idRow": 777},
+        "_aFiles": [{"_idRow": 10, "_sFile": "pack-10.zip",
+            "_tsDateAdded": 10, "_bIsArchived": false}]
+    })
+    .to_string();
+    let observations = observe(vec![json_response(&body)]).await;
+    assert_eq!(observations[0].state, ProviderUpdateState::Unavailable);
+    assert!(
+        observations[0]
+            .reason
+            .as_deref()
+            .is_some_and(|reason| reason.contains("could not read"))
+    );
+}
+
+#[tokio::test]
+async fn an_unreadable_installed_identity_is_reported_not_dropped() {
+    let (temporary, service, profile) = world();
+    let connection = service.library().connection().unwrap();
+    let current = crate::profile::current_revision(&connection, "starship", &profile).unwrap();
+    let mut packages = current.packages.clone();
+    packages[0].provider.as_mut().unwrap().file = Some("not-a-number".into());
+    service
+        .create_profile_revision(
+            "starship",
+            &profile,
+            &ProfileRevisionRequest {
+                expected_revision: current.revision,
+                packages: Some(packages),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let (root, _requests, server) = serve_http_bytes(Vec::new());
+    let client = GameBananaClient::with_roots(&root, None).unwrap();
+    let observations = service
+        .check_provider_updates_with(&client, "starship", &profile)
+        .await
+        .unwrap();
+    drop(server);
+    drop(temporary);
+    assert_eq!(observations.len(), 1);
+    assert_eq!(observations[0].state, ProviderUpdateState::Unavailable);
+}

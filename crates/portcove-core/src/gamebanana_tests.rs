@@ -74,9 +74,14 @@ fn hostile_or_inconsistent_records_never_become_candidates() {
     bad_md5["_sMd5Checksum"] = json!("not-a-checksum");
     let mut zero = file(8);
     zero["_idRow"] = json!(0);
+    // A drive-relative name would replace the staging path on Windows.
+    let mut drive = file(9);
+    drive["_sFile"] = json!("C:x.o2r");
+    let mut hidden = file(10);
+    hidden["_sFile"] = json!(".x.o2r");
     let value: Value = serde_json::from_str(&project_json(
         "1\u{202E}evil\u{0007}",
-        vec![mismatched, traversal, bad_md5, zero],
+        vec![mismatched, traversal, bad_md5, zero, drive, hidden],
     ))
     .unwrap();
     let project = parse_project(&value, 1, WEB).unwrap();
@@ -91,6 +96,10 @@ fn hostile_or_inconsistent_records_never_become_candidates() {
         "only the record with a bad checksum claim survives"
     );
     assert_eq!(project.files[0].file_id, "7");
+    assert_eq!(
+        project.unreadable_files, 5,
+        "dropped records are counted so coverage is never assumed complete"
+    );
     assert_eq!(
         project.files[0].claimed_md5, None,
         "a malformed checksum claim is dropped"
@@ -137,6 +146,11 @@ async fn project_fetch_binds_identity_and_revalidates_with_conditional_headers()
     let first_request = requests.recv().unwrap();
     assert!(first_request.contains("/apiv11/Mod/42?"));
     assert!(first_request.contains("_csvProperties="));
+    // Without the game field every live plan would be refused as another game's.
+    assert!(
+        first_request.contains("_aGame"),
+        "the project request must ask for the game binding"
+    );
     assert!(
         requests
             .recv()

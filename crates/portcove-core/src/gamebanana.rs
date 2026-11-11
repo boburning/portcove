@@ -36,7 +36,7 @@ const MAX_PROJECT_FILES: usize = 256;
 const DEFAULT_BACKOFF: Duration = Duration::from_secs(60);
 const MAX_BACKOFF: Duration = Duration::from_secs(15 * 60);
 const FILE_PROPERTIES: &str =
-    "_sName,_sVersion,_aFiles,_bIsObsolete,_tsDateUpdated,_sProfileUrl,_aSubmitter";
+    "_sName,_sVersion,_aFiles,_bIsObsolete,_tsDateUpdated,_sProfileUrl,_aSubmitter,_aGame";
 
 #[derive(Clone)]
 pub struct GameBananaClient {
@@ -378,7 +378,9 @@ fn canonical_download(web_root: &str, file_id: &str) -> String {
 fn parse_file(value: &Value, web_root: &str) -> Option<ProviderFileCandidate> {
     let file_id = numeric_id(&value["_idRow"])?;
     let file_name = sanitize_text(value["_sFile"].as_str()?);
-    if file_name.is_empty() || file_name.contains(['/', '\\']) {
+    // The name becomes a staging and mods-folder file name: refuse drive, stream,
+    // separator, hidden and other non-plain names before anything is downloaded.
+    if !crate::profile::valid_native_id(&file_name) {
         return None;
     }
     let download_url = canonical_download(web_root, &file_id);
@@ -407,12 +409,18 @@ fn parse_file(value: &Value, web_root: &str) -> Option<ProviderFileCandidate> {
 
 fn parse_summary(value: &Value, web_root: &str) -> Option<ProviderProject> {
     let project_id = numeric_id(&value["_idRow"])?;
-    let files = match &value["_aFiles"] {
-        Value::Array(files) => files
-            .iter()
-            .filter_map(|file| parse_file(file, web_root))
-            .collect(),
-        _ => Vec::new(),
+    // Records that cannot be read are counted, never silently treated as absent.
+    let (files, unreadable_files) = match &value["_aFiles"] {
+        Value::Array(files) => {
+            let parsed = files
+                .iter()
+                .filter_map(|file| parse_file(file, web_root))
+                .collect::<Vec<_>>();
+            let unreadable = files.len() - parsed.len();
+            (parsed, unreadable)
+        }
+        Value::Null => (Vec::new(), 0),
+        _ => (Vec::new(), 1),
     };
     Some(ProviderProject {
         provider: PROVIDER.into(),
@@ -431,6 +439,7 @@ fn parse_summary(value: &Value, web_root: &str) -> Option<ProviderProject> {
         obsolete: value["_bIsObsolete"].as_bool().unwrap_or(false),
         submitter: value["_aSubmitter"]["_sName"].as_str().map(sanitize_text),
         files,
+        unreadable_files: u32::try_from(unreadable_files).unwrap_or(u32::MAX),
     })
 }
 

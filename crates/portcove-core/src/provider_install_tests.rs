@@ -303,3 +303,38 @@ async fn a_forged_plan_cannot_name_paths_or_foreign_providers_at_apply() {
     }
     assert!(live_mods(&w).is_empty());
 }
+
+#[tokio::test]
+async fn discarding_a_plan_whose_digest_was_changed_deletes_nothing() {
+    let w = world();
+    let payload = zip_bytes(&[("hd.o2r", &o2r(&[("a.bin", b"hd")]))]);
+    let (root, server) = serve(777, "pack.zip", &payload);
+    let client = GameBananaClient::with_roots(&root, None).unwrap();
+    let plan = w
+        .service
+        .plan_provider_install_with(&client, "starship", &w.profile, 42, 10)
+        .await
+        .unwrap();
+    server.join().unwrap();
+    let store =
+        crate::profile_deploy::Layout::for_user(&w.service.library().user_dir("starship")).store();
+    assert!(store.exists());
+    let mut forged = plan.clone();
+    forged.plan_sha256 = "../../..".into();
+    assert_eq!(
+        w.service
+            .discard_provider_install(&forged)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Conflict
+    );
+    assert!(
+        store.exists(),
+        "nothing outside the plan's staging was removed"
+    );
+    let staged = crate::profile_deploy::Layout::for_user(&w.service.library().user_dir("starship"))
+        .staged(&plan.plan_sha256);
+    assert!(staged.exists());
+    w.service.discard_provider_install(&plan).unwrap();
+    assert!(!staged.exists());
+}

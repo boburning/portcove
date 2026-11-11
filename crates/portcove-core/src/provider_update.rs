@@ -71,11 +71,30 @@ impl PortcoveService {
             if provider.provider != crate::gamebanana::PROVIDER {
                 continue;
             }
-            let (Some(file), Ok(project_id)) =
-                (provider.file.clone(), provider.project.parse::<u64>())
-            else {
+            let ids = provider.file.as_deref().and_then(|file| {
+                Some((
+                    file.parse::<u64>().ok()?,
+                    provider.project.parse::<u64>().ok()?,
+                ))
+            });
+            let Some((installed_id, project_id)) = ids else {
+                // Unknown identity is reported, never dropped from the report.
+                observations.push(ProviderUpdateObservation {
+                    native_id: package.native_id.clone(),
+                    installed_version: provider.version.clone(),
+                    provider,
+                    state: ProviderUpdateState::Unavailable,
+                    observed_version: None,
+                    version_changed: false,
+                    newer_files: Vec::new(),
+                    freshness: None,
+                    reason: Some(
+                        "the installed package's provider file identity is not readable".into(),
+                    ),
+                });
                 continue;
             };
+            let file = installed_id.to_string();
             let observed = match projects.get(&project_id) {
                 Some(observed) => observed,
                 None => {
@@ -83,7 +102,6 @@ impl PortcoveService {
                     projects.entry(project_id).or_insert(result)
                 }
             };
-            let installed_id = file.parse::<u64>().unwrap_or_default();
             let mut observation = ProviderUpdateObservation {
                 native_id: package.native_id.clone(),
                 installed_version: provider.version.clone(),
@@ -101,6 +119,14 @@ impl PortcoveService {
                     observation.freshness = Some(ProviderFreshness::Stale);
                     observation.reason =
                         Some("the provider could not be reached; this is earlier data".into());
+                }
+                Ok(observed) if observed.value.unreadable_files > 0 => {
+                    observation.freshness = Some(observed.freshness);
+                    observation.observed_version = observed.value.version.clone();
+                    observation.reason = Some(format!(
+                        "the provider listed {} file record(s) Portcove could not read, so newer or removed files cannot be determined",
+                        observed.value.unreadable_files
+                    ));
                 }
                 Ok(observed) => {
                     let project = &observed.value;
