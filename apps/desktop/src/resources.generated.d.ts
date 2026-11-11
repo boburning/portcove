@@ -537,6 +537,31 @@ export default interface Resources {
     "updates_unknown": "Update count unavailable",
     "updates_zero": "No updates available"
   },
+  "gameUpdates": {
+    "channel": {
+      "beta": "Preview",
+      "rolling": "Rolling",
+      "stable": "Stable",
+      "unknown": "Unknown channel"
+    },
+    "releaseChannel": {
+      "changeEffect": "Changing channel selects releases for future checks and updates. Your installed version stays unchanged.",
+      "changing": "Changing update channel…",
+      "checking": "{{channel}} selected. Checking releases…",
+      "explanation": "Stable: regular releases. Preview: early versions. Rolling: frequent development builds. These names don’t guarantee bug-free gameplay.",
+      "label": "Game update channel",
+      "only": "{{channel}} only",
+      "refreshFailed": "{{channel}} saved. Release information could not be refreshed; check for updates again.",
+      "refreshed": "{{channel}} selected. Release information refreshed.",
+      "saved": "Selected channel: {{channel}}",
+      "select": "Update channel",
+      "single": "This game offers one update channel.",
+      "unavailable": "Update channel information is unavailable in this version. Your saved choice has not changed.",
+      "unconfirmed": "Channel change was not confirmed. Check the current selection before retrying.",
+      "unlisted": "This update channel is no longer listed. Your saved choice has not changed.",
+      "unrecognized": "This saved channel is not recognized in this version. Your saved choice has not changed."
+    }
+  },
   "removal": {
     "apply": "Uninstall all versions",
     "applying": "Uninstalling…",

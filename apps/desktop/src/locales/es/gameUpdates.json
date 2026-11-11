@@ -1,0 +1,25 @@
+{
+  "channel": {
+    "beta": "Vista previa",
+    "rolling": "Continuo",
+    "stable": "Estable",
+    "unknown": "Canal desconocido"
+  },
+  "releaseChannel": {
+    "changeEffect": "Cambiar de canal selecciona las versiones para futuras comprobaciones y actualizaciones. Tu versión instalada no cambia.",
+    "changing": "Cambiando el canal de actualización…",
+    "checking": "Canal {{channel}} seleccionado. Comprobando versiones…",
+    "explanation": "Estable: versiones regulares. Vista previa: versiones tempranas. Continuo: compilaciones de desarrollo frecuentes. Estos nombres no garantizan un juego sin errores.",
+    "label": "Canal de actualización del juego",
+    "only": "Solo canal {{channel}}",
+    "refreshed": "Canal {{channel}} seleccionado. Información de versiones actualizada.",
+    "refreshFailed": "Canal {{channel}} guardado. No se pudo actualizar la información de versiones; vuelve a buscar actualizaciones.",
+    "saved": "Canal seleccionado: {{channel}}",
+    "select": "Canal de actualización",
+    "single": "Este juego ofrece un solo canal de actualización.",
+    "unavailable": "La información del canal de actualización no está disponible en esta versión. Tu elección guardada no ha cambiado.",
+    "unconfirmed": "No se confirmó el cambio de canal. Comprueba la selección actual antes de volver a intentarlo.",
+    "unlisted": "Este canal de actualización ya no aparece en la lista. Tu elección guardada no ha cambiado.",
+    "unrecognized": "Este canal guardado no se reconoce en esta versión. Tu elección guardada no ha cambiado."
+  }
+}

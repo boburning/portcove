@@ -22,6 +22,7 @@ export default defineConfig({
       "src/components/BackupHistory.tsx",
       "src/components/ProtectionSummary.tsx",
       "src/components/AutomaticSnapshotsSetting.tsx",
+      "src/components/ReleaseChannel.tsx",
     ],
     ignore: ["src/**/*.test.{ts,tsx}", "src/**/*.generated.d.ts", "src/design-compatibility/**"],
     output: "src/locales/{{language}}/{{namespace}}.json",
@@ -39,6 +40,7 @@ export default defineConfig({
     ignore: ["src/localization.tsx"],
     // Technical design-system and ARIA-reference literals, never player copy.
     ignoredAttributes: [
+      "align",
       "aria-live",
       "aria-atomic",
       "aria-describedby",

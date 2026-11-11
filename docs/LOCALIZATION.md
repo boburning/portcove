@@ -125,6 +125,7 @@ unless the copy change is intended and reviewed.
 | Backup history                           | `components/BackupHistory.tsx`                             | `backups`           |
 | Backups and updates summary              | `components/ProtectionSummary.tsx`                         | `backups`           |
 | Automatic snapshot setting               | `components/AutomaticSnapshotsSetting.tsx`                 | `backups`           |
+| Game update channel                      | `components/ReleaseChannel.tsx`                            | `gameUpdates`       |
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-11 it
@@ -134,7 +135,7 @@ and attributes only; English strings produced by `.ts` view models are additiona
 and are migrated with the surface that renders them. The count is a work
 inventory, not a coverage claim.
 
-Narrow technical-literal exclusions: the lint ignores the `aria-live`,
+Narrow technical-literal exclusions: the lint ignores the `align`, `aria-live`,
 `aria-atomic`, `aria-describedby`, `aria-labelledby`, `data-backup-action`, `data-settings-control`,
 `data-slot`, `dir`, `intent`, `reviewSize`, `size`, `triggerId` and `variant`
 attributes, which carry design-system tokens, element ids or ARIA references,
