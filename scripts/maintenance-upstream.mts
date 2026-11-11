@@ -400,21 +400,27 @@ const storedSources = (payload: unknown) =>
  * and stay quiet; an exception without a recorded rule stays visible.
  */
 export function upstreamAttention(payload: unknown, gap?: unknown) {
+  return upstreamExceptions(payload, gap).map(
+    (source) =>
+      `upstream observer exception: ${source.exception_rule ?? "unrecorded rule"}${"repository" in source ? ` (${source.repository})` : ""}`,
+  );
+}
+
+/** The excepted sources and gap behind {@link upstreamAttention}, structured. */
+export function upstreamExceptions(
+  payload: unknown,
+  gap?: unknown,
+): (UpstreamSourceFact | UpstreamGap)[] {
   const latestGap = gap as UpstreamGap | null | undefined;
   return [
     ...storedSources(payload).filter((source) => source.exception_key !== null),
     ...(typeof latestGap?.exception_key === "string" ? [latestGap] : []),
-  ]
-    .filter(
-      (source) =>
-        source.exception_rule === null ||
-        source.exception_rule === undefined ||
-        !partialProgressRules.includes(source.exception_rule),
-    )
-    .map(
-      (source) =>
-        `upstream observer exception: ${source.exception_rule ?? "unrecorded rule"}${"repository" in source ? ` (${source.repository})` : ""}`,
-    );
+  ].filter(
+    (source) =>
+      source.exception_rule === null ||
+      source.exception_rule === undefined ||
+      !partialProgressRules.includes(source.exception_rule),
+  );
 }
 
 /** One line of observer state: the stored facts, and why the latest checkpoint did not cover the port. */

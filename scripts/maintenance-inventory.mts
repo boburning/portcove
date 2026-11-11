@@ -51,6 +51,26 @@ import {
   type HostedIntakeObservation,
 } from "./maintenance-hosted-intake.mts";
 import type { HostedStatusAll } from "./hosted-discovery-intake.mts";
+import {
+  coreChangeConditions,
+  disabledCapabilities,
+  handoffCollectionSql,
+  handoffRegistry,
+  hostedIntakeHandoffs,
+  nextAction,
+  openHandoffs,
+  openHandoffsSql,
+  parseHandoffSubject,
+  readOpenHandoffs,
+  recordHandoffOperations,
+  releaseHealthHandoffs,
+  renderHandoffs,
+  upstreamHandoffs,
+  withoutHandoff,
+  type HandoffCondition,
+  type HandoffSource,
+  type OpenHandoff,
+} from "./maintenance-handoffs.mts";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 export const defaultSamplePath = path.join(
@@ -923,6 +943,52 @@ export function collectionSql(input: {
          WHERE run_id = ${literal(run)};`,
     );
   }
+  // Handoffs follow only a complete run of their source over the complete universe:
+  // a partial or failed run neither records nor clears attention.
+  if (input.mode === "all") {
+    const complete = new Map<HandoffSource, { run: string; conditions: HandoffCondition[] }>();
+    if (input.releaseHealth && !input.releaseHealth.gaps.length)
+      complete.set("release-health", {
+        run: healthRun,
+        conditions: releaseHealthHandoffs(input.releaseHealth.facts),
+      });
+    if (input.upstream && !input.upstream.failed && !input.upstream.gaps.length)
+      complete.set("upstream-observations", {
+        run: upstreamRun,
+        conditions: upstreamHandoffs(input.upstream.facts),
+      });
+    if (input.hostedIntake && !input.hostedIntake.failed && !input.hostedIntake.gaps.length)
+      complete.set("hosted-intake", {
+        run: hostedRun,
+        conditions: hostedIntakeHandoffs(input.hostedIntake.facts),
+      });
+    for (const entry of handoffRegistry) {
+      if (entry.source === "core") {
+        if (coreCoverage !== "complete") continue;
+        lines.push(
+          ...handoffCollectionSql({
+            kind: entry.kind,
+            run: coreRun,
+            conditions: coreChangeConditions(
+              input.subjects.map(({ id }) => assessmentSubject(id, input.platform)),
+            ),
+            // Each host platform's Core run decides only its own platform's handoffs.
+            clearScope: `c.subject_key LIKE ${literal(`%@${input.platform}`)}`,
+          }),
+        );
+        continue;
+      }
+      const source = complete.get(entry.source);
+      if (source)
+        lines.push(
+          ...handoffCollectionSql({
+            kind: entry.kind,
+            run: source.run,
+            conditions: source.conditions.filter(({ kind }) => kind === entry.kind),
+          }),
+        );
+    }
+  }
   return lines.join("\n");
 }
 
@@ -1202,8 +1268,10 @@ const reportQuery = `WITH latest_issue AS (
   ), assessed AS (
     SELECT c.*, split_part(c.subject_key, '@', 1) AS port_key, split_part(c.subject_key, '@', 2) AS platform
       FROM portcove_maintenance.subject_current c
+      WHERE NOT starts_with(c.subject_key, 'handoff:')
   )
 SELECT json_build_object(
+  'handoffs', ${openHandoffsSql},
   'hosted_intake', (SELECT coalesce(json_agg(json_build_object('subject_key', h.subject_key, 'facts', h.payload,
         'issues', (SELECT coalesce(json_agg(json_build_object('number', (i.payload ->> 'number')::integer,
                      'state', i.payload ->> 'state', 'status', i.payload -> 'project' -> 0 -> 'fields' ->> 'Status')
@@ -1310,6 +1378,8 @@ export interface InventoryReport {
   unassessed_gaps?: { subject_key: string; code: string; message: string }[];
   /** Latest facts per `intake:<request>`, with linked issues joined to issue facts. */
   hosted_intake?: HostedIntakeEntry[];
+  /** Open executor handoffs with their registry entry and newest open operation; dispatch is disabled. */
+  handoffs?: OpenHandoff[];
 }
 
 export interface HostedIntakeEntry {
@@ -1325,6 +1395,7 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     unassessed_gaps: { subject_key: string; code: string; message: string }[];
     publication: { definition: string; facts: unknown }[];
     hosted_intake: HostedIntakeEntry[];
+    handoffs: unknown;
   };
   // Membership-verified catalog runs cover every authored record at their revision.
   const catalogScope = (data.runs as { source: string; member_digest: string | null }[]).some(
@@ -1427,11 +1498,19 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     }),
     unassessed_gaps: data.unassessed_gaps,
     ...(hostedObserved ? { hosted_intake: data.hosted_intake } : {}),
+    handoffs: openHandoffs(data.handoffs),
   };
 }
 
 const escapeHtml = (value: unknown) =>
   String(value).replace(/[&<>"']/gu, (character) => `&#${character.charCodeAt(0)};`);
+
+/** "Next action" texts for the open handoffs of these source subjects. */
+function nextActions(report: InventoryReport, ...sources: unknown[]) {
+  return (report.handoffs ?? [])
+    .filter(({ source_subject }) => sources.includes(source_subject))
+    .map((handoff) => `${handoff.kind}: ${nextAction(handoff)}`);
+}
 
 /** Hosted-intake requests with their linked work and the executor's own attention conditions. */
 function hostedIntakeSection(report: InventoryReport) {
@@ -1443,7 +1522,7 @@ function hostedIntakeSection(report: InventoryReport) {
     (run?.gaps ?? []).map(({ subject_key, code }) => [subject_key, code] as const),
   );
   return `<h2>Hosted intake</h2>
-<table><thead><tr><th>Request</th><th>State</th><th>Linked work</th><th>Needs attention</th></tr></thead><tbody>
+<table><thead><tr><th>Request</th><th>State</th><th>Linked work</th><th>Needs attention</th><th>Next action</th></tr></thead><tbody>
 ${report.hosted_intake
   .map(({ subject_key, facts, issues }) => {
     const gap = latestGap.get(subject_key);
@@ -1457,7 +1536,7 @@ ${report.hosted_intake
       [hostedIntakeSummary(facts), gap ? `latest read: ${gap}` : ""].filter(Boolean).join("; "),
     )}</td><td>${escapeHtml(work || "no linked issue observed")}</td><td>${escapeHtml(
       hostedIntakeAttention(facts).join("; "),
-    )}</td></tr>`;
+    )}</td><td>${escapeHtml(nextActions(report, subject_key).join("; "))}</td></tr>`;
   })
   .join("\n")}
 </tbody></table>`;
@@ -1470,6 +1549,7 @@ export function renderHtml(report: InventoryReport) {
     subjects: (report.subjects as Record<string, unknown>[]).map(
       ({
         subject_key,
+        port_key,
         state,
         sequence,
         assessed_at,
@@ -1490,6 +1570,7 @@ export function renderHtml(report: InventoryReport) {
           ...upstreamAttention(upstream, latest_upstream_gap),
         ],
         latest_health_gap,
+        next_actions: nextActions(report, port_key, subject_key),
         upstream: upstreamSummary(upstream, latest_upstream_gap),
         subject_key,
         name: (identity as { name?: string } | undefined)?.name ?? null,
@@ -1555,10 +1636,11 @@ ${report.unsupported_sources
   .join("\n")}
 </tbody></table>
 ${hostedIntakeSection(report)}
+<p>Next actions are executor handoffs. Disabled: ${escapeHtml(disabledCapabilities.join("; "))}.</p>
 <h2>Subjects</h2>
 <label for="search">Search</label>
 <input id="search" type="search" placeholder="Port ID or state">
-<table><thead><tr><th>Subject</th><th>Name and game</th><th>Alternatives</th><th>Core assessment</th><th>Changes</th><th>Assessed</th><th>Latest Core run</th><th>Work</th><th>Upstream</th><th>Needs attention</th></tr></thead><tbody id="subjects"></tbody></table>
+<table><thead><tr><th>Subject</th><th>Name and game</th><th>Alternatives</th><th>Core assessment</th><th>Changes</th><th>Assessed</th><th>Latest Core run</th><th>Work</th><th>Upstream</th><th>Needs attention</th><th>Next action</th></tr></thead><tbody id="subjects"></tbody></table>
 <script id="inventory" type="application/json">${embedded}</script>
 <script>
 const report = JSON.parse(document.getElementById("inventory").textContent);
@@ -1573,7 +1655,7 @@ function render(filter) {
       ? "not assessed: " + subject.latest_core_gap.code
       : subject.latest_core_run === "assessed" ? "assessed"
       : subject.latest_core_run === "removed" ? "removed from the catalog" : "not in latest run";
-    for (const value of [subject.subject_key, [subject.name, subject.game].filter(Boolean).join(" — "), (subject.alternatives ?? []).join(", "), subject.state, String(subject.sequence), subject.assessed_at, gap, (subject.work ?? []).join("; ") || "no linked issue observed", subject.upstream || "not observed", [subject.latest_health_gap ? "health not fresh: " + subject.latest_health_gap : "", ...(subject.attention ?? [])].filter(Boolean).join("; ")])
+    for (const value of [subject.subject_key, [subject.name, subject.game].filter(Boolean).join(" — "), (subject.alternatives ?? []).join(", "), subject.state, String(subject.sequence), subject.assessed_at, gap, (subject.work ?? []).join("; ") || "no linked issue observed", subject.upstream || "not observed", [subject.latest_health_gap ? "health not fresh: " + subject.latest_health_gap : "", ...(subject.attention ?? [])].filter(Boolean).join("; "), (subject.next_actions ?? []).join("; ")])
       row.insertCell().textContent = value;
   }
 }
@@ -1634,8 +1716,14 @@ export function buildDigest(environment: NodeJS.ProcessEnv) {
 
 export function renderDigestMarkdown(digest: ReturnType<typeof buildDigest>) {
   if (!digest.entries.length) return "No maintenance changes since the last delivered digest.\n";
-  const line = (entry: DigestEntry) =>
-    `- \`${entry.subject_key}\`: ${entry.previous_state ?? "none"} → ${entry.state}${entry.returns_to_earlier_result ? " (returns to an earlier result)" : ""}`;
+  const line = (entry: DigestEntry) => {
+    const handoff = parseHandoffSubject(entry.subject_key);
+    const action =
+      handoff && entry.state === "needs-attention"
+        ? `; next action: ${handoffRegistry.find(({ kind }) => kind === handoff.kind)?.action ?? "unregistered handoff kind"} (dispatch disabled)`
+        : "";
+    return `- \`${entry.subject_key}\`: ${entry.previous_state ?? "none"} → ${entry.state}${entry.returns_to_earlier_result ? " (returns to an earlier result)" : ""}${action}`;
+  };
   return `${digest.entries.length} maintenance change${digest.entries.length === 1 ? "" : "s"}:\n\n${digest.entries.map(line).join("\n")}\n`;
 }
 
@@ -1713,6 +1801,11 @@ commands:
   acknowledge --digest FILE --receipt REF
                                        record delivery of that digest's notifications against the
                                        delivering executor's receipt (executor role)
+  handoffs [--json]                    list open executor handoffs with their registry entry and
+                                       open operation (read-only; dispatch is disabled)
+  handoffs --record                    plan one operation per open handoff at its current fence and
+                                       abandon planned operations whose handoff moved on (executor
+                                       role, local store only; never dispatches)
 
 options:
   --database-env NAME   environment variable holding the database URL (default ${defaultDatabaseEnvironment})
@@ -1750,12 +1843,21 @@ export async function main(argv = process.argv.slice(2)) {
   const hostedIndex = args.indexOf("--hosted-intake");
   const hostedSource = hostedIndex >= 0;
   if (hostedSource) args.splice(hostedIndex, 1);
+  const flag = (name: string) => {
+    const index = args.indexOf(name);
+    if (index >= 0) args.splice(index, 1);
+    return index >= 0;
+  };
+  const json = flag("--json");
+  const record = flag("--record");
   const issuesIndex = args.indexOf("--issues");
   const issues = issuesIndex >= 0;
   if (issues) args.splice(issuesIndex, 1);
   if (all && sample) throw new MaintenanceStoreError("--all and --sample are exclusive");
   if (concurrency !== undefined && !/^[1-9][0-9]?$/u.test(concurrency))
     throw new MaintenanceStoreError("--concurrency must be 1-99");
+  if ((json || record) && command !== "handoffs")
+    throw new MaintenanceStoreError("--json and --record apply only to handoffs");
   if (args.length)
     throw new MaintenanceStoreError(`Unexpected arguments: ${args.join(" ")}\n${usage}`);
   if (command === "collect") {
@@ -1802,6 +1904,28 @@ export async function main(argv = process.argv.slice(2)) {
     if (digest.format !== "portcove-maintenance-digest" || !Array.isArray(digest.entries))
       throw new MaintenanceStoreError("Unsupported digest file");
     console.log(JSON.stringify(acknowledgeDigest(environment, digest, receipt), null, 2));
+  } else if (command === "handoffs") {
+    if (record && json) throw new MaintenanceStoreError("handoffs takes --json or --record");
+    if (record) console.log(JSON.stringify(recordHandoffOperations(environment), null, 2));
+    else {
+      const handoffs = readOpenHandoffs(environment);
+      if (json)
+        console.log(
+          JSON.stringify(
+            {
+              format: "portcove-maintenance-handoffs",
+              format_version: 1,
+              dispatch: "disabled",
+              disabled: disabledCapabilities,
+              without_handoff: withoutHandoff.map(([source, reason]) => ({ source, reason })),
+              handoffs,
+            },
+            null,
+            2,
+          ),
+        );
+      else process.stdout.write(renderHandoffs(handoffs));
+    }
   } else throw new MaintenanceStoreError(`Unknown command: ${command}\n${usage}`);
   return 0;
 }

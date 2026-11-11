@@ -44,6 +44,10 @@ closure, titles or tags. Those rules stay in Core.
   #177, by the immutable ID of its request comment. A withdrawn request keeps its
   identity. Its candidates link to canonical work through `issue:<number>`; a
   candidate `port_key` is not a catalog ID and is never keyed as `port:`.
+- `handoff:<kind>:<source subject>`: one [executor handoff](#executor-handoffs)
+  of a registered attention kind for one source subject, for example
+  `handoff:hosted-intake-blocked:intake:123` or
+  `handoff:core-assessment-change:port:<id>@<platform>`.
 
 An observation's `scope` binds the applicable artifact, source, platform, route,
 operation and check/policy version. Evidence applies only where its whole scope
@@ -506,6 +510,105 @@ marker-bearing owner requests (19 active and 10 withdrawn). The run was
 active request was `blocked` and is the only attention item. One active request
 was a routine `partial`, and 17 were `complete`.
 
+## Executor handoffs
+
+Handoffs connect an attention item to the existing executor that resolves it.
+They are not a second backlog: a handoff row has no priority, owner or status
+field. Canonical work stays in its issues, Project fields and executors, and
+every dispatch is disabled.
+
+**Registry.** `scripts/maintenance-handoffs.mts` defines one entry per attention
+kind in code; it is never stored. Each entry names:
+
+- the existing action and its exact invocation template;
+- its authority (`owner-only`, `protected` or `routine`) and the executor;
+- the original receipt that counts;
+- `dispatch: disabled` with the exact reason and the resume condition.
+
+| Kind                          | Existing action and invocation                                                                                                | Authority  | Receipt that counts                                                 |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------- |
+| `release-health-relocation`   | `gh workflow run upstream-relocation-evidence.yml --ref main -f requests="<OWNER/NAME[@TAG]>"`, then a reviewed rename        | Owner only | The next scheduled main `upstream-health` report no longer shows it |
+| `release-health-condition`    | The monitor's recorded resume condition and an accounting or fix PR; `gh workflow run upstream-health.yml --ref main`         | Routine    | The next scheduled main report                                      |
+| `upstream-observer-exception` | The observer's recorded rule and resume condition and a fix PR; `gh workflow run configured-upstream-observer.yml --ref main` | Routine    | The next completed checkpoint snapshot                              |
+| `hosted-intake-blocked`       | `status --request <id> --json`, then an owner reconciliation comment on #177 ([details](DAILY-PORT-DISCOVERY.md))             | Owner only | A new bot receipt on #177                                           |
+| `hosted-intake-holds`         | `gh workflow run hosted-discovery-intake.yml --ref main -f mode=process`                                                      | Owner only | A new bot receipt on #177                                           |
+| `core-assessment-change`      | The canonical port issue, then the `portcove-port-qualification` skill                                                        | Routine    | The merged commit and the next Core assessment                      |
+
+A test parses every referenced workflow and checks its name, trigger and input
+names against the registry. Relocation conditions are release-health conditions
+whose rule is one of the relocation helper's own `candidateRules`
+(`scripts/upstream-relocation-candidates.mts`). Definition publication (#246)
+is protected and gets no handoff.
+
+**Recording.** `collect --all` records handoffs in the collection transaction,
+and only after a `complete` run of the deciding source. That source is the
+release-health, upstream-observation or hosted-intake run, or the Core run of
+the collecting host platform.
+
+- Each attention subject gets an assessment `handoff:<kind>:<source subject>`
+  with state `needs-attention`. Its input digest covers the kind, the source
+  subject and the stable condition fields, as normalized `jsonb` text. The
+  policy version is the registry version (`maintenance-handoffs/1`).
+  - Release health: the visible conditions' key, rule, operation, provider,
+    location, release reference, classification, accounting and resume
+    condition. Clocks and HTTP status are excluded.
+  - Upstream: each excepted source's key, repository, exception key and rule.
+    Partial-progress stops are excluded.
+  - Hosted intake: the receipt comment, reconciliation and blocker code, or each
+    held candidate's index, port key, repository ID, HTTP status and resume.
+  - Core: the change itself. A current transition after the baseline to a result
+    the subject never had before needs attention. A return to an earlier result
+    clears.
+- The assessment, transition and notification statements are the store's
+  ordinary ones, so the existing guards apply. An unchanged condition resolves to
+  the same assessment and records nothing. A changed condition is a new
+  transition. A return to an earlier condition is flagged.
+- A subject that never needed attention gets no row. A `needs-attention` subject
+  whose condition is gone in a complete run transitions to `clear`.
+- A `partial` or `failed` run, a sample collection, and another platform's Core
+  run neither record nor clear handoffs.
+- Unlike source subjects, a handoff's first transition is a pending notification,
+  because a handoff appearing is itself the change.
+
+**Operations.** No migration was added; handoffs use the existing `operations`
+table and its guard.
+
+```bash
+node scripts/maintenance-inventory.mts handoffs [--json]
+```
+
+```bash
+node scripts/maintenance-inventory.mts handoffs --record
+```
+
+- `handoffs` is read-only (report role). It lists each open handoff with its
+  registry entry, condition and newest open operation.
+- `handoffs --record` runs with the executor role against the local store only.
+  - It plans one operation `handoff.<kind>.<source>.<fence>` of kind
+    `handoff.<kind>` per open handoff. The fence is the handoff's current
+    sequence, and a replay inserts nothing (`ON CONFLICT DO NOTHING`). Characters
+    the identity check refuses (such as `@`) map to `.`. An ID over 200
+    characters replaces the source with a SHA-256 prefix.
+  - It moves each planned handoff operation whose subject has moved on (cleared
+    or a newer condition) from `planned` to `abandoned` at revision + 1.
+  - It never dispatches or completes an operation, and receipt columns stay
+    empty. The guard refuses a plan at a stale fence and any revival of an
+    abandoned plan, so a restored or stale worker cannot replay side effects or
+    overwrite newer state.
+- No dispatch command exists.
+
+**Report.** "Next action" columns in the subjects and hosted-intake tables show
+the action, invocation, authority, `dispatch disabled: <reason>; resume:
+<condition>`, the receipt, and the open operation with its fence (marked stale
+when it predates the current sequence). Handoffs are not listed as inventory
+subjects. The changes-only digest includes handoff transitions and names the
+registry action.
+
+**Explicitly disabled:** executor dispatch (every executor is owner-only or needs
+a reviewed change no executor is authorized to deliver, and no delegated
+credential exists), digest posting, schedules and publication. A kind resumes
+only when its registry resume condition holds and a reviewed change enables it.
+
 ## Changes-only digest
 
 ```bash
@@ -518,7 +621,8 @@ node scripts/maintenance-inventory.mts acknowledge --digest work/maintenance-dig
 
 - Each assessment transition after a subject's baseline creates one pending
   notification in the collection transaction. A first assessment is a baseline,
-  not a change, and an unchanged observation creates nothing.
+  not a change, and an unchanged observation creates nothing. A handoff's first
+  `needs-attention` transition is a change ([executor handoffs](#executor-handoffs)).
 - `digest` reads only pending notifications and writes `digest.json` and
   `digest.md` (format 1). It marks nothing delivered.
   - Each entry names the subject and its previous and new state, and flags a
@@ -539,6 +643,8 @@ every guard and role boundary. It then backs up, restores to the second cluster,
 verifies identical digests and confirms that guards, identity sequences and roles
 work on the restored store. A separate case interrupts a migration and proves
 that no partial schema remains and that resume and drift detection work.
+`scripts/maintenance-handoffs.test.mts` checks the registry, its workflows and
+inputs, identities and the per-source projections.
 `scripts/maintenance-inventory.test.mts` drives the read-only path through a
 stub Core CLI, using the collector and report roles. It checks:
 
@@ -552,6 +658,10 @@ stub Core CLI, using the collector and report roles. It checks:
 - coverage, listing and absence facts;
 - release-health, upstream-observation and hosted-intake coverage, quiet
   recurrence, needs-attention and failed reads;
+- executor handoffs: one planned operation per appearance, quiet unchanged reruns
+  and replays, no clearing by partial or failed runs, `clear` and
+  `planned` to `abandoned` after a complete run, supersession and return
+  detection, Core changes per platform, stale-fence refusal and role boundaries;
 - report output and HTML escaping. The
   cases need non-root PostgreSQL 16+ server binaries and are a declared
   prerequisite skip elsewhere. These are fixture results. Hosted provider, backup

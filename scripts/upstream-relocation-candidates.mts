@@ -158,7 +158,11 @@ export function retainedRepositoryIds(checkpoint: unknown): Map<string, number> 
  * generic transport failure. Both are probed; a transient error simply
  * classifies as `not-moved` or `unknown`.
  */
-const candidateRules = new Set(["repository-unavailable", "provider-transport", "transport"]);
+export const candidateRules: ReadonlySet<string> = new Set([
+  "repository-unavailable",
+  "provider-transport",
+  "transport",
+]);
 
 /** Observer source keys the checkpoint records as GitHub-provider sources. */
 export function githubSourceKeys(checkpoint: unknown): Set<string> {

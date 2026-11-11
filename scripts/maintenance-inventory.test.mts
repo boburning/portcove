@@ -30,6 +30,7 @@ import type { UpstreamInput } from "./maintenance-upstream.mts";
 import type { HostedRequestStatus, HostedStatusAll } from "./hosted-discovery-intake.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import { migrate, runSql } from "./maintenance-store.mts";
+import { readOpenHandoffs, recordHandoffOperations } from "./maintenance-handoffs.mts";
 import {
   catalog as catalogFixture,
   checkpoint,
@@ -1081,5 +1082,323 @@ void test(
     assert.doesNotMatch(page, /receipt comment 31/u, "a withdrawn request is never attention");
     assert.match(page, /#1 OPEN · Ready/u);
     assert.match(page, /source:hosted-intake-queue: unavailable/u);
+  },
+);
+
+void test(
+  "handoffs plan once, stay quiet, clear and abandon only after complete runs, and refuse stale fences",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("handoffs");
+    migrate(store.owner);
+    runSql(
+      store.owner,
+      `CREATE ROLE collector_login LOGIN IN ROLE portcove_maintenance_collector;
+       CREATE ROLE report_login LOGIN IN ROLE portcove_maintenance_report;
+       CREATE ROLE executor_login LOGIN IN ROLE portcove_maintenance_executor;`,
+    );
+    const collector = store.as("collector_login");
+    const executor = store.as("executor_login");
+    const reader = store.as("report_login");
+    const { cli, responses } = stubCli(fixture.root);
+    const respond = (ship: unknown) =>
+      writeFileSync(responses, JSON.stringify({ "2ship2harkinian": ship }));
+    const slot = (overrides = {}) => ({
+      candidate_index: 0,
+      port_key: "example-game",
+      repository_id: 7,
+      upstream: "https://github.com/owner/example-game",
+      delivery_status: "prepared",
+      linked_issue: null,
+      existing: false,
+      hold: null,
+      ...overrides,
+    });
+    const request = (id: number, overrides = {}): HostedRequestStatus => ({
+      request_comment: id,
+      receipt_comment: id + 1,
+      reconciles: null,
+      body_request_comment: id,
+      status: "complete",
+      candidates: 1,
+      delivered: 1,
+      existing: 0,
+      held: 0,
+      pending: 0,
+      full_doctor_required: false,
+      doctor: null,
+      last_error: null,
+      observed_at: "2026-11-11T00:00:00Z",
+      slots: [slot()],
+      withdrawn: false,
+      superseded_by: [],
+      ...overrides,
+    });
+    const blocked = (id: number) =>
+      request(id, {
+        status: "blocked",
+        delivered: 0,
+        pending: 1,
+        last_error: { code: "operation_failed", message: "stopped" },
+      });
+    const held = (id: number, resume: string) =>
+      request(id, {
+        status: "complete_with_holds",
+        delivered: 0,
+        held: 1,
+        slots: [slot({ hold: { http_status: 404, resume } })],
+      });
+    let comments = 0;
+    const queue = () => ({
+      node_id: "I177",
+      comments: ++comments,
+      updated_at: "2026-11-11T00:00:00Z",
+      comments_sha256: "c".repeat(64),
+    });
+    const collectWith = (requests: HostedRequestStatus[] | Error, platform = "linux-x86-64") =>
+      collect({
+        cli,
+        all: true,
+        ports: ["2ship2harkinian"],
+        platform,
+        hostedIntake: () =>
+          requests instanceof Error
+            ? Promise.reject(requests)
+            : Promise.resolve({ queue: queue(), requests }),
+        environment: collector,
+        runner: "fixture",
+      });
+    const states = () =>
+      JSON.parse(
+        runSql(
+          store.owner,
+          `SELECT coalesce(json_agg(json_build_object('subject', t.subject_key, 'sequence', t.sequence, 'state', t.state,
+             'returns', t.returns_to_earlier_result) ORDER BY t.subject_key COLLATE "C", t.sequence), '[]')
+             FROM portcove_maintenance.subject_transitions t WHERE starts_with(t.subject_key, 'handoff:');`,
+        ),
+      ) as { subject: string; sequence: number; state: string; returns: boolean }[];
+    const operations = () =>
+      JSON.parse(
+        runSql(
+          store.owner,
+          `SELECT coalesce(json_agg(json_build_object('id', operation_id, 'kind', kind, 'state', state, 'fence', fence_sequence,
+             'revision', revision, 'executor', executor, 'receipt', receipt_reference, 'receipt_sha256', receipt_sha256)
+             ORDER BY operation_id COLLATE "C"), '[]') FROM portcove_maintenance.operations;`,
+        ),
+      ) as {
+        id: string;
+        kind: string;
+        state: string;
+        fence: number;
+        revision: number;
+        executor: string;
+        receipt: string | null;
+        receipt_sha256: string | null;
+      }[];
+    const rowCounts = () =>
+      runSql(
+        store.owner,
+        `SELECT (SELECT count(*) FROM portcove_maintenance.assessments) || '/' ||
+                (SELECT count(*) FROM portcove_maintenance.subject_transitions) || '/' ||
+                (SELECT count(*) FROM portcove_maintenance.notifications) || '/' ||
+                (SELECT count(*) FROM portcove_maintenance.operations);`,
+      ).trim();
+    const blockedKey = "handoff:hosted-intake-blocked:intake:20";
+    const heldKey = "handoff:hosted-intake-holds:intake:40";
+
+    // A handoff appears: one needs-attention transition and notification; one planned operation.
+    respond(report("automatic"));
+    await collectWith([request(10), blocked(20), held(40, "first resume")]);
+    assert.deepEqual(
+      states().map(({ subject, sequence, state }) => [subject, sequence, state]),
+      [
+        [blockedKey, 1, "needs-attention"],
+        [heldKey, 1, "needs-attention"],
+      ],
+      "a request that never needed attention gets no handoff row",
+    );
+    assert.throws(() => recordHandoffOperations(reader), /permission denied/u);
+    assert.throws(() => recordHandoffOperations(collector), /permission denied/u);
+    assert.deepEqual(recordHandoffOperations(executor), { abandoned: 0, planned: 2, open: 2 });
+    assert.deepEqual(recordHandoffOperations(executor), { abandoned: 0, planned: 0, open: 2 });
+    assert.deepEqual(
+      operations().map(({ id, kind, state, fence, revision, executor: name, receipt }) => [
+        id,
+        kind,
+        state,
+        fence,
+        revision,
+        name,
+        receipt,
+      ]),
+      [
+        [
+          "handoff.hosted-intake-blocked.intake:20.1",
+          "handoff.hosted-intake-blocked",
+          "planned",
+          1,
+          1,
+          "hosted-discovery-intake.yml",
+          null,
+        ],
+        [
+          "handoff.hosted-intake-holds.intake:40.1",
+          "handoff.hosted-intake-holds",
+          "planned",
+          1,
+          1,
+          "hosted-discovery-intake.yml",
+          null,
+        ],
+      ],
+    );
+
+    // An unchanged rerun records nothing new, and a replayed record plans nothing.
+    const settled = rowCounts();
+    await collectWith([request(10), blocked(20), held(40, "first resume")]);
+    assert.deepEqual(recordHandoffOperations(executor), { abandoned: 0, planned: 0, open: 2 });
+    assert.equal(rowCounts(), settled);
+
+    // Partial and failed runs never clear, even when the condition looks resolved.
+    await collectWith([
+      request(10),
+      request(20),
+      {
+        request_comment: 40,
+        withdrawn: false,
+        superseded_by: [],
+        error: { code: "operation_failed", message: "incomplete" },
+      },
+    ]);
+    await collectWith(new Error("credential unavailable"));
+    assert.equal(states().length, 2, "a partial or failed run neither clears nor records");
+    assert.deepEqual(recordHandoffOperations(executor), { abandoned: 0, planned: 0, open: 2 });
+
+    // A complete run without the condition clears it, and the stale plan is abandoned.
+    await collectWith([request(10), request(20), held(40, "first resume")]);
+    assert.deepEqual(
+      states()
+        .filter(({ subject }) => subject === blockedKey)
+        .map(({ sequence, state }) => [sequence, state]),
+      [
+        [1, "needs-attention"],
+        [2, "clear"],
+      ],
+    );
+    assert.deepEqual(recordHandoffOperations(executor), { abandoned: 1, planned: 0, open: 1 });
+    const abandoned = operations().find(
+      ({ id }) => id === "handoff.hosted-intake-blocked.intake:20.1",
+    )!;
+    assert.deepEqual(
+      [abandoned.state, abandoned.revision, abandoned.receipt, abandoned.receipt_sha256],
+      ["abandoned", 2, null, null],
+    );
+
+    // A changed condition supersedes the earlier plan; a return is flagged as one.
+    await collectWith([request(10), blocked(20), held(40, "second resume")]);
+    assert.deepEqual(recordHandoffOperations(executor), { abandoned: 1, planned: 2, open: 2 });
+    assert.deepEqual(
+      states()
+        .filter(({ sequence }) => sequence > 1)
+        .map(({ subject, sequence, state, returns }) => [subject, sequence, state, returns]),
+      [
+        [blockedKey, 2, "clear", false],
+        [blockedKey, 3, "needs-attention", true],
+        [heldKey, 2, "needs-attention", false],
+      ],
+    );
+    assert.deepEqual(
+      operations().map(({ id, state, fence }) => [id, state, fence]),
+      [
+        ["handoff.hosted-intake-blocked.intake:20.1", "abandoned", 1],
+        ["handoff.hosted-intake-blocked.intake:20.3", "planned", 3],
+        ["handoff.hosted-intake-holds.intake:40.1", "abandoned", 1],
+        ["handoff.hosted-intake-holds.intake:40.2", "planned", 2],
+      ],
+    );
+
+    // A restored or stale worker cannot plan at an earlier fence or revive a superseded plan.
+    assert.throws(
+      () =>
+        runSql(
+          executor,
+          `INSERT INTO portcove_maintenance.operations (operation_id, kind, subject_key, fence_sequence, executor, created_at, updated_at)
+             VALUES ('handoff.hosted-intake-holds.intake:40.1x', 'handoff.hosted-intake-holds', '${heldKey}', 1,
+                     'hosted-discovery-intake.yml', now(), now());`,
+        ),
+      /stale maintenance state/u,
+    );
+    assert.throws(
+      () =>
+        runSql(
+          executor,
+          `UPDATE portcove_maintenance.operations SET state = 'planned', revision = revision + 1
+             WHERE operation_id = 'handoff.hosted-intake-holds.intake:40.1';`,
+        ),
+      /cannot move from abandoned to planned/u,
+    );
+
+    // Core changes: a new result needs attention; a return to an earlier result clears it.
+    // Another platform's run and a partial Core run never clear this platform's handoff.
+    const coreKey = "handoff:core-assessment-change:port:2ship2harkinian@linux-x86-64";
+    const steady = [request(10), blocked(20), held(40, "second resume")];
+    respond(report("manual"));
+    await collectWith(steady);
+    respond(report("automatic"));
+    await collectWith(steady, "windows-x86-64");
+    respond("network");
+    await collectWith(steady);
+    assert.deepEqual(
+      states()
+        .filter(({ subject }) => subject.startsWith("handoff:core-assessment-change:"))
+        .map(({ subject, state }) => [subject, state]),
+      [[coreKey, "needs-attention"]],
+    );
+    const inventory = buildReport(reader);
+    assert.ok(
+      !(inventory.subjects as { subject_key: string }[]).some(({ subject_key }) =>
+        subject_key.startsWith("handoff:"),
+      ),
+      "handoffs are not inventory subjects",
+    );
+    assert.deepEqual(
+      inventory.handoffs?.map(({ subject_key, operation }) => [
+        subject_key,
+        operation?.operation_id ?? null,
+      ]),
+      [
+        [coreKey, null],
+        [blockedKey, "handoff.hosted-intake-blocked.intake:20.3"],
+        [heldKey, "handoff.hosted-intake-holds.intake:40.2"],
+      ],
+    );
+    const page = renderHtml(inventory);
+    assert.match(page, /<th>Next action<\/th>/u);
+    assert.match(
+      page,
+      /gh workflow run hosted-discovery-intake\.yml --ref main -f mode=process\. Authority: owner-only\. Dispatch disabled: /u,
+    );
+    assert.match(page, /operation handoff\.hosted-intake-holds\.intake:40\.2 planned at fence 2/u);
+    assert.match(page, /"next_actions":\["core-assessment-change: Record the change/u);
+    respond(report("automatic"));
+    await collectWith(steady);
+    assert.deepEqual(
+      states()
+        .filter(({ subject }) => subject === coreKey)
+        .map(({ state }) => state),
+      ["needs-attention", "clear"],
+    );
+    // The changes-only digest carries handoff transitions with the registry action.
+    const digest = buildDigest(reader);
+    assert.ok(digest.entries.some(({ subject_key }) => subject_key === heldKey));
+    assert.match(
+      renderDigestMarkdown(digest),
+      /`handoff:hosted-intake-holds:intake:40`: none → needs-attention; next action: Resume the held candidates/u,
+    );
+    assert.deepEqual(
+      readOpenHandoffs(reader).map(({ subject_key }) => subject_key),
+      [blockedKey, heldKey],
+    );
   },
 );
