@@ -1182,6 +1182,34 @@ describe("workspace refresh recovery", () => {
     },
   );
 
+  it("renders recovery notice copy in the current language and keeps Core's text verbatim", async () => {
+    const { initializeLocalization } = await import("../../localization");
+    const localization = initializeLocalization(["en-US"]);
+    await root.rerender(
+      <WorkspaceRefreshNotice
+        recoveryFailure={{ error: new Error("unstructured recovery failure") }}
+        hasSnapshot={false}
+        refreshing={false}
+        retry={vi.fn().mockResolvedValue(undefined)}
+        retryRecovery={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+    expect(host.textContent).toContain("Library recovery could not finish");
+    try {
+      await act(async () => {
+        await localization.changeLanguage("ar-XB");
+      });
+      expect(host.textContent).toContain("تعذر إكمال استرداد المكتبة");
+      expect(host.textContent).toContain("لم يحمّل Portcove معلومات المكتبة بعد.");
+      expect(host.textContent).toContain("unstructured recovery failure");
+    } finally {
+      await act(async () => {
+        await localization.changeLanguage("en");
+      });
+    }
+    expect(host.textContent).toContain("Retry recovery");
+  });
+
   it("retains the last essential snapshot and exposes a failed refresh", async () => {
     await render();
     vi.mocked(desktopApi.workspaceSnapshot).mockRejectedValueOnce(failureReport());

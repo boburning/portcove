@@ -663,5 +663,27 @@ export default interface Resources {
       "title": "Portcove couldn’t display this screen",
       "unknownError": "Unknown display error"
     }
+  },
+  "workspace": {
+    "live": {
+      "body": "Portcove will keep checking activity at a reduced rate. Refresh manually after library changes until the desktop is restarted.",
+      "heading": "Live workspace updates are unavailable",
+      "refresh": "Refresh now"
+    },
+    "notLoaded": "Portcove has not loaded the library information yet.",
+    "recovery": {
+      "heading": "Library recovery could not finish",
+      "retry": "Retry recovery",
+      "snapshot": "Showing the last loaded library information. It may be out of date."
+    },
+    "refresh": {
+      "effectInitial": "Retry refresh loads the library information. It does not install, move, or change a game.",
+      "effectSnapshot": "Retry refresh loads the current information. It does not repeat your last install, move, or other action.",
+      "headingInitial": "Library information could not be loaded",
+      "headingSnapshot": "Library information could not be refreshed",
+      "retry": "Retry refresh",
+      "snapshot": "Showing the last loaded information. It may be out of date."
+    },
+    "refreshing": "Refreshing library…"
   }
 }

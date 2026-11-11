@@ -1,0 +1,22 @@
+{
+  "live": {
+    "body": "Portcove seguirá comprobando la actividad con menos frecuencia. Actualiza manualmente después de cambiar la biblioteca hasta que reinicies la aplicación.",
+    "heading": "Las actualizaciones en directo del espacio de trabajo no están disponibles",
+    "refresh": "Actualizar ahora"
+  },
+  "notLoaded": "Portcove aún no ha cargado la información de la biblioteca.",
+  "recovery": {
+    "heading": "No se pudo completar la recuperación de la biblioteca",
+    "retry": "Reintentar la recuperación",
+    "snapshot": "Se muestra la última información cargada de la biblioteca. Puede estar desactualizada."
+  },
+  "refresh": {
+    "effectInitial": "Reintentar la actualización carga la información de la biblioteca. No instala, mueve ni cambia ningún juego.",
+    "effectSnapshot": "Reintentar la actualización carga la información actual. No repite tu última instalación, traslado u otra acción.",
+    "headingInitial": "No se pudo cargar la información de la biblioteca",
+    "headingSnapshot": "No se pudo actualizar la información de la biblioteca",
+    "retry": "Reintentar la actualización",
+    "snapshot": "Se muestra la última información cargada. Puede estar desactualizada."
+  },
+  "refreshing": "Actualizando la biblioteca…"
+}
