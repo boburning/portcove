@@ -62,7 +62,11 @@ reads back that observation, deduplicates identical candidate/primary evidence
 across proposals, preserves the complete owner body, state and planning fields,
 and runs scoped doctor. A lost comment response recovers only its confirmed
 material marker; absence never authorizes reposting. It refreshes complete upstream release/selected-asset
-pagination and pinned README evidence through the maintained investigator. The
+pagination and pinned README evidence through the maintained investigator. If the
+selected release commit returns HTTP 404 for its README, the investigator reads
+the README at a separately resolved default-branch commit. The release tags,
+assets and manifest lookup retain their own release-commit scope. The receipt
+binds the actual README commit and blob alongside the release fingerprint. The
 plan binds the exact proposed bodies, primary bindings and `plan_sha256`.
 New receipts use `plan_encoding: proposal-bound-v1`: each ordered descriptor
 records the candidate index/key, body hash and primary evidence bindings rather

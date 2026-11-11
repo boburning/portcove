@@ -1081,3 +1081,11 @@ pub(crate) fn current_revision(
 pub(crate) fn profile_count(connection: &Connection, port_id: &str) -> Result<usize> {
     Ok(profiles_from(connection, port_id)?.len())
 }
+
+pub(crate) fn profile_by_id(
+    connection: &Connection,
+    port_id: &str,
+    profile_id: &str,
+) -> Result<Profile> {
+    profile_from(connection, port_id, profile_id)
+}

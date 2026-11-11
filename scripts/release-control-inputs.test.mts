@@ -591,6 +591,7 @@ void test("writer policy requires fresh exact per-ref principals and unbypassabl
   const rulesets = names.flatMap((branch, index) => [
     {
       id: index * 2 + 1,
+      target: "branch",
       enforcement: "active",
       conditions: { ref_name: { include: [`refs/heads/${branch}`], exclude: [] } },
       rules: [{ type: "update" }],
@@ -604,6 +605,7 @@ void test("writer policy requires fresh exact per-ref principals and unbypassabl
     },
     {
       id: index * 2 + 2,
+      target: "branch",
       enforcement: "active",
       conditions: { ref_name: { include: [`refs/heads/${branch}`], exclude: [] } },
       rules: ["creation", "deletion", "non_fast_forward"].map((type) => ({ type })),

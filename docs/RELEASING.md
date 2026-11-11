@@ -1343,6 +1343,10 @@ credential path is active.
 
 ### Configuration-held fixed-controller source admission
 
+Appoint new controller tags using the permanent policy and exact-tag procedure
+in [Repository settings](REPOSITORY-SETTINGS.md#appointing-a-successor). Bind
+each held appointment to a fresh complete protection observation.
+
 `.github/workflows/application-update-production.yml` contains the complete fixed
 controller. Its secret-free admission job starts only with the existing admission
 configuration and exact configured revision/ref; every downstream role retains its

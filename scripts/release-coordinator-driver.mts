@@ -4174,42 +4174,20 @@ async function requestTrustedSemanticReviewAt(
       phase: "coordinator",
       deadline: budget.monotonicDeadline,
     });
-    await writeFile(
-      path.join(directory, "ready-coordinator.json"),
-      `${JSON.stringify(prepareControlReadiness(reader.identity, request.request_id, "coordinator"))}\n`,
-      { flag: "wx", mode: 0o600 },
-    );
     phase = "actual-neutral-request-controls";
-    await (
-      await import("./release-control-step-bridge.mts")
-    ).retainControlStepLocator(path.join(directory, "ready-coordinator.json"), "coordinator", 0);
-    const artifact = await waitForControlArtifact(
+    const controls = await authenticateCoordinatorInitialControls(
       directory,
-      "observation",
-      {
-        phase: "coordinator",
-        controller_revision: reader.admitted.revision,
-        controller_ref: reader.admitted.execution_ref,
-        run_id: String(reader.admitted.run_id),
-        run_attempt: reader.admitted.run_attempt,
-      },
-      {
-        deadline: Math.min(budget.deadline, Date.now() + 240000),
-        phaseDeadline: budget.monotonicDeadline,
-      },
+      request.request_id,
+      reader,
+      workflow,
+      budget,
+      "application",
+      "metadata-maintenance",
     );
-    const controls = await authenticateReleaseControlSource(process.env, workflow, {
-      phase: "coordinator",
+    const observed = await controls.readSdkMaintenance(undefined, {
       deadline: budget.monotonicDeadline,
-      observedArtifact: artifact,
-      controlReader: "metadata-maintenance",
+      maxBytes: 16 * 1024 ** 2,
     });
-    const readMaintenance = () =>
-      controls.readSdkMaintenance(undefined, {
-        deadline: Math.min(budget.monotonicDeadline, performance.now() + budget.remaining(120000)),
-        maxBytes: 16 * 1024 ** 2,
-      });
-    const observed = await readMaintenance();
     if (
       !observed.resource_policy_matches_controller ||
       !isRecord(observed.capacity_source.capacity) ||
@@ -4245,7 +4223,18 @@ async function requestTrustedSemanticReviewAt(
     const plan = planReleaseOpportunity(input);
     if (plan.action === "pause")
       return { decision: "held", directory, checkpoint, plan, authority: "none" };
-    const fresh = await readMaintenance();
+    const readCurrent = applicationReviewCheckpointControls(
+      directory,
+      request.request_id,
+      budget,
+      controls,
+      observed,
+      async () => {
+        recheckQualifiedSource?.();
+        await readImmutableBaseline();
+      },
+    );
+    await readCurrent();
     const remote = await readRemoteCoordinatorSnapshot(directory, selected.remote_configuration, {
       transport: budget.journalTransport(),
     });
@@ -4254,25 +4243,12 @@ async function requestTrustedSemanticReviewAt(
         ? capacityDigest(await readQualification()) !== capacityDigest(qualification)
         : (await mainHead()) !== source) ||
       remote.checkpoint !== checkpoint ||
-      fresh.pause.publication_paused ||
-      capacityDigest(fresh.pause) !== capacityDigest(observed.pause) ||
-      capacityDigest(fresh.capacity) !== capacityDigest(observed.capacity) ||
       capacityDigest({ tags: await inventory.tags(), releases: await inventory.releases() }) !==
         capacityDigest({ tags, releases })
     )
       throw new Error("neutral request provider/control snapshot changed before durable intent");
     phase = "durable-neutral-review-request";
     budget.check();
-    const checkpointControls = {
-      async readCurrent() {
-        budget.check();
-        recheckQualifiedSource?.();
-        await readImmutableBaseline();
-        if ((await readMaintenance()).facts_sha256 !== observed.facts_sha256)
-          throw new Error("neutral request controls changed immediately before journal CAS");
-        budget.check();
-      },
-    };
     const publishCheckpoint = await coordinatorCheckpointPublisher(
       directory,
       budget,
@@ -4280,7 +4256,7 @@ async function requestTrustedSemanticReviewAt(
       recovered.repository,
       checkpoint,
       selected.remote_configuration,
-      checkpointControls,
+      { readCurrent },
     );
     const result = await checkpointReleaseOpportunity(recovered.repository, checkpoint, input);
     checkpoint = result.checkpoint;
@@ -4418,7 +4394,7 @@ async function resumeRetainedApplicationReviewClaim(
     pin.child,
   );
   await stageRetainedCoordinatorClaim(recovered.repository, pin.previous, pin.child);
-  let controls = await authenticateCoordinatorInitialControls(
+  const controls = await authenticateCoordinatorInitialControls(
     directory,
     request.request_id,
     reader,
@@ -4427,35 +4403,18 @@ async function resumeRetainedApplicationReviewClaim(
     "application",
     "metadata-maintenance",
   );
-  const readMaintenance = () =>
-    controls.readSdkMaintenance(undefined, {
-      deadline: budget.monotonicDeadline,
-      maxBytes: 16 * 1024 ** 2,
-    });
-  let current = await readMaintenance();
-  const stable = coordinatorMaintenanceIdentity(current);
-  let round = 0;
-  readCurrent = async () => {
-    budget.check();
-    await assertSelectedSource();
-    if (Date.now() - Date.parse(current.protection.observed_at) >= 30000) {
-      if (++round > 14) throw new Error("retained application claim control rounds exhausted");
-      controls = await authenticateReleaseControlRound(
-        path.join(directory, `retained-application-control-${round}`),
-        request.request_id,
-        "coordinator",
-        round,
-        { deadline: budget.monotonicDeadline, controlReader: "metadata-maintenance" },
-      );
-    }
-    current = await readMaintenance();
-    if (
-      controls.evidence_scope !== "github.com" ||
-      coordinatorMaintenanceIdentity(current) !== stable
-    )
-      throw new Error("retained application claim controls changed during settlement");
-    budget.check();
-  };
+  const initial = await controls.readSdkMaintenance(undefined, {
+    deadline: budget.monotonicDeadline,
+    maxBytes: 16 * 1024 ** 2,
+  });
+  readCurrent = applicationReviewCheckpointControls(
+    directory,
+    request.request_id,
+    budget,
+    controls,
+    initial,
+    assertSelectedSource,
+  );
   await publish(pin.child);
   const settled = await readRemoteCoordinatorSnapshot(directory, configuration, {
     transport: budget.journalTransport(),
@@ -4469,6 +4428,46 @@ async function resumeRetainedApplicationReviewClaim(
     review_request: request,
     authority: "none",
     automatic_retry: false,
+  };
+}
+
+/** A signed request can cross a protection observation window while staging
+ * checkpoint objects. Use the existing isolated observer for fresh rounds and
+ * compare the same operation controls before each consequential boundary. */
+function applicationReviewCheckpointControls(
+  directory: string,
+  subject: string,
+  budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
+  controls: Awaited<ReturnType<typeof authenticateReleaseControlSource>>,
+  initial: Awaited<ReturnType<typeof controls.readSdkMaintenance>>,
+  assertSelectedSource: () => Promise<void>,
+) {
+  const stable = coordinatorMaintenanceIdentity(initial);
+  let current = initial;
+  let round = 0;
+  return async () => {
+    budget.check();
+    await assertSelectedSource();
+    if (Date.now() - Date.parse(current.protection.observed_at) >= 30000) {
+      if (++round > 14) throw new Error("application review control rounds exhausted");
+      controls = await authenticateReleaseControlRound(
+        path.join(directory, `application-review-control-${round}`),
+        subject,
+        "coordinator",
+        round,
+        { deadline: budget.monotonicDeadline, controlReader: "metadata-maintenance" },
+      );
+    }
+    current = await controls.readSdkMaintenance(undefined, {
+      deadline: budget.monotonicDeadline,
+      maxBytes: 16 * 1024 ** 2,
+    });
+    if (
+      controls.evidence_scope !== "github.com" ||
+      coordinatorMaintenanceIdentity(current) !== stable
+    )
+      throw new Error("application review checkpoint controls changed");
+    budget.check();
   };
 }
 

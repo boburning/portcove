@@ -580,6 +580,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/fixtures/semantic-review-appcontainer.cs.txt",
   "scripts/release-capacity-operation.mts",
   "scripts/release-input-protections.mts",
+  "scripts/release-ref-rulesets.mts",
   "scripts/release-reviewed-inputs.mts",
   "docs/qualification/release-reviewed-inputs.held.yml",
   "scripts/trusted-aggregate-attestation.mts",
