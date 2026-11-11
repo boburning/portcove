@@ -1130,7 +1130,14 @@ asset discovery or on the asset bytes. It also covers an accepted release or
 asset that is absent from the listing by both ID and tag or name.
 Authentication, authorization and rate-limit refusals (401, 403, 407, 429) and
 every identity disagreement keep their existing behavior. Mid-stream resets are
-not classified as unavailable.
+not classified as unavailable. A partial match never counts as disappearance:
+a moved tag, a reused asset name or a changed ID is a disagreement. A failed
+proxy tunnel or TLS handshake reaches Core as a connect failure and is
+therefore treated as unavailable. Bytes from a preserved location are still
+bounded to granted hosts and verified, so this cannot accept different bytes.
+A failover selection carries the requested channel label for the record's
+accepted release; curated records are exact per platform, so no channel
+choice happens.
 
 Order: scope freshness, retained identity and the curated artifact hold are
 checked first. Then the existing upstream observation runs. When it is

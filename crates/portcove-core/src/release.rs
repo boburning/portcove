@@ -1366,20 +1366,28 @@ impl GithubReleaseProvider {
             Some(scope) => self.releases_scoped(&repository_url, Some(scope)).await?,
             None => self.releases(&repository_url).await?,
         };
-        if let Some(record) = curated {
-            // The accepted release or asset is gone: unavailable, not a disagreement.
-            // A different release or asset under the same coordinates stays a
-            // verification failure through `verify_metadata` below.
-            let accepted = releases.iter().find(|release| {
-                release.id == Some(record.release_id) || release.tag_name == record.tag
-            });
-            let asset_present = accepted.is_some_and(|release| {
-                release
-                    .assets
-                    .iter()
-                    .any(|asset| asset.id == Some(record.asset_id) || asset.name == record.filename)
-            });
-            if !asset_present {
+        if let Some(record) = curated.filter(|record| !record.preserved_locations.is_empty()) {
+            // Failover-capable records only: classify an accepted release or asset
+            // that is gone as unavailable. Any partial match (a moved tag, a reused
+            // name, a changed ID) falls through to the identity refusal below.
+            let by_id = releases
+                .iter()
+                .find(|release| release.id == Some(record.release_id));
+            let by_tag = releases
+                .iter()
+                .find(|release| release.tag_name == record.tag);
+            let gone = match (by_id, by_tag) {
+                (None, None) => true,
+                (Some(by_id), Some(by_tag))
+                    if by_id.id == by_tag.id && by_id.tag_name == by_tag.tag_name =>
+                {
+                    !by_id.assets.iter().any(|asset| {
+                        asset.id == Some(record.asset_id) || asset.name == record.filename
+                    })
+                }
+                _ => false,
+            };
+            if gone {
                 return Err(PortcoveError::network(
                     "the accepted curated release or asset is no longer published",
                 )

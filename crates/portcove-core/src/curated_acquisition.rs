@@ -423,7 +423,12 @@ fn preserved_location_valid(record: &CuratedAcquisitionRecord, value: &str) -> b
     let Some(url) = https_reference(value) else {
         return false;
     };
-    if url.query().is_some() || url.fragment().is_some() || value == record.acquisition_url {
+    // Canonical text only, so duplicate and acquisition-URL comparisons are exact.
+    if url.as_str() != value
+        || url.query().is_some()
+        || url.fragment().is_some()
+        || value == record.acquisition_url
+    {
         return false;
     }
     let Some(segments) = url.path_segments() else {
@@ -1040,6 +1045,9 @@ mod tests {
             with(2, vec![digest_url.replace("github.com", "140.82.112.3")]),
             with(2, vec![digest_url.replace("/releases/download/", "/raw/")]),
             with(2, vec![digest_url.replace("preserved-1", "../tag")]),
+            with(2, vec![digest_url.replace("github.com", "GITHUB.com")]),
+            with(2, vec![digest_url.replace("github.com", "github.com:443")]),
+            with(2, vec![digest_url.replace("/releases/", "/./releases/")]),
             with(
                 2,
                 vec![

@@ -3703,6 +3703,9 @@ enum PreservedCase {
     ConnectRefused,
     StalePolicyBeforeResolution,
     StalePolicyBeforeBytes,
+    RetaggedReleaseNeverFallsBack,
+    SecondLocationAfterFirstUnavailable,
+    MismatchStopsBeforeSecondLocation,
 }
 
 /// Elapsed-time simulation: expire the admitted policy without changing bytes.
@@ -3770,6 +3773,14 @@ async fn curated_preserved_failover_fixture(case: PreservedCase) {
         "https://github.com/Owner/portcove-preserved/releases/download/preserved-1/{}.asset",
         record.sha256
     )];
+    if matches!(
+        case,
+        PreservedCase::SecondLocationAfterFirstUnavailable
+            | PreservedCase::MismatchStopsBeforeSecondLocation
+    ) {
+        let second = record.preserved_locations[0].replace("preserved-1", "preserved-2");
+        record.preserved_locations.push(second);
+    }
     port.release.curated.insert(record.platform, record.clone());
     baseline.ports.push(port);
     let authored = Catalog::from_json(&serde_json::to_string(&baseline).unwrap()).unwrap();
@@ -3846,6 +3857,45 @@ async fn curated_preserved_failover_fixture(case: PreservedCase) {
             );
             assert!(resolve().await.is_err());
             assert_eq!(requested(&server).len(), 1);
+            return;
+        }
+        PreservedCase::RetaggedReleaseNeverFallsBack => {
+            // The accepted release survives under a moved tag while a new release
+            // took its tag: a mutated identity, never disappearance.
+            let accepted_path = reqwest::Url::parse(&record.acquisition_url)
+                .unwrap()
+                .path()
+                .to_owned();
+            let releases = serde_json::json!([
+                {
+                    "id": record.release_id + 100, "tag_name": "v1", "draft": false,
+                    "prerelease": false, "published_at": null,
+                    "assets": [{"id": record.asset_id + 100, "name": "other.zip",
+                        "browser_download_url": format!("{}/other.zip", server.origin),
+                        "size": 1, "digest": null}]
+                },
+                {
+                    "id": record.release_id, "tag_name": "v1-old", "draft": false,
+                    "prerelease": false, "published_at": null,
+                    "assets": [{"id": record.asset_id, "name": record.filename,
+                        "browser_download_url": format!("{}{accepted_path}", server.origin),
+                        "size": record.size, "digest": null}]
+                }
+            ]);
+            server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+            server.json(releases);
+            let error = resolve().await.unwrap_err();
+            assert_ne!(
+                error.upstream_failure(),
+                crate::failure::UpstreamFailure::Unavailable,
+                "{error:?}"
+            );
+            assert!(
+                requested(&server)
+                    .iter()
+                    .all(|line| !line.contains(&preserved_path)),
+                "a moved tag must never contact a preserved location"
+            );
             return;
         }
         PreservedCase::DisagreementNeverFallsBack => {
@@ -3935,7 +3985,13 @@ async fn curated_preserved_failover_fixture(case: PreservedCase) {
     // (gone), then the preserved location.
     server.status(404, "Not Found");
     server.status(404, "Not Found");
-    let preserved_bytes = if case == PreservedCase::MismatchedPreservedBytes {
+    if case == PreservedCase::SecondLocationAfterFirstUnavailable {
+        server.status(404, "Not Found");
+    }
+    let preserved_bytes = if matches!(
+        case,
+        PreservedCase::MismatchedPreservedBytes | PreservedCase::MismatchStopsBeforeSecondLocation
+    ) {
         let mut changed = bytes.clone();
         changed[0] ^= 1;
         changed
@@ -3951,9 +4007,31 @@ async fn curated_preserved_failover_fixture(case: PreservedCase) {
         )
         .await;
     let lines = requested(&server);
-    assert_eq!(lines.len(), 4, "{lines:?}");
+    let second_path = record
+        .preserved_locations
+        .get(1)
+        .map(|location| reqwest::Url::parse(location).unwrap().path().to_owned());
+    let expected = if case == PreservedCase::SecondLocationAfterFirstUnavailable {
+        5
+    } else {
+        4
+    };
+    assert_eq!(lines.len(), expected, "{lines:?}");
     assert!(lines[2].contains(reqwest::Url::parse(&record.acquisition_url).unwrap().path()));
     assert!(lines[3].contains(&preserved_path), "{lines:?}");
+    if case == PreservedCase::SecondLocationAfterFirstUnavailable {
+        assert!(
+            lines[4].contains(second_path.as_deref().unwrap()),
+            "{lines:?}"
+        );
+    }
+    if case == PreservedCase::MismatchStopsBeforeSecondLocation {
+        let second = second_path.unwrap();
+        assert!(
+            lines.iter().all(|line| !line.contains(&second)),
+            "a byte mismatch must not try a further location: {lines:?}"
+        );
+    }
     assert!(
         server
             .requests
@@ -3963,7 +4041,10 @@ async fn curated_preserved_failover_fixture(case: PreservedCase) {
             .all(|request| !request.to_ascii_lowercase().contains("authorization:")),
         "preserved acquisition must stay anonymous"
     );
-    if case == PreservedCase::MismatchedPreservedBytes {
+    if matches!(
+        case,
+        PreservedCase::MismatchedPreservedBytes | PreservedCase::MismatchStopsBeforeSecondLocation
+    ) {
         let error = result.unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Verification);
         assert!(error.message.contains("SHA-256"));
@@ -4009,6 +4090,21 @@ async fn curated_stale_policy_refuses_preserved_resolution() {
 #[tokio::test]
 async fn curated_stale_policy_refuses_preserved_bytes_after_resolution() {
     curated_preserved_failover_fixture(PreservedCase::StalePolicyBeforeBytes).await;
+}
+
+#[tokio::test]
+async fn curated_retagged_release_never_falls_back() {
+    curated_preserved_failover_fixture(PreservedCase::RetaggedReleaseNeverFallsBack).await;
+}
+
+#[tokio::test]
+async fn curated_preserved_tries_second_location_after_first_unavailable() {
+    curated_preserved_failover_fixture(PreservedCase::SecondLocationAfterFirstUnavailable).await;
+}
+
+#[tokio::test]
+async fn curated_preserved_mismatch_never_tries_a_further_location() {
+    curated_preserved_failover_fixture(PreservedCase::MismatchStopsBeforeSecondLocation).await;
 }
 
 #[tokio::test]

@@ -1721,7 +1721,8 @@ impl Installer {
             emit(operation.message(
                 "info",
                 format!(
-                    "Upstream unavailable; trying preserved copy {attempts} of {}",
+                    "The original download is unavailable. Trying preserved location {attempts} of {} for {}.",
+                    record.preserved_locations.len(),
                     asset.name
                 ),
             ));
