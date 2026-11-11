@@ -140,6 +140,7 @@ export type SourceVerificationOutcome =
   Generated.TransportOutputs["desktop_source_verification_outcome"];
 
 export type { UpdateCheck } from "./transport-types.generated";
+export type UpdateCheckForecast = Generated.TransportOutputs["update_check_forecast"];
 
 export type { PortOutputLocation } from "./transport-types.generated";
 
