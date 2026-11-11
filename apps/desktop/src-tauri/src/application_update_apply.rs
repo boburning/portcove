@@ -9,7 +9,6 @@ use std::fs::{self, File, OpenOptions};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
-use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 
 use crate::application_update::{
@@ -330,7 +329,7 @@ struct ApplyLock {
 
 impl Drop for ApplyLock {
     fn drop(&mut self) {
-        let _ = FileExt::unlock(&self.file);
+        let _ = self.file.unlock();
     }
 }
 
@@ -803,15 +802,13 @@ impl ApplicationUpdateApplyStore {
             .read(true)
             .write(true)
             .open(path)?;
-        match file.try_lock_exclusive() {
+        match file.try_lock() {
             Ok(()) => Ok(ApplyLock {
                 file,
                 _process: process,
             }),
-            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                Err(ApplicationUpdateApplyError::Busy)
-            }
-            Err(error) => Err(error.into()),
+            Err(std::fs::TryLockError::WouldBlock) => Err(ApplicationUpdateApplyError::Busy),
+            Err(std::fs::TryLockError::Error(error)) => Err(error.into()),
         }
     }
 }

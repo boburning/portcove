@@ -1,3 +1,4 @@
+import { servedNativeBootstrapRenewal } from "./release-metadata-contract.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { performance } from "node:perf_hooks";
@@ -822,30 +823,30 @@ void test("the exact feed tag route retains uppercase SemVer metadata", async (t
   assert.equal(calls, 1);
 });
 
-void test("the feed reader permits only the appointed forward-adoption tag", async (t) => {
-  const ref = retainedR56FeedRecovery.next_ref;
-  const route = `repos/boburning/portcove/git/ref/${ref.slice("refs/".length)}`;
-  let calls = 0;
-  t.mock.method(
-    globalThis,
-    "fetch",
-    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
-      const request = new Request(input, init);
-      assert.equal(request.method, "GET");
-      assert.equal(request.url, `https://api.github.com/${route}`);
-      calls++;
-      return Response.json({ ref, object: { type: "commit", sha: control } });
-    },
-  );
-  const read = await createApplicationFeedReader(
-    "inert-forward-adoption",
-    performance.now() + 5000,
-  );
-  assert.deepEqual((await read(route)).body, { ref, object: { type: "commit", sha: control } });
-  await assert.rejects(read(`${route}-other`), /observation route differs/);
-  await assert.rejects(read(`${route}?unused=1`), /observation route differs/);
-  assert.equal(calls, 1);
-});
+for (const ref of [retainedR56FeedRecovery.next_ref, servedNativeBootstrapRenewal.ref])
+  void test(`the feed reader permits only the exact adoption tag ${ref}`, async (t) => {
+    const route = `repos/boburning/portcove/git/ref/${ref.slice("refs/".length)}`;
+    let calls = 0;
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        const request = new Request(input, init);
+        assert.equal(request.method, "GET");
+        assert.equal(request.url, `https://api.github.com/${route}`);
+        calls++;
+        return Response.json({ ref, object: { type: "commit", sha: control } });
+      },
+    );
+    const read = await createApplicationFeedReader(
+      "inert-forward-adoption",
+      performance.now() + 5000,
+    );
+    assert.deepEqual((await read(route)).body, { ref, object: { type: "commit", sha: control } });
+    await assert.rejects(read(`${route}-other`), /observation route differs/);
+    await assert.rejects(read(`${route}?unused=1`), /observation route differs/);
+    assert.equal(calls, 1);
+  });
 
 void test("feed selects the serving actor only behind its exact active Actions admission", async () => {
   const tag = "portcove-production-controller-windows-fixture";

@@ -3,8 +3,6 @@ use std::{
     path::Path,
 };
 
-use fs2::FileExt;
-
 use crate::{PortcoveError, Result};
 
 #[derive(Debug, Clone, Copy)]
@@ -47,18 +45,18 @@ impl LibraryLease {
             .write(true)
             .open(path)?;
         let lock = match access {
-            LibraryAccess::Shared => FileExt::try_lock_shared(&file),
-            LibraryAccess::Exclusive => FileExt::try_lock_exclusive(&file),
+            LibraryAccess::Shared => file.try_lock_shared(),
+            LibraryAccess::Exclusive => file.try_lock(),
         };
         lock.map_err(|error| {
-            if error.kind() == fs2::lock_contended_error().kind() {
+            if matches!(error, std::fs::TryLockError::WouldBlock) {
                 PortcoveError::conflict(
                     "the library is in use by another Portcove operation or process",
                 )
                 .with_known_cause(crate::failure::KnownFailureCause::Busy)
                 .detail("library_root", root.display().to_string())
             } else {
-                error.into()
+                std::io::Error::from(error).into()
             }
         })?;
         Ok(Self { file })
@@ -67,7 +65,7 @@ impl LibraryLease {
 
 impl Drop for LibraryLease {
     fn drop(&mut self) {
-        let _ = FileExt::unlock(&self.file);
+        let _ = self.file.unlock();
     }
 }
 
@@ -90,17 +88,17 @@ mod tests {
             .write(true)
             .open(temporary.path().join("locks/library.lock"))
             .unwrap();
-        assert!(FileExt::try_lock_exclusive(&exclusive).is_err());
+        assert!(exclusive.try_lock().is_err());
         drop(first);
         drop(second);
-        assert!(FileExt::try_lock_exclusive(&exclusive).is_err());
+        assert!(exclusive.try_lock().is_err());
         drop(clone);
-        FileExt::try_lock_exclusive(&exclusive).unwrap();
+        exclusive.try_lock().unwrap();
         assert_eq!(
             Library::open(temporary.path()).unwrap_err().code,
             ErrorCode::Conflict
         );
-        FileExt::unlock(&exclusive).unwrap();
+        exclusive.unlock().unwrap();
         Library::open(temporary.path()).unwrap();
     }
 

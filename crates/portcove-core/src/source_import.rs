@@ -1580,7 +1580,7 @@ fn require_capacity(destination: &Path, required: u64) -> Result<()> {
     let parent = destination
         .parent()
         .ok_or_else(|| PortcoveError::state("Source Inbox destination has no parent"))?;
-    let available = fs2::available_space(parent)?;
+    let available = fs4::available_space(parent)?;
     if available < required {
         return Err(PortcoveError::conflict(
             "Source Inbox destination does not have enough free space",

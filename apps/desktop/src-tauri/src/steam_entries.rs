@@ -10,7 +10,6 @@ pub use crate::desktop_contract::{
     SteamClientState, SteamEntryApplyResult, SteamEntryChange, SteamEntryChangeKind,
     SteamGameEntryTarget,
 };
-use fs2::FileExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -1233,11 +1232,12 @@ fn lock_profile(config: &Path) -> Result<File> {
         .truncate(false)
         .open(&path)
         .map_err(|source| io_error("opening the Steam profile mutation lock", source))?;
-    file.try_lock_exclusive().map_err(|source| {
-        SteamEntryError::Conflict(format!(
-            "another Portcove Steam operation owns {}: {source}",
+    file.try_lock().map_err(|error| match error {
+        std::fs::TryLockError::WouldBlock => SteamEntryError::Conflict(format!(
+            "another Portcove Steam operation owns {}",
             path.display()
-        ))
+        )),
+        std::fs::TryLockError::Error(source) => io_error("locking the Steam profile", source),
     })?;
     Ok(file)
 }

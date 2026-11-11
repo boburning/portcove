@@ -6,7 +6,6 @@
 
 use std::{fs, path::Path};
 
-use fs2::FileExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -250,7 +249,7 @@ fn load_or_create_key_at(
         .read(true)
         .write(true)
         .open(lock_path)?;
-    FileExt::lock_exclusive(&file)?;
+    file.lock()?;
     let result = (|| {
         if let Some(key) = load()? {
             return Ok(key);
@@ -267,7 +266,7 @@ fn load_or_create_key_at(
         }
         Ok(stored)
     })();
-    let unlock = FileExt::unlock(&file).map_err(PortcoveError::from);
+    let unlock = file.unlock().map_err(PortcoveError::from);
     match (result, unlock) {
         (Err(error), _) | (Ok(_), Err(error)) => Err(error),
         (Ok(key), Ok(())) => Ok(key),

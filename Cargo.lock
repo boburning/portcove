@@ -541,6 +541,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bzip2-turbo"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ed830082c672beeca7b4d081c50c2381d3a0aea3be179451fa39cda45840718"
+dependencies = [
+ "crc-turbo",
+]
+
+[[package]]
 name = "cairo-rs"
 version = "0.18.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1526,13 +1535,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "fs2"
-version = "0.4.3"
+name = "fs4"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9564fc758e15025b46aa6643b1b77d047d1a56a1aea6e01002ac0c7026876213"
+checksum = "7e72ed92b67c146290f88e9c89d60ca163ea417a446f61ffd7b72df3e7f1dfd5"
 dependencies = [
- "libc",
- "winapi",
+ "rustix",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2824,9 +2833,9 @@ checksum = "4050469837a6ff301cd14c1f8f24f88549e6d548f24f64e2148eb0f72cebc51f"
 
 [[package]]
 name = "lzma-turbo"
-version = "0.10.2"
+version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3af35044209c991b5cafb0821392f36b3b3eb3bdd5411c21562716705139a621"
+checksum = "2131c934968021ba26fb694aaafa3e6bcb72a39d866724137f9381bdcd94c0d0"
 dependencies = [
  "crc-turbo",
 ]
@@ -3702,7 +3711,7 @@ dependencies = [
  "ed25519-dalek",
  "filetime",
  "flate2",
- "fs2",
+ "fs4",
  "futures-util",
  "hex",
  "http",
@@ -3748,7 +3757,7 @@ dependencies = [
  "base64 0.23.1",
  "bytes",
  "flate2",
- "fs2",
+ "fs4",
  "futures-util",
  "hex",
  "jiff",
@@ -4757,10 +4766,11 @@ dependencies = [
 
 [[package]]
 name = "sevenz-turbo"
-version = "0.29.3"
+version = "0.29.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47e78cf4c24e122389175a1f0570faf86fce2c786fec113f4617e3ebf97b2789"
+checksum = "c3a2d71ad9dc31ea251a0228337b36c80269e571da64c9c62fefc53f45028687"
 dependencies = [
+ "bzip2-turbo",
  "js-sys",
  "lzma-turbo",
  "wasm-bindgen",
