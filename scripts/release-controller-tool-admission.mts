@@ -1,5 +1,6 @@
 import { fixedReleaseToolDependencies } from "./release-tool-dependency-selection.mts";
 import { performance } from "node:perf_hooks";
+import { setTimeout as delay } from "node:timers/promises";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -227,17 +228,35 @@ export async function prepareControllerToolPredicate(
   let phase = "provider-before";
   try {
     const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
-    const read = async () => {
+    const read = async (readDeadline = deadline(15000)) => {
       const metadata = await createReleaseCustodyProvider({
         token,
-        deadline: deadline(15000),
+        deadline: readDeadline,
         maxBytes: 128 * 1024,
         fetch: directFetch,
       });
       const data = await metadata.artifact(expected.artifact_id);
       return artifact(data, expected, expected.artifact_id, expected.sha256);
     };
-    const before = await read();
+    // The upload acknowledgment can precede visibility in the artifact REST API.
+    const visibilityDeadline = deadline(15000);
+    const readVisibleUpload = async () => {
+      for (const wait of [500, 1500, 3000]) {
+        try {
+          return await read(visibilityDeadline);
+        } catch (error) {
+          if (
+            !(error instanceof GitHubApiError) ||
+            error.status !== 404 ||
+            performance.now() + wait >= visibilityDeadline
+          )
+            throw error;
+          await delay(wait);
+        }
+      }
+      return read(visibilityDeadline);
+    };
+    const before = await readVisibleUpload();
     await writeFile(path.join(attempt, "provider-before.json"), JSON.stringify(before), {
       flag: "wx",
       mode: 0o600,

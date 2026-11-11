@@ -1263,7 +1263,10 @@ void test("fixed controller tool senders use the locked SDK before signing exact
       const prefix = "/repos/boburning/portcove";
       if (url.pathname === `${prefix}/actions/artifacts/99`) {
         artifactReads++;
-        if (refuseAt === "artifact-not-visible")
+        if (
+          refuseAt === "artifact-not-visible" ||
+          (refuseAt === "artifact-pending" && artifactReads === 1)
+        )
           return Response.json({ message: "private diagnostic fixture" }, { status: 404 });
         if (refuseAt === "artifact-recheck" && artifactReads === 2)
           throw new Error("private diagnostic fixture");
@@ -1306,6 +1309,17 @@ void test("fixed controller tool senders use the locked SDK before signing exact
         `${actions}/artifacts/99`,
       ]);
       assert.equal(oidc.counts().requests, 5);
+      refuseAt = "artifact-pending";
+      artifactReads = 0;
+      process.env.GH_TOKEN = "fixture-fixed-sender";
+      const pendingRoot = await mkdtemp(path.join(root, "pending-"));
+      const recovered = await prepareControllerToolPredicate(pendingRoot, f.expected, {
+        ...identityExpected,
+        audience: profile.audience,
+        run_attempt: 1,
+      });
+      assert.deepEqual(recovered.predicate, f.predicate);
+      assert.equal(artifactReads, 3);
       for (const [failurePath, phase, identityRefusal] of [
         ["artifact-not-visible", "provider-before"],
         ["/oidc", "producer-token-request"],
@@ -1337,6 +1351,7 @@ void test("fixed controller tool senders use the locked SDK before signing exact
           }),
           /controller tool binding refused/u,
         );
+        if (failurePath === "artifact-not-visible") assert.equal(artifactReads, 4);
         const attempt = (await readdir(refusalRoot)).find((name) =>
           name.startsWith("controller-tool-binding-"),
         );
