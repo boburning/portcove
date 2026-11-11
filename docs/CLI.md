@@ -1746,15 +1746,18 @@ Portcove's declared executable; it does not compare file contents, so a modified
 installation can still be ready to review. `adopt` then reviews the exact copy
 plan. A different app naming an earlier entry's folder keeps its own status and
 reports `shares_folder_with`. The human summary prints the `adopt` command with
-the folder single-quoted for pasting; JSON consumers combine `install_path` and
-`adopt_port_id` themselves. Launcher names, `preferredVersion`, `version.txt`,
+the folder single-quoted for pasting into PowerShell or a POSIX shell (not
+cmd.exe); JSON consumers combine `install_path` and `adopt_port_id`
+themselves. Launcher names, `preferredVersion`, `version.txt`,
 `selected_executable.txt` and Quiver `.quiver-mods.json` records are reported as
 untrusted hints; they never establish authenticity, a version, save
 compatibility or mod ownership. Mods are listed, not activated. Only `AppsPath`
 is read from `settings.json`; tokens and other launcher settings are ignored.
 Paths taken from launcher metadata (`AppsPath`, `installPath`) must be absolute
-paths on a local drive: network shares and device paths are not contacted, and
-`--apps-root` remains the player's explicit choice. Per-app Linux runner, Wine
+drive-letter paths on Windows or absolute paths elsewhere: UNC network shares and
+device paths are not contacted. A drive letter the player mapped to a network
+share still counts as a drive. `--apps-root` remains the player's explicit
+choice. Per-app Linux runner, Wine
 prefix, Proton path and custom launch commands are listed in
 `not_carried_over`; they never become Portcove launch arguments.
 `user_data_paths` lists declared saves and settings found in a ready folder; the

@@ -252,7 +252,7 @@ pub(crate) fn launcher_library_inventory(
                 clean(port_id)
             )),
             (Some(path), None, LauncherEntryStatus::Ambiguous) => text.push_str(&format!(
-                "\nNext: portcove adopt {} --port <one of the ports above>",
+                "\nNext: choose PORT_ID from the ports above, then run portcove adopt {} --port PORT_ID",
                 shell_quoted(&path.display().to_string())
             )),
             _ => {}
@@ -268,15 +268,36 @@ pub(crate) fn launcher_library_inventory(
     text
 }
 
-/// Quote a path so pasting the suggested command passes it literally: single
-/// quotes are literal in both PowerShell and POSIX shells.
+/// Quote a path so pasting the suggested command passes it literally in
+/// PowerShell (Windows) or a POSIX shell. cmd.exe is not a supported paste target.
 fn shell_quoted(value: &str) -> String {
+    // Control characters never reach the terminal; such a path then fails safely.
     let value = clean(value);
     if cfg!(windows) {
-        format!("'{}'", value.replace('\'', "''"))
+        powershell_quoted(&value)
     } else {
-        format!("'{}'", value.replace('\'', "'\\''"))
+        posix_quoted(&value)
     }
+}
+
+/// PowerShell treats U+2018–U+201B like `'`; doubling each keeps it literal.
+fn powershell_quoted(value: &str) -> String {
+    let mut quoted = String::from("'");
+    for character in value.chars() {
+        if matches!(
+            character,
+            '\'' | '\u{2018}' | '\u{2019}' | '\u{201A}' | '\u{201B}'
+        ) {
+            quoted.push(character);
+        }
+        quoted.push(character);
+    }
+    quoted.push('\'');
+    quoted
+}
+
+fn posix_quoted(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
 }
 
 pub(crate) fn adoption_preview(preview: &AdoptionPreview, catalog: &Catalog) -> String {
