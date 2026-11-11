@@ -1,0 +1,35 @@
+{
+  "details": {
+    "catalogId": "ID del catálogo: {{id}}",
+    "dataFolder": "Carpeta de datos guardados",
+    "deleteInterrupted": "Una eliminación interrumpida puede completarse al volver a abrir esta biblioteca. Cancelar no restaura una copia de seguridad eliminada.",
+    "deleteIrreversible": "Esta instantánea no se puede recuperar después de eliminarla. No se crea ninguna copia de seguridad de la instantánea eliminada.",
+    "deletePreserved": "Se conservan los datos guardados actuales, las demás copias de seguridad y las versiones instaladas del juego.",
+    "deleteRuntimeCopy": "Esto también elimina de forma permanente la copia conservada de partidas y ajustes del entorno de ejecución Ghostship 3.0.0 almacenada con esta copia de seguridad.",
+    "heading": "{{name}} · {{time}}",
+    "label": "Cambios de la copia de seguridad y datos conservados",
+    "noSafetyBackup": "No hay datos guardados actuales que respaldar. No se creará ninguna copia de seguridad de seguridad.",
+    "restoreInterrupted": "Si se interrumpe, Portcove conserva datos de recuperación y comprueba la restauración al volver a abrir la biblioteca. Revisa cualquier aviso de recuperación antes de otra restauración.",
+    "restoreResult": "La carpeta de datos guardados contendrá los datos de esta instantánea. Se conservan la copia de seguridad seleccionada, las demás copias de seguridad y las versiones instaladas del juego.",
+    "restoreStopped": "El juego debe estar detenido. Si sus datos cambian después de esta revisión, revisa de nuevo antes de restaurar.",
+    "safetyBackup": "Portcove hará una copia de seguridad de los datos guardados actuales antes de reemplazarlos. Restaura esa copia de seguridad de seguridad para volver a los datos anteriores.",
+    "selectedBackup": "Copia de seguridad seleccionada",
+    "summary_one": "{{count}} archivo · {{size}}",
+    "summary_many": "{{count}} archivos · {{size}}",
+    "summary_other": "{{count}} archivos · {{size}}"
+  },
+  "review": {
+    "applyDelete": "Eliminar esta copia de seguridad de forma permanente",
+    "applyRestore": "Restaurar esta copia de seguridad",
+    "cancel": "Cancelar",
+    "checking": "Comprobando la copia de seguridad y los datos guardados actuales…",
+    "deleting": "Eliminando la copia de seguridad…",
+    "descriptionDelete": "Elimina de forma permanente solo la copia de seguridad seleccionada.",
+    "descriptionRestore": "Reemplaza los datos guardados actuales de este juego con esta copia de seguridad.",
+    "failure": "La operación no se completó. Revisa la copia de seguridad y los datos actuales antes de volver a intentarlo.",
+    "restoring": "Restaurando la copia de seguridad…",
+    "reviewAgain": "Revisar de nuevo",
+    "titleDelete": "Revisar la eliminación de la copia de seguridad",
+    "titleRestore": "Revisar la restauración de la copia de seguridad"
+  }
+}

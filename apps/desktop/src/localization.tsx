@@ -19,12 +19,14 @@ import {
 import englishApplicationUpdate from "./locales/en/applicationUpdate.json";
 import englishCatalogUpdates from "./locales/en/catalogUpdates.json";
 import englishRemoval from "./locales/en/removal.json";
+import englishBackups from "./locales/en/backups.json";
 import englishCounts from "./locales/en/counts.json";
 import englishSettings from "./locales/en/settings.json";
 import englishShell from "./locales/en/shell.json";
 import engineeringApplicationUpdate from "./locales/ar-XB/applicationUpdate.json";
 import engineeringCatalogUpdates from "./locales/ar-XB/catalogUpdates.json";
 import engineeringRemoval from "./locales/ar-XB/removal.json";
+import engineeringBackups from "./locales/ar-XB/backups.json";
 import engineeringSettings from "./locales/ar-XB/settings.json";
 import engineeringShell from "./locales/ar-XB/shell.json";
 import type { LocalePreferenceSnapshot } from "./types";
@@ -34,6 +36,7 @@ import draftSpanishShell from "./locales/es/shell.json";
 import draftSpanishApplicationUpdate from "./locales/es/applicationUpdate.json";
 import draftSpanishCatalogUpdates from "./locales/es/catalogUpdates.json";
 import draftSpanishRemoval from "./locales/es/removal.json";
+import draftSpanishBackups from "./locales/es/backups.json";
 
 const supportedLocales = ["en", "ar-XB"] as const;
 export type SupportedLocale = (typeof supportedLocales)[number];
@@ -103,23 +106,34 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(englishApplicationUpdate, "applicationUpdate");
   assertCatalog(englishCatalogUpdates, "catalogUpdates");
   assertCatalog(englishRemoval, "removal");
+  assertCatalog(englishBackups, "backups");
   assertCatalog(engineeringSettings);
   assertCatalog(engineeringShell, "shell");
   assertCatalog(engineeringApplicationUpdate, "applicationUpdate");
   assertCatalog(engineeringCatalogUpdates, "catalogUpdates");
   assertCatalog(engineeringRemoval, "removal");
+  assertCatalog(engineeringBackups, "backups");
   assertCatalog(draftSpanishSettings, "es.settings");
   assertCatalog(draftSpanishCounts, "es.counts");
   assertCatalog(draftSpanishShell, "es.shell");
   assertCatalog(draftSpanishApplicationUpdate, "es.applicationUpdate");
   assertCatalog(draftSpanishCatalogUpdates, "es.catalogUpdates");
   assertCatalog(draftSpanishRemoval, "es.removal");
+  assertCatalog(draftSpanishBackups, "es.backups");
   if (!i18next.isInitialized) {
     void i18next.use(initReactI18next).init({
       lng: resolveLocale(null, initialLocales),
       fallbackLng: "en",
       supportedLngs: [...supportedLocales, "es"],
-      ns: ["settings", "counts", "shell", "applicationUpdate", "catalogUpdates", "removal"],
+      ns: [
+        "settings",
+        "counts",
+        "shell",
+        "applicationUpdate",
+        "catalogUpdates",
+        "removal",
+        "backups",
+      ],
       defaultNS: "settings",
       resources: {
         en: {
@@ -129,6 +143,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           applicationUpdate: englishApplicationUpdate,
           catalogUpdates: englishCatalogUpdates,
           removal: englishRemoval,
+          backups: englishBackups,
         },
         "ar-XB": {
           settings: engineeringSettings,
@@ -136,6 +151,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           applicationUpdate: engineeringApplicationUpdate,
           catalogUpdates: engineeringCatalogUpdates,
           removal: engineeringRemoval,
+          backups: engineeringBackups,
         },
         // Unreviewed draft pilot (#1028): bundled for review and engineering
         // fixtures only. resolveLocale never selects it and the picker omits it.
@@ -146,6 +162,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           applicationUpdate: draftSpanishApplicationUpdate,
           catalogUpdates: draftSpanishCatalogUpdates,
           removal: draftSpanishRemoval,
+          backups: draftSpanishBackups,
         },
       },
       initAsync: false,

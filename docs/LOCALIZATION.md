@@ -121,6 +121,7 @@ unless the copy change is intended and reviewed.
 | Custom catalog sources and game listings | `components/CatalogUpdates.tsx`                            | `catalogUpdates`    |
 | Uninstall review                         | `components/RemovalReview.tsx`                             | `removal`           |
 | Saved file location removal              | `components/SourceRemoval.tsx`                             | `removal`           |
+| Backup restore and deletion review       | `components/BackupReview.tsx`                              | `backups`           |
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-11 it

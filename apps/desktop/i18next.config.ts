@@ -18,6 +18,7 @@ export default defineConfig({
       "src/components/CatalogUpdates.tsx",
       "src/components/RemovalReview.tsx",
       "src/components/SourceRemoval.tsx",
+      "src/components/BackupReview.tsx",
     ],
     ignore: ["src/**/*.test.{ts,tsx}", "src/**/*.generated.d.ts", "src/design-compatibility/**"],
     output: "src/locales/{{language}}/{{namespace}}.json",

@@ -1,0 +1,34 @@
+{
+  "details": {
+    "catalogId": "Catalog ID: {{id}}",
+    "dataFolder": "Saved-data folder",
+    "deleteInterrupted": "An interrupted deletion may finish when you reopen this library. Cancellation does not restore a deleted backup.",
+    "deleteIrreversible": "This snapshot cannot be recovered after deletion. No safety copy of the deleted snapshot is created.",
+    "deletePreserved": "Current saved data, other backups and installed game versions are preserved.",
+    "deleteRuntimeCopy": "This also permanently deletes the retained Ghostship 3.0.0 runtime saves/settings copy stored with this backup.",
+    "heading": "{{name}} · {{time}}",
+    "label": "Backup changes and preserved data",
+    "noSafetyBackup": "There is no current saved data to back up. A safety backup will not be created.",
+    "restoreInterrupted": "If interrupted, Portcove retains recovery data and checks the restore when the library reopens. Review any recovery notice before another restore.",
+    "restoreResult": "The saved-data folder will contain this snapshot's data. The selected backup, other backups and installed game versions are preserved.",
+    "restoreStopped": "The game must be stopped. If its data changes after this review, review again before restoring.",
+    "safetyBackup": "Portcove will back up the current saved data before replacing it. Restore that safety backup to return to the previous data.",
+    "selectedBackup": "Selected backup",
+    "summary_one": "{{count}} file · {{size}}",
+    "summary_other": "{{count}} files · {{size}}"
+  },
+  "review": {
+    "applyDelete": "Delete this backup permanently",
+    "applyRestore": "Restore this backup",
+    "cancel": "Cancel",
+    "checking": "Checking the backup and current saved data…",
+    "deleting": "Deleting backup…",
+    "descriptionDelete": "Permanently delete only the selected backup.",
+    "descriptionRestore": "Replace this game’s current saved data with this backup.",
+    "failure": "The operation did not complete. Review the current backup and data before trying again.",
+    "restoring": "Restoring backup…",
+    "reviewAgain": "Review again",
+    "titleDelete": "Review backup deletion",
+    "titleRestore": "Review backup restore"
+  }
+}
