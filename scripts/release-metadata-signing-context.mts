@@ -64,6 +64,7 @@ type Owned = {
   observed: number;
   bootstrap_observed: number;
   source?: Controls;
+  current: Awaited<ReturnType<Controls["readSdkMaintenance"]>>;
   pending?: { executor: Executor; checkpoint: string; operation_id: string };
 };
 const contexts = new WeakMap<object, Owned>();
@@ -99,6 +100,7 @@ async function controls(owned: Owned) {
     !isDeepStrictEqual(current.capacity, owned.control_facts.capacity)
   )
     throw new Error("coordinator metadata controls changed");
+  owned.current = current;
   return current;
 }
 async function snapshot(owned: Owned) {
@@ -236,6 +238,7 @@ export async function prepareCoordinatorSigningContext(
     credential: { token: fixedReleaseReaderToken() },
     files: inventory(source),
     descriptor: prepared.descriptor,
+    current,
     control_facts: {
       pause: structuredClone(current.pause),
       capacity: structuredClone(current.capacity),
@@ -298,7 +301,7 @@ export async function bindCoordinatorSigningContextBoundary(
       : op.metadata_renewal?.descriptor_sha256) !== digest(owned.descriptor)
   )
     throw new Error("metadata context boundary differs from its original pending upload");
-  await bindCoordinatorSigningContextPending(receipt, executor, {
+  return bindCoordinatorSigningContextPending(receipt, executor, {
     checkpoint: selected.checkpoint,
     operation_id: op.id,
   });
@@ -339,7 +342,13 @@ export async function bindCoordinatorSigningContextPending(
     throw new Error("metadata pending checkpoint changed");
   owned.pending ??= { executor, ...expected };
   await verifyState(owned, state);
-  await requireCoordinatorSigningContext(receipt);
+  return requireCoordinatorSigningContext(receipt);
+}
+/** Data-only assembly from the private preparation receipt. This verifies retained
+ * bytes and the original deadline without renewing authority. Effect, journal
+ * and handoff boundaries still use requireCoordinatorSigningContext. */
+export async function readPreparedCoordinatorSigningContext(receipt: object) {
+  return requireCoordinatorSigningContextAt(receipt, undefined, false, false);
 }
 export async function requireCoordinatorSigningContext(receipt: object, phaseDeadline?: number) {
   return requireCoordinatorSigningContextAt(receipt, phaseDeadline, true);
@@ -357,6 +366,7 @@ async function requireCoordinatorSigningContextAt(
   receipt: object,
   phaseDeadline: number | undefined,
   verifyCheckpointState: boolean,
+  refreshAuthority = true,
 ) {
   const owned = contexts.get(receipt);
   if (!owned) throw new Error("actual coordinator metadata context required");
@@ -379,10 +389,10 @@ async function requireCoordinatorSigningContextAt(
     digest(inventory(await readBoundedReleaseContextFiles(owned.directory))) !== digest(owned.files)
   )
     throw new Error("actual metadata context retained bytes changed");
-  await controls(owned);
   if (verifyCheckpointState) await verifyState(owned, await snapshot(owned));
-  if (site) await readPublicApplicationSiteMarker(site.generation, owned.deadline);
-  else if (performance.now() - owned.bootstrap_observed >= 45000) {
+  if (refreshAuthority && site)
+    await readPublicApplicationSiteMarker(site.generation, owned.deadline);
+  else if (refreshAuthority && performance.now() - owned.bootstrap_observed >= 45000) {
     const provider = await createReleaseCustodyProvider({
       token: process.env.GH_TOKEN ?? "",
       deadline: owned.deadline,
@@ -405,7 +415,7 @@ async function requireCoordinatorSigningContextAt(
   }
   // Source/public reads may consume the original controls lifetime. Return only
   // a freshly checked stable maintenance boundary after those reads.
-  const current = await controls(owned);
+  const current = refreshAuthority ? await controls(owned) : owned.current;
   remaining(owned);
   return Object.freeze({
     mode: owned.session.mode,
@@ -430,7 +440,7 @@ async function requireCoordinatorSigningContextAt(
   });
 }
 export async function readCoordinatorSigningContextFiles(receipt: object) {
-  const current = await requireCoordinatorSigningContext(receipt);
+  const current = await readPreparedCoordinatorSigningContext(receipt);
   const files = await readBoundedReleaseContextFiles(current.directory);
   const owned = contexts.get(receipt);
   if (!owned || digest(inventory(files)) !== digest(owned.files))

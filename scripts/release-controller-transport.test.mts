@@ -866,6 +866,10 @@ void test("application coordinator diagnostics retain a closed refusal without e
     "durable-maintenance-descriptor",
     "metadata-context-preparation",
     "existing-metadata-pending",
+    "metadata-pending-boundary",
+    "metadata-effect-boundary",
+    "metadata-owned-pending",
+    "metadata-checkpoint-controls",
     "fixed-public-context-upload",
     "metadata-upload-settlement",
   ]) {

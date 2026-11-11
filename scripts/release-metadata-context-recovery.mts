@@ -27,6 +27,7 @@ import {
 } from "./release-coordinator-deadline.mts";
 import {
   requireCoordinatorSigningContext,
+  readPreparedCoordinatorSigningContext,
   readCoordinatorSigningContextFiles,
 } from "./release-metadata-signing-context.mts";
 import {
@@ -517,7 +518,7 @@ export async function readPendingMetadataContextUpload(
 }
 
 export async function reconcileCoordinatorSigningContext(actualContext: object, parent: string) {
-  const context = await requireCoordinatorSigningContext(actualContext);
+  const context = await readPreparedCoordinatorSigningContext(actualContext);
   return withCoordinatorDeadline(context.deadline, () =>
     reconcileAt(actualContext, context, parent),
   );
