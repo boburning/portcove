@@ -10,15 +10,8 @@ remote readback succeed. The contexts remain `catalog`, `dependency-review`,
 the delivery operations. Supplementary runs, diagnostics and personal preferences
 do not become merge prerequisites merely because somebody invoked them.
 
-One local step is expected before pushing a candidate: `just push-check` runs the
-cheap, area-selected stages of `just local-check` (formatting, lint and type checks,
-selected contract tests, related UI tests) without the heavy Rust workspace tests,
-production build or complete browser suite. A Rust-only change therefore gets a
-format check but no compile or type check locally; hosted CI is the first compile. It exists so a failure visible in under
-two minutes does not cost a 15 to 25 minute hosted cycle; it is not a merge
-prerequisite and needs no omission narrative. Bare `just`, `just local-check`,
-focused tests and analyzers remain optional feedback; omitted local checks need no
-explanation.
+Local commands are optional feedback. Bare `just`, `just local-check`, focused
+tests and analyzers may help development; omitted local checks need no explanation.
 Native, installed-app, physical-device or human observations are required only by
 explicit owning-issue acceptance or a release contract. Fixtures establish their
 tested contracts and cannot establish those observations.

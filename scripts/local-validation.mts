@@ -51,7 +51,6 @@ import {
   classifyChanges,
   buildPlan,
   command,
-  environmentDependentContractSkip,
   nodeTestCommand,
   uiRelatedCommand,
   formatCommand,
@@ -656,71 +655,11 @@ function runFocusedCommand(kind: string, args: string[]) {
   executePlan(plan, { env: prepareStorageScope(storageScopeForPlan(plan)) });
 }
 
-/**
- * The pre-push profile keeps every cheap, area-selected stage of the complete plan and drops the
- * ones that dominate its runtime: the full Rust workspace test run, the production build and the
- * complete browser suite. Hosted CI still runs all of them on the exact pull-request head.
- */
-export const fastProfileSkippedStages = ["rust-workspace-tests", "ui-build", "ui-tests"] as const;
-
-export function applyFastProfile(
-  plan: readonly ValidationCommand[],
-  options: { transport: boolean } = { transport: false },
-) {
-  const skipped: string[] = [];
-  const kept: ValidationCommand[] = [];
-  for (const entry of plan) {
-    if (entry.id === "node-tests" && !entry.args.includes(environmentDependentContractSkip)) {
-      // Insert the skip after the runner's own flags and before the test files.
-      const args = [...entry.args];
-      args.splice(
-        args.findLastIndex((argument) => argument.startsWith("--")) + 1,
-        0,
-        environmentDependentContractSkip,
-      );
-      kept.push({ ...entry, args });
-      continue;
-    }
-    if (!(fastProfileSkippedStages as readonly string[]).includes(entry.id)) {
-      kept.push(entry);
-      continue;
-    }
-    skipped.push(entry.id);
-    // The unit project is quick and the related browser tests already run as their own stage.
-    if (entry.id === "ui-tests")
-      kept.push(
-        command(
-          "ui-unit-tests",
-          "unit frontend test project (the complete browser suite stays hosted)",
-          process.execPath,
-          ["scripts/run-viteplus.mts", "run", "frontend:unit"],
-        ),
-      );
-  }
-  if (options.transport)
-    kept.push(
-      command(
-        "transport-contract",
-        "generated transport schemas against the Rust output contract",
-        process.execPath,
-        [
-          "scripts/run-rust-tests.mts",
-          "--guard-command",
-          process.execPath,
-          "scripts/check-transport-contract.mts",
-        ],
-      ),
-    );
-  return { plan: kept, skipped };
-}
-
 function parseCheckArgs(args: string[]) {
   let base = "origin/main";
   let planOnly = false;
   let fresh = false;
   let preflightOnly = false;
-  let fast = false;
-  let withTransport = false;
   let asJson = false;
   let authority;
   let controller;
@@ -730,8 +669,6 @@ function parseCheckArgs(args: string[]) {
     if (value === "--plan") planOnly = true;
     else if (value === "--fresh") fresh = true;
     else if (value === "--preflight") preflightOnly = true;
-    else if (value === "--fast") fast = true;
-    else if (value === "--with-transport") withTransport = true;
     else if (value === "--json") asJson = true;
     else if (value === "--hosted-authority") authority = args[++index];
     else if (value === "--hosted-controller") controller = args[++index];
@@ -747,21 +684,7 @@ function parseCheckArgs(args: string[]) {
   }
   if ((asJson || authority || controller || dispatchRef) && !preflightOnly)
     throw new Error("route/JSON options require --preflight");
-  if (withTransport && !fast) throw new Error("--with-transport requires --fast");
-  if (fast && preflightOnly)
-    throw new Error("--preflight inspects the complete plan and cannot be combined with --fast");
-  return {
-    base,
-    planOnly,
-    fresh,
-    preflightOnly,
-    fast,
-    withTransport,
-    asJson,
-    authority,
-    controller,
-    dispatchRef,
-  };
+  return { base, planOnly, fresh, preflightOnly, asJson, authority, controller, dispatchRef };
 }
 
 export async function main(
@@ -770,7 +693,7 @@ export async function main(
 ) {
   if (argv.includes("--help")) {
     console.log(
-      "usage: local-validation.mts [check [--base REV] [--fast [--with-transport]] [--plan|--preflight [--json] [--hosted-authority SHA --hosted-controller SHA --hosted-ref NAME]] [--fresh]|test-rust ARGS|test-ui FILES|test-ui --last-failed [FILES]|test-ui-related FILES|test-node TESTS]",
+      "usage: local-validation.mts [check [--base REV] [--plan|--preflight [--json] [--hosted-authority SHA --hosted-controller SHA --hosted-ref NAME]] [--fresh]|test-rust ARGS|test-ui FILES|test-ui --last-failed [FILES]|test-ui-related FILES|test-node TESTS]",
     );
     return;
   }
@@ -780,18 +703,8 @@ export async function main(
     return;
   }
   if (kind !== "check") throw new Error(`unknown local validation command: ${kind}`);
-  const {
-    base,
-    planOnly,
-    fresh,
-    preflightOnly,
-    fast,
-    withTransport,
-    asJson,
-    authority,
-    controller,
-    dispatchRef,
-  } = parseCheckArgs(args);
+  const { base, planOnly, fresh, preflightOnly, asJson, authority, controller, dispatchRef } =
+    parseCheckArgs(args);
   const context = (options.readContext ?? readChangeContext)(base);
   const validationPlan = validateValidationPlan(
     buildValidationPlan({
@@ -812,12 +725,7 @@ export async function main(
   );
   const selection = classifyChanges(context.changes);
   const planContext = { ...context, validationPlan };
-  const completePlan = buildPlan(selection, planContext);
-  // Changes that name the transport contract select its drift check even without the flag.
-  const fastProfile = fast
-    ? applyFastProfile(completePlan, { transport: withTransport || selection.transport })
-    : null;
-  const plan = fastProfile ? fastProfile.plan : completePlan;
+  const plan = buildPlan(selection, planContext);
   if (preflightOnly) {
     const hosted = inspectHostedLocalRoute(context, authority, controller, undefined, dispatchRef);
     const report = {
@@ -850,10 +758,6 @@ export async function main(
     return;
   }
   printPlan(context, selection, plan, validationPlan);
-  if (fastProfile?.skipped.length)
-    console.log(
-      `Fast profile skipped ${fastProfile.skipped.join(", ")}; hosted CI runs them, and \`just local-check\` runs them locally.`,
-    );
   if (planOnly) return;
   mkdirSync(path.join(projectRoot, "work"), { recursive: true });
   writeFileSync(

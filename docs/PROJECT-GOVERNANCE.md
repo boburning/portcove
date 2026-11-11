@@ -618,8 +618,8 @@ independent eligible work in the same active session. An owner-only action is
 reported once with its effect; it does not suspend safe independent work.
 
 Preserve [applicable review](QUALITY.md#review-scope), required exact-head hosted
-CI and explicit acceptance. Local validation beyond the expected non-gating
-`just push-check` is optional under [QUALITY](QUALITY.md#required-hosted-baseline). Reuse evidence only at permitted matching
+CI and explicit acceptance. Local validation is optional under
+[QUALITY](QUALITY.md#required-hosted-baseline). Reuse evidence only at permitted matching
 inputs and scope. A bounded reviewer receives the exact diff/head, relevant
 acceptance/contracts, risks and existing evidence; implementers handle findings
 directly. Where independent review is required, its absence leaves a candidate
