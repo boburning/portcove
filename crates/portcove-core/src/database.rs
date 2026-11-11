@@ -3002,6 +3002,8 @@ mod tests {
         schema_44: 44,
         schema_45: 45,
         schema_46: 46,
+        schema_47: 47,
+        schema_48: 48,
     }
 
     #[test]

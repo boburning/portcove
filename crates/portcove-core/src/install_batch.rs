@@ -398,7 +398,13 @@ impl PortcoveService {
             .iter()
             .filter(|item| item.state == InstallBatchItemState::Running)
         {
-            if let Some(active) = self.status(&item.port_id)?.active {
+            // Committed state comes from the library itself, so a game that has
+            // since left the catalog still reconciles instead of wedging the batch.
+            let committed = self
+                .library
+                .status(&item.port_id, crate::ReleaseChannel::Stable)?
+                .active;
+            if let Some(active) = committed {
                 decisions.push((item.port_id.clone(), Some(active.id)));
             } else if self
                 .library
