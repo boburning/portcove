@@ -1,5 +1,5 @@
 import { DirectionProvider } from "@base-ui/react/direction-provider";
-import i18next, { type i18n } from "i18next";
+import i18next, { type i18n, type Namespace } from "i18next";
 import {
   I18nextProvider,
   initReactI18next,
@@ -16,10 +16,24 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import englishApplicationUpdate from "./locales/en/applicationUpdate.json";
+import englishCatalogUpdates from "./locales/en/catalogUpdates.json";
+import englishRemoval from "./locales/en/removal.json";
 import englishCounts from "./locales/en/counts.json";
 import englishSettings from "./locales/en/settings.json";
+import englishShell from "./locales/en/shell.json";
+import engineeringApplicationUpdate from "./locales/ar-XB/applicationUpdate.json";
+import engineeringCatalogUpdates from "./locales/ar-XB/catalogUpdates.json";
+import engineeringRemoval from "./locales/ar-XB/removal.json";
 import engineeringSettings from "./locales/ar-XB/settings.json";
+import engineeringShell from "./locales/ar-XB/shell.json";
 import type { LocalePreferenceSnapshot } from "./types";
+import draftSpanishSettings from "./locales/es/settings.json";
+import draftSpanishCounts from "./locales/es/counts.json";
+import draftSpanishShell from "./locales/es/shell.json";
+import draftSpanishApplicationUpdate from "./locales/es/applicationUpdate.json";
+import draftSpanishCatalogUpdates from "./locales/es/catalogUpdates.json";
+import draftSpanishRemoval from "./locales/es/removal.json";
 
 const supportedLocales = ["en", "ar-XB"] as const;
 export type SupportedLocale = (typeof supportedLocales)[number];
@@ -85,17 +99,54 @@ export function assertCatalog(
 export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(englishSettings);
   assertCatalog(englishCounts, "counts");
+  assertCatalog(englishShell, "shell");
+  assertCatalog(englishApplicationUpdate, "applicationUpdate");
+  assertCatalog(englishCatalogUpdates, "catalogUpdates");
+  assertCatalog(englishRemoval, "removal");
   assertCatalog(engineeringSettings);
+  assertCatalog(engineeringShell, "shell");
+  assertCatalog(engineeringApplicationUpdate, "applicationUpdate");
+  assertCatalog(engineeringCatalogUpdates, "catalogUpdates");
+  assertCatalog(engineeringRemoval, "removal");
+  assertCatalog(draftSpanishSettings, "es.settings");
+  assertCatalog(draftSpanishCounts, "es.counts");
+  assertCatalog(draftSpanishShell, "es.shell");
+  assertCatalog(draftSpanishApplicationUpdate, "es.applicationUpdate");
+  assertCatalog(draftSpanishCatalogUpdates, "es.catalogUpdates");
+  assertCatalog(draftSpanishRemoval, "es.removal");
   if (!i18next.isInitialized) {
     void i18next.use(initReactI18next).init({
       lng: resolveLocale(null, initialLocales),
       fallbackLng: "en",
-      supportedLngs: [...supportedLocales],
-      ns: ["settings", "counts"],
+      supportedLngs: [...supportedLocales, "es"],
+      ns: ["settings", "counts", "shell", "applicationUpdate", "catalogUpdates", "removal"],
       defaultNS: "settings",
       resources: {
-        en: { settings: englishSettings, counts: englishCounts },
-        "ar-XB": { settings: engineeringSettings },
+        en: {
+          settings: englishSettings,
+          counts: englishCounts,
+          shell: englishShell,
+          applicationUpdate: englishApplicationUpdate,
+          catalogUpdates: englishCatalogUpdates,
+          removal: englishRemoval,
+        },
+        "ar-XB": {
+          settings: engineeringSettings,
+          shell: engineeringShell,
+          applicationUpdate: engineeringApplicationUpdate,
+          catalogUpdates: engineeringCatalogUpdates,
+          removal: engineeringRemoval,
+        },
+        // Unreviewed draft pilot (#1028): bundled for review and engineering
+        // fixtures only. resolveLocale never selects it and the picker omits it.
+        es: {
+          settings: draftSpanishSettings,
+          counts: draftSpanishCounts,
+          shell: draftSpanishShell,
+          applicationUpdate: draftSpanishApplicationUpdate,
+          catalogUpdates: draftSpanishCatalogUpdates,
+          removal: draftSpanishRemoval,
+        },
       },
       initAsync: false,
       returnEmptyString: false,
@@ -229,6 +280,16 @@ export function LocalizationProvider({
       </LocalizationContext.Provider>
     </I18nextProvider>
   );
+}
+
+/**
+ * Feature translation bound to the module-initialized instance, so migrated
+ * surfaces (including render recovery outside the provider) never fall back to
+ * raw keys. Locale changes on the shared instance still re-render consumers.
+ * Invariant: the global instance is the only runtime i18next instance.
+ */
+export function useAppTranslation<const N extends Namespace>(ns: N) {
+  return useTranslation(ns, { i18n: i18next });
 }
 
 export function useLocalization(): LocalizationState &

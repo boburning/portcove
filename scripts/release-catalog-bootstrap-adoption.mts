@@ -21,6 +21,7 @@ import { readControllerToolFile } from "./release-controller-tools.mts";
 import {
   retainedCatalogBootstrapClaim,
   retainedCatalogForwardAdoptionClaim,
+  retainedCatalogNativeAdoptionClaim,
 } from "./release-coordinator-checkpoint-authentication.mts";
 import type { CatalogCoordinatorRefusalStage } from "./release-control-step-bridge.mts";
 import {
@@ -40,28 +41,28 @@ import {
   readPublicApplicationSiteMarker,
 } from "./release-site-readback.mts";
 
+const catalogBootstrapClaims = [
+  { mode: false, claim: retainedCatalogBootstrapClaim },
+  { mode: true, claim: retainedCatalogForwardAdoptionClaim },
+  { mode: "native", claim: retainedCatalogNativeAdoptionClaim },
+] as const;
+
+export function isCatalogBootstrapRecoveryRef(executionRef: string) {
+  return catalogBootstrapClaims.some(({ claim }) => claim.successor_ref === executionRef);
+}
+
 export function selectCatalogBootstrapRecovery(
   executionRef: string,
   attempt: number,
   previous: string,
-  forward: boolean,
+  mode: boolean | "native",
 ) {
-  const claim =
-    executionRef === retainedCatalogForwardAdoptionClaim.successor_ref
-      ? retainedCatalogForwardAdoptionClaim
-      : executionRef === retainedCatalogBootstrapClaim.successor_ref
-        ? retainedCatalogBootstrapClaim
-        : undefined;
-  if (
-    claim &&
-    (forward !== (claim === retainedCatalogForwardAdoptionClaim) ||
-      attempt !== 1 ||
-      previous !== claim.previous)
-  )
+  const selected = catalogBootstrapClaims.find(({ claim }) => claim.successor_ref === executionRef);
+  if (selected && (mode !== selected.mode || attempt !== 1 || previous !== selected.claim.previous))
     throw new Error(
       "claimed bootstrap recovery requires its original predecessor and one successor attempt",
     );
-  return claim;
+  return selected?.claim;
 }
 
 /** This checks the current authenticated coordinator observation; the

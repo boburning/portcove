@@ -896,6 +896,68 @@
     ],
     "title": "OrganizationChange"
   },
+  "steam_artwork_selection": {
+    "$defs": {
+      "SteamArtworkOperation": {
+        "description": "Separate reviewed Steam artwork action for one owned shortcut.",
+        "oneOf": [
+          {
+            "description": "Fill missing roles; replace existing art only when explicitly requested.",
+            "properties": {
+              "kind": {
+                "const": "update",
+                "type": "string"
+              },
+              "replace_existing": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "kind",
+              "replace_existing"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Remove only recorded, unchanged Portcove-written art for this entry.",
+            "properties": {
+              "kind": {
+                "const": "remove_owned",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "operation": {
+        "$ref": "#/$defs/SteamArtworkOperation"
+      },
+      "portId": {
+        "type": "string"
+      },
+      "steamRoot": {
+        "type": "string"
+      },
+      "steamUserId": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "portId",
+      "steamRoot",
+      "steamUserId",
+      "operation"
+    ],
+    "title": "SteamArtworkSelection",
+    "type": "object"
+  },
   "steam_batch_selection": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {

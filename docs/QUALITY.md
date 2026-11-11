@@ -423,6 +423,22 @@ policy and Linux release risk authorization remain separate under
 never passing security evidence or publication permission. Preserve no additional
 spending: resource limits produce a limitation, not paid services or new hardware.
 
+Use compatible ranges for dependencies whose supported APIs and feature contracts
+allow routine compatible updates. Use exact versions when review binds parser
+limits, a transport or signing contract, a patch's source context, or a
+coordinated toolchain to a particular release. Commit the Cargo and pnpm
+lockfiles and use locked or frozen installs in validation. Check the resolved
+source, effective features, and supported targets when a dependency changes.
+Review native source bundled by a package when it supplies the relevant fix.
+
+Keep intentional exact pins eligible for update proposals in
+[Renovate](../renovate.json). Its weekly maintenance retains release-age
+safeguards and the existing coordinated groups. Applicable advisory fixes can
+go through the ordinary reviewed delivery path as soon as a suitable version
+qualifies. Review [dependency patches](DEVELOPMENT-TOOLS.md#dependency-patches)
+with their consumers and remove the patch and its policy entries together once
+the upstream behavior passes their regressions.
+
 ### Bounded dependency delivery
 
 The verified Renovate exception remains in

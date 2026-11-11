@@ -105,6 +105,17 @@ below. Priority, Horizon, status and queue order remain solely in the Project.
 
 ## Initial Public beta
 
+Start with the [integrated acceptance and next actions in #921](https://github.com/boburning/portcove/issues/921)
+and the [protected release decision and delivery in #534](https://github.com/boburning/portcove/issues/534).
+Use the Windows profile above to check current prerequisites, including those
+outside the direct Required for Beta view.
+
+Use [Product Triage](https://github.com/users/boburning/projects/1/views/8) for
+product reports and requests. For port intake, open the
+[Port Pipeline](https://github.com/users/boburning/projects/1/views/4) and apply
+`status:Inbox,Triage` for the current pass. Clearing the filter returns the
+complete inventory.
+
 The first Public beta application host commitment is **Windows x86-64**, qualified
 at the existing supported Windows/WebView2 baseline. Linux remains planned for a
 subsequent beta with its existing owners, implementation, support metadata and
@@ -176,6 +187,31 @@ gate. Unknown gameplay is not a known failure; mandatory failures stay held at
 their affected scope. Unknown saves grant no destructive management. Exact
 artifact/platform/source/operation evidence cannot qualify unrelated versions
 or ports.
+
+### Beta feedback and triage
+
+Use **Report a problem** in game details, the failed-launch notice, or
+**Settings > Advanced**, or open the
+[GitHub bug form](https://github.com/boburning/portcove/issues/new?template=bug-report.yml).
+Review and redact the draft before submitting it. Include the Portcove version,
+platform, game or port where relevant, the step that failed, and what happened.
+An error message or redacted screenshot can help when available. Keep
+credentials, private paths, saves and original game files out of public reports.
+Use the [private security reporting route](../SECURITY.md) for vulnerabilities.
+
+Repository maintainers own Product Triage. Acknowledge the report or redirect
+it to the appropriate owner. Ask for the smallest missing detail needed to
+reproduce or classify it. Link duplicate reports to the existing issue and
+carry over any distinct affected versions, platforms, or steps. For a new
+actionable problem, prepare or classify the existing report through the
+[Roadmap intake procedure](PROJECT-GOVERNANCE.md#issue-authoring-and-consolidated-diagnostics)
+and record the next action with the owning workstream.
+
+Repeated install or first-play failures should raise the priority of the shared
+failure under the existing selection rules. Use the reported scope, severity,
+availability of a workaround, and any verified reproduction. Escalate immediate
+security or data-loss hazards through their existing owners. Comparative
+usability research remains with [#255](https://github.com/boburning/portcove/issues/255).
 
 ## Port admission and later verification
 

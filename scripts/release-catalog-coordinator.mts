@@ -68,6 +68,7 @@ import { inspectCatalogInitialization } from "./release-catalog-publication-cont
 import {
   assertStandaloneBootstrapAdoptionCapacity,
   authenticateStandaloneBootstrapAdoption,
+  isCatalogBootstrapRecoveryRef,
   selectCatalogBootstrapRecovery,
 } from "./release-catalog-bootstrap-adoption.mts";
 import {
@@ -96,8 +97,8 @@ import {
 } from "./release-coordinator-remote.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import {
-  retainedCatalogBootstrapClaim,
   retainedCatalogForwardAdoptionClaim,
+  retainedCatalogNativeAdoptionClaim,
 } from "./release-coordinator-checkpoint-authentication.mts";
 import {
   checkpointReleaseOpportunity,
@@ -444,13 +445,16 @@ export async function runFixedCatalogCoordinatorConfiguration(
         );
         if (claimedChild !== undefined && persisted.checkpoint !== claimedChild)
           throw new Error("reconstructed adoption differs from the retained claimed child");
-        if (claimedChild === retainedCatalogForwardAdoptionClaim.child) {
-          const exact = await exportCoordinatorCheckpoint(recovered.repository, claimedChild);
+        const statePin = [
+          retainedCatalogForwardAdoptionClaim,
+          retainedCatalogNativeAdoptionClaim,
+        ].find(({ child }) => child === claimedChild);
+        if (statePin) {
+          const exact = await exportCoordinatorCheckpoint(recovered.repository, statePin.child);
           if (
-            createHash("sha256").update(exact.blob.contents).digest("hex") !==
-            retainedCatalogForwardAdoptionClaim.state_sha256
+            createHash("sha256").update(exact.blob.contents).digest("hex") !== statePin.state_sha256
           )
-            throw new Error("forward adoption recovery state bytes differ");
+            throw new Error("adoption recovery state bytes differ");
         }
         if (signedJournal)
           await publishOwnedSignedCoordinatorCheckpoint(
@@ -495,7 +499,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
           reader.admitted.execution_ref,
           reader.admitted.run_attempt,
           recovered.checkpoint,
-          adoptForward,
+          adoptNative ? "native" : adoptForward,
         );
         if (claim) {
           const provider = await createReleaseCustodyProvider({
@@ -555,18 +559,17 @@ export async function runFixedCatalogCoordinatorConfiguration(
         );
         assertStandaloneBootstrapAdoptionCapacity(observed);
         stage = "standalone-application-bootstrap-inventory";
-        const publicationReader = await openPublicationReader();
-        const readInventory = async () => {
-          const tags = await publicationReader.tags();
-          const releases = await publicationReader.releases();
-          const { allocations } = await publicationReader.readAllocations(
-            tags,
-            authorities.namespace,
-          );
+        // The original native claim already froze the version inventory.
+        // Exact child reconstruction below verifies those bytes before signing.
+        const publicationReader = adoptNative && claim ? undefined : await openPublicationReader();
+        const readInventory = async (reader: NonNullable<typeof publicationReader>) => {
+          const tags = await reader.tags();
+          const releases = await reader.releases();
+          const { allocations } = await reader.readAllocations(tags, authorities.namespace);
           return { tags, releases, allocations };
         };
-        const inventory = await readInventory();
-        const inventorySha256 = capacityDigest(inventory);
+        const inventory = publicationReader && (await readInventory(publicationReader));
+        const inventorySha256 = inventory && capacityDigest(inventory);
         const checkpointControls = async () => {
           check();
           const current = await readMaintenance();
@@ -580,7 +583,10 @@ export async function runFixedCatalogCoordinatorConfiguration(
             throw new Error(
               "catalog controls changed before standalone bootstrap journal adoption",
             );
-          if (capacityDigest(await readInventory()) !== inventorySha256)
+          if (
+            publicationReader &&
+            capacityDigest(await readInventory(publicationReader)) !== inventorySha256
+          )
             throw new Error(
               "publication inventory changed before standalone bootstrap journal adoption",
             );
@@ -588,15 +594,22 @@ export async function runFixedCatalogCoordinatorConfiguration(
           check();
         };
         const now = claim?.clock ?? new Date().toISOString();
+        const retainedPublication = isRecord(input.publication) ? input.publication : null;
+        if (!inventory && !retainedPublication)
+          throw new Error("original native adoption publication inventory unavailable");
         const next = {
           ...input,
           now,
-          publication: deriveCoordinatorPublication(
-            inventory.tags,
-            inventory.releases.filter((release) => isApplicationReviewReleaseTag(release.tag_name)),
-            inventory.allocations,
-            now,
-          ),
+          publication: inventory
+            ? deriveCoordinatorPublication(
+                inventory.tags,
+                inventory.releases.filter((release) =>
+                  isApplicationReviewReleaseTag(release.tag_name),
+                ),
+                inventory.allocations,
+                now,
+              )
+            : { ...retainedPublication, observed_at: now },
           published_metadata: metadata,
           ...(adoptNative ? { metadata_renewal: null } : {}),
         };
@@ -614,10 +627,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
               : "exact standalone application bootstrap adopted; next wake can review catalog",
         );
       }
-      if (
-        reader.admitted.execution_ref === retainedCatalogBootstrapClaim.successor_ref ||
-        reader.admitted.execution_ref === retainedCatalogForwardAdoptionClaim.successor_ref
-      )
+      if (isCatalogBootstrapRecoveryRef(reader.admitted.execution_ref))
         throw new Error("claimed bootstrap recovery ref has no further operation authority");
       const pending = inspectCatalogReviewRequest(input.catalog_review_request),
         history = inspectCatalogReviewDisposition(input.catalog_review_disposition),

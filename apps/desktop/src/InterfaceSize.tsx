@@ -3,6 +3,7 @@ import { Icon } from "./components/ui";
 import { Tooltip } from "./components/ui/tooltip";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { useAppTranslation } from "./localization";
 import {
   createContext,
   useContext,
@@ -37,6 +38,7 @@ export function InterfaceSizeProvider({
   const [owner] = useState(
     () => controller ?? new InterfaceSizeController(applyNativeZoom, () => window.localStorage),
   );
+  const { t } = useAppTranslation("shell");
   const state = useSyncExternalStore(owner.subscribe, owner.getSnapshot, owner.getSnapshot);
   useEffect(() => {
     owner.start();
@@ -68,12 +70,12 @@ export function InterfaceSizeProvider({
         {state.error && (
           <Notice intent="warning" role="alert" className="shrink-0">
             <div data-slot="notice-body">
-              <p>{state.error}</p>
+              <p>{t("interfaceSize.unconfirmed", { ratio: 1 })}</p>
               <Button variant="outline" onClick={() => owner.request(100)}>
-                Reset interface size
+                {t("interfaceSize.resetAction")}
               </Button>
               <Button variant="ghost" onClick={owner.dismissError}>
-                Dismiss
+                {t("interfaceSize.dismiss")}
               </Button>
             </div>
           </Notice>
@@ -81,10 +83,12 @@ export function InterfaceSizeProvider({
         <div className="interface-workspace min-h-0 flex-1">{children}</div>
         <p role="status" className="sr-only">
           {state.error
-            ? "Interface size could not be confirmed. Use reset to 100%."
+            ? t("interfaceSize.unconfirmedStatus", { ratio: 1 })
             : state.pending
-              ? `Applying interface size ${state.requested}%.`
-              : `Interface size ${state.applied}%.${state.sessionOnly ? " This session only; preference could not be saved." : ""}`}
+              ? t("interfaceSize.applying", { ratio: state.requested / 100 })
+              : state.sessionOnly
+                ? t("interfaceSize.appliedSessionOnly", { ratio: state.applied / 100 })
+                : t("interfaceSize.applied", { ratio: state.applied / 100 })}
         </p>
       </div>
     </InterfaceSizeContext>
@@ -97,32 +101,41 @@ export function InterfaceSizeSettings() {
 }
 
 function InterfaceSizeControl({ owner }: { owner: InterfaceSizeController }) {
+  const { t } = useAppTranslation("shell");
   const state = useSyncExternalStore(owner.subscribe, owner.getSnapshot, owner.getSnapshot);
   return (
     <SettingsRow className="settings-field-row" data-focus-group>
       <div className="settings-field-copy">
-        <h3>Interface size</h3>
-        <p>Enlarge text, artwork and controls together.</p>
+        <h3>{t("interfaceSize.title")}</h3>
+        <p>{t("interfaceSize.description")}</p>
         <p>
-          {commandShortcut("+")} / {commandShortcut("−")} enlarge or reduce; {commandShortcut("0")}{" "}
-          resets.
+          {t("interfaceSize.shortcuts", {
+            enlarge: commandShortcut("+"),
+            reduce: commandShortcut("−"),
+            reset: commandShortcut("0"),
+          })}
         </p>
-        {state.sessionOnly && <p>Applied for this session. The preference could not be saved.</p>}
+        {state.sessionOnly && <p>{t("interfaceSize.sessionOnly")}</p>}
       </div>
       <div className="settings-field-control settings-size-controls">
         <ChoiceSelect
           inline
           showInlineLabel={false}
-          label="Interface size"
+          label={t("interfaceSize.title")}
           value={String(state.requested)}
           onChange={(value) => owner.request(Number(value))}
-          options={INTERFACE_SIZES.map((size) => ({ value: String(size), label: `${size}%` }))}
+          options={INTERFACE_SIZES.map((size) => ({
+            value: String(size),
+            label: t("interfaceSize.value", { ratio: size / 100 }),
+          }))}
         />
-        <Tooltip label={`Reset to 100% · ${commandShortcut("0")}`}>
+        <Tooltip
+          label={t("interfaceSize.resetWithShortcut", { ratio: 1, shortcut: commandShortcut("0") })}
+        >
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="Reset to 100%"
+            aria-label={t("interfaceSize.reset", { ratio: 1 })}
             onClick={() => owner.request(100)}
           >
             <Icon glyph={RotateCcw} />

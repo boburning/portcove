@@ -10,7 +10,6 @@ pub use crate::desktop_contract::{
     SteamClientState, SteamEntryApplyResult, SteamEntryChange, SteamEntryChangeKind,
     SteamGameEntryTarget,
 };
-use fs2::FileExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -56,7 +55,7 @@ pub enum SteamEntryError {
     Serialization(#[from] serde_json::Error),
 }
 
-type Result<T> = std::result::Result<T, SteamEntryError>;
+pub(crate) type Result<T> = std::result::Result<T, SteamEntryError>;
 
 /// Read-only discovery of local userdata folders. A folder number is not an
 /// account identity; the player still selects the exact profile explicitly.
@@ -507,13 +506,13 @@ fn owned_entry_index(entries: &[VdfField], marker: &str) -> Result<Option<usize>
     Ok(found)
 }
 
-fn ownership_marker(library_id: &str, port_id: &str) -> Result<String> {
+pub(crate) fn ownership_marker(library_id: &str, port_id: &str) -> Result<String> {
     validate_identity(library_id, "library identity")?;
     validate_port_id(port_id)?;
     Ok(format!("portcove:v1:{library_id}:{port_id}"))
 }
 
-fn validate_identity(value: &str, label: &str) -> Result<()> {
+pub(crate) fn validate_identity(value: &str, label: &str) -> Result<()> {
     if value.is_empty()
         || !value
             .bytes()
@@ -526,7 +525,7 @@ fn validate_identity(value: &str, label: &str) -> Result<()> {
     Ok(())
 }
 
-fn validate_port_id(port_id: &str) -> Result<()> {
+pub(crate) fn validate_port_id(port_id: &str) -> Result<()> {
     if port_id.is_empty()
         || !port_id
             .bytes()
@@ -918,6 +917,49 @@ fn plan_document(
     Ok(changes)
 }
 
+/// Resolves the selected profile `config` directory with the shortcut writer's
+/// installation, profile and containment checks.
+pub(crate) fn steam_profile_config(steam_root: &Path, steam_user_id: &str) -> Result<PathBuf> {
+    let request = SteamEntryPlanRequest::Remove {
+        steam_root: steam_root.to_path_buf(),
+        steam_user_id: steam_user_id.into(),
+        library_id: "profile-probe".into(),
+        port_ids: Vec::new(),
+    };
+    profile_paths(&request).map(|(config, _)| config)
+}
+
+/// Reports whether an interrupted shortcut publication still owns the profile.
+pub(crate) fn shortcut_operation_pending(config: &Path) -> bool {
+    [JOURNAL_FILE, REPLACEMENT_TEMPORARY_FILE, ORIGINAL_SWAP_FILE]
+        .iter()
+        .any(|name| fs::symlink_metadata(config.join(name)).is_ok())
+}
+
+/// Returns the current `shortcuts.vdf` digest and the AppID of the shortcut
+/// carrying this library and port's ownership marker, without modifying it.
+pub(crate) fn owned_shortcut_app_id(
+    config: &Path,
+    library_id: &str,
+    port_id: &str,
+) -> Result<(Option<String>, Option<u32>)> {
+    let marker = ownership_marker(library_id, port_id)?;
+    let (snapshot, digest) = read_snapshot(&config.join(SHORTCUTS_FILE))?;
+    let Some(bytes) = snapshot else {
+        return Ok((None, None));
+    };
+    let document = VdfDocument::parse(&bytes)?;
+    let entries = document.shortcuts()?;
+    validate_shortcut_entries(entries)?;
+    let Some(index) = owned_entry_index(entries, &marker)? else {
+        return Ok((digest, None));
+    };
+    let app_id = field_int(shortcut_fields(&entries[index])?, "appid")?.ok_or_else(|| {
+        SteamEntryError::Malformed(format!("owned shortcut for {port_id} has no AppID"))
+    })?;
+    Ok((digest, Some(app_id)))
+}
+
 pub fn plan_steam_entries(request: SteamEntryPlanRequest) -> Result<SteamEntryPlan> {
     let (config, shortcuts_path) = profile_paths(&request)?;
     let journal_path = config.join(JOURNAL_FILE);
@@ -1216,7 +1258,7 @@ pub fn recover_steam_entries(
     Ok(outcome)
 }
 
-fn lock_profile(config: &Path) -> Result<File> {
+pub(crate) fn lock_profile(config: &Path) -> Result<File> {
     let path = config.join(LOCK_FILE);
     if let Ok(metadata) = fs::symlink_metadata(&path)
         && (metadata.file_type().is_symlink() || !metadata.is_file())
@@ -1233,16 +1275,25 @@ fn lock_profile(config: &Path) -> Result<File> {
         .truncate(false)
         .open(&path)
         .map_err(|source| io_error("opening the Steam profile mutation lock", source))?;
-    file.try_lock_exclusive().map_err(|source| {
-        SteamEntryError::Conflict(format!(
-            "another Portcove Steam operation owns {}: {source}",
+    file.try_lock().map_err(|error| match error {
+        std::fs::TryLockError::WouldBlock => SteamEntryError::Conflict(format!(
+            "another Portcove Steam operation owns {}",
             path.display()
-        ))
+        )),
+        std::fs::TryLockError::Error(source) => io_error("locking the Steam profile", source),
     })?;
     Ok(file)
 }
 
 fn read_regular_file(path: &Path, label: &str) -> Result<Option<Vec<u8>>> {
+    read_regular_file_bounded(path, label, MAX_SHORTCUTS_BYTES)
+}
+
+pub(crate) fn read_regular_file_bounded(
+    path: &Path,
+    label: &str,
+    limit: u64,
+) -> Result<Option<Vec<u8>>> {
     let file = match open_read_nofollow(path) {
         Ok(file) => file,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -1271,17 +1322,17 @@ fn read_regular_file(path: &Path, label: &str) -> Result<Option<Vec<u8>>> {
             path.display()
         )));
     }
-    if metadata.len() > MAX_SHORTCUTS_BYTES {
+    if metadata.len() > limit {
         return Err(SteamEntryError::Conflict(format!(
             "{label} {} exceeds the safety limit",
             path.display()
         )));
     }
-    let mut bytes = Vec::with_capacity(metadata.len().min(MAX_SHORTCUTS_BYTES) as usize);
-    file.take(MAX_SHORTCUTS_BYTES + 1)
+    let mut bytes = Vec::with_capacity(metadata.len().min(limit) as usize);
+    file.take(limit + 1)
         .read_to_end(&mut bytes)
         .map_err(|source| io_error(format!("reading opened {label}"), source))?;
-    if bytes.len() as u64 > MAX_SHORTCUTS_BYTES {
+    if bytes.len() as u64 > limit {
         return Err(SteamEntryError::Conflict(format!(
             "{label} {} grew beyond the safety limit while it was read",
             path.display()
@@ -1340,7 +1391,7 @@ fn create_swap_placeholder(path: &Path) -> Result<()> {
 }
 
 #[cfg(windows)]
-fn rename_noreplace(source: &Path, destination: &Path) -> std::io::Result<()> {
+pub(crate) fn rename_noreplace(source: &Path, destination: &Path) -> std::io::Result<()> {
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::Storage::FileSystem::{MOVEFILE_WRITE_THROUGH, MoveFileExW};
 
@@ -1374,7 +1425,7 @@ fn rename_noreplace(source: &Path, destination: &Path) -> std::io::Result<()> {
 }
 
 #[cfg(unix)]
-fn rename_noreplace(source: &Path, destination: &Path) -> std::io::Result<()> {
+pub(crate) fn rename_noreplace(source: &Path, destination: &Path) -> std::io::Result<()> {
     let parent = destination
         .parent()
         .ok_or_else(|| std::io::Error::other("destination has no parent"))?;
@@ -1385,7 +1436,7 @@ fn rename_noreplace(source: &Path, destination: &Path) -> std::io::Result<()> {
 }
 
 #[cfg(not(any(windows, unix)))]
-fn rename_noreplace(_source: &Path, _destination: &Path) -> std::io::Result<()> {
+pub(crate) fn rename_noreplace(_source: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::new(
         std::io::ErrorKind::Unsupported,
         "no-clobber file publication is unavailable on this platform",
@@ -1444,8 +1495,20 @@ fn verify_journal_backup(config: &Path, journal: &SteamEntryJournal) -> Result<(
 }
 
 fn write_backup(config: &Path, bytes: &[u8], digest: &str) -> Result<PathBuf> {
-    let path = config.join(format!("shortcuts.vdf.portcove-backup-{digest}"));
-    if let Some(existing) = read_regular_file(&path, "existing Steam shortcuts backup")? {
+    write_named_backup(
+        config,
+        &format!("shortcuts.vdf.portcove-backup-{digest}"),
+        bytes,
+    )
+}
+
+/// Writes a content-addressed no-clobber backup, accepting only identical bytes
+/// when the name already exists.
+pub(crate) fn write_named_backup(directory: &Path, name: &str, bytes: &[u8]) -> Result<PathBuf> {
+    let path = directory.join(name);
+    if let Some(existing) =
+        read_regular_file_bounded(&path, "existing Steam backup", bytes.len() as u64)?
+    {
         if existing != bytes {
             return Err(SteamEntryError::Conflict(format!(
                 "existing backup {} does not match its content identity",
@@ -1458,17 +1521,18 @@ fn write_backup(config: &Path, bytes: &[u8], digest: &str) -> Result<PathBuf> {
         Ok(mut file) => {
             file.write_all(bytes)
                 .and_then(|()| file.sync_all())
-                .map_err(|source| io_error("writing the Steam shortcuts backup", source))?;
-            sync_directory_if_supported(config)?;
+                .map_err(|source| io_error(format!("writing backup {name}"), source))?;
+            sync_directory_if_supported(directory)?;
         }
         Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
             let existing =
-                read_regular_file(&path, "racing Steam shortcuts backup")?.ok_or_else(|| {
-                    SteamEntryError::Conflict(format!(
-                        "backup {} disappeared during collision handling",
-                        path.display()
-                    ))
-                })?;
+                read_regular_file_bounded(&path, "racing Steam backup", bytes.len() as u64)?
+                    .ok_or_else(|| {
+                        SteamEntryError::Conflict(format!(
+                            "backup {} disappeared during collision handling",
+                            path.display()
+                        ))
+                    })?;
             if existing != bytes {
                 return Err(SteamEntryError::Conflict(format!(
                     "racing backup {} does not match its content identity",
@@ -1477,12 +1541,12 @@ fn write_backup(config: &Path, bytes: &[u8], digest: &str) -> Result<PathBuf> {
             }
             return Ok(path);
         }
-        Err(source) => return Err(io_error("creating the Steam shortcuts backup", source)),
+        Err(source) => return Err(io_error(format!("creating backup {name}"), source)),
     }
     Ok(path)
 }
 
-fn sync_directory_if_supported(directory: &Path) -> Result<()> {
+pub(crate) fn sync_directory_if_supported(directory: &Path) -> Result<()> {
     #[cfg(unix)]
     File::open(directory)
         .and_then(|handle| handle.sync_all())
@@ -1518,11 +1582,11 @@ fn hash_plan(
     })?))
 }
 
-fn sha256(bytes: &[u8]) -> String {
+pub(crate) fn sha256(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
 
-fn io_error(context: impl Into<String>, source: std::io::Error) -> SteamEntryError {
+pub(crate) fn io_error(context: impl Into<String>, source: std::io::Error) -> SteamEntryError {
     SteamEntryError::Io {
         context: context.into(),
         source,

@@ -1,0 +1,26 @@
+{
+  "interfaceSize": {
+    "applied": "Tamaño de la interfaz: {{ratio, number(style: percent)}}.",
+    "appliedSessionOnly": "Tamaño de la interfaz: {{ratio, number(style: percent)}}. Solo para esta sesión; no se pudo guardar la preferencia.",
+    "applying": "Aplicando el tamaño de la interfaz: {{ratio, number(style: percent)}}.",
+    "description": "Amplía a la vez el texto, las imágenes y los controles.",
+    "dismiss": "Descartar",
+    "reset": "Restablecer a {{ratio, number(style: percent)}}",
+    "resetAction": "Restablecer el tamaño de la interfaz",
+    "resetWithShortcut": "Restablecer a {{ratio, number(style: percent)}} · {{shortcut}}",
+    "sessionOnly": "Aplicado para esta sesión. No se pudo guardar la preferencia.",
+    "shortcuts": "{{enlarge}} / {{reduce}} amplía o reduce; {{reset}} restablece.",
+    "title": "Tamaño de la interfaz",
+    "unconfirmed": "No se pudo confirmar el tamaño de la interfaz. Vuelve a intentarlo o restablécelo a {{ratio, number(style: percent)}}.",
+    "unconfirmedStatus": "No se pudo confirmar el tamaño de la interfaz. Restablécelo a {{ratio, number(style: percent)}}.",
+    "value": "{{ratio, number(style: percent)}}"
+  },
+  "renderRecovery": {
+    "details": "Detalles del error",
+    "detailsLabel": "Detalles del error de la pantalla",
+    "instruction": "Vuelve a cargar Portcove y luego comprueba el estado de cualquier tarea activa.",
+    "reload": "Volver a cargar Portcove",
+    "title": "Portcove no pudo mostrar esta pantalla",
+    "unknownError": "Error de visualización desconocido"
+  }
+}

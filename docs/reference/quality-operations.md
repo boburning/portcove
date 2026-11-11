@@ -1377,8 +1377,8 @@ Schema validation supplements the repository's rule/extraction/classifier tests;
 it does not prove effective inherited grouping or hosted proposal uptake. Inspect
 resolved presets and rule precedence with the matching official engine, then read
 back actual hosted proposals after delivery. The validator pin is a validation
-client, not a new runtime dependency or tool manager. Deliberately excluded Aqua
-registry and rusqlite authorities retain their existing reviewed resume conditions.
+client, not a new runtime dependency or tool manager. The deliberately excluded
+Aqua registry authority retains its existing reviewed resume condition.
 Renovate proposes repository dependency changes; it cannot accept game releases,
 successor repositories, catalog artifacts or changed trust policy.
 

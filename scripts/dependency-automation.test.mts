@@ -376,33 +376,6 @@ void test("pnpm prefers one-day releases without turning the preference into a s
   assert.equal(record(config).postUpgradeTasks, undefined);
 });
 
-void test("Renovate excludes the extracted rusqlite Git dependency identity", async () => {
-  const renovate = renovateConfig;
-  const cargo = await read("Cargo.toml");
-  const declaration = cargo.match(
-    /^rusqlite\s*=\s*\{\s*git\s*=\s*"([^"]+)",\s*rev\s*=\s*"([a-f0-9]{40})"/mu,
-  );
-  assert(declaration, "workspace rusqlite Git dependency is missing");
-  const extraction = {
-    manager: "cargo",
-    datasource: "git-refs",
-    depName: "rusqlite",
-    packageName: required(declaration[1]),
-    currentDigest: declaration[2],
-  };
-  assert.equal(extraction.packageName, "https://github.com/rusqlite/rusqlite");
-
-  const matchingRules = renovate.packageRules.filter(
-    (rule) =>
-      rule.matchManagers?.includes(extraction.manager) &&
-      rule.matchDatasources?.includes(extraction.datasource) &&
-      rule.matchDepNames?.includes(extraction.depName) &&
-      rule.matchPackageNames?.includes(extraction.packageName),
-  );
-  assert.equal(matchingRules.length, 1);
-  assert.equal(required(matchingRules[0]).enabled, false);
-});
-
 void test("serde_json lock updates are confined to the authorized Cargo crate identity", async () => {
   const config = renovateConfig;
   const fixture = cargoReplay;
