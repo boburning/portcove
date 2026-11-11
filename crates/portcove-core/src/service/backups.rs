@@ -1746,7 +1746,7 @@ impl PortcoveService {
                 }
                 // Nothing to protect yet; this is a recorded skip, not a failure.
                 Err(error) if is_no_persistent_data(&error) => Ok(SnapshotOutcome::NoData),
-                Err(error) => Err(error),
+                Err(error) => Err(explain_snapshot_failure(error)),
             }
         })();
         match result {
@@ -1759,7 +1759,7 @@ impl PortcoveService {
                 )?;
                 Ok(outcome)
             }
-            Err(error) => self.finish_activity(activity, Err(explain_snapshot_failure(error))),
+            Err(error) => self.finish_activity(activity, Err(error)),
         }
     }
 
@@ -2317,14 +2317,16 @@ mod assessment_tests {
 
 /// Tells the player that a failed automatic snapshot stopped the version change
 /// before anything changed, and how to continue. The cause stays in the message and
-/// the error keeps its code and details. A pending backup deletion already carries
-/// its own recovery guidance.
-fn explain_snapshot_failure(mut error: PortcoveError) -> PortcoveError {
-    if error.details.get("recovery_action").map(String::as_str) == Some("restart_then_doctor") {
+/// the error keeps its code and details. It is applied only to the backup copy itself;
+/// conflicts and holds that carry their own guidance pass through unchanged.
+pub(super) fn explain_snapshot_failure(mut error: PortcoveError) -> PortcoveError {
+    // Conflicts (a changed producer or generated cache, a recovery hold) carry their
+    // own remedy; turning snapshots off would point away from it.
+    if error.code == crate::ErrorCode::Conflict {
         return error;
     }
     error.message = format!(
-        "Portcove could not back up this game's saves first, so nothing was changed. {} Try again once that is fixed, or turn off automatic snapshots in Settings > Library to continue without one.",
+        "Portcove could not back up this game's saves first, so the version was not changed. {} Try again once that is fixed, or turn off automatic snapshots in Settings > Library to continue without one.",
         sentence(&error.message)
     );
     error.details.insert(
