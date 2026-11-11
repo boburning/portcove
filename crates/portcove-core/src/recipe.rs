@@ -144,6 +144,24 @@ fn identity(recipe: &ProfileRecipe) -> Result<String> {
 }
 
 impl ProfileRecipe {
+    /// Like [`ProfileRecipe::inspect`], also accepting the CLI's JSON output
+    /// envelope (the recipe under `data`). The whole document is parsed with
+    /// duplicate-key refusal first, so the envelope cannot hide a second value.
+    pub fn inspect_document(bytes: &[u8]) -> Result<ProfileRecipe> {
+        if bytes.len() > MAX_RECIPE_BYTES {
+            return Err(invalid("it exceeds 256 KiB"));
+        }
+        let crate::definition_entry::strict_json::UniqueValue(value) =
+            serde_json::from_slice(bytes)
+                .map_err(|error| invalid(&format!("it is not JSON with unique keys ({error})")))?;
+        match value.get("data") {
+            Some(inner) if value.get("format").is_none() => {
+                Self::inspect(serde_json::to_string(inner)?.as_bytes())
+            }
+            _ => Self::inspect(bytes),
+        }
+    }
+
     /// Parses and validates untrusted recipe bytes. Pure and local.
     pub fn inspect(bytes: &[u8]) -> Result<ProfileRecipe> {
         if bytes.len() > MAX_RECIPE_BYTES {

@@ -113,6 +113,14 @@ fn inspection_accepts_exported_bytes_and_rejects_malformed_or_forged_recipes() {
     let text = String::from_utf8(bytes(&recipe)).unwrap();
     let duplicated = text.replacen('{', r#"{"port_id":"bogus","#, 1);
     assert!(ProfileRecipe::inspect(duplicated.as_bytes()).is_err());
+    // The CLI output envelope is accepted, and duplicates inside it are refused.
+    let envelope = format!(r#"{{"schema_version":1,"data":{text}}}"#);
+    assert_eq!(
+        ProfileRecipe::inspect_document(envelope.as_bytes()).unwrap(),
+        recipe
+    );
+    let hidden = format!(r#"{{"schema_version":1,"data":{duplicated}}}"#);
+    assert!(ProfileRecipe::inspect_document(hidden.as_bytes()).is_err());
     assert!(ProfileRecipe::inspect(b"{not json").is_err());
     assert!(
         ProfileRecipe::inspect(&vec![b' '; 300 * 1024]).is_err(),
