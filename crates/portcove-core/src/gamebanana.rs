@@ -18,8 +18,8 @@ use serde_json::Value;
 use crate::{
     Library, PortcoveError, Result,
     mod_provider::{
-        MAX_FILES_PER_PROJECT, Observed, ProviderFileCandidate, ProviderFreshness, ProviderPage,
-        ProviderProject, numeric_id, sanitize_text,
+        Observed, ProviderFileCandidate, ProviderFreshness, ProviderPage, ProviderProject,
+        numeric_id, sanitize_text,
     },
     release::{
         PROVIDER_JSON_MAX_BYTES, PROVIDER_NETWORK_BOUNDS, ProviderNetworkBounds,
@@ -30,6 +30,9 @@ use crate::{
 pub const PROVIDER: &str = "gamebanana";
 const API_ROOT: &str = "https://gamebanana.com/apiv11";
 const MAX_PER_PAGE: u32 = 50;
+/// More files than this in one project is refused rather than silently truncated,
+/// so a newer file can never be missed.
+const MAX_PROJECT_FILES: usize = 256;
 const DEFAULT_BACKOFF: Duration = Duration::from_secs(60);
 const MAX_BACKOFF: Duration = Duration::from_secs(15 * 60);
 const FILE_PROPERTIES: &str =
@@ -147,6 +150,7 @@ impl GameBananaClient {
         }
         let allowed = |url: &reqwest::Url| {
             let same_site = url.scheme() == start.scheme()
+                && url.port_or_known_default() == start.port_or_known_default()
                 && url.host_str().is_some_and(|host| {
                     Some(host) == start.host_str()
                         || (start.host_str() == Some("gamebanana.com")
@@ -198,7 +202,14 @@ impl GameBananaClient {
             let mut hasher = Sha256::new();
             let mut total = 0u64;
             let mut stream = response.bytes_stream();
-            while let Some(chunk) = stream.next().await {
+            let deadline = tokio::time::Instant::now() + download_deadline(file.size);
+            while let Some(chunk) = tokio::time::timeout_at(deadline, stream.next())
+                .await
+                .map_err(|_| {
+                    let _ = std::fs::remove_file(destination);
+                    PortcoveError::network("the download exceeded its time allowance")
+                })?
+            {
                 let chunk = chunk.map_err(|error| PortcoveError::network(error.to_string()))?;
                 total += chunk.len() as u64;
                 if total > file.size {
@@ -353,6 +364,13 @@ impl GameBananaClient {
     }
 }
 
+/// Wall-clock allowance for one download: a floor plus time for the declared size at
+/// a deliberately slow 128 KiB/s, capped at six hours. A server dripping bytes just
+/// inside the idle bound cannot hold a worker indefinitely.
+pub(crate) fn download_deadline(size: u64) -> Duration {
+    Duration::from_secs((120 + size / (128 * 1024)).min(6 * 60 * 60))
+}
+
 fn canonical_download(web_root: &str, file_id: &str) -> String {
     format!("{web_root}/dl/{file_id}")
 }
@@ -392,7 +410,6 @@ fn parse_summary(value: &Value, web_root: &str) -> Option<ProviderProject> {
     let files = match &value["_aFiles"] {
         Value::Array(files) => files
             .iter()
-            .take(MAX_FILES_PER_PROJECT)
             .filter_map(|file| parse_file(file, web_root))
             .collect(),
         _ => Vec::new(),
@@ -452,6 +469,14 @@ pub(crate) fn parse_project(
     if object["_sName"].as_str().is_none() {
         return Err(PortcoveError::verification(
             "GameBanana project has no name",
+        ));
+    }
+    if object["_aFiles"]
+        .as_array()
+        .is_some_and(|files| files.len() > MAX_PROJECT_FILES)
+    {
+        return Err(PortcoveError::verification(
+            "the project lists more files than this client can review completely",
         ));
     }
     parse_summary(&object, web_root)

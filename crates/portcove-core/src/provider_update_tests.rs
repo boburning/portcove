@@ -118,3 +118,22 @@ async fn a_removed_installed_file_and_an_outage_are_distinct_from_current() {
         "an outage never claims no update"
     );
 }
+
+#[tokio::test]
+async fn an_obsolete_project_is_called_out_even_when_the_file_is_current() {
+    let body = serde_json::json!({
+        "_sName": "HD Link", "_sVersion": "2.0", "_bIsObsolete": true,
+        "_tsDateUpdated": 5, "_aGame": {"_idRow": 777},
+        "_aFiles": [{"_idRow": 10, "_sFile": "pack-10.zip", "_nFilesize": 10,
+            "_tsDateAdded": 10, "_bIsArchived": false}]
+    })
+    .to_string();
+    let observations = observe(vec![json_response(&body)]).await;
+    assert_eq!(observations[0].state, ProviderUpdateState::Current);
+    assert!(
+        observations[0]
+            .reason
+            .as_deref()
+            .is_some_and(|r| r.contains("obsolete"))
+    );
+}

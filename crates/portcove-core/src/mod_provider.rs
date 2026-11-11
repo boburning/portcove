@@ -8,7 +8,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 pub(crate) const MAX_TEXT_CHARS: usize = 256;
-pub(crate) const MAX_FILES_PER_PROJECT: usize = 64;
 
 /// How current an observation is. A confirmed empty result is `Fresh`; an outage
 /// that falls back to earlier data is `Stale`, never an empty list.

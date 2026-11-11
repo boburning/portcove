@@ -326,6 +326,19 @@ impl PortcoveService {
         token: &str,
     ) -> Result<ProfileRevision> {
         let layout = self.deploy_layout(&plan.port_id)?;
+        // A plan is caller-supplied data: re-establish what planning established.
+        if gamebanana_game(&plan.port_id).is_none()
+            || plan.provider.provider != crate::gamebanana::PROVIDER
+            || plan.members.is_empty()
+            || plan
+                .members
+                .iter()
+                .any(|member| !profile::valid_native_id(&member.file_name))
+        {
+            return Err(PortcoveError::verification(
+                "the plan names a provider, port or package this install does not accept",
+            ));
+        }
         let _guard = self
             .library
             .try_lock_port(&plan.port_id, "apply-provider-install")?;

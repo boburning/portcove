@@ -106,6 +106,10 @@ impl PortcoveService {
                     let project = &observed.value;
                     observation.freshness = Some(observed.freshness);
                     observation.observed_version = project.version.clone();
+                    if project.obsolete {
+                        observation.reason =
+                            Some("the provider marks this project obsolete".into());
+                    }
                     observation.version_changed = project.version != observation.installed_version;
                     let still_offered = project
                         .files

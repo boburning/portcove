@@ -152,3 +152,18 @@ fn wrapper_extraction_refuses_unsafe_duplicate_or_traversing_members() {
     }
     assert!(extract_packages(&dir.path().join("missing.zip"), &out, &["o2r"]).is_err());
 }
+
+#[test]
+fn wrapper_extraction_bounds_the_aggregate_not_just_each_member() {
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("out");
+    std::fs::create_dir(&out).unwrap();
+    let wrapper = archive(
+        dir.path(),
+        "many.zip",
+        &[("a.o2r", &[1u8; 600][..]), ("b.o2r", &[2u8; 600][..])],
+    );
+    // Each member fits under the cap; together they do not.
+    assert!(extract_packages_capped(&wrapper, &out, &["o2r"], 1000).is_err());
+    assert!(extract_packages_capped(&wrapper, &out, &["o2r"], 1200).is_ok());
+}

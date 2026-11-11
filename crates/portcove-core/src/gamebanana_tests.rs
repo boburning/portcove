@@ -288,3 +288,44 @@ async fn download_refuses_redirects_off_the_provider_and_size_disagreements() {
             .is_err()
     );
 }
+
+#[test]
+fn download_deadline_grows_with_size_and_is_capped() {
+    assert!(download_deadline(1) >= Duration::from_secs(120));
+    assert!(download_deadline(1 << 30) > download_deadline(1 << 20));
+    assert_eq!(
+        download_deadline(u64::MAX),
+        Duration::from_secs(6 * 60 * 60)
+    );
+}
+
+#[test]
+fn projects_with_too_many_files_are_refused_instead_of_truncated() {
+    let files = (1..=257u64).map(file).collect::<Vec<_>>();
+    let value: Value = serde_json::from_str(&project_json("1.0", files)).unwrap();
+    assert!(parse_project(&value, 1, WEB).is_err());
+    let files = (1..=256u64).map(file).collect::<Vec<_>>();
+    let value: Value = serde_json::from_str(&project_json("1.0", files)).unwrap();
+    assert_eq!(parse_project(&value, 1, WEB).unwrap().files.len(), 256);
+}
+
+#[tokio::test]
+async fn download_redirects_must_keep_the_providers_port() {
+    let (root, _requests, server) = crate::test_http::serve_http_bytes(vec![bytes_response(
+        "302 Found",
+        "Location: http://127.0.0.1:9/elsewhere.zip\r\n",
+        b"",
+    )]);
+    let client = GameBananaClient::with_roots(&root, None).unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let error = client
+        .download_file(
+            &candidate(&root, 15, 10),
+            &directory.path().join("x"),
+            1 << 20,
+        )
+        .await
+        .unwrap_err();
+    server.join().unwrap();
+    assert!(error.message.contains("redirected away"), "{error}");
+}

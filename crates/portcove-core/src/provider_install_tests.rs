@@ -270,3 +270,36 @@ async fn candidates_from_another_game_executables_or_unsupported_types_never_pla
     assert!(live_mods(&w).is_empty());
     let _ = Library::now();
 }
+
+#[tokio::test]
+async fn a_forged_plan_cannot_name_paths_or_foreign_providers_at_apply() {
+    let w = world();
+    let payload = zip_bytes(&[("hd.o2r", &o2r(&[("a.bin", b"hd")]))]);
+    let (root, server) = serve(777, "pack.zip", &payload);
+    let client = GameBananaClient::with_roots(&root, None).unwrap();
+    let plan = w
+        .service
+        .plan_provider_install_with(&client, "starship", &w.profile, 42, 10)
+        .await
+        .unwrap();
+    server.join().unwrap();
+    for mutate in [
+        (|p: &mut ProviderInstallPlan| p.members[0].file_name = "../hd.o2r".into())
+            as fn(&mut ProviderInstallPlan),
+        |p| p.provider.provider = "someone-else".into(),
+        |p| p.members.clear(),
+    ] {
+        let mut forged = plan.clone();
+        mutate(&mut forged);
+        forged.plan_sha256 = digest(&forged).unwrap();
+        let token = w.service.authorize_provider_install(&forged).unwrap().token;
+        assert_eq!(
+            w.service
+                .apply_provider_install(&forged, &token)
+                .unwrap_err()
+                .code,
+            ErrorCode::Verification
+        );
+    }
+    assert!(live_mods(&w).is_empty());
+}
