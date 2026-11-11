@@ -122,7 +122,7 @@
     {
       "name": "Next Queue",
       "layout": "TABLE_LAYOUT",
-      "filter": "-status:Done -status:Deferred horizon:Now,Next -work-type:Workstream",
+      "filter": "status:Ready,\"In progress\",Validating,Blocked horizon:Now,Next -port-stage:Watchlist -work-type:Workstream",
       "fields": ["Title", "Priority", "Horizon", "Status", "Release commitment", "Target release"],
       "manual_group_by": null,
       "manual_sort_by": "manual",
@@ -131,7 +131,7 @@
     {
       "name": "In Progress",
       "layout": "BOARD_LAYOUT",
-      "filter": "status:\"In progress\",Validating",
+      "filter": "status:\"In progress\",Validating -port-stage:Watchlist",
       "fields": ["Title", "Priority", "Target release", "Release commitment"],
       "manual_group_by": "Status",
       "manual_sort_by": "manual",
@@ -148,7 +148,7 @@
     {
       "name": "Active Port Work",
       "layout": "TABLE_LAYOUT",
-      "filter": "work-type:Port -status:Done -status:Deferred",
+      "filter": "work-type:Port status:\"In progress\",Validating,Blocked horizon:Now,Next -port-stage:Watchlist",
       "fields": ["Title", "Priority", "Horizon", "Status", "Port stage", "Platform", "Assignees"],
       "manual_group_by": "Status",
       "manual_sort_by": "Priority,manual"
@@ -188,12 +188,13 @@
       "manual_sort_by": "Priority,manual"
     },
     {
-      "name": "Inbox & Triage",
+      "name": "Product Triage",
       "layout": "TABLE_LAYOUT",
-      "filter": "status:Inbox,Triage",
+      "filter": "status:Inbox,Triage -work-type:Port -port-stage:Watchlist",
       "fields": ["Title", "Status", "Work type", "Priority", "Platform", "Assignees"],
       "manual_group_by": "Status",
-      "manual_sort_by": "manual"
+      "manual_sort_by": "manual",
+      "previous_name": "Inbox & Triage"
     },
     {
       "name": "Planned Additions",
