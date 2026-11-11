@@ -819,9 +819,15 @@ system-use areas), checks free space with a margin, stages beside the destinatio
 verifies the anchors, then swaps transactionally and writes the marker. Failure or
 cancellation leaves the previous runtime directory intact and removes staging. An
 unchanged source with a valid marker and matching anchors is a no-op; any other
-state re-extracts and never reuses output by size. Destination drift outside the
-declared anchors is not detected, so declare every file the runtime cannot do
-without. A definition using these values must also gate older engines with a
+state re-extracts and never reuses output by size. A re-extract replaces the whole
+destination folder, so anything the game wrote into it is lost. Destination drift
+outside the declared anchors is not detected, so declare every file the runtime
+cannot do without. Total directory-table bytes read while planning are bounded.
+
+ISO 9660 records may carry well-formed system-use data (CD-XA or Rock Ridge/SUSP
+entries); it is accepted but not interpreted, so alternate names are ignored and
+symbolic links are not followed. The 16 GiB image bound applies to an explicitly
+added source; source discovery and batch import still stop at 2 GiB. A definition using these values must also gate older engines with a
 staged-source capability, as other new materializations do; none ships yet.
 
 ## Default covers

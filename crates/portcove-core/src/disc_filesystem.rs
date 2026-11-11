@@ -27,6 +27,9 @@ pub(crate) const SECTOR: u64 = 2048;
 pub(crate) const MAX_IMAGE_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 const MAX_EXPANDED_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 const MAX_TABLE_BYTES: u64 = 4 * 1024 * 1024;
+/// Total directory-table bytes read while planning, so many small folders that
+/// all point at one large table cannot multiply the read and parse work.
+const MAX_TOTAL_TABLE_BYTES: u64 = 64 * 1024 * 1024;
 const MAX_ENTRIES: usize = 131_072;
 const MAX_DEPTH: usize = 32;
 const COPY_BUFFER_BYTES: usize = 1024 * 1024;
@@ -482,8 +485,13 @@ impl DiscImage {
         if self.volume.root.size > 0 {
             tables.insert(self.volume.root.offset);
         }
+        let mut table_bytes = 0_u64;
         let mut stack = vec![(self.volume.root, String::new(), 0_usize)];
         while let Some((directory, prefix, depth)) = stack.pop() {
+            table_bytes = table_bytes.saturating_add(directory.size);
+            if table_bytes > MAX_TOTAL_TABLE_BYTES {
+                return Err(limit("the disc image's folders are too large to unpack"));
+            }
             for item in self.volume.list(&mut self.input, directory, checkpoint)? {
                 if raw.len() >= MAX_ENTRIES {
                     return Err(limit("the disc image contains too many entries"));
