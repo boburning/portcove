@@ -10,6 +10,26 @@ const activeStatuses = ["queued", "in_progress", "waiting"] as const;
 interface RunRef {
   id: number;
   pullRequests: number[];
+  headBranch: string | undefined;
+  headRepository: string | undefined;
+}
+
+/** The pull request a run belongs to; runs GitHub left without `pull_requests` match by head branch and repository. */
+export interface PullRequestIdentity {
+  number: number;
+  headRef?: string | undefined;
+  headRepository?: string | undefined;
+}
+
+function belongs(run: RunRef, pull: PullRequestIdentity) {
+  if (run.pullRequests.includes(pull.number)) return true;
+  return (
+    run.pullRequests.length === 0 &&
+    pull.headRef !== undefined &&
+    pull.headRepository !== undefined &&
+    run.headBranch === pull.headRef &&
+    run.headRepository === pull.headRepository
+  );
 }
 
 function runRefs(value: unknown): RunRef[] {
@@ -19,19 +39,22 @@ function runRefs(value: unknown): RunRef[] {
     if (!isRecord(run) || typeof run.id !== "number" || !Number.isSafeInteger(run.id))
       throw new Error("Workflow run omitted its integer identity");
     const pulls = Array.isArray(run.pull_requests) ? run.pull_requests : [];
+    const repository = isRecord(run.head_repository) ? run.head_repository.full_name : undefined;
     return {
       id: run.id,
       pullRequests: pulls.flatMap((pull: unknown) =>
         isRecord(pull) && typeof pull.number === "number" ? [pull.number] : [],
       ),
+      headBranch: typeof run.head_branch === "string" ? run.head_branch : undefined,
+      headRepository: typeof repository === "string" ? repository : undefined,
     };
   });
 }
 
 /** Run IDs only increase, so runs older than this head's own run are never newer work. */
-export function ownRunId(listing: unknown, pullRequest: number): number | undefined {
+export function ownRunId(listing: unknown, pull: PullRequestIdentity): number | undefined {
   const ids = runRefs(listing)
-    .filter((run) => run.pullRequests.includes(pullRequest))
+    .filter((run) => belongs(run, pull))
     .map((run) => run.id);
   return ids.length ? Math.max(...ids) : undefined;
 }
@@ -39,12 +62,11 @@ export function ownRunId(listing: unknown, pullRequest: number): number | undefi
 export function supersededRunIds(
   listings: readonly unknown[],
   own: number,
-  pullRequest: number,
+  pull: PullRequestIdentity,
 ): number[] {
   const ids = new Set<number>();
   for (const listing of listings)
-    for (const run of runRefs(listing))
-      if (run.id < own && run.pullRequests.includes(pullRequest)) ids.add(run.id);
+    for (const run of runRefs(listing)) if (run.id < own && belongs(run, pull)) ids.add(run.id);
   return [...ids].sort((left, right) => left - right);
 }
 
@@ -52,6 +74,11 @@ async function main() {
   const token = process.env.GH_TOKEN ?? "";
   const pullRequest = Number(process.env.PR_NUMBER);
   const headSha = process.env.HEAD_SHA ?? "";
+  const pull: PullRequestIdentity = {
+    number: pullRequest,
+    headRef: process.env.HEAD_REF || undefined,
+    headRepository: process.env.HEAD_REPO || undefined,
+  };
   if (
     !token ||
     !Number.isSafeInteger(pullRequest) ||
@@ -87,7 +114,7 @@ async function main() {
   let own: number | undefined;
   for (let attempt = 0; attempt < 6 && own === undefined; attempt += 1) {
     if (attempt) await new Promise((resolve) => setTimeout(resolve, 5000));
-    own = ownRunId(await list(`head_sha=${headSha}`), pullRequest);
+    own = ownRunId(await list(`head_sha=${headSha}`), pull);
   }
   if (own === undefined) {
     console.log(`No CI run for ${headSha} yet; nothing to supersede`);
@@ -95,7 +122,7 @@ async function main() {
   }
   const listings: unknown[] = [];
   for (const status of activeStatuses) listings.push(await list(`status=${status}`));
-  for (const run of supersededRunIds(listings, own, pullRequest)) {
+  for (const run of supersededRunIds(listings, own, pull)) {
     console.log(`Cancelling superseded run ${run}`);
     try {
       await sdk.request({
@@ -112,6 +139,11 @@ async function main() {
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1])
   main().catch((error: unknown) => {
-    console.error(sanitizeOperationError(error).message);
+    const message = sanitizeOperationError(error).message;
+    // The workflow step is best effort, so surface a failure as an annotation instead of letting it pass unseen.
+    console.log(
+      `::warning title=Superseded CI runs were not cancelled::${message.replaceAll(/[\r\n]+/gu, " ")}`,
+    );
+    console.error(message);
     process.exitCode = 1;
   });
