@@ -72,10 +72,12 @@ export function LauncherLibraryImport({
     }
   };
   const status = listing ? "Listing apps…" : inventory ? inventorySummary(inventory) : "";
+  // An override stays visible while it is in use, so it never applies unseen.
   const needsAppsRoot =
-    inventory !== undefined &&
-    (inventory.apps_root_origin === "unresolved" ||
-      inventory.entries.some((entry) => entry.status === "not-installed"));
+    appsRoot.trim() !== "" ||
+    (inventory !== undefined &&
+      (inventory.apps_root_origin === "unresolved" ||
+        inventory.entries.some((entry) => entry.status === "not-installed")));
   const launcherLabel = LAUNCHERS.find((item) => item.kind === launcher)?.label ?? "launcher";
   return (
     <details
@@ -125,6 +127,7 @@ export function LauncherLibraryImport({
           disabled={disabled || listing}
           onChange={(event) => {
             setDataRoot(event.target.value);
+            setAppsRoot("");
             reset();
           }}
           placeholder="Choose or paste the full folder path"
@@ -139,6 +142,7 @@ export function LauncherLibraryImport({
               void pickFolder(dataRoot).then((path) => {
                 if (path) {
                   setDataRoot(path);
+                  setAppsRoot("");
                   reset();
                 }
               });

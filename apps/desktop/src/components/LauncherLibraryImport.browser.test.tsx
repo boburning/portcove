@@ -155,6 +155,10 @@ it("offers a moved apps folder and lists again with it when apps were not found"
     await userEvent.fill(page.getByLabelText("Apps folder, if it moved"), "D:\\Apps");
     await page.getByRole("button", { name: "List apps again" }).click();
     expect(inspect).toHaveBeenLastCalledWith("github-launcher", "C:\\GHL", "D:\\Apps");
+    // A different data folder never inherits the previous apps-folder override.
+    await userEvent.fill(page.getByLabelText("GitHub Launcher data folder"), "C:\\Other");
+    await page.getByRole("button", { name: "List apps", exact: true }).click();
+    expect(inspect).toHaveBeenLastCalledWith("github-launcher", "C:\\Other", undefined);
   } finally {
     await act(async () => root.unmount());
     container.remove();
