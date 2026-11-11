@@ -433,6 +433,30 @@ pub(crate) enum InstallationCommand {
         #[arg(long)]
         yes: bool,
     },
+    /// Review ending the offer to recover one superseded build; its files and player data stay in place.
+    ReferenceRetirePlan {
+        /// Catalog port ID owning the setup reference; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Stable setup identity whose offered recovery revision should be retired.
+        setup_id: String,
+        /// Revision number from `history[].revision` in `installation reference`.
+        revision: u64,
+    },
+    /// Retire only the reviewed recovery revision; later cleanup still respects other protections.
+    ReferenceRetire {
+        /// Catalog port ID used in the preceding `installation reference-retire-plan` review.
+        port_id: String,
+        /// Stable setup identity from the retirement review.
+        setup_id: String,
+        /// Revision number from the retirement review.
+        revision: u64,
+        /// Review SHA-256 from `installation reference-retire-plan`; changed inputs refuse retirement.
+        #[arg(long)]
+        expected_preview: String,
+        /// Confirm the reviewed retirement without prompting; no build files are deleted.
+        #[arg(long)]
+        yes: bool,
+    },
     #[cfg(feature = "qualification-fixtures")]
     #[command(hide = true)]
     QualificationUpdatePlan {

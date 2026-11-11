@@ -152,6 +152,10 @@ impl Library {
         for reference in &mut retained_build_references {
             reference.build.selected_executable =
                 PathBuf::from(portable_relative(&reference.build.selected_executable)?);
+            for entry in &mut reference.history {
+                entry.build.selected_executable =
+                    PathBuf::from(portable_relative(&entry.build.selected_executable)?);
+            }
         }
         let artwork = crate::artwork_store::snapshot(&transaction)?;
         transaction.commit()?;

@@ -658,6 +658,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 >(contract)),
             ),
             (
+                "retained_build_retirement_preview",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::RetainedBuildRetirementPreview,
+                >(contract)),
+            ),
+            (
                 "game_update_plan",
                 serde_json::json!(schema_for_contract::<portcove_core::GameUpdatePlan>(
                     contract

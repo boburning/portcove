@@ -159,10 +159,12 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | InstallationCommand::Retained { .. }
             | InstallationCommand::Reference { .. }
             | InstallationCommand::ReferencePlan { .. }
-            | InstallationCommand::ReferenceRemovalPlan { .. } => ReadOnly,
+            | InstallationCommand::ReferenceRemovalPlan { .. }
+            | InstallationCommand::ReferenceRetirePlan { .. } => ReadOnly,
             InstallationCommand::Run { .. }
             | InstallationCommand::ReferenceBind { .. }
-            | InstallationCommand::ReferenceRemove { .. } => Recovering,
+            | InstallationCommand::ReferenceRemove { .. }
+            | InstallationCommand::ReferenceRetire { .. } => Recovering,
             #[cfg(feature = "qualification-fixtures")]
             InstallationCommand::QualificationUpdatePlan { .. } => ReadOnly,
             #[cfg(feature = "qualification-fixtures")]

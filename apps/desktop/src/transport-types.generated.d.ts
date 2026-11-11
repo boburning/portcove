@@ -1024,6 +1024,7 @@ export interface TransportOutputs {
   retained_build_reference: RetainedBuildReference;
   retained_build_removal_preview: OutputRetainedBuildRemovalPreview;
   retained_build_resolution: RetainedBuildResolution;
+  retained_build_retirement_preview: OutputRetainedBuildRetirementPreview;
   setup_launch_targets: OutputSetupLaunchTargets;
   signed_catalog_envelope: OutputSignedCatalogEnvelope;
   signed_catalog_payload: OutputSignedCatalogPayload;
@@ -3604,6 +3605,11 @@ export interface PortabilityAdmission {
 export interface RetainedBuildReference {
   build: RetainedBuildIdentity;
   created_at: number;
+  /**
+   * Former bindings still offered as recovery targets. Rebinding `build` keeps
+   * each superseded exact build protected until it is explicitly retired.
+   */
+  history?: RetainedBuildRevision[];
   id: string;
   /**
    * Monotonic binding revision, including same-build rebindings. Wall-clock
@@ -3628,6 +3634,14 @@ export interface RetainedBuildIdentity {
   port_id: string;
   runtime: RuntimeIdentity | null;
   selected_executable: string;
+}
+/**
+ * A superseded binding. `revision` is the binding revision it held while current.
+ */
+export interface RetainedBuildRevision {
+  build: RetainedBuildIdentity;
+  revision: number;
+  superseded_at: number;
 }
 export interface LibraryMetadataFile {
   path: string;
@@ -4121,6 +4135,10 @@ export interface RetainedBuild {
   gap: RetainedBuildGap | null;
   identity: RetainedBuildIdentity | null;
   install: InstallRecord;
+  /**
+   * Setups keeping this build only as an offered recovery target.
+   */
+  offered_by: string[];
   previous: boolean;
   retained_by: string[];
   [k: string]: unknown;
@@ -4140,13 +4158,30 @@ export interface RetainedBuildGap {
 export interface RetainedBuildResolution {
   availability: RetainedBuildAvailability;
   gap: RetainedBuildGap | null;
+  history: RetainedBuildHistoryResolution[];
   install: InstallRecord | null;
   reference: RetainedBuildReference;
+  [k: string]: unknown;
+}
+/**
+ * Current availability of one offered recovery target.
+ */
+export interface RetainedBuildHistoryResolution {
+  availability: RetainedBuildAvailability;
+  gap: RetainedBuildGap | null;
+  install: InstallRecord | null;
+  revision: RetainedBuildRevision;
   [k: string]: unknown;
 }
 export interface OutputRetainedBuildRemovalPreview {
   preview_sha256: string;
   reference: RetainedBuildReference;
+  [k: string]: unknown;
+}
+export interface OutputRetainedBuildRetirementPreview {
+  preview_sha256: string;
+  revision: RetainedBuildRevision;
+  setup_id: string;
   [k: string]: unknown;
 }
 export interface OutputSetupLaunchTargets {

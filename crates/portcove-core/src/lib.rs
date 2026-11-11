@@ -280,9 +280,10 @@ pub use release::{
     inspect_upstream_observation,
 };
 pub use retained_build::{
-    RetainedBuild, RetainedBuildAvailability, RetainedBuildBindingPreview, RetainedBuildGap,
-    RetainedBuildIdentity, RetainedBuildInventory, RetainedBuildReference,
-    RetainedBuildRemovalPreview, RetainedBuildResolution,
+    MAX_OFFERED_REVISIONS, RetainedBuild, RetainedBuildAvailability, RetainedBuildBindingPreview,
+    RetainedBuildGap, RetainedBuildHistoryResolution, RetainedBuildIdentity,
+    RetainedBuildInventory, RetainedBuildReference, RetainedBuildRemovalPreview,
+    RetainedBuildResolution, RetainedBuildRetirementPreview, RetainedBuildRevision,
 };
 pub use service::{
     AdoptionCopyFile, AdoptionCopyPlan, AdoptionDestinationPreview, AdoptionPreview,

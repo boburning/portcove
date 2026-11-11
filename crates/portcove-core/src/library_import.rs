@@ -41,10 +41,11 @@ impl PortabilityCatalogs {
             absolute.path = root.join(relative);
             if let Some(references) = references.get(install.id.as_str()) {
                 let identity = crate::install::retained_build_identity_for_install(&absolute)?;
-                if references
-                    .iter()
-                    .any(|reference| reference.build != identity)
-                {
+                if references.iter().any(|reference| {
+                    reference
+                        .retained_builds()
+                        .any(|build| build.install_id == install.id && *build != identity)
+                }) {
                     return Err(PortcoveError::verification(
                         "retained build reference differs from its verified installation contract",
                     )
@@ -583,19 +584,21 @@ fn retained_references_by_install(
                 "library metadata repeats a retained build reference or setup binding",
             ));
         }
-        if installs
-            .get(reference.build.install_id.as_str())
-            .is_none_or(|install| !install.verified || !reference.build.matches_install(install))
-        {
-            return Err(PortcoveError::verification(
-                "retained build reference does not match an exported installation",
-            )
-            .detail("reference_id", &reference.id));
+        for build in reference.retained_builds() {
+            if installs
+                .get(build.install_id.as_str())
+                .is_none_or(|install| !install.verified || !build.matches_install(install))
+            {
+                return Err(PortcoveError::verification(
+                    "retained build reference does not match an exported installation",
+                )
+                .detail("reference_id", &reference.id));
+            }
+            references
+                .entry(build.install_id.as_str())
+                .or_default()
+                .push(reference);
         }
-        references
-            .entry(reference.build.install_id.as_str())
-            .or_default()
-            .push(reference);
     }
     Ok(references)
 }
