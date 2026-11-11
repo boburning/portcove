@@ -170,6 +170,13 @@ PORTCOVE_MAINTENANCE_DATABASE_URL="$RESTORE_TARGET_URL" node scripts/maintenance
   with the manifest in one transaction, so any difference rolls the whole restore
   back and the target stays empty for a retry. Run `migrate` afterwards if the
   checkout carries newer migrations.
+- Use `psql`, `pg_dump` and `pg_restore` from one PostgreSQL client
+  installation whose major version matches the server (set
+  `PORTCOVE_POSTGRES_BIN` when `PATH` mixes versions). Restore renders the dump
+  to a plain-text script in a private temporary directory that is removed when
+  the restore finishes; an abruptly killed restore can leave it behind.
+- Collectors finish runs under the default READ COMMITTED isolation, so the
+  derived observed count includes every committed observation of the run.
 - `backup` writes to a temporary sibling directory and renames it only when
   complete, so a failed backup leaves nothing to clean up.
 - `digest` prints the same per-table counts and digests for an ad hoc

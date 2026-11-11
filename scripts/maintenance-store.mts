@@ -523,6 +523,25 @@ async function writeBackup(environment: NodeJS.ProcessEnv, output: string) {
   return manifest;
 }
 
+/** Exactly the store's tables, each with an integer row count and a SHA-256 digest. */
+function validTableDigests(tables: unknown): tables is StoreDigest {
+  if (typeof tables !== "object" || tables === null || Array.isArray(tables)) return false;
+  const entries: [string, unknown][] = Object.entries(tables);
+  return (
+    entries.length === storeTables.length &&
+    storeTables.every(([table]) => Object.hasOwn(tables, table)) &&
+    entries.every(
+      ([, digest]) =>
+        typeof digest === "object" &&
+        digest !== null &&
+        Object.keys(digest).length === 2 &&
+        Number.isSafeInteger((digest as { rows?: unknown }).rows) &&
+        (digest as { rows: number }).rows >= 0 &&
+        /^[0-9a-f]{64}$/u.test(String((digest as { sha256?: unknown }).sha256)),
+    )
+  );
+}
+
 export function readBackupManifest(input: string): BackupManifest {
   let manifest: unknown;
   try {
@@ -537,8 +556,7 @@ export function readBackupManifest(input: string): BackupManifest {
     value.dump?.file !== dumpFileName ||
     !/^[0-9a-f]{64}$/u.test(value.dump.sha256 ?? "") ||
     !Array.isArray(value.migrations) ||
-    typeof value.tables !== "object" ||
-    value.tables === null
+    !validTableDigests(value.tables)
   )
     throw new MaintenanceStoreError("Backup manifest has an unsupported format");
   return value as BackupManifest;

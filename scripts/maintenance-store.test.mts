@@ -408,6 +408,15 @@ void test(
        INSERT INTO portcove_maintenance.subject_transitions (subject_key, sequence, assessment_id) VALUES ('port:example-port', 4, (SELECT max(assessment_id) FROM portcove_maintenance.assessments));`,
     );
 
+    // A manifest with unexpected digest fields is refused before any SQL is built.
+    const injected = path.join(root, "injected");
+    mkdirSync(injected);
+    copyFileSync(path.join(archive, "maintenance.dump"), path.join(injected, "maintenance.dump"));
+    const bad = structuredClone(manifest);
+    bad.tables["portcove_maintenance.operations"]!.sha256 = "$portcove_verify$; DROP SCHEMA x; --";
+    writeFileSync(path.join(injected, "manifest.json"), JSON.stringify(bad));
+    assert.throws(() => restore(target.owner, injected), /unsupported format/u);
+
     // A tampered dump is refused before anything is restored.
     const tampered = path.join(root, "tampered");
     mkdirSync(tampered);
