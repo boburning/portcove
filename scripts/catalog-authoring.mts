@@ -158,18 +158,18 @@ function checkPlayerCopy(id: string, field: string, text: unknown) {
 }
 
 function checkPlayerGuideCopy(id: string, field: string, value: unknown) {
-  if (!isRecord(value)) return;
+  if (value == null) return;
+  if (!isRecord(value) || !Array.isArray(value.steps) || !Array.isArray(value.warnings))
+    throw new Error(`${id} ${field} requires steps and warnings arrays.`);
   // References carry optional exact terms and evidence. Primary actions and
   // warnings are shown directly to players in Desktop and Playnite.
-  if (Array.isArray(value.steps))
-    for (const [index, step] of value.steps.entries()) {
-      if (!isRecord(step)) continue;
-      checkPlayerCopy(id, `${field}.steps[${index}].title`, step.title);
-      checkPlayerCopy(id, `${field}.steps[${index}].instruction`, step.instruction);
-    }
-  if (Array.isArray(value.warnings))
-    for (const [index, warning] of value.warnings.entries())
-      checkPlayerCopy(id, `${field}.warnings[${index}]`, warning);
+  for (const [index, step] of value.steps.entries()) {
+    if (!isRecord(step)) continue;
+    checkPlayerCopy(id, `${field}.steps[${index}].title`, step.title);
+    checkPlayerCopy(id, `${field}.steps[${index}].instruction`, step.instruction);
+  }
+  for (const [index, warning] of value.warnings.entries())
+    checkPlayerCopy(id, `${field}.warnings[${index}]`, warning);
 }
 
 function projectGbaArchive(record: AuthoredPort): AuthoredPort {
