@@ -69,6 +69,36 @@ Context and glossary rules:
 
 Add English first, add every engineering-locale form needed by that message, then run `pnpm --dir apps/desktop i18n:check`. The gate uses the official CLI to reject catalog drift, missing translations, hardcoded copy in the migrated component, unknown keys, and missing or extra interpolation arguments. Generated declarations are checked in so TypeScript also rejects unknown keys. The negative fixture runs against disposable catalog copies because `i18next-cli extract --ci` reports drift after writing its configured output.
 
+## Spanish pilot draft
+
+The owner selected Spanish as the [#1028](https://github.com/boburning/portcove/issues/1028)
+pilot. `apps/desktop/src/locales/es` holds an **unreviewed agent draft** for
+every migrated namespace. Its tag is region-neutral `es` until the reviewer
+confirms or narrows the region. The draft is bundled offline for review and
+engineering fixtures only. `resolveLocale` never selects it, the picker does not
+offer it, and no supported or partial Spanish language is claimed.
+
+Spanish plurals use the CLDR `one`, `many` and `other` categories. The draft
+reuses `other` text for `many`. Draft glossary for the reviewer:
+
+| English             | Draft Spanish                  | Note                                                   |
+| ------------------- | ------------------------------ | ------------------------------------------------------ |
+| port                | adaptación                     | product noun; game and project names stay untranslated |
+| library             | biblioteca                     | the Portcove-managed root                              |
+| saved file location | ubicación de archivos guardada | user-selected original files                           |
+| listing             | ficha                          | catalog listing                                        |
+| publisher           | editor                         | signed-catalog publisher                               |
+| Stable / Preview    | Estable / Vista previa         | channel display names                                  |
+| Settings / Activity | Ajustes / Actividad            | navigation names                                       |
+
+Review destructive, trust, update, credential and recovery wording first
+(`removal`, `catalogUpdates.custom`, `applicationUpdate`). Record the reviewer,
+their competence, the reviewed catalog revision and the scope on #1028.
+Changing the meaning of a reviewed message invalidates that review. The locale
+becomes selectable only after linguistic sign-off and critical-journey evidence,
+and only at the then-current migrated coverage, with visible English fallback
+for unmigrated screens.
+
 ## Migration inventory
 
 `extract.input` in `apps/desktop/i18next.config.ts` is the enforced inventory of
@@ -79,24 +109,32 @@ locale names and fallback plumbing, so it receives extraction and key checks onl
 Migrate a complete surface before listing it, and keep English output identical
 unless the copy change is intended and reviewed.
 
-| Surface                    | Files                                                      | Namespace           |
-| -------------------------- | ---------------------------------------------------------- | ------------------- |
-| Language settings          | `components/LanguageSettings.tsx`, `localization.tsx`      | `settings`          |
-| Startup render recovery    | `ErrorBoundary.tsx`                                        | `shell`             |
-| Interface size             | `InterfaceSize.tsx`                                        | `shell`             |
-| Application-update notices | `features/application-update/ApplicationUpdateNotices.tsx` | `applicationUpdate` |
+| Surface                                  | Files                                                      | Namespace           |
+| ---------------------------------------- | ---------------------------------------------------------- | ------------------- |
+| Language settings                        | `components/LanguageSettings.tsx`, `localization.tsx`      | `settings`          |
+| Startup render recovery                  | `ErrorBoundary.tsx`                                        | `shell`             |
+| Interface size                           | `InterfaceSize.tsx`                                        | `shell`             |
+| Application-update notices               | `features/application-update/ApplicationUpdateNotices.tsx` | `applicationUpdate` |
+| Application-update settings              | `features/application-update/ApplicationUpdates.tsx`       | `applicationUpdate` |
+| Official setup information               | `components/OfficialDefinitionUpdates.tsx`                 | `catalogUpdates`    |
+| Official catalog updates                 | `components/OfficialCatalogUpdates.tsx`                    | `catalogUpdates`    |
+| Custom catalog sources and game listings | `components/CatalogUpdates.tsx`                            | `catalogUpdates`    |
+| Uninstall review                         | `components/RemovalReview.tsx`                             | `removal`           |
+| Saved file location removal              | `components/SourceRemoval.tsx`                             | `removal`           |
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-11 it
-reported 1,823 findings in 86 of 208 analyzed files, measured after this
-slice and with the attribute exclusions below. That count covers JSX text
+reported 1,628 findings in 79 of 208 analyzed files, measured after the
+migrations listed above and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
 and are migrated with the surface that renders them. The count is a work
 inventory, not a coverage claim.
 
 Narrow technical-literal exclusions: the lint ignores the `aria-live`,
-`aria-atomic`, `aria-labelledby`, `data-slot`, `intent`, `size` and `variant`
-attributes, which carry design-system or ARIA reference values, never player copy.
+`aria-atomic`, `aria-describedby`, `aria-labelledby`, `data-settings-control`,
+`data-slot`, `dir`, `intent`, `reviewSize`, `size`, `triggerId` and `variant`
+attributes, which carry design-system tokens, element ids or ARIA references,
+never player copy.
 Thrown `Error` messages that are caught and never displayed, stable state codes,
 keyboard key names and product names remain literals.
 
@@ -106,6 +144,27 @@ outside the provider, such as render recovery, shows complete English instead of
 raw keys. The global instance is the only runtime i18next instance; a test or
 fixture that mounts a separate instance does not reach these surfaces. Domain or controller state stores stable codes (for example the interface
 size `unconfirmed` error), never translated text.
+
+Component state stores message identities (busy, notice and failure kinds),
+not English, so a live language change re-renders current copy. A Core or
+upstream diagnostic stays verbatim as `text`. App-owned check failures throw a
+typed error whose stable code drives presentation; its message serves
+diagnostics only. Focus and test selectors use stable ids, never translated
+`aria-label` text.
+
+Copy helpers outside components take a parameter typed literally as
+`TFunction<"namespace">`; the extractor does not resolve a type alias and would
+file those keys under the default namespace.
+
+Known limitation: Core reports catalog fallback reasons as English diagnostics
+without stable codes, so `CatalogUpdates.tsx` still classifies their text to
+choose a localized summary. The original diagnostic stays visible verbatim and
+unknown reasons use a generic summary. Replacing this needs stable Core codes.
+
+Operation names passed to the shared Activity owner and app-owned diagnostic
+messages stay English for now, like Core diagnostics. Activity records a name
+when an operation starts, so translating it there would freeze one language.
+Those names will be localized when the Activity surface resolves them at render.
 
 Channel-dependent messages use static i18next contexts (`readyBody_preview`,
 `readyBody_stable`) at explicit call sites. A dynamic context would make the
