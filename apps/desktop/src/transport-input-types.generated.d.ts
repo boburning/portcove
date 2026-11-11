@@ -41,6 +41,9 @@ export type CatalogForeignReleaseId = {
   provider: "gitlab";
   tag: string;
 };
+export type InputDesktopInstallBatchRequestItems = InstallBatchRequestItem[];
+export type LibraryMembershipOrigin = "game_file_discovery" | "manual";
+export type InputDesktopLibraryMembershipRequests = LibraryMembershipRequest[];
 export type InputDesktopOrganizationChange =
   | {
       game_id: string;
@@ -142,7 +145,9 @@ export interface TransportInputs {
   desktop_catalog_download_request: InputDesktopCatalogDownloadRequest;
   desktop_game_comparison_request: InputDesktopGameComparisonRequest;
   desktop_game_file_query_request: InputGameFileQueryRequest;
+  desktop_install_batch_request_items: InputDesktopInstallBatchRequestItems;
   desktop_install_input: InputDesktopInstallInput;
+  desktop_library_membership_requests: InputDesktopLibraryMembershipRequests;
   desktop_organization_change: InputDesktopOrganizationChange;
   desktop_steam_artwork_selection: InputDesktopSteamArtworkSelection;
   desktop_steam_batch_selection: InputDesktopSteamBatchSelection;
@@ -258,6 +263,13 @@ export interface InputDesktopGameComparisonRequest {
    */
   source_profile_ids?: string[] | null;
 }
+export interface InstallBatchRequestItem {
+  /**
+   * Digest of the plan the player reviewed for this game.
+   */
+  expected_plan_sha256: string;
+  port_id: string;
+}
 export interface InputDesktopInstallInput {
   bios?: string | null;
   channel?: ReleaseChannel | null;
@@ -269,6 +281,19 @@ export interface InputDesktopInstallInput {
 export interface SourceRegistrationReference {
   profile_id: string;
   reference_sha256: string;
+}
+export interface LibraryMembershipRequest {
+  origin: LibraryMembershipOrigin;
+  port_id: string;
+  sources?: LibraryMembershipSource[];
+}
+/**
+ * A reviewed original the player associated with the saved entry. This is a
+ * hint for explaining requirements; reinspection remains the authority.
+ */
+export interface LibraryMembershipSource {
+  profile_id: string;
+  sha256: string;
 }
 export interface UpdateNoticeChoice {
   paused: boolean;

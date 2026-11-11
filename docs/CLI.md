@@ -722,15 +722,35 @@ Use `catalog show PORT_ID` to identify the applicable game-file or BIOS profile.
 A saved discovery folder, an inspected candidate and a registered source are
 different objects; none alone grants installation or launch permission.
 
-| Task                                 | Command                                                      | Mutation boundary                                                            |
-| ------------------------------------ | ------------------------------------------------------------ | ---------------------------------------------------------------------------- |
-| Inspect a registered source          | `source inspect PROFILE_ID`                                  | Reads current facts without changing bytes or the saved baseline.            |
-| Compare registered bytes             | `source verify PROFILE_ID` or `source verify --all`          | Rechecks the saved baseline; bulk results need per-profile inspection.       |
-| Find possible files                  | `source discover --root PATH --profile PROFILE_ID`           | Reads only the requested scope; candidates remain unregistered.              |
-| Save discovery folders               | `source roots add PATH` / `source roots relink ROOT_ID PATH` | Changes the saved search input, not source registration or files.            |
-| Register a known file                | `source add PROFILE_ID PATH`                                 | Validates and saves its location; does not copy, move or upload it.          |
-| Correct a registered file's location | `source relink PROFILE_ID PATH`                              | Review only until the same inputs are applied with the returned fingerprint. |
-| Forget a registered file             | `source remove PROFILE_ID`                                   | Requires confirmation and removes only the reference.                        |
+| Task                                 | Command                                                        | Mutation boundary                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------ | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inspect a registered source          | `source inspect PROFILE_ID`                                    | Reads current facts without changing bytes or the saved baseline.                                                                                                                                                                                                                                                      |
+| Compare registered bytes             | `source verify PROFILE_ID` or `source verify --all`            | Rechecks the saved baseline; bulk results need per-profile inspection.                                                                                                                                                                                                                                                 |
+| Find possible files                  | `source discover --root PATH --profile PROFILE_ID`             | Reads only the requested scope; candidates remain unregistered.                                                                                                                                                                                                                                                        |
+| Save discovery folders               | `source roots add PATH` / `source roots relink ROOT_ID PATH`   | Changes the saved search input, not source registration or files.                                                                                                                                                                                                                                                      |
+| Save games to the Library            | `games add PORT_ID...` / `games list` / `games remove PORT_ID` | Saves an explicit Library entry only: nothing is downloaded, registered, installed or launched. Repeats are idempotent, installed or registered games are reported as already in the Library, and one command accepts at most 512 IDs. Removing an entry leaves installations, registrations and game files unchanged. |
+| Register a known file                | `source add PROFILE_ID PATH`                                   | Validates and saves its location; does not copy, move or upload it.                                                                                                                                                                                                                                                    |
+| Correct a registered file's location | `source relink PROFILE_ID PATH`                                | Review only until the same inputs are applied with the returned fingerprint.                                                                                                                                                                                                                                           |
+| Forget a registered file             | `source remove PROFILE_ID`                                     | Requires confirmation and removes only the reference.                                                                                                                                                                                                                                                                  |
+
+### Install several reviewed games once
+
+`games batch-plan PORT_ID...` reviews first installs for up to 512 games and
+changes nothing. It shows a plan digest for each game that is ready, and a
+reason for each game that is waiting. `games batch-run --item PORT_ID=PLAN_SHA256
+...` asks once, saves each game to the Library, and then installs each listed game
+through the ordinary reviewed installer. Before each game runs, Portcove plans it
+again and authorizes it fresh. A game whose plan changed, or that needs a decision
+such as shared preferences, waits for review while the others continue. The batch
+stores no authorization. No game is launched, and an already installed game is not
+reinstalled or updated.
+
+`games batch-cancel BATCH_ID` stops games that haven't started; a running install
+keeps its ordinary cancellation and cleanup boundaries. After an interruption,
+`games batch-resume BATCH_ID` checks committed state first. It never repeats a
+finished install. A game left mid-run with nothing committed is marked interrupted
+for renewed review, not retried. `games batch-show BATCH_ID` reports each game's
+state.
 
 ### Register and inspect
 

@@ -1103,6 +1103,9 @@ pub struct PortListingStatus {
     /// Optional inert read model; absence cannot suppress an independently allowed action.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub capabilities: Option<crate::PortCapabilityReport>,
+    /// Explicit saved Library entry, independent of any installation or registration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub library_membership: Option<crate::LibraryMembership>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

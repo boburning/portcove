@@ -147,7 +147,7 @@ impl PortcoveService {
         result
     }
 
-    fn require_registered_install_inputs(reviewed: &GameInstallPlan) -> Result<()> {
+    pub(super) fn require_registered_install_inputs(reviewed: &GameInstallPlan) -> Result<()> {
         if reviewed.plan.action == crate::InstallPlanAction::Download
             && reviewed
                 .plan

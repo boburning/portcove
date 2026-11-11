@@ -844,6 +844,109 @@ pub(crate) fn source_discovery(
     lines.join("\n")
 }
 
+pub(crate) fn library_memberships(entries: &[portcove_core::LibraryMembership]) -> String {
+    if entries.is_empty() {
+        return "No games are saved to the Library without an installation.".to_owned();
+    }
+    entries
+        .iter()
+        .map(|entry| format!("{}  saved {}", clean(&entry.port_id), entry.added_at))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+pub(crate) fn library_membership_outcomes(
+    outcomes: &[portcove_core::LibraryMembershipOutcome],
+) -> String {
+    use portcove_core::LibraryMembershipOutcomeKind as Kind;
+    let mut lines = outcomes
+        .iter()
+        .map(|item| {
+            let label = match item.outcome {
+                Kind::Added => "saved",
+                Kind::AlreadySaved => "already saved",
+                Kind::AlreadyInLibrary => {
+                    "already in the Library (installed, registered or pending setup)"
+                }
+            };
+            format!("{}: {label}", clean(&item.port_id))
+        })
+        .collect::<Vec<_>>();
+    lines.push("Nothing was downloaded, installed, registered or launched.".to_owned());
+    lines.join("\n")
+}
+
+pub(crate) fn install_batch_review(review: &portcove_core::InstallBatchReview) -> String {
+    let mut ready = Vec::new();
+    let mut lines = Vec::new();
+    for item in &review.items {
+        match (&item.plan, &item.hold) {
+            (Some(plan), None) => {
+                lines.push(format!("{}: ready to install", clean(&item.port_id)));
+                ready.push(format!(
+                    "--item {}={}",
+                    clean(&item.port_id),
+                    plan.plan_sha256
+                ));
+            }
+            (_, Some(hold)) => lines.push(format!(
+                "{}: waiting - {}",
+                clean(&item.port_id),
+                clean(hold)
+            )),
+            (None, None) => lines.push(format!("{}: waiting", clean(&item.port_id))),
+        }
+    }
+    if ready.is_empty() {
+        lines.push("No game in this review can install yet. Nothing was changed.".to_owned());
+    } else {
+        lines.push(format!(
+            "Nothing was changed. To save these games and install the ready ones:\nportcove games batch-run {}",
+            ready.join(" ")
+        ));
+    }
+    lines.join("\n")
+}
+
+pub(crate) fn install_batch(record: &portcove_core::InstallBatchRecord) -> String {
+    use portcove_core::InstallBatchItemState as State;
+    let mut lines = vec![format!("Batch {}", clean(&record.id))];
+    for item in &record.items {
+        let state = match item.state {
+            State::Queued => "not started",
+            State::Running => "running",
+            State::Ready => "installed and ready to launch",
+            State::Held => "waiting for review",
+            State::Failed => "failed",
+            State::Cancelled => "cancelled",
+            State::Interrupted => "interrupted; review installation again",
+        };
+        let detail = item
+            .detail
+            .as_deref()
+            .map(|detail| format!(" - {}", clean(detail)))
+            .unwrap_or_default();
+        lines.push(format!("{}: {state}{detail}", clean(&item.port_id)));
+    }
+    let summary = record.summary();
+    if summary.queued + summary.running > 0 {
+        lines.push(
+            "Part of this batch is still in progress elsewhere or its game is busy with another task; nothing more was started for those games here. Check again later with `portcove games batch-show`."
+                .to_owned(),
+        );
+    }
+    lines.push(format!(
+        "{} ready, {} waiting, {} failed, {} cancelled, {} interrupted, {} not finished. No game was launched.",
+        summary.ready,
+        summary.held,
+        summary.failed,
+        summary.cancelled,
+        summary.interrupted,
+        summary.queued + summary.running
+    ));
+    lines.join("\n")
+}
+
 pub(crate) fn game_file_roots(roots: &[GameFileRoot]) -> String {
     if roots.is_empty() {
         return "No game-file folders are connected.".into();

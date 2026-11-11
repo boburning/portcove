@@ -116,6 +116,15 @@ export type ExternalRuntimeRecord = Generated.TransportOutputs["desktop_external
 export type { SourceRecord } from "./transport-types.generated";
 
 export type GameFileRoot = Generated.TransportOutputs["game_file_roots"][number];
+export type LibraryMembership = Generated.TransportOutputs["desktop_library_memberships"][number];
+export type LibraryMembershipOutcome =
+  Generated.TransportOutputs["desktop_library_membership_outcomes"][number];
+export type LibraryMembershipRequest =
+  Requests.TransportInputs["desktop_library_membership_requests"][number];
+export type InstallBatchReview = Generated.TransportOutputs["desktop_install_batch_review"];
+export type InstallBatchRecord = Generated.TransportOutputs["desktop_install_batch"];
+export type InstallBatchRequestItem =
+  Requests.TransportInputs["desktop_install_batch_request_items"][number];
 export type GameFileQueryRefreshRequest = Requests.TransportInputs["game_file_query_request"];
 export type GameFileQuerySnapshot = Generated.TransportOutputs["game_file_query_snapshot"];
 

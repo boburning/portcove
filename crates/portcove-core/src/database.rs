@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 47;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 49;
 
 struct Migration {
     version: i64,
@@ -305,7 +305,62 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_47,
         verify: verify_migration_47,
     },
+    Migration {
+        version: 48,
+        name: "explicit add-only library membership",
+        apply: migration_48,
+        verify: verify_migration_48,
+    },
+    Migration {
+        version: 49,
+        name: "confirmed first-install batches",
+        apply: migration_49,
+        verify: verify_migration_49,
+    },
 ];
+
+fn migration_49(transaction: &Transaction<'_>) -> Result<()> {
+    // A batch associates reviewed plan digests with their outcomes. It stores no
+    // authorization and is never an installation or consent record.
+    transaction.execute_batch(
+        "CREATE TABLE install_batches (
+            id TEXT PRIMARY KEY CHECK(length(id)=36),
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            record_json TEXT NOT NULL CHECK(length(record_json)<=524288)
+        );",
+    )?;
+    verify_migration_49(transaction)
+}
+
+fn verify_migration_49(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "install_batches",
+        &["id", "created_at", "updated_at", "record_json"],
+    )
+}
+
+fn migration_48(transaction: &Transaction<'_>) -> Result<()> {
+    // Membership is a saved selection, not an installation, registration or
+    // acquisition record. Retained provenance is display/explanation data only.
+    transaction.execute_batch(
+        "CREATE TABLE library_memberships (
+            port_id TEXT PRIMARY KEY CHECK(length(port_id) BETWEEN 1 AND 128),
+            added_at INTEGER NOT NULL,
+            record_json TEXT NOT NULL CHECK(length(record_json)<=16384)
+        );",
+    )?;
+    verify_migration_48(transaction)
+}
+
+fn verify_migration_48(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "library_memberships",
+        &["port_id", "added_at", "record_json"],
+    )
+}
 
 fn migration_47(transaction: &Transaction<'_>) -> Result<()> {
     crate::profile::migrate_selection(transaction)?;
@@ -2830,6 +2885,30 @@ mod tests {
     }
 
     #[test]
+    fn membership_migration_adds_an_empty_table_and_keeps_existing_state() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 47).unwrap();
+        let connection = connect(root).unwrap();
+        let identity: String = connection
+            .query_row("SELECT id FROM library_identity", [], |row| row.get(0))
+            .unwrap();
+        drop(connection);
+        migrate_to(root, 48).unwrap();
+        let connection = connect(root).unwrap();
+        let count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM library_memberships", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        let after: String = connection
+            .query_row("SELECT id FROM library_identity", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!((count, after), (0, identity));
+    }
+
+    #[test]
     fn snapshot_setting_migration_keeps_identity_and_defaults_existing_libraries_on() {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
@@ -2917,6 +2996,8 @@ mod tests {
         schema_44: 44,
         schema_45: 45,
         schema_46: 46,
+        schema_47: 47,
+        schema_48: 48,
     }
 
     #[test]

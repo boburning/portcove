@@ -18669,6 +18669,71 @@
         ],
         "type": "object"
       },
+      "LibraryMembership": {
+        "additionalProperties": false,
+        "properties": {
+          "added_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "format_version": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "origin": {
+            "$ref": "#/$defs/LibraryMembershipOrigin"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/$defs/LibraryMembershipSource"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format_version",
+          "port_id",
+          "added_at",
+          "origin"
+        ],
+        "type": "object"
+      },
+      "LibraryMembershipOrigin": {
+        "oneOf": [
+          {
+            "const": "game_file_discovery",
+            "description": "Selected from reviewed game-file discovery results.",
+            "type": "string"
+          },
+          {
+            "const": "manual",
+            "description": "Added directly by the player.",
+            "type": "string"
+          }
+        ]
+      },
+      "LibraryMembershipSource": {
+        "additionalProperties": false,
+        "description": "A reviewed original the player associated with the saved entry. This is a\nhint for explaining requirements; reinspection remains the authority.",
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "sha256"
+        ],
+        "type": "object"
+      },
       "LibraryMetadata": {
         "description": "Metadata only; content trees and original source files are never embedded.",
         "properties": {
@@ -18701,6 +18766,13 @@
           "launch_history": {
             "items": {
               "$ref": "#/$defs/LibraryLaunchHistory"
+            },
+            "type": "array"
+          },
+          "library_memberships": {
+            "description": "Explicit add-only Library entries; present only under metadata schema 7, so\nan older reader refuses the export instead of silently dropping them.",
+            "items": {
+              "$ref": "#/$defs/LibraryMembership"
             },
             "type": "array"
           },
@@ -20118,6 +20190,71 @@
         ],
         "type": "object"
       },
+      "LibraryMembership": {
+        "additionalProperties": false,
+        "properties": {
+          "added_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "format_version": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "origin": {
+            "$ref": "#/$defs/LibraryMembershipOrigin"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/$defs/LibraryMembershipSource"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format_version",
+          "port_id",
+          "added_at",
+          "origin"
+        ],
+        "type": "object"
+      },
+      "LibraryMembershipOrigin": {
+        "oneOf": [
+          {
+            "const": "game_file_discovery",
+            "description": "Selected from reviewed game-file discovery results.",
+            "type": "string"
+          },
+          {
+            "const": "manual",
+            "description": "Added directly by the player.",
+            "type": "string"
+          }
+        ]
+      },
+      "LibraryMembershipSource": {
+        "additionalProperties": false,
+        "description": "A reviewed original the player associated with the saved entry. This is a\nhint for explaining requirements; reinspection remains the authority.",
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "sha256"
+        ],
+        "type": "object"
+      },
       "LibraryPortSettings": {
         "properties": {
           "active_install_id": {
@@ -21066,6 +21203,13 @@
         },
         "type": "array"
       },
+      "library_memberships": {
+        "description": "Explicit add-only Library entries; present only under metadata schema 7, so\nan older reader refuses the export instead of silently dropping them.",
+        "items": {
+          "$ref": "#/$defs/LibraryMembership"
+        },
+        "type": "array"
+      },
       "original_root": {
         "type": "string"
       },
@@ -21544,6 +21688,71 @@
         ],
         "type": "object"
       },
+      "LibraryMembership": {
+        "additionalProperties": false,
+        "properties": {
+          "added_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "format_version": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "origin": {
+            "$ref": "#/$defs/LibraryMembershipOrigin"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/$defs/LibraryMembershipSource"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format_version",
+          "port_id",
+          "added_at",
+          "origin"
+        ],
+        "type": "object"
+      },
+      "LibraryMembershipOrigin": {
+        "oneOf": [
+          {
+            "const": "game_file_discovery",
+            "description": "Selected from reviewed game-file discovery results.",
+            "type": "string"
+          },
+          {
+            "const": "manual",
+            "description": "Added directly by the player.",
+            "type": "string"
+          }
+        ]
+      },
+      "LibraryMembershipSource": {
+        "additionalProperties": false,
+        "description": "A reviewed original the player associated with the saved entry. This is a\nhint for explaining requirements; reinspection remains the authority.",
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "sha256"
+        ],
+        "type": "object"
+      },
       "LibraryMetadata": {
         "description": "Metadata only; content trees and original source files are never embedded.",
         "properties": {
@@ -21576,6 +21785,13 @@
           "launch_history": {
             "items": {
               "$ref": "#/$defs/LibraryLaunchHistory"
+            },
+            "type": "array"
+          },
+          "library_memberships": {
+            "description": "Explicit add-only Library entries; present only under metadata schema 7, so\nan older reader refuses the export instead of silently dropping them.",
+            "items": {
+              "$ref": "#/$defs/LibraryMembership"
             },
             "type": "array"
           },
@@ -23787,6 +24003,71 @@
         ],
         "type": "object"
       },
+      "LibraryMembership": {
+        "additionalProperties": false,
+        "properties": {
+          "added_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "format_version": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "origin": {
+            "$ref": "#/$defs/LibraryMembershipOrigin"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/$defs/LibraryMembershipSource"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format_version",
+          "port_id",
+          "added_at",
+          "origin"
+        ],
+        "type": "object"
+      },
+      "LibraryMembershipOrigin": {
+        "oneOf": [
+          {
+            "const": "game_file_discovery",
+            "description": "Selected from reviewed game-file discovery results.",
+            "type": "string"
+          },
+          {
+            "const": "manual",
+            "description": "Added directly by the player.",
+            "type": "string"
+          }
+        ]
+      },
+      "LibraryMembershipSource": {
+        "additionalProperties": false,
+        "description": "A reviewed original the player associated with the saved entry. This is a\nhint for explaining requirements; reinspection remains the authority.",
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "sha256"
+        ],
+        "type": "object"
+      },
       "ListingAction": {
         "enum": [
           "attach-existing",
@@ -24251,6 +24532,17 @@
               }
             ],
             "description": "Optional inert read model; absence cannot suppress an independently allowed action."
+          },
+          "library_membership": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LibraryMembership"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Explicit saved Library entry, independent of any installation or registration."
           },
           "port_id": {
             "type": "string"

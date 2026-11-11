@@ -126,6 +126,13 @@ std::thread_local! {
 
 #[path = "game_install_review.rs"]
 mod game_install_review;
+#[path = "install_batch.rs"]
+mod install_batch;
+pub use install_batch::{
+    INSTALL_BATCH_FORMAT_VERSION, InstallBatchItem, InstallBatchItemState, InstallBatchRecord,
+    InstallBatchRequestItem, InstallBatchReview, InstallBatchReviewItem, InstallBatchSummary,
+    MAX_INSTALL_BATCH_ITEMS,
+};
 mod game_settings;
 #[path = "game_update_acquisition.rs"]
 pub(crate) mod game_update_acquisition;
