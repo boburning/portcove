@@ -146,6 +146,13 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | ExternalCommand::Remove { .. }
             | ExternalCommand::Relink { .. } => Recovering,
         },
+        Commands::Profile { command } => {
+            if command.mutates() {
+                Recovering
+            } else {
+                ReadOnly
+            }
+        }
         Commands::Setup { command } => match command {
             crate::setup::SetupCommand::Candidates { .. }
             | crate::setup::SetupCommand::Targets { .. }

@@ -732,6 +732,24 @@ void test("catalog player copy catches engineering handoffs and preserves techni
   }
 });
 
+void test("authored setup guides require the arrays consumed by Core", () => {
+  const steps = [{ title: "Install the framework", instruction: "Use the upstream package." }];
+  const authored = (manual_setup: unknown) => ({
+    format_version: 1,
+    listing: {
+      id: "setup-fixture",
+      name: "Game port",
+      project_url: "https://example.org/port",
+      summary: "Prepare your copy.",
+      manual_setup,
+    },
+  });
+  for (const guide of [{ steps }, { warnings: [] }, { steps, warnings: "" }])
+    assert.throws(() => checkedAuthoredPort(authored(guide)), /requires steps and warnings arrays/);
+  const guide = { steps, warnings: [] };
+  assert.deepEqual(checkedAuthoredPort(authored(guide)).listing.manual_setup, guide);
+});
+
 void test("Second Hunt keeps its version-scoped cleanup warning in the pre-action warnings", () => {
   const source = readCatalogSource(catalogRoot);
   const listing = source.directory.listings.find(

@@ -8,7 +8,7 @@ use crate::{
 };
 use std::{fs, sync::Arc};
 
-fn install(library: &Library, id: &str, bytes: &[u8], active: bool) -> InstallRecord {
+pub(crate) fn install(library: &Library, id: &str, bytes: &[u8], active: bool) -> InstallRecord {
     let catalog = Catalog::embedded().unwrap();
     let platform = Platform::current().unwrap();
     let port = catalog.port("starship").unwrap();
@@ -47,7 +47,7 @@ fn install(library: &Library, id: &str, bytes: &[u8], active: bool) -> InstallRe
     install
 }
 
-fn fixture() -> (tempfile::TempDir, PortcoveService, InstallRecord) {
+pub(crate) fn fixture() -> (tempfile::TempDir, PortcoveService, InstallRecord) {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
     let first = install(&library, "first", b"first exact accepted runtime", true);

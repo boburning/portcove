@@ -234,6 +234,38 @@ export function isSettledApplicationRenewalRecoveryRef(executionRef: string) {
   );
 }
 
+// The original fixed transport retained a slot before exposing any upload
+// route. Its reviewed terminal diagnostics account for all 40 slots and
+// contain only three control events. This is evidence of non-attempt for this
+// one operation, rather than an inference from a missing context artifact.
+export const retainedApplicationContextUpload = Object.freeze({
+  checkpoint: "b839c0ce8991d5abd0fe19bc91d173970b3acae6",
+  previous: "ef9b0664069a9c2dff4a9cf18ce86b3d964a4ac8",
+  successor_ref: "refs/tags/portcove-production-controller-20261110r77",
+  workflow_sha256: "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb",
+  operation_id: "f7468b3daade44b98d7dde0af13f6cc81bbdc03d8b9c838ff8336e0a3a73e542",
+  revision: "79b3d82f1e10af254edb5271953bd9d84b50ef57",
+  ref: "refs/tags/portcove-production-controller-20261110r76",
+  run_id: "42948613381",
+  job_id: 130289454617,
+  diagnostics_id: 13825020555,
+  diagnostics_bytes: 11033,
+  diagnostics_sha256: "9cf48b2f3a32d217b1ea15b4a26d0c0e0b667ff8aab267c37cd0871601460c76",
+});
+
+// The earlier run's terminal Actions result remains failed. Its exact signed
+// zero-effect settlement is the current predecessor for qualified review.
+export const retainedApplicationContextSettlement = Object.freeze({
+  checkpoint: "e6160a6b2c8b7784ef83e1f0c36bec0804acf2e3",
+  previous: retainedApplicationContextUpload.checkpoint,
+  successor_ref: "refs/tags/portcove-production-controller-20261111r79",
+  workflow_sha256: retainedApplicationContextUpload.workflow_sha256,
+  revision: "fd45c587cd21fbd3ab125aaa9e1096577bbb5351",
+  ref: retainedApplicationContextUpload.successor_ref,
+  run_id: "42959512182",
+  job_id: 130324385057,
+});
+
 /** Resume the settled signed renewal descriptor before any context upload or feed write. */
 export function matchesRetainedApplicationRenewalHandoff(
   checkpoint: { checkpoint: string; previous: string | null },
@@ -243,6 +275,24 @@ export function matchesRetainedApplicationRenewalHandoff(
 ) {
   const pin = retainedApplicationRenewalClaim;
   if (purpose !== "application") return false;
+  const context =
+    source.execution_ref === retainedApplicationContextSettlement.successor_ref
+      ? retainedApplicationContextSettlement
+      : retainedApplicationContextUpload;
+  if (source.execution_ref === context.successor_ref) {
+    return (
+      source.workflow_sha256 === context.workflow_sha256 &&
+      checkpoint.checkpoint === context.checkpoint &&
+      checkpoint.previous === context.previous &&
+      producer.controller_revision === context.revision &&
+      producer.controller_ref === context.ref &&
+      producer.workflow_sha256 === context.workflow_sha256 &&
+      producer.run_id === context.run_id &&
+      producer.run_attempt === 1 &&
+      producer.job_id === String(context.job_id) &&
+      producer.check_run_id === String(context.job_id)
+    );
+  }
   if (
     isSettledApplicationRenewalRecoveryRef(source.execution_ref) &&
     ((source.execution_ref !== pin.native_split_successor_ref &&

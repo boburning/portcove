@@ -332,6 +332,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 >(contract)),
             ),
             (
+                "update_check_forecast",
+                serde_json::json!(schema_for_contract::<portcove_core::UpdateCheckForecast>(
+                    contract
+                )),
+            ),
+            (
                 "library_identity",
                 serde_json::json!(schema_for_contract::<LibraryIdentity>(contract)),
             ),
@@ -662,6 +668,22 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 serde_json::json!(schema_for_contract::<
                     portcove_core::RetainedBuildRetirementPreview,
                 >(contract)),
+            ),
+            (
+                "profile_inventory",
+                serde_json::json!(schema_for_contract::<portcove_core::ProfileInventory>(
+                    contract
+                )),
+            ),
+            (
+                "live_mods",
+                serde_json::json!(schema_for_contract::<portcove_core::LiveMods>(contract)),
+            ),
+            (
+                "profile_revision",
+                serde_json::json!(schema_for_contract::<portcove_core::ProfileRevision>(
+                    contract
+                )),
             ),
             (
                 "game_update_plan",

@@ -3300,6 +3300,15 @@ fn a_failed_snapshot_stops_the_version_change_before_any_mutation() {
         error.message.contains("injected snapshot failure"),
         "{error:?}"
     );
+    assert!(
+        error.message.contains("the version was not changed")
+            && error.message.contains("turn off automatic snapshots"),
+        "the player is told the version did not change and how to continue: {error:?}"
+    );
+    assert_eq!(
+        error.details.get("recovery_action").map(String::as_str),
+        Some("retry_or_disable_snapshots")
+    );
     let status = library.status(ZELDA, ReleaseChannel::Stable).unwrap();
     assert_eq!(
         status.active.unwrap().version,
@@ -3385,6 +3394,15 @@ fn a_failed_snapshot_also_stops_staged_activation_before_any_mutation() {
         error.message.contains("injected snapshot failure"),
         "{error:?}"
     );
+    assert!(
+        error.message.contains("the version was not changed")
+            && error.message.contains("turn off automatic snapshots"),
+        "the player is told the version did not change and how to continue: {error:?}"
+    );
+    assert_eq!(
+        error.details.get("recovery_action").map(String::as_str),
+        Some("retry_or_disable_snapshots")
+    );
     let status = library.status(ZELDA, ReleaseChannel::Stable).unwrap();
     assert_eq!(
         status.active.unwrap().version,
@@ -3407,4 +3425,162 @@ fn only_the_nothing_to_back_up_error_is_a_recorded_skip() {
     assert!(!is_no_persistent_data(&PortcoveError::not_found(
         "no such port"
     )));
+}
+
+/// Leaves a retention deletion interrupted mid-cleanup for `ZELDA`; returns its quarantine.
+fn seed_stuck_prune(library: &Library) -> std::path::PathBuf {
+    let store = OperationStore::new(library.clone());
+    let mut operation =
+        LifecycleOperation::new("stuck-prune", LifecycleOperationKind::DeleteBackup, ZELDA);
+    let original = library
+        .backups_dir()
+        .join(ZELDA)
+        .join(Uuid::new_v4().to_string());
+    let quarantine = original
+        .parent()
+        .unwrap()
+        .join(format!(".deleting-{}", operation.id));
+    operation.paths.final_path = Some(original);
+    operation.paths.quarantine = Some(quarantine.clone());
+    operation.last_error = Some("interrupted prune".into());
+    fs::create_dir_all(&quarantine).unwrap();
+    fs::write(quarantine.join("partial-data"), b"remaining").unwrap();
+    operation.phase = LifecyclePhase::CleanupPending;
+    store.put(&mut operation).unwrap();
+    quarantine
+}
+
+#[test]
+fn a_pending_retention_deletion_is_finished_instead_of_blocking_the_snapshot() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    let user = library.user_dir(ZELDA);
+    fs::create_dir_all(&user).unwrap();
+    fs::write(user.join("general.json"), b"saves").unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let active = service.status(ZELDA).unwrap().active.unwrap();
+    let quarantine = seed_stuck_prune(&library);
+    let store = OperationStore::new(library.clone());
+
+    service
+        .snapshot_before_version_change(
+            ZELDA,
+            VersionChangeKind::Update,
+            &active,
+            Some("v1"),
+            "v2",
+            false,
+        )
+        .expect("the leftover prune no longer blocks the version change");
+
+    assert!(!quarantine.exists());
+    assert!(store.get("stuck-prune").unwrap().is_none());
+    assert_eq!(automatic_snapshots(&service).len(), 1);
+}
+
+#[test]
+fn a_pending_retention_deletion_does_not_block_a_manual_backup() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    let user = library.user_dir(ZELDA);
+    fs::create_dir_all(&user).unwrap();
+    fs::write(user.join("general.json"), b"saves").unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let quarantine = seed_stuck_prune(&library);
+
+    let backup = service
+        .create_backup(ZELDA)
+        .expect("the leftover prune no longer blocks a manual backup");
+
+    assert!(backup.automatic.is_none());
+    assert!(!quarantine.exists());
+    assert!(
+        OperationStore::new(library)
+            .get("stuck-prune")
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
+fn snapshot_failure_wording_leaves_errors_with_their_own_remedy_untouched() {
+    let hold = PortcoveError::conflict("unfinished backup restore; complete recovery first");
+    let explained = super::super::backups::explain_snapshot_failure(hold);
+    assert_eq!(
+        explained.message,
+        "unfinished backup restore; complete recovery first"
+    );
+    assert!(!explained.details.contains_key("recovery_action"));
+
+    let retained = PortcoveError::verification("preserve this runtime and review it");
+    let explained = super::super::backups::explain_snapshot_failure(retained);
+    assert_eq!(explained.message, "preserve this runtime and review it");
+    assert!(!explained.details.contains_key("recovery_action"));
+
+    let copy = super::super::backups::explain_snapshot_failure(PortcoveError::state("disk full"));
+    assert!(copy.message.contains("disk full."));
+    assert!(copy.message.contains("the version was not changed"));
+}
+
+/// A save file the player's account cannot read stops the rollback with an actionable
+/// message and leaves the version alone; once the file is readable again, retrying works
+/// and takes the snapshot. This runs the real copy path, not an injected fault.
+#[cfg(unix)]
+#[test]
+fn an_unreadable_save_stops_the_rollback_and_a_retry_succeeds_once_it_is_readable() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    register_zelda_install(&library, "v2", true);
+    let save = library.user_dir(ZELDA).join("general.json");
+    fs::create_dir_all(save.parent().unwrap()).unwrap();
+    fs::write(&save, b"progress").unwrap();
+    fs::set_permissions(&save, fs::Permissions::from_mode(0o000)).unwrap();
+    if fs::File::open(&save).is_ok() {
+        // Running with privileges that ignore file modes (for example as root).
+        fs::set_permissions(&save, fs::Permissions::from_mode(0o644)).unwrap();
+        return;
+    }
+    let service = PortcoveService::new(library.clone()).unwrap();
+
+    let error = service.rollback(ZELDA).unwrap_err();
+
+    assert!(
+        error
+            .message
+            .contains("could not back up this game's saves")
+            && error.message.contains("the version was not changed")
+            && error.message.contains("turn off automatic snapshots"),
+        "{error:?}"
+    );
+    let status = library.status(ZELDA, ReleaseChannel::Stable).unwrap();
+    assert_eq!(status.active.unwrap().version, "v2", "no version change");
+    assert!(automatic_snapshots(&service).is_empty());
+    assert!(
+        service.list_backups(ZELDA).unwrap().backups.is_empty(),
+        "no partial snapshot is published"
+    );
+
+    fs::set_permissions(&save, fs::Permissions::from_mode(0o644)).unwrap();
+    service.rollback(ZELDA).unwrap();
+
+    let snapshots = automatic_snapshots(&service);
+    assert_eq!(snapshots.len(), 1);
+    assert_eq!(
+        fs::read(snapshots[0].path.join("data/general.json")).unwrap(),
+        b"progress"
+    );
+    assert_eq!(
+        library
+            .status(ZELDA, ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap()
+            .version,
+        "v1"
+    );
 }

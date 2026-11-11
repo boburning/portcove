@@ -130,8 +130,9 @@ export async function completeCoordinatorSigningContext(
           phase = "metadata-owned-pending";
           await bindCoordinatorSigningContextPending(receipt, executor, pending);
           phase = "fixed-public-context-upload";
+          // Handoff returns only after the existing post-OIDC context check.
+          // The checkpoint callback separately rechecks authority before CAS.
           handoff = await handoffSigningContextArtifact(artifact, identity, pending, deadline);
-          await requireCoordinatorSigningContext(receipt, deadline);
           return {
             remote_identity: `github-actions:boburning/portcove:artifact:${handoff.artifact_id}`,
             evidence_sha256: handoff.predicate_sha256,

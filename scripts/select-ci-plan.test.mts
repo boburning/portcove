@@ -242,7 +242,7 @@ void test("ordinary shared validation cannot borrow a reduced release qualificat
     const options = {
       eventName: "pull_request",
       fastValidationEnabled: true,
-      checkoutSha: sha("c"),
+      checkoutSha: sha("b"),
       baseSha: sha("a"),
       headSha: sha("b"),
     };
@@ -330,14 +330,49 @@ void test("malformed incomplete or empty change discovery fails closed", () => {
   assert.equal(classifyChanges([]).mode, "blocked");
 });
 
-void test("pull requests compare the complete merge-base range and record tested checkout", () => {
+void test("test merges classify the complete checkout delta against their verified target", () => {
+  for (const sharedTarget of [sha("a"), sha("e")]) {
+    const calls: string[][] = [];
+    const plan = discoverCiPlan(
+      {
+        eventName: "pull_request",
+        baseSha: sha("a"),
+        headSha: sha("b"),
+        checkoutSha: sha("c"),
+        fastValidationEnabled: true,
+      },
+      (args) => {
+        calls.push(args);
+        if (args[0] === "rev-list") return `${sha("c")} ${sha("e")} ${sha("b")}\n`;
+        if (args[0] === "merge-base") return args[2] === sha("a") ? sharedTarget : sha("d");
+        return raw(modified("crates/portcove-core/src/path.rs"));
+      },
+    );
+    assert.equal(plan.mode, "fast");
+    assert.deepEqual(plan.groups, ["rust", "rust-quality"]);
+    assert.deepEqual(plan.identities, {
+      base: sha("e"),
+      merge_base: sha("d"),
+      head: sha("b"),
+      checkout: sha("c"),
+    });
+    assert.deepEqual(calls, [
+      ["rev-list", "--parents", "-n", "1", sha("c")],
+      ["merge-base", "--all", sha("a"), sha("e")],
+      ["merge-base", "--all", sha("e"), sha("b")],
+      ["diff", "--raw", "-z", "--find-renames", sha("e"), sha("c")],
+    ]);
+  }
+});
+
+void test("source-only pull requests keep the complete merge-base comparison", () => {
   const calls: string[][] = [];
   const plan = discoverCiPlan(
     {
       eventName: "pull_request",
       baseSha: sha("a"),
       headSha: sha("b"),
-      checkoutSha: sha("c"),
+      checkoutSha: sha("b"),
       proseOnlyEnabled: true,
     },
     (args) => {
@@ -347,13 +382,42 @@ void test("pull requests compare the complete merge-base range and record tested
   );
   assert.equal(plan.mode, "prose");
   assert.equal(plan.identities.merge_base, sha("d"));
-  assert.equal(plan.identities.checkout, sha("c"));
-  assert.deepEqual(calls[1], ["diff", "--raw", "-z", "--find-renames", sha("d"), sha("b")]);
+  assert.equal(plan.identities.checkout, sha("b"));
+  assert.deepEqual(calls, [
+    ["merge-base", "--all", sha("a"), sha("b")],
+    ["diff", "--raw", "-z", "--find-renames", sha("d"), sha("b")],
+  ]);
+});
+
+void test("unbound or unrelated pull request test merges block discovery", () => {
+  const options = {
+    eventName: "pull_request",
+    baseSha: sha("a"),
+    headSha: sha("b"),
+    checkoutSha: sha("c"),
+    fastValidationEnabled: true,
+  };
+  for (const parents of [
+    ["c", "e"],
+    ["c", "b", "e"],
+    ["c", "e", "b", "f"],
+    ["d", "e", "b"],
+    ["c", "e", "b"],
+  ]) {
+    const calls: string[] = [];
+    const plan = discoverCiPlan(options, (args) => {
+      calls.push(args[0]!);
+      return args[0] === "rev-list" ? parents.map(sha).join(" ") : sha("d");
+    });
+    assert.equal(plan.mode, "blocked", parents.join(" "));
+    assert.equal(plan.discovery, "failed");
+    assert.ok(!calls.includes("diff"));
+  }
 });
 
 void test("prose selection requires qualification until independently activated", () => {
   const plan = discoverCiPlan(
-    { eventName: "pull_request", baseSha: sha("a"), headSha: sha("b"), checkoutSha: sha("c") },
+    { eventName: "pull_request", baseSha: sha("a"), headSha: sha("b"), checkoutSha: sha("b") },
     (args) => (args[0] === "merge-base" ? `${sha("d")}\n` : raw(modified("docs/README.md"))),
   );
   assert.equal(plan.mode, "qualification");
@@ -368,7 +432,7 @@ void test("fast routing requires a separate trusted activation change", () => {
         eventName: "pull_request",
         baseSha: sha("a"),
         headSha: sha("b"),
-        checkoutSha: sha("c"),
+        checkoutSha: sha("b"),
         proseOnlyEnabled: true,
         fastValidationEnabled,
       },
@@ -544,7 +608,10 @@ void test("containment discovery binds complete protected coverage for both rena
           checkoutSha: sha("c"),
           fastValidationEnabled: true,
         },
-        (args) => (args[0] === "merge-base" ? `${sha("d")}\n` : diff),
+        (args) => {
+          if (args[0] === "rev-list") return `${sha("c")} ${sha("a")} ${sha("b")}\n`;
+          return args[0] === "merge-base" ? `${sha("d")}\n` : diff;
+        },
       );
       assert.equal(selected.discovery, "complete");
       assert.equal(selected.mode, "fast", input);

@@ -29,6 +29,7 @@ use catalog::CatalogCommand;
 mod game_settings;
 mod human;
 mod human_adapters;
+mod profile;
 mod progress;
 mod retained_build_human;
 use progress::HumanProgress;
@@ -620,6 +621,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
     .then(|| cancellation::CancellationSignals::start(service.clone()))
     .transpose()?;
     match cli.command {
+        Commands::Profile { command } => {
+            profile::execute(command, &service, mode)?;
+        }
         Commands::Setup { command } => {
             setup::execute(command, &service, mode, cli.non_interactive).await?;
         }
@@ -2897,7 +2901,12 @@ async fn exec_game(service: &PortcoveService, args: ExecArgs) -> Result<ExitCode
     let (accepted_sender, accepted_receiver) = tokio::sync::oneshot::channel();
     let (started_sender, started_receiver) = tokio::sync::oneshot::channel();
     let mut supervision = tokio::task::spawn_blocking(move || {
-        PortcoveService::new(library)?.supervise_launch_identified(
+        let service = PortcoveService::new(library)?;
+        // Preparation progress (for example unpacking a disc image) goes to
+        // stderr before the game starts; the game's own streams stay untouched.
+        let progress =
+            std::cell::RefCell::new(progress_renderer(OutputMode::Human, service.catalog()));
+        service.supervise_launch_observed(
             IdentifiedLaunchRequest {
                 request_id: &worker_request_id,
                 port_id: &args.port_id,
@@ -2905,6 +2914,7 @@ async fn exec_game(service: &PortcoveService, args: ExecArgs) -> Result<ExitCode
                 arguments: &args.game_args,
                 stdio: LaunchStdio::Inherit,
             },
+            &|event| (progress.borrow_mut())(event),
             |session| {
                 let _ = accepted_sender.send(session.id.clone());
             },
@@ -3283,6 +3293,7 @@ fn exit_code(error: &PortcoveError) -> u8 {
 fn command_name(command: &Commands) -> &'static str {
     match command {
         Commands::Setup { command } => command.name(),
+        Commands::Profile { command } => command.name(),
         Commands::Auth { command } => match command {
             AuthCommand::Status => "auth.status",
             AuthCommand::Login => "auth.login",

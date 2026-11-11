@@ -1091,6 +1091,7 @@ void test("actual context recovery awaits scoped maintenance through a refreshed
     stripTypeScriptTypes(source.slice(start, end)) + "; recoverTrustedCoordinatorContext;",
     {
       selectCoordinatorPendingContextRecovery: () => selected,
+      retainedApplicationContextUpload: { checkpoint: "different" },
       requireControllerApplicationCoordinatorPublicationAuthorities: async () => authorities,
       inspectCoordinatorRemoteNamespace: () => "fixed",
       receiveControllerTools: async () => ({}),

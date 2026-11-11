@@ -105,6 +105,7 @@ mod tests {
             selected_executable: &executable,
             source: None,
             source_record: None,
+            disc_progress: None,
         };
         let adapter = AdapterRegistry.get(AdapterKind::N64RecompPortable);
         assert_eq!(

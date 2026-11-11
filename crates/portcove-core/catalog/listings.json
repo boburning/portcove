@@ -1699,6 +1699,16 @@
       "project_url": "https://github.com/perfect-dark-pc-port/perfect_dark",
       "listed_at": "2026-10-23",
       "original_game_title": "Perfect Dark",
+      "manual_setup": {
+        "help_url": "https://github.com/perfect-dark-pc-port/perfect_dark#macos",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Set up SDL2 on your Mac",
+            "instruction": "Before Play on Intel or Apple Silicon, follow the upstream Mac instructions to install SDL2.framework for your Mac in /Library/Frameworks. Portcove manages the Perfect Dark player archive. You manage the system framework separately. Use your own US Rev 1 Perfect Dark source with this player."
+          }
+        ]
+      },
       "artwork": {
         "game_id": 271424,
         "cover_id": 336876,
@@ -1710,7 +1720,9 @@
       "issue_number": 106,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "unknown"
     },
@@ -50791,7 +50803,7 @@
     {
       "id": "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo",
       "name": "Star Wars Jedi Knight II: Jedi Outcast (single player) (OpenJK / OpenJO)",
-      "summary": "Use the official OpenJO Windows player with an already prepared, matching working original-data copy. New original-game first setup remains held.",
+      "summary": "Use the official OpenJO campaign player with matching original data from an already working OpenJO setup.",
       "original_game_title": "Star Wars Jedi Knight II: Jedi Outcast (single player)",
       "project_url": "https://github.com/JACoders/OpenJK",
       "availability": "packages",
@@ -50817,29 +50829,30 @@
         "steps": [
           {
             "title": "Use already prepared OpenJO data",
-            "instruction": "This managed route accepts only a matching original-data copy already prepared for a working OpenJO installation. Copy that known-working original base folder beside the official player and keep the complete original installation and creating runtime unchanged and separate. New Outcast first setup remains held until upstream establishes the exact original-data, patch and layout contract. Keep the package's OpenJK game-library folder and all its own DLLs intact; do not copy old executables or DLLs into this runtime. Jedi Academy is a different game. Portcove does not verify original-game identity or perform that first setup. Customized layouts can retain their existing external registration."
+            "instruction": "This managed route accepts only a matching original-data copy already prepared for a working OpenJO installation. On Windows, copy that known-working original base folder beside the official player and keep the complete original installation and creating runtime unchanged and separate. New Outcast first setup remains held until upstream establishes the exact original-data, patch and layout contract. Keep the package's OpenJK game-library folder and all its own DLLs intact; do not copy old executables or DLLs into this runtime. Jedi Academy is a different game. Portcove does not verify original-game identity or perform that first setup. Customized layouts can retain their existing external registration."
           },
           {
             "title": "Keep the correct player and profile",
-            "instruction": "The managed player follows the Rolling latest build; this channel does not establish gameplay qualification. The managed copy selects openjo_sp.x86_64.exe for single player. OpenJO multiplayer is outside this upstream player; upstream describes Outcast single player as working but still needing attention. This selected Windows package contains the non-portable home-directory branch: normal saves, configuration and logs use the actual Documents/My Games/OpenJO profile."
+            "instruction": "The managed player follows the Rolling latest build; this channel does not establish gameplay qualification. On Windows, the managed copy selects openjo_sp.x86_64.exe for single player. OpenJO multiplayer is outside this upstream player; upstream describes Outcast single player as working but still needing attention. This selected Windows package contains the non-portable home-directory branch: normal saves, configuration and logs use the actual Documents/My Games/OpenJO profile."
           },
           {
             "title": "Keep an existing prepared copy",
             "instruction": "Use this route only for an already prepared, working upstream OpenJO installation with your own matching Outcast data. The inspected official OpenJO-windows-x86_64.zip contains openjo_sp.x86_64.exe; keep its companions. Register the existing player and its already working directory/arguments. Do not apply the Academy setup recipe to Outcast or treat this package inspection as original-data acceptance."
           },
           {
-            "title": "Prepare the upstream Linux player",
-            "instruction": "Unpack OpenJO-linux-x86_64.tar.gz into the matching Jedi Outcast GameData working folder with its own base data. Keep the packaged OpenJK modules next to the launcher. The current build needs host SDL2, zlib and glibc 2.34 or newer. Run openjo_sp.x86_64 for the campaign. Use the project’s setup and replacement steps."
+            "title": "Prepare the Linux OpenJO campaign profile",
+            "instruction": "Put the original archives in $XDG_DATA_HOME/openjo/base when XDG_DATA_HOME is set to an absolute path. Otherwise, with XDG_DATA_HOME unset, use ~/.local/share/openjo/base. Use only matching data archives from an already working Outcast installation. The inspected official build requires glibc 2.34, libstdc++ with GLIBCXX_3.4.29, SDL2, zlib, libjpeg.so.8, libpng16.so.16 and libOpenGL.so.0."
           },
           {
-            "title": "Prepare the upstream Mac player",
-            "instruction": "Unpack the official OpenJO Mac tarball for your Mac with the system archive tools. Keep the app and its required game data in the matching Jedi Outcast GameData layout. Open openjo_sp.arm64.app or openjo_sp.x86_64.app for the campaign. Keep the complete app, including libSDL2-2.0.0.dylib in Contents/Frameworks and follow the project’s data setup instructions. The inspected packages require macOS 14 or later on Intel and macOS 15 or later on Apple Silicon."
+            "title": "Prepare the Mac OpenJO campaign profile",
+            "instruction": "Put the same prepared Outcast original archives in ~/Library/Application Support/OpenJO/base. Use the matching Intel or Apple Silicon package. The inspected bundled SDL2 requires macOS 14 or later on Intel and macOS 15 or later on Apple Silicon."
           }
         ],
         "warnings": [
           "New Outcast setup remains held until upstream establishes the exact original-data/patch/layout contract. Upstream labels Outcast single player as needing attention and does not support Outcast multiplayer here.",
           "Back it up separately with your originals and creating runtime before changing versions.",
-          "A runtime rollback does not rewind external saves or establish older-runtime, mod or recorded-demo compatibility."
+          "A runtime rollback does not rewind external saves or establish older-runtime, mod or recorded-demo compatibility.",
+          "Keep the Unix profile and original archives outside the Portcove library and back them up separately. Use a separately prepared copy for profiles with alternate native modules. Managed runtime replacement and rollback leave this external data in place."
         ],
         "help_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md",
         "references": [
@@ -50867,7 +50880,7 @@
     {
       "id": "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
       "name": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer) (OpenJK / OpenJO)",
-      "summary": "Use the official OpenJK project Windows player for Jedi Academy with your own matching PC data. Keep original files and the external profile backed up.",
+      "summary": "Use the official OpenJK campaign player on Windows or Linux with your matching patched Jedi Academy data.",
       "original_game_title": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer)",
       "project_url": "https://github.com/JACoders/OpenJK",
       "availability": "packages",
@@ -50892,12 +50905,12 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Prepare the matching PC game",
-            "instruction": "Before Play, copy only assets0.pk3, assets1.pk3, assets2.pk3 and assets3.pk3 from your own patched PC GameData/base into base beside the player. Keep the original game installation unchanged and separate. The runtime also ships DLLs in base: keep them intact and copy only the four original asset archives into that folder. Jedi Academy needs its own matching files; Jedi Outcast is a different game. Portcove does not verify original-game identity. Do not copy old executables or DLLs over the official runtime. Customized game/mod layouts can retain an external registration."
+            "title": "Prepare matching PC game data on Windows",
+            "instruction": "On Windows, before Play, copy only assets0.pk3, assets1.pk3, assets2.pk3 and assets3.pk3 from your own patched PC GameData/base into base beside the player. Keep the original game installation unchanged and separate. The runtime also ships DLLs in base: keep them intact and copy only the four original asset archives into that folder. Jedi Academy needs its own matching files; Jedi Outcast is a different game. Portcove does not verify original-game identity. Do not copy old executables or DLLs over the official runtime. Customized game/mod layouts can retain an external registration."
           },
           {
             "title": "Keep the correct player and profile",
-            "instruction": "The managed player follows the Rolling latest build; this channel does not establish gameplay qualification. The managed copy selects openjk_sp.x86_64.exe for single player. Multiplayer remains available by registering your separately prepared openjk.x86_64.exe copy with its actual GameData working folder; openjkded.x86_64.exe is a server. This selected Windows package contains the non-portable home-directory branch: normal saves, configuration and logs use the actual Documents/My Games/OpenJK profile. Back it up separately with your originals and creating runtime before changing versions. Portable builds, unavailable Documents folders and explicit home-path overrides can change the write location; those configurations need their own preserved external registration. A runtime rollback does not rewind external saves or establish older-runtime, mod or recorded-demo compatibility."
+            "instruction": "The managed player follows the Rolling latest build; this channel does not establish gameplay qualification. On Windows, the managed copy selects openjk_sp.x86_64.exe for single player. Multiplayer remains available by registering your separately prepared openjk.x86_64.exe copy with its actual GameData working folder; openjkded.x86_64.exe is a server. This selected Windows package contains the non-portable home-directory branch: normal saves, configuration and logs use the actual Documents/My Games/OpenJK profile. Back it up separately with your originals and creating runtime before changing versions. Portable builds, unavailable Documents folders and explicit home-path overrides can change the write location; those configurations need their own preserved external registration. A runtime rollback does not rewind external saves or establish older-runtime, mod or recorded-demo compatibility."
           },
           {
             "title": "Keep an existing prepared copy",
@@ -50912,16 +50925,17 @@
             "instruction": "A library can have only one installation or registration for this title at a time. Choose managed single player or a separately prepared external player; do not register files inside a Portcove-managed installation or output folder. Preserve your originals, complete external profile and creating runtime before changing routes, then use the existing removal choice first. Registration-only removal preserves all external files. The external multiplayer route offers reviewed registration, separate Play and preserving registration removal, not managed installation, updates, backup, rollback, migration or deletion of that copy. Existing managed single-player installations and retained registrations keep their own contracts."
           },
           {
-            "title": "Prepare the upstream Linux player",
-            "instruction": "Unpack OpenJK-linux-x86_64.tar.gz into the matching Jedi Academy GameData working folder with its own base data. Keep the packaged OpenJK modules next to the launcher. The current build needs host SDL2, zlib and glibc 2.34 or newer. Run openjk_sp.x86_64 for the campaign. Run openjk.x86_64 for multiplayer. Use the project’s setup and replacement steps."
-          },
-          {
             "title": "Prepare the upstream Mac player",
             "instruction": "Unpack the official OpenJK Mac tarball for your Mac with the system archive tools. Keep the app and its required game data in the matching Jedi Academy GameData layout. Open openjk_sp.arm64.app or openjk_sp.x86_64.app for the campaign. Use openjk.arm64.app or openjk.x86_64.app for multiplayer. Keep the complete app, including libSDL2-2.0.0.dylib in Contents/Frameworks and follow the project’s data setup instructions. The inspected packages require macOS 14 or later on Intel and macOS 15 or later on Apple Silicon."
+          },
+          {
+            "title": "Prepare the Linux OpenJK campaign profile",
+            "instruction": "Put the original archives in $XDG_DATA_HOME/openjk/base when XDG_DATA_HOME is set to an absolute path. Otherwise, with XDG_DATA_HOME unset, use ~/.local/share/openjk/base. Use only assets0.pk3 through assets3.pk3 from your own patched PC GameData/base. The inspected official build requires glibc 2.34, libstdc++ with GLIBCXX_3.4.29, SDL2, zlib, libjpeg.so.8, libpng16.so.16 and libOpenGL.so.0."
           }
         ],
         "warnings": [
-          "Keep the external working GameData copy and its originals too. Upstream or you replace this multiplayer runtime. Server downloads and mods are not Portcove-managed runtime updates, and existing demos, mods, saves or server compatibility are not guaranteed after replacement."
+          "Keep the external working GameData copy and its originals too. Upstream or you replace this multiplayer runtime. Server downloads and mods are not Portcove-managed runtime updates, and existing demos, mods, saves or server compatibility are not guaranteed after replacement.",
+          "Keep the Unix profile and original archives outside the Portcove library and back them up separately. Use a separately prepared copy for profiles with alternate native modules. Managed runtime replacement and rollback leave this external data in place."
         ],
         "help_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md",
         "references": [

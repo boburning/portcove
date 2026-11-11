@@ -43,6 +43,10 @@ impl EngineTemplateCapability {
             contract_version: 2,
         });
         supported.push(Self {
+            template: AdapterKind::GeneratedCache,
+            contract_version: crate::runtime::GENERATED_CACHE_TAR_XZ_CAPABILITY,
+        });
+        supported.push(Self {
             template: AdapterKind::NativePortable,
             contract_version: 2,
         });
@@ -241,6 +245,10 @@ impl EngineTemplateCapability {
         supported.push(Self {
             template: AdapterKind::NativePortable,
             contract_version: crate::native_external_profile::doom3_linux::NATIVE_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::native_external_profile::openjk::NATIVE_CAPABILITY,
         });
         supported
     }
@@ -498,6 +506,28 @@ mod tests {
             );
             assert!(
                 check_definition_capabilities(&request(template, 1, 1))
+                    .unwrap()
+                    .compatible
+            );
+        }
+    }
+
+    #[test]
+    fn generated_cache3_mac_tar_xz_excludes_older_readers_and_keeps_generated_cache2() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::GeneratedCache || entry.contract_version < 3
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("generated-cache", 3, 3), &previous)
+                .unwrap()
+                .compatible
+        );
+        for version in [2, 3] {
+            assert!(
+                check_definition_capabilities(&request("generated-cache", version, version))
                     .unwrap()
                     .compatible
             );
@@ -1306,7 +1336,7 @@ mod tests {
                 DefinitionCapabilityOutcome::UnsupportedTemplate
             ]
         );
-        assert_eq!(report.checks[1].installed_version, Some(2));
+        assert_eq!(report.checks[1].installed_version, Some(3));
         assert_eq!(report.checks[2].installed_version, None);
     }
 

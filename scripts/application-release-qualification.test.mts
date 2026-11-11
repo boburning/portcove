@@ -282,55 +282,64 @@ void test("locked SDK reads exact qualification recipes and rechecks the run aft
   ]);
 });
 
-void test("only the retained Windows source and first attempt may use pinned historical recipes", async () => {
-  const historical = {
+for (const historical of [
+  {
     id: 42407004590,
     run_attempt: 1,
     head_sha: "fd4b1a1c5bf3a4253ee06a357df04bb1f203cb2f",
     path: ".github/workflows/application-release.yml",
-  };
-  const content = Buffer.from("different workflow bytes");
-  for (const fault of [
-    "source",
-    "provider-source",
-    "attempt",
-    "workflow",
-    "digest",
-    "ordinary-drift",
-  ]) {
-    const run = { ...historical };
-    const selected = fault === "source" ? source : historical.head_sha;
-    if (fault === "provider-source") run.head_sha = source;
-    if (fault === "attempt") run.run_attempt = 2;
-    if (fault === "workflow") run.path = ".github/workflows/qualification.yml";
-    if (fault === "ordinary-drift") run.id = 999;
-    let recipeReads = 0;
-    const forbidden = async () => {
-      throw new Error("downstream evidence accessed after refusal");
-    };
-    const reader = {
-      run: async () => run,
-      file: async () => {
-        recipeReads++;
-        return {
-          type: "file",
-          encoding: "base64",
-          size: content.length,
-          content: content.toString("base64"),
-        };
-      },
-      jobs: forbidden,
-      artifacts: forbidden,
-      intentArchive: forbidden,
-    };
-    await assert.rejects(
-      readWindowsApplicationQualification(reader, run.id, selected),
-      fault === "digest"
-        ? /historical Windows qualification recipe digest differs/u
-        : fault === "ordinary-drift"
-          ? /qualification recipe changed/u
-          : /historical Windows qualification source or attempt differs/u,
-    );
-    assert.equal(recipeReads, fault === "digest" || fault === "ordinary-drift" ? 1 : 0);
-  }
-});
+  },
+  {
+    id: 42656355737,
+    run_attempt: 2,
+    head_sha: "29f33f577dd08888daa308f6534e1ba2e0d10eaf",
+    path: ".github/workflows/application-release.yml",
+  },
+]) {
+  void test(`historical Windows qualification ${historical.id} requires exact source, attempt and recipes`, async () => {
+    const content = Buffer.from("different workflow bytes");
+    for (const fault of [
+      "source",
+      "provider-source",
+      "attempt",
+      "workflow",
+      "digest",
+      "ordinary-drift",
+    ]) {
+      const run = { ...historical };
+      const selected = fault === "source" ? source : historical.head_sha;
+      if (fault === "provider-source") run.head_sha = source;
+      if (fault === "attempt") run.run_attempt = historical.run_attempt === 1 ? 2 : 1;
+      if (fault === "workflow") run.path = ".github/workflows/qualification.yml";
+      if (fault === "ordinary-drift") run.id = 999;
+      let recipeReads = 0;
+      const forbidden = async () => {
+        throw new Error("downstream evidence accessed after refusal");
+      };
+      const reader = {
+        run: async () => run,
+        file: async () => {
+          recipeReads++;
+          return {
+            type: "file",
+            encoding: "base64",
+            size: content.length,
+            content: content.toString("base64"),
+          };
+        },
+        jobs: forbidden,
+        artifacts: forbidden,
+        intentArchive: forbidden,
+      };
+      await assert.rejects(
+        readWindowsApplicationQualification(reader, run.id, selected),
+        fault === "digest"
+          ? /historical Windows qualification recipe digest differs/u
+          : fault === "ordinary-drift"
+            ? /qualification recipe changed/u
+            : /historical Windows qualification source or attempt differs/u,
+      );
+      assert.equal(recipeReads, fault === "digest" || fault === "ordinary-drift" ? 1 : 0);
+    }
+  });
+}

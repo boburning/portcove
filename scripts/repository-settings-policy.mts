@@ -1,4 +1,13 @@
 import { isDeepStrictEqual } from "node:util";
+import { releaseCanonicalDigest } from "./release-canonical.mts";
+import {
+  activeRefRuleset,
+  controllerTagPatterns,
+  hasControllerTagProtection,
+  hasOnlyRules,
+  matchesControllerTagPattern,
+  releaseOwner,
+} from "./release-ref-rulesets.mts";
 import { isRecord } from "./runtime-values.mts";
 import { GitHubApiError } from "./github-operation.mts";
 
@@ -470,4 +479,276 @@ export async function reconcileRepositorySettings(
     throw error;
   }
   return { kind: "checked" as const, repository: repo };
+}
+
+const releaseBranches = [
+  "refs/heads/portcove-production-coordinator-state",
+  "refs/heads/portcove-release-inputs",
+  "refs/heads/portcove-release-pause",
+] as const;
+
+function releaseRuleset(
+  name: string,
+  target: "branch" | "tag",
+  include: readonly string[],
+  types: readonly string[],
+  actors: readonly object[] = [],
+) {
+  return {
+    name,
+    target,
+    enforcement: "active",
+    bypass_actors: actors,
+    conditions: { ref_name: { include, exclude: [] } },
+    rules: types.map((type) => ({ type })),
+  };
+}
+
+const releaseRulesets = {
+  writer: releaseRuleset(
+    "Portcove release state writer",
+    "branch",
+    releaseBranches.slice(0, 2),
+    ["update"],
+    [{ actor_id: 5632044, actor_type: "Integration", bypass_mode: "always" }],
+  ),
+  retention: releaseRuleset("Portcove release branch retention", "branch", releaseBranches, [
+    "creation",
+    "deletion",
+    "non_fast_forward",
+  ]),
+  pause: releaseRuleset(
+    "Portcove publication pause owner update",
+    "branch",
+    [releaseBranches[2]],
+    ["update"],
+    [releaseOwner],
+  ),
+  immutable: releaseRuleset("Portcove controller tag immutability", "tag", controllerTagPatterns, [
+    "update",
+    "deletion",
+  ]),
+  creator: releaseRuleset(
+    "Portcove controller tag creation",
+    "tag",
+    controllerTagPatterns,
+    ["creation"],
+    [releaseOwner],
+  ),
+};
+
+function releaseRulesetContract(value: unknown) {
+  const row = record(value, "release ruleset");
+  return {
+    name: row.name,
+    target: row.target,
+    enforcement: row.enforcement,
+    conditions: row.conditions,
+    rules: row.rules,
+    bypass_actors: row.bypass_actors,
+  };
+}
+
+type ReleaseRulesetPayload = ReturnType<typeof releaseRuleset>;
+type ReleaseRulesetMutation =
+  | { action: "update"; id: number; payload: ReleaseRulesetPayload }
+  | { action: "create"; payload: ReleaseRulesetPayload }
+  | { action: "delete"; policies: { id: number; refs: string[] }[]; replacements: number[] };
+
+function sameReleaseRuleset(
+  actual: ReturnType<typeof releaseRulesetContract>,
+  desired: ReleaseRulesetPayload,
+) {
+  const { include, exclude } = desired.conditions.ref_name;
+  if (!isRecord(actual.conditions) || !isRecord(actual.conditions.ref_name)) return false;
+  const actualIncludes = actual.conditions.ref_name.include;
+  return (
+    actual.name === desired.name &&
+    actual.target === desired.target &&
+    actual.enforcement === desired.enforcement &&
+    isDeepStrictEqual(actual.bypass_actors, desired.bypass_actors) &&
+    Array.isArray(actual.rules) &&
+    hasOnlyRules(
+      actual.rules,
+      desired.rules.map(({ type }) => type),
+    ) &&
+    Object.keys(actual.conditions).length === 1 &&
+    Object.keys(actual.conditions.ref_name).length === 2 &&
+    isDeepStrictEqual(actual.conditions.ref_name.exclude, exclude) &&
+    Array.isArray(actualIncludes) &&
+    actualIncludes.length === include.length &&
+    include.every((ref) => actualIncludes.includes(ref))
+  );
+}
+
+/** Plan one stage. Establish and read back coverage before a later
+ * invocation can remove any redundant objects. The two unrelated repository policies are
+ * retained as part of the inventory binding. */
+export function planReleaseRulesets(
+  inventory: unknown,
+  refs: Readonly<Record<string, string>>,
+  desiredMain: unknown,
+) {
+  const details = records(inventory, "complete release ruleset inventory");
+  const rows = details
+    .map((row) => {
+      if (
+        typeof row.id !== "number" ||
+        !Number.isSafeInteger(row.id) ||
+        row.id < 1 ||
+        row.source_type !== "Repository" ||
+        row.source !== "boburning/portcove"
+      )
+        throw new Error("Release ruleset migration found an unexpected policy source or ID");
+      return { ...releaseRulesetContract(row), id: row.id };
+    })
+    .sort((a, b) => a.id - b.id);
+  if (new Set(rows.map((row) => row.id)).size !== rows.length)
+    throw new Error("Release ruleset inventory contains duplicate IDs");
+  const find = (desired: ReleaseRulesetPayload) => {
+    const matches = rows.filter((row) => row.name === desired.name);
+    if (matches.length > 1 || matches.some((row) => !sameReleaseRuleset(row, desired)))
+      throw new Error(`Unexpected drift in ${desired.name}`);
+    return matches[0];
+  };
+  const { writer, retention, pause, immutable, creator } = releaseRulesets;
+  const stable = {
+    writer: find(writer),
+    retention: find(retention),
+    pause: find(pause),
+    immutable: find(immutable),
+    creator: find(creator),
+  };
+  const main = details.filter((row) => row.name === "Protect main");
+  const versionTags = find(
+    releaseRuleset("Protect release tags", "tag", ["refs/tags/v*"], ["update", "deletion"]),
+  );
+  if (
+    !stable.pause ||
+    main.length !== 1 ||
+    rulesetMigration(main[0], desiredMain).changes.length !== 0 ||
+    !versionTags
+  )
+    throw new Error("Pause, main or version-tag policy differs from the existing contract");
+
+  const known = new Set([
+    main[0]!.id,
+    versionTags.id,
+    ...Object.values(stable).map((row) => row?.id),
+  ]);
+  const oldWriters: { id: number; refs: string[] }[] = [];
+  const oldRetention: { id: number; refs: string[] }[] = [];
+  const oldTags: { id: number; refs: string[] }[] = [];
+  const identities: Record<string, string> = {};
+  const retainIdentity = (ref: string) => {
+    const sha = refs[ref];
+    if (!sha || !/^[a-f0-9]{40}$/u.test(sha))
+      throw new Error(`Protected ref is absent or unverified: ${ref}`);
+    identities[ref] = sha;
+  };
+  for (const ref of releaseBranches) retainIdentity(ref);
+  for (const ref of Object.keys(refs))
+    if (
+      /^refs\/tags\/v[^/]*$/u.test(ref) ||
+      controllerTagPatterns.some((pattern) => matchesControllerTagPattern(pattern, ref))
+    )
+      retainIdentity(ref);
+  for (const row of rows) {
+    if (known.has(row.id)) continue;
+    const conditions = record(record(row.conditions).ref_name);
+    const first: unknown = Array.isArray(conditions.include) ? conditions.include[0] : undefined;
+    const policy =
+      typeof first === "string" && (row.target === "branch" || row.target === "tag")
+        ? activeRefRuleset(row, row.target, first)
+        : undefined;
+    if (policy && new Set(policy.includes).size === policy.includes.length) {
+      const entry = { id: row.id, refs: policy.includes };
+      if (
+        row.target === "branch" &&
+        entry.refs.every((ref) => writer.conditions.ref_name.include.includes(ref)) &&
+        hasOnlyRules(policy.rules, ["update"]) &&
+        isDeepStrictEqual(policy.actors, writer.bypass_actors)
+      ) {
+        oldWriters.push(entry);
+        continue;
+      }
+      if (
+        row.target === "branch" &&
+        entry.refs.every((ref) => retention.conditions.ref_name.include.includes(ref)) &&
+        hasOnlyRules(policy.rules, ["creation", "deletion", "non_fast_forward"]) &&
+        policy.actors.length === 0
+      ) {
+        oldRetention.push(entry);
+        continue;
+      }
+      if (
+        row.target === "tag" &&
+        policy.actors.length === 0 &&
+        hasOnlyRules(policy.rules, ["creation", "update", "deletion"]) &&
+        entry.refs.every(
+          (ref) =>
+            !ref.includes("*") &&
+            controllerTagPatterns.some((pattern) => matchesControllerTagPattern(pattern, ref)),
+        )
+      ) {
+        for (const ref of entry.refs) retainIdentity(ref);
+        oldTags.push(entry);
+        continue;
+      }
+    }
+    throw new Error(`Unrecognized release ruleset ${row.id}; preserve it for review`);
+  }
+
+  let next: ReleaseRulesetMutation | null = null;
+  for (const [desired, existing, legacy] of [
+    [writer, stable.writer, oldWriters],
+    [retention, stable.retention, oldRetention],
+  ] as const) {
+    if (!existing) {
+      const survivor = legacy[0];
+      if (
+        !survivor ||
+        !desired.conditions.ref_name.include.every((ref) =>
+          legacy.some((old) => old.refs.includes(ref)),
+        )
+      )
+        throw new Error(`Incomplete predecessor coverage for ${desired.name}`);
+      next ??= { action: "update", id: survivor.id, payload: desired };
+    } else if (legacy[0]) {
+      next ??= { action: "delete", policies: legacy, replacements: [existing.id] };
+    }
+  }
+  const tagPolicies = [stable.immutable, stable.creator];
+  if (!stable.immutable) next ??= { action: "create", payload: immutable };
+  else if (!stable.creator) next ??= { action: "create", payload: creator };
+  else if (oldTags[0]) {
+    if (
+      !oldTags.every(({ refs }) =>
+        refs.every((ref) => hasControllerTagProtection(tagPolicies, ref)),
+      )
+    )
+      throw new Error("Controller tag replacement coverage is incomplete");
+    next ??= {
+      action: "delete",
+      policies: oldTags,
+      replacements: [stable.immutable.id, stable.creator.id],
+    };
+  }
+  if (next?.action === "create" && rows.length >= 75)
+    throw new Error("No ruleset slot available after branch consolidation");
+  return {
+    count: rows.length,
+    observation: releaseCanonicalDigest({
+      rulesets: details.toSorted((a, b) => Number(a.id) - Number(b.id)),
+      identities,
+    }),
+    next,
+    stable,
+    historical: {
+      writer: oldWriters,
+      retention: oldRetention,
+      tags: oldTags,
+    },
+    identities,
+  };
 }

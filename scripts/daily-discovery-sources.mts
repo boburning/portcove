@@ -640,7 +640,24 @@ async function investigatePrimary(c: SourceContext, meta: Record<string, unknown
     release.resolved_tag_commit = str(target.sha);
   }
   const ref = selected[0] ? str(selected[0].resolved_tag_commit) : await commit(c, meta);
-  const readme = rec((await metadataRequest(c, `repos/${repo}/readme?ref=${ref}`)).data);
+  let readmeRef = ref;
+  const readmeRequest = () => metadataRequest(c, `repos/${repo}/readme?ref=${readmeRef}`);
+  const readmeResponse = await readmeRequest()
+    .catch(async (error: unknown) => {
+      if (!selected[0] || !(error instanceof GitHubApiError) || error.status !== 404) throw error;
+      readmeRef = await commit(c, meta);
+      if (!/^[a-f0-9]{40}$/u.test(readmeRef) || readmeRef === ref) throw error;
+      return await readmeRequest();
+    })
+    .catch((error: unknown) => {
+      // A missing required file cannot complete validation of a retained read prefix.
+      if (error instanceof GitHubApiError && error.status === 404)
+        throw new Error(`Required README unavailable for ${repo} at ${readmeRef}`, {
+          cause: error,
+        });
+      throw error;
+    });
+  const readme = rec(readmeResponse.data);
   // One optional project-authored manifest per investigation, inside the same
   // charged budget. Multi-game siblings require separately scoped primary reads.
   let manifest: ReturnType<typeof parseRecompManifest> | undefined;
@@ -675,7 +692,7 @@ async function investigatePrimary(c: SourceContext, meta: Record<string, unknown
     releases,
     selected,
     readme: {
-      commit: ref,
+      commit: readmeRef,
       blob: readme.sha,
       text: Buffer.from(str(readme.content), "base64").toString("utf8"),
     },

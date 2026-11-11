@@ -85,6 +85,11 @@ mod process;
 mod provider_observation;
 mod providers;
 pub use provider_observation::inspect_provider_observation;
+mod disc_filesystem;
+mod disc_product;
+mod mod_package;
+mod profile;
+mod profile_deploy;
 mod psx;
 #[cfg(feature = "qualification-fixtures")]
 mod qualification_checkpoint;
@@ -253,6 +258,9 @@ pub use library_membership::{
 };
 pub use library_move::LibraryMoveResult;
 pub use library_transfer::{LibraryMovePlan, LibraryTreePlan};
+pub use mod_package::{
+    AssetConflict, ModPackageHold, ModPackageInspection, asset_conflicts, inspect_asset_archive,
+};
 pub use operation::{OPERATION_EVENT_SCHEMA_VERSION, OperationCoordinator};
 pub use output_relocation::{
     OutputRelocationInstall, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus,
@@ -278,6 +286,13 @@ pub use preparation::{
     PreparationPlan, PreparationTool,
 };
 pub use process::{ChildProcessClass, ChildProcessPolicy, GameProcessSpec, LaunchKind, LaunchSpec};
+pub use profile::{
+    LibraryProfile, LoaderContractRef, OriginalAvailability, OriginalBinding, OriginalStatus,
+    Profile, ProfileIntent, ProfileInventory, ProfileRevision, ProfileRevisionRequest,
+    ProfileUpdatePolicy, ProfileView, ProviderPackageRef, RequestedPackage, ResolvedPackage,
+    TypedOrdering,
+};
+pub use profile_deploy::LiveMods;
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;
 pub use release::{

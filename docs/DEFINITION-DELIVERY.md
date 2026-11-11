@@ -138,6 +138,15 @@ It holds a DUDE first launch that would copy a legacy profile. Earlier
 creating definitions keep their Windows launch and ownership contracts.
 Fresh and retained indexed entries declaring the policy require version 23.
 
+Native portable version 24 consumes `openjk-unix-v1` for the official
+OpenJK and OpenJO Linux campaign packages and OpenJO on Intel and Apple
+Silicon Macs. It binds the release selector and checked native package
+members. Launch checks the upstream-selected external profile and refuses
+alternate native modules in that profile. Original assets and Unix saves
+stay in the player-owned profile. The Windows routes keep their existing
+creating layouts and persistent paths. Fresh and retained indexed entries
+declaring this policy require version 24.
+
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
 entry that relies on the package-layout gate. Previously admitted
@@ -168,7 +177,16 @@ Native portable version 22 consumes `release.grant_declared_executable`, which l
 grant execution to the declared program of a package whose archive stores it without an
 executable bit, after verifying the file as a binary for the platform. Indexed entries
 with the declaration require a Native22 lower bound for fresh and retained reads; older
-readers refuse the whole definition. Libultraship portable version 4 and generated-cache version 2 consume the same declaration for their Unix routes, with the same lower-bound rule; no other adapter accepts it.
+readers refuse the whole definition. Libultraship portable version 4 and
+generated-cache version 2 consume the same declaration for their Unix routes,
+with the same lower-bound rule. The declaration is limited to these three adapters.
+
+Generated-cache version 3 consumes `release.tar_xz_platforms` for distinct
+declared Mac GitHub player routes. Each route requires a TAR.XZ-specific asset
+hint and keeps the existing checked provider resolution, bounded extraction and
+creating contract. Fresh and retained entries require the version 3 floor even
+when they also declare the version 2 executable grant. The older Native8
+`linux_tar_xz` declaration keeps its Linux-only scope.
 
 Native portable version 9 consumes `external_profile_policy` for the reviewed
 Dune Dynasty and fheroes2 external profile checks. Both fresh and retained

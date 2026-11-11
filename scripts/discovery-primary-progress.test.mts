@@ -18,6 +18,8 @@ async function primaryFixture(numericLinks = false) {
   let changed = false;
   let repositoryId = 41;
   let corrupt = false;
+  let tagReadmeStatus = 200;
+  let branchReadmeStatus = 200;
   const calls: { endpoint: string; conditional: boolean }[] = [];
   const entries: Record<string, unknown> = {};
   let writes = 0;
@@ -55,12 +57,17 @@ async function primaryFixture(numericLinks = false) {
           link = `<https://api.github.com/${numericLinks ? "repositories/41" : "repos/owner/game"}/releases/24/assets?per_page=100&page=${page + 1}>; rel="next"`;
       } else if (endpoint.includes("/git/ref/tags/"))
         body = { object: { type: "commit", sha: "a".repeat(40) } };
-      else if (endpoint.includes("/readme?"))
+      else if (endpoint.endsWith("/git/ref/heads/main"))
+        body = { object: { type: "commit", sha: "c".repeat(40) } };
+      else if (endpoint.includes("/readme?")) {
+        const status = endpoint.endsWith("a".repeat(40)) ? tagReadmeStatus : branchReadmeStatus;
+        if (status !== 200)
+          return Response.json({ message: "fixture README unavailable" }, { status });
         body = {
           sha: "b".repeat(40),
           content: Buffer.from("Primary upstream readme").toString("base64"),
         };
-      else if (endpoint.includes("/contents/.recomp.json?"))
+      } else if (endpoint.includes("/contents/.recomp.json?"))
         return Response.json({ message: "fixture absent manifest" }, { status: 404 });
       else throw new Error(`Unexpected fixture endpoint ${endpoint}`);
       if (conditional && !changed) return new Response(null, { status: 304 });
@@ -114,9 +121,63 @@ async function primaryFixture(numericLinks = false) {
     corrupt: () => {
       corrupt = true;
     },
+    setTagReadmeStatus: (status: number) => {
+      tagReadmeStatus = status;
+    },
+    setBranchReadmeStatus: (status: number) => {
+      branchReadmeStatus = status;
+    },
     writes: () => writes,
   };
 }
+
+void test("a release without a README uses separate pinned documentation across an interrupted primary read", async () => {
+  const h = await primaryFixture();
+  h.setTagReadmeStatus(404);
+  h.setAllowance(32);
+  await assert.rejects(
+    investigateDiscoveryUpstream(h.context, "owner/game"),
+    (error) => error instanceof GitHubApiError && error.code === "budget_exhausted",
+  );
+  h.setAllowance(100);
+  const result = await investigateDiscoveryUpstream(h.context, "owner/game");
+  assert.equal(result.selected[0]?.resolved_tag_commit, "a".repeat(40));
+  assert.equal(result.manifest_evidence.commit, "a".repeat(40));
+  assert.equal(result.readme.commit, "c".repeat(40));
+  assert.equal(result.readme.blob, "b".repeat(40));
+  assert.equal(
+    h.calls.filter((call) => call.endpoint.endsWith(`/readme?ref=${"a".repeat(40)}`)).length,
+    2,
+  );
+});
+
+void test("denied release README access does not fall back to the default branch", async () => {
+  const h = await primaryFixture();
+  h.setTagReadmeStatus(403);
+  h.setAllowance(100);
+  await assert.rejects(
+    investigateDiscoveryUpstream(h.context, "owner/game"),
+    (error) => error instanceof GitHubApiError && error.status === 403,
+  );
+  assert.ok(!h.calls.some((call) => call.endpoint.includes("/git/ref/heads/")));
+});
+
+void test("an unavailable required README leaves the next investigation free to read fresh refs", async () => {
+  const h = await primaryFixture();
+  h.setTagReadmeStatus(404);
+  h.setBranchReadmeStatus(404);
+  h.setAllowance(100);
+  await assert.rejects(
+    investigateDiscoveryUpstream(h.context, "owner/game"),
+    /Required README unavailable/u,
+  );
+  assert.deepEqual(h.entries, {});
+  h.setBranchReadmeStatus(200);
+  h.setAllowance(100);
+  const result = await investigateDiscoveryUpstream(h.context, "owner/game");
+  assert.equal(result.readme.commit, "c".repeat(40));
+  assert.equal(result.manifest_evidence.error, "Optional primary manifest is absent");
+});
 
 void test("primary investigations and complete validation advance through bounded pages without replaying completed collection", async (t) => {
   for (const numericLinks of [false, true])

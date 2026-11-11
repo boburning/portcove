@@ -25,6 +25,9 @@ pub struct LibraryMetadata {
     pub launch_history: Vec<LibraryLaunchHistory>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub retained_build_references: Vec<crate::RetainedBuildReference>,
+    /// Local profiles and revisions; present only under metadata schema 6.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub profiles: Vec<crate::LibraryProfile>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artwork: Option<crate::ArtworkMetadata>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -157,6 +160,7 @@ impl Library {
                     PathBuf::from(portable_relative(&entry.build.selected_executable)?);
             }
         }
+        let profiles = crate::profile::export(&transaction)?;
         let artwork = crate::artwork_store::snapshot(&transaction)?;
         transaction.commit()?;
         let mut metadata = LibraryMetadata {
@@ -182,6 +186,7 @@ impl Library {
             port_settings,
             launch_history,
             retained_build_references,
+            profiles,
             artwork: Some(artwork),
             portability_authority: None,
         };

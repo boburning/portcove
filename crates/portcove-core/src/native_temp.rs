@@ -420,6 +420,7 @@ pub(crate) mod tests {
             selected_executable: &executable,
             source: None,
             source_record: None,
+            disc_progress: None,
         };
         let readonly = crate::adapter::standard(AdapterKind::NativePortable)
             .launch_spec_with_executable(request, &|| Ok(()))

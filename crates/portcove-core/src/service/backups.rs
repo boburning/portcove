@@ -610,6 +610,8 @@ impl PortcoveService {
         let result: Result<BackupRecord> = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "backup")?;
+            // An interrupted retention prune must not block a player's own backup.
+            self.resume_pending_backup_deletions(port_id);
             self.require_completed_backup_deletion(port_id)?;
             self.collect_active_user_data_if_launched(port_id)?;
             self.create_backup_locked(port_id)
@@ -1724,6 +1726,9 @@ impl PortcoveService {
             Some(port_id),
         )?;
         let result = (|| {
+            // A retention prune that was interrupted must not block the player's
+            // version change until restart: finish it here, under the same port lock.
+            self.resume_pending_backup_deletions(port_id);
             self.require_completed_backup_deletion(port_id)?;
             if collect_first {
                 // The snapshot must include what the game wrote most recently.
@@ -1741,7 +1746,7 @@ impl PortcoveService {
                 }
                 // Nothing to protect yet; this is a recorded skip, not a failure.
                 Err(error) if is_no_persistent_data(&error) => Ok(SnapshotOutcome::NoData),
-                Err(error) => Err(error),
+                Err(error) => Err(explain_snapshot_failure(error)),
             }
         })();
         match result {
@@ -1755,6 +1760,33 @@ impl PortcoveService {
                 Ok(outcome)
             }
             Err(error) => self.finish_activity(activity, Err(error)),
+        }
+    }
+
+    /// Best-effort completion of this port's unfinished backup deletions through the
+    /// existing recovery. A deletion that cannot be completed stays pending and the
+    /// caller's `require_completed_backup_deletion` still refuses with its clear message.
+    fn resume_pending_backup_deletions(&self, port_id: &str) {
+        let store = OperationStore::new(self.library.clone());
+        let Ok(operations) = store.all() else {
+            return;
+        };
+        for mut operation in operations.into_iter().filter(|operation| {
+            operation.port_id == port_id && operation.kind == LifecycleOperationKind::DeleteBackup
+        }) {
+            let outcome = crate::recovery::recover_backup_deletion(self, &store, &mut operation);
+            let _ = self.library.finish_activity(
+                &operation.id,
+                if outcome.is_ok() {
+                    ActivityStatus::Succeeded
+                } else {
+                    ActivityStatus::Failed
+                },
+                Some(match outcome {
+                    Ok(()) => "completed by the next backup or version change",
+                    Err(_) => "could not be completed; restart Portcove to retry recovery",
+                }),
+            );
         }
     }
 
@@ -2280,5 +2312,40 @@ mod assessment_tests {
                 .reason,
             PortActionReason::MissingBackup
         );
+    }
+}
+
+/// Tells the player that a failed automatic snapshot stopped the version change
+/// before anything changed, and how to continue. The cause stays in the message and
+/// the error keeps its code and details. It is applied only to the backup copy itself;
+/// every other kind carries its own guidance and passes through unchanged.
+pub(super) fn explain_snapshot_failure(mut error: PortcoveError) -> PortcoveError {
+    // Only a copy that failed (file-system errors are `State`; a credential-scan limit
+    // is `Unsupported`) is reworded. Conflicts and verification refusals, such as a
+    // changed producer, a modified retained runtime or a recovery hold, carry their
+    // own remedy, and turning snapshots off would point away from it.
+    if !matches!(
+        error.code,
+        crate::ErrorCode::State | crate::ErrorCode::Unsupported
+    ) {
+        return error;
+    }
+    error.message = format!(
+        "Portcove could not back up this game's saves first, so the version was not changed. {} Try again once that is fixed, or turn off automatic snapshots in Settings > Library to continue without one.",
+        sentence(&error.message)
+    );
+    error.details.insert(
+        "recovery_action".into(),
+        "retry_or_disable_snapshots".into(),
+    );
+    error
+}
+
+fn sentence(cause: &str) -> String {
+    let cause = cause.trim();
+    if cause.ends_with(['.', '!', '?']) {
+        cause.to_owned()
+    } else {
+        format!("{cause}.")
     }
 }

@@ -37,6 +37,13 @@ unknown impact selects a broad useful ordinary baseline. Missing historical push
 bases use that broad baseline. Audit cache fingerprints retain their separate,
 conservative purpose.
 
+For a pull-request test merge, the planner binds the checked-out commit to the
+workflow and its second parent to the exact PR source. The first parent must
+share the event base's ancestry. The planner records that tested target and
+compares its tree with the tested checkout, including changes made by the
+composition. A source-only checkout keeps the complete merge-base comparison.
+Unbound parents, unrelated targets and ambiguous merge bases block discovery.
+
 | Selected work                    | Required ordinary coverage                                                                                                                              |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Rust                             | Windows workspace target compilation and maintained affected test families, broad package/workspace fallback for shared or unknown inputs               |

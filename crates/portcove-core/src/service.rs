@@ -2099,7 +2099,7 @@ impl PortcoveService {
                             .presentation
                             .as_ref()
                             .map(|presentation| presentation.saves_and_settings),
-                        persistent_paths: port.persistent_paths.clone(),
+                        persistent_paths: crate::persistence::local_declared_paths(port)?.to_vec(),
                         persistent_file_patterns: port.persistent_file_patterns.clone(),
                         manual_preparation: port
                             .presentation
@@ -4905,6 +4905,23 @@ impl PortcoveService {
         A: FnOnce(&LaunchSessionRecord),
         F: FnOnce(&LaunchSessionRecord),
     {
+        self.supervise_launch_observed(request, &|_| {}, on_accepted, on_started)
+    }
+
+    /// As `supervise_launch_identified`, also delivering the launch activity's
+    /// preparation events (disc-image unpacking phases) to `on_event` while the
+    /// launch is being prepared. Events are best-effort reporting only.
+    pub fn supervise_launch_observed<A, F>(
+        &self,
+        request: IdentifiedLaunchRequest<'_>,
+        on_event: &dyn Fn(OperationEvent),
+        on_accepted: A,
+        on_started: F,
+    ) -> Result<SupervisedLaunchOutcome>
+    where
+        A: FnOnce(&LaunchSessionRecord),
+        F: FnOnce(&LaunchSessionRecord),
+    {
         let IdentifiedLaunchRequest {
             request_id,
             port_id,
@@ -5037,13 +5054,14 @@ impl PortcoveService {
 
             operation.checkpoint()?;
             let spec = match (&active, &external) {
-                (Some(install), None) => self.prepare_launch_for_install(
+                (Some(install), None) => self.prepare_launch_for_install_observed(
                     port.ok_or_else(|| {
                         PortcoveError::state("managed launch has no retained definition")
                     })?,
                     install,
                     source_override,
                     Some(&operation),
+                    Some(on_event),
                 )?,
                 (None, Some((record, retained_catalog))) => self.prepare_launch_for_external(
                     record,
@@ -5919,6 +5937,20 @@ impl PortcoveService {
         self.collect_user_data_from(&port, &active.path)
     }
 
+    /// Brings the active build's copy up to the canonical data after a profile
+    /// change. Returns whether the build now matches; an unlaunched or unreadable
+    /// build is left for launch preparation, which restores before it plays.
+    pub(crate) fn restore_active_user_data_if_launched(&self, port_id: &str) -> bool {
+        let restore = || -> Result<()> {
+            let Some(active) = self.collectible_active_install(port_id)? else {
+                return Ok(());
+            };
+            let port = self.installed_mutability_port(&active)?;
+            self.restore_user_data_to(&port, &active.path)
+        };
+        restore().is_ok()
+    }
+
     /// Read-only selection shared by collection and destructive-action review.
     fn collectible_active_install(&self, port_id: &str) -> Result<Option<InstallRecord>> {
         let Some(active) = self.status_without_rollback_assessment(port_id)?.active else {
@@ -6388,6 +6420,11 @@ impl PortcoveService {
         install_root: &Path,
     ) -> Result<Vec<PathBuf>> {
         self.library.require_no_ghostship_recovery(&port.id)?;
+        // A profile change made the canonical data newer than this build's copy.
+        // Collecting now would copy the stale build over the selected profile.
+        if crate::profile_deploy::restore_pending(&self.library.user_dir(&port.id)) {
+            return Ok(Vec::new());
+        }
         let contract = self.persistence_contract(port, install_root)?;
         let port = &contract.port;
         self.require_completed_restore(&port.id)?;

@@ -148,12 +148,26 @@ impl PortcoveService {
         })
     }
 
+    #[cfg(test)]
     pub(super) fn prepare_launch_for_install(
         &self,
         port: &PortDefinition,
         active: &InstallRecord,
         source_override: Option<&Path>,
         operation: Option<&OperationCoordinator>,
+    ) -> Result<crate::LaunchSpec> {
+        self.prepare_launch_for_install_observed(port, active, source_override, operation, None)
+    }
+
+    /// As `prepare_launch_for_install`, also delivering the launch activity's
+    /// preparation events (currently disc-image unpacking phases) to `events`.
+    pub(super) fn prepare_launch_for_install_observed(
+        &self,
+        port: &PortDefinition,
+        active: &InstallRecord,
+        source_override: Option<&Path>,
+        operation: Option<&OperationCoordinator>,
+        events: Option<&dyn Fn(crate::OperationEvent)>,
     ) -> Result<crate::LaunchSpec> {
         let ManagedLaunchInputs {
             catalog,
@@ -172,11 +186,18 @@ impl PortcoveService {
         self.prepare_ghostship_legacy_archive(active)?;
         checkpoint()?;
         self.restore_user_data_to(port, &active.path)?;
+        crate::profile_deploy::clear_restore_pending(&self.library.user_dir(&port.id))?;
         checkpoint()?;
         self.recheck_launch_bios(&catalog, port, active, bios.as_ref(), &checkpoint)?;
         let selected_executable =
             Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
         checkpoint()?;
+        let report_disc =
+            |phase: crate::adapter::DiscUnpackPhase, completed: u64, total: Option<u64>| {
+                if let (Some(operation), Some(events)) = (operation, events) {
+                    events(disc_unpack_event(operation, phase, completed, total));
+                }
+            };
         let mut spec = crate::adapter::standard(port.adapter).prepare_launch_with_executable(
             crate::LaunchSpecRequest {
                 library: &self.library,
@@ -186,6 +207,7 @@ impl PortcoveService {
                 selected_executable: &selected_executable,
                 source: source.as_ref().map(|record| record.path.as_path()),
                 source_record: source.as_ref(),
+                disc_progress: Some(crate::adapter::DiscProgressSink(&report_disc)),
             },
             &checkpoint,
         )?;
@@ -243,9 +265,77 @@ impl PortcoveService {
     }
 }
 
+/// The launch activity's event for one disc-unpacking step. Extract carries
+/// bytes; every other phase is a single indeterminate step.
+fn disc_unpack_event(
+    operation: &OperationCoordinator,
+    phase: crate::adapter::DiscUnpackPhase,
+    completed: u64,
+    total: Option<u64>,
+) -> crate::OperationEvent {
+    match phase {
+        crate::adapter::DiscUnpackPhase::Extract => {
+            operation.progress_with_unit(phase.id(), crate::ProgressUnit::Bytes, completed, total)
+        }
+        _ => operation.progress_with_unit(phase.id(), crate::ProgressUnit::Indeterminate, 0, None),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn disc_unpack_phases_become_stable_launch_progress_events() {
+        use crate::adapter::DiscUnpackPhase::*;
+        let operation = OperationCoordinator::new("launch", None);
+        let events: Vec<_> = [
+            (Identify, 0, None),
+            (Plan, 0, None),
+            (FreeSpace, 0, None),
+            (Extract, 0, Some(8)),
+            (Extract, 5, Some(8)),
+            (Extract, 8, Some(8)),
+            (Verify, 0, None),
+            (Activate, 0, None),
+        ]
+        .into_iter()
+        .map(|(phase, done, total)| disc_unpack_event(&operation, phase, done, total))
+        .collect();
+        assert!(
+            events
+                .windows(2)
+                .all(|pair| pair[0].sequence < pair[1].sequence)
+        );
+        let shaped: Vec<_> = events
+            .iter()
+            .map(|event| match &event.event {
+                crate::OperationEventKind::Progress {
+                    phase_id,
+                    unit,
+                    completed,
+                    total,
+                    ..
+                } => (phase_id.clone().unwrap(), *unit, *completed, *total),
+                other => panic!("unexpected event {other:?}"),
+            })
+            .collect();
+        let bytes = Some(crate::ProgressUnit::Bytes);
+        let step = Some(crate::ProgressUnit::Indeterminate);
+        assert_eq!(
+            shaped,
+            [
+                ("disc.identify".to_owned(), step, 0, None),
+                ("disc.plan".to_owned(), step, 0, None),
+                ("disc.free-space".to_owned(), step, 0, None),
+                ("disc.extract".to_owned(), bytes, 0, Some(8)),
+                ("disc.extract".to_owned(), bytes, 5, Some(8)),
+                ("disc.extract".to_owned(), bytes, 8, Some(8)),
+                ("disc.verify".to_owned(), step, 0, None),
+                ("disc.activate".to_owned(), step, 0, None),
+            ]
+        );
+    }
 
     fn check_source_cancellation_in_second_pass(route: &str) {
         use sha2::{Digest, Sha256};

@@ -34,6 +34,19 @@ pub struct LaunchSpecRequest<'a> {
     pub selected_executable: &'a Path,
     pub source: Option<&'a Path>,
     pub source_record: Option<&'a SourceRecord>,
+    /// Observes a disc-image unpacking while preparing this launch. Reporting
+    /// only: it never grants authority and is ignored by every other adapter path.
+    pub(crate) disc_progress: Option<DiscProgressSink<'a>>,
+}
+
+/// `report(phase, completed, total)`; bytes are carried only by `Extract`.
+#[derive(Clone, Copy)]
+pub(crate) struct DiscProgressSink<'a>(pub(crate) &'a dyn Fn(DiscUnpackPhase, u64, Option<u64>));
+
+impl std::fmt::Debug for DiscProgressSink<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("DiscProgressSink")
+    }
 }
 
 pub trait Adapter: Send + Sync {
@@ -86,6 +99,7 @@ pub trait Adapter: Send + Sync {
                 selected_executable: &executable,
                 source,
                 source_record: source_record.as_ref(),
+                disc_progress: None,
             },
             &|| Ok(()),
         )
@@ -225,6 +239,7 @@ impl Adapter for StandardAdapter {
                 selected_executable: &executable,
                 source,
                 source_record: source_record.as_ref(),
+                disc_progress: None,
             },
             &|| Ok(()),
         )
@@ -515,30 +530,36 @@ impl Adapter for StandardAdapter {
             let materialization = port
                 .runtime_source_materialization
                 .unwrap_or(RuntimeSourceMaterialization::N64BigEndian);
-            if let Some(record) = request.source_record {
-                if record.path != source {
-                    return Err(PortcoveError::verification(
-                        "runtime source does not match its admitted record",
-                    ));
+            let forward = |phase: DiscUnpackPhase, completed: u64, total: Option<u64>| {
+                if let Some(sink) = request.disc_progress {
+                    (sink.0)(phase, completed, total);
                 }
-                prepare_admitted_runtime_source(
-                    record,
-                    &stored_source,
-                    materialization,
-                    &port.runtime_source_hashes,
-                    None,
-                    checkpoint,
-                    crate::tool_process::ToolProcessObserver::default(),
-                )?;
-            } else {
-                prepare_runtime_source(
-                    source,
-                    &stored_source,
-                    materialization,
-                    &port.runtime_source_hashes,
-                    checkpoint,
-                )?;
-            }
+            };
+            let disc = port.runtime_disc_image.as_ref().map(|profile| DiscUnpack {
+                profile,
+                report: &forward,
+            });
+            let input = match request.source_record {
+                Some(record) => {
+                    if record.path != source {
+                        return Err(PortcoveError::verification(
+                            "runtime source does not match its admitted record",
+                        ));
+                    }
+                    RuntimeSourceInput::Admitted(record)
+                }
+                None => RuntimeSourceInput::Legacy(source),
+            };
+            prepare_runtime_source_input(
+                input,
+                &stored_source,
+                materialization,
+                &port.runtime_source_hashes,
+                None,
+                checkpoint,
+                crate::tool_process::ToolProcessObserver::default(),
+                disc.as_ref(),
+            )?;
             checkpoint()?;
         }
         (self.0 == AdapterKind::PsxRecompManaged)
@@ -793,6 +814,61 @@ pub(crate) fn prepare_runtime_source_with_tool(
         pinned_host_tool,
         checkpoint,
         observer,
+        None,
+    )
+}
+
+/// Phases of a disc-image unpacking, in the order they are reported.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DiscUnpackPhase {
+    Identify,
+    Plan,
+    FreeSpace,
+    Extract,
+    Verify,
+    Activate,
+}
+
+impl DiscUnpackPhase {
+    /// Stable machine id shared with operation events and CLI phase names.
+    pub(crate) fn id(self) -> &'static str {
+        match self {
+            Self::Identify => "disc.identify",
+            Self::Plan => "disc.plan",
+            Self::FreeSpace => "disc.free-space",
+            Self::Extract => "disc.extract",
+            Self::Verify => "disc.verify",
+            Self::Activate => "disc.activate",
+        }
+    }
+}
+
+/// Catalog-declared disc-image facts plus an optional progress observer.
+/// `report(phase, completed, total)` carries bytes only for `Extract`.
+pub(crate) struct DiscUnpack<'a> {
+    pub(crate) profile: &'a crate::DiscImageProfile,
+    pub(crate) report: &'a dyn Fn(DiscUnpackPhase, u64, Option<u64>),
+}
+
+#[cfg(test)]
+pub(crate) fn prepare_disc_runtime_source(
+    source: &Path,
+    destination: &Path,
+    materialization: RuntimeSourceMaterialization,
+    required_hashes: &BTreeMap<String, String>,
+    pinned_host_tool: Option<&Path>,
+    disc: &DiscUnpack<'_>,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    prepare_runtime_source_input(
+        RuntimeSourceInput::Legacy(source),
+        destination,
+        materialization,
+        required_hashes,
+        pinned_host_tool,
+        checkpoint,
+        crate::tool_process::ToolProcessObserver::default(),
+        Some(disc),
     )
 }
 
@@ -813,6 +889,7 @@ pub(crate) fn prepare_admitted_runtime_source(
         pinned_host_tool,
         checkpoint,
         observer,
+        None,
     )
 }
 
@@ -821,6 +898,7 @@ enum RuntimeSourceInput<'a> {
     Admitted(&'a SourceRecord),
 }
 
+#[allow(clippy::too_many_arguments)]
 fn prepare_runtime_source_input(
     input: RuntimeSourceInput<'_>,
     destination: &Path,
@@ -829,6 +907,7 @@ fn prepare_runtime_source_input(
     pinned_host_tool: Option<&Path>,
     checkpoint: &dyn Fn() -> Result<()>,
     observer: crate::tool_process::ToolProcessObserver<'_>,
+    disc: Option<&DiscUnpack<'_>>,
 ) -> Result<()> {
     let (source, admitted_zip) = match input {
         RuntimeSourceInput::Legacy(path) => (path, None),
@@ -852,7 +931,9 @@ fn prepare_runtime_source_input(
     let destination_ready = match materialization {
         RuntimeSourceMaterialization::PsxBinCue
         | RuntimeSourceMaterialization::PsxRawSet
-        | RuntimeSourceMaterialization::StfsDirectory => destination.is_dir(),
+        | RuntimeSourceMaterialization::StfsDirectory
+        | RuntimeSourceMaterialization::XdvdfsDirectory
+        | RuntimeSourceMaterialization::Iso9660Directory => destination.is_dir(),
         _ => destination.is_file(),
     };
     let reusable = destination_ready
@@ -908,6 +989,24 @@ fn prepare_runtime_source_input(
         }
         RuntimeSourceMaterialization::StfsDirectory => {
             materialize_stfs_directory(source, destination, required_hashes, checkpoint)?
+        }
+        RuntimeSourceMaterialization::XdvdfsDirectory
+        | RuntimeSourceMaterialization::Iso9660Directory => {
+            let disc = disc.ok_or_else(|| {
+                PortcoveError::usage("disc-image unpacking requires its catalog disc-image profile")
+            })?;
+            materialize_disc_directory(
+                source,
+                destination,
+                materialization,
+                required_hashes,
+                pinned_host_tool,
+                disc,
+                checkpoint,
+                observer,
+            )?;
+            // The staged tree was verified before it replaced the runtime; the
+            // shared post-step below re-reads only the anchors.
         }
     }
     checkpoint()?;
@@ -1137,6 +1236,120 @@ fn materialize_stfs_directory(
         let _ = std::fs::remove_dir_all(&temporary);
     }
     replaced
+}
+
+#[allow(clippy::too_many_arguments)]
+fn materialize_disc_directory(
+    source: &Path,
+    destination: &Path,
+    materialization: RuntimeSourceMaterialization,
+    required_hashes: &BTreeMap<String, String>,
+    pinned_host_tool: Option<&Path>,
+    disc: &DiscUnpack<'_>,
+    checkpoint: &dyn Fn() -> Result<()>,
+    observer: crate::tool_process::ToolProcessObserver<'_>,
+) -> Result<()> {
+    use crate::disc_filesystem::{DiscImage, ensure_free_space};
+    let format = materialization
+        .disc_image_format()
+        .ok_or_else(|| PortcoveError::usage("not a disc-image materialization"))?;
+    if format != disc.profile.format || required_hashes.is_empty() {
+        return Err(PortcoveError::usage(
+            "disc-image unpacking requires a matching format and at least one anchor hash",
+        ));
+    }
+    let parent = destination
+        .parent()
+        .ok_or_else(|| PortcoveError::state("disc-image destination has no parent directory"))?;
+    crate::path::refuse_symlink_ancestors(parent)?;
+    std::fs::create_dir_all(parent)?;
+    // Staging left behind by an interrupted unpacking is never reused.
+    if let Ok(entries) = std::fs::read_dir(parent) {
+        for entry in entries.flatten() {
+            if entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".portcove-disc-")
+            {
+                let path = entry.path();
+                let _ = if path.is_dir() {
+                    std::fs::remove_dir_all(&path)
+                } else {
+                    std::fs::remove_file(&path)
+                };
+            }
+        }
+    }
+    let report = |phase: DiscUnpackPhase| {
+        (disc.report)(phase, 0, None);
+        checkpoint()
+    };
+
+    // A CHD is first turned into a private ISO beside the destination; it is
+    // removed on every path, and is never the registered source.
+    let mut staged_iso = None;
+    let is_chd = source
+        .extension()
+        .and_then(|value| value.to_str())
+        .is_some_and(|value| value.eq_ignore_ascii_case("chd"));
+    if is_chd && format != crate::DiscImageFormat::Iso9660 {
+        return Err(PortcoveError::source(
+            "only PlayStation 2 and PSP images can be read from a CHD",
+        ));
+    }
+    let temporary = parent.join(format!(".portcove-disc-{}", Uuid::new_v4()));
+    let outcome = (|| -> Result<()> {
+        let image_path = if is_chd {
+            let logical = crate::disc_filesystem::chd_logical_bytes(source)?;
+            if logical
+                > disc
+                    .profile
+                    .max_image_bytes
+                    .min(crate::disc_filesystem::MAX_IMAGE_BYTES)
+            {
+                return Err(PortcoveError::source(
+                    "the disc image is larger than this port allows",
+                )
+                .with_known_cause(crate::failure::KnownFailureCause::DiscImageLimit));
+            }
+            // The private ISO and the unpacked tree coexist until the ISO is removed.
+            ensure_free_space(parent, logical.saturating_mul(2))?;
+            let iso = parent.join(format!(".portcove-disc-{}.iso", Uuid::new_v4()));
+            staged_iso = Some(iso.clone());
+            extract_chd_dvd(source, &iso, pinned_host_tool, checkpoint, observer)?;
+            iso
+        } else {
+            source.to_path_buf()
+        };
+        report(DiscUnpackPhase::Identify)?;
+        let mut image = DiscImage::open(&image_path, format, disc.profile.max_image_bytes)?;
+        crate::disc_product::require_product_code(
+            &mut image,
+            format,
+            &disc.profile.product_codes,
+            checkpoint,
+        )?;
+        report(DiscUnpackPhase::Plan)?;
+        let plan = image.plan(checkpoint)?;
+        report(DiscUnpackPhase::FreeSpace)?;
+        ensure_free_space(parent, plan.expanded_bytes)?;
+        checkpoint()?;
+        (disc.report)(DiscUnpackPhase::Extract, 0, Some(plan.expanded_bytes));
+        image.extract(&plan, &temporary, checkpoint, &|done, total| {
+            (disc.report)(DiscUnpackPhase::Extract, done, Some(total));
+        })?;
+        report(DiscUnpackPhase::Verify)?;
+        verify_runtime_source_hashes(&temporary, required_hashes, checkpoint)?;
+        report(DiscUnpackPhase::Activate)?;
+        replace_directory_transactional(&temporary, destination)
+    })();
+    if let Some(iso) = staged_iso {
+        let _ = std::fs::remove_file(iso);
+    }
+    if outcome.is_err() {
+        let _ = std::fs::remove_dir_all(&temporary);
+    }
+    outcome
 }
 
 fn verify_runtime_source_hashes(
@@ -1433,6 +1646,10 @@ fn copy_runtime_reader(
 #[path = "source_conversion_tests.rs"]
 mod source_conversion_tests;
 
+#[cfg(test)]
+#[path = "disc_materialization_tests.rs"]
+mod disc_materialization_tests;
+
 fn materialize_ps2_iso(
     source: &Path,
     destination: &Path,
@@ -1454,6 +1671,18 @@ fn materialize_ps2_iso(
         )));
     }
     let temporary = destination.with_extension(format!("tmp-{}.iso", Uuid::new_v4()));
+    extract_chd_dvd(source, &temporary, pinned_tool, checkpoint, observer)?;
+    replace_atomic(&temporary, destination)
+}
+
+/// Produce a DVD ISO from a CHD with the locally supplied `chdman`.
+fn extract_chd_dvd(
+    source: &Path,
+    temporary: &Path,
+    pinned_tool: Option<&Path>,
+    checkpoint: &dyn Fn() -> Result<()>,
+    observer: crate::tool_process::ToolProcessObserver<'_>,
+) -> Result<()> {
     let program = pinned_tool
         .map(Path::to_path_buf)
         .map_or_else(resolve_chdman, Ok)?;
@@ -1463,7 +1692,7 @@ fn materialize_ps2_iso(
         .arg("-i")
         .arg(source)
         .arg("-o")
-        .arg(&temporary);
+        .arg(temporary);
     let output = crate::tool_process::run_tool(&mut command, checkpoint, observer)?;
     if !output.status.success() {
         // Retain the private partial output for the lifecycle owner to review.
@@ -1479,7 +1708,7 @@ fn materialize_ps2_iso(
             "chdman completed without producing a PS2 ISO",
         ));
     }
-    replace_atomic(&temporary, destination)
+    Ok(())
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -3649,6 +3878,7 @@ mod tests {
                         selected_executable: &executable,
                         source: Some(&source),
                         source_record: None,
+                        disc_progress: None,
                     },
                     &|| Ok(()),
                 )
@@ -3680,6 +3910,7 @@ mod tests {
             selected_executable: &executable,
             source: None,
             source_record: None,
+            disc_progress: None,
         };
         let checkpoint = || {
             Err(PortcoveError::new(
@@ -4143,6 +4374,7 @@ mod tests {
                         selected_executable: &executable,
                         source: source.map(|record| record.path.as_path()),
                         source_record: source,
+                        disc_progress: None,
                     },
                     &|| Ok(()),
                 )
@@ -4359,6 +4591,7 @@ mod tests {
                     selected_executable: &executable,
                     source: Some(&source),
                     source_record: None,
+                    disc_progress: None,
                 },
                 &|| Ok(()),
             )
@@ -4467,6 +4700,7 @@ mod tests {
             selected_executable: &executable,
             source: Some(&source),
             source_record: Some(&source_record),
+            disc_progress: None,
         };
         let planned = plan_libultraship_source(request, false).unwrap();
         assert!(matches!(&planned, LibultrashipSourcePlan::Archived { .. }));
@@ -4626,6 +4860,7 @@ mod tests {
             selected_executable: temporary.path(),
             source: Some(&source),
             source_record: Some(&admitted),
+            disc_progress: None,
         };
         let no_source = plan_libultraship_source(
             LaunchSpecRequest {
@@ -4804,6 +5039,7 @@ mod tests {
             selected_executable: &executable,
             source: Some(&source),
             source_record: None,
+            disc_progress: None,
         };
         let adapter = AdapterRegistry.get(AdapterKind::PsxRecompManaged);
         let before = launch_fixture_inventory(temporary.path());

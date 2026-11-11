@@ -136,6 +136,29 @@ fn openmohaa_unix_selector_cannot_reuse_a_broader_cached_release() {
     );
 }
 
+#[test]
+fn openjo_unix_selector_cannot_reuse_a_broader_cached_release() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog
+        .port("star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo")
+        .unwrap();
+    let mut broader = port.clone();
+    broader.external_profile_policy = None;
+    let key =
+        |port, platform| ReleaseSelectionCacheKey::new(port, ReleaseChannel::Rolling, platform);
+    for platform in [
+        Platform::LinuxX86_64,
+        Platform::MacosX86_64,
+        Platform::MacosAarch64,
+    ] {
+        assert_ne!(key(port, platform), key(&broader, platform));
+    }
+    assert_eq!(
+        key(port, Platform::WindowsX86_64),
+        key(&broader, Platform::WindowsX86_64)
+    );
+}
+
 #[tokio::test]
 async fn quake_linux_selects_the_official_package_and_compatible_successor() {
     let catalog = crate::Catalog::embedded().unwrap();
@@ -2994,6 +3017,8 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
         #[serde(default)]
         macos_aarch64_selected_assets: Vec<String>,
         channel: Option<ReleaseChannel>,
+        #[serde(default)]
+        mutable_tag_snapshots: bool,
         managed_psx: Option<ManagedPsxArchiveExpectation>,
     }
 
@@ -3032,6 +3057,10 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
         );
         let channel = case.channel.unwrap_or(ReleaseChannel::Stable);
         assert!(port.channels.contains(&channel), "{id}: enrolled channel");
+        if case.mutable_tag_snapshots {
+            assert_eq!(channel, ReleaseChannel::Rolling);
+            assert!(port.release.rolling_tag.is_some());
+        }
         let definition = serde_json::to_value(port).unwrap();
         let observed = &inventories[&case.inventory];
         assert!(observed.len() >= 2, "{id}");
@@ -3063,7 +3092,14 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
                 if name.ends_with(".zip") {
                     selected_zips.insert((case.inventory.clone(), index, name.clone()));
                 }
-                let visible = observed[..=index].iter().rev().cloned().collect::<Vec<_>>();
+                // A rolling tag's later observation replaces its previous snapshot.
+                // Stable releases remain visible together in the upstream inventory.
+                let first = if case.mutable_tag_snapshots { index } else { 0 };
+                let visible = observed[first..=index]
+                    .iter()
+                    .rev()
+                    .cloned()
+                    .collect::<Vec<_>>();
                 let repository = match case.repository_id {
                     Some(id) => ok_json(
                         &serde_json::json!({"id":id,"archived":false}).to_string(),

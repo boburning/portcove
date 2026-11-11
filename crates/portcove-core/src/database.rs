@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 46;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 48;
 
 struct Migration {
     version: i64,
@@ -296,13 +296,25 @@ const MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 46,
-        name: "explicit add-only library membership",
+        name: "stable local profiles and immutable revisions",
         apply: migration_46,
         verify: verify_migration_46,
     },
+    Migration {
+        version: 47,
+        name: "selected profile owning live player data",
+        apply: migration_47,
+        verify: verify_migration_47,
+    },
+    Migration {
+        version: 48,
+        name: "explicit add-only library membership",
+        apply: migration_48,
+        verify: verify_migration_48,
+    },
 ];
 
-fn migration_46(transaction: &Transaction<'_>) -> Result<()> {
+fn migration_48(transaction: &Transaction<'_>) -> Result<()> {
     // Membership is a saved selection, not an installation, registration or
     // acquisition record. Retained provenance is display/explanation data only.
     transaction.execute_batch(
@@ -312,15 +324,33 @@ fn migration_46(transaction: &Transaction<'_>) -> Result<()> {
             record_json TEXT NOT NULL CHECK(length(record_json)<=16384)
         );",
     )?;
-    verify_migration_46(transaction)
+    verify_migration_48(transaction)
 }
 
-fn verify_migration_46(connection: &Connection) -> Result<()> {
+fn verify_migration_48(connection: &Connection) -> Result<()> {
     require_columns(
         connection,
         "library_memberships",
         &["port_id", "added_at", "record_json"],
     )
+}
+
+fn migration_47(transaction: &Transaction<'_>) -> Result<()> {
+    crate::profile::migrate_selection(transaction)?;
+    verify_migration_47(transaction)
+}
+
+fn verify_migration_47(connection: &Connection) -> Result<()> {
+    crate::profile::verify_selection_migration(connection)
+}
+
+fn migration_46(transaction: &Transaction<'_>) -> Result<()> {
+    crate::profile::migrate(transaction)?;
+    verify_migration_46(transaction)
+}
+
+fn verify_migration_46(connection: &Connection) -> Result<()> {
+    crate::profile::verify_migration(connection)
 }
 
 fn migration_45(transaction: &Transaction<'_>) -> Result<()> {
@@ -2837,13 +2867,13 @@ mod tests {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
         prepare_root(root);
-        migrate_to(root, 45).unwrap();
+        migrate_to(root, 47).unwrap();
         let connection = connect(root).unwrap();
         let identity: String = connection
             .query_row("SELECT id FROM library_identity", [], |row| row.get(0))
             .unwrap();
         drop(connection);
-        migrate_to(root, 46).unwrap();
+        migrate_to(root, 48).unwrap();
         let connection = connect(root).unwrap();
         let count: i64 = connection
             .query_row("SELECT COUNT(*) FROM library_memberships", [], |row| {
@@ -2942,6 +2972,8 @@ mod tests {
         schema_42: 42,
         schema_43: 43,
         schema_44: 44,
+        schema_45: 45,
+        schema_46: 46,
     }
 
     #[test]

@@ -33,9 +33,19 @@ export function catalogProtectionFixture(commit: string, observedAt = new Date()
   const inventory = {
     ...baseline.inventory,
     branches: baseline.inventory.branches.filter((row) => row.branch === "portcove-release-pause"),
-    rulesets: baseline.inventory.rulesets.filter(
-      (rule) => rule.conditions.ref_name.include[0] === "refs/heads/portcove-release-pause",
-    ),
+    rulesets: [
+      ...baseline.inventory.rulesets.filter(
+        (rule) => rule.conditions.ref_name.include[0] === "refs/heads/portcove-release-pause",
+      ),
+      {
+        id: 90,
+        target: "tag",
+        enforcement: "active",
+        conditions: { ref_name: { include: [expected.controller_ref], exclude: [] } },
+        rules: ["creation", "update", "deletion"].map((type) => ({ type })),
+        bypass_actors: [],
+      },
+    ],
     environments: catalogEnvironmentFixture(),
   };
   return {
@@ -64,6 +74,7 @@ export function protectionFixture(commit: string, observedAt = new Date().toISOS
   const rulesets = names.flatMap((branch, index) => [
     {
       id: index * 2 + 1,
+      target: "branch",
       enforcement: "active",
       conditions: { ref_name: { include: [`refs/heads/${branch}`], exclude: [] } },
       rules: [{ type: "update" }],
@@ -77,6 +88,7 @@ export function protectionFixture(commit: string, observedAt = new Date().toISOS
     },
     {
       id: index * 2 + 2,
+      target: "branch",
       enforcement: "active",
       conditions: { ref_name: { include: [`refs/heads/${branch}`], exclude: [] } },
       rules: ["creation", "deletion", "non_fast_forward"].map((type) => ({ type })),

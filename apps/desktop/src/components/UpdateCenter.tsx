@@ -52,7 +52,7 @@ import type {
 import { EmptyState, Icon } from "./ui";
 import { Button } from "./ui/button";
 import { useEffect, useId, useRef, useState } from "react";
-import type { UpdateBatchRead } from "../features/port-updates/use-update-center";
+import type { SignInOffer, UpdateBatchRead } from "../features/port-updates/use-update-center";
 import type { ActivitySettingsTarget } from "../features/app-shell/focus-settings-target";
 import {
   presentPortAction,
@@ -120,6 +120,9 @@ function useUpdateCenter({
   batchRead,
   busy,
   checkAll,
+  signInOffer,
+  onCheckAnyway,
+  onDismissSignInOffer,
   onSelect,
   onOpenSettings,
   generation,
@@ -161,6 +164,9 @@ function useUpdateCenter({
   batchRead?: UpdateBatchRead;
   busy?: string | undefined;
   checkAll: () => void | Promise<void>;
+  signInOffer?: SignInOffer | undefined;
+  onCheckAnyway?: (() => void | Promise<void>) | undefined;
+  onDismissSignInOffer?: (() => void) | undefined;
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   onOpenSettings: (target: ActivitySettingsTarget, sourceProfileId?: string) => void;
 }) {
@@ -259,6 +265,9 @@ function useUpdateCenter({
     batchRead,
     busy,
     checkAll,
+    signInOffer,
+    onCheckAnyway,
+    onDismissSignInOffer,
     onSelect,
     onOpenSettings,
     generation,
@@ -343,6 +352,9 @@ function renderUpdateCheckToolbar(model: ReturnType<typeof useUpdateCenter>) {
         status={model.batchRead?.status}
         hasInstalled={model.installed.length > 0}
         checkAll={model.checkAll}
+        signInOffer={model.signInOffer}
+        onCheckAnyway={model.onCheckAnyway}
+        onDismissSignInOffer={model.onDismissSignInOffer}
       />
     </div>
   );
@@ -826,11 +838,17 @@ function UpdateCheckControl({
   status,
   hasInstalled,
   checkAll,
+  signInOffer,
+  onCheckAnyway,
+  onDismissSignInOffer,
 }: {
   busy?: string | undefined;
   status?: UpdateBatchRead["status"] | undefined;
   hasInstalled: boolean;
   checkAll: () => void | Promise<void>;
+  signInOffer?: SignInOffer | undefined;
+  onCheckAnyway?: (() => void | Promise<void>) | undefined;
+  onDismissSignInOffer?: (() => void) | undefined;
 }) {
   const pendingCheck = useRef<typeof checkAll | undefined>(undefined);
   const labelId = useId();
@@ -861,6 +879,26 @@ function UpdateCheckControl({
               : "Check installed ports for updates"}
         </span>
       </Button>
+      {signInOffer && (
+        <div
+          role="status"
+          className="basis-full text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground"
+        >
+          <p>
+            Checking every installed port may use about {signInOffer.countedRequests} GitHub
+            requests, and about {signInOffer.remainingRequests} are left without signing in. Signing
+            in under Settings raises that allowance. Nothing is checked until you choose.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button data-focusable variant="outline" onClick={() => void onCheckAnyway?.()}>
+              Check anyway
+            </Button>
+            <Button data-focusable variant="ghost" onClick={() => onDismissSignInOffer?.()}>
+              Not now
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

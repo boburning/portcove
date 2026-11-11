@@ -1,7 +1,9 @@
 //! Catalog-owned rules for variable names in one persistent working directory.
 use std::{collections::BTreeSet, fs, path::Path};
 
-use crate::{PersistentFilePattern, PortDefinition, PortcoveError, Result};
+use crate::{
+    ExternalProfilePolicy, PersistentFilePattern, Platform, PortDefinition, PortcoveError, Result,
+};
 
 const MAX_DIRECTORY_ENTRIES: usize = 4096;
 const MAX_MATCHING_FILES: usize = 1024;
@@ -250,8 +252,28 @@ impl PersistentFilePattern {
     }
 }
 
+/// Original files for the OpenJK family are local only in the retained Windows
+/// layout. The reviewed Unix profiles own their originals outside the runtime.
+pub(crate) fn declared_paths(port: &PortDefinition, platform: Platform) -> &[String] {
+    if port.external_profile_policy == Some(ExternalProfilePolicy::OpenjkUnixV1)
+        && crate::native_external_profile::openjk::applies_to(platform)
+    {
+        &[]
+    } else {
+        &port.persistent_paths
+    }
+}
+
+pub(crate) fn local_declared_paths(port: &PortDefinition) -> Result<&[String]> {
+    if port.external_profile_policy == Some(ExternalProfilePolicy::OpenjkUnixV1) {
+        Ok(declared_paths(port, Platform::current()?))
+    } else {
+        Ok(&port.persistent_paths)
+    }
+}
+
 pub(crate) fn entries(port: &PortDefinition, roots: &[&Path]) -> Result<Vec<String>> {
-    let mut entries: BTreeSet<String> = port.persistent_paths.iter().cloned().collect();
+    let mut entries: BTreeSet<String> = local_declared_paths(port)?.iter().cloned().collect();
     if port.persistent_file_patterns.is_empty() {
         return Ok(entries.into_iter().collect());
     }

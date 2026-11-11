@@ -829,6 +829,40 @@ File-set profiles take one directory or ZIP path. Every required top-level membe
 
 A reviewed single-disc PS1 port may request `psx-bin-cue` runtime materialization. Portcove uses the same registered CHD and local `chdman` trust boundary to create one cue sheet and split track BIN files in a staging directory, then swaps the complete directory into the managed release. A reviewed multi-disc profile may instead request `psx-raw-set`, which validates each filename-sorted CHD and transactionally writes numbered raw data tracks such as `disc-01.bin`. Managed recomp ports also retain one normalized cue sheet per single-track disc for runtime selection. A failed extraction leaves the prior runtime directory intact. Original CHDs remain the registered sources and are never modified.
 
+### Disc-image unpacking
+
+A reviewed port may unpack the player's own Xbox, Xbox 360, PlayStation 2 or PSP
+disc image into the folder its runtime reads (`xdvdfs-directory` and
+`iso9660-directory` materializations; see the [catalog contract](CATALOG.md#disc-image-unpacking)).
+Portcove reads the image only; it does not decrypt or patch executables, and
+Games-on-Demand/STFS containers, CSO/ZSO/DAX images and raw 2352-byte BIN/CUE are
+not supported. A PS2 or PSP CHD is first expanded to a private ISO with the local
+`chdman`, then handled like an ISO.
+
+Fixed limits: an image of at most 16 GiB (and no more than the port's declared
+bound), directory tables of at most 4 MiB, 131,072 entries, 32 folder levels, and
+total expanded bytes no larger than the image. Free space must cover the expanded
+size plus the larger of 64 MiB or one thirty-second of it.
+
+Phases, in order: identify, plan, free-space check, extract (bytes completed of the
+planned total), verify and activate. While `portcove exec PORT_ID` prepares such a
+port, each phase is shown on stderr as player-readable progress ("Checking your disc
+image", "Reading the disc contents", "Checking free space", "Unpacking game files"
+with bytes completed, "Verifying game files", "Finishing game file setup") before
+the game starts; the game's own streams are untouched, and a port that does not
+unpack a disc prints nothing extra. The same phases are the stable operation-event
+ids `disc.identify`, `disc.plan`, `disc.free-space`, `disc.extract` (unit `bytes`,
+`completed` and `total`), `disc.verify` and `disc.activate`, delivered by core to a
+caller of `supervise_launch_observed`. `exec` rejects `--json` and `--jsonl`
+because it inherits the game's streams, so these events are not JSONL output of
+any CLI command, and the Desktop launch supervisor does not yet forward them
+(issue #4959). Stable error codes (`failure.code` in structured errors) are
+`disc_image_unsupported`, `disc_image_limit`, `disc_product_mismatch` (details
+`found` and `expected`) and `disc_space_insufficient` (details `required_bytes` and
+`available_bytes`). A wrong game is refused before any extraction, and a failure or
+cancellation never reports success: the previous runtime directory is kept and
+private staging is removed.
+
 ### Check registered files
 
 Source integrity checks are local, network-free, and read-only:
@@ -1505,6 +1539,59 @@ they do not install or update game files. Definition refresh keeps policy and
 launch-assessment changes separate from selection and eligibility.
 
 Local-file review does not write library domain state. Explicit HTTPS delivery is anonymous, bounded to 4 MiB and 20 seconds, and rejects redirects, userinfo, fragments, and non-HTTPS URLs. Catalog application supports cross-process cancellation and CLI Ctrl-C/SIGTERM until publication admission; SQLite activation, replay advancement, and the terminal activity outcome commit together. A service command uses the catalog snapshot it opened with; subsequent commands see the new selection. See [SIGNED-CATALOG.md](SIGNED-CATALOG.md) for the exact signing contract and offline publisher utility.
+
+## Local profiles and mod packages
+
+A profile is a stable local setup for one port. Its identity is an opaque ID, never
+a display name, source-profile ID, path or active installation. Each profile keeps
+requested intent (update policy) apart from immutable, digest-sealed revisions that
+bind the exact retained build, original inputs by content and storage identity,
+loader contract, package closure, typed orderings, consequential settings and save
+group. A retained-build reference keyed by the profile ID keeps every revision's
+build protected (see [earlier builds](#earlier-builds-stay-offered-for-recovery)).
+
+```text
+portcove --library PATH --json profile list PORT_ID
+portcove --library PATH --json profile ensure-default PORT_ID
+portcove --library PATH --json profile copy PORT_ID PROFILE_ID NAME
+portcove --library PATH --json profile revisions PORT_ID PROFILE_ID
+portcove --library PATH --json profile policy PORT_ID PROFILE_ID keep-current|review-updates|automatic-eligible
+portcove --library PATH --json profile install-package PORT_ID PROFILE_ID FILE --expected-revision N
+portcove --library PATH --json profile set-package PORT_ID PROFILE_ID NATIVE_ID on|off --expected-revision N
+portcove --library PATH --json profile activate PORT_ID PROFILE_ID
+portcove --library PATH --json profile live PORT_ID
+portcove --library PATH --json profile revise PORT_ID PROFILE_ID REQUEST.json
+```
+
+`ensure-default` gives an installed port its equivalent default profile and is safe
+to repeat; a player with one setup needs nothing else. `copy` starts a new profile
+from a profile's current revision with its **own save group**: progress is not
+copied. Stale `--expected-revision` values fail as `conflict`.
+
+`install-package` inspects a local archive without extracting or executing it, stores
+its bytes by SHA-256, records a new revision and, for the selected profile, deploys
+it into the port's `mods` folder. It refuses traversal, absolute or backslash paths,
+case aliases, device names, links, encrypted entries, oversized declared sizes,
+archives carrying executable files and unsupported package types. Only ports with a
+reviewed mod contract accept packages (currently Ship of Harkinian `.o2r`/`.otr`);
+others return `unsupported`. A computed digest establishes bytes, not publisher
+authenticity.
+
+Only files the selected revision installed are ever changed. Unknown files in `mods`
+and installed files edited outside Portcove hold the operation and are listed by
+`profile live`; nothing is overwritten or deleted. `activate` parks the departing
+profile's saves and settings, restores the arriving profile's, and reconciles mods
+from the exact revision. An interrupted switch resumes from its journal without
+merging or losing either profile's data. Until launch (or an immediate refresh of
+the installed build) has restored the new live data, collection is suspended so a
+stale build copy can never overwrite the selected profile or resurrect a disabled
+mod.
+
+Library metadata schema 6 carries profiles, revisions and the selected profile; it is
+emitted only when profiles exist and import validates each profile against its
+retained reference before writing. Precedence between packages that provide the same
+asset path (`asset-override` ordering) follows the supplied order, last wins; this
+is an unverified loader assumption until confirmed against the real loader.
 
 ## Retained builds and setup references
 

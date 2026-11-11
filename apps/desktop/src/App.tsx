@@ -611,7 +611,13 @@ function useWorkspace(props: WorkspaceProps) {
     setView: setPrimaryView,
     setAdoptOpen: ui.setAdoptOpen,
     setSelectedId: (portId) => openPortDetails(portId, `command-trigger:${ui.view}`),
-    checkAll: updates.checkAll,
+    // Show the Updates section first: a check that defers to the sign-in offer renders
+    // its explanation there, and a started check shows its progress there.
+    checkAll: () => {
+      setPrimaryView("updates");
+      ui.setActivitySection("updates");
+      return updates.checkAll();
+    },
     openUpdates: () => {
       setPrimaryView("updates");
       ui.setActivitySection("updates");
@@ -1418,6 +1424,9 @@ function CurrentView({
           Promise.allSettled([data.refresh(), data.refreshDiagnosticsAfterMutation()])
         }
         checkAll={updates.checkAll}
+        signInOffer={updates.signInOffer}
+        onCheckAnyway={updates.checkAnyway}
+        onDismissSignInOffer={updates.dismissSignInOffer}
         perform={operations.perform}
         onLaunch={(portId) =>
           launchKnownPort(
