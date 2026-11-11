@@ -2316,7 +2316,7 @@ secret-free reusable qualification and a three-platform build matrix plus the
 dedicated Intel producer in parallel. Release validation consumes and verifies
 the qualification plan digest and exact checkout before running the release
 audit profile, dependency audit, and live upstream checks. The reduced release
-audit profile retains dependency policy, rscheck, and release-unit coverage;
+audit profile retains dependency policy, Rust path portability, and release-unit coverage;
 qualification owns the remaining complete cross-platform inventory. The native Intel verifier starts as soon as
 that producer is complete, without waiting for unrelated platform builds. A
 fail-closed result gate requires qualification, release validation, every producer, and native Intel verification before

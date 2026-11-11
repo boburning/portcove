@@ -480,18 +480,6 @@ jobs:
         if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
         with:
           test-fixtures: true
-      - uses: ./.github/actions/setup-rust
-        if: ${{ !contains(fromJSON(needs.classify.outputs.groups_json), 'rust') && (contains(fromJSON(needs.classify.outputs.files_json), 'scripts/install-qualification-rscheck.py') || contains(fromJSON(needs.classify.outputs.files_json), '.github/actions/setup-qualification-rscheck/action.yml') || contains(fromJSON(needs.classify.outputs.files_json), '.github/quality-tools.json') || contains(fromJSON(needs.classify.outputs.files_json), 'rust-toolchain.toml')) }}
-      - uses: ./.github/actions/setup-qualification-rscheck
-        id: qualification-scanner
-        timeout-minutes: 5
-        if: contains(fromJSON(needs.classify.outputs.files_json), 'scripts/install-qualification-rscheck.py') || contains(fromJSON(needs.classify.outputs.files_json), '.github/actions/setup-qualification-rscheck/action.yml') || contains(fromJSON(needs.classify.outputs.files_json), '.github/quality-tools.json') || contains(fromJSON(needs.classify.outputs.files_json), 'rust-toolchain.toml')
-      - name: Check the installed qualification scanner
-        if: steps.qualification-scanner.outcome == 'success'
-        run: |
-          node scripts/quality-tools.mts --verify rscheck-cli
-          # node-suite: rust-quality-full-3
-          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/run-rscheck.test.mts
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
         with:
@@ -501,6 +489,9 @@ jobs:
       - name: Check Rust formatting
         if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
         run: cargo fmt --all -- --check
+      - name: Check Rust path portability
+        if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
+        run: cargo run --locked -p portcove-rust-portability
       - name: Test Linux update process environment
         if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
         run: |
@@ -1321,8 +1312,6 @@ jobs:
         with:
           aqua_version: ${{ steps.aqua-version.outputs.version }}
           enable_aqua_install: "false"
-      - uses: ./.github/actions/setup-qualification-rscheck
-        timeout-minutes: 5
       - name: Verify exact Rust quality-tool versions
         run: ./scripts/bootstrap-quality-tools.sh
       - name: Lint repository scripts and workflows
@@ -1350,6 +1339,10 @@ jobs:
           # node-suite: rust-quality-full
           node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/check-rust-architecture.test.mts
       - run: node scripts/check-rust-architecture.mts
+      - name: Check Rust path portability and regressions
+        run: |
+          cargo test --locked -p portcove-rust-portability
+          cargo run --locked -p portcove-rust-portability
       - name: Install Linux desktop schema-export prerequisites
         timeout-minutes: 30
         run: ./scripts/install-linux-desktop-prerequisites.sh --prefer-archive-mirror --install-timeout-seconds=600
@@ -1361,10 +1354,6 @@ jobs:
           node scripts/check-transport-contract.mts
           # node-suite: rust-quality-full-2
           node --test --test-reporter=./scripts/required-node-test-reporter.mts scripts/check-transport-contract.integration.test.mts
-      - run: |
-          # node-suite: rust-quality-full-3
-          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/run-rscheck.test.mts
-      - run: node scripts/run-rscheck.mts
 
   rust-quality:
     timeout-minutes: 15

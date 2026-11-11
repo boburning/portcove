@@ -72,7 +72,7 @@ interface AuditResult {
 }
 export const RELEASE_AUDIT_STAGE_IDS = Object.freeze([
   "dependency-policy",
-  "rscheck",
+  "rust-portability",
   "release-unit",
 ]);
 

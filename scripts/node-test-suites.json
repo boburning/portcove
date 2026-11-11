@@ -84,13 +84,6 @@
     "rust-quality-full-2": {
       "arguments": ["--test", "--test-reporter=./scripts/required-node-test-reporter.mts"]
     },
-    "rust-quality-full-3": {
-      "arguments": [
-        "--test",
-        "--test-timeout=30000",
-        "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
-    },
     "frontend-full": {
       "arguments": [
         "--test",
@@ -3920,25 +3913,6 @@
       "memberships": [
         ["frontend-full", 200],
         ["development-tools", 4100]
-      ]
-    },
-    {
-      "file": "scripts/run-rscheck.test.mts",
-      "memberships": [["rust-quality-full-3", 100]],
-      "platform_skips": [
-        {
-          "platform": ["linux", "win32", "darwin"],
-          "owner": "rust-quality-full-3",
-          "category": "prerequisite",
-          "prerequisite": "Pinned rscheck is not installed; run the maintained rscheck route for this control",
-          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
-          "intended_route": ".github/workflows/ci.yml; complete Node suite rust-quality-full-3; Mac complement macos-platform-contracts",
-          "cases": [
-            "TFE hostile-path exception applies only to the exact dedicated test fixture",
-            "reviewed portability literals apply only to exact files and exact values"
-          ],
-          "skip_reason_prefix": "Pinned rscheck is not installed; run the maintained rscheck route for this control"
-        }
       ]
     },
     {

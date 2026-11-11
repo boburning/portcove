@@ -108,7 +108,7 @@ projects, and shared input fallback runs the full unit/browser suites and build.
 Tooling lint uses integrated repository lint/type checks; CSS and browser-package
 checks follow real frontend impact.
 
-`just check-rust`, `just check-ui`, `just check`, `just audit`, Fallow and rscheck
+`just check-rust`, `just check-ui`, `just check`, `just audit` and Fallow
 are explicit exhaustive/investigative operations. Fallow is not an ordinary
 merge gate. Their full execution recipes live in
 [quality operations](reference/quality-operations.md). A command name in that

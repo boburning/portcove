@@ -64,7 +64,7 @@ export interface QualityTool {
   version: string;
   command: [string, ...string[]];
   tier: "required" | "deep";
-  ci_install: "prebuilt" | "cached" | "local" | "source";
+  ci_install: "prebuilt" | "local" | "source";
 }
 export interface QualityManifest {
   schema_version: 1;
@@ -120,12 +120,11 @@ export function validateQualityManifest(manifest: unknown): asserts manifest is 
       );
     if (
       tool.ci_install !== "prebuilt" &&
-      tool.ci_install !== "cached" &&
       tool.ci_install !== "local" &&
       tool.ci_install !== "source"
     ) {
       throw new Error(
-        `The quality tool ${JSON.stringify(tool.id)} has an invalid \`ci_install\` strategy: ${JSON.stringify(tool.ci_install)}. Use prebuilt, cached, local or source.`,
+        `The quality tool ${JSON.stringify(tool.id)} has an invalid \`ci_install\` strategy: ${JSON.stringify(tool.ci_install)}. Use prebuilt, local or source.`,
       );
     }
   }
@@ -134,7 +133,6 @@ export function validateQualityManifest(manifest: unknown): asserts manifest is 
     "cargo-shear",
     "cargo-deny",
     "cargo-modules",
-    "rscheck-cli",
     "cargo-mutants",
     "cargo-nextest",
   ]) {
@@ -181,7 +179,6 @@ export function githubOutputs(manifest: QualityManifest) {
       .filter((tool) => tool.tier === "required")
       .map(spec)
       .join(","),
-    rscheck_spec: spec(toolById(manifest, "rscheck-cli")),
   };
 }
 

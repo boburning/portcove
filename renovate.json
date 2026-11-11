@@ -64,7 +64,6 @@
         "cargo-shear",
         "cargo-deny",
         "cargo-modules",
-        "rscheck-cli",
         "cargo-mutants",
         "cargo-nextest",
         "rust",

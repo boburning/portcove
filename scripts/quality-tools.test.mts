@@ -252,10 +252,7 @@ void test("quality manifest owns exact unique Rust pins and workflow outputs", (
   };
   assert.deepEqual(githubOutputs(manifest), {
     required_prebuilt: ["just", "cargo-shear", "cargo-deny", "cargo-nextest"].map(spec).join(","),
-    required_all: ["just", "cargo-shear", "cargo-deny", "rscheck-cli", "cargo-nextest"]
-      .map(spec)
-      .join(","),
-    rscheck_spec: spec("rscheck-cli"),
+    required_all: ["just", "cargo-shear", "cargo-deny", "cargo-nextest"].map(spec).join(","),
   });
 });
 

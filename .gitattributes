@@ -21,6 +21,3 @@ docs/archive/2026-09-04-ux-copy-content-interaction-audit.md whitespace=-trailin
 # Their final blank line belongs to the original game, not repository formatting.
 scripts/fixtures/application-update-game-data/*.cfg -text whitespace=-blank-at-eof
 scripts/fixtures/application-update-game-data/tyrian.sav binary
-
-# Archived rscheck crates are verified source archives, not text.
-vendor/rscheck/*.crate binary

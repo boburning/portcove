@@ -34,7 +34,7 @@ void test("Windows desktop doctor probes pinned Rust payloads without ambient ex
   const cargoRoot = path.join(os.tmpdir(), "portcove-absent-doctor-cache");
   for (const tool of manifest.tools.filter((item) => item.tier === "required")) {
     const definition = cachedRustDefinition(tool, { cargoRoot }, "win32");
-    const binary = tool.id === "rscheck-cli" ? "rscheck" : tool.crate;
+    const binary = tool.crate;
     assert.deepEqual(definition.command, [
       path.join(cargoRoot, tool.crate, tool.version, "bin", `${binary}.exe`),
       "--version",
