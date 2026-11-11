@@ -210,7 +210,7 @@ describe("retained task recovery navigation", () => {
         .toBeVisible();
       expect(document.body.textContent).not.toContain("private-worker-message");
       expect(onSelect).not.toHaveBeenCalled();
-      await page.getByRole("button", { name: "Review game", exact: true }).click();
+      await page.getByRole("button", { name: /^Review game: / }).click();
       expect(onSelect).toHaveBeenCalledExactlyOnceWith(
         port.id,
         "updates:activity:interrupted-update:review",
@@ -225,13 +225,11 @@ describe("retained task recovery navigation", () => {
     activity.failure!.presentation.recovery_actions.unshift("review_preparation");
     const { result, onSelect } = await renderTask(activity);
     try {
+      await expect.element(page.getByRole("button", { name: /^Review setup: / })).toBeVisible();
       await expect
-        .element(page.getByRole("button", { name: "Review setup", exact: true }))
-        .toBeVisible();
-      await expect
-        .element(page.getByRole("button", { name: "Review game", exact: true }))
+        .element(page.getByRole("button", { name: /^Review game: / }))
         .not.toBeInTheDocument();
-      await page.getByRole("button", { name: "Review setup", exact: true }).click();
+      await page.getByRole("button", { name: /^Review setup: / }).click();
       expect(onSelect).toHaveBeenCalledExactlyOnceWith(
         port.id,
         "updates:activity:interrupted-update:review",
@@ -250,7 +248,7 @@ describe("retained task recovery navigation", () => {
       const { result, onSelect } = await renderTask(activity);
       try {
         await expect
-          .element(page.getByRole("button", { name: "Review game", exact: true }))
+          .element(page.getByRole("button", { name: /^Review game: / }))
           .not.toBeInTheDocument();
         expect(onSelect).not.toHaveBeenCalled();
       } finally {
