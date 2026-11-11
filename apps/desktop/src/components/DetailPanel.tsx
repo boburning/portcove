@@ -1251,10 +1251,13 @@ export function InstallationVersionSummary({
   status,
   selectedChannel,
   action,
+  portcoveUpdates = false,
 }: {
   status?: PortStatus | undefined;
   selectedChannel: ReleaseChannel;
   action?: ReactNode;
+  /** Portcove owns runtime replacement for this managed installation. */
+  portcoveUpdates?: boolean;
 }) {
   const checked = currentUpdateSnapshot(status)?.check;
   const candidate =
@@ -1290,6 +1293,9 @@ export function InstallationVersionSummary({
         )}
         {action && <div className="detail-version-action">{action}</div>}
       </div>
+      {status?.active && portcoveUpdates && (
+        <p className="detail-version-context">Portcove handles updates for this installation.</p>
+      )}
       {status?.staged && (
         <p className="detail-version-context">
           Using this checked local copy does not download it again, and keeps the current version
@@ -4026,6 +4032,7 @@ function DetailVersionsSection({
           <InstallationVersionSummary
             status={model.status}
             selectedChannel={model.selectedChannel}
+            portcoveUpdates={!external && model.port.release.provider !== "user-prepared"}
             action={
               !external && model.stagedVersion ? (
                 <StagedActivation

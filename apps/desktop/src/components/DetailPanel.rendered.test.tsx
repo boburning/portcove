@@ -1478,6 +1478,8 @@ describe("desktop components", () => {
     // No previous version is recorded, so restore is known to be inapplicable and hidden.
     expect(buttonLabels).not.toContain("Restore previous version");
     expect(installed).toContain("No previous version is recorded.");
+    // Update ownership is stated for a Portcove-managed installation.
+    expect(installed).toContain("Portcove handles updates for this installation.");
     // Reachable on the page, not just rendered by its own component test.
     expect(buttonLabels).toContain("Report a problem");
     expect(installed).toContain(
