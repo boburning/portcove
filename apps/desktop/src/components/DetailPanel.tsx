@@ -4148,7 +4148,7 @@ function ManualSetupActions({
             disabled={Boolean(model.busy) || !model.actions.openSetupFolder}
             onClick={() => void model.actions.openSetupFolder?.()}
           >
-            Finish setup
+            Open setup folder
           </Button>
           <Button
             data-focusable

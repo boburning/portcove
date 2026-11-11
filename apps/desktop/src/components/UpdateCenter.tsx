@@ -181,14 +181,17 @@ function useUpdateCenter({
   const updateReviewOwner = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!reviewedActivity) return;
-    const frame = window.requestAnimationFrame(() => {
-      const row = [...document.querySelectorAll<HTMLElement>("[data-activity-id]")].find(
-        (element) => element.dataset.activityId === reviewedActivity.id,
-      );
-      if (row) focusAndReveal(row);
-    });
-    return () => window.cancelAnimationFrame(frame);
+    return focusActivityRow(reviewedActivity.id);
   }, [reviewedActivity]);
+  // "Show task" while Activity is already open changes only the reviewed ID; reveal
+  // that row then. Mounting with a retained ID does not move focus.
+  const revealedFromElsewhere = useRef(reviewedActivityId);
+  useEffect(() => {
+    if (revealedFromElsewhere.current === reviewedActivityId) return;
+    revealedFromElsewhere.current = reviewedActivityId;
+    if (!reviewedActivityId) return;
+    return focusActivityRow(reviewedActivityId);
+  }, [reviewedActivityId]);
   useEffect(() => {
     const refreshNow = () => setNowSeconds(Date.now() / 1000);
     refreshNow();
@@ -1516,4 +1519,14 @@ function updateState(
       tone: "available",
     };
   return { label: "No update found at last check", tone: "current" };
+}
+
+function focusActivityRow(id: string) {
+  const frame = window.requestAnimationFrame(() => {
+    const row = [...document.querySelectorAll<HTMLElement>("[data-activity-id]")].find(
+      (element) => element.dataset.activityId === id,
+    );
+    if (row) focusAndReveal(row);
+  });
+  return () => window.cancelAnimationFrame(frame);
 }

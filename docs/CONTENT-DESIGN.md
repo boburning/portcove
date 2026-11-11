@@ -158,20 +158,19 @@ is a **command template**. A review label must not conceal immediate mutation.
 This is the target vocabulary: use one concise verb per actual route. These are
 presentation names, not a requirement to merge routes: managed installation,
 player-managed setup, import, repair and reuse of original files keep their own
-authority and effects. Known gaps remain tracked in #5058: Library cards still
-say Set up or Continue setup where details say Finish setup, and several reread
+authority and effects. Known gaps remain tracked in #5058: several reread
 controls use specific Refresh/Retry labels instead of Check again.
 
-| Action                               | Use when                                                                                  |
-| ------------------------------------ | ----------------------------------------------------------------------------------------- |
-| **Install**                          | A Portcove-managed installation is available and the review is complete.                  |
-| **Choose file / Choose files**       | Required original game files or BIOS are missing for the selected route.                  |
-| **Finish setup**                     | The port is installed and Core reports remaining setup.                                   |
-| **Play**                             | The current readiness assessment permits launch. Name the game in repeated controls.      |
-| **Try launch**                       | Launch is permitted but an input is not yet confirmed.                                    |
-| **Start setup**                      | Launch is permitted and the game opens into its own first-run setup.                      |
-| **Check again**                      | A failed, unknown or stale read can be refreshed; it reads state and repeats no mutation. |
-| **Repair / Import / Open installer** | That is the actual operation.                                                             |
+| Action                               | Use when                                                                                      |
+| ------------------------------------ | --------------------------------------------------------------------------------------------- |
+| **Install**                          | A Portcove-managed installation is available and the review is complete.                      |
+| **Choose file / Choose files**       | Required original game files or BIOS are missing for the selected route.                      |
+| **Set up**                           | The port is installed and Core reports remaining setup; card and detail open the same review. |
+| **Play**                             | The current readiness assessment permits launch. Name the game in repeated controls.          |
+| **Try launch**                       | Launch is permitted but an input is not yet confirmed.                                        |
+| **Start setup**                      | Launch is permitted and the game opens into its own first-run setup.                          |
+| **Check again**                      | A failed, unknown or stale read can be refreshed; it reads state and repeats no mutation.     |
+| **Repair / Import / Open installer** | That is the actual operation.                                                                 |
 
 The card, detail action, review title and confirmation name the same action.
 One screen offers one primary control per review; subordinate controls (for
