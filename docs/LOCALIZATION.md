@@ -74,6 +74,8 @@ Add English first, add every engineering-locale form needed by that message, the
 `extract.input` in `apps/desktop/i18next.config.ts` is the enforced inventory of
 migrated first-party surfaces. Listing a file there makes `i18n:check` reject new
 hardcoded copy, catalog drift and unknown keys in it; there is no second registry.
+`localization.tsx` is the exception: it is in `lint.ignore` because it owns
+locale names and fallback plumbing, so it receives extraction and key checks only.
 Migrate a complete surface before listing it, and keep English output identical
 unless the copy change is intended and reviewed.
 
@@ -86,7 +88,8 @@ unless the copy change is intended and reviewed.
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-11 it
-reported 1,823 findings in 86 of 208 analyzed files. That count covers JSX text
+reported 1,823 findings in 86 of 208 analyzed files, measured after this
+slice and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
 and are migrated with the surface that renders them. The count is a work
 inventory, not a coverage claim.
@@ -100,7 +103,8 @@ keyboard key names and product names remain literals.
 Migrated components call `useAppTranslation(namespace)` from `localization.tsx`.
 It binds the hook to the module-initialized i18next instance, so a surface rendered
 outside the provider, such as render recovery, shows complete English instead of
-raw keys. Domain or controller state stores stable codes (for example the interface
+raw keys. The global instance is the only runtime i18next instance; a test or
+fixture that mounts a separate instance does not reach these surfaces. Domain or controller state stores stable codes (for example the interface
 size `unconfirmed` error), never translated text.
 
 Channel-dependent messages use static i18next contexts (`readyBody_preview`,

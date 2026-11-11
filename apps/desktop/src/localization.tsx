@@ -252,6 +252,7 @@ export function LocalizationProvider({
  * Feature translation bound to the module-initialized instance, so migrated
  * surfaces (including render recovery outside the provider) never fall back to
  * raw keys. Locale changes on the shared instance still re-render consumers.
+ * Invariant: the global instance is the only runtime i18next instance.
  */
 export function useAppTranslation<const N extends Namespace>(ns: N) {
   return useTranslation(ns, { i18n: i18next });
