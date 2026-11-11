@@ -1509,6 +1509,10 @@ function CurrentView({
         window.requestAnimationFrame(() => document.querySelector<HTMLElement>("main h1")?.focus());
       }}
       onBrowseCatalog={onAddGames}
+      onDiscover={() => {
+        ui.setView("catalog");
+        window.requestAnimationFrame(() => document.querySelector<HTMLElement>("main h1")?.focus());
+      }}
       onConnectGameFiles={() => {
         ui.setSettingsCategory("game-files");
         ui.setView("settings");

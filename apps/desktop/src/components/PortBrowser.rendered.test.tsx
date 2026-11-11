@@ -266,6 +266,8 @@ describe("desktop components", () => {
         filter="all"
         setFilter={vi.fn()}
         onSelect={vi.fn()}
+        onDiscover={vi.fn()}
+        onBrowseCatalog={vi.fn()}
         loading={false}
       />,
     );
@@ -311,8 +313,17 @@ describe("desktop components", () => {
     expect(emptyLibrary).toContain("/brand/icons/portcove-mascot-transparent.png");
     expect(emptyLibrary).toContain('aria-hidden="true"');
     expect(emptyLibrary).toContain("Your library is empty");
-    expect(emptyLibrary).toContain("using your original files");
-    expect(emptyLibrary).toContain("Add games");
+    // First run explains Portcove plainly and leads with Discover.
+    expect(emptyLibrary).toContain("community-made versions of games, called ports");
+    expect(emptyLibrary).toContain("your own copy of the original game");
+    const firstRunButtons = [...emptyLibrary.matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/gu)].map(
+      ([button]) => button,
+    );
+    expect(firstRunButtons[0]).toContain("Browse games");
+    expect(firstRunButtons[0]).toContain('data-variant="primary"');
+    expect(firstRunButtons.find((button) => button.includes("Add games"))).toContain(
+      'data-variant="outline"',
+    );
     expect(emptyLibrary).not.toContain('aria-label="Library readiness"');
     expect(emptyLibrary).not.toContain('aria-label="Library filters"');
     expect(emptyLibrary).toContain("copy a supported installation");

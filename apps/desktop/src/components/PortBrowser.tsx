@@ -43,6 +43,7 @@ import {
   Play,
   Save,
   Boxes,
+  Compass,
   ArrowDownCircle,
   CheckCircle2,
   Gamepad2,
@@ -233,6 +234,7 @@ function usePortBrowser({
   onContinue,
   onTask,
   onBrowseCatalog,
+  onDiscover,
   onConnectGameFiles,
   steamBatch,
   clearFilters,
@@ -272,6 +274,7 @@ function usePortBrowser({
   onContinue?: (portId: string) => void;
   onTask?: ((activityId?: string) => void) | undefined;
   onBrowseCatalog?: (() => void) | undefined;
+  onDiscover?: (() => void) | undefined;
   onConnectGameFiles?: (() => void) | undefined;
   steamBatch?: { ports: PortDefinition[]; generation: number };
   clearFilters?: (() => void) | undefined;
@@ -443,6 +446,7 @@ function usePortBrowser({
     onContinue: onContinue ? stableContinue : undefined,
     onTask: onTask ? stableTask : undefined,
     onBrowseCatalog,
+    onDiscover,
     onConnectGameFiles,
     steamBatch,
     loading,
@@ -680,6 +684,7 @@ function PortBrowserView({
         onTask={model.onTask}
         onLaunch={model.onContinue}
         onBrowseCatalog={model.onBrowseCatalog}
+        onDiscover={model.onDiscover}
         onConnectGameFiles={model.onConnectGameFiles}
         clearFilters={model.reset}
         loading={model.loadingResults}
@@ -776,6 +781,7 @@ function BrowserResults({
   onLaunch,
   onTask,
   onBrowseCatalog,
+  onDiscover,
   onConnectGameFiles,
   clearFilters,
   loading,
@@ -798,6 +804,7 @@ function BrowserResults({
   onLaunch?: ((portId: string) => void) | undefined;
   onTask?: ((activityId?: string) => void) | undefined;
   onBrowseCatalog?: (() => void) | undefined;
+  onDiscover?: (() => void) | undefined;
   onConnectGameFiles?: (() => void) | undefined;
   clearFilters?: (() => void) | undefined;
   loading: boolean;
@@ -815,6 +822,7 @@ function BrowserResults({
         constrained={constrained}
         clearFilters={clearFilters}
         onBrowseCatalog={onBrowseCatalog}
+        onDiscover={onDiscover}
         onConnectGameFiles={onConnectGameFiles}
       />
     );
@@ -907,6 +915,7 @@ function BrowserEmptyState({
   constrained,
   clearFilters,
   onBrowseCatalog,
+  onDiscover,
   onConnectGameFiles,
 }: {
   view: View;
@@ -915,6 +924,8 @@ function BrowserEmptyState({
   constrained: boolean;
   clearFilters?: (() => void) | undefined;
   onBrowseCatalog?: (() => void) | undefined;
+  /** First run: Discover is the primary way to choose a game. */
+  onDiscover?: (() => void) | undefined;
   onConnectGameFiles?: (() => void) | undefined;
 }) {
   if (view === "library" && installedCount === 0 && !constrained && !query.trim())
@@ -926,13 +937,19 @@ function BrowserEmptyState({
           </span>
         }
         title="Your library is empty"
-        description="Add games using your original files, search a chosen folder, or find a port. You can also copy a supported installation without changing its original folder."
+        description="Portcove installs community-made versions of games, called ports, and keeps them updated. Some ports need files from your own copy of the original game; Portcove checks them and keeps them on this computer. You can also copy a supported installation without changing its original folder."
         action={
           <>
+            {onDiscover && (
+              <Button data-focusable variant="primary" size="lg" onClick={onDiscover}>
+                <Icon glyph={Compass} />
+                Browse games
+              </Button>
+            )}
             <Button
               data-focusable
               data-add-games-trigger
-              variant="primary"
+              variant={onDiscover ? "outline" : "primary"}
               size="lg"
               onClick={onBrowseCatalog}
             >
