@@ -157,3 +157,57 @@ void test("an unreadable or invalid checkpoint is a failed run that observes not
   assert.equal(invalid.failed, true);
   assert.match(invalid.gaps[0]?.message ?? "", /Invalid catalog observer checkpoint/u);
 });
+
+void test("held declarations of observed ports stay facts; only unserved held ports are gaps", () => {
+  const mixed = {
+    ports: [
+      { id: "alpha", channels: ["stable"], release: { repository: "owner/alpha" } },
+      {
+        id: "eps",
+        channels: ["stable"],
+        release: { provider: "user-prepared", repository: "x/y" },
+      },
+    ],
+    listings: [
+      // A managed GitHub port whose listing has no supported identity.
+      { id: "alpha", project_url: "https://example.com/alpha" },
+      // A user-prepared port whose listing the observer still observes.
+      { id: "eps", project_url: "https://github.com/owner/eps" },
+    ],
+  };
+  const result = upstreamFacts(
+    checkpoint({
+      [keyOf("owner/alpha")]: progress("owner/alpha", ["alpha"]),
+      [keyOf("owner/eps")]: progress("owner/eps", ["eps"]),
+    }),
+    mixed,
+    now,
+  );
+  assert.deepEqual(result.gaps, []);
+  assert.deepEqual((result.facts.get("port:alpha") as { held_reasons?: string[] }).held_reasons, [
+    "listing-provider-observation-unsupported",
+  ]);
+  assert.deepEqual((result.facts.get("port:eps") as { held_reasons?: string[] }).held_reasons, [
+    "provider-user-prepared-not-observable-by-core",
+  ]);
+  const unserved = upstreamFacts(checkpoint({}), { ports: [catalog.ports[3]] }, now);
+  assert.equal(unserved.gaps[0]?.code, "held");
+});
+
+void test("a routine partial-progress stop does not change the stored payload", () => {
+  const stored = (overrides: Record<string, unknown>) =>
+    JSON.stringify(
+      upstreamFacts(
+        checkpoint({ [keyOf("owner/alpha")]: progress("owner/alpha", ["alpha"], overrides) }),
+        { ports: [catalog.ports[0]] },
+        now,
+      ).facts.get("port:alpha"),
+    );
+  const quiet = stored({});
+  for (const rule of ["budget", "cancelled", "provider-quota"])
+    assert.equal(stored({ exception_key: exception, exception_rule: rule }), quiet, rule);
+  assert.notEqual(
+    stored({ exception_key: exception, exception_rule: "repository-unavailable" }),
+    quiet,
+  );
+});

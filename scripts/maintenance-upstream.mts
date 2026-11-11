@@ -59,23 +59,31 @@ const failedSubject = "source:upstream-observer-checkpoint";
  * stable facts only; per-observation clocks, sequences, cursors, retry state
  * and Core policy outputs (which embed observation clocks) are never stored.
  * A port is a fact only when every source serving it has a completed policy
- * for it; otherwise it is a coverage gap.
+ * for it; otherwise it is a coverage gap. The observer also lists a port as
+ * held when one of its declarations is not observable while another source
+ * still serves it, so `held` is a gap only for ports no source serves; a served
+ * port carries its held reasons in its facts. The observer's routine
+ * partial-progress stops are continuation, not stored state.
  */
 export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.now()) {
   const state = validateCatalogObserverCheckpoint(checkpoint, now);
   const { sources, held, port_ids: portIds } = catalogObservationSources(catalog);
-  const heldIds = new Map(held.map(({ port_id, reason }) => [port_id, reason]));
+  const heldReasons = new Map<string, string[]>();
+  for (const { port_id, reason } of held)
+    heldReasons.set(port_id, [...new Set([...(heldReasons.get(port_id) ?? []), reason])].sort());
+  const served = new Set(sources.flatMap((source) => source.ports.map((port) => port.id)));
   const entries = new Map<string, UpstreamSourceFact[]>();
   const gaps = new Map<string, UpstreamGap>();
   const gap = (id: string, value: Omit<UpstreamGap, "subject_key">) => {
-    // One gap per port: `held` first, then the first incomplete source in catalog order.
+    // One gap per port: unserved `held` first, then the first incomplete source in catalog order.
     if (!gaps.has(`port:${id}`)) gaps.set(`port:${id}`, { subject_key: `port:${id}`, ...value });
   };
-  for (const [id, reason] of heldIds)
-    gap(id, {
-      code: "held",
-      message: `The observer does not observe this port's declared provider (${reason}).`,
-    });
+  for (const [id, reasons] of heldReasons)
+    if (!served.has(id))
+      gap(id, {
+        code: "held",
+        message: `The observer does not observe this port's declared provider (${reasons.join(", ")}).`,
+      });
   for (const source of sources) {
     const progress = state.sources[source.key];
     for (const port of source.ports) {
@@ -107,6 +115,11 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
         });
         continue;
       }
+      // A routine partial-progress stop keeps the completed scope; storing it would churn.
+      const routine =
+        typeof progress.exception_rule === "string" &&
+        partialProgressRules.includes(progress.exception_rule);
+      const exceptionKey = routine ? null : progress.exception_key;
       entries.set(port.id, [
         ...(entries.get(port.id) ?? []),
         {
@@ -116,9 +129,9 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
           repository_id: progress.repository_id,
           last_complete_facts_sha256: progress.last_complete_facts_sha256,
           last_change_at: progress.last_change_at,
-          exception_key: progress.exception_key,
+          exception_key: exceptionKey,
           // Absent in checkpoints written before #4779.
-          exception_rule: progress.exception_key ? (progress.exception_rule ?? null) : null,
+          exception_rule: exceptionKey ? (progress.exception_rule ?? null) : null,
           catalog_definition_sha256:
             typeof policy.catalog_definition_sha256 === "string"
               ? policy.catalog_definition_sha256
@@ -131,6 +144,7 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
   for (const id of [...portIds].sort())
     if (!gaps.has(`port:${id}`) && entries.has(id))
       facts.set(`port:${id}`, {
+        ...(heldReasons.has(id) ? { held_reasons: heldReasons.get(id) } : {}),
         sources: entries
           .get(id)!
           .sort((left, right) => (left.source_key < right.source_key ? -1 : 1)),

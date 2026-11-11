@@ -400,14 +400,18 @@ not published.
 - **Stored facts:** per `port:<id>`, one entry per observation source that serves
   it: source key, provider, repository, repository ID, last complete facts digest,
   last change time, exception key and rule, and the Core catalog definition digest
-  of the port's last complete policy.
+  of the port's last complete policy. A served port that the observer also lists
+  as held (for example a `user-prepared` port whose listing is observed, or a
+  managed port with an unsupported listing) carries its `held_reasons`.
+  - The observer's partial-progress stops (budget, cancellation, quota) keep the
+    completed scope and are stored as no exception, so they cause no churn.
   - Per-observation clocks and progress (freshness, completion and due times,
     attempted sequence, retry state, provider progress and cursors), result
     digests and policy bodies are never stored: Core and listing policies embed
     observation clocks, so a routine re-observation stays quiet.
 - **Gaps:** a port is a fact only when every source serving it has completed
   with a policy for it. Otherwise the run is `partial` and the port is a gap:
-  `held` (the observer does not observe its declared provider), `unobserved`
+  `held` (no observation source serves the port), `unobserved`
   (its source never completed), or `scope-changed` (its source's completion was
   reset, or does not cover the port). Gaps carry the source's exception key and
   rule. The current-scope binding includes Core's policy identity and definition
