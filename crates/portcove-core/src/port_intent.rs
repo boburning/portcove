@@ -266,7 +266,9 @@ impl Library {
     /// Remembers that the player uninstalled this game, so standing setup and
     /// notifications do not bring it back without a new choice.
     pub(crate) fn record_explicit_uninstall(&self, port_id: &str) -> Result<()> {
-        self.update_port_intent(port_id, |record, now| {
+        // An uninstall is an explicit decision, so it replaces an unreadable
+        // record rather than blocking the removal.
+        self.update_port_intent_with(port_id, true, |record, now| {
             let intent = record
                 .get_or_insert_with(|| PortIntent::new(port_id, PortIntentMode::DiscoverOnly, now));
             intent.explicitly_uninstalled_at = Some(now);

@@ -34,7 +34,15 @@ const choices: { mode: PortIntentMode; label: string; detail: string }[] = [
  * The player's remembered choice for one game. Core stores it and decides
  * readiness; this control only shows and changes the choice.
  */
-export function SetupIntentChoice({ portId, generation }: { portId: string; generation: number }) {
+export function SetupIntentChoice({
+  portId,
+  generation,
+  installed = false,
+}: {
+  portId: string;
+  generation: number;
+  installed?: boolean | undefined;
+}) {
   const name = useId();
   const [intent, setIntent] = useState<PortIntent>();
   const [loaded, setLoaded] = useState(false);
@@ -101,7 +109,7 @@ export function SetupIntentChoice({ portId, generation }: { portId: string; gene
           </span>
         </label>
       ))}
-      {intent?.explicitly_uninstalled_at && (
+      {intent?.explicitly_uninstalled_at && !installed && (
         <div>
           <p>
             You uninstalled this game, so Portcove won't set it up or notify you about it until you

@@ -14,7 +14,13 @@ export function onStandingSetupPass(listener: () => void) {
   return () => events.removeEventListener("pass", listener);
 }
 
+/** Identity of the registered files, so a refresh that changed none triggers no pass. */
+export function sourcesKey(sources: readonly { profile_id: string; sha256: string }[]) {
+  return sources.map((source) => `${source.profile_id}:${source.sha256}`).join("\n");
+}
+
 const settleMilliseconds = 1500;
+const busyRetryMilliseconds = 30_000;
 
 /**
  * Catch-up for the player's standing set-up-when-ready choices: once a
@@ -53,6 +59,8 @@ export function useStandingSetupCatchUp(
       if (intents.some((intent) => intent.mode === "set_up_when_ready")) {
         const result = await desktopApi.runStandingSetup(expected, () => undefined);
         if (result.batches.length && current.current === expected) await changed.current();
+        // Another window or the CLI is running a pass; check again after it.
+        if (result.already_running) again.current = true;
       }
     } catch {
       // Each game's outcome is recorded by Core and shown in Activity and on
@@ -62,7 +70,7 @@ export function useStandingSetupCatchUp(
       events.dispatchEvent(new Event("pass"));
       if (again.current) {
         again.current = false;
-        requestStandingSetup();
+        setTimeout(requestStandingSetup, busyRetryMilliseconds);
       }
     }
   }, [generation]);

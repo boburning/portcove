@@ -3782,6 +3782,7 @@ function DetailFilesSection({
           key={`intent:${model.port.id}:${model.libraryGeneration}`}
           portId={model.port.id}
           generation={model.libraryGeneration}
+          installed={Boolean(model.installed || model.status?.external_runtime)}
         />
         {(model.port.presentation?.manual_setup || model.port.presentation?.manual_preparation) && (
           <SetupStatement
