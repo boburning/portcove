@@ -209,8 +209,9 @@ node scripts/maintenance-inventory.mts report --output work/maintenance-report/2
   through the CLI's `--library`, `PORTCOVE_PREFERENCES` and
   `PORTCOVE_APPLICATION_RUNTIME_LOCK` overrides. The temporary root is a
   resolved real path, because Core refuses paths below a symlink. The platform
-  home and configuration variables also point into the root, so any fallback
-  stays isolated. Collection therefore never
+  home and configuration variables also point into the root, so on Linux and
+  macOS any fallback stays isolated. Windows resolves known folders without
+  those variables, so there isolation rests on the two overrides. Collection therefore never
   reads, writes or rotates the maintainer's real Portcove state. Core's report is projected unchanged: routes, features, modes
   and Core's own explanations. The recorded state names Core's managed-route
   setup mode. A refusal about the port itself (`not_found`) is recorded as
@@ -233,7 +234,8 @@ node scripts/maintenance-inventory.mts report --output work/maintenance-report/2
   (`portcove-maintenance-inventory` format 1) and a self-contained searchable
   `index.html` to a new directory, renamed into place when complete. The report
   lists each source's latest run, coverage and revision, and each subject's
-  current Core assessment, history and latest observations. Unsupported sources
+  current Core assessment, history and latest observations, and whether the
+  latest Core run assessed it, recorded a gap or did not include it. Unsupported sources
   and published delivery are shown as unknown with their reasons.
 
 Listing-only records are marked `listing_only`. A listing establishes neither an

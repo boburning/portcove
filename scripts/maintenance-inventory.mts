@@ -160,7 +160,9 @@ function isolatedCli(cli: string, args: string[]) {
         ...process.env,
         PORTCOVE_PREFERENCES: path.join(root, "config", "preferences.json"),
         PORTCOVE_APPLICATION_RUNTIME_LOCK: path.join(root, "config", "runtime.lock"),
-        // Defence in depth: any platform-directory fallback also stays inside the root.
+        // Defence in depth on Linux and macOS: a platform-directory fallback also stays
+        // inside the root. Windows resolves known folders without these variables, so
+        // there isolation rests on the two overrides above preparing successfully.
         HOME: home,
         USERPROFILE: home,
         XDG_CONFIG_HOME: path.join(home, "config"),
@@ -419,7 +421,7 @@ const reportQuery = `SELECT json_build_object(
         (SELECT json_agg(json_build_object('sequence', t.sequence, 'state', t.state, 'recorded_at', t.recorded_at,
                  'returns_to_earlier_result', t.returns_to_earlier_result) ORDER BY t.sequence)
            FROM portcove_maintenance.subject_transitions t WHERE t.subject_key = c.subject_key) AS history,
-        (SELECT json_agg(json_build_object('source', o.scope ->> 'source', 'input_revision', o.input_revision,
+        (SELECT json_agg(json_build_object('source', o.scope ->> 'source', 'run_id', o.run_id, 'input_revision', o.input_revision,
                  'scope', o.scope, 'observed_at', o.observed_at, 'content_sha256', o.content_sha256) ORDER BY o.scope ->> 'source')
            FROM (SELECT DISTINCT ON (scope ->> 'source') * FROM portcove_maintenance.observations
                    WHERE subject_key = c.subject_key ORDER BY scope ->> 'source', observed_at DESC) o) AS observations
@@ -454,6 +456,14 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     runs: unknown[];
     subjects: unknown[];
   };
+  const gaps = latestCoreGaps(data.runs);
+  const latestCoreRun = (data.runs as { source: string; run_id: string }[]).find(
+    ({ source }) => source === "core-port-capabilities",
+  )?.run_id;
+  const subjects = data.subjects as {
+    subject_key: string;
+    observations?: { source: string; run_id: string }[] | null;
+  }[];
   return {
     format: "portcove-maintenance-inventory",
     format_version: inventoryFormatVersion,
@@ -465,18 +475,20 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     },
     unsupported_sources: unsupportedSources.map(([source, reason]) => ({ source, reason })),
     runs: data.runs,
-    subjects: data.subjects.map((subject) => ({
-      ...(subject as Record<string, unknown>),
-      latest_core_gap:
-        latestCoreGaps(data.runs).get((subject as { subject_key: string }).subject_key) ?? null,
-    })),
-    unassessed_gaps: [...latestCoreGaps(data.runs)]
-      .filter(
-        ([key]) =>
-          !(data.subjects as { subject_key: string }[]).some(
-            (subject) => subject.subject_key === key,
-          ),
-      )
+    subjects: subjects.map((subject) => {
+      const gap = gaps.get(subject.subject_key);
+      const assessedNow = subject.observations?.some(
+        (observation) =>
+          observation.source === "core-port-capabilities" && observation.run_id === latestCoreRun,
+      );
+      return {
+        ...subject,
+        latest_core_gap: gap ?? null,
+        latest_core_run: gap ? "gap" : assessedNow ? "assessed" : "not-included",
+      };
+    }),
+    unassessed_gaps: [...gaps]
+      .filter(([key]) => !subjects.some((subject) => subject.subject_key === key))
       .map(([subject_key, gap]) => ({ subject_key, ...gap })),
   };
 }
@@ -536,7 +548,9 @@ function render(filter) {
     const text = (subject.subject_key + " " + subject.state).toLowerCase();
     if (filter && !text.includes(filter)) continue;
     const row = body.insertRow();
-    const gap = subject.latest_core_gap ? "not assessed: " + subject.latest_core_gap.code : "assessed";
+    const gap = subject.latest_core_gap
+      ? "not assessed: " + subject.latest_core_gap.code
+      : subject.latest_core_run === "assessed" ? "assessed" : "not in latest run";
     for (const value of [subject.subject_key, subject.state, String(subject.sequence), subject.assessed_at, gap])
       row.insertCell().textContent = value;
   }

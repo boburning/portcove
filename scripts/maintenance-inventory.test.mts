@@ -287,6 +287,7 @@ if (args.includes("capabilities")) {
     assert.equal(ship.explanation.catalog_record_present, true);
     assert.equal(ship.explanation.listing_only, false);
     assert.equal(ship.observations.length, 2);
+    assert.equal((ship as unknown as { latest_core_run: string }).latest_core_run, "assessed");
     const absent = (
       inventory.subjects as {
         subject_key: string;
