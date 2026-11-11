@@ -843,6 +843,25 @@ impl DiscUnpackPhase {
     }
 }
 
+/// Passes an extract report only when the whole percent changes, so a multi-GB
+/// image yields at most 101 reports however many chunks it copies. The first
+/// report and the final one (`completed == total`) are always passed.
+#[derive(Default)]
+pub(crate) struct ExtractProgressCoalescer(std::cell::Cell<Option<u64>>);
+
+impl ExtractProgressCoalescer {
+    pub(crate) fn admit(&self, completed: u64, total: u64) -> bool {
+        let percent = if total == 0 {
+            100
+        } else {
+            (u128::from(completed) * 100 / u128::from(total)).min(100) as u64
+        };
+        let changed = self.0.get() != Some(percent);
+        self.0.set(Some(percent));
+        changed
+    }
+}
+
 /// Catalog-declared disc-image facts plus an optional progress observer.
 /// `report(phase, completed, total)` carries bytes only for `Extract`.
 pub(crate) struct DiscUnpack<'a> {
@@ -1334,9 +1353,14 @@ fn materialize_disc_directory(
         report(DiscUnpackPhase::FreeSpace)?;
         ensure_free_space(parent, plan.expanded_bytes)?;
         checkpoint()?;
-        (disc.report)(DiscUnpackPhase::Extract, 0, Some(plan.expanded_bytes));
+        let coalesce = ExtractProgressCoalescer::default();
+        if coalesce.admit(0, plan.expanded_bytes) {
+            (disc.report)(DiscUnpackPhase::Extract, 0, Some(plan.expanded_bytes));
+        }
         image.extract(&plan, &temporary, checkpoint, &|done, total| {
-            (disc.report)(DiscUnpackPhase::Extract, done, Some(total));
+            if coalesce.admit(done, total) {
+                (disc.report)(DiscUnpackPhase::Extract, done, Some(total));
+            }
         })?;
         report(DiscUnpackPhase::Verify)?;
         verify_runtime_source_hashes(&temporary, required_hashes, checkpoint)?;
