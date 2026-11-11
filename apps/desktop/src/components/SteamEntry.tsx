@@ -147,6 +147,7 @@ export function SteamEntryDialog({
   const [artworkReview, setArtworkReview] = useState<SteamArtworkReview>();
   const [artworkResult, setArtworkResult] = useState<SteamArtworkApplyResult>();
   const [replaceArtwork, setReplaceArtwork] = useState(false);
+  const [includeArtwork, setIncludeArtwork] = useState(true);
   const [pending, setPending] = useState<"review" | "apply">();
   const [error, setError] = useState<string>();
   const dismiss = () => {
@@ -211,7 +212,14 @@ export function SteamEntryDialog({
     setError(undefined);
     try {
       setReview(
-        await desktopApi.previewSteamEntry(port.id, steamRoot, steamUserId, operation, generation),
+        await desktopApi.previewSteamEntry(
+          port.id,
+          steamRoot,
+          steamUserId,
+          operation,
+          operation === "add_or_repair" && includeArtwork,
+          generation,
+        ),
       );
     } catch (value) {
       setError(errorText(value));
@@ -230,7 +238,9 @@ export function SteamEntryDialog({
         review.steam_root,
         review.steam_user_id,
         review.operation,
+        review.artwork_review_sha256 !== null,
         review.plan_sha256,
+        review.artwork_review_sha256,
         generation,
       );
       if (applied) {
@@ -281,6 +291,14 @@ export function SteamEntryDialog({
             setSteamRoot={setSteamRoot}
             setSteamUserId={setSteamUserId}
             resetReview={resetReview}
+          />
+        )}
+        {installed && !reviewing && (
+          <IncludeArtworkChoice
+            id="steam-include-artwork"
+            checked={includeArtwork}
+            disabled={Boolean(pending)}
+            onChange={setIncludeArtwork}
           />
         )}
         {pending === "review" && <p role="status">Inspecting the selected Steam profile…</p>}
@@ -435,6 +453,7 @@ export function SteamBatchEntryDialog({
   const [review, setReview] = useState<SteamBatchReview>();
   const [reviewedSelection, setReviewedSelection] = useState<SteamBatchSelection>();
   const [result, setResult] = useState<SteamEntryApplyResult>();
+  const [includeArtwork, setIncludeArtwork] = useState(true);
   const [pending, setPending] = useState<"review" | "apply">();
   const [error, setError] = useState<string>();
   const resetReview = () => {
@@ -452,6 +471,7 @@ export function SteamBatchEntryDialog({
       portIds: selectedIds,
       steamRoot,
       steamUserId,
+      includeArtwork,
     };
     setPending("review");
     resetReview();
@@ -473,6 +493,7 @@ export function SteamBatchEntryDialog({
       const applied = await desktopApi.applySteamBatchAdd(
         reviewedSelection,
         review.review_sha256,
+        review.artwork_review_sha256,
         generation,
       );
       if (applied) {
@@ -538,6 +559,15 @@ export function SteamBatchEntryDialog({
               setSteamRoot={setSteamRoot}
               setSteamUserId={setSteamUserId}
               resetReview={resetReview}
+            />
+            <IncludeArtworkChoice
+              id="steam-batch-include-artwork"
+              checked={includeArtwork}
+              disabled={Boolean(pending)}
+              onChange={(checked) => {
+                setIncludeArtwork(checked);
+                resetReview();
+              }}
             />
           </>
         )}
@@ -774,6 +804,26 @@ function SteamEntryResult({ result, batch }: { result: SteamEntryApplyResult; ba
           Backup: <code>{result.backup_path}</code>
         </p>
       )}
+      {result.artwork.length > 0 && (
+        <ul aria-label="Steam artwork result">
+          {result.artwork.flatMap((outcome) => {
+            const name = gameName(result.changes, outcome.port_id);
+            return outcome.error
+              ? [
+                  <li className="[overflow-wrap:anywhere]" key={outcome.port_id}>
+                    {name}: shortcut added; artwork was not completed. Open Review artwork update to
+                    check and finish it. <span className="block">Reason: {outcome.error}</span>
+                  </li>,
+                ]
+              : outcome.roles.map((role) => (
+                  <li className="[overflow-wrap:anywhere]" key={`${outcome.port_id}-${role.role}`}>
+                    {name}, {steamArtworkRoleName(role.role).toLowerCase()}:{" "}
+                    {steamArtworkResultLabel(role)}
+                  </li>
+                ));
+          })}
+        </ul>
+      )}
     </section>
   );
 }
@@ -793,6 +843,13 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamB
               : "The Portcove shortcut already matches this setup."}
         </strong>
       </p>
+      {review.recovered_shortcut_change && (
+        <p className="[overflow-wrap:anywhere]" role="status">
+          Portcove first finished an interrupted Steam shortcut or artwork change for this profile.
+          Each changed file is either the one you confirmed earlier or the one that was there
+          before.
+        </p>
+      )}
       <dl className="grid gap-3 [&>div]:grid [&>div]:gap-1">
         <div>
           <dt>Steam profile</dt>
@@ -813,6 +870,33 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamB
           </li>
         ))}
       </ul>
+      {review.artwork.length > 0 && (
+        <div aria-label="Included Steam artwork" role="group">
+          <p>Artwork for new shortcuts (art already in Steam is kept):</p>
+          <ul>
+            {review.artwork.flatMap((preview) => {
+              const name = gameName(review.changes, preview.port_id);
+              return preview.unavailable
+                ? [
+                    <li className="[overflow-wrap:anywhere]" key={preview.port_id}>
+                      {name}: artwork can't be added with this shortcut. The shortcut is still
+                      added; try Review artwork update later.{" "}
+                      <span className="block">Reason: {preview.unavailable}</span>
+                    </li>,
+                  ]
+                : preview.roles.map((role) => (
+                    <li
+                      className="[overflow-wrap:anywhere]"
+                      key={`${preview.port_id}-${role.role}`}
+                    >
+                      {name}, {steamArtworkRoleName(role.role).toLowerCase()}:{" "}
+                      {steamArtworkPlanLabel(role)}
+                    </li>
+                  ));
+            })}
+          </ul>
+        </div>
+      )}
       {review.steam_client_state === "running" && (
         <p className="[overflow-wrap:anywhere]" role="alert">
           Close Steam, then choose Check again. Portcove will not close Steam for you.
@@ -876,6 +960,13 @@ function SteamArtworkReviewDetails({ review }: { review: SteamArtworkReview }) {
               : "No artwork will change for this game in the selected profile."}
         </strong>
       </p>
+      {review.recovered_shortcut_change && (
+        <p className="[overflow-wrap:anywhere]" role="status">
+          Portcove first finished an interrupted Steam shortcut or artwork change for this profile.
+          Each changed file is either the one you confirmed earlier or the one that was there
+          before.
+        </p>
+      )}
       {review.recovered && (
         <p className="[overflow-wrap:anywhere]" role="status">
           Portcove first finished an interrupted artwork change for this profile. Each image is
@@ -950,5 +1041,34 @@ function SteamArtworkResult({ result }: { result: SteamArtworkApplyResult }) {
         </p>
       ))}
     </section>
+  );
+}
+
+function gameName(changes: SteamEntryReview["changes"], portId: string) {
+  return changes.find((change) => change.port_id === portId)?.display_name ?? portId;
+}
+
+function IncludeArtworkChoice({
+  id,
+  checked,
+  disabled,
+  onChange,
+}: {
+  id: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label htmlFor={id} className="flex min-h-10 cursor-pointer items-center gap-3 py-2">
+      <Checkbox
+        data-focusable
+        id={id}
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={(value) => onChange(value === true)}
+      />
+      Include artwork when adding a shortcut
+    </label>
   );
 }

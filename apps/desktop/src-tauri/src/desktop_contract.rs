@@ -344,6 +344,29 @@ pub struct SteamEntryApplyResult {
     pub backup_path: Option<PathBuf>,
     pub changes: Vec<SteamEntryChange>,
     pub wrote: bool,
+    /// Per-game outcome of artwork included with a shortcut Add. A failed or
+    /// unavailable role never undoes a successfully written shortcut.
+    #[serde(default)]
+    pub artwork: Vec<SteamEntryArtworkOutcome>,
+}
+
+/// Artwork reviewed together with a shortcut Add for one game.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SteamEntryArtworkPreview {
+    pub port_id: String,
+    pub roles: Vec<SteamArtworkRoleChange>,
+    /// Why this game's artwork cannot be reviewed now; the shortcut is unaffected.
+    pub unavailable: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SteamEntryArtworkOutcome {
+    pub port_id: String,
+    pub roles: Vec<SteamArtworkRoleChange>,
+    pub backup_paths: Vec<PathBuf>,
+    pub wrote: bool,
+    /// Why no artwork was written for this game; retry with Review artwork update.
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -360,6 +383,9 @@ pub struct SteamEntrySelection {
     pub steam_root: PathBuf,
     pub steam_user_id: String,
     pub operation: SteamEntryOperation,
+    /// Also fill missing Steam artwork for a newly added shortcut.
+    #[serde(default)]
+    pub include_artwork: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -368,6 +394,9 @@ pub struct SteamBatchSelection {
     pub port_ids: Vec<String>,
     pub steam_root: PathBuf,
     pub steam_user_id: String,
+    /// Also fill missing Steam artwork for each newly added shortcut.
+    #[serde(default)]
+    pub include_artwork: bool,
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -388,6 +417,11 @@ pub struct SteamBatchReview {
     pub changes: Vec<SteamEntryChange>,
     pub steam_client_state: SteamClientState,
     pub writes_required: bool,
+    pub artwork: Vec<SteamEntryArtworkPreview>,
+    pub artwork_review_sha256: Option<String>,
+    /// An interrupted shortcut (or, for shortcut reviews, artwork) change in this
+    /// profile was settled before review.
+    pub recovered_shortcut_change: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
@@ -409,6 +443,11 @@ pub struct SteamEntryReview {
     pub changes: Vec<SteamEntryChange>,
     pub steam_client_state: SteamClientState,
     pub writes_required: bool,
+    pub artwork: Vec<SteamEntryArtworkPreview>,
+    pub artwork_review_sha256: Option<String>,
+    /// An interrupted shortcut (or, for shortcut reviews, artwork) change in this
+    /// profile was settled before review.
+    pub recovered_shortcut_change: bool,
 }
 
 /// Separate reviewed Steam artwork action for one owned shortcut.
@@ -478,6 +517,9 @@ pub struct SteamArtworkReview {
     pub steam_client_state: SteamClientState,
     pub writes_required: bool,
     pub recovered: Option<SteamArtworkRecovery>,
+    /// An interrupted shortcut (or, for shortcut reviews, artwork) change in this
+    /// profile was settled before review.
+    pub recovered_shortcut_change: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

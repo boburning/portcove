@@ -961,6 +961,11 @@
   "steam_batch_selection": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
+      "includeArtwork": {
+        "default": false,
+        "description": "Also fill missing Steam artwork for each newly added shortcut.",
+        "type": "boolean"
+      },
       "portIds": {
         "items": {
           "type": "string"
@@ -994,6 +999,11 @@
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
+      "includeArtwork": {
+        "default": false,
+        "description": "Also fill missing Steam artwork for a newly added shortcut.",
+        "type": "boolean"
+      },
       "operation": {
         "$ref": "#/$defs/SteamEntryOperation"
       },

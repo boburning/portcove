@@ -188,6 +188,8 @@ pub struct SteamEntryPlan {
     pub proposed_sha256: String,
     pub plan_sha256: String,
     pub changes: Vec<SteamEntryChange>,
+    /// AppID of each selected game's owned shortcut once this plan is applied.
+    pub owned_app_ids: Vec<(String, u32)>,
 }
 
 impl SteamEntryPlan {
@@ -979,6 +981,21 @@ pub fn plan_steam_entries(request: SteamEntryPlanRequest) -> Result<SteamEntryPl
         None => VdfDocument::empty_shortcuts(),
     };
     let changes = plan_document(&request, &mut document)?;
+    let mut owned_app_ids = Vec::new();
+    if let SteamEntryPlanRequest::AddOrRepair {
+        library_id, games, ..
+    } = &request
+    {
+        let entries = document.shortcuts()?;
+        for game in games {
+            let marker = ownership_marker(library_id, &game.port_id)?;
+            if let Some(index) = owned_entry_index(entries, &marker)?
+                && let Some(app_id) = field_int(shortcut_fields(&entries[index])?, "appid")?
+            {
+                owned_app_ids.push((game.port_id.clone(), app_id));
+            }
+        }
+    }
     let proposed = document.encode()?;
     validate_candidate_bytes(&proposed)?;
     let proposed_sha256 = sha256(&proposed);
@@ -997,6 +1014,7 @@ pub fn plan_steam_entries(request: SteamEntryPlanRequest) -> Result<SteamEntryPl
         proposed_sha256,
         plan_sha256,
         changes,
+        owned_app_ids,
     })
 }
 
@@ -1064,6 +1082,7 @@ where
             backup_path: None,
             changes: current.changes,
             wrote: false,
+            artwork: Vec::new(),
         });
     }
     let (before, before_sha256) = read_snapshot(&shortcuts_path)?;
@@ -1166,6 +1185,7 @@ where
         backup_path,
         changes: current.changes,
         wrote: true,
+        artwork: Vec::new(),
     })
 }
 

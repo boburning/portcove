@@ -10,6 +10,16 @@ import type { SteamArtworkReview, SteamBatchReview, SteamEntryReview } from "../
 import { SteamBatchEntryDialog, SteamEntryDialog } from "./SteamEntry";
 
 const port = portDefinition();
+const portraitWrite: SteamArtworkReview["roles"][number] = {
+  role: "portrait_cover",
+  action: "write",
+  destination_path: "C:\\Steam\\userdata\\12345\\config\\grid\\2147488308p.png",
+  existing_paths: [],
+  existing_sha256: null,
+  proposed_sha256: "a".repeat(64),
+  unavailable_reason: null,
+  forget_ownership: false,
+};
 const review: SteamEntryReview = {
   schema_version: 1,
   operation: "add_or_repair",
@@ -28,6 +38,9 @@ const review: SteamEntryReview = {
   changes: [{ port_id: port.id, display_name: port.name, kind: "add" }],
   steam_client_state: "closed",
   writes_required: true,
+  artwork: [{ port_id: port.id, roles: [portraitWrite], unavailable: null }],
+  artwork_review_sha256: "reviewed-artwork",
+  recovered_shortcut_change: false,
 };
 let root: RenderResult;
 let container: HTMLDivElement;
@@ -73,6 +86,9 @@ it("uses the selected installation and profile, shows exact consumer evidence, a
     backup_path: "C:\\Steam\\userdata\\12345\\config\\shortcuts.vdf.portcove-backup",
     changes: review.changes,
     wrote: true,
+    artwork: [
+      { port_id: port.id, roles: [portraitWrite], backup_paths: [], wrote: true, error: null },
+    ],
   });
   await root.rerender(<SteamEntryDialog port={port} generation={7} installed close={vi.fn()} />);
   const installation = document.body.querySelector<HTMLInputElement>("#steam-installation");
@@ -93,8 +109,10 @@ it("uses the selected installation and profile, shows exact consumer evidence, a
     "C:\\Steam",
     "12345",
     "add_or_repair",
+    true,
     7,
   );
+  expect(document.body.textContent).toContain(`${port.name}, portrait cover: Will be added`);
   for (const value of [
     review.shortcuts_path,
     review.library_root,
@@ -125,10 +143,13 @@ it("uses the selected installation and profile, shows exact consumer evidence, a
     review.steam_root,
     review.steam_user_id,
     review.operation,
+    true,
     review.plan_sha256,
+    "reviewed-artwork",
     7,
   );
   expect(document.body.textContent).toContain("Steam shortcut updated.");
+  expect(document.body.textContent).toContain(`${port.name}, portrait cover: Added`);
   expect(document.body.textContent).toContain("shortcuts.vdf.portcove-backup");
 });
 
@@ -202,6 +223,7 @@ it("selects an explicit discovered profile and clears it when the installation c
     "C:\\Steam",
     "12345",
     "add_or_repair",
+    true,
     7,
   );
   await input("Steam installation folder", "D:\\Steam");
@@ -260,7 +282,14 @@ it("offers owned-shortcut removal after uninstall without offering Add or Repair
   expect(add?.disabled).toBe(true);
   expect(document.body.textContent).toContain("game is not installed here");
   await click("Review shortcut removal");
-  expect(preview).toHaveBeenCalledExactlyOnceWith(port.id, "C:\\Steam", "12345", "remove", 7);
+  expect(preview).toHaveBeenCalledExactlyOnceWith(
+    port.id,
+    "C:\\Steam",
+    "12345",
+    "remove",
+    false,
+    7,
+  );
   expect(document.body.textContent).toContain("selected profile and shortcut are checked");
   expect(document.body.textContent).toContain("Not required for this removal review");
 });
@@ -287,6 +316,9 @@ it("reviews an exact selected batch and applies only its frozen selection", asyn
     changes: [...review.changes, { port_id: second.id, display_name: second.name, kind: "add" }],
     steam_client_state: "closed",
     writes_required: true,
+    artwork: [],
+    artwork_review_sha256: null,
+    recovered_shortcut_change: false,
   };
   const preview = vi.spyOn(desktopApi, "previewSteamBatchAdd").mockResolvedValue(batchReview);
   const apply = vi.spyOn(desktopApi, "applySteamBatchAdd").mockResolvedValue(null);
@@ -308,6 +340,7 @@ it("reviews an exact selected batch and applies only its frozen selection", asyn
       portIds: [port.id, second.id],
       steamRoot: review.steam_root,
       steamUserId: review.steam_user_id,
+      includeArtwork: true,
     },
     7,
   );
@@ -319,8 +352,10 @@ it("reviews an exact selected batch and applies only its frozen selection", asyn
       portIds: [port.id, second.id],
       steamRoot: review.steam_root,
       steamUserId: review.steam_user_id,
+      includeArtwork: true,
     },
     "batch-review",
+    null,
     7,
   );
   await page.getByRole("checkbox", { name: second.name }).click();
@@ -372,6 +407,7 @@ const artworkReview: SteamArtworkReview = {
   steam_client_state: "closed",
   writes_required: true,
   recovered: null,
+  recovered_shortcut_change: false,
 };
 
 it("reviews artwork separately, keeps existing art by default and applies only the reviewed plan", async () => {
@@ -468,4 +504,61 @@ it("requests replacement only when chosen and offers removal of Portcove artwork
   );
   expect(removeButton?.disabled).toBe(true);
   expect(apply).not.toHaveBeenCalled();
+});
+
+it("adds a shortcut without artwork when Include artwork is cleared and reports an artwork failure separately", async () => {
+  const preview = vi.spyOn(desktopApi, "previewSteamEntry").mockResolvedValue({
+    ...review,
+    artwork: [],
+    artwork_review_sha256: null,
+    recovered_shortcut_change: true,
+  });
+  const apply = vi.spyOn(desktopApi, "applySteamEntry").mockResolvedValue({
+    plan_sha256: review.plan_sha256,
+    shortcuts_path: review.shortcuts_path,
+    backup_path: null,
+    changes: review.changes,
+    wrote: true,
+    artwork: [
+      {
+        port_id: port.id,
+        roles: [],
+        backup_paths: [],
+        wrote: false,
+        error: "Steam artwork changed after review; use Review artwork update",
+      },
+    ],
+  });
+  await root.rerender(<SteamEntryDialog port={port} generation={5} installed close={vi.fn()} />);
+  await input("Steam installation folder", "C:\\Steam");
+  await input("Steam profile ID", "12345");
+  await page.getByRole("checkbox", { name: "Include artwork when adding a shortcut" }).click();
+  await click("Review shortcut setup");
+  expect(preview).toHaveBeenCalledExactlyOnceWith(
+    port.id,
+    "C:\\Steam",
+    "12345",
+    "add_or_repair",
+    false,
+    5,
+  );
+  expect(document.body.querySelector('[aria-label="Included Steam artwork"]')).toBeNull();
+  expect(document.body.textContent).toContain(
+    "Portcove first finished an interrupted Steam shortcut or artwork change for this profile.",
+  );
+  await click("Add or repair shortcut");
+  expect(apply).toHaveBeenCalledExactlyOnceWith(
+    port.id,
+    review.steam_root,
+    review.steam_user_id,
+    review.operation,
+    false,
+    review.plan_sha256,
+    null,
+    5,
+  );
+  expect(document.body.textContent).toContain("Steam shortcut updated.");
+  expect(document.body.textContent).toContain(
+    `${port.name}: shortcut added; artwork was not completed.`,
+  );
 });
