@@ -1787,7 +1787,7 @@ impl PortcoveService {
                     ActivityStatus::Failed
                 },
                 Some(match outcome {
-                    Ok(()) => "completed before the next version change",
+                    Ok(()) => "completed by the next backup or version change",
                     Err(_) => "could not be completed; restart Portcove to retry recovery",
                 }),
             );
