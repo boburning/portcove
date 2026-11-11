@@ -118,12 +118,33 @@ pub(crate) enum UpstreamFailure {
 }
 
 impl UpstreamObservation {
-    /// Connect and timeout failures only; mid-stream resets stay unclassified.
+    /// Timeouts, and connect failures with a concrete socket-level cause.
+    /// Proxy-tunnel and TLS failures also surface as connect errors but carry
+    /// no such cause, so they never count as upstream disappearance.
     pub(crate) fn from_reqwest(error: &reqwest::Error) -> Option<Self> {
-        (error.is_connect() || error.is_timeout()).then(|| Self::Transport {
-            timed_out: error.is_timeout(),
-        })
+        if error.is_timeout() {
+            return Some(Self::Transport { timed_out: true });
+        }
+        (error.is_connect() && socket_unreachable(error))
+            .then_some(Self::Transport { timed_out: false })
     }
+}
+
+fn socket_unreachable(error: &(dyn std::error::Error + 'static)) -> bool {
+    use std::io::ErrorKind;
+    std::iter::successors(Some(error), |error| error.source()).any(|error| {
+        error.downcast_ref::<std::io::Error>().is_some_and(|io| {
+            matches!(
+                io.kind(),
+                ErrorKind::ConnectionRefused
+                    | ErrorKind::ConnectionReset
+                    | ErrorKind::ConnectionAborted
+                    | ErrorKind::TimedOut
+                    | ErrorKind::HostUnreachable
+                    | ErrorKind::NetworkUnreachable
+            )
+        })
+    })
 }
 
 /// Facts attached at the refusing domain branch, never recovered from diagnostics.
@@ -865,6 +886,34 @@ mod upstream_classification_tests {
             ),
         ] {
             assert_eq!(error.upstream_failure(), expected, "{error:?}");
+        }
+        // Only concrete socket-level causes classify a connect failure.
+        #[derive(Debug)]
+        struct Wrapped(std::io::Error);
+        impl std::fmt::Display for Wrapped {
+            fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("wrapped")
+            }
+        }
+        impl std::error::Error for Wrapped {
+            fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+                Some(&self.0)
+            }
+        }
+        for (kind, expected) in [
+            (std::io::ErrorKind::ConnectionRefused, true),
+            (std::io::ErrorKind::NetworkUnreachable, true),
+            (std::io::ErrorKind::TimedOut, true),
+            // Proxy tunnel and TLS failures surface without a socket cause.
+            (std::io::ErrorKind::Other, false),
+            (std::io::ErrorKind::InvalidData, false),
+            (std::io::ErrorKind::PermissionDenied, false),
+        ] {
+            assert_eq!(
+                super::socket_unreachable(&Wrapped(std::io::Error::from(kind))),
+                expected,
+                "{kind:?}"
+            );
         }
         // `None` observations leave an existing fact untouched.
         assert_eq!(

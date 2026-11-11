@@ -1131,10 +1131,10 @@ asset that is absent from the listing by both ID and tag or name.
 Authentication, authorization and rate-limit refusals (401, 403, 407, 429) and
 every identity disagreement keep their existing behavior. Mid-stream resets are
 not classified as unavailable. A partial match never counts as disappearance:
-a moved tag, a reused asset name or a changed ID is a disagreement. A failed
-proxy tunnel or TLS handshake reaches Core as a connect failure and is
-therefore treated as unavailable. Bytes from a preserved location are still
-bounded to granted hosts and verified, so this cannot accept different bytes.
+a moved tag, a reused asset name or a changed ID is a disagreement. A connect
+failure counts as unavailable only with a concrete socket-level cause
+(refused, reset, aborted, timed out, host or network unreachable). Proxy-tunnel
+refusals, including 407, and TLS failures never fail over.
 A failover selection carries the requested channel label for the record's
 accepted release; curated records are exact per platform, so no channel
 choice happens.
