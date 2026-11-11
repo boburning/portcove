@@ -91,6 +91,7 @@ mod mod_package;
 mod mod_provider;
 mod profile;
 mod profile_deploy;
+mod provider_install;
 mod psx;
 #[cfg(feature = "qualification-fixtures")]
 mod qualification_checkpoint;
@@ -293,6 +294,7 @@ pub use profile::{
     TypedOrdering,
 };
 pub use profile_deploy::LiveMods;
+pub use provider_install::{PlanMember, ProviderInstallPlan};
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;
 pub use release::{

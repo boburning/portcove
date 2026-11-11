@@ -37,7 +37,7 @@ const MODS: &str = "mods";
 const OVERRIDE_DOMAIN: &str = "asset-override";
 
 /// Reviewed per-game binding: which archive extensions a loader accepts in `mods`.
-fn adapter_extensions(port_id: &str) -> Option<&'static [&'static str]> {
+pub(crate) fn adapter_extensions(port_id: &str) -> Option<&'static [&'static str]> {
     match port_id {
         "shipwright" => Some(&["o2r", "otr"]),
         // The generic fixture port used by tests declares the same asset contract.
@@ -47,7 +47,7 @@ fn adapter_extensions(port_id: &str) -> Option<&'static [&'static str]> {
     }
 }
 
-struct Layout {
+pub(crate) struct Layout {
     /// The port's canonical live data root, `user/<port>`.
     user: PathBuf,
     /// Package and parked-profile storage at `user/.portcove-profiles/<port>`. It
@@ -57,7 +57,7 @@ struct Layout {
 }
 
 impl Layout {
-    fn for_user(user: &Path) -> Self {
+    pub(crate) fn for_user(user: &Path) -> Self {
         let port = user
             .file_name()
             .map(|name| name.to_owned())
@@ -71,16 +71,20 @@ impl Layout {
             store,
         }
     }
-    fn store(&self) -> PathBuf {
+    pub(crate) fn store(&self) -> PathBuf {
         self.store.clone()
     }
-    fn package(&self, sha256: &str, file_name: &str) -> PathBuf {
+    pub(crate) fn package(&self, sha256: &str, file_name: &str) -> PathBuf {
         self.store().join("packages").join(sha256).join(file_name)
     }
     fn parked(&self, profile_id: &str) -> PathBuf {
         self.store().join("state").join(profile_id)
     }
-    fn tmp(&self) -> PathBuf {
+    /// Reviewed provider packages waiting for consent, keyed by plan digest.
+    pub(crate) fn staged(&self, plan_sha256: &str) -> PathBuf {
+        self.store().join("staged").join(plan_sha256)
+    }
+    pub(crate) fn tmp(&self) -> PathBuf {
         self.store().join("tmp")
     }
     fn mods(&self) -> PathBuf {
@@ -127,7 +131,7 @@ pub(crate) struct ModsObservation {
     pub drifted: Vec<String>,
 }
 
-fn sha256_file(path: &Path) -> Result<String> {
+pub(crate) fn sha256_file(path: &Path) -> Result<String> {
     crate::service::sha256_file(path)
 }
 
@@ -321,7 +325,7 @@ fn write_journal(layout: &Layout, from: &str, to: &str, revision: u64, phase: Ph
 }
 
 impl PortcoveService {
-    fn deploy_layout(&self, port_id: &str) -> Result<Layout> {
+    pub(crate) fn deploy_layout(&self, port_id: &str) -> Result<Layout> {
         if adapter_extensions(port_id).is_none() {
             return Err(PortcoveError::unsupported(
                 "this port has no reviewed mod package contract yet",
@@ -624,7 +628,7 @@ impl PortcoveService {
     /// Finishes a switch interrupted after its journal was written. The journal
     /// records the last completed phase, and each phase is skipped once done, so a
     /// resumed switch never re-parks data that has already arrived.
-    fn recover_switch_locked(&self, port_id: &str, layout: &Layout) -> Result<()> {
+    pub(crate) fn recover_switch_locked(&self, port_id: &str, layout: &Layout) -> Result<()> {
         let journal = layout.journal();
         if !journal.try_exists()? {
             return Ok(());

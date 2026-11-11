@@ -80,7 +80,7 @@ impl GameBananaClient {
     }
 
     #[cfg(test)]
-    fn with_roots(root: &str, library: Option<Library>) -> Result<Self> {
+    pub(crate) fn with_roots(root: &str, library: Option<Library>) -> Result<Self> {
         Self::build(library, &format!("{root}/apiv11"), root)
     }
 
