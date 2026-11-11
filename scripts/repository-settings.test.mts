@@ -32,6 +32,7 @@ import type { RepositorySettingsOperations } from "./repository-settings-policy.
 import { GitHubApiError } from "./github-operation.mts";
 
 import {
+  planReleaseRulesets,
   projectRuleset,
   repositoryApplyPlan,
   repositorySettingsMigration,
@@ -506,3 +507,100 @@ void test(
     assert.equal(f.writes, 1);
   },
 );
+
+void test("release ruleset migration expands live coverage before retiring equivalent policies", () => {
+  const source = { source: "boburning/portcove", source_type: "Repository" };
+  const branches = [
+    "refs/heads/portcove-production-coordinator-state",
+    "refs/heads/portcove-release-inputs",
+    "refs/heads/portcove-release-pause",
+  ];
+  const tags = Array.from(
+    { length: 67 },
+    (_, index) => `refs/tags/portcove-production-controller-test-r${index}`,
+  );
+  const refs = Object.fromEntries([...branches, ...tags].map((ref) => [ref, "a".repeat(40)]));
+  const make = (id: number, name: string, ref: string, rules: string[], actors: object[] = []) => ({
+    ...source,
+    id,
+    name,
+    target: ref.startsWith("refs/tags/") ? "tag" : "branch",
+    enforcement: "active",
+    conditions: { ref_name: { include: [ref], exclude: [] } },
+    rules: rules.map((type) => ({ type })),
+    bypass_actors: actors,
+  });
+  const writer = { actor_id: 5632044, actor_type: "Integration", bypass_mode: "always" };
+  const owner = { actor_id: 43177418, actor_type: "User", bypass_mode: "always" };
+  const versionTags = make(2, "Protect release tags", "refs/tags/v*", ["update", "deletion"]);
+  let inventory: Record<string, unknown>[] = [
+    { ...ruleset, ...source, id: 1 },
+    versionTags,
+    make(3, "Portcove publication pause owner update", branches[2]!, ["update"], [owner]),
+    ...branches
+      .slice(0, 2)
+      .map((ref, i) => make(4 + i, `old writer ${i}`, ref, ["update"], [writer])),
+    ...branches.map((ref, i) =>
+      make(6 + i, `old retention ${i}`, ref, ["creation", "deletion", "non_fast_forward"]),
+    ),
+    ...tags.map((ref, i) => make(9 + i, `old tag ${i}`, ref, ["creation", "update", "deletion"])),
+  ];
+  const missing = { ...refs };
+  delete missing[tags[0]!];
+  assert.throws(() => planReleaseRulesets(inventory, missing, ruleset), /absent or unverified/u);
+  const wrongWriter = structuredClone(inventory);
+  wrongWriter[3]!.bypass_actors = [{ ...writer, actor_id: 15368 }];
+  assert.throws(
+    () => planReleaseRulesets(wrongWriter, refs, ruleset),
+    /Unrecognized release ruleset/u,
+  );
+  for (const index of [0, 1]) {
+    const disabled = structuredClone(inventory);
+    disabled[index]!.enforcement = "disabled";
+    assert.throws(
+      () => planReleaseRulesets(disabled, refs, ruleset),
+      /differs|Unexpected drift|unexpected out-of-scope drift/u,
+    );
+  }
+  const extendedMain = structuredClone(inventory);
+  parameters(extendedMain[0], "pull_request").dismissal_restriction = true;
+  assert.throws(() => planReleaseRulesets(extendedMain, refs, ruleset), /unexpected parameters/u);
+  refs["refs/tags/v1.0.0"] = "b".repeat(40);
+  const original = planReleaseRulesets(inventory, refs, ruleset);
+  const revised = structuredClone(inventory);
+  revised[0]!.updated_at = "2026-11-11T00:00:00Z";
+  assert.notEqual(planReleaseRulesets(revised, refs, ruleset).observation, original.observation);
+  assert.equal(original.count, 75);
+  const actions: string[] = [];
+  for (let stage = 0; stage < 7; stage++) {
+    const { next } = planReleaseRulesets(inventory, refs, ruleset);
+    assert.ok(next);
+    actions.push(next.action);
+    if (next.action === "update") {
+      const index = inventory.findIndex((row) => row.id === next.id);
+      inventory[index] = { ...source, id: next.id, ...next.payload };
+    } else if (next.action === "create") {
+      assert.ok(inventory.length < 75);
+      inventory.push({ ...source, id: 76 + stage, ...next.payload });
+    } else {
+      const deleted = new Set(next.policies.map(({ id }) => id));
+      for (const id of next.replacements) assert.ok(inventory.some((row) => row.id === id));
+      inventory = inventory.filter((row) => !deleted.has(Number(row.id)));
+    }
+  }
+  assert.deepEqual(actions, ["update", "delete", "update", "delete", "create", "create", "delete"]);
+  const final = planReleaseRulesets(inventory, refs, ruleset);
+  assert.equal(final.count, 7);
+  assert.equal(final.next, null);
+  assert.notEqual(final.observation, original.observation);
+  assert.deepEqual(final.identities, original.identities);
+  assert.deepEqual(final.stable.immutable?.bypass_actors, []);
+  assert.deepEqual(final.stable.creator?.bypass_actors, [owner]);
+  assert.deepEqual(final.stable.creator?.rules, [{ type: "creation" }]);
+  for (const suffix of ["next-r1", "next-r2"]) {
+    refs[`refs/tags/portcove-production-controller-${suffix}`] = "b".repeat(40);
+    const successor = planReleaseRulesets(inventory, refs, ruleset);
+    assert.equal(successor.next, null);
+    assert.deepEqual(successor.stable, final.stable);
+  }
+});
