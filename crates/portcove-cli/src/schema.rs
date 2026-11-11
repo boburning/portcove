@@ -332,6 +332,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 >(contract)),
             ),
             (
+                "update_check_forecast",
+                serde_json::json!(schema_for_contract::<portcove_core::UpdateCheckForecast>(
+                    contract
+                )),
+            ),
+            (
                 "library_identity",
                 serde_json::json!(schema_for_contract::<LibraryIdentity>(contract)),
             ),

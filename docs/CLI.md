@@ -828,6 +828,31 @@ File-set profiles take one directory or ZIP path. Every required top-level membe
 
 A reviewed single-disc PS1 port may request `psx-bin-cue` runtime materialization. Portcove uses the same registered CHD and local `chdman` trust boundary to create one cue sheet and split track BIN files in a staging directory, then swaps the complete directory into the managed release. A reviewed multi-disc profile may instead request `psx-raw-set`, which validates each filename-sorted CHD and transactionally writes numbered raw data tracks such as `disc-01.bin`. Managed recomp ports also retain one normalized cue sheet per single-track disc for runtime selection. A failed extraction leaves the prior runtime directory intact. Original CHDs remain the registered sources and are never modified.
 
+### Disc-image unpacking
+
+A reviewed port may unpack the player's own Xbox, Xbox 360, PlayStation 2 or PSP
+disc image into the folder its runtime reads (`xdvdfs-directory` and
+`iso9660-directory` materializations; see the [catalog contract](CATALOG.md#disc-image-unpacking)).
+Portcove reads the image only; it does not decrypt or patch executables, and
+Games-on-Demand/STFS containers, CSO/ZSO/DAX images and raw 2352-byte BIN/CUE are
+not supported. A PS2 or PSP CHD is first expanded to a private ISO with the local
+`chdman`, then handled like an ISO.
+
+Fixed limits: an image of at most 16 GiB (and no more than the port's declared
+bound), directory tables of at most 4 MiB, 131,072 entries, 32 folder levels, and
+total expanded bytes no larger than the image. Free space must cover the expanded
+size plus the larger of 64 MiB or one thirty-second of it.
+
+Phases, in order: identify, plan, free-space check, extract (bytes completed of the
+planned total), verify and activate. Stable error codes (`failure.code` in structured
+errors) are `disc_image_unsupported`, `disc_image_limit`, `disc_product_mismatch`
+(details `found` and `expected`) and `disc_space_insufficient` (details
+`required_bytes` and `available_bytes`). A wrong game is refused before any
+extraction, and a failure or cancellation never reports success: the previous
+runtime directory is kept and private staging is removed. Operation events for these
+phases are not yet emitted by the CLI or Desktop; the core phase reporter exists
+and delivery is tracked on issue #4959.
+
 ### Check registered files
 
 Source integrity checks are local, network-free, and read-only:

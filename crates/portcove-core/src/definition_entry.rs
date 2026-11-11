@@ -209,6 +209,18 @@ impl DefinitionContentIndex {
                 "managed Linux TAR.XZ requires native capability version 8",
             ));
         }
+        if !port.release.tar_xz_platforms.is_empty() {
+            crate::runtime::validate_generated_cache_tar_xz(&port)?;
+            if !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "generated-cache"
+                    && requirement.minimum_version
+                        >= crate::runtime::GENERATED_CACHE_TAR_XZ_CAPABILITY
+            }) {
+                return Err(PortcoveError::verification(
+                    "managed Mac TAR.XZ requires generated-cache capability version 3",
+                ));
+            }
+        }
         if port.portable_marker_file.is_some()
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "native-portable" && requirement.minimum_version >= 19
@@ -219,17 +231,22 @@ impl DefinitionContentIndex {
             ));
         }
         if port.release.grant_declared_executable {
-            if port.adapter != crate::AdapterKind::NativePortable {
-                return Err(PortcoveError::verification(
-                    "granting a declared executable is supported only by native definitions",
-                ));
-            }
+            let (template, minimum) = match port.adapter {
+                crate::AdapterKind::NativePortable => ("native-portable", 22),
+                crate::AdapterKind::LibultrashipPortable => ("libultraship-portable", 4),
+                crate::AdapterKind::GeneratedCache => ("generated-cache", 2),
+                _ => {
+                    return Err(PortcoveError::verification(
+                        "granting a declared executable is supported only by native, libultraship and generated-cache definitions",
+                    ));
+                }
+            };
             if !document.required_capabilities.iter().any(|requirement| {
-                requirement.template == "native-portable" && requirement.minimum_version >= 22
+                requirement.template == template && requirement.minimum_version >= minimum
             }) {
-                return Err(PortcoveError::verification(
-                    "granting a declared executable requires native capability version 22",
-                ));
+                return Err(PortcoveError::verification(format!(
+                    "granting a declared executable requires {template} capability version {minimum}"
+                )));
             }
         }
         if port.release.archive_file_links {

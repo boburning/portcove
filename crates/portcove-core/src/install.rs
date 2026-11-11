@@ -959,7 +959,7 @@ impl Installer {
             || (requires_tar_xz && request.qualification.retained_contract.is_none())
         {
             return Err(PortcoveError::unsupported(
-                "managed TAR.XZ requires the matching retained Linux native release declaration",
+                "managed TAR.XZ requires the matching retained platform release declaration",
             ));
         }
         crate::managed_runtime_policy::require_native_appimage_artifact(
@@ -4700,6 +4700,70 @@ mod tests {
         // Windows grants nothing and a missing runtime directory is refused.
         qualification.runtime_subdirectory = Some("absent".into());
         assert!(grant_declared_executable(&root, &qualification).is_err());
+    }
+
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    #[test]
+    fn perfect_dark_mac_tar_xz_grants_only_the_declared_architecture_player() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        for (platform, player, other, cpu) in [
+            (
+                Platform::MacosX86_64,
+                "pd.x86_64",
+                "pd.pal.x86_64",
+                0x0100_0007_u32,
+            ),
+            (
+                Platform::MacosAarch64,
+                "pd.arm64",
+                "pd.pal.arm64",
+                0x0100_000c_u32,
+            ),
+        ] {
+            let temporary = tempfile::tempdir().unwrap();
+            let qualification =
+                InstallQualification::from_catalog(&catalog, "perfect-dark", platform).unwrap();
+            assert!(qualification.requires_tar_xz);
+            assert!(qualification.retained_contract.is_some());
+            let mut binary = [0_u8; 32];
+            binary[..4].copy_from_slice(&[0xcf, 0xfa, 0xed, 0xfe]);
+            binary[4..8].copy_from_slice(&cpu.to_le_bytes());
+            binary[12..16].copy_from_slice(&2_u32.to_le_bytes());
+            let mut tar = tar::Builder::new(Vec::new());
+            for name in [player, other] {
+                let mut header = tar::Header::new_ustar();
+                header.set_mode(0o644);
+                header.set_size(binary.len() as u64);
+                tar.append_data(&mut header, format!("publisher/{name}"), &binary[..])
+                    .unwrap();
+            }
+            let payload = crate::archive::encode_xz_fixture(&tar.into_inner().unwrap());
+            let package = temporary.path().join("publisher.tar.xz");
+            fs::write(&package, &payload).unwrap();
+            let root = temporary.path().join("payload");
+            fs::create_dir(&root).unwrap();
+            extract_tar_xz_with_checkpoint(&package, &root, payload.len() as u64, &|| Ok(()))
+                .unwrap();
+            let program = root.join("publisher").join(player);
+            assert!(resolve_declared_executable(&root, &qualification).is_err());
+            let mut wrong_architecture = qualification.clone();
+            wrong_architecture.platform = if platform == Platform::MacosX86_64 {
+                Platform::MacosAarch64
+            } else {
+                Platform::MacosX86_64
+            };
+            assert!(grant_declared_executable(&root, &wrong_architecture).is_err());
+            assert!(!crate::permissions::executable_intent(&program).unwrap());
+            grant_declared_executable(&root, &qualification).unwrap();
+            assert_eq!(
+                resolve_declared_executable(&root, &qualification).unwrap(),
+                program
+            );
+            assert!(
+                !crate::permissions::executable_intent(&root.join("publisher").join(other))
+                    .unwrap()
+            );
+        }
     }
 
     #[cfg(unix)]

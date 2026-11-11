@@ -120,6 +120,7 @@ import type {
   SteamBatchReview,
   SteamBatchSelection,
   UpdateCheck,
+  UpdateCheckForecast,
   UpdateCheckOutcome,
   UpdatePolicy,
   WorkspaceSnapshotTransport,
@@ -641,8 +642,6 @@ export const desktopApi = {
       onEvent: channel,
     });
   },
-  sourceInboxPaths: (profileId: string) =>
-    invoke<SourceInboxPaths>("get_source_inbox_paths", { profileId }),
   openSourceInbox: (profileId: string) =>
     invoke<SourceInboxPaths>("open_source_inbox", { profileId }),
   scanSourceInbox: (
@@ -715,6 +714,8 @@ export const desktopApi = {
   check: (portId: string, generation: number) =>
     invoke<UpdateCheck>("check_port", { portId, generation }),
   checkInstalled: () => invoke<UpdateCheckOutcome[]>("check_installed"),
+  forecastInstalledUpdateChecks: () =>
+    invoke<UpdateCheckForecast>("forecast_installed_update_checks"),
   doctor: (generation: number) => invoke<DoctorReport>("get_doctor_report", { generation }),
   previewPreparationCleanup: (operationId: string, generation: number) =>
     invoke<PreparationCleanupPreview>("preview_preparation_cleanup", {
@@ -727,7 +728,6 @@ export const desktopApi = {
       expectedPreview,
       generation,
     }),
-  hostTools: () => invoke<HostToolStatus[]>("get_host_tools"),
   setHostToolPath: (toolId: string, path: string) =>
     invoke<HostToolProbeResult>("set_host_tool_path", { toolId, path }),
   clearHostToolPath: (toolId: string) => invoke<HostToolStatus>("clear_host_tool_path", { toolId }),

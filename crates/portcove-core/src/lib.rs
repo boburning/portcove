@@ -84,6 +84,8 @@ mod process;
 mod provider_observation;
 mod providers;
 pub use provider_observation::inspect_provider_observation;
+mod disc_filesystem;
+mod disc_product;
 mod mod_package;
 mod profile;
 mod profile_deploy;

@@ -19756,14 +19756,19 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "libultraship-portable",
       "release": {
         "repository": "HarbourMasters/PaperBoat",
+        "grant_declared_executable": true,
         "asset_hints": {
           "windows-x86-64": [
             "win64"
+          ],
+          "linux-x86-64": [
+            "Linux.zip"
           ]
         }
       },
@@ -19786,6 +19791,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Paperboat.exe"
+        ],
+        "linux-x86-64": [
+          "Paperboat.AppImage"
         ]
       },
       "persistent_paths": [
@@ -24027,7 +24035,10 @@
         "rolling"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "generated-cache",
       "automated_tested_platforms": [
@@ -24038,10 +24049,24 @@
       ],
       "release": {
         "repository": "perfect-dark-pc-port/perfect_dark",
+        "grant_declared_executable": true,
+        "tar_xz_platforms": [
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
         "rolling_tag": "ci-dev-build",
         "asset_hints": {
           "windows-x86-64": [
             "pd-x86_64-windows"
+          ],
+          "linux-x86-64": [
+            "pd-x86_64-linux.tar.gz"
+          ],
+          "macos-x86-64": [
+            "pd-x86_64-osx.tar.xz"
+          ],
+          "macos-aarch64": [
+            "pd-arm64-osx.tar.xz"
           ]
         }
       },
@@ -24049,6 +24074,15 @@
       "executable_hints": {
         "windows-x86-64": [
           "pd.x86_64.exe"
+        ],
+        "linux-x86-64": [
+          "pd.x86_64"
+        ],
+        "macos-x86-64": [
+          "pd.x86_64"
+        ],
+        "macos-aarch64": [
+          "pd.arm64"
         ]
       },
       "launch_arguments": [
@@ -24076,6 +24110,16 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Perfect Dark",
+        "manual_setup": {
+          "help_url": "https://github.com/perfect-dark-pc-port/perfect_dark#macos",
+          "warnings": [],
+          "steps": [
+            {
+              "title": "Set up SDL2 on your Mac",
+              "instruction": "Before Play on Intel or Apple Silicon, follow the upstream Mac instructions to install SDL2.framework for your Mac in /Library/Frameworks. Portcove manages the Perfect Dark player archive. You manage the system framework separately. Use your own US Rev 1 Perfect Dark source with this player."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 271424,
           "cover_id": 336876,

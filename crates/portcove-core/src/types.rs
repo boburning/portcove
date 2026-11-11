@@ -307,6 +307,42 @@ pub enum RuntimeSourceMaterialization {
     PsxRawSet,
     Ps2Iso,
     StfsDirectory,
+    /// Unpack an Xbox or Xbox 360 disc image into a verified runtime directory.
+    XdvdfsDirectory,
+    /// Unpack a PS2 or PSP disc image (ISO or CHD) into a verified runtime directory.
+    Iso9660Directory,
+}
+
+impl RuntimeSourceMaterialization {
+    /// Disc file-system read by a disc-image unpacking materialization.
+    pub fn disc_image_format(self) -> Option<DiscImageFormat> {
+        match self {
+            Self::XdvdfsDirectory => Some(DiscImageFormat::Xdvdfs),
+            Self::Iso9660Directory => Some(DiscImageFormat::Iso9660),
+            _ => None,
+        }
+    }
+}
+
+/// Disc file-system an image is read as.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum DiscImageFormat {
+    Xdvdfs,
+    Iso9660,
+}
+
+/// Port declaration for a disc image that Portcove unpacks into a runtime
+/// directory. Limits and identifiers are evidence-bound; none are inferred.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct DiscImageProfile {
+    pub format: DiscImageFormat,
+    /// Explicit bound on the selected image in bytes; at most 16 GiB.
+    pub max_image_bytes: u64,
+    /// Game identifiers accepted from the disc: the `default.xex`/`default.xbe`
+    /// title ID (eight hex digits), the PS2 `SYSTEM.CNF` boot serial or the PSP
+    /// `PARAM.SFO` `DISC_ID`. At least one is required.
+    pub product_codes: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
@@ -609,11 +645,14 @@ pub struct ReleaseSpec {
     /// Native8: select the checked TAR.XZ player archive on Linux x86-64.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub linux_tar_xz: bool,
+    /// GeneratedCache3: select a checked TAR.XZ player archive on the declared Mac routes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tar_xz_platforms: Vec<Platform>,
     /// Native13: the package relies on in-archive file links, which extraction writes as
     /// regular copies of the files they name.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub archive_file_links: bool,
-    /// Native22 (native definitions only): after extraction on a Unix platform, grant
+    /// Native22, Libultraship4 or GeneratedCache2 (by adapter): after extraction on a Unix platform, grant
     /// execute permission to the declared executable only when it verifies as a binary for
     /// that platform. The publisher's own executable bit, when present, is never changed.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -626,7 +665,8 @@ pub struct ReleaseSpec {
 
 impl ReleaseSpec {
     pub(crate) fn requires_tar_xz(&self, platform: Platform) -> bool {
-        self.linux_tar_xz && platform == Platform::LinuxX86_64
+        (self.linux_tar_xz && platform == Platform::LinuxX86_64)
+            || self.tar_xz_platforms.contains(&platform)
     }
 }
 
@@ -807,6 +847,10 @@ pub struct PortDefinition {
     pub runtime_source_materialization: Option<RuntimeSourceMaterialization>,
     #[serde(default)]
     pub runtime_source_hashes: BTreeMap<String, String>,
+    /// Required by, and only valid with, the disc-image unpacking
+    /// materializations: image kind, size bound and accepted game identifiers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime_disc_image: Option<DiscImageProfile>,
     #[serde(default)]
     pub runtime_source_set: Vec<RuntimeSourceTarget>,
     #[serde(default)]
@@ -2064,6 +2108,34 @@ pub struct ResolvedRelease {
     pub channel: ReleaseChannel,
     pub published_at: Option<String>,
     pub asset: ReleaseAsset,
+}
+
+/// What one check of one game is expected to ask of its release provider, computed
+/// locally from the persisted conditional-request cache without any network call.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct RequestCostForecast {
+    /// Requests the provider will count against its primary rate limit.
+    pub counted_requests: u32,
+    /// The part of `counted_requests` that signing in would move to a higher limit.
+    /// A managed-definition port deliberately sends no credential, so it never counts here.
+    pub sign_in_relief_requests: u32,
+}
+
+/// The expected provider cost of checking a set of games at once.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct UpdateCheckForecast {
+    pub games: u32,
+    pub counted_requests: u32,
+    pub sign_in_relief_requests: u32,
+}
+
+impl UpdateCheckForecast {
+    /// Whether the anonymous allowance still available cannot cover this check, and
+    /// signing in would actually relieve some of it.
+    pub fn sign_in_would_help(&self, remaining_anonymous_requests: u64) -> bool {
+        self.sign_in_relief_requests > 0
+            && u64::from(self.counted_requests) > remaining_anonymous_requests
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

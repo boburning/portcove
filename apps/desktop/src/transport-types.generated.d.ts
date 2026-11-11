@@ -407,9 +407,15 @@ export type ExternalRuntimeTrust = "accepted-package" | "user-selected";
  * Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.
  */
 export type RuntimeDataPolicy = "racewave46-v1.0.0-windows" | "version-local-retroachievements-v1";
+/**
+ * Disc file-system an image is read as.
+ */
+export type DiscImageFormat = "xdvdfs" | "iso9660";
 export type RuntimeSourceMaterialization =
   | ("n64-big-endian" | "copy" | "gamecube-iso" | "psx-bin-cue" | "psx-raw-set" | "ps2-iso" | "stfs-directory")
-  | "regaiden-gbc";
+  | "regaiden-gbc"
+  | "xdvdfs-directory"
+  | "iso9660-directory";
 export type SupportTier = "stable" | "beta" | "rolling";
 /**
  * A declared upstream limitation, checked by Core rather than left to the game.
@@ -1060,6 +1066,7 @@ export interface TransportOutputs {
   storage: StorageSummary;
   update_batch_outcome: OutputUpdateBatchOutcome;
   update_check: UpdateCheck;
+  update_check_forecast: OutputUpdateCheckForecast;
   update_snapshot: UpdateSnapshot;
   upstream_observation_report: OutputUpstreamObservationReport;
   desktop_application_update_check_phase: OutputDesktopApplicationUpdateCheckPhase;
@@ -1882,6 +1889,11 @@ export interface PortDefinition {
     "windows-x86-64"?: ReviewedPackageLayout;
   };
   runtime_data_policy?: RuntimeDataPolicy | null;
+  /**
+   * Required by, and only valid with, the disc-image unpacking
+   * materializations: image kind, size bound and accepted game identifiers.
+   */
+  runtime_disc_image?: DiscImageProfile | null;
   runtime_mutable_file_patterns?: PersistentFilePattern[];
   runtime_mutable_paths: string[];
   runtime_source_filename: string | null;
@@ -2122,7 +2134,7 @@ export interface ReleaseSpec {
     "windows-x86-64"?: DirectReleaseSpec;
   };
   /**
-   * Native22 (native definitions only): after extraction on a Unix platform, grant
+   * Native22, Libultraship4 or GeneratedCache2 (by adapter): after extraction on a Unix platform, grant
    * execute permission to the declared executable only when it verifies as a binary for
    * that platform. The publisher's own executable bit, when present, is never changed.
    */
@@ -2143,6 +2155,10 @@ export interface ReleaseSpec {
   provider: "github" | "gitlab" | "direct-manifest" | "user-prepared";
   repository: string;
   rolling_tag: string | null;
+  /**
+   * GeneratedCache3: select a checked TAR.XZ player archive on the declared Mac routes.
+   */
+  tar_xz_platforms?: Platform[];
   user_prepared: {
     "linux-x86-64"?: UserPreparedRuntimeSpec;
     "macos-aarch64"?: UserPreparedRuntimeSpec;
@@ -2240,6 +2256,24 @@ export interface ReviewedPackageLayout {
    * any depth, sorted.
    */
   executables: string[];
+}
+/**
+ * Port declaration for a disc image that Portcove unpacks into a runtime
+ * directory. Limits and identifiers are evidence-bound; none are inferred.
+ */
+export interface DiscImageProfile {
+  format: DiscImageFormat;
+  /**
+   * Explicit bound on the selected image in bytes; at most 16 GiB.
+   */
+  max_image_bytes: number;
+  /**
+   * Game identifiers accepted from the disc: the `default.xex`/`default.xbe`
+   * title ID (eight hex digits), the PS2 `SYSTEM.CNF` boot serial or the PSP
+   * `PARAM.SFO` `DISC_ID`. At least one is required.
+   */
+  product_codes: string[];
+  [k: string]: unknown;
 }
 export interface RuntimeSourceTarget {
   destination: string;
@@ -4551,6 +4585,15 @@ export interface OutputUpdateBatchOutcome {
   ok: boolean;
   port_id: string;
   result: InstallRecord | null;
+  [k: string]: unknown;
+}
+/**
+ * The expected provider cost of checking a set of games at once.
+ */
+export interface OutputUpdateCheckForecast {
+  counted_requests: number;
+  games: number;
+  sign_in_relief_requests: number;
   [k: string]: unknown;
 }
 export interface OutputUpstreamObservationReport {

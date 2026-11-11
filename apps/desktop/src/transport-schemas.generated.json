@@ -4543,6 +4543,41 @@
         ],
         "type": "object"
       },
+      "DiscImageFormat": {
+        "description": "Disc file-system an image is read as.",
+        "enum": [
+          "xdvdfs",
+          "iso9660"
+        ],
+        "type": "string"
+      },
+      "DiscImageProfile": {
+        "description": "Port declaration for a disc image that Portcove unpacks into a runtime\ndirectory. Limits and identifiers are evidence-bound; none are inferred.",
+        "properties": {
+          "format": {
+            "$ref": "#/$defs/DiscImageFormat"
+          },
+          "max_image_bytes": {
+            "description": "Explicit bound on the selected image in bytes; at most 16 GiB.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "product_codes": {
+            "description": "Game identifiers accepted from the disc: the `default.xex`/`default.xbe`\ntitle ID (eight hex digits), the PS2 `SYSTEM.CNF` boot serial or the PSP\n`PARAM.SFO` `DISC_ID`. At least one is required.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format",
+          "max_image_bytes",
+          "product_codes"
+        ],
+        "type": "object"
+      },
       "DiscSourceProfile": {
         "properties": {
           "discs": {
@@ -5408,6 +5443,17 @@
               }
             ]
           },
+          "runtime_disc_image": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DiscImageProfile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required by, and only valid with, the disc-image unpacking\nmaterializations: image kind, size bound and accepted game identifiers."
+          },
           "runtime_mutable_file_patterns": {
             "items": {
               "$ref": "#/$defs/PersistentFilePattern"
@@ -5976,7 +6022,7 @@
             "type": "object"
           },
           "grant_declared_executable": {
-            "description": "Native22 (native definitions only): after extraction on a Unix platform, grant\nexecute permission to the declared executable only when it verifies as a binary for\nthat platform. The publisher's own executable bit, when present, is never changed.",
+            "description": "Native22, Libultraship4 or GeneratedCache2 (by adapter): after extraction on a Unix platform, grant\nexecute permission to the declared executable only when it verifies as a binary for\nthat platform. The publisher's own executable bit, when present, is never changed.",
             "type": "boolean"
           },
           "linux_tar_xz": {
@@ -6016,6 +6062,13 @@
               "string",
               "null"
             ]
+          },
+          "tar_xz_platforms": {
+            "description": "GeneratedCache3: select a checked TAR.XZ player archive on the declared Mac routes.",
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
           },
           "user_prepared": {
             "additionalProperties": false,
@@ -6113,6 +6166,16 @@
           {
             "const": "regaiden-gbc",
             "description": "Closed, consent-bearing ReGaiden route; older engines reject this value.",
+            "type": "string"
+          },
+          {
+            "const": "xdvdfs-directory",
+            "description": "Unpack an Xbox or Xbox 360 disc image into a verified runtime directory.",
+            "type": "string"
+          },
+          {
+            "const": "iso9660-directory",
+            "description": "Unpack a PS2 or PSP disc image (ISO or CHD) into a verified runtime directory.",
             "type": "string"
           }
         ]
@@ -28704,6 +28767,41 @@
         ],
         "type": "object"
       },
+      "DiscImageFormat": {
+        "description": "Disc file-system an image is read as.",
+        "enum": [
+          "xdvdfs",
+          "iso9660"
+        ],
+        "type": "string"
+      },
+      "DiscImageProfile": {
+        "description": "Port declaration for a disc image that Portcove unpacks into a runtime\ndirectory. Limits and identifiers are evidence-bound; none are inferred.",
+        "properties": {
+          "format": {
+            "$ref": "#/$defs/DiscImageFormat"
+          },
+          "max_image_bytes": {
+            "description": "Explicit bound on the selected image in bytes; at most 16 GiB.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "product_codes": {
+            "description": "Game identifiers accepted from the disc: the `default.xex`/`default.xbe`\ntitle ID (eight hex digits), the PS2 `SYSTEM.CNF` boot serial or the PSP\n`PARAM.SFO` `DISC_ID`. At least one is required.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format",
+          "max_image_bytes",
+          "product_codes"
+        ],
+        "type": "object"
+      },
       "ExternalProfilePolicy": {
         "description": "Closed upstream profile resolution for managed portable players.",
         "enum": [
@@ -29499,7 +29597,7 @@
             "type": "object"
           },
           "grant_declared_executable": {
-            "description": "Native22 (native definitions only): after extraction on a Unix platform, grant\nexecute permission to the declared executable only when it verifies as a binary for\nthat platform. The publisher's own executable bit, when present, is never changed.",
+            "description": "Native22, Libultraship4 or GeneratedCache2 (by adapter): after extraction on a Unix platform, grant\nexecute permission to the declared executable only when it verifies as a binary for\nthat platform. The publisher's own executable bit, when present, is never changed.",
             "type": "boolean"
           },
           "linux_tar_xz": {
@@ -29539,6 +29637,13 @@
               "string",
               "null"
             ]
+          },
+          "tar_xz_platforms": {
+            "description": "GeneratedCache3: select a checked TAR.XZ player archive on the declared Mac routes.",
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
           },
           "user_prepared": {
             "additionalProperties": false,
@@ -29636,6 +29741,16 @@
           {
             "const": "regaiden-gbc",
             "description": "Closed, consent-bearing ReGaiden route; older engines reject this value.",
+            "type": "string"
+          },
+          {
+            "const": "xdvdfs-directory",
+            "description": "Unpack an Xbox or Xbox 360 disc image into a verified runtime directory.",
+            "type": "string"
+          },
+          {
+            "const": "iso9660-directory",
+            "description": "Unpack a PS2 or PSP disc image (ISO or CHD) into a verified runtime directory.",
             "type": "string"
           }
         ]
@@ -30133,6 +30248,17 @@
             "type": "null"
           }
         ]
+      },
+      "runtime_disc_image": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/DiscImageProfile"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Required by, and only valid with, the disc-image unpacking\nmaterializations: image kind, size bound and accepted game identifiers."
       },
       "runtime_mutable_file_patterns": {
         "items": {
@@ -40199,6 +40325,41 @@
         ],
         "type": "object"
       },
+      "DiscImageFormat": {
+        "description": "Disc file-system an image is read as.",
+        "enum": [
+          "xdvdfs",
+          "iso9660"
+        ],
+        "type": "string"
+      },
+      "DiscImageProfile": {
+        "description": "Port declaration for a disc image that Portcove unpacks into a runtime\ndirectory. Limits and identifiers are evidence-bound; none are inferred.",
+        "properties": {
+          "format": {
+            "$ref": "#/$defs/DiscImageFormat"
+          },
+          "max_image_bytes": {
+            "description": "Explicit bound on the selected image in bytes; at most 16 GiB.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "product_codes": {
+            "description": "Game identifiers accepted from the disc: the `default.xex`/`default.xbe`\ntitle ID (eight hex digits), the PS2 `SYSTEM.CNF` boot serial or the PSP\n`PARAM.SFO` `DISC_ID`. At least one is required.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format",
+          "max_image_bytes",
+          "product_codes"
+        ],
+        "type": "object"
+      },
       "DiscSourceProfile": {
         "properties": {
           "discs": {
@@ -41064,6 +41225,17 @@
               }
             ]
           },
+          "runtime_disc_image": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DiscImageProfile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required by, and only valid with, the disc-image unpacking\nmaterializations: image kind, size bound and accepted game identifiers."
+          },
           "runtime_mutable_file_patterns": {
             "items": {
               "$ref": "#/$defs/PersistentFilePattern"
@@ -41632,7 +41804,7 @@
             "type": "object"
           },
           "grant_declared_executable": {
-            "description": "Native22 (native definitions only): after extraction on a Unix platform, grant\nexecute permission to the declared executable only when it verifies as a binary for\nthat platform. The publisher's own executable bit, when present, is never changed.",
+            "description": "Native22, Libultraship4 or GeneratedCache2 (by adapter): after extraction on a Unix platform, grant\nexecute permission to the declared executable only when it verifies as a binary for\nthat platform. The publisher's own executable bit, when present, is never changed.",
             "type": "boolean"
           },
           "linux_tar_xz": {
@@ -41672,6 +41844,13 @@
               "string",
               "null"
             ]
+          },
+          "tar_xz_platforms": {
+            "description": "GeneratedCache3: select a checked TAR.XZ player archive on the declared Mac routes.",
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
           },
           "user_prepared": {
             "additionalProperties": false,
@@ -41769,6 +41948,16 @@
           {
             "const": "regaiden-gbc",
             "description": "Closed, consent-bearing ReGaiden route; older engines reject this value.",
+            "type": "string"
+          },
+          {
+            "const": "xdvdfs-directory",
+            "description": "Unpack an Xbox or Xbox 360 disc image into a verified runtime directory.",
+            "type": "string"
+          },
+          {
+            "const": "iso9660-directory",
+            "description": "Unpack a PS2 or PSP disc image (ISO or CHD) into a verified runtime directory.",
             "type": "string"
           }
         ]
@@ -58848,6 +59037,34 @@
       "release"
     ],
     "title": "UpdateCheck",
+    "type": "object"
+  },
+  "update_check_forecast": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "The expected provider cost of checking a set of games at once.",
+    "properties": {
+      "counted_requests": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "games": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "sign_in_relief_requests": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "games",
+      "counted_requests",
+      "sign_in_relief_requests"
+    ],
+    "title": "UpdateCheckForecast",
     "type": "object"
   },
   "update_snapshot": {

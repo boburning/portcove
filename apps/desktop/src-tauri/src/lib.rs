@@ -935,6 +935,26 @@ async fn check_port(
 }
 
 #[tauri::command]
+async fn forecast_installed_update_checks(
+    state: tauri::State<'_, DesktopState>,
+) -> DesktopResult<portcove_core::UpdateCheckForecast> {
+    let state = state.inner().clone();
+    blocking_async_service(state, move |service| async move {
+        let installed = service
+            .statuses()?
+            .into_iter()
+            .filter(|status| status.active.is_some())
+            .map(|status| status.port_id)
+            .collect::<Vec<_>>();
+        service
+            .forecast_update_checks(installed)
+            .await
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 async fn check_installed(
     app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
@@ -1132,19 +1152,6 @@ async fn discover_sources(
             .discover_sources_with_progress(&request, |event| {
                 let _ = on_event.send(event);
             })
-            .map_err(Into::into)
-    })
-    .await
-}
-
-#[tauri::command]
-async fn get_source_inbox_paths(
-    state: tauri::State<'_, DesktopState>,
-    profile_id: String,
-) -> DesktopResult<SourceInboxPaths> {
-    blocking_service(state.inner().clone(), move |service| {
-        service
-            .source_inbox_paths(Some(&profile_id))
             .map_err(Into::into)
     })
     .await
@@ -2147,18 +2154,6 @@ async fn get_doctor_report(
 }
 
 #[tauri::command]
-async fn get_host_tools(
-    state: tauri::State<'_, DesktopState>,
-) -> DesktopResult<Vec<HostToolStatus>> {
-    let state = state.inner().clone();
-    blocking_worker(move || {
-        let preferences = state.preferences.as_ref().map_err(Clone::clone)?;
-        host_tools_for(preferences)
-    })
-    .await
-}
-
-#[tauri::command]
 async fn set_host_tool_path(
     state: tauri::State<'_, DesktopState>,
     tool_id: String,
@@ -2881,6 +2876,7 @@ pub fn run() -> std::process::ExitCode {
             verify_sources,
             check_port,
             check_installed,
+            forecast_installed_update_checks,
             add_source,
             get_game_file_roots,
             add_game_file_root,
@@ -2890,7 +2886,6 @@ pub fn run() -> std::process::ExitCode {
             get_game_file_scan_snapshot,
             refresh_game_file_query,
             discover_sources,
-            get_source_inbox_paths,
             open_source_inbox,
             scan_source_inbox,
             plan_source_import,
@@ -2934,7 +2929,6 @@ pub fn run() -> std::process::ExitCode {
             bug_report::open_bug_report,
             get_launch_failure,
             get_doctor_report,
-            get_host_tools,
             set_host_tool_path,
             clear_host_tool_path,
             recheck_host_tool,

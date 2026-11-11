@@ -5,6 +5,7 @@ import { writeFile } from "node:fs/promises";
 import {
   prepareCoordinatorSigningContext,
   requireCoordinatorSigningContext,
+  readPreparedCoordinatorSigningContext,
   requireCoordinatorSigningCheckpointControls,
   bindCoordinatorSigningContextPending,
   bindCoordinatorSigningContextBoundary,
@@ -93,7 +94,7 @@ export async function completeCoordinatorSigningContext(
     let phase = "existing-metadata-pending",
       handoff: Awaited<ReturnType<typeof handoffSigningContextArtifact>> | undefined;
     try {
-      const current = await requireCoordinatorSigningContext(receipt, deadline);
+      const current = await readPreparedCoordinatorSigningContext(receipt);
       const settlement = await executeOwnedCapacityEffect(
         executor,
         {
@@ -112,9 +113,11 @@ export async function completeCoordinatorSigningContext(
           },
         },
         async (pending) => {
-          if (pending) await bindCoordinatorSigningContextBoundary(receipt, executor, pending);
-          const fresh = (await requireCoordinatorSigningContext(receipt, deadline)).capacity_source
-            .capacity;
+          phase = pending ? "metadata-pending-boundary" : "metadata-effect-boundary";
+          const checked = pending
+            ? await bindCoordinatorSigningContextBoundary(receipt, executor, pending)
+            : await requireCoordinatorSigningContext(receipt, deadline);
+          const fresh = checked.capacity_source.capacity;
           if (
             current.mode === "renewal" &&
             current.checkpoint === retainedRenewalCapacityRebind.checkpoint &&
@@ -124,16 +127,19 @@ export async function completeCoordinatorSigningContext(
           return fresh.boundary;
         },
         async (pending) => {
+          phase = "metadata-owned-pending";
           await bindCoordinatorSigningContextPending(receipt, executor, pending);
           phase = "fixed-public-context-upload";
+          // Handoff returns only after the existing post-OIDC context check.
+          // The checkpoint callback separately rechecks authority before CAS.
           handoff = await handoffSigningContextArtifact(artifact, identity, pending, deadline);
-          await requireCoordinatorSigningContext(receipt, deadline);
           return {
             remote_identity: `github-actions:boburning/portcove:artifact:${handoff.artifact_id}`,
             evidence_sha256: handoff.predicate_sha256,
           };
         },
         async () => {
+          phase = "metadata-checkpoint-controls";
           await requireCoordinatorSigningCheckpointControls(receipt, deadline);
         },
       );
