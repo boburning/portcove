@@ -302,8 +302,43 @@ Observed cost (2026-11-11, cloud session, debug CLI, Linux x86-64, PostgreSQL 16
   transitions and added about 0.14 MB.
 - The report was 373 KB of HTML and 13 MB of JSON.
 
-Upstream observations, release health, hosted intake receipts and definition
-publication remain explicit unknown sources.
+### Release health
+
+`--release-health` (with `--all`) adds the `release-health` source.
+
+- **Input:** the report from the latest successful scheduled `main` run of
+  `upstream-health.yml`.
+  - It is read through the maintained GitHub client and artifact transfer.
+  - The run identity, attempt, source commit and artifact SHA-256 are bound into
+    the run revision, and the artifact digest must match GitHub's recorded digest.
+  - `report.json` is read through the bounded, CRC-checked ZIP reader.
+  - The monitor keeps its authority.
+- **Stored facts:** each freshly and completely assessed port keeps its known
+  conditions with their stable fields: key, material digest, classification,
+  accounting, operation, rule, location, first seen and resume condition.
+  - Per-run fields such as occurrence counts and observation times are dropped,
+    so a routine recurrence stays quiet.
+- **Gaps:** partially assessed, stale and unmonitored ports are recorded as
+  coverage gaps, never as health facts, and they make the run `partial`.
+- **Report:** the "Needs attention" column applies the monitor's own maintained
+  triage (`isRoutineProviderCondition`). Only accounted, routine
+  `provider-reported-*` conditions are hidden. A port whose latest health run
+  recorded a gap is marked "health not fresh". A port the monitor permanently
+  leaves unmonitored keeps every health run `partial`, which never records
+  absences.
+- **Credentials:** downloading an artifact needs a credential with the GitHub
+  `actions` scope, which a hosted job's token provides.
+
+A digest-verified report from scheduled run 43066038874 (2026-11-11) covered
+358/358 operational ports with no gaps, and 8 ports need attention:
+
+- 5 ports have unaccounted actionable conditions: four provider redirects and
+  one inaccessible location.
+- 3 ports have reviewed, accounted endpoint conditions that the triage keeps
+  visible.
+
+Upstream observations, hosted intake receipts and definition publication
+remain explicit unknown sources.
 
 ## Changes-only digest
 

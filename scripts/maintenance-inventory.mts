@@ -29,6 +29,12 @@ import {
   runSql,
 } from "./maintenance-store.mts";
 import { portCatalogMarkers, portKeyMarkers } from "./roadmap-issue.mts";
+import {
+  attentionConditions,
+  readReleaseHealth,
+  releaseHealthFacts,
+  type ReleaseHealthInput,
+} from "./maintenance-release-health.mts";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 export const defaultSamplePath = path.join(
@@ -432,6 +438,13 @@ export function collectionSql(input: {
     catalog: ReadonlyMap<string, string>;
     core: ReadonlyMap<string, string>;
     issues?: ReadonlyMap<string, string>;
+    releaseHealth?: ReadonlyMap<string, string>;
+  };
+  releaseHealth?: {
+    revision: string;
+    expected: number;
+    facts: ReadonlyMap<string, unknown>;
+    gaps: { subject_key: string; code: string; message: string }[];
   };
   issues?: { repository: string; observedAt: string; facts: ReadonlyMap<string, unknown> };
 }) {
@@ -447,7 +460,12 @@ export function collectionSql(input: {
     // Collectors of the same source are serialized; locks are taken in one order.
     `SELECT pg_advisory_xact_lock(hashtext('portcove-maintenance-source:' || source))
        FROM unnest(ARRAY[${[
-         ...new Set(["catalog-records", coreSource, ...(input.issues ? ["issues-project"] : [])]),
+         ...new Set([
+           "catalog-records",
+           coreSource,
+           ...(input.issues ? ["issues-project"] : []),
+           ...(input.releaseHealth ? ["release-health"] : []),
+         ]),
        ]
          .sort()
          .map(literal)
@@ -555,6 +573,23 @@ export function collectionSql(input: {
         payload,
       });
   }
+  const healthFacts = new Map<string, Fact>();
+  const healthRun = `release-health:${token}`;
+  if (input.releaseHealth) {
+    if (input.mode !== "all")
+      throw new MaintenanceStoreError("Release-health collection requires --all");
+    lines.push(
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at) VALUES
+        (${literal(healthRun)}, 'release-health', ${literal(input.runner)}, ${literal(input.releaseHealth.revision)}, ${literal(input.startedAt)});`,
+    );
+    for (const [key, payload] of input.releaseHealth.facts)
+      healthFacts.set(key, {
+        digest: sha256(canonicalJson(payload)),
+        scope: { source: "release-health" },
+        revision: input.releaseHealth.revision,
+        payload,
+      });
+  }
   const expected = input.subjects.length;
   const coreCoverage = !gaps.length ? "complete" : gaps.length === expected ? "failed" : "partial";
   const runs: [
@@ -579,6 +614,22 @@ export function collectionSql(input: {
       input.latest?.issues,
       issueFactsByKey.size,
     ]);
+  if (input.releaseHealth)
+    runs.push([
+      healthRun,
+      input.releaseHealth.revision,
+      input.releaseHealth.gaps.length ? "partial" : "complete",
+      input.releaseHealth.gaps,
+      healthFacts,
+      input.latest?.releaseHealth,
+      input.releaseHealth.expected,
+    ]);
+  const sourceOf = new Map([
+    [catalogRun, "catalog-records"],
+    [coreRun, coreSource],
+    [issueRun, "issues-project"],
+    [healthRun, "release-health"],
+  ]);
   for (const [run, revision, coverage, runGaps, facts, latest, runExpected] of runs) {
     let membership = "";
     if (input.mode === "all") {
@@ -591,14 +642,7 @@ export function collectionSql(input: {
           if (!facts.has(key))
             observe(run, key, {
               digest: sha256(canonicalJson(absentPayload)),
-              scope: {
-                source:
-                  run === catalogRun
-                    ? "catalog-records"
-                    : run === coreRun
-                      ? coreSource
-                      : "issues-project",
-              },
+              scope: { source: sourceOf.get(run) },
               revision,
               payload: absentPayload,
             });
@@ -662,6 +706,8 @@ export async function collect(options: {
   concurrency?: number | undefined;
   /** With `all`, also collect the verified issue and Project inventory. */
   issues?: (() => Promise<IssueInventory>) | undefined;
+  /** With `all`, also collect the latest scheduled release-health report. */
+  releaseHealth?: (() => Promise<ReleaseHealthInput>) | undefined;
   /** Host platform label; defaults to this host. Fixtures use it to model other hosts. */
   platform?: string | undefined;
   environment: NodeJS.ProcessEnv;
@@ -700,6 +746,10 @@ export async function collect(options: {
   if (options.issues && !options.all)
     throw new MaintenanceStoreError("Issue collection requires --all");
   const issueInventory = options.issues ? await options.issues() : undefined;
+  if (options.releaseHealth && !options.all)
+    throw new MaintenanceStoreError("Release-health collection requires --all");
+  const health = options.releaseHealth ? await options.releaseHealth() : undefined;
+  const healthFacts = health ? releaseHealthFacts(health.report) : undefined;
   runSql(
     options.environment,
     collectionSql({
@@ -720,6 +770,9 @@ export async function collect(options: {
             },
           }
         : {}),
+      ...(health && healthFacts
+        ? { releaseHealth: { revision: health.revision, ...healthFacts } }
+        : {}),
       ...(mode === "all"
         ? {
             latest: {
@@ -727,6 +780,9 @@ export async function collect(options: {
               core: latestMembers(options.environment, coreSourceName(platform), startedAt),
               ...(issueInventory
                 ? { issues: latestMembers(options.environment, "issues-project", startedAt) }
+                : {}),
+              ...(health
+                ? { releaseHealth: latestMembers(options.environment, "release-health", startedAt) }
                 : {}),
             },
           }
@@ -755,6 +811,12 @@ const reportQuery = `WITH latest_issue AS (
       ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC
   ), present_issue AS (
     SELECT payload FROM latest_issue WHERE payload <> portcove_maintenance.absent_payload()
+  ), latest_health AS (
+    SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
+      FROM portcove_maintenance.observations o
+      JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
+      WHERE r.source = 'release-health' AND r.coverage <> 'in_progress'
+      ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC
   ), latest_catalog AS (
     SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
       FROM portcove_maintenance.observations o
@@ -813,6 +875,14 @@ SELECT json_build_object(
         (SELECT json_build_object('code', g.code, 'message', g.message) FROM core_gap g
           WHERE g.platform = c.platform AND g.subject_key = c.port_key LIMIT 1) AS latest_core_gap,
         lc.payload = portcove_maintenance.absent_payload() AS removed,
+        (SELECT CASE WHEN h.payload = portcove_maintenance.absent_payload() THEN NULL ELSE h.payload END
+           FROM latest_health h WHERE h.subject_key = c.port_key) AS release_health,
+        (SELECT g ->> 'code' FROM (
+            SELECT gaps FROM portcove_maintenance.collection_runs
+              WHERE source = 'release-health' AND coverage <> 'in_progress'
+              ORDER BY started_at DESC LIMIT 1) hr
+           CROSS JOIN LATERAL jsonb_array_elements(hr.gaps) g
+           WHERE g ->> 'subject_key' = c.port_key LIMIT 1) AS latest_health_gap,
         json_build_object(
           'name', lc.payload -> 'authored_record' -> 'listing' ->> 'name',
           'game', lc.payload -> 'authored_record' -> 'listing' ->> 'original_game_title',
@@ -882,6 +952,9 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
   const issuesObserved = (data.runs as { source: string; coverage: string }[]).some(
     ({ source, coverage }) => source === "issues-project" && coverage === "complete",
   );
+  const healthObserved = (data.runs as { source: string }[]).some(
+    ({ source }) => source === "release-health",
+  );
   return {
     format: "portcove-maintenance-inventory",
     format_version: inventoryFormatVersion,
@@ -893,6 +966,7 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     },
     unsupported_sources: unsupportedSources
       .filter(([source]) => !(issuesObserved && (source === "issues" || source === "project")))
+      .filter(([source]) => !(healthObserved && source === "release-health"))
       .map(([source, reason]) => ({ source, reason })),
     runs: data.runs,
     subjects: subjects.map((subject) => {
@@ -935,7 +1009,13 @@ export function renderHtml(report: InventoryReport) {
         work,
         identity,
         alternatives,
+        release_health,
+        latest_health_gap,
       }) => ({
+        attention: (
+          attentionConditions(release_health) as { rule?: string; operation?: string }[]
+        ).map(({ rule, operation }) => `${rule ?? "unknown"} (${operation ?? "unknown"})`),
+        latest_health_gap,
         subject_key,
         name: (identity as { name?: string } | undefined)?.name ?? null,
         game: (identity as { game?: string } | undefined)?.game ?? null,
@@ -1002,7 +1082,7 @@ ${report.unsupported_sources
 <h2>Subjects</h2>
 <label for="search">Search</label>
 <input id="search" type="search" placeholder="Port ID or state">
-<table><thead><tr><th>Subject</th><th>Name and game</th><th>Alternatives</th><th>Core assessment</th><th>Changes</th><th>Assessed</th><th>Latest Core run</th><th>Work</th></tr></thead><tbody id="subjects"></tbody></table>
+<table><thead><tr><th>Subject</th><th>Name and game</th><th>Alternatives</th><th>Core assessment</th><th>Changes</th><th>Assessed</th><th>Latest Core run</th><th>Work</th><th>Needs attention</th></tr></thead><tbody id="subjects"></tbody></table>
 <script id="inventory" type="application/json">${embedded}</script>
 <script>
 const report = JSON.parse(document.getElementById("inventory").textContent);
@@ -1017,7 +1097,7 @@ function render(filter) {
       ? "not assessed: " + subject.latest_core_gap.code
       : subject.latest_core_run === "assessed" ? "assessed"
       : subject.latest_core_run === "removed" ? "removed from the catalog" : "not in latest run";
-    for (const value of [subject.subject_key, [subject.name, subject.game].filter(Boolean).join(" — "), (subject.alternatives ?? []).join(", "), subject.state, String(subject.sequence), subject.assessed_at, gap, (subject.work ?? []).join("; ") || "no linked issue observed"])
+    for (const value of [subject.subject_key, [subject.name, subject.game].filter(Boolean).join(" — "), (subject.alternatives ?? []).join(", "), subject.state, String(subject.sequence), subject.assessed_at, gap, (subject.work ?? []).join("; ") || "no linked issue observed", [subject.latest_health_gap ? "health not fresh: " + subject.latest_health_gap : "", ...(subject.attention ?? [])].filter(Boolean).join("; ")])
       row.insertCell().textContent = value;
   }
 }
@@ -1143,7 +1223,9 @@ commands:
                                        port) at the checkout's HEAD and the Core port-capabilities
                                        assessment into the store; --all stores changes only;
                                        --issues (with --all) adds the verified issue and Project
-                                       inventory through the maintained read-only roadmap collector
+                                       inventory through the maintained read-only roadmap collector;
+                                       --release-health (with --all) adds the latest scheduled
+                                       main upstream-health report, bound by run and digest
   report --output DIR                  write inventory.json and index.html to a new DIR
   digest --output DIR                  write the pending changes-only digest (digest.json, digest.md)
   acknowledge --digest FILE --receipt REF
@@ -1174,6 +1256,9 @@ export async function main(argv = process.argv.slice(2)) {
   const allIndex = args.indexOf("--all");
   const all = allIndex >= 0;
   if (all) args.splice(allIndex, 1);
+  const healthIndex = args.indexOf("--release-health");
+  const releaseHealth = healthIndex >= 0;
+  if (releaseHealth) args.splice(healthIndex, 1);
   const issuesIndex = args.indexOf("--issues");
   const issues = issuesIndex >= 0;
   if (issues) args.splice(issuesIndex, 1);
@@ -1192,6 +1277,7 @@ export async function main(argv = process.argv.slice(2)) {
           all,
           concurrency: concurrency === undefined ? undefined : Number(concurrency),
           issues: issues ? readIssueInventory : undefined,
+          releaseHealth: releaseHealth ? readReleaseHealth : undefined,
           environment,
         }),
         null,

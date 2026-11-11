@@ -1396,10 +1396,18 @@
           "cases": [
             "declared records flow through Core assessment, the store and a static report",
             "complete collection stores changes only, verifies membership and records absence",
-            "each host platform keeps its own assessment history, gaps and latest run"
+            "each host platform keeps its own assessment history, gaps and latest run",
+            "release health records coverage, quiet recurrence and needs-attention conditions"
           ],
           "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
         }
+      ]
+    },
+    {
+      "file": "scripts/maintenance-release-health.test.mts",
+      "memberships": [
+        ["catalog-full", 1272],
+        ["repository-tools", 407]
       ]
     },
     {

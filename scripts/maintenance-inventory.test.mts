@@ -596,3 +596,84 @@ void test(
     ]);
   },
 );
+
+void test(
+  "release health records coverage, quiet recurrence and needs-attention conditions",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("health");
+    migrate(store.owner);
+    const { cli, responses } = stubCli(fixture.root);
+    writeFileSync(responses, JSON.stringify({ "2ship2harkinian": report("automatic") }));
+    const health =
+      (occurrences: number, stale: string[] = []) =>
+      () =>
+        Promise.resolve({
+          revision: `upstream-health-run:${occurrences}`,
+          report: {
+            format_version: 1,
+            authority:
+              "upstream-monitoring-only; no acquisition, artifact, lineage or publication authority",
+            inventory: {
+              total_ports: 1 + stale.length,
+              fresh_complete_port_ids: ["2ship2harkinian"],
+              fresh_partial_port_ids: [],
+              stale_port_ids: stale,
+              unmonitored_port_ids: [],
+            },
+            known_conditions: [
+              {
+                key: "k1",
+                classification: "unclassified-or-actionable",
+                accounted_for: false,
+                port_id: "2ship2harkinian",
+                operation: "observe-availability",
+                rule: "provider-redirect",
+                occurrences,
+              },
+            ],
+          },
+        });
+    const collectWith = (releaseHealth: ReturnType<typeof health>) =>
+      collect({
+        cli,
+        all: true,
+        ports: ["2ship2harkinian"],
+        releaseHealth,
+        environment: store.owner,
+        runner: "fixture",
+      });
+    await collectWith(health(1));
+    await collectWith(health(2));
+    await collectWith(health(3, ["mdk-sdl-nemo22"]));
+    const healthRuns = JSON.parse(
+      runSql(
+        store.owner,
+        `SELECT json_agg(json_build_object('coverage', coverage, 'expected', expected_count, 'observed', observed_count,
+           'rows', (SELECT count(*) FROM portcove_maintenance.observations o WHERE o.run_id = r.run_id),
+           'gaps', jsonb_array_length(gaps)) ORDER BY started_at)
+           FROM portcove_maintenance.collection_runs r WHERE source = 'release-health';`,
+      ),
+    ) as { coverage: string; expected: number; observed: number; rows: number; gaps: number }[];
+    assert.deepEqual(
+      healthRuns.map(({ coverage, expected, observed, rows, gaps }) => [
+        coverage,
+        expected,
+        observed,
+        rows,
+        gaps,
+      ]),
+      [
+        ["complete", 1, 1, 1, 0],
+        // A routine recurrence is the same fact: nothing stored.
+        ["complete", 1, 1, 0, 0],
+        // A stale port is a gap and makes the run partial.
+        ["partial", 2, 1, 0, 1],
+      ],
+    );
+    const inventory = buildReport(store.owner);
+    assert.ok(!inventory.unsupported_sources.some(({ source }) => source === "release-health"));
+    assert.match(renderHtml(inventory), /provider-redirect \(observe-availability\)/u);
+  },
+);
