@@ -119,6 +119,7 @@ import {
   isSettledApplicationRenewalRecoveryRef,
   retainedApplicationReviewClaim,
   retainedApplicationRenewalClaim,
+  retainedApplicationContextUpload,
 } from "./release-coordinator-checkpoint-authentication.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import {
@@ -3421,6 +3422,18 @@ async function recoverTrustedCoordinatorContext(
     tools.identity.run_attempt !== reader.admitted.run_attempt
   )
     throw new Error("actual current coordinator tools differ from recovery reader");
+  const unattempted =
+    recovered.checkpoint === retainedApplicationContextUpload.checkpoint
+      ? await (
+          await import("./release-metadata-context-recovery.mts")
+        ).readRetainedUnattemptedMetadataUpload(
+          recovered.checkpoint,
+          selected.operation,
+          selected.descriptor,
+          directory,
+          budget.monotonicDeadline,
+        )
+      : undefined;
   const factsSha = capacityDigest({
       checkpoint: recovered.checkpoint,
       operation_id: selected.operation.id,
@@ -3490,6 +3503,53 @@ async function recoverTrustedCoordinatorContext(
       throw new Error("ratified context recovery authority configuration changed");
     budget.check();
   };
+  const settle = async (readback: Parameters<typeof recoverOwnedCapacityEffect>[2]) => {
+    await guard();
+    const executor = await authenticateCapacityExecutor(
+      "coordinator",
+      {
+        audience: "portcove-capacity-executor",
+        subject: controllerOidcSubject(
+          reader.admitted.execution_ref,
+          "production-release-coordinator",
+        ),
+        controller_revision: reader.admitted.revision,
+        controller_ref: reader.admitted.execution_ref,
+        actor_id: reader.admitted.actor_id,
+        run_id: reader.admitted.run_id,
+        run_attempt: reader.admitted.run_attempt,
+      },
+      directory,
+      budget.monotonicDeadline,
+    );
+    return recoverOwnedCapacityEffect(
+      executor,
+      {
+        repository: recovered.repository,
+        checkpoint: recovered.checkpoint,
+        remote_configuration: configuration,
+      },
+      async (operation) => {
+        await guard();
+        if (capacityDigest(operation) !== capacityDigest(selected.operation))
+          throw new Error("original pending context differs");
+        return readback(operation);
+      },
+      undefined,
+      guard,
+    );
+  };
+  if (unattempted) {
+    const settled = await settle(async () => unattempted);
+    budget.check();
+    return {
+      decision: "metadata-context-upload-not-applied",
+      checkpoint: settled.checkpoint,
+      operation_id: settled.operation_id,
+      automatic_retry: false,
+      authority: "none",
+    };
+  }
   await guard();
   const verifier_sha256 = createHash("sha256")
     .update(await readControllerToolFile(tools.rust))
@@ -3632,70 +3692,43 @@ async function recoverTrustedCoordinatorContext(
     },
   };
   contextBinding = { facts: current.facts, binding: current.binding, pins: priorPins };
-  await guard();
-  const executor = await authenticateCapacityExecutor(
-    "coordinator",
-    {
-      audience: "portcove-capacity-executor",
-      subject: controllerOidcSubject(
-        reader.admitted.execution_ref,
-        "production-release-coordinator",
-      ),
-      controller_revision: reader.admitted.revision,
-      controller_ref: reader.admitted.execution_ref,
-      actor_id: reader.admitted.actor_id,
-      run_id: reader.admitted.run_id,
-      run_attempt: reader.admitted.run_attempt,
-    },
-    directory,
-    budget.monotonicDeadline,
-  );
-  const settled = await recoverOwnedCapacityEffect(
-    executor,
-    {
-      repository: recovered.repository,
-      checkpoint: recovered.checkpoint,
-      remote_configuration: configuration,
-    },
-    async (operation) => {
-      await guard();
-      if (capacityDigest(operation) !== capacityDigest(selected.operation))
-        throw new Error("original pending context differs");
-      const readback = await (
-        await import("./release-metadata-context-recovery.mts")
-      ).readPendingMetadataContextUpload(
-        operation,
-        selected.descriptor,
-        current,
-        directory,
-        budget.monotonicDeadline,
-      );
-      await verifiedControllerToolPaths(toolsReceipt);
-      if (
-        contextFileDigest(await readBoundedReleaseContextFiles(preparedRoot)) !==
-        contextFileDigest(files)
-      )
-        throw new Error("reconstructed context changed during pending readback");
-      if (currentSite) {
-        const site = await requirePublishedCompleteSite(currentSite.receipt);
-        await readPublicApplicationSiteMarker(site.generation, budget.monotonicDeadline);
-      } else {
-        if (!bootstrapSource) throw new Error("original bootstrap readback provider unavailable");
-        if (bootstrapCatalog)
-          await readConfiguredCatalogOnlyBootstrapSite(
-            bootstrapSource,
-            priorPins,
-            bootstrapCatalog.receipt,
-            budget.monotonicDeadline,
-          );
-        else await readConfiguredBootstrapSite(bootstrapSource, budget.monotonicDeadline);
-      }
-      await guard();
-      return readback;
-    },
-    undefined,
-    guard,
-  );
+  const settled = await settle(async (operation) => {
+    const readback = await (
+      await import("./release-metadata-context-recovery.mts")
+    ).readPendingMetadataContextUpload(
+      operation,
+      selected.descriptor,
+      current,
+      directory,
+      budget.monotonicDeadline,
+    );
+    await verifiedControllerToolPaths(toolsReceipt);
+    if (
+      contextFileDigest(await readBoundedReleaseContextFiles(preparedRoot)) !==
+      contextFileDigest(files)
+    )
+      throw new Error("reconstructed context changed during pending readback");
+    if (currentSite) {
+      const site = await requirePublishedCompleteSite(currentSite.receipt);
+      await readPublicApplicationSiteMarker(site.generation, budget.monotonicDeadline);
+    } else {
+      if (!bootstrapSource) throw new Error("original bootstrap readback provider unavailable");
+      if (bootstrapCatalog)
+        await readConfiguredCatalogOnlyBootstrapSite(
+          bootstrapSource,
+          priorPins,
+          bootstrapCatalog.receipt,
+          budget.monotonicDeadline,
+        );
+      else await readConfiguredBootstrapSite(bootstrapSource, budget.monotonicDeadline);
+    }
+    await guard();
+    return {
+      resolution: readback.resolution,
+      evidence_sha256: readback.evidence_sha256,
+      completed_effect: readback.completed_effect,
+    };
+  });
   budget.check();
   return {
     decision: "metadata-context-upload-recovered",
