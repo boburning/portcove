@@ -187,6 +187,22 @@
       padding: 1.5rem;
     }
   }
+  /* Short desktop windows (the 1280x720 reference): identity, readiness and the
+     primary action stay in the hero while tabs and their first content stay on
+     screen. Long titles and enlarged text still grow the hero. */
+  @media (height <= 760px) and (width >= 761px) {
+    .game-hero-detail .game-hero-body {
+      min-block-size: 12.5rem;
+      padding: 1.5rem 1.75rem;
+    }
+    .game-hero-detail .detail-title {
+      font-size: clamp(1.5rem, 2.25vw, 2.25rem);
+      max-width: 32ch;
+    }
+    .detail-back {
+      margin-block-end: var(--space-3);
+    }
+  }
   @container library-query (width <= 32rem) {
     .game-hero-continue .game-hero-content {
       align-items: flex-start;

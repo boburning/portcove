@@ -121,13 +121,13 @@ export function ListingDetailPanel({
   groupPorts,
   favoriteControl,
   implementationControl,
-  heroSupplement,
+  managementSupplement,
 }: {
   entry: CatalogEntry;
   groupPorts?: readonly CatalogEntry[] | undefined;
   favoriteControl?: ReactNode;
   implementationControl?: ReactNode;
-  heroSupplement?: ReactNode;
+  managementSupplement?: ReactNode;
   libraryRoot?: string | undefined;
   status?: PortStatus | undefined;
   generation: number;
@@ -167,7 +167,7 @@ export function ListingDetailPanel({
         <DetailLayout
           backLabel={backLabel}
           port={entry}
-          heroSupplement={heroSupplement}
+          managementSupplement={managementSupplement}
           favoriteControl={
             <>
               {implementationControl}

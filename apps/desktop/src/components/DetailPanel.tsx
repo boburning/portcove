@@ -140,7 +140,7 @@ type AsyncAction = () => void | Promise<unknown>;
 interface DetailPanelProps {
   backLabel?: string | undefined;
   favoriteControl?: ReactNode;
-  heroSupplement?: ReactNode;
+  managementSupplement?: ReactNode;
   opening?: DetailOpening | undefined;
   extraFiles?: ReactNode;
   openActivity?: (() => void) | undefined;
@@ -322,7 +322,7 @@ export function DetailPanel(props: DetailPanelProps) {
     <DetailBody
       backLabel={props.backLabel}
       favoriteControl={props.favoriteControl}
-      heroSupplement={props.heroSupplement}
+      managementSupplement={props.managementSupplement}
       state={state}
       opening={props.opening}
       extraFiles={props.extraFiles}
@@ -438,7 +438,7 @@ function detailBodyAvailability(
 function DetailBody(model: {
   backLabel?: string | undefined;
   favoriteControl?: ReactNode;
-  heroSupplement?: ReactNode;
+  managementSupplement?: ReactNode;
   state: DetailState;
   opening?: DetailOpening | undefined;
   extraFiles?: ReactNode;
@@ -499,7 +499,7 @@ function DetailBody(model: {
     <DetailLayout
       backLabel={model.backLabel}
       favoriteControl={model.favoriteControl}
-      heroSupplement={model.heroSupplement}
+      managementSupplement={model.managementSupplement}
       port={model.displayPort ?? model.port}
       projectUrl={model.port.project_url}
       openSupport={model.openSupport}

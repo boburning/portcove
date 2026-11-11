@@ -781,7 +781,7 @@ function useWorkspace(props: WorkspaceProps) {
           (candidate) => gameGroupId(candidate) === gameGroupId(model.entry!),
         )}
         implementationControl={implementationControl}
-        heroSupplement={setupAvailabilityControl}
+        managementSupplement={setupAvailabilityControl}
         favoriteControl={
           model.status?.external_runtime
             ? renderSelectedPortFavoriteControl({
@@ -803,7 +803,7 @@ function useWorkspace(props: WorkspaceProps) {
       <>
         <SelectedPortPanel
           implementationControl={implementationControl}
-          heroSupplement={setupAvailabilityControl}
+          managementSupplement={setupAvailabilityControl}
           backLabel={detailBackLabel}
           favorites={favorites}
           extraFiles={
@@ -1729,7 +1729,7 @@ function renderSelectedPortFavoriteControl({
 
 function SelectedPortPanel({
   implementationControl,
-  heroSupplement,
+  managementSupplement,
   favorites,
   organization,
   openSupport,
@@ -1752,7 +1752,7 @@ function SelectedPortPanel({
   close,
 }: {
   implementationControl?: ReactNode;
-  heroSupplement?: ReactNode;
+  managementSupplement?: ReactNode;
   favorites: ReturnType<typeof useFavorites>;
   organization: ReturnType<typeof useOrganization>;
   openSupport: () => void;
@@ -1811,7 +1811,7 @@ function SelectedPortPanel({
   return (
     <DetailPanel
       backLabel={backLabel}
-      heroSupplement={heroSupplement}
+      managementSupplement={managementSupplement}
       favoriteControl={
         <>
           {implementationControl}
