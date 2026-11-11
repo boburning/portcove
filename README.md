@@ -185,6 +185,9 @@ preview limitations.
 | Report a problem            | Use Report a problem in a game's details. You review the full text, then submit it on GitHub.                   | Portcove sends nothing itself. Folder paths and your user name are replaced, and no saves or game files are attached. Long reports are copied instead.                                                                                                    |
 | Upgrade Portcove itself     | Follow [application upgrade and recovery](docs/UPGRADING.md).                                                   | Published Alpha 2 upgrades are manual. An application update is separate from a game update or catalog refresh.                                                                                                                                           |
 
+See [beta feedback and triage](docs/ROADMAP.md#beta-feedback-and-triage) for
+reporting from Settings or directly on GitHub.
+
 Bulk `check --all`, `reconcile --all` and `update --all` continue after a
 per-port failure and report each outcome. A completed batch can contain failed
 ports; inspect every result. `reconcile` follows each saved update policy and

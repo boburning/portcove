@@ -8,9 +8,7 @@ body:
     id: outcome
     attributes:
       label: User impact
-      description: What task failed, became unsafe, or produced a misleading result?
-    validations:
-      required: true
+      description: What were you unable to do?
   - type: textarea
     id: observed
     attributes:
@@ -20,7 +18,7 @@ body:
   - type: textarea
     id: reproduce
     attributes:
-      label: Reproduction steps
+      label: What were you doing when it happened?
       placeholder: |
         1. ...
         2. ...
@@ -30,9 +28,7 @@ body:
   - type: textarea
     id: expected
     attributes:
-      label: Expected behavior
-    validations:
-      required: true
+      label: What did you expect to happen?
   - type: input
     id: version
     attributes:
@@ -61,9 +57,3 @@ body:
     attributes:
       label: Data, trust, or recovery impact
       description: Note source, install, save, backup, rollback, credential, or executable-trust implications.
-  - type: textarea
-    id: acceptance
-    attributes:
-      label: Acceptance criteria and regression tests
-    validations:
-      required: true
