@@ -230,8 +230,10 @@ it("shows no Activity link or duplicate listed progress while Activity is open",
       state.perform("check", () => unlisted.promise, { context: context("B", "Check") }),
     ]);
   });
-  const text = host.textContent ?? "";
   // Activity lists the owned task itself; the unlisted task keeps its progress here.
+  // Live-region announcements are unchanged and are not part of these groups.
+  const groups = [...host.querySelectorAll<HTMLElement>("[data-invocation-id]")];
+  const text = groups.map((group) => group.textContent ?? "").join(" ");
   expect(text).not.toContain("Prepare · Game A");
   expect(text).toContain("Check · Game B");
   expect(text).not.toContain("Activity");
