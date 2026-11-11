@@ -1051,6 +1051,7 @@ export interface TransportOutputs {
   storage: StorageSummary;
   update_batch_outcome: OutputUpdateBatchOutcome;
   update_check: UpdateCheck;
+  update_check_forecast: OutputUpdateCheckForecast;
   update_snapshot: UpdateSnapshot;
   upstream_observation_report: OutputUpstreamObservationReport;
   desktop_application_update_check_phase: OutputDesktopApplicationUpdateCheckPhase;
@@ -4397,6 +4398,15 @@ export interface OutputUpdateBatchOutcome {
   ok: boolean;
   port_id: string;
   result: InstallRecord | null;
+  [k: string]: unknown;
+}
+/**
+ * The expected provider cost of checking a set of games at once.
+ */
+export interface OutputUpdateCheckForecast {
+  counted_requests: number;
+  games: number;
+  sign_in_relief_requests: number;
   [k: string]: unknown;
 }
 export interface OutputUpstreamObservationReport {

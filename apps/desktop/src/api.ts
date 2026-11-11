@@ -120,6 +120,7 @@ import type {
   SteamBatchReview,
   SteamBatchSelection,
   UpdateCheck,
+  UpdateCheckForecast,
   UpdateCheckOutcome,
   UpdatePolicy,
   WorkspaceSnapshotTransport,
@@ -715,6 +716,8 @@ export const desktopApi = {
   check: (portId: string, generation: number) =>
     invoke<UpdateCheck>("check_port", { portId, generation }),
   checkInstalled: () => invoke<UpdateCheckOutcome[]>("check_installed"),
+  forecastInstalledUpdateChecks: () =>
+    invoke<UpdateCheckForecast>("forecast_installed_update_checks"),
   doctor: (generation: number) => invoke<DoctorReport>("get_doctor_report", { generation }),
   previewPreparationCleanup: (operationId: string, generation: number) =>
     invoke<PreparationCleanupPreview>("preview_preparation_cleanup", {

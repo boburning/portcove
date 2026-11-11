@@ -935,6 +935,26 @@ async fn check_port(
 }
 
 #[tauri::command]
+async fn forecast_installed_update_checks(
+    state: tauri::State<'_, DesktopState>,
+) -> DesktopResult<portcove_core::UpdateCheckForecast> {
+    let state = state.inner().clone();
+    blocking_async_service(state, move |service| async move {
+        let installed = service
+            .statuses()?
+            .into_iter()
+            .filter(|status| status.active.is_some())
+            .map(|status| status.port_id)
+            .collect::<Vec<_>>();
+        service
+            .forecast_update_checks(installed)
+            .await
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 async fn check_installed(
     app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
@@ -2881,6 +2901,7 @@ pub fn run() -> std::process::ExitCode {
             verify_sources,
             check_port,
             check_installed,
+            forecast_installed_update_checks,
             add_source,
             get_game_file_roots,
             add_game_file_root,

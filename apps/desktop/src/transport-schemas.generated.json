@@ -56528,6 +56528,34 @@
     "title": "UpdateCheck",
     "type": "object"
   },
+  "update_check_forecast": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "The expected provider cost of checking a set of games at once.",
+    "properties": {
+      "counted_requests": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "games": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "sign_in_relief_requests": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "games",
+      "counted_requests",
+      "sign_in_relief_requests"
+    ],
+    "title": "UpdateCheckForecast",
+    "type": "object"
+  },
   "update_snapshot": {
     "$defs": {
       "ArtifactIdentity": {
