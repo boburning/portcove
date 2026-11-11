@@ -407,3 +407,46 @@ void test("inventory digest is independent of record field order and duplicates"
   assert.equal(first.sha256, second.sha256);
   assert.equal(second.inventory.records.length, 1);
 });
+
+void test("one object accepted under two identities exports and restores both", async () => {
+  await withStore(async (source) => {
+    const arm = { ...artifact, platform: "windows-arm64", asset_id: 24 };
+    const records = await backfill([artifact, arm], {
+      scope: { ...scope, artifacts: new Set([scopeKey(artifact), scopeKey(arm)]) },
+      store: source,
+      now,
+      fetchOriginal: () => stream(bytes),
+    });
+    assert.deepEqual(
+      records.map((record) => record.state),
+      ["verified", "verified"],
+    );
+    const { inventory, sha256: digest } = exportInventory(records);
+    assert.equal(inventory.records.length, 2);
+    assert.equal(exportInventory([...records].reverse()).sha256, digest);
+    await withStore(async (target) => {
+      const restored = await restoreInventory(inventory, source, target);
+      assert.deepEqual(
+        restored.map((result) => result.restored),
+        [true, true],
+      );
+      assert.deepEqual(await target.keys(), [objectKey(artifact)]);
+    });
+  });
+});
+
+void test("repository identity rejects dot segments", async () => {
+  await withStore(async (store) => {
+    for (const repository of ["../x", "x/..", "./x"])
+      await assert.rejects(
+        capture({
+          artifact: { ...artifact, repository },
+          scope,
+          store,
+          now,
+          fetchOriginal: () => stream(bytes),
+        }),
+        /repository is invalid/u,
+      );
+  });
+});

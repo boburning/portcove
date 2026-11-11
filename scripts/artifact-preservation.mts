@@ -88,7 +88,7 @@ export function validateArtifact(value: AcceptedArtifact): void {
   for (const field of ["port_id", "platform"] as const)
     if (!/^[a-z0-9][a-z0-9._-]*$/u.test(value[field]))
       throw new Error(`accepted artifact ${field} is invalid`);
-  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(value.repository))
+  if (!/^(?!\.{1,2}\/)[A-Za-z0-9_.-]+\/(?!\.{1,2}$)[A-Za-z0-9_.-]+$/u.test(value.repository))
     throw new Error("accepted artifact repository is invalid");
   if (/[\\/]/u.test(value.filename) || value.filename === "." || value.filename === "..")
     throw new Error("accepted artifact filename is invalid");
@@ -261,22 +261,22 @@ export function exportInventory(records: readonly PreservationRecord[]): {
   inventory: Inventory;
   sha256: string;
 } {
-  const verified = new Map<string, AcceptedArtifact>();
+  // One object may legitimately carry several accepted identities (for example
+  // the same archive accepted for two platforms); dedupe on the full identity.
+  const verified = new Map<string, { artifact: AcceptedArtifact; object_key: string }>();
   for (const record of records)
     if (record.state === "verified") {
       const canonical = Object.fromEntries(
         artifactFields.map((field) => [field, record.artifact[field]]),
       ) as AcceptedArtifact;
-      const previous = verified.get(record.object_key);
-      if (previous && JSON.stringify(previous) !== JSON.stringify(canonical))
-        throw new Error("one preserved object has conflicting accepted identities");
-      verified.set(record.object_key, canonical);
+      verified.set(`${record.object_key}\n${JSON.stringify(canonical)}`, {
+        artifact: canonical,
+        object_key: record.object_key,
+      });
     }
   const inventory: Inventory = {
     format: inventoryFormat,
-    records: [...verified.keys()]
-      .sort()
-      .map((object_key) => ({ artifact: verified.get(object_key)!, object_key })),
+    records: [...verified.keys()].sort().map((key) => verified.get(key)!),
   };
   const text = JSON.stringify(inventory);
   return { inventory, sha256: createHash("sha256").update(text).digest("hex") };

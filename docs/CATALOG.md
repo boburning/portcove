@@ -2977,7 +2977,8 @@ A differing stored object becomes `failed` and is preserved for review, not
 overwritten. Exhausted capacity, including running out of space mid-transfer,
 records a deferred `pending` state and evicts nothing. Each artifact is recorded
 independently, so a storage error on one does not stop a backfill. Inventory
-export includes verified records only, one per object, in a canonical order that
+export includes verified records only, one per accepted identity (one object
+may carry several), in a canonical order that
 gives a stable digest. Restore streams each object through the same bounded
 size and SHA-256 check before publishing it in the target. It then reads the
 target back and never changes accepted identity. Interrupted private
