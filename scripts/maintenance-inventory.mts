@@ -1,0 +1,526 @@
+/**
+ * Read-only maintenance inventory path for #4129 (checkpoint 2).
+ *
+ * Canonical records at one pinned repository revision and the maintained Core
+ * `port-capabilities` assessment are persisted to the maintenance store, then
+ * rendered as static JSON and HTML. Nothing outside the store is mutated, and
+ * no support, admission or publication claim is made: unavailable facts are
+ * reported as unknown with their reason.
+ */
+import { spawnSync } from "node:child_process";
+import { createHash, randomUUID } from "node:crypto";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  MaintenanceStoreError,
+  connectionFromEnvironment,
+  defaultDatabaseEnvironment,
+  runSql,
+} from "./maintenance-store.mts";
+
+const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
+export const defaultSamplePath = path.join(
+  repositoryRoot,
+  "scripts",
+  "maintenance-store",
+  "sample-v1.json",
+);
+export const inventoryFormatVersion = 1;
+const portIdPattern = /^[a-z0-9][a-z0-9-]{0,127}$/u;
+
+/** Declared sources the store cannot yet observe, with the exact reason. */
+export const unsupportedSources = [
+  ["issues", "No maintained export of full issue rows; doctor retains counts only."],
+  ["project", "No maintained export of Project item field values."],
+  ["upstream-observations", "Observer checkpoints are cache-only and not yet joined."],
+  ["release-health", "Monitor history is cache-only and not yet joined."],
+  ["hosted-intake", "Receipts exist only as issue comments; no aggregated export."],
+  [
+    "definition-publication",
+    "No maintained comparison of main with the published definition site.",
+  ],
+] as const;
+
+export interface InventorySample {
+  format_version: 1;
+  ports: string[];
+}
+
+export function readSample(file = defaultSamplePath): InventorySample {
+  const value = JSON.parse(readFileSync(file, "utf8")) as Partial<InventorySample>;
+  if (
+    value.format_version !== 1 ||
+    !Array.isArray(value.ports) ||
+    !value.ports.length ||
+    value.ports.length > 200 ||
+    !value.ports.every((id) => typeof id === "string" && portIdPattern.test(id)) ||
+    new Set(value.ports).size !== value.ports.length
+  )
+    throw new MaintenanceStoreError("Inventory sample must list 1-200 unique port IDs (format 1)");
+  return value as InventorySample;
+}
+
+/** Stable JSON: object keys sorted, so equal facts hash equally on every host. */
+export function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object")
+    return `{${Object.keys(value)
+      .sort()
+      .map(
+        (key) => `${JSON.stringify(key)}:${canonicalJson((value as Record<string, unknown>)[key])}`,
+      )
+      .join(",")}}`;
+  return JSON.stringify(value);
+}
+
+export const sha256 = (text: string | Buffer) => createHash("sha256").update(text).digest("hex");
+
+function git(args: string[]) {
+  const result = spawnSync("git", args, {
+    cwd: repositoryRoot,
+    encoding: "utf8",
+    timeout: 60_000,
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  if (result.error || result.status !== 0)
+    throw new MaintenanceStoreError(
+      `git ${args[0]} failed: ${result.stderr?.trim() ?? result.error?.message}`,
+    );
+  return result.stdout;
+}
+
+/** An authored record exactly as committed at the pinned revision, or null when absent. */
+function committedRecord(revision: string, id: string): unknown {
+  const result = spawnSync(
+    "git",
+    ["show", `${revision}:crates/portcove-core/catalog/ports/${id}.json`],
+    {
+      cwd: repositoryRoot,
+      encoding: "utf8",
+      timeout: 60_000,
+    },
+  );
+  if (result.status !== 0) return null;
+  return JSON.parse(result.stdout);
+}
+
+function committedOperationalDefinition(revision: string) {
+  const catalog = JSON.parse(
+    git(["show", `${revision}:crates/portcove-core/catalog/catalog.json`]),
+  ) as {
+    ports: { id: string }[];
+    source_catalog?: { qualification?: { scope?: { port_id?: string } }[] };
+  };
+  return {
+    ids: new Set(catalog.ports.map((port) => port.id)),
+    qualification: catalog.source_catalog?.qualification ?? [],
+  };
+}
+
+export interface CapabilityObservation {
+  ok: boolean;
+  report?: unknown;
+  error?: { code: string; message: string };
+}
+
+/** The maintained Core assessment, read from a fresh empty library. */
+export function coreCapabilities(cli: string, id: string): CapabilityObservation {
+  const library = mkdtempSync(path.join(os.tmpdir(), "portcove-inventory-library-"));
+  try {
+    const result = spawnSync(cli, ["--library", library, "--json", "port-capabilities", id], {
+      encoding: "utf8",
+      timeout: 120_000,
+      maxBuffer: 16 * 1024 * 1024,
+      windowsHide: true,
+    });
+    if (result.error || result.signal)
+      throw new MaintenanceStoreError(`portcove did not finish for ${id}`);
+    const envelope = JSON.parse(result.stdout) as {
+      ok: boolean;
+      data: unknown;
+      error: { code: string; message: string } | null;
+    };
+    return envelope.ok
+      ? { ok: true, report: envelope.data }
+      : {
+          ok: false,
+          error: {
+            code: envelope.error?.code ?? "unknown",
+            message: envelope.error?.message ?? "",
+          },
+        };
+  } finally {
+    rmSync(library, { recursive: true, force: true });
+  }
+}
+
+interface Feature {
+  feature: string;
+  mode: string;
+  explanation: string;
+  next_step: string;
+}
+interface Route {
+  route: string;
+  features: Feature[];
+}
+
+/** Project Core's report without reinterpreting it: routes, features, modes and Core's own words. */
+export function capabilityResult(observation: CapabilityObservation) {
+  if (!observation.ok)
+    return {
+      state: `unassessed.${observation.error?.code ?? "unknown"}`,
+      explanation: { error: observation.error },
+    };
+  const report = observation.report as {
+    format_version: number;
+    routes: Route[];
+    detail_problems: string[];
+  };
+  const routes = report.routes.map((route) => ({
+    route: route.route,
+    features: route.features.map(({ feature, mode, explanation, next_step }) => ({
+      feature,
+      mode,
+      explanation,
+      next_step,
+    })),
+  }));
+  const managedSetup =
+    routes
+      .find((route) => route.route === "managed")
+      ?.features.find((feature) => feature.feature === "setup")?.mode ?? "unknown";
+  return {
+    state: `managed-setup.${managedSetup}`,
+    explanation: {
+      report_format: report.format_version,
+      routes,
+      detail_problems: report.detail_problems,
+    },
+  };
+}
+
+function hostPlatform() {
+  const arch = process.arch === "x64" ? "x86-64" : process.arch;
+  return `${process.platform === "win32" ? "windows" : process.platform === "darwin" ? "macos" : process.platform}-${arch}`;
+}
+
+const literal = (value: string) => `'${value.replaceAll("'", "''")}'`;
+const jsonLiteral = (value: unknown) => `${literal(canonicalJson(value))}::jsonb`;
+
+export interface CollectedSubject {
+  id: string;
+  record: unknown;
+  operational: boolean;
+  qualification: unknown[];
+  capabilities: CapabilityObservation;
+}
+
+/** One transaction: two collection runs, their observations, assessments and transitions. */
+export function collectionSql(input: {
+  revision: string;
+  cliSha256: string;
+  apiSchema: number;
+  runner: string;
+  startedAt: string;
+  platform: string;
+  subjects: CollectedSubject[];
+}) {
+  const token = randomUUID();
+  const catalogRun = `catalog-records:${input.revision.slice(0, 12)}:${token}`;
+  const coreRun = `core-port-capabilities:${input.cliSha256.slice(0, 12)}:${token}`;
+  const policy = `port-capabilities;api=${input.apiSchema};cli-sha256=${input.cliSha256}`;
+  const lines = [
+    `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at) VALUES
+      (${literal(catalogRun)}, 'catalog-records', ${literal(input.runner)}, ${literal(input.revision)}, ${literal(input.startedAt)}),
+      (${literal(coreRun)}, 'core-port-capabilities', ${literal(input.runner)}, ${literal(`cli-sha256:${input.cliSha256}`)}, ${literal(input.startedAt)});`,
+  ];
+  for (const subject of input.subjects) {
+    const key = `port:${subject.id}`;
+    const catalogFact = {
+      authored_record: subject.record,
+      operational_definition: subject.operational,
+      scoped_qualification: subject.qualification,
+    };
+    const capabilityFact = subject.capabilities;
+    const catalogDigest = sha256(canonicalJson(catalogFact));
+    const capabilityDigest = sha256(canonicalJson(capabilityFact));
+    lines.push(
+      `INSERT INTO portcove_maintenance.observations (run_id, subject_key, scope, input_revision, content_sha256, observed_at, payload) VALUES
+        (${literal(catalogRun)}, ${literal(key)}, ${jsonLiteral({ source: "catalog-records" })}, ${literal(input.revision)}, ${literal(catalogDigest)}, statement_timestamp(), ${jsonLiteral(catalogFact)}),
+        (${literal(coreRun)}, ${literal(key)}, ${jsonLiteral({ source: "core-port-capabilities", host_platform: input.platform, library: "fresh-empty", cli_source_binding: "unverified" })}, ${literal(`cli-sha256:${input.cliSha256}`)}, ${literal(capabilityDigest)}, statement_timestamp(), ${jsonLiteral(capabilityFact)});`,
+    );
+    const result = capabilityResult(subject.capabilities);
+    const explanation = {
+      ...result.explanation,
+      host_platform: input.platform,
+      listing_only: subject.record !== null && !subject.operational,
+      catalog_record_present: subject.record !== null,
+    };
+    const inputDigest = sha256(
+      canonicalJson({ catalogDigest, capabilityDigest, platform: input.platform }),
+    );
+    const resultDigest = sha256(canonicalJson({ state: result.state, explanation }));
+    lines.push(
+      `INSERT INTO portcove_maintenance.assessments (subject_key, policy_version, input_digest, state, result_digest, explanation, assessed_at, run_id)
+        VALUES (${literal(key)}, ${literal(policy)}, ${literal(inputDigest)}, ${literal(result.state)}, ${literal(resultDigest)}, ${jsonLiteral(explanation)}, statement_timestamp(), ${literal(coreRun)})
+        ON CONFLICT (subject_key, policy_version, input_digest) DO NOTHING;`,
+      `INSERT INTO portcove_maintenance.subject_transitions (subject_key, sequence, assessment_id)
+        SELECT a.subject_key, coalesce(c.sequence, 0) + 1, a.assessment_id
+          FROM portcove_maintenance.assessments a
+          LEFT JOIN portcove_maintenance.subject_current c ON c.subject_key = a.subject_key
+          WHERE a.subject_key = ${literal(key)} AND a.policy_version = ${literal(policy)} AND a.input_digest = ${literal(inputDigest)}
+            AND c.result_digest IS DISTINCT FROM a.result_digest;`,
+    );
+  }
+  const observed = input.subjects.length;
+  for (const [run, revision] of [
+    [catalogRun, input.revision],
+    [coreRun, `cli-sha256:${input.cliSha256}`],
+  ] as const)
+    lines.push(
+      `UPDATE portcove_maintenance.collection_runs SET coverage = 'complete', completed_at = clock_timestamp(),
+         source_revision = ${literal(revision)}, expected_count = ${observed}, observed_count = ${observed}
+         WHERE run_id = ${literal(run)};`,
+    );
+  return lines.join("\n");
+}
+
+export function collect(options: {
+  cli: string;
+  sample?: string | undefined;
+  environment: NodeJS.ProcessEnv;
+  runner?: string | undefined;
+}) {
+  const sample = readSample(options.sample);
+  const revision = git(["rev-parse", "HEAD"]).trim();
+  const definitions = committedOperationalDefinition(revision);
+  const cliSha256 = sha256(readFileSync(options.cli));
+  const capabilities = JSON.parse(
+    spawnSync(options.cli, ["--json", "capabilities"], { encoding: "utf8", timeout: 60_000 })
+      .stdout,
+  ) as { data: { schema_version: number; port_capability_schema: number } };
+  if (capabilities.data.port_capability_schema !== 1)
+    throw new MaintenanceStoreError("Unsupported port capability schema");
+  const startedAt = new Date().toISOString();
+  const subjects = sample.ports.map((id) => ({
+    id,
+    record: committedRecord(revision, id),
+    operational: definitions.ids.has(id),
+    qualification: definitions.qualification.filter((record) => record.scope?.port_id === id),
+    capabilities: coreCapabilities(options.cli, id),
+  }));
+  runSql(
+    options.environment,
+    collectionSql({
+      revision,
+      cliSha256,
+      apiSchema: capabilities.data.schema_version,
+      runner: options.runner ?? process.env.PORTCOVE_MAINTENANCE_RUNNER?.trim() ?? "generic",
+      startedAt,
+      platform: hostPlatform(),
+      subjects,
+    }),
+  );
+  return { revision, cli_sha256: cliSha256, subjects: subjects.length };
+}
+
+const reportQuery = `SELECT json_build_object(
+  'runs', (SELECT coalesce(json_agg(r ORDER BY r.source, r.started_at DESC), '[]') FROM (
+      SELECT DISTINCT ON (source) source, run_id, runner, source_revision, started_at, completed_at, coverage,
+             expected_count, observed_count, gaps
+        FROM portcove_maintenance.collection_runs ORDER BY source, started_at DESC) r),
+  'subjects', (SELECT coalesce(json_agg(s ORDER BY s.subject_key), '[]') FROM (
+      SELECT c.subject_key, c.sequence, c.updated_at, a.state, a.policy_version, a.input_digest, a.assessed_at, a.explanation,
+        (SELECT json_agg(json_build_object('sequence', t.sequence, 'state', t.state, 'recorded_at', t.recorded_at,
+                 'returns_to_earlier_result', t.returns_to_earlier_result) ORDER BY t.sequence)
+           FROM portcove_maintenance.subject_transitions t WHERE t.subject_key = c.subject_key) AS history,
+        (SELECT json_agg(json_build_object('source', o.scope ->> 'source', 'input_revision', o.input_revision,
+                 'scope', o.scope, 'observed_at', o.observed_at, 'content_sha256', o.content_sha256) ORDER BY o.scope ->> 'source')
+           FROM (SELECT DISTINCT ON (scope ->> 'source') * FROM portcove_maintenance.observations
+                   WHERE subject_key = c.subject_key ORDER BY scope ->> 'source', observed_at DESC) o) AS observations
+        FROM portcove_maintenance.subject_current c
+        JOIN portcove_maintenance.assessments a ON a.assessment_id = c.assessment_id) s)
+);`;
+
+export interface InventoryReport {
+  format: "portcove-maintenance-inventory";
+  format_version: typeof inventoryFormatVersion;
+  generated_at: string;
+  scope: "declared-sample";
+  publication: { status: "unknown"; reason: string };
+  unsupported_sources: { source: string; reason: string }[];
+  runs: unknown[];
+  subjects: unknown[];
+}
+
+export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): InventoryReport {
+  const data = JSON.parse(runSql(environment, reportQuery).trim()) as {
+    runs: unknown[];
+    subjects: unknown[];
+  };
+  return {
+    format: "portcove-maintenance-inventory",
+    format_version: inventoryFormatVersion,
+    generated_at: now.toISOString(),
+    scope: "declared-sample",
+    publication: {
+      status: "unknown",
+      reason: unsupportedSources.find(([source]) => source === "definition-publication")![1],
+    },
+    unsupported_sources: unsupportedSources.map(([source, reason]) => ({ source, reason })),
+    runs: data.runs,
+    subjects: data.subjects,
+  };
+}
+
+const escapeHtml = (value: unknown) =>
+  String(value).replace(/[&<>"']/gu, (character) => `&#${character.charCodeAt(0)};`);
+
+/** A self-contained, searchable page; data is embedded as escaped JSON, never as markup. */
+export function renderHtml(report: InventoryReport) {
+  const embedded = JSON.stringify(report).replace(/</gu, "\\u003c");
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portcove maintenance inventory</title>
+<style>
+:root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+body { margin: 0 auto; max-width: 72rem; padding: 1rem; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border-bottom: 1px solid #8884; padding: .4rem; text-align: left; vertical-align: top; }
+.unknown { color: #b26b00; }
+input { width: 100%; padding: .5rem; font: inherit; }
+</style>
+</head>
+<body>
+<h1>Portcove maintenance inventory</h1>
+<p>Generated ${escapeHtml(report.generated_at)}. Scope: ${escapeHtml(report.scope)} (not the complete inventory).
+Published delivery: <span class="unknown">${escapeHtml(report.publication.status)}</span> — ${escapeHtml(report.publication.reason)}</p>
+<h2>Sources</h2>
+<table><thead><tr><th>Source</th><th>Coverage</th><th>Revision</th><th>Observed</th><th>Completed</th></tr></thead><tbody>
+${(report.runs as Record<string, unknown>[])
+  .map(
+    (run) =>
+      `<tr><td>${escapeHtml(run.source)}</td><td>${escapeHtml(run.coverage)}</td><td><code>${escapeHtml(run.source_revision)}</code></td><td>${escapeHtml(run.observed_count)} of ${escapeHtml(run.expected_count ?? "unknown")}</td><td>${escapeHtml(run.completed_at)}</td></tr>`,
+  )
+  .join("\n")}
+${report.unsupported_sources
+  .map(
+    (source) =>
+      `<tr><td>${escapeHtml(source.source)}</td><td class="unknown">unknown</td><td colspan="3">${escapeHtml(source.reason)}</td></tr>`,
+  )
+  .join("\n")}
+</tbody></table>
+<h2>Subjects</h2>
+<label for="search">Search</label>
+<input id="search" type="search" placeholder="Port ID or state">
+<table><thead><tr><th>Subject</th><th>Core assessment</th><th>Changes</th><th>Assessed</th></tr></thead><tbody id="subjects"></tbody></table>
+<script id="inventory" type="application/json">${embedded}</script>
+<script>
+const report = JSON.parse(document.getElementById("inventory").textContent);
+const body = document.getElementById("subjects");
+function render(filter) {
+  body.replaceChildren();
+  for (const subject of report.subjects) {
+    const text = (subject.subject_key + " " + subject.state).toLowerCase();
+    if (filter && !text.includes(filter)) continue;
+    const row = body.insertRow();
+    for (const value of [subject.subject_key, subject.state, String(subject.sequence), subject.assessed_at])
+      row.insertCell().textContent = value;
+  }
+}
+document.getElementById("search").addEventListener("input", (event) => render(event.target.value.trim().toLowerCase()));
+render("");
+</script>
+</body>
+</html>
+`;
+}
+
+/** Writes inventory.json and index.html atomically into a new directory. */
+export function writeReport(report: InventoryReport, output: string) {
+  if (existsSync(output))
+    throw new MaintenanceStoreError(`Report destination already exists: ${output}`);
+  mkdirSync(path.dirname(output), { recursive: true });
+  const staging = mkdtempSync(`${output}.partial-`);
+  try {
+    writeFileSync(path.join(staging, "inventory.json"), `${JSON.stringify(report, null, 2)}\n`);
+    writeFileSync(path.join(staging, "index.html"), renderHtml(report));
+    renameSync(staging, output);
+  } catch (error) {
+    rmSync(staging, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+function option(args: string[], name: string) {
+  const index = args.indexOf(name);
+  if (index < 0) return undefined;
+  const value = args[index + 1];
+  if (!value || value.startsWith("--")) throw new MaintenanceStoreError(`${name} requires a value`);
+  args.splice(index, 2);
+  return value;
+}
+
+const usage = `usage: node scripts/maintenance-inventory.mts <command> [options]
+
+commands:
+  collect --cli PATH [--sample FILE]   read the declared sample at the checkout's HEAD and the
+                                       Core port-capabilities assessment into the store
+  report --output DIR                  write inventory.json and index.html to a new DIR
+
+options:
+  --database-env NAME   environment variable holding the database URL (default ${defaultDatabaseEnvironment})
+
+PORTCOVE_MAINTENANCE_RUNNER optionally names the runner recorded with each collection run.`;
+
+export function main(argv = process.argv.slice(2)) {
+  const args = [...argv];
+  const command = args.shift();
+  if (!command || command === "--help" || command === "-h") {
+    console.log(usage);
+    return command ? 0 : 2;
+  }
+  const environment = connectionFromEnvironment(
+    option(args, "--database-env") ?? defaultDatabaseEnvironment,
+  );
+  const cli = option(args, "--cli");
+  const sample = option(args, "--sample");
+  const output = option(args, "--output");
+  if (args.length)
+    throw new MaintenanceStoreError(`Unexpected arguments: ${args.join(" ")}\n${usage}`);
+  if (command === "collect") {
+    if (!cli) throw new MaintenanceStoreError("collect requires --cli PATH");
+    console.log(JSON.stringify(collect({ cli: path.resolve(cli), sample, environment }), null, 2));
+  } else if (command === "report") {
+    if (!output) throw new MaintenanceStoreError("report requires --output DIR");
+    const report = buildReport(environment);
+    writeReport(report, path.resolve(output));
+    console.log(
+      JSON.stringify({ output: path.resolve(output), subjects: report.subjects.length }, null, 2),
+    );
+  } else throw new MaintenanceStoreError(`Unknown command: ${command}\n${usage}`);
+  return 0;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    process.exitCode = main();
+  } catch (error) {
+    console.error(error instanceof MaintenanceStoreError ? error.message : error);
+    process.exitCode = 1;
+  }
+}

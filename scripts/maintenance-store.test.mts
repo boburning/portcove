@@ -1,17 +1,8 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import {
-  existsSync,
-  mkdtempSync,
-  readdirSync,
-  writeFileSync,
-  copyFileSync,
-  mkdirSync,
-} from "node:fs";
-import os from "node:os";
+import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import test, { type TestContext } from "node:test";
-import { registerDisposableDirectory } from "./fixtures/disposable-directory.mts";
+import test from "node:test";
+import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import {
   backup,
   clientEnvironment,
@@ -27,8 +18,6 @@ import {
   runSql,
   storeDigest,
 } from "./maintenance-store.mts";
-
-const prerequisite = "PostgreSQL server prerequisite unavailable";
 
 void test("connection URLs become libpq environment without exposing secrets in arguments", () => {
   assert.deepEqual(
@@ -82,89 +71,7 @@ void test("repository migrations are contiguous and the plan refuses drift or un
   assert.match(migrationTransaction(files[0]), /is not the next pending migration/u);
 });
 
-function postgresServerDirectory() {
-  if (process.platform === "win32") return { skip: `${prerequisite}: Linux/macOS cluster fixture` };
-  if (process.getuid?.() === 0) return { skip: `${prerequisite}: initdb refuses the root user` };
-  const configured = process.env.PORTCOVE_POSTGRES_BIN?.trim();
-  const candidates = configured
-    ? [configured]
-    : existsSync("/usr/lib/postgresql")
-      ? readdirSync("/usr/lib/postgresql")
-          .filter((name) => /^\d+$/u.test(name) && Number(name) >= 16)
-          .sort((left, right) => Number(right) - Number(left))
-          .map((name) => `/usr/lib/postgresql/${name}/bin`)
-      : [];
-  const directory = candidates.find((candidate) => existsSync(path.join(candidate, "initdb")));
-  return directory
-    ? { directory }
-    : { skip: `${prerequisite}: PostgreSQL 16+ server binaries not found` };
-}
-
-const server = postgresServerDirectory();
-let nextPort = 15_400 + (process.pid % 400) * 2;
-
-function run(binary: string, args: string[]) {
-  const result = spawnSync(binary, args, { encoding: "utf8", timeout: 60_000 });
-  assert.ifError(result.error);
-  assert.equal(result.status, 0, `${path.basename(binary)} ${args.join(" ")}\n${result.stderr}`);
-}
-
-/** A disposable PostgreSQL cluster on a private Unix socket. */
-function cluster(fixture: { root: string; stops: (() => void)[] }, name: string) {
-  const { root } = fixture;
-  const bin = server.directory!;
-  const data = path.join(root, name);
-  const port = nextPort++;
-  run(path.join(bin, "initdb"), [
-    "-D",
-    data,
-    "-U",
-    "owner",
-    "--auth=trust",
-    "--no-locale",
-    "-E",
-    "UTF8",
-  ]);
-  run(path.join(bin, "pg_ctl"), [
-    "-D",
-    data,
-    "-l",
-    `${data}.log`,
-    "-w",
-    "-o",
-    `-k ${root} -c listen_addresses= -p ${port}`,
-    "start",
-  ]);
-  fixture.stops.push(() =>
-    run(path.join(bin, "pg_ctl"), ["-D", data, "-m", "immediate", "-w", "stop"]),
-  );
-  const as = (user: string) =>
-    clientEnvironment(
-      libpqEnvironmentFromUrl(`postgresql://${user}@localhost/postgres?host=${root}&port=${port}`),
-      { ...process.env, PORTCOVE_POSTGRES_BIN: bin },
-    );
-  return { owner: as("owner"), as };
-}
-
-function fixtureRoot(context: TestContext) {
-  // Short path: Unix socket paths are limited to about 100 bytes.
-  const root = mkdtempSync(path.join(os.tmpdir(), "pcm-"));
-  const stops: (() => void)[] = [];
-  // Servers stop before their data directories are removed.
-  registerDisposableDirectory(context, root, {
-    drain() {
-      const failures: unknown[] = [];
-      for (const stop of stops.splice(0))
-        try {
-          stop();
-        } catch (error) {
-          failures.push(error);
-        }
-      if (failures.length) throw new AggregateError(failures, "PostgreSQL fixture did not stop");
-    },
-  });
-  return { root, stops };
-}
+const server = postgresServer();
 
 const hex = (digit: string) => digit.repeat(64);
 
@@ -208,10 +115,10 @@ void test(
   "maintenance store guards history and survives an independent PostgreSQL restore",
   { skip: server.skip ?? false, timeout: 240_000 },
   async (context) => {
-    const fixture = fixtureRoot(context);
+    const fixture = postgresFixture(context, server.directory!);
     const { root } = fixture;
-    const source = cluster(fixture, "source");
-    const target = cluster(fixture, "target");
+    const source = fixture.start("source");
+    const target = fixture.start("target");
 
     assert.equal(migrationStatus(source.owner).schema_version, 0);
     assert.deepEqual(migrate(source.owner).newly_applied, [1]);
@@ -430,9 +337,9 @@ void test(
   "an interrupted maintenance migration leaves no partial schema and resumes cleanly",
   { skip: server.skip ?? false, timeout: 120_000 },
   (context) => {
-    const fixture = fixtureRoot(context);
+    const fixture = postgresFixture(context, server.directory!);
     const { root } = fixture;
-    const store = cluster(fixture, "store");
+    const store = fixture.start("store");
     const migrations = path.join(root, "migrations");
     mkdirSync(migrations);
     copyFileSync(

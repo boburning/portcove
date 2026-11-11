@@ -187,6 +187,47 @@ Digests hash UTF-8 row text with SHA-256 under pinned `TimeZone`, `DateStyle`,
 identical across hosts and usable on FIPS-mode servers. A failed migration,
 backup or restore leaves the previous state in place.
 
+## Read-only inventory path
+
+`scripts/maintenance-inventory.mts` is the first real source-to-report path. It
+covers an explicitly declared bounded sample, `scripts/maintenance-store/sample-v1.json`,
+not the complete inventory.
+
+```bash
+node scripts/maintenance-inventory.mts collect --cli target/debug/portcove
+```
+
+```bash
+node scripts/maintenance-inventory.mts report --output work/maintenance-report/2026-11-11
+```
+
+- `collect` pins the checkout's `HEAD`. It reads each declared port's authored
+  record, whether `catalog.json` carries an operational definition and the
+  port's scoped qualification records, exactly as committed at that revision. It
+  then runs `portcove --library <fresh empty library> --json port-capabilities`
+  for each port. Core's report is projected unchanged: routes, features, modes
+  and Core's own explanations. The recorded state names Core's managed-route
+  setup mode. A Core refusal, such as an unknown port, is recorded as
+  `unassessed.<code>`, never as absence.
+- Both sources record a complete collection run and one observation per port.
+  The catalog observation is bound to the commit. The Core observation is bound
+  to the CLI binary SHA-256, the host platform and the empty library. The
+  binary's build source is not proven, so its binding is labelled `unverified`.
+  The assessment's policy version is the CLI API schema plus binary digest. Its
+  input digest covers both observations and the host platform. Everything is
+  written in one transaction with the collector role, and a repeated pass with
+  identical inputs adds no transition.
+- `report` needs only the report role. It writes `inventory.json`
+  (`portcove-maintenance-inventory` format 1) and a self-contained searchable
+  `index.html` to a new directory, renamed into place when complete. The report
+  lists each source's latest run, coverage and revision, and each subject's
+  current Core assessment, history and latest observations. Unsupported sources
+  and published delivery are shown as unknown with their reasons.
+
+Listing-only records are marked `listing_only`. A listing establishes neither an
+install nor a launch route, and the report adds no support, admission or
+publication claim.
+
 ## Validation
 
 `scripts/maintenance-store.test.mts` creates two disposable PostgreSQL clusters,
@@ -195,7 +236,11 @@ delivered and pending notifications and an ambiguous operation, and exercises
 every guard and role boundary. It then backs up, restores to the second cluster,
 verifies identical digests and confirms that guards, identity sequences and roles
 work on the restored store. A separate case interrupts a migration and proves
-that no partial schema remains and that resume and drift detection work. The
+that no partial schema remains and that resume and drift detection work.
+`scripts/maintenance-inventory.test.mts` drives the read-only path through a
+stub Core CLI, using the collector and report roles. It checks repeated-pass
+convergence, A to B to A history, coverage, listing and absence facts, report
+output and HTML escaping. The
 cases need non-root PostgreSQL 16+ server binaries and are a declared
 prerequisite skip elsewhere. These are fixture results. Hosted provider, backup
 destination and unattended operation evidence belong to the later #4129
