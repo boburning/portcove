@@ -70,6 +70,35 @@ export function supersededRunIds(
   return [...ids].sort((left, right) => left - right);
 }
 
+/**
+ * True when a CI run deferred its Windows partitions for a draft: the required rust result failed,
+ * the Windows build succeeded and every partition job was skipped. Anything else is left alone.
+ */
+export function deferredWindowsRun(listing: unknown): boolean {
+  const jobs = isRecord(listing) ? listing.jobs : undefined;
+  if (!Array.isArray(jobs)) throw new Error("Workflow job listing is malformed");
+  const records = jobs.filter(isRecord);
+  const named = (name: string) => records.filter((job) => job.name === name);
+  const partitions = records.filter(
+    // A matrix job skipped before expansion may keep its template name or fall back to its key.
+    (job) =>
+      typeof job.name === "string" &&
+      (job.name.startsWith("fast-rust-test (windows-x86_64,") || job.name === "fast_rust_tests"),
+  );
+  const [gate] = named("rust");
+  const [build] = named("fast-rust-build (windows-x86_64)");
+  return (
+    named("rust").length === 1 &&
+    gate?.status === "completed" &&
+    gate.conclusion === "failure" &&
+    named("fast-rust-build (windows-x86_64)").length === 1 &&
+    build?.status === "completed" &&
+    build.conclusion === "success" &&
+    partitions.length > 0 &&
+    partitions.every((job) => job.status === "completed" && job.conclusion === "skipped")
+  );
+}
+
 async function main() {
   const token = process.env.GH_TOKEN ?? "";
   const pullRequest = Number(process.env.PR_NUMBER);
@@ -118,6 +147,51 @@ async function main() {
   }
   if (own === undefined) {
     console.log(`No CI run for ${headSha} yet; nothing to supersede`);
+    return;
+  }
+  if (process.env.EVENT_ACTION === "ready_for_review") {
+    // No new CI run starts for this head: re-run its deferred draft run so the same run, with a
+    // new attempt, executes the Windows partitions. The classifier reads the draft state live.
+    const get = async (url: string) =>
+      (
+        await sdk.request({
+          method: "GET",
+          url,
+          request: { portcove: { replay: "safe-read", attempts: 0 } },
+        })
+      ).data as unknown;
+    let cancelled = false;
+    for (let wait = 0; ; wait += 1) {
+      const run = await get(`${root}/runs/${own}`);
+      const status = isRecord(run) ? run.status : undefined;
+      if (status === "completed") break;
+      if (wait === 0) {
+        console.log(`Cancelling run ${own} so its draft attempt can be re-run`);
+        await sdk.request({
+          method: "POST",
+          url: `${root}/runs/${own}/cancel`,
+          request: { portcove: { replay: "once", attempts: 0 } },
+        });
+        cancelled = true;
+      }
+      if (wait >= 15)
+        throw new Error(`Run ${own} did not finish; re-run it to execute the Windows partitions`);
+      await new Promise((resolve) => setTimeout(resolve, 10000));
+    }
+    // A run cancelled here never completed its plan, so it is always re-run.
+    if (
+      !cancelled &&
+      !deferredWindowsRun(await get(`${root}/runs/${own}/jobs?filter=latest&per_page=100`))
+    ) {
+      console.log(`Run ${own} did not defer its Windows partitions; nothing to re-run`);
+      return;
+    }
+    console.log(`Re-running run ${own} to execute its deferred Windows partitions`);
+    await sdk.request({
+      method: "POST",
+      url: `${root}/runs/${own}/rerun`,
+      request: { portcove: { replay: "once", attempts: 0 } },
+    });
     return;
   }
   const listings: unknown[] = [];
