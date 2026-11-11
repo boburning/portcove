@@ -1288,4 +1288,9 @@ fn a_modified_panic_file_cannot_displace_the_ordinary_runtime_log() {
     let ordinary = files.get("logs/session-00/portcove-desktop.jsonl").unwrap();
     assert!(String::from_utf8_lossy(ordinary).contains("retained ordinary log"));
     assert!(!files.contains_key("logs/session-00/portcove-panic.jsonl"));
+    assert!(exported.manifest.sections.iter().any(|section| {
+        section.status == SupportBundleSectionStatus::Omitted
+            && section.bytes_read == Some(PANIC_RECORD.len() + 1)
+            && section.reasons == [SupportBundleReason::InvalidRecord]
+    }));
 }

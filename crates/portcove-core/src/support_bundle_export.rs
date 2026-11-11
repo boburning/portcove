@@ -574,6 +574,14 @@ impl Collector {
                 read_log(file, &limits, limit, self.started)
             };
             input_remaining -= log.read;
+            if panic_record && log.records == 0 {
+                section.status = SupportBundleSectionStatus::Omitted;
+                section.reasons = log.reasons;
+                section.bytes_read = Some(log.read);
+                section.records = Some(0);
+                self.manifest.sections.push(section);
+                continue;
+            }
             self.bytes(
                 section,
                 &format!("logs/{name}"),
