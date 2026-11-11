@@ -30,6 +30,7 @@ const ROOT_COMMAND_GROUPS: &[(&str, &[&str])] = &[
             "backup",
             "game-settings",
             "library",
+            "games",
             "storage",
             "artwork",
             "output",
