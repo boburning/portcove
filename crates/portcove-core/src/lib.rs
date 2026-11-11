@@ -100,6 +100,7 @@ mod psx;
 #[cfg(feature = "qualification-fixtures")]
 mod qualification_checkpoint;
 mod recipe;
+mod recomp_mod;
 mod recovery;
 mod relative_file_set;
 mod release;
@@ -314,6 +315,9 @@ pub use psx::PsxManagedPreparation;
 pub use recipe::{
     ProfileRecipe, RECIPE_FORMAT, RecipeImportPlan, RecipeInputPlan, RecipeInputStatus,
     RecipeOriginal, RecipePackage, RecipeRuntime,
+};
+pub use recomp_mod::{
+    RecompDependency, RecompExecution, RecompModHold, RecompModInspection, inspect_recomp_mod,
 };
 pub use release::{
     GithubReleaseProvider, ObservationEvidence, ObservedReleaseIdentity, ObservedResolution,
