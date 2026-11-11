@@ -4872,7 +4872,8 @@ export interface OutputDesktopSteamArtworkReview {
   port_id: string;
   recovered: SteamArtworkRecovery | null;
   /**
-   * An interrupted shortcut change in this profile was settled before review.
+   * An interrupted shortcut (or, for shortcut reviews, artwork) change in this
+   * profile was settled before review.
    */
   recovered_shortcut_change: boolean;
   roles: SteamArtworkRoleChange[];
@@ -4901,7 +4902,8 @@ export interface OutputDesktopSteamBatchReview {
   library_root: string;
   proposed_sha256: string;
   /**
-   * An interrupted shortcut change in this profile was settled before review.
+   * An interrupted shortcut (or, for shortcut reviews, artwork) change in this
+   * profile was settled before review.
    */
   recovered_shortcut_change: boolean;
   review_sha256: string;
@@ -4977,7 +4979,8 @@ export interface OutputDesktopSteamEntryReview {
   port_id: string;
   proposed_sha256: string;
   /**
-   * An interrupted shortcut change in this profile was settled before review.
+   * An interrupted shortcut (or, for shortcut reviews, artwork) change in this
+   * profile was settled before review.
    */
   recovered_shortcut_change: boolean;
   schema_version: number;

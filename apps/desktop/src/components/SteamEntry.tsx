@@ -845,8 +845,9 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamB
       </p>
       {review.recovered_shortcut_change && (
         <p className="[overflow-wrap:anywhere]" role="status">
-          Portcove first finished an interrupted shortcut change for this profile. The shortcut file
-          is either the one you confirmed earlier or the one that was there before.
+          Portcove first finished an interrupted Steam shortcut or artwork change for this profile.
+          Each changed file is either the one you confirmed earlier or the one that was there
+          before.
         </p>
       )}
       <dl className="grid gap-3 [&>div]:grid [&>div]:gap-1">
@@ -961,8 +962,9 @@ function SteamArtworkReviewDetails({ review }: { review: SteamArtworkReview }) {
       </p>
       {review.recovered_shortcut_change && (
         <p className="[overflow-wrap:anywhere]" role="status">
-          Portcove first finished an interrupted shortcut change for this profile. The shortcut file
-          is either the one you confirmed earlier or the one that was there before.
+          Portcove first finished an interrupted Steam shortcut or artwork change for this profile.
+          Each changed file is either the one you confirmed earlier or the one that was there
+          before.
         </p>
       )}
       {review.recovered && (

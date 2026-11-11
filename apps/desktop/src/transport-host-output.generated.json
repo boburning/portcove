@@ -11741,7 +11741,7 @@
         ]
       },
       "recovered_shortcut_change": {
-        "description": "An interrupted shortcut change in this profile was settled before review.",
+        "description": "An interrupted shortcut (or, for shortcut reviews, artwork) change in this\nprofile was settled before review.",
         "type": "boolean"
       },
       "roles": {
@@ -11995,7 +11995,7 @@
         "type": "string"
       },
       "recovered_shortcut_change": {
-        "description": "An interrupted shortcut change in this profile was settled before review.",
+        "description": "An interrupted shortcut (or, for shortcut reviews, artwork) change in this\nprofile was settled before review.",
         "type": "boolean"
       },
       "review_sha256": {
@@ -12484,7 +12484,7 @@
         "type": "string"
       },
       "recovered_shortcut_change": {
-        "description": "An interrupted shortcut change in this profile was settled before review.",
+        "description": "An interrupted shortcut (or, for shortcut reviews, artwork) change in this\nprofile was settled before review.",
         "type": "boolean"
       },
       "schema_version": {

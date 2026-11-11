@@ -61,7 +61,10 @@ pub(crate) async fn preview_steam_entry(
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
         let recovered_shortcut_change =
-            settle_shortcuts(&request.steam_root, &request.steam_user_id)?;
+            settle_shortcuts(&request.steam_root, &request.steam_user_id)?
+                | recover_steam_artwork(&request.steam_root, &request.steam_user_id)
+                    .map_err(steam_error)?
+                    .is_some();
         let context = entry_context(&service, &request.port_id, request.operation)?;
         let plan = plan_entry(
             &context,
@@ -163,7 +166,10 @@ pub(crate) async fn preview_steam_batch_add(
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
         let recovered_shortcut_change =
-            settle_shortcuts(&request.steam_root, &request.steam_user_id)?;
+            settle_shortcuts(&request.steam_root, &request.steam_user_id)?
+                | recover_steam_artwork(&request.steam_root, &request.steam_user_id)
+                    .map_err(steam_error)?
+                    .is_some();
         let contexts = batch_contexts(&service, &request.port_ids)?;
         let plan = plan_batch(&contexts, &request).map_err(steam_error)?;
         let artwork = included_artwork(&service, &plan, request.include_artwork);

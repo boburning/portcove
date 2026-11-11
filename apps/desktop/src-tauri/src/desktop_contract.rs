@@ -419,7 +419,8 @@ pub struct SteamBatchReview {
     pub writes_required: bool,
     pub artwork: Vec<SteamEntryArtworkPreview>,
     pub artwork_review_sha256: Option<String>,
-    /// An interrupted shortcut change in this profile was settled before review.
+    /// An interrupted shortcut (or, for shortcut reviews, artwork) change in this
+    /// profile was settled before review.
     pub recovered_shortcut_change: bool,
 }
 
@@ -444,7 +445,8 @@ pub struct SteamEntryReview {
     pub writes_required: bool,
     pub artwork: Vec<SteamEntryArtworkPreview>,
     pub artwork_review_sha256: Option<String>,
-    /// An interrupted shortcut change in this profile was settled before review.
+    /// An interrupted shortcut (or, for shortcut reviews, artwork) change in this
+    /// profile was settled before review.
     pub recovered_shortcut_change: bool,
 }
 
@@ -515,7 +517,8 @@ pub struct SteamArtworkReview {
     pub steam_client_state: SteamClientState,
     pub writes_required: bool,
     pub recovered: Option<SteamArtworkRecovery>,
-    /// An interrupted shortcut change in this profile was settled before review.
+    /// An interrupted shortcut (or, for shortcut reviews, artwork) change in this
+    /// profile was settled before review.
     pub recovered_shortcut_change: bool,
 }
 

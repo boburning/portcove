@@ -544,7 +544,7 @@ it("adds a shortcut without artwork when Include artwork is cleared and reports 
   );
   expect(document.body.querySelector('[aria-label="Included Steam artwork"]')).toBeNull();
   expect(document.body.textContent).toContain(
-    "Portcove first finished an interrupted shortcut change for this profile.",
+    "Portcove first finished an interrupted Steam shortcut or artwork change for this profile.",
   );
   await click("Add or repair shortcut");
   expect(apply).toHaveBeenCalledExactlyOnceWith(
