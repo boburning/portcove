@@ -331,9 +331,9 @@ further bounded operations continue while actual quota and runtime remain.
 Failed reads without accepted page/Core progress are not immediately requeued.
 The new handoff has the existing sixteen-MiB response envelope as its aggregate
 byte budget, with four MiB reserved for the summary and one-day artifact retention.
-The hosted path reserves four MiB of that same sixteen-MiB output envelope for a
-complete inert recovery snapshot, in addition to the existing four-MiB summary
-reserve. Standalone source handoffs use the remaining eight MiB across all batches.
+The output reserves eight MiB separately for a complete inert recovery snapshot.
+The four-MiB summary and eight-MiB standalone handoff limits still apply across
+all batches. Provider request and response budgets are unchanged.
 A hosted opportunity gives source handoffs thirty-two MiB in aggregate,
 proportionate to its forty-minute window; each source file keeps the eight-MiB
 standalone bound, within the sixteen-MiB per-file limit of the manual
@@ -343,9 +343,9 @@ it excludes reports, locks, temporary files and executables. Production format 4
 streams source checkpoint JSON records through one Brotli compressor, preserving
 cross-file redundancy that nested source gzip/base64 cannot share. A fixed binary
 magic and closed header of at most 512 bytes bind record count, complete framed
-byte count and SHA-256. The entire member remains limited to four MiB, with sixteen
-KiB reserved inside that allowance for ZIP framing. Formats 1, 2 and 3 remain
-readable with their original bounds; outer ZIP bounds remain unchanged.
+byte count and SHA-256. The format 4 ZIP is limited to eight MiB, with sixteen KiB reserved for ZIP
+framing. Formats 1, 2 and 3 remain readable within their original four-MiB ZIP
+limit. Record, expansion and recovery metadata bounds are unchanged.
 
 Production snapshot collection projects every referenced GitHub source's legacy
 raw pages to the versioned fact representation before encoding. It validates

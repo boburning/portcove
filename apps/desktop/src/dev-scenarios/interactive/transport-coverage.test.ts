@@ -19,7 +19,8 @@ const unsupportedByReason: Record<string, string[]> = {
   "mutation or native action the fixtures do not model; they never change the host": `
     acquire_game_update activate_port add_game_file_root add_games_to_library add_source adopt_port
     apply_catalog_update apply_game_setting apply_game_update apply_steam_batch_add
-    apply_steam_entry begin_github_device_login cancel_application_update_check
+    apply_steam_artwork apply_steam_entry begin_github_device_login
+    cancel_application_update_check
     change_to_managed_runtime clear_host_tool_path
     complete_application_update_production_transition create_backup
     create_support_bundle delete_backup discard_game_update_acquisition
@@ -53,7 +54,8 @@ const unsupportedByReason: Record<string, string[]> = {
     plan_source_relink preview_adoption preview_backup_action preview_bug_report
     preview_catalog_download preview_external_removal preview_external_runtime
     preview_external_runtime_relink preview_managed_route_change preview_removal
-    preview_source_removal preview_steam_batch_add preview_steam_entry
+    preview_source_removal preview_steam_artwork preview_steam_batch_add
+    preview_steam_entry
     preview_user_selected_runtime preview_user_selected_runtime_relink
     plan_install_batch review_game_setting review_source_reuse scan_game_file_roots
     scan_source_inbox

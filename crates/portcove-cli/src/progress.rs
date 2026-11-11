@@ -131,6 +131,14 @@ impl<'a> HumanProgress<'a> {
         }
     }
 
+    /// Ends whatever progress is open once the work it described is over:
+    /// terminates an inline terminal line, or prints the last phase's closing
+    /// line when not interactive. Returns nothing if no progress was rendered
+    /// or it was already ended, so calling it again is harmless.
+    pub(crate) fn finish(&mut self) -> String {
+        self.end_phase()
+    }
+
     fn end_phase(&mut self) -> String {
         let mut output = self.break_inline_line();
         if !self.interactive
@@ -182,6 +190,40 @@ fn progress_line(
 mod tests {
     use super::*;
     use portcove_core::{OperationCoordinator, OperationResult};
+
+    #[test]
+    fn finish_ends_an_open_terminal_line_once_and_is_silent_otherwise() {
+        let operation = OperationCoordinator::new("launch", None);
+
+        // Nothing rendered: nothing to end, now or on a repeat call.
+        let mut idle = HumanProgress::new(true);
+        assert_eq!(idle.finish(), "");
+        assert_eq!(idle.finish(), "");
+
+        // An inline terminal line is terminated exactly once.
+        let mut terminal = HumanProgress::new(true);
+        let drawn = terminal.render(&operation.progress_with_unit(
+            "disc.activate",
+            ProgressUnit::Indeterminate,
+            0,
+            None,
+        ));
+        assert!(drawn.starts_with('\r') && !drawn.contains('\n'));
+        assert_eq!(terminal.finish(), "\n");
+        assert_eq!(terminal.finish(), "");
+
+        // Redirected output closes the last phase with one complete line.
+        let mut redirected = HumanProgress::new(false);
+        let _ = redirected.render(&operation.progress_with_unit(
+            "disc.activate",
+            ProgressUnit::Indeterminate,
+            0,
+            None,
+        ));
+        let closing = redirected.finish();
+        assert_eq!(closing.lines().count(), 1);
+        assert_eq!(redirected.finish(), "");
+    }
 
     #[test]
     fn redirected_unknown_totals_and_phases_are_bounded_and_do_not_claim_bytes() {

@@ -1,14 +1,31 @@
 import { defineConfig } from "i18next-cli";
 
 export default defineConfig({
-  locales: ["en", "ar-XB"],
+  // `es` is an unreviewed draft pilot (#1028); it is not selectable in the app.
+  locales: ["en", "ar-XB", "es"],
   extract: {
-    input: ["src/localization.tsx", "src/components/LanguageSettings.tsx"],
+    // Migrated first-party surfaces. Listing a file here makes `i18n:check` reject
+    // new hardcoded copy in it; see docs/LOCALIZATION.md#migration-inventory.
+    input: [
+      "src/localization.tsx",
+      "src/components/LanguageSettings.tsx",
+      "src/ErrorBoundary.tsx",
+      "src/InterfaceSize.tsx",
+      "src/features/application-update/ApplicationUpdateNotices.tsx",
+      "src/features/application-update/ApplicationUpdates.tsx",
+      "src/components/OfficialDefinitionUpdates.tsx",
+      "src/components/OfficialCatalogUpdates.tsx",
+      "src/components/CatalogUpdates.tsx",
+      "src/components/RemovalReview.tsx",
+      "src/components/SourceRemoval.tsx",
+    ],
     ignore: ["src/**/*.test.{ts,tsx}", "src/**/*.generated.d.ts", "src/design-compatibility/**"],
     output: "src/locales/{{language}}/{{namespace}}.json",
     defaultNS: "settings",
+    // `useAppTranslation` binds feature namespaces to the initialized instance.
+    useTranslationNames: ["useTranslation", "useAppTranslation"],
     primaryLanguage: "en",
-    secondaryLanguages: ["ar-XB"],
+    secondaryLanguages: ["ar-XB", "es"],
     removeUnusedKeys: false,
     sort: true,
     extractFromComments: false,
@@ -16,7 +33,21 @@ export default defineConfig({
   },
   lint: {
     ignore: ["src/localization.tsx"],
-    ignoredAttributes: ["aria-live"],
+    // Technical design-system and ARIA-reference literals, never player copy.
+    ignoredAttributes: [
+      "aria-live",
+      "aria-atomic",
+      "aria-describedby",
+      "aria-labelledby",
+      "data-settings-control",
+      "data-slot",
+      "dir",
+      "intent",
+      "reviewSize",
+      "size",
+      "triggerId",
+      "variant",
+    ],
     acceptedTags: [],
     acceptedAttributes: [],
     checkInterpolationParams: true,

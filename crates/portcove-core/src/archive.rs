@@ -224,7 +224,7 @@ fn validate_plan(destination: &Path, plans: &[EntryPlan], compressed_size: u64) 
     for plan in plans {
         validate_declared_entry(&plan.relative, plan.size, &mut total, compressed_size)?;
     }
-    let available = fs2::available_space(destination)?;
+    let available = fs4::available_space(destination)?;
     if total > available {
         return Err(
             PortcoveError::state("archive cannot fit in the available destination space")

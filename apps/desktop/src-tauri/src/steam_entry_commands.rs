@@ -5,8 +5,13 @@
 //! than trusting renderer-provided process or library state.
 
 pub use crate::desktop_contract::{
+    SteamArtworkApplyResult, SteamArtworkOperation, SteamArtworkReview, SteamArtworkSelection,
     SteamBatchReview, SteamBatchSelection, SteamEntryOperation, SteamEntryReview,
     SteamEntrySelection,
+};
+use crate::steam_artwork::{
+    ROLES, SteamArtworkPlan, SteamArtworkPlanRequest, SteamArtworkRecovery,
+    SteamArtworkRoleContent, apply_steam_artwork_plan, plan_steam_artwork, recover_steam_artwork,
 };
 use crate::steam_entries::{
     SteamCliIdentity, SteamClientState, SteamEntryApplyResult, SteamEntryError, SteamEntryPlan,
@@ -17,7 +22,7 @@ use crate::{
     DesktopError, DesktopResult, DesktopState, blocking_worker, cli_context, confirm_destructive,
     service_at_generation,
 };
-use portcove_core::{PortcoveError, PortcoveService};
+use portcove_core::{DestinationArtworkContent, PortcoveError, PortcoveService};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 
@@ -208,6 +213,177 @@ pub(crate) async fn apply_steam_batch_add(
             .map_err(steam_error)
     })
     .await
+}
+
+#[tauri::command]
+pub(crate) async fn preview_steam_artwork(
+    state: tauri::State<'_, DesktopState>,
+    request: SteamArtworkSelection,
+    generation: u64,
+) -> DesktopResult<SteamArtworkReview> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        // Settling only returns each role to its exact prior file or to bytes
+        // the player already confirmed, so a review never stays blocked. It
+        // runs before the Core handoff so a catalog change cannot prevent it.
+        let recovered = recover_steam_artwork(&request.steam_root, &request.steam_user_id)
+            .map_err(steam_error)?;
+        let (display_name, plan_request) = artwork_request(&service, &request)?;
+        let plan = plan_steam_artwork(&plan_request).map_err(steam_error)?;
+        Ok(artwork_review(
+            display_name,
+            &plan,
+            observe_steam_client(),
+            recovered,
+        ))
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn apply_steam_artwork(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, DesktopState>,
+    request: SteamArtworkSelection,
+    expected_plan_sha256: String,
+    generation: u64,
+) -> DesktopResult<Option<SteamArtworkApplyResult>> {
+    let state_for_apply = state.inner().clone();
+    let state_for_review = state_for_apply.clone();
+    let request_for_review = request.clone();
+    let (display_name, reviewed) = blocking_worker(move || {
+        let service = service_at_generation(&state_for_review, generation)?;
+        let (display_name, plan_request) = artwork_request(&service, &request_for_review)?;
+        let plan = plan_steam_artwork(&plan_request).map_err(steam_error)?;
+        if plan.plan_sha256 != expected_plan_sha256 {
+            return Err(DesktopError::from(PortcoveError::conflict(
+                "Steam artwork changed after preview; review the current plan again",
+            )));
+        }
+        Ok((display_name, plan))
+    })
+    .await?;
+    let (title, action) = match request.operation {
+        SteamArtworkOperation::Update {
+            replace_existing: false,
+        } => ("Confirm Steam artwork update", "Add missing artwork"),
+        SteamArtworkOperation::Update {
+            replace_existing: true,
+        } => ("Confirm Steam artwork replacement", "Replace artwork"),
+        SteamArtworkOperation::RemoveOwned => {
+            ("Confirm Steam artwork removal", "Remove Portcove artwork")
+        }
+    };
+    let message = format!(
+        "{action} for {display_name} in Steam profile {}?\n\nArtwork folder: {}\n\nSteam must be closed. Portcove keeps a backup of any artwork it replaces or removes and rechecks the profile, shortcut and artwork before writing. The game and its saves are not affected.",
+        reviewed.steam_user_id,
+        reviewed.grid_path.display(),
+    );
+    if !confirm_destructive(&app, title, message, action).await {
+        return Ok(None);
+    }
+    blocking_worker(move || {
+        let service = service_at_generation(&state_for_apply, generation)?;
+        let (_, plan_request) = artwork_request(&service, &request)?;
+        let current = revalidate_artwork_plan(&plan_request, &reviewed).map_err(steam_error)?;
+        apply_steam_artwork_plan(&current, &plan_request, observe_steam_client())
+            .map(Some)
+            .map_err(steam_error)
+    })
+    .await
+}
+
+/// Derives artwork inputs from Core's destination handoff; the renderer never
+/// supplies bytes, paths or provider data.
+fn artwork_request(
+    service: &PortcoveService,
+    selection: &SteamArtworkSelection,
+) -> DesktopResult<(String, SteamArtworkPlanRequest)> {
+    let port = service.catalog().port(&selection.port_id)?;
+    let library = service.library().identity_record()?;
+    let mut roles = Vec::new();
+    if matches!(selection.operation, SteamArtworkOperation::Update { .. }) {
+        for role in ROLES {
+            let handoff = service.destination_artwork(&port.id, role)?;
+            let content = match &handoff.content {
+                DestinationArtworkContent::Available { asset } => {
+                    let revision = handoff
+                        .choice
+                        .as_ref()
+                        .map(|choice| choice.revision)
+                        .ok_or_else(|| {
+                            DesktopError::from(PortcoveError::conflict(
+                                "artwork selection has no revision",
+                            ))
+                        })?;
+                    let bytes = service.destination_artwork_bytes(
+                        &port.id,
+                        role,
+                        &handoff.library.id,
+                        revision,
+                        &asset.sha256,
+                    )?;
+                    SteamArtworkRoleContent::Available {
+                        asset_sha256: asset.sha256.clone(),
+                        format: asset.format,
+                        bytes: bytes.original,
+                    }
+                }
+                DestinationArtworkContent::Unavailable { reason } => {
+                    SteamArtworkRoleContent::Unavailable { reason: *reason }
+                }
+            };
+            roles.push((role, content));
+        }
+    }
+    Ok((
+        port.name.clone(),
+        SteamArtworkPlanRequest {
+            steam_root: selection.steam_root.clone(),
+            steam_user_id: selection.steam_user_id.clone(),
+            library_id: library.id,
+            port_id: port.id.clone(),
+            operation: selection.operation,
+            roles,
+        },
+    ))
+}
+
+fn revalidate_artwork_plan(
+    request: &SteamArtworkPlanRequest,
+    reviewed: &SteamArtworkPlan,
+) -> Result<SteamArtworkPlan, SteamEntryError> {
+    let current = plan_steam_artwork(request)?;
+    if current != *reviewed {
+        return Err(SteamEntryError::Conflict(
+            "the selected Portcove artwork, owned shortcut, Steam profile, or existing Steam artwork changed while consent was open".into(),
+        ));
+    }
+    Ok(current)
+}
+
+fn artwork_review(
+    display_name: String,
+    plan: &SteamArtworkPlan,
+    client_state: SteamClientState,
+    recovered: Option<SteamArtworkRecovery>,
+) -> SteamArtworkReview {
+    SteamArtworkReview {
+        schema_version: 1,
+        operation: plan.operation,
+        port_id: plan.port_id.clone(),
+        display_name,
+        steam_root: plan.steam_root.clone(),
+        steam_user_id: plan.steam_user_id.clone(),
+        app_id: plan.app_id,
+        grid_path: plan.grid_path.clone(),
+        plan_sha256: plan.plan_sha256.clone(),
+        roles: plan.roles.clone(),
+        steam_client_state: client_state,
+        writes_required: plan.writes_required(),
+        recovered,
+    }
 }
 
 fn batch_contexts(

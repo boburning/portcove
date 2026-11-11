@@ -38,7 +38,10 @@ import {
 import type { ObserverConfig } from "./upstream-observer.mts";
 import { observedHealthRepositoryIdentity } from "./upstream-health-monitor.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
-import { observerSnapshotLimit } from "./observer-checkpoint-artifact.mts";
+import {
+  observerSnapshotLimit,
+  observerStreamingSnapshotLimit,
+} from "./observer-checkpoint-artifact.mts";
 import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
 
 const defaultRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -253,7 +256,7 @@ export async function runCatalogUpstreams(
     config.budget.total_bytes - summaryByteLimit - observerSnapshotLimit;
   if (!Number.isSafeInteger(handoffByteLimit) || handoffByteLimit <= 0)
     throw new ObservationFailure("budget", "Checkpoint, summary and handoff envelopes unavailable");
-  const artifactByteLimit = handoffByteLimit + summaryByteLimit + observerSnapshotLimit;
+  const artifactByteLimit = handoffByteLimit + summaryByteLimit + observerStreamingSnapshotLimit;
   // One source file keeps the standalone envelope: prepare-port reads each listing
   // observation handoff with a sixteen-MiB bound, and the aggregate may be larger.
   const sourceHandoffByteLimit = Math.min(

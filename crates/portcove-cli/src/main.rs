@@ -113,6 +113,7 @@ struct SourceBatchOutcome {
 const CLI_RUNTIME_STACK_BYTES: usize = 8 * 1024 * 1024;
 
 fn main() -> ExitCode {
+    portcove_diagnostics::install_panic_hook();
     std::hint::black_box(PORTCOVE_CLI_STEAM_EXEC_IDENTITY);
     let runtime = std::thread::Builder::new()
         .name("portcove-main".into())
@@ -2578,6 +2579,27 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 },
             )?;
         }
+        Commands::LauncherLibrary {
+            command:
+                LauncherLibraryCommand::Inspect {
+                    launcher,
+                    data_root,
+                    apps_root,
+                },
+        } => {
+            let data_root = std::path::absolute(&data_root)?;
+            let apps_root = apps_root.map(std::path::absolute).transpose()?;
+            render_read_success(
+                mode,
+                "launcher-library.inspect",
+                service.inspect_launcher_library(
+                    launcher.into(),
+                    &data_root,
+                    apps_root.as_deref(),
+                )?,
+                |inventory| human::launcher_library_inventory(inventory, service.catalog()),
+            )?;
+        }
         Commands::Channel {
             command: ChannelCommand::Set { port_id, channel },
         } => {
@@ -2955,8 +2977,15 @@ async fn exec_game(service: &PortcoveService, args: ExecArgs) -> Result<ExitCode
         let service = PortcoveService::new(library)?;
         // Preparation progress (for example unpacking a disc image) goes to
         // stderr before the game starts; the game's own streams stay untouched.
-        let progress =
-            std::cell::RefCell::new(progress_renderer(OutputMode::Human, service.catalog()));
+        // It is best-effort: a closed or failing stderr never aborts the launch.
+        let progress = std::cell::RefCell::new(HumanProgress::with_catalog(
+            io::stderr().is_terminal(),
+            service.catalog(),
+        ));
+        let write_progress = |text: String| {
+            use std::io::Write as _;
+            let _ = io::stderr().write_all(text.as_bytes());
+        };
         service.supervise_launch_observed(
             IdentifiedLaunchRequest {
                 request_id: &worker_request_id,
@@ -2965,11 +2994,14 @@ async fn exec_game(service: &PortcoveService, args: ExecArgs) -> Result<ExitCode
                 arguments: &args.game_args,
                 stdio: LaunchStdio::Inherit,
             },
-            &|event| (progress.borrow_mut())(event),
+            &|event| write_progress(progress.borrow_mut().render(&event)),
             |session| {
                 let _ = accepted_sender.send(session.id.clone());
             },
             |session| {
+                // Preparation is over: end any open progress line before the game
+                // writes to the same terminal.
+                write_progress(progress.borrow_mut().finish());
                 let _ = started_sender.send(session.child_pid.expect("started session has a PID"));
             },
         )
@@ -3479,6 +3511,7 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::Reconcile(_) => "reconcile",
         Commands::Install(_) => "install",
         Commands::Adopt(_) => "adopt",
+        Commands::LauncherLibrary { .. } => "launcher-library.inspect",
         Commands::Ensure(_) => "ensure",
         Commands::Update(_) => "update",
         Commands::Verify { .. } => "verify",

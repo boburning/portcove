@@ -173,7 +173,7 @@ impl PortcoveService {
                 .iter()
                 .map(|asset| asset.size)
                 .sum::<u64>();
-            if fs2::available_space(&private)? < reserved {
+            if fs4::available_space(&private)? < reserved {
                 return Err(PortcoveError::conflict(
                     "insufficient free space for immutable update archives",
                 ));

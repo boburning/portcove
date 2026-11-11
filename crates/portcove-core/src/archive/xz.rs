@@ -194,6 +194,33 @@ pub(crate) mod tests {
         assert!(fs::read_dir(managed).unwrap().next().is_none());
     }
 
+    fn corrupt_last_block_checksum(bytes: &mut [u8]) {
+        let stream = read_stream_index_ending_at(
+            &mut Cursor::new(&*bytes),
+            bytes.len() as u64,
+            MAX_INDEX_BYTES,
+        )
+        .unwrap();
+        let last = stream.index.blocks(0).unwrap().pop().unwrap();
+        let last_check_byte = (last.file_offset + last.record.padded_size().unwrap() - 1) as usize;
+        bytes[last_check_byte] ^= 1;
+    }
+
+    #[test]
+    fn verified_xz_reader_keeps_failing_after_a_checksum_error() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join(ASSET);
+        let mut bytes = fixture();
+        corrupt_last_block_checksum(&mut bytes);
+        fs::write(&source, &bytes).unwrap();
+
+        let mut reader = open(&source, bytes.len() as u64, &|| Ok(())).unwrap();
+        let error = reader.read_to_end(&mut Vec::new()).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        let repeated = reader.read(&mut [0; 1]).unwrap_err();
+        assert_eq!(repeated.kind(), error.kind());
+    }
+
     #[test]
     fn tar_xz_refuses_bad_framing_and_trailer_before_writing() {
         let temporary = tempfile::tempdir().unwrap();
@@ -202,15 +229,7 @@ pub(crate) mod tests {
         let mut padded = tar.clone();
         padded.extend([0_u8; 1024]);
         let mut bad_crc = encode(&padded);
-        let stream = read_stream_index_ending_at(
-            &mut Cursor::new(&bad_crc),
-            bad_crc.len() as u64,
-            MAX_INDEX_BYTES,
-        )
-        .unwrap();
-        let last = stream.index.blocks(0).unwrap().pop().unwrap();
-        let last_check_byte = (last.file_offset + last.record.padded_size().unwrap() - 1) as usize;
-        bad_crc[last_check_byte] ^= 1;
+        corrupt_last_block_checksum(&mut bad_crc);
 
         let mut hidden = tar.clone();
         hidden.extend([1_u8; 512]);

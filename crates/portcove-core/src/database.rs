@@ -5,7 +5,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use fs2::FileExt;
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
@@ -739,19 +738,12 @@ impl MigrationLock {
                 return Err(Self::timeout_error(&owner_path, timeout));
             }
             first_attempt = false;
-            match FileExt::try_lock_exclusive(&file) {
+            match file.try_lock() {
                 Ok(()) => break,
-                Err(error)
-                    if Self::is_contention(&error)
-                        || error.kind() == std::io::ErrorKind::Interrupted =>
-                {
-                    let remaining = timeout.saturating_sub(started.elapsed());
-                    if remaining.is_zero() {
-                        return Err(Self::timeout_error(&owner_path, timeout));
-                    }
-                    std::thread::sleep(MIGRATION_LOCK_POLL.min(remaining));
-                }
-                Err(error) => {
+                Err(std::fs::TryLockError::WouldBlock) => {}
+                Err(std::fs::TryLockError::Error(error))
+                    if error.kind() == std::io::ErrorKind::Interrupted => {}
+                Err(std::fs::TryLockError::Error(error)) => {
                     return Err(PortcoveError::state(
                         "could not acquire the library migration lock",
                     )
@@ -759,6 +751,11 @@ impl MigrationLock {
                     .detail("cause", error.to_string()));
                 }
             }
+            let remaining = timeout.saturating_sub(started.elapsed());
+            if remaining.is_zero() {
+                return Err(Self::timeout_error(&owner_path, timeout));
+            }
+            std::thread::sleep(MIGRATION_LOCK_POLL.min(remaining));
         }
 
         let owner = MigrationLockOwner {
@@ -775,12 +772,6 @@ impl MigrationLock {
         // stale metadata must never become migration or lock-recovery authority.
         let _ = Self::publish_owner(&owner_path, &owner);
         Ok(Self { file })
-    }
-
-    fn is_contention(error: &std::io::Error) -> bool {
-        error
-            .raw_os_error()
-            .is_some_and(|code| Some(code) == fs2::lock_contended_error().raw_os_error())
     }
 
     fn publish_owner(path: &Path, owner: &MigrationLockOwner) -> Result<()> {
@@ -824,7 +815,7 @@ impl MigrationLock {
 
 impl Drop for MigrationLock {
     fn drop(&mut self) {
-        let _ = FileExt::unlock(&self.file);
+        let _ = self.file.unlock();
     }
 }
 
@@ -2042,6 +2033,27 @@ mod tests {
 
     use super::*;
 
+    #[test]
+    fn bundled_sqlite_has_the_wal_fix_and_checks_unsigned_values() {
+        let temporary = tempdir().unwrap();
+        let connection = connect(temporary.path()).unwrap();
+        let version: String = connection
+            .query_row("SELECT sqlite_version()", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, rusqlite::version());
+        assert!(rusqlite::version_number() >= 3_054_000, "{version}");
+
+        let overflow = u64::try_from(i64::MAX).unwrap() + 1;
+        assert!(matches!(
+            connection.query_row("SELECT ?1", [overflow], |row| row.get::<_, i64>(0)),
+            Err(rusqlite::Error::ToSqlConversionFailure(_))
+        ));
+        assert!(matches!(
+            connection.query_row("SELECT -1", [], |row| row.get::<_, u64>(0)),
+            Err(rusqlite::Error::IntegralValueOutOfRange(0, -1))
+        ));
+    }
+
     fn prepare_root(root: &Path) {
         fs::create_dir_all(root.join("locks")).unwrap();
     }
@@ -2357,24 +2369,6 @@ mod tests {
                 .file_type()
                 .is_fifo()
         );
-    }
-
-    #[test]
-    fn migration_lock_classifies_only_the_os_contention_code() {
-        let contention = fs2::lock_contended_error();
-        assert!(MigrationLock::is_contention(&contention));
-        assert!(!MigrationLock::is_contention(&std::io::Error::new(
-            contention.kind(),
-            "same kind without the contention OS code",
-        )));
-        #[cfg(windows)]
-        for code in [6, 50] {
-            // Invalid-handle and unsupported-lock errors share the contention
-            // error's broad kind on Windows, but must retain their real cause.
-            let other = std::io::Error::from_raw_os_error(code);
-            assert_eq!(other.kind(), contention.kind());
-            assert!(!MigrationLock::is_contention(&other));
-        }
     }
 
     #[test]

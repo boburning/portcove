@@ -10,15 +10,8 @@ remote readback succeed. The contexts remain `catalog`, `dependency-review`,
 the delivery operations. Supplementary runs, diagnostics and personal preferences
 do not become merge prerequisites merely because somebody invoked them.
 
-One local step is expected before pushing a candidate: `just push-check` runs the
-cheap, area-selected stages of `just local-check` (formatting, lint and type checks,
-selected contract tests, related UI tests) without the heavy Rust workspace tests,
-production build or complete browser suite. A Rust-only change therefore gets a
-format check but no compile or type check locally; hosted CI is the first compile. It exists so a failure visible in under
-two minutes does not cost a 15 to 25 minute hosted cycle; it is not a merge
-prerequisite and needs no omission narrative. Bare `just`, `just local-check`,
-focused tests and analyzers remain optional feedback; omitted local checks need no
-explanation.
+Local commands are optional feedback. Bare `just`, `just local-check`, focused
+tests and analyzers may help development; omitted local checks need no explanation.
 Native, installed-app, physical-device or human observations are required only by
 explicit owning-issue acceptance or a release contract. Fixtures establish their
 tested contracts and cannot establish those observations.
@@ -429,6 +422,22 @@ policy and Linux release risk authorization remain separate under
 [dependency security](releases/2026-10-14-linux-beta-risk-706.md). A raw failed scan is
 never passing security evidence or publication permission. Preserve no additional
 spending: resource limits produce a limitation, not paid services or new hardware.
+
+Use compatible ranges for dependencies whose supported APIs and feature contracts
+allow routine compatible updates. Use exact versions when review binds parser
+limits, a transport or signing contract, a patch's source context, or a
+coordinated toolchain to a particular release. Commit the Cargo and pnpm
+lockfiles and use locked or frozen installs in validation. Check the resolved
+source, effective features, and supported targets when a dependency changes.
+Review native source bundled by a package when it supplies the relevant fix.
+
+Keep intentional exact pins eligible for update proposals in
+[Renovate](../renovate.json). Its weekly maintenance retains release-age
+safeguards and the existing coordinated groups. Applicable advisory fixes can
+go through the ordinary reviewed delivery path as soon as a suitable version
+qualifies. Review [dependency patches](DEVELOPMENT-TOOLS.md#dependency-patches)
+with their consumers and remove the patch and its policy entries together once
+the upstream behavior passes their regressions.
 
 ### Bounded dependency delivery
 

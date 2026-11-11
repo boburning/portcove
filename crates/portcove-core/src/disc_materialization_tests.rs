@@ -432,3 +432,32 @@ fn legacy_callers_cannot_unpack_without_a_declared_disc_profile() {
     assert_eq!(error.code, ErrorCode::Usage);
     assert!(!destination.exists());
 }
+
+#[test]
+fn extract_progress_is_coalesced_to_whole_percent_changes() {
+    let coalescer = ExtractProgressCoalescer::default();
+    let total = 8 * 1024 * 1024 * 1024_u64;
+    let chunk = 1024 * 1024_u64;
+    let mut admitted = Vec::new();
+    let mut done = 0;
+    assert!(coalescer.admit(0, total), "the first report always passes");
+    admitted.push(0);
+    while done < total {
+        done += chunk;
+        if coalescer.admit(done, total) {
+            admitted.push(done);
+        }
+    }
+    assert!(admitted.len() <= 101, "{} reports", admitted.len());
+    assert_eq!(
+        admitted.last(),
+        Some(&total),
+        "the final report always passes"
+    );
+    assert!(admitted.windows(2).all(|pair| pair[0] < pair[1]));
+
+    // A repeated zero or a zero-byte image reports once, not per call.
+    let empty = ExtractProgressCoalescer::default();
+    assert!(empty.admit(0, 0));
+    assert!(!empty.admit(0, 0));
+}

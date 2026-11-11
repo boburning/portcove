@@ -38,6 +38,7 @@ import {
 
 // One existing response envelope is reserved inside the sixteen-MiB output budget.
 export const observerSnapshotLimit = 4 * 1024 * 1024;
+export const observerStreamingSnapshotLimit = 8 * 1024 * 1024;
 const repository = "boburning/portcove",
   repositoryId = 1354613114;
 const workflow = ".github/workflows/configured-upstream-observer.yml";
@@ -54,6 +55,7 @@ const binarySnapshotMagic = Buffer.from("PORTCOVE-OBSERVER-SNAPSHOT-3\n", "ascii
 // Already-compressed members can grow slightly under ZIP's deflate framing.
 // Keep that packaging inside the existing four-MiB complete archive budget.
 const binaryMemberLimit = observerSnapshotLimit - 16 * 1024;
+const streamingMemberLimit = observerStreamingSnapshotLimit - 16 * 1024;
 // One owner-approved fresh baseline after the retained loss. Scheduled history,
 // not an evictable checkpoint, consumes this sole opportunity even on failure.
 export const observerBaselinePermit = {
@@ -408,7 +410,7 @@ export async function encodeStreamingObserverSnapshot(snapshot: Snapshot, deadli
     }
   }
   const encoded = await encodeObserverRecords(records(), {
-    member: binaryMemberLimit,
+    member: streamingMemberLimit,
     record: observerCheckpointByteLimit,
     records: maximumSnapshotRecords,
     deadline,
@@ -435,7 +437,7 @@ async function decodeStreamingObserverSnapshot(
   await decodeObserverRecords(
     bytes,
     {
-      member: binaryMemberLimit,
+      member: streamingMemberLimit,
       record: observerCheckpointByteLimit,
       records: maximumSnapshotRecords,
       deadline,
@@ -590,12 +592,12 @@ function decodeObserverSnapshot(bytes: Buffer, config: string, now: number, dead
   );
 }
 
-function readObserverSnapshotMember(archive: Buffer, deadline: number) {
+function readObserverSnapshotMember(archive: Buffer, deadline: number, limit: number) {
   const { entries } = inspectBoundedZip(
     archive,
     {
-      compressedBytes: observerSnapshotLimit,
-      expandedBytes: observerSnapshotLimit,
+      compressedBytes: limit,
+      expandedBytes: limit,
       files: 1,
       nameBytes: 32,
       allowedPaths: new Set([member]),
@@ -622,7 +624,7 @@ export function readObserverSnapshotArchive(
   deadline: number,
 ) {
   return decodeObserverSnapshot(
-    readObserverSnapshotMember(archive, deadline),
+    readObserverSnapshotMember(archive, deadline, observerSnapshotLimit),
     config,
     now,
     deadline,
@@ -634,10 +636,11 @@ export async function readRecoverableObserverSnapshotArchive(
   now: number,
   deadline: number,
 ) {
-  const bytes = readObserverSnapshotMember(archive, deadline);
-  return bytes.subarray(0, observerRecordMagic.length).equals(observerRecordMagic)
-    ? decodeStreamingObserverSnapshot(bytes, config, now, deadline)
-    : decodeObserverSnapshot(bytes, config, now, deadline);
+  const bytes = readObserverSnapshotMember(archive, deadline, observerStreamingSnapshotLimit);
+  if (bytes.subarray(0, observerRecordMagic.length).equals(observerRecordMagic))
+    return decodeStreamingObserverSnapshot(bytes, config, now, deadline);
+  requireValue(archive.length <= observerSnapshotLimit, "legacy snapshot archive exceeds envelope");
+  return decodeObserverSnapshot(bytes, config, now, deadline);
 }
 
 /** Publish an entirely absent tree in one rename. Never blend partial cache data. */
@@ -1165,7 +1168,7 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
         Number(artifact.id) > 0 &&
         Number.isSafeInteger(artifact.size_in_bytes) &&
         Number(artifact.size_in_bytes) >= 22 &&
-        Number(artifact.size_in_bytes) <= observerSnapshotLimit &&
+        Number(artifact.size_in_bytes) <= observerStreamingSnapshotLimit &&
         typeof artifact.digest === "string" &&
         /^sha256:[a-f0-9]{64}$/u.test(artifact.digest) &&
         isRecord(artifact.workflow_run) &&
@@ -1346,7 +1349,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
           ),
           decoded_bytes: Buffer.byteLength(JSON.stringify(snapshot)),
           decoded_byte_limit: observerCheckpointByteLimit,
-          artifact_byte_limit: observerSnapshotLimit,
+          artifact_byte_limit: observerStreamingSnapshotLimit,
         }),
       );
       const encoded = await encodeStreamingObserverSnapshot(snapshot, deadline);
@@ -1364,7 +1367,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
           decoded_bytes: encoded.decoded_bytes,
           decoded_byte_limit: observerCheckpointByteLimit,
           artifact_bytes: encoded.bytes.length,
-          artifact_byte_limit: observerSnapshotLimit,
+          artifact_byte_limit: observerStreamingSnapshotLimit,
           logical_transfer_bytes: encoded.logical_transfer_bytes,
         }),
       );

@@ -28,6 +28,7 @@ import {
   matchesRetainedCatalogAdoptionWithdrawal,
   matchesRetainedCatalogForwardAdoptionHandoff,
   matchesRetainedApplicationRenewalHandoff,
+  matchesRetainedNativeAdoptionPredecessor,
   retainedCatalogForwardAdoptionClaim,
   matchesRetainedReviewWithdrawalHandoff,
   retainedCatalogBootstrapClaim,
@@ -1174,6 +1175,43 @@ void test("only the appointed successor and exact r66 adoption producer can carr
       matchesRetainedCatalogForwardAdoptionHandoff(
         { ...checkpoint, [key]: "0".repeat(40) },
         producer,
+        source,
+        "catalog-publication",
+      ),
+      false,
+      key,
+    );
+});
+
+void test("only the catalog coordinator can read the exact signed application review predecessor", () => {
+  const checkpoint = {
+    checkpoint: "006439a83c66cc3c1fa3fa142d7e4a6ed27f8553",
+    previous: "e6160a6b2c8b7784ef83e1f0c36bec0804acf2e3",
+  };
+  const source = {
+    workflow_sha256: "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb",
+  };
+  const producer = {
+    controller_revision: "ddf7e1ff74ced4ae988b089bf2ba9951d4de9964",
+    controller_ref: "refs/tags/portcove-production-controller-20261111r80",
+    workflow_sha256: source.workflow_sha256,
+    run_id: "43061111295",
+    run_attempt: 1,
+    job_id: "130666640318",
+    check_run_id: "130666640318",
+  };
+  assert.ok(
+    matchesRetainedNativeAdoptionPredecessor(checkpoint, producer, source, "catalog-publication"),
+  );
+  assert.equal(
+    matchesRetainedNativeAdoptionPredecessor(checkpoint, producer, source, "application"),
+    false,
+  );
+  for (const [key, value] of Object.entries(producer))
+    assert.equal(
+      matchesRetainedNativeAdoptionPredecessor(
+        checkpoint,
+        { ...producer, [key]: typeof value === "number" ? 2 : value + "0" },
         source,
         "catalog-publication",
       ),

@@ -12359,6 +12359,360 @@
     "title": "SourceBatchOutcome",
     "type": "object"
   },
+  "steam_artwork_apply_result": {
+    "$defs": {
+      "DestinationArtworkRole": {
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner"
+        ],
+        "type": "string"
+      },
+      "DestinationArtworkUnavailableReason": {
+        "enum": [
+          "role_not_provided",
+          "no_local_original",
+          "selected_original_unavailable"
+        ],
+        "type": "string"
+      },
+      "SteamArtworkRoleAction": {
+        "enum": [
+          "write",
+          "replace",
+          "preserve",
+          "unchanged",
+          "unavailable",
+          "remove",
+          "preserve_modified",
+          "absent"
+        ],
+        "type": "string"
+      },
+      "SteamArtworkRoleChange": {
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/SteamArtworkRoleAction"
+          },
+          "destination_path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "existing_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "existing_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "forget_ownership": {
+            "description": "The destination-local ownership record for this role is dropped.",
+            "type": "boolean"
+          },
+          "proposed_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "$ref": "#/$defs/DestinationArtworkRole"
+          },
+          "unavailable_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DestinationArtworkUnavailableReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "role",
+          "action",
+          "destination_path",
+          "existing_paths",
+          "existing_sha256",
+          "proposed_sha256",
+          "unavailable_reason",
+          "forget_ownership"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "backup_paths": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "plan_sha256": {
+        "type": "string"
+      },
+      "roles": {
+        "items": {
+          "$ref": "#/$defs/SteamArtworkRoleChange"
+        },
+        "type": "array"
+      },
+      "wrote": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "plan_sha256",
+      "roles",
+      "backup_paths",
+      "wrote"
+    ],
+    "title": "SteamArtworkApplyResult",
+    "type": "object"
+  },
+  "steam_artwork_review": {
+    "$defs": {
+      "DestinationArtworkRole": {
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner"
+        ],
+        "type": "string"
+      },
+      "DestinationArtworkUnavailableReason": {
+        "enum": [
+          "role_not_provided",
+          "no_local_original",
+          "selected_original_unavailable"
+        ],
+        "type": "string"
+      },
+      "SteamArtworkOperation": {
+        "description": "Separate reviewed Steam artwork action for one owned shortcut.",
+        "oneOf": [
+          {
+            "description": "Fill missing roles; replace existing art only when explicitly requested.",
+            "properties": {
+              "kind": {
+                "const": "update",
+                "type": "string"
+              },
+              "replace_existing": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "kind",
+              "replace_existing"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Remove only recorded, unchanged Portcove-written art for this entry.",
+            "properties": {
+              "kind": {
+                "const": "remove_owned",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SteamArtworkRecovery": {
+        "description": "Roles an earlier interrupted artwork change settled before this review.",
+        "properties": {
+          "abandoned": {
+            "items": {
+              "$ref": "#/$defs/DestinationArtworkRole"
+            },
+            "type": "array"
+          },
+          "completed": {
+            "items": {
+              "$ref": "#/$defs/DestinationArtworkRole"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "completed",
+          "abandoned"
+        ],
+        "type": "object"
+      },
+      "SteamArtworkRoleAction": {
+        "enum": [
+          "write",
+          "replace",
+          "preserve",
+          "unchanged",
+          "unavailable",
+          "remove",
+          "preserve_modified",
+          "absent"
+        ],
+        "type": "string"
+      },
+      "SteamArtworkRoleChange": {
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/SteamArtworkRoleAction"
+          },
+          "destination_path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "existing_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "existing_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "forget_ownership": {
+            "description": "The destination-local ownership record for this role is dropped.",
+            "type": "boolean"
+          },
+          "proposed_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "$ref": "#/$defs/DestinationArtworkRole"
+          },
+          "unavailable_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DestinationArtworkUnavailableReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "role",
+          "action",
+          "destination_path",
+          "existing_paths",
+          "existing_sha256",
+          "proposed_sha256",
+          "unavailable_reason",
+          "forget_ownership"
+        ],
+        "type": "object"
+      },
+      "SteamClientState": {
+        "enum": [
+          "closed",
+          "running",
+          "unknown"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "app_id": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "display_name": {
+        "type": "string"
+      },
+      "grid_path": {
+        "type": "string"
+      },
+      "operation": {
+        "$ref": "#/$defs/SteamArtworkOperation"
+      },
+      "plan_sha256": {
+        "type": "string"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "recovered": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/SteamArtworkRecovery"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "roles": {
+        "items": {
+          "$ref": "#/$defs/SteamArtworkRoleChange"
+        },
+        "type": "array"
+      },
+      "schema_version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "steam_client_state": {
+        "$ref": "#/$defs/SteamClientState"
+      },
+      "steam_root": {
+        "type": "string"
+      },
+      "steam_user_id": {
+        "type": "string"
+      },
+      "writes_required": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "schema_version",
+      "operation",
+      "port_id",
+      "display_name",
+      "steam_root",
+      "steam_user_id",
+      "app_id",
+      "grid_path",
+      "plan_sha256",
+      "roles",
+      "steam_client_state",
+      "writes_required",
+      "recovered"
+    ],
+    "title": "SteamArtworkReview",
+    "type": "object"
+  },
   "steam_batch_review": {
     "$defs": {
       "SteamClientState": {

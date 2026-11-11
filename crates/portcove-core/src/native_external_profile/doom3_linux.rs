@@ -223,13 +223,16 @@ pub(super) fn refuse_alternate_module(path: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
+    use crate::{ChildProcessClass, ChildProcessPolicy};
 
     #[cfg(unix)]
     #[test]
     fn doom3_linux_rejects_relative_empty_and_truncated_profile_roots() {
         let directory = tempfile::tempdir().unwrap();
         let home = directory.path().canonicalize().unwrap();
-        let mut command = Command::new("inert-player");
+        let mut command =
+            ChildProcessPolicy::native_command(ChildProcessClass::Game, "inert-player").unwrap();
         command.env_clear().env("HOME", &home);
         assert_eq!(
             profile_root(&command, "XDG_DATA_HOME", ".local/share", "dhewm3").unwrap(),
@@ -261,7 +264,8 @@ mod tests {
 
         let directory = tempfile::tempdir().unwrap();
         let home = directory.path().canonicalize().unwrap();
-        let mut command = Command::new("inert-player");
+        let mut command =
+            ChildProcessPolicy::native_command(ChildProcessClass::Game, "inert-player").unwrap();
         command.env_clear().env("HOME", &home);
         pin_profile_paths(Path::new("dude"), &mut command).unwrap();
         let config = home.join(".config/dude");

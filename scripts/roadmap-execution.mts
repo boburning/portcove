@@ -26,12 +26,13 @@ export function selectNextItems<T extends RoadmapIssueItem>(items: readonly T[])
     ["Now", 0],
     ["Next", 1],
   ]);
+  const executionStatuses = new Set<unknown>(["Ready", "In progress", "Validating", "Blocked"]);
   return items
     .map((item, index) => ({ item, index }))
     .filter(
       ({ item }) =>
-        !itemDone(item) &&
-        fieldValue(item, "Status") !== "Deferred" &&
+        executionStatuses.has(fieldValue(item, "Status")) &&
+        fieldValue(item, "Port stage") !== "Watchlist" &&
         !["closed", "merged"].includes(repositoryState(item)) &&
         horizon.has(fieldValue(item, "Horizon")) &&
         fieldValue(item, "Work type") !== "Workstream",
@@ -52,7 +53,7 @@ export function selectNextItems<T extends RoadmapIssueItem>(items: readonly T[])
 
 export function renderExecutionQueue(items: readonly RoadmapIssueItem[]) {
   const queue = selectNextItems(items);
-  if (!queue.length) return "No unfinished non-deferred non-workstream items are in Now or Next.";
+  if (!queue.length) return "No selected or ready non-workstream items are in Now or Next.";
   return (
     queue
       .map((item, index) => {

@@ -8,7 +8,6 @@ use std::{
 
 use async_trait::async_trait;
 use futures_util::StreamExt;
-use octocrab::Octocrab;
 use reqwest::{StatusCode, header};
 use serde::{Deserialize, de::DeserializeOwned};
 use tokio::sync::{Mutex, RwLock};
@@ -363,10 +362,11 @@ impl GithubReleaseProvider {
         credential: Option<GithubCredential>,
         qualification: bool,
     ) -> Result<Self> {
-        let build_sdk_transport = || {
+        let build_transport = || {
             let mut transport = reqwest::Client::builder()
                 .redirect(reqwest::redirect::Policy::none())
                 .retry(reqwest::retry::never())
+                .user_agent(PROVIDER_USER_AGENT)
                 .connect_timeout(bounds.connect)
                 .read_timeout(bounds.read_idle)
                 .timeout(bounds.request);
@@ -391,8 +391,8 @@ impl GithubReleaseProvider {
             .build()
             .map_err(|error| PortcoveError::network(error.to_string()))?;
         Ok(Self {
-            api_transport: build_sdk_transport()?,
-            device_transport: build_sdk_transport()?,
+            api_transport: build_transport()?,
+            device_transport: build_transport()?,
             download_client,
             network_bounds: bounds,
             api_root: api_root.into(),
@@ -502,6 +502,14 @@ impl GithubReleaseProvider {
         cached: Option<&HttpCacheEntry>,
     ) -> Result<header::HeaderMap> {
         let mut headers = header::HeaderMap::new();
+        headers.insert(
+            "x-github-api-version",
+            header::HeaderValue::from_static("2022-11-28"),
+        );
+        headers.insert(
+            header::CONTENT_LENGTH,
+            header::HeaderValue::from_static("0"),
+        );
         if same_origin(url, &self.api_root)
             && let Some(token) = token
         {
@@ -534,17 +542,17 @@ impl GithubReleaseProvider {
         cached: Option<&HttpCacheEntry>,
     ) -> impl std::future::Future<Output = Result<reqwest::Response>> + Send + 'static + use<> {
         let headers = self.metadata_headers(url, token, cached);
-        let url = url.to_owned();
-        let origin = self.api_root.clone();
+        let url = reqwest::Url::parse(url);
         let transport = self.api_transport.clone();
         async move {
-            let response = github_sdk_client(&origin, transport)?
-                ._get_with_headers(url.as_str(), Some(headers?))
+            let url = url.map_err(|error| PortcoveError::network(error.to_string()))?;
+            // Only Core's explicit headers may authorize an API request.
+            let mut request = reqwest::Request::new(reqwest::Method::GET, url);
+            *request.headers_mut() = headers?;
+            transport
+                .execute(request)
                 .await
-                .map_err(github_sdk_request_error)?;
-            // Keep the raw status, headers and streaming body for Core's
-            // conditional cache, provider errors and bounded response reader.
-            Ok(response.map(reqwest::Body::wrap).into())
+                .map_err(github_request_error)
         }
     }
 
@@ -553,20 +561,13 @@ impl GithubReleaseProvider {
         endpoint: &str,
         fields: &[(&str, &str)],
     ) -> Result<reqwest::Response> {
-        let body = serde_urlencoded::to_string(fields)
-            .map_err(|error| PortcoveError::network(error.to_string()))?;
-        let request = http::Request::post(format!("{}{endpoint}", self.web_root))
+        self.device_transport
+            .post(format!("{}{endpoint}", self.web_root))
             .header(header::ACCEPT, "application/json")
-            .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
-            .header(header::CONTENT_LENGTH, body.len())
-            .body(body)
-            .map_err(|error| PortcoveError::network(error.to_string()))?;
-        // The web protocol has its own anonymous SDK client and pool.
-        let response = github_sdk_client(&self.web_root, self.device_transport.clone())?
-            .execute(request)
+            .form(fields)
+            .send()
             .await
-            .map_err(github_sdk_request_error)?;
-        Ok(response.map(reqwest::Body::wrap).into())
+            .map_err(github_request_error)
     }
 
     fn active_token(&self) -> Option<String> {
@@ -1628,30 +1629,13 @@ fn rate_limit_from_headers(headers: &header::HeaderMap) -> Option<GithubRateLimi
     })
 }
 
-fn github_sdk_client(origin: &str, transport: reqwest::Client) -> Result<Octocrab> {
-    // The SDK starts a worker on the current runtime. Create it inside the
-    // request future and keep the connection pools on the synchronous provider.
-    Octocrab::builder()
-        .base_uri(origin)
-        .and_then(|builder| {
-            builder
-                .add_header(header::USER_AGENT, PROVIDER_USER_AGENT.into())
-                .build_with_reqwest(transport)
-        })
-        .map_err(|error| PortcoveError::network(error.to_string()))
-}
-
-fn github_sdk_request_error(error: octocrab::Error) -> PortcoveError {
-    let transport = std::iter::successors(Some(&error as &dyn std::error::Error), |error| {
-        error.source()
-    })
-    .find_map(|error| error.downcast_ref::<reqwest::Error>());
+fn github_request_error(error: reqwest::Error) -> PortcoveError {
     #[cfg(test)]
     observe_test_response(ResponseTestEvent::Failed(
         ResponseTestPhase::Headers,
-        transport.is_some_and(reqwest::Error::is_timeout),
+        error.is_timeout(),
     ));
-    PortcoveError::network(transport.map_or_else(|| error.to_string(), ToString::to_string))
+    PortcoveError::network(error.to_string())
 }
 
 fn github_http_error(status: StatusCode, headers: &header::HeaderMap) -> PortcoveError {
@@ -3853,6 +3837,8 @@ mod tests {
         );
         assert!(api_request.starts_with("get /user "));
         assert!(api_request.contains("\r\nauthorization: bearer api-secret\r\n"));
+        assert!(api_request.contains("\r\nx-github-api-version: 2022-11-28\r\n"));
+        assert!(api_request.contains("\r\ncontent-length: 0\r\n"));
         assert!(api_request.contains(&agent));
         for (path, body) in [
             ("/login/device/code", "client_id=client+id"),
@@ -3867,7 +3853,10 @@ mod tests {
             assert!(headers.starts_with(&format!("post {path} ")));
             assert!(headers.contains("\r\naccept: application/json"));
             assert!(headers.contains("\r\ncontent-type: application/x-www-form-urlencoded"));
+            let content_length = format!("content-length: {}", body.len());
+            assert!(headers.lines().any(|line| line == content_length));
             assert!(!headers.contains("\r\nauthorization:"));
+            assert!(!headers.contains("\r\nx-github-api-version:"));
             assert!(headers.contains(&agent));
             assert_eq!(received, body);
         }
@@ -4270,7 +4259,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn github_sdk_caps_chunked_metadata_before_parsing_or_caching() {
+    async fn github_caps_chunked_metadata_before_parsing_or_caching() {
         let mut response = format!(
             "HTTP/1.1 200 OK\r\nETag: \"fixture\"\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n{PROVIDER_JSON_MAX_BYTES:x}\r\n"
         )
@@ -4294,7 +4283,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn dropping_github_sdk_metadata_body_closes_the_incomplete_response() {
+    async fn dropping_github_metadata_body_closes_the_incomplete_response() {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();

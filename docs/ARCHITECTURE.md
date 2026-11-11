@@ -205,7 +205,8 @@ block and a 96 MiB decoder budget. It applies the compression ratio to the
 entire indexed output before decoding, including headers and padding. The
 existing archive size and TAR metadata limits also apply. It verifies every
 indexed block and consumes the TAR terminator and up to one 10 KiB record of
-zero padding through the end of the stream before extraction writes. Input
+zero padding through the end of the stream before extraction writes. A
+malformed stream keeps returning its decode failure on subsequent reads. Input
 seeks and reads, TAR scanning and output writes honor the existing
 cancellation checkpoint. NativePortable Linux x86-64 managed release admission
 uses the same TAR.XZ reader when the retained GitHub declaration and exact
@@ -220,8 +221,9 @@ then applies the existing portable-path, collision, size and destination checks.
 Each block's actual decode chain is constructed and dropped before extraction,
 without extracting entries or retaining multiple dictionaries. This catches
 unsupported stream shapes and decoder properties that a codec-name check alone
-cannot reject; final decoding still verifies the available payload checksums.
-Callbacks consume every planned entry exactly once by identity, including
+cannot reject. Final decoding verifies the available payload checksums and
+rejects block output beyond its declared size. Callbacks consume every planned
+entry exactly once by identity, including
 streamless entries that the decoder visits out of header order. Raw reads,
 seeks and output writes retain cooperative cancellation; the awaited worker
 owns its private tree until it stops. This format capability does not broaden
@@ -539,6 +541,20 @@ fixture configured. They grant no core operation or additional capability.
 Ordinary production builds exclude these fixtures
 and the embedded driver. Qualification evidence is labeled separately from
 installed production packages and physical or human observations.
+
+## File coordination and disk-space observations
+
+Core library, migration and application-runtime locks and Desktop update locks
+use the pinned Rust standard library's file locking API. Keep each lock on its
+existing read/write handle and translate the typed contention result separately
+from I/O failures. The supported Unix targets use flock. Windows uses the same
+whole-file LockFileEx range as previous releases, so older and newer processes
+coordinate on the same files.
+
+Disk-capacity queries use fs4 without its optional locking features. Available
+space reflects bytes available to the current caller, including Windows quota
+limits. The total field reports the filesystem total returned by the platform.
+These observations may change after a check, so writes retain their own errors.
 
 ## Repair diagnostic snapshots
 
@@ -1609,8 +1625,8 @@ sanitized errors. Project mutations remain quota-aware and readback-gated;
 ambiguous writes produce recovery evidence rather than automatic replay. The
 migration grants no publication or activation authority.
 
-Core sends GitHub metadata and device requests through Octocrab over its
-configured reqwest clients. The separate device client is anonymous. Core
+Core sends GitHub metadata and device requests through its configured Reqwest
+clients. The separate device client is anonymous. Core
 enforces the metadata body limit and operation deadlines, owns credential and
 cache transitions, and applies its existing separate download policy.
 

@@ -16,6 +16,7 @@ for current integration development. A local candidate is not a public release.
 | Choose the library and inspect its identity         | [Library selection](#library-selection) and [identity](#library-identity)                                                                                     |
 | Inspect, find or relink original files              | [Game-file tasks](#find-and-relink-game-files)                                                                                                                |
 | Check releases, manage updates and inspect outcomes | [Automation and game management](#idempotent-automation)                                                                                                      |
+| Move games from GitHub Launcher or Quiver           | [Move from another launcher](#move-from-another-launcher)                                                                                                     |
 | Keep an exact local build for a stable setup        | [Retained builds and setup references](#retained-builds-and-setup-references)                                                                                 |
 | Export metadata and restore copied library content  | [Export and restore](#export-and-restore-a-library)                                                                                                           |
 | Move a library or recover a transfer                | [Move](#move-a-library) and [interrupted transfers](#recover-an-interrupted-transfer)                                                                         |
@@ -1724,6 +1725,76 @@ includes `retained_build_inventory`, `retained_build_reference`,
 selected CLI's capabilities and schemas before using this maintained-source
 contract with a released binary.
 
+## Move from another launcher
+
+`launcher-library inspect` reads a GitHub Launcher or Quiver library and lists
+what Portcove can copy. It only reads. The other launcher's settings, library
+file and installation folders stay unchanged, and nothing is copied or
+registered until you run the existing reviewed `adopt` command for one entry.
+
+```text
+portcove --json launcher-library inspect --launcher quiver DATA_ROOT
+portcove --json launcher-library inspect --launcher github-launcher DATA_ROOT --apps-root APPS_FOLDER
+```
+
+`DATA_ROOT` is the launcher's data folder: the one holding `apps.json` (or
+legacy `games.json`) and `settings.json`. For GitHub Launcher that is the
+launcher's own folder; Quiver's location depends on how it was installed, so
+Portcove does not guess it. Use `--apps-root` when the apps folder moved since
+the launcher last saved it.
+
+The `launcher-library.inspect` result is `LauncherLibraryInventory`
+(`schema export` key `launcher_library_inventory`). It records the launcher, the
+upstream `format_revision` this reader implements, the library file, the apps
+folder and where it came from (`settings`, `default`, `override` or
+`unresolved`), each entry, skipped entries and an `inventory_sha256`
+fingerprint. Each entry has one `status`:
+
+| Status                 | Meaning                                                                                                          |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `ready-to-review`      | One catalog port's declared executable is present; `adopt_port_id` names it.                                     |
+| `ambiguous`            | Several catalog ports match the files; choose one with `adopt --port`.                                           |
+| `not-in-catalog`       | No catalog port uses the entry's upstream repository, or it has none.                                            |
+| `unrecognized-files`   | The repository matches, but the declared executable is not present.                                              |
+| `adoption-unsupported` | The port matches, but its route forbids copying an existing installation.                                        |
+| `not-installed`        | The launcher lists the app, but its folder is missing.                                                           |
+| `unsafe-path`          | A relative, traversing, symlinked, non-local, non-folder, unreadable or unresolvable location was not inspected. |
+| `duplicate`            | An earlier entry already lists the same app and folder.                                                          |
+
+Matching uses the catalog's reviewed upstream repository and the presence of
+Portcove's declared executable; it does not compare file contents, so a modified
+installation can still be ready to review. `adopt` then reviews the exact copy
+plan. A different app naming an earlier entry's folder keeps its own status and
+reports `shares_folder_with`. The human summary prints the `adopt` command with
+the folder single-quoted for pasting into PowerShell or a POSIX shell (not
+cmd.exe); JSON consumers combine `install_path` and `adopt_port_id`
+themselves. Launcher names, `preferredVersion`, `version.txt`,
+`selected_executable.txt` and Quiver `.quiver-mods.json` records are reported as
+untrusted hints; they never establish authenticity, a version, save
+compatibility or mod ownership. Mods are listed, not activated. Only `AppsPath`
+is read from `settings.json`; tokens and other launcher settings are ignored.
+Paths taken from launcher metadata (`AppsPath`, `installPath`) must be absolute
+drive-letter paths on Windows or absolute paths elsewhere: UNC network shares and
+device paths are not contacted. A drive letter the player mapped to a network
+share still counts as a drive. `--apps-root` remains the player's explicit
+choice. Per-app Linux runner, Wine
+prefix, Proton path and custom launch commands are listed in
+`not_carried_over`; they never become Portcove launch arguments.
+`user_data_paths` lists declared saves and settings found in a ready folder; the
+`adopt` review still decides what is copied.
+
+Inputs are bounded: library files over 8 MiB or with more than 4096 entries,
+invalid JSON and unrecognized library shapes are refused. Entries with
+unexpected value types or unsupported Quiver repository sources are listed in
+`skipped_entries`. Supported formats are GitHub Launcher
+`6e62a967cb37a2106b0420dc47375ee83cac41d3` and Quiver v3.5.1
+`66c45cbe2779818791948c7bd769d388e3a47b44`, including root-array, `apps` and
+legacy `standard`/`experimental`/`custom` shapes. These are source-format
+observations, not tests against every launcher release. A UTF-8 byte-order mark
+is accepted; other encodings are refused. GitHub Launcher itself keeps only the
+first entry per repository, while Portcove lists each distinct folder. The
+command is CLI-only for now.
+
 ## Reviewed first installation
 
 API schema 57 adds the optional `installation.review` capability. Register
@@ -1854,6 +1925,13 @@ stderr trace output around those commands. Normal exit allows up to two seconds
 for the bounded file queue to flush; forced termination can lose records. A
 previous session without a completed close is reported as unclean with an unknown
 cause, never as proof of a crash or failed operation. Logs are redacted, not anonymous.
+
+After a diagnostic session starts, CLI and Desktop can write a single local
+event for the first Rust panic in that process. A subsequent support bundle
+includes the event when the session is retained and the file is readable. The
+record contains a fixed message without the panic payload, source location or
+backtrace. A caught panic can produce the same event as an uncaught panic.
+Hard kills, native crashes and direct aborts can bypass the Rust panic hook.
 
 ### Route-bound game-file observations
 

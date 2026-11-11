@@ -343,7 +343,7 @@ it("refreshes descriptive directory data through Core and reloads the workspace"
       "https://catalog.example/targets/",
       expect.any(Function),
     );
-    expect(document.body.textContent).toContain("Game listings revision 2 · 1 published listings");
+    expect(document.body.textContent).toContain("Game listings revision 2 · 1 published listing");
   } finally {
     await act(async () => root.unmount());
     host.remove();

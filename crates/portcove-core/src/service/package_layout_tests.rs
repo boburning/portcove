@@ -1,6 +1,7 @@
 //! Production install/update-path fixtures for reviewed package-layout holds.
 //! The archives are inert fixtures, not upstream artifacts or gameplay evidence.
 use std::{
+    fs,
     io::Write,
     sync::{Arc, Mutex},
 };
@@ -67,6 +68,14 @@ fn archive_release(
         gzip.write_all(&tar).unwrap();
         gzip.finish().unwrap()
     };
+    serve_archive(version, asset_name, payload)
+}
+
+fn serve_archive(
+    version: &str,
+    asset_name: String,
+    payload: Vec<u8>,
+) -> (ResolvedRelease, crate::test_http::HttpServer) {
     let size = payload.len() as u64;
     let digest = crate::signed_catalog::digest(&payload);
     let mut response =
@@ -124,6 +133,113 @@ async fn apply_update(service: &PortcoveService, port: &str) -> Result<InstallRe
     service
         .apply_game_update(port, true, &authorization.token, |_| {})
         .await
+}
+
+fn rsdkv4_release(
+    version: &str,
+    fixture_byte: u8,
+) -> (ResolvedRelease, crate::test_http::HttpServer) {
+    let gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+    let mut tar = tar::Builder::new(gzip);
+    let mut header = tar::Header::new_ustar();
+    let mut elf = [0_u8; 48];
+    elf[..6].copy_from_slice(b"\x7fELF\x02\x01");
+    elf[16..20].copy_from_slice(&[3, 0, 0x3e, 0]);
+    elf[47] = fixture_byte;
+    header.set_mode(0o755);
+    header.set_size(elf.len() as u64);
+    tar.append_data(&mut header, "./RSDKv4", elf.as_slice())
+        .unwrap();
+    let inner = tar.into_inner().unwrap().finish().unwrap();
+
+    let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    zip.start_file("linux.tar.gz", zip::write::SimpleFileOptions::default())
+        .unwrap();
+    zip.write_all(&inner).unwrap();
+    serve_archive(
+        version,
+        "v4-linux.zip".into(),
+        zip.finish().unwrap().into_inner(),
+    )
+}
+
+#[tokio::test]
+async fn rsdkv4_nested_linux_packages_keep_each_titles_originals_and_progress() {
+    let ids = [
+        "sonic-the-hedgehog-2013-mobile-edition-rsdkv4-decompilation",
+        "sonic-the-hedgehog-2-2013-mobile-edition-rsdkv4-decompilation",
+    ];
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let catalog = Catalog::embedded().unwrap();
+    let (initial, initial_server) = rsdkv4_release("1.3.3", 1);
+    let provider = Arc::new(Provider(Mutex::new(initial)));
+    let mut service = PortcoveService::with_provider(library, provider.clone()).unwrap();
+    service.replace_catalog_for_test(catalog.clone());
+    let first = install(&service, ids[0]).await;
+    initial_server.join().unwrap();
+
+    let (other_release, other_server) = rsdkv4_release("1.3.3", 2);
+    *provider.0.lock().unwrap() = other_release;
+    let other = install(&service, ids[1]).await;
+    other_server.join().unwrap();
+    assert_ne!(first.path, other.path);
+
+    let installs = [first, other];
+    let originals = ids.map(|id| format!("synthetic original for {id}"));
+    let mut progress = ids.map(|id| format!("progress for {id}"));
+    for (index, installed) in installs.iter().enumerate() {
+        fs::write(installed.path.join("Data.rsdk"), &originals[index]).unwrap();
+        fs::write(installed.path.join("UData.bin"), &progress[index]).unwrap();
+    }
+    for (index, old) in installs.iter().enumerate() {
+        let id = ids[index];
+        let original = &originals[index];
+        let spec = service
+            .prepare_launch_for_install(catalog.port(id).unwrap(), old, None, None)
+            .unwrap();
+        assert_eq!(spec.working_directory, old.path);
+        assert_eq!(spec.executable, old.path.join("RSDKv4"));
+        assert!(crate::permissions::executable_intent(&spec.executable).unwrap());
+
+        let (next, next_server) = rsdkv4_release("1.3.4", 3 + index as u8);
+        *provider.0.lock().unwrap() = next;
+        acquire(&service, id).await;
+        next_server.join().unwrap();
+        let updated = apply_update(&service, id).await.unwrap();
+        assert_eq!(updated.version, "1.3.4");
+        assert_eq!(
+            fs::read(updated.path.join("Data.rsdk")).unwrap(),
+            original.as_bytes()
+        );
+        assert_eq!(
+            fs::read(updated.path.join("UData.bin")).unwrap(),
+            progress[index].as_bytes()
+        );
+
+        progress[index] = format!("later progress for {id}");
+        fs::write(updated.path.join("UData.bin"), &progress[index]).unwrap();
+        let rolled_back = service.rollback(id).unwrap();
+        assert_eq!(rolled_back.id, old.id);
+        assert_eq!(
+            fs::read(rolled_back.path.join("Data.rsdk")).unwrap(),
+            original.as_bytes()
+        );
+        assert_eq!(
+            fs::read(rolled_back.path.join("UData.bin")).unwrap(),
+            progress[index].as_bytes()
+        );
+        let other_index = 1 - index;
+        let other_root = &installs[other_index].path;
+        assert_eq!(
+            fs::read(other_root.join("Data.rsdk")).unwrap(),
+            originals[other_index].as_bytes()
+        );
+        assert_eq!(
+            fs::read(other_root.join("UData.bin")).unwrap(),
+            progress[other_index].as_bytes()
+        );
+    }
 }
 
 #[tokio::test]
