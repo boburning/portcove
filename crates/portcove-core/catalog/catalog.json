@@ -24112,6 +24112,7 @@
         "original_game_title": "Perfect Dark",
         "manual_setup": {
           "help_url": "https://github.com/perfect-dark-pc-port/perfect_dark#macos",
+          "warnings": [],
           "steps": [
             {
               "title": "Set up SDL2 on your Mac",
