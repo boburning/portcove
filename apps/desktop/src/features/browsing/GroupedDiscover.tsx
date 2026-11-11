@@ -412,7 +412,17 @@ function DiscoverGameCard({
       </div>
       <div className="discover-game-metadata grid content-start gap-2">
         {artworkNotice && <p className="text-xs text-pc-muted-foreground">{artworkNotice}</p>}
-        {exact && <IdentityChips port={first} />}
+        {/* Most catalog ports offer only Stable; that chip does not help choose a game.
+            Preview, Rolling and mixed channels stay visible. */}
+        {exact && (
+          <IdentityChips
+            port={
+              first.channels?.length === 1 && first.channels[0] === "stable"
+                ? { ...first, channels: [] }
+                : first
+            }
+          />
+        )}
       </div>
       <DiscoverGameObservation
         group={actionGroup}
