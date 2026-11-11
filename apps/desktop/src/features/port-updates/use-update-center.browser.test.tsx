@@ -338,6 +338,58 @@ describe("port update read owner", () => {
     expect(state.outcomes).toEqual([]);
   });
 
+  const forecast = (counted: number, relief: number) =>
+    vi.spyOn(desktopApi, "forecastInstalledUpdateChecks").mockResolvedValue({
+      games: 3,
+      counted_requests: counted,
+      sign_in_relief_requests: relief,
+    });
+  const anonymous = (remaining: number | null) =>
+    vi.spyOn(desktopApi, "githubAuthStatus").mockResolvedValue({
+      source: "anonymous",
+      authenticated: false,
+      login: null,
+      device_login_available: true,
+      rate_limit: remaining === null ? null : { limit: 60, remaining, resets_at: 1 },
+    });
+
+  it("defers a check that would outrun the anonymous allowance until the player chooses", async () => {
+    const current = status("alpha", "a".repeat(64));
+    const checkInstalled = vi
+      .spyOn(desktopApi, "checkInstalled")
+      .mockResolvedValue([outcome(current)]);
+    forecast(30, 30);
+    anonymous(12);
+    await act(async () => root.render(<Fixture statuses={[current]} />));
+
+    await act(async () => state.checkAll());
+    expect(checkInstalled).not.toHaveBeenCalled();
+    expect(state.signInOffer).toEqual({ countedRequests: 30, remainingRequests: 12 });
+
+    await act(async () => state.dismissSignInOffer());
+    expect(state.signInOffer).toBeUndefined();
+    expect(checkInstalled).not.toHaveBeenCalled();
+
+    await act(async () => state.checkAll());
+    await act(async () => state.checkAnyway());
+    expect(checkInstalled).toHaveBeenCalledTimes(1);
+    expect(state.signInOffer).toBeUndefined();
+  });
+
+  it("checks without an offer when the forecast or allowance cannot be read", async () => {
+    const current = status("alpha", "a".repeat(64));
+    const checkInstalled = vi
+      .spyOn(desktopApi, "checkInstalled")
+      .mockResolvedValue([outcome(current)]);
+    vi.spyOn(desktopApi, "forecastInstalledUpdateChecks").mockRejectedValue(new Error("no"));
+    anonymous(0);
+    await act(async () => root.render(<Fixture statuses={[current]} />));
+
+    await act(async () => state.checkAll());
+    expect(checkInstalled).toHaveBeenCalledTimes(1);
+    expect(state.signInOffer).toBeUndefined();
+  });
+
   it("does not publish a completion after disposal", async () => {
     const current = status("alpha", "a".repeat(64));
     const pending = deferred<UpdateCheckOutcome[]>();
@@ -347,8 +399,12 @@ describe("port update read owner", () => {
     await act(async () => root.render(<Fixture statuses={[current]} />));
 
     let run!: Promise<void>;
-    act(() => {
+    // The advisory forecast resolves first; dispose only once the check has begun.
+    await act(async () => {
       run = state.checkAll();
+      await vi.waitFor(() => expect(checkInstalled).toHaveBeenCalledTimes(1));
+    });
+    act(() => {
       root.unmount();
       mounted = false;
     });
@@ -368,8 +424,12 @@ describe("port update read owner", () => {
     await act(async () => root.render(<Fixture statuses={[current]} />));
 
     let run!: Promise<void>;
-    act(() => {
+    // The advisory forecast resolves first; dispose only once the check has begun.
+    await act(async () => {
       run = state.checkAll();
+      await vi.waitFor(() => expect(checkInstalled).toHaveBeenCalledTimes(1));
+    });
+    act(() => {
       root.unmount();
       mounted = false;
     });
