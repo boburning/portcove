@@ -172,7 +172,7 @@ CREATE TRIGGER transitions_no_truncate BEFORE TRUNCATE ON portcove_maintenance.s
 
 -- A finished collection run is immutable; observations only join an open run.
 CREATE FUNCTION portcove_maintenance.guard_collection_run() RETURNS trigger
-LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
 BEGIN
   IF TG_OP = 'DELETE' THEN
     RAISE EXCEPTION 'maintenance collection runs are retained history';
@@ -190,6 +190,17 @@ BEGIN
       IS DISTINCT FROM (OLD.run_id, OLD.source, OLD.runner, OLD.started_at)
      OR (OLD.source_revision IS NOT NULL AND NEW.source_revision IS DISTINCT FROM OLD.source_revision) THEN
     RAISE EXCEPTION 'collection run identity is immutable';
+  END IF;
+  IF NEW.coverage <> 'in_progress' THEN
+    -- The recorded count is the retained observations, never a declaration.
+    NEW.observed_count := (SELECT count(*) FROM portcove_maintenance.observations WHERE run_id = OLD.run_id);
+    IF NEW.coverage = 'complete' AND NEW.expected_count IS DISTINCT FROM NEW.observed_count THEN
+      RAISE EXCEPTION 'collection run % observed % of % expected subjects; it is not complete',
+        OLD.run_id, NEW.observed_count, NEW.expected_count;
+    END IF;
+    IF NEW.completed_at < (SELECT max(observed_at) FROM portcove_maintenance.observations WHERE run_id = OLD.run_id) THEN
+      RAISE EXCEPTION 'collection run % cannot finish before its last observation', OLD.run_id;
+    END IF;
   END IF;
   RETURN NEW;
 END
@@ -287,7 +298,7 @@ BEGIN
      (OLD.reconsideration_id, OLD.subject_key, OLD.kind, OLD.revisit_authority, OLD.condition, OLD.created_at) THEN
     RAISE EXCEPTION 'reconsideration conditions are immutable';
   END IF;
-  IF OLD.kind = 'intentional_deferral' AND NEW.status = 'satisfied'
+  IF OLD.kind = 'intentional_deferral' AND NEW.status <> 'pending'
      AND NEW.resolution ->> 'authority' IS DISTINCT FROM OLD.revisit_authority THEN
     RAISE EXCEPTION 'an intentional deferral is reconsidered only by its recorded authority';
   END IF;
@@ -351,6 +362,9 @@ BEGIN
       IS DISTINCT FROM (OLD.operation_id, OLD.kind, OLD.subject_key, OLD.fence_sequence, OLD.executor, OLD.created_at) THEN
     RAISE EXCEPTION 'operation identity is immutable';
   END IF;
+  IF NEW.updated_at < OLD.updated_at THEN
+    RAISE EXCEPTION 'operation % update time cannot move backwards', OLD.operation_id;
+  END IF;
   IF NEW.revision <> OLD.revision + 1 THEN
     RAISE EXCEPTION 'stale operation revision for %: expected %, got %',
       OLD.operation_id, OLD.revision + 1, NEW.revision;
@@ -380,3 +394,15 @@ $$;
 
 CREATE TRIGGER operations_guard BEFORE INSERT OR UPDATE OR DELETE ON portcove_maintenance.operations
   FOR EACH ROW EXECUTE FUNCTION portcove_maintenance.guard_operation();
+
+-- Retained state is never truncated, including by the schema owner.
+CREATE TRIGGER collection_runs_no_truncate BEFORE TRUNCATE ON portcove_maintenance.collection_runs
+  FOR EACH STATEMENT EXECUTE FUNCTION portcove_maintenance.refuse_history_rewrite();
+CREATE TRIGGER subject_current_no_truncate BEFORE TRUNCATE ON portcove_maintenance.subject_current
+  FOR EACH STATEMENT EXECUTE FUNCTION portcove_maintenance.refuse_history_rewrite();
+CREATE TRIGGER reconsiderations_no_truncate BEFORE TRUNCATE ON portcove_maintenance.reconsiderations
+  FOR EACH STATEMENT EXECUTE FUNCTION portcove_maintenance.refuse_history_rewrite();
+CREATE TRIGGER notifications_no_truncate BEFORE TRUNCATE ON portcove_maintenance.notifications
+  FOR EACH STATEMENT EXECUTE FUNCTION portcove_maintenance.refuse_history_rewrite();
+CREATE TRIGGER operations_no_truncate BEFORE TRUNCATE ON portcove_maintenance.operations
+  FOR EACH STATEMENT EXECUTE FUNCTION portcove_maintenance.refuse_history_rewrite();

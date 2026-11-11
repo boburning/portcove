@@ -152,7 +152,16 @@ function fixtureRoot(context: TestContext) {
   const stops: (() => void)[] = [];
   // Servers stop before their data directories are removed.
   registerDisposableDirectory(context, root, {
-    drain: () => stops.splice(0).forEach((stop) => stop()),
+    drain() {
+      const failures: unknown[] = [];
+      for (const stop of stops.splice(0))
+        try {
+          stop();
+        } catch (error) {
+          failures.push(error);
+        }
+      if (failures.length) throw new AggregateError(failures, "PostgreSQL fixture did not stop");
+    },
   });
   return { root, stops };
 }
@@ -273,7 +282,7 @@ void test(
       collector,
       `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, started_at) VALUES ('run-2', 'issues', 'fixture', now());
        UPDATE portcove_maintenance.collection_runs SET coverage = 'complete', completed_at = now(), source_revision = 'x', expected_count = 3, observed_count = 2 WHERE run_id = 'run-2';`,
-      /collection_runs_check/u,
+      /observed 0 of 3 expected subjects/u,
     );
     rejects(
       collector,
@@ -281,6 +290,20 @@ void test(
          WHERE reconsideration_id = 'deferral-1';`,
       /recorded authority/u,
     );
+    rejects(
+      collector,
+      `UPDATE portcove_maintenance.reconsiderations SET status = 'withdrawn', resolved_at = now(), resolution = '{"authority":"technically viable"}'
+         WHERE reconsideration_id = 'deferral-1';`,
+      /recorded authority/u,
+    );
+    // A run's count is its retained observations, not a declaration.
+    rejects(
+      collector,
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, started_at) VALUES ('run-3', 'issues', 'fixture', now());
+       UPDATE portcove_maintenance.collection_runs SET coverage = 'complete', completed_at = now(), source_revision = 'x', expected_count = 500, observed_count = 500 WHERE run_id = 'run-3';`,
+      /observed 0 of 500/u,
+    );
+    rejects(source.owner, "TRUNCATE portcove_maintenance.operations;", /append-only/u);
     // Operations: revision fencing, current-state revalidation and receipt-only recovery.
     rejects(
       executor,
@@ -334,6 +357,24 @@ void test(
     assert.deepEqual(manifest.tables, before);
     assert.equal(manifest.schema_version, 1);
     await assert.rejects(backup(source.owner, archive), /already exists/u);
+    const altered = path.join(root, "altered");
+    mkdirSync(altered);
+    copyFileSync(path.join(archive, "maintenance.dump"), path.join(altered, "maintenance.dump"));
+    const wrong = structuredClone(manifest);
+    wrong.tables["portcove_maintenance.notifications"]!.sha256 = hex("0");
+    writeFileSync(path.join(altered, "manifest.json"), JSON.stringify(wrong));
+    assert.throws(
+      () => restore(target.owner, altered),
+      /differs from its backup: portcove_maintenance.notifications/u,
+    );
+    assert.match(
+      runSql(
+        target.owner,
+        "SELECT count(*) FROM pg_namespace WHERE nspname LIKE 'portcove_maintenance%';",
+      ),
+      /^0$/mu,
+      "a failed verification leaves no restored schema behind",
+    );
     const restored = restore(target.owner, archive);
     assert.equal(restored.verified, true);
     assert.deepEqual(storeDigest(target.owner), before);

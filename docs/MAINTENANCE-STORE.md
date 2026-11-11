@@ -51,10 +51,10 @@ generation; tags, titles and issue state never stand in for it.
 ## Declared sources and coverage
 
 Each collection run belongs to one declared source and records its exact source
-revision, expected denominator, observed count and gaps. `complete` requires a
-known denominator equal to the observed count with no gaps; the database
-enforces this. `partial`, `failed` and stale runs are unknown coverage, never
-absence or deletion, and the last complete observation remains visibly dated.
+revision, expected denominator and gaps. The database derives the observed
+count from the run's retained observations when the run finishes; `complete`
+requires a known denominator equal to that count with no gaps. `partial`,
+`failed` and stale runs are unknown coverage, never absence or deletion, and the last complete observation remains visibly dated.
 
 | Source                              | Maintained owner interface                                                                                | Completeness signal                                           |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
@@ -101,7 +101,8 @@ in this section runs unchanged against any PostgreSQL host and generic runner.
 - **Reconsiderations.** Typed as `technical_hold`, `intentional_deferral`,
   `upstream_change` or `evidence_refresh`, each with the owner or policy reference
   required to revisit it. Conditions are immutable, and an intentional deferral is
-  satisfied only by a resolution naming its recorded authority.
+  satisfied or withdrawn only by a resolution naming its recorded authority. The
+  store records that reference; it does not authenticate who supplied it.
 - **Notifications.** Each notification binds one recorded transition, so an
   unchanged observation cannot create one. Delivery requires a delivery receipt.
 - **Operations.** Deterministic operation IDs fenced to the subject sequence they
@@ -132,7 +133,8 @@ Commands read the connection URL from an environment variable (default
 translated into libpq environment variables, so the password never appears in
 arguments or output, and inherited `PG*` settings are ignored. Supported URL
 parameters are `host`, `port`, `sslmode`, `sslrootcert`, `channel_binding`,
-`application_name`, `connect_timeout`, `options` and `target_session_attrs`. Use
+`application_name`, `connect_timeout`, `options` and `target_session_attrs`;
+client-certificate authentication (`sslcert`, `sslkey`) is not supported yet. Use
 `?host=/socket/dir` for a Unix socket. `PORTCOVE_POSTGRES_BIN` may name the
 client directory. Keep URLs in the runner's secret store, never in the
 repository, issue comments or logs.
@@ -160,19 +162,23 @@ PORTCOVE_MAINTENANCE_DATABASE_URL="$RESTORE_TARGET_URL" node scripts/maintenance
   manifest describes exactly the dumped state while writers continue. It writes
   `maintenance.dump` (custom format, both maintenance schemas, without ownership
   or privileges) and `manifest.json` (format 1: server version, migration ledger,
-  dump SHA-256 and size, per-table row counts and content MD5) to a new
+  dump SHA-256 and size, per-table row counts and content SHA-256) to a new
   directory.
-- `restore` verifies the dump digest and migration compatibility, refuses a
-  target that already has maintenance schemas, restores in one transaction,
-  reapplies the role contract and compares every table's count and digest with
-  the manifest. Any difference fails the restore. Run `migrate` afterwards if the
+- `restore` verifies the dump digest and migration compatibility and refuses a
+  target that already has maintenance schemas. It then applies the dump, the
+  role contract and an in-database comparison of every table's count and digest
+  with the manifest in one transaction, so any difference rolls the whole restore
+  back and the target stays empty for a retry. Run `migrate` afterwards if the
   checkout carries newer migrations.
+- `backup` writes to a temporary sibling directory and renames it only when
+  complete, so a failed backup leaves nothing to clean up.
 - `digest` prints the same per-table counts and digests for an ad hoc
   comparison.
 
-Digests use UTC, ISO dates and `C` collation ordering so they are identical
-across hosts. A failed migration, backup or restore leaves the previous state in
-place.
+Digests hash UTF-8 row text with SHA-256 under pinned `TimeZone`, `DateStyle`,
+`IntervalStyle` and float settings and `C` collation ordering, so they are
+identical across hosts and usable on FIPS-mode servers. A failed migration,
+backup or restore leaves the previous state in place.
 
 ## Validation
 

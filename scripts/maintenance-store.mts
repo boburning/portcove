@@ -9,7 +9,17 @@
  */
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -117,7 +127,10 @@ export function connectionFromEnvironment(
   const value = base[name];
   if (!value?.trim())
     throw new MaintenanceStoreError(`Set ${name} to the maintenance database URL`);
-  return clientEnvironment(libpqEnvironmentFromUrl(value.trim()), base);
+  // The URL itself never reaches a child process; only its libpq translation does.
+  const rest = { ...base };
+  delete rest[name];
+  return clientEnvironment(libpqEnvironmentFromUrl(value.trim()), rest);
 }
 
 function toolPath(name: "psql" | "pg_dump" | "pg_restore", base: NodeJS.ProcessEnv) {
@@ -319,14 +332,42 @@ export function migrate(environment: NodeJS.ProcessEnv, directory = defaultMigra
   return { ...migrationStatus(environment, directory), newly_applied: applied };
 }
 
-export type StoreDigest = Record<string, { rows: number; md5: string }>;
+export type StoreDigest = Record<string, { rows: number; sha256: string }>;
 
-export function digestQuery() {
+/** Settings that make row text identical on every host; applied inside the digest's transaction. */
+const digestSettings =
+  "SET LOCAL TimeZone = 'UTC'; SET LOCAL DateStyle = 'ISO, MDY'; SET LOCAL IntervalStyle = 'postgres'; SET LOCAL extra_float_digits = 1;";
+
+function digestExpression() {
   const fields = storeTables.map(
     ([table, order]) =>
-      `${sqlLiteral(table)}, (SELECT json_build_object('rows', count(*), 'md5', md5(coalesce(string_agg(t::text, E'\\n' ORDER BY ${order}), ''))) FROM ${table} t)`,
+      `${sqlLiteral(table)}, (SELECT json_build_object('rows', count(*), 'sha256', encode(sha256(convert_to(coalesce(string_agg(t::text, E'\\n' ORDER BY ${order}), ''), 'UTF8')), 'hex')) FROM ${table} t)`,
   );
-  return `SELECT json_build_object(${fields.join(",\n  ")});`;
+  return `json_build_object(${fields.join(",\n  ")})`;
+}
+
+export function digestQuery() {
+  return `${digestSettings}\nSELECT ${digestExpression()};`;
+}
+
+/** Raises inside the restore transaction when restored content differs from the manifest. */
+export function restoreVerification(tables: StoreDigest) {
+  return `${digestSettings}
+DO $portcove_verify$
+DECLARE
+  actual jsonb := (SELECT ${digestExpression()})::jsonb;
+  expected jsonb := ${sqlLiteral(JSON.stringify(tables))}::jsonb;
+  mismatched text;
+BEGIN
+  SELECT string_agg(name, ', ' ORDER BY name) INTO mismatched
+    FROM (SELECT jsonb_object_keys(actual) AS name UNION SELECT jsonb_object_keys(expected)) names
+    WHERE actual -> name IS DISTINCT FROM expected -> name;
+  IF mismatched IS NOT NULL THEN
+    RAISE EXCEPTION 'Restored store differs from its backup: %', mismatched;
+  END IF;
+END
+$portcove_verify$;
+`;
 }
 
 /** Deterministic per-table row counts and content digests of the whole store. */
@@ -372,6 +413,9 @@ async function withExportedSnapshot<T>(
     if (stderr.length < 8192) stderr += chunk;
   });
   child.on("error", (error) => fail(new MaintenanceStoreError(`psql failed: ${error.message}`)));
+  child.stdin.on("error", (error) =>
+    fail(new MaintenanceStoreError(`psql session closed: ${error.message}`)),
+  );
   child.on("exit", (code, signal) =>
     fail(new MaintenanceStoreError(`psql session ended (${signal ?? code}): ${bounded(stderr)}`)),
   );
@@ -397,13 +441,6 @@ async function withExportedSnapshot<T>(
   }
 }
 
-function databaseArgument(environment: NodeJS.ProcessEnv) {
-  const database = environment.PGDATABASE ?? "";
-  if (!database || database.includes("=") || database.includes("://"))
-    throw new MaintenanceStoreError("Maintenance database name is invalid");
-  return `--dbname=${database}`;
-}
-
 export interface BackupManifest {
   format: typeof backupFormat;
   format_version: typeof backupFormatVersion;
@@ -426,7 +463,20 @@ export async function backup(
     throw new MaintenanceStoreError("Back up only a store migrated to this checkout's schema");
   if (existsSync(output))
     throw new MaintenanceStoreError(`Backup destination already exists: ${output}`);
-  mkdirSync(output, { recursive: true });
+  mkdirSync(path.dirname(output), { recursive: true });
+  // Written beside the destination and renamed only when complete: a failure leaves no partial backup.
+  const staging = mkdtempSync(`${output}.partial-`);
+  try {
+    const manifest = await writeBackup(environment, staging);
+    renameSync(staging, output);
+    return manifest;
+  } catch (error) {
+    rmSync(staging, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+async function writeBackup(environment: NodeJS.ProcessEnv, output: string) {
   const dumpPath = path.join(output, dumpFileName);
   const { tables, serverVersion } = await withExportedSnapshot(
     environment,
@@ -518,35 +568,35 @@ export function restore(
     throw new MaintenanceStoreError(
       "Restore target already has maintenance schemas; use an empty database",
     );
-  runTool(
-    "pg_restore",
-    [
-      "--no-owner",
-      "--no-privileges",
-      "--exit-on-error",
-      "--single-transaction",
-      databaseArgument(environment),
-      dumpPath,
-    ],
-    environment,
-    { timeoutMs: dumpTimeoutMs },
-  );
-  runSql(environment, roleContract());
-  const tables = storeDigest(environment);
-  const mismatched = [...new Set([...Object.keys(manifest.tables), ...Object.keys(tables)])].filter(
-    (table) =>
-      tables[table]?.rows !== manifest.tables[table]?.rows ||
-      tables[table]?.md5 !== manifest.tables[table]?.md5,
-  );
-  if (mismatched.length)
-    throw new MaintenanceStoreError(
-      `Restored store differs from its backup: ${mismatched.join(", ")}`,
+  // pg_restore renders the dump as SQL; psql then applies it, the role contract and the
+  // verification in one transaction, so a failed verification leaves the target unchanged.
+  const work = mkdtempSync(path.join(os.tmpdir(), "portcove-maintenance-restore-"));
+  try {
+    const script = path.join(work, "restore.sql");
+    const verification = path.join(work, "verify.sql");
+    const roles = path.join(work, "roles.sql");
+    runTool(
+      "pg_restore",
+      ["--no-owner", "--no-privileges", "--exit-on-error", `--file=${script}`, dumpPath],
+      environment,
+      { timeoutMs: dumpTimeoutMs },
     );
+    writeFileSync(roles, roleContract());
+    writeFileSync(verification, restoreVerification(manifest.tables));
+    runTool(
+      "psql",
+      [...psqlBase, "--single-transaction", "-f", script, "-f", roles, "-f", verification],
+      environment,
+      { timeoutMs: dumpTimeoutMs },
+    );
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
   return {
     verified: true,
     schema_version: manifest.schema_version,
     pending: plan.pending.length,
-    tables,
+    tables: storeDigest(environment),
   };
 }
 
