@@ -7,6 +7,8 @@ import type { BackupReadState } from "../features/backups/use-port-backups";
 type Protection = NonNullable<BackupInventory["protection"]>;
 type Installation = Protection["installations"][number];
 
+// Paths and hashes are passed as `<code/>` children, never interpolated values,
+// so `{{…}}` text inside a real path is shown exactly.
 function pathLabel(t: TFunction<"backups">, state: Protection["managed_data"]["state"]) {
   switch (state) {
     case "present":
@@ -17,6 +19,8 @@ function pathLabel(t: TFunction<"backups">, state: Protection["managed_data"]["s
       return t("protection.pathUnsafe");
     case "unreadable":
       return t("protection.pathUnreadable");
+    default:
+      return t("protection.pathUnknown");
   }
 }
 
@@ -177,8 +181,7 @@ export function ProtectionSummary({
                   <Trans
                     t={t}
                     i18nKey="protection.foundAt"
-                    values={{ path: install.collection_root }}
-                    components={{ code: <code dir="ltr" /> }}
+                    components={{ code: <code dir="ltr">{install.collection_root}</code> }}
                   />
                 </p>
               )}
@@ -189,8 +192,8 @@ export function ProtectionSummary({
                       <Trans
                         t={t}
                         i18nKey="protection.candidate"
-                        values={{ path: entry.path, state: pathLabel(t, entry.state) }}
-                        components={{ code: <code dir="ltr" /> }}
+                        values={{ state: pathLabel(t, entry.state) }}
+                        components={{ code: <code dir="ltr">{entry.path}</code> }}
                       />
                     </li>
                   ))}
@@ -208,11 +211,8 @@ export function ProtectionSummary({
             <Trans
               t={t}
               i18nKey="protection.savedFolder"
-              values={{
-                path: protection.managed_data.path,
-                state: pathLabel(t, protection.managed_data.state),
-              }}
-              components={{ code: <code dir="ltr" /> }}
+              values={{ state: pathLabel(t, protection.managed_data.state) }}
+              components={{ code: <code dir="ltr">{protection.managed_data.path}</code> }}
             />
           </p>
           <Declaration title={t("protection.rulesCatalog")} value={protection.catalog} />
@@ -238,8 +238,7 @@ function Declaration({ title, value }: { title: string; value: Installation["ret
             <Trans
               t={t}
               i18nKey="protection.definition"
-              values={{ sha256: value.definition_sha256 }}
-              components={{ code: <code /> }}
+              components={{ code: <code>{value.definition_sha256}</code> }}
             />
           </p>
           <p>

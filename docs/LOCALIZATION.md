@@ -57,7 +57,7 @@ not inline message dictionaries. This adds no supported product language.
 
 Use feature-owned namespaces and semantic keys: `settings:language.saveFailed`, not English sentences as identifiers. Keep technical identifiers, paths, checksums, commands, and product names in logical-direction containers when they appear inside translated copy.
 
-Write complete messages. Do not concatenate translated fragments or attach punctuation outside a translation. Use named interpolation for values, i18next plural forms for counts, and `Trans` only with an explicit component map for limited semantic markup. Never insert translated HTML or use `dangerouslySetInnerHTML`.
+Write complete messages. Do not concatenate translated fragments or attach punctuation outside a translation. Use named interpolation for values, i18next plural forms for counts, and `Trans` only with an explicit component map for limited semantic markup. Never insert translated HTML or use `dangerouslySetInnerHTML`. Pass paths, hashes and other exact user or Core values as the child of a self-closing `Trans` component placeholder (for example `<code/>` with `components={{ code: <code dir="ltr">{path}</code> }}`), never as an interpolated value: `Trans` would substitute `{{…}}` sequences that appear inside a real path.
 
 Context and glossary rules:
 
