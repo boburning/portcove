@@ -268,7 +268,7 @@ export function capabilityResult(observation: CapabilityObservation) {
   };
 }
 
-function hostPlatform() {
+export function hostPlatform() {
   const arch = process.arch === "x64" ? "x86-64" : process.arch;
   return `${process.platform === "win32" ? "windows" : process.platform === "darwin" ? "macos" : process.platform}-${arch}`;
 }
@@ -307,7 +307,12 @@ export interface IssueInventory {
 
 /** Single-select Project field values by field name, as GitHub reports them. */
 function projectFields(fieldValues: unknown) {
-  const nodes = (fieldValues as { nodes?: unknown[] } | null)?.nodes ?? [];
+  const values = fieldValues as { nodes?: unknown[]; pageInfo?: { hasNextPage?: unknown } } | null;
+  if (values?.pageInfo?.hasNextPage !== false && values?.pageInfo !== undefined)
+    throw new MaintenanceStoreError(
+      "Project field values are truncated; the issue inventory is incomplete",
+    );
+  const nodes = values?.nodes ?? [];
   const fields: Record<string, string> = {};
   for (const node of nodes) {
     const value = node as { name?: unknown; field?: { name?: unknown } };
@@ -389,7 +394,7 @@ export function membershipDigest(members: ReadonlyMap<string, string>) {
 }
 
 /** Latest present content digest per subject from finished runs of one source. */
-function latestMembers(environment: NodeJS.ProcessEnv, source: string) {
+function latestMembers(environment: NodeJS.ProcessEnv, source: string, startedAt: string) {
   const rows = parseJson(
     runSql(
       environment,
@@ -399,6 +404,7 @@ function latestMembers(environment: NodeJS.ProcessEnv, source: string) {
                  FROM portcove_maintenance.observations o
                  JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
                 WHERE r.source = ${literal(source)} AND r.coverage <> 'in_progress'
+                  AND r.started_at <= ${literal(startedAt)}::timestamptz
                 ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC) latest;`,
     ).trim(),
     "latest maintenance members",
@@ -438,6 +444,14 @@ export function collectionSql(input: {
   const lines = [
     // Quoting below must never depend on server or role settings.
     "SET LOCAL standard_conforming_strings = on;",
+    // Collectors of the same source are serialized; locks are taken in one order.
+    `SELECT pg_advisory_xact_lock(hashtext('portcove-maintenance-source:' || source))
+       FROM unnest(ARRAY[${[
+         ...new Set(["catalog-records", coreSource, ...(input.issues ? ["issues-project"] : [])]),
+       ]
+         .sort()
+         .map(literal)
+         .join(", ")}]) AS source ORDER BY source;`,
     `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at) VALUES
       (${literal(catalogRun)}, 'catalog-records', ${literal(input.runner)}, ${literal(input.revision)}, ${literal(input.startedAt)}),
       (${literal(coreRun)}, ${literal(coreSource)}, ${literal(input.runner)}, ${literal(coreRevision)}, ${literal(input.startedAt)});`,
@@ -487,6 +501,8 @@ export function collectionSql(input: {
       revision: coreRevision,
       payload: capabilityFact,
     });
+    // Core results are per host platform, so is the assessment history.
+    const assessed = assessmentSubject(subject.id, input.platform);
     const result = capabilityResult(subject.capabilities);
     const explanation = {
       ...result.explanation,
@@ -500,20 +516,20 @@ export function collectionSql(input: {
     const resultDigest = sha256(canonicalJson({ state: result.state, explanation }));
     lines.push(
       `INSERT INTO portcove_maintenance.assessments (subject_key, policy_version, input_digest, state, result_digest, explanation, assessed_at, run_id)
-        VALUES (${literal(key)}, ${literal(policy)}, ${literal(inputDigest)}, ${literal(result.state)}, ${literal(resultDigest)}, ${jsonLiteral(explanation)}, statement_timestamp(), ${literal(coreRun)})
+        VALUES (${literal(assessed)}, ${literal(policy)}, ${literal(inputDigest)}, ${literal(result.state)}, ${literal(resultDigest)}, ${jsonLiteral(explanation)}, statement_timestamp(), ${literal(coreRun)})
         ON CONFLICT (subject_key, policy_version, input_digest) DO NOTHING;`,
       `INSERT INTO portcove_maintenance.subject_transitions (subject_key, sequence, assessment_id)
         SELECT a.subject_key, coalesce(c.sequence, 0) + 1, a.assessment_id
           FROM portcove_maintenance.assessments a
           LEFT JOIN portcove_maintenance.subject_current c ON c.subject_key = a.subject_key
-          WHERE a.subject_key = ${literal(key)} AND a.policy_version = ${literal(policy)} AND a.input_digest = ${literal(inputDigest)}
+          WHERE a.subject_key = ${literal(assessed)} AND a.policy_version = ${literal(policy)} AND a.input_digest = ${literal(inputDigest)}
             AND c.result_digest IS DISTINCT FROM a.result_digest;`,
       // Changes-only: a transition after the subject's baseline is a pending notification.
       `INSERT INTO portcove_maintenance.notifications (notification_key, subject_key, transition_sequence, created_at)
-        SELECT 'transition:' || t.subject_key || ':' || t.sequence, t.subject_key, t.sequence, statement_timestamp()
+        SELECT 'transition:' || replace(t.subject_key, '@', '.') || ':' || t.sequence, t.subject_key, t.sequence, statement_timestamp()
           FROM portcove_maintenance.subject_transitions t
           JOIN portcove_maintenance.subject_current c ON c.subject_key = t.subject_key AND c.sequence = t.sequence
-          WHERE t.subject_key = ${literal(key)} AND t.sequence > 1
+          WHERE t.subject_key = ${literal(assessed)} AND t.sequence > 1
         ON CONFLICT (notification_key) DO NOTHING;`,
     );
   }
@@ -597,7 +613,10 @@ export function collectionSql(input: {
   return lines.join("\n");
 }
 
-export const coreSourceName = (platform: string) => `core-port-capabilities-${platform}`;
+export const coreSourceName = (platform: string) => `${corePrefix}${platform}`;
+
+/** The assessed subject: one port on one host platform. */
+export const assessmentSubject = (id: string, platform: string) => `port:${id}@${platform}`;
 
 /** Every authored port ID committed at the revision. */
 function committedPortIds(revision: string) {
@@ -617,11 +636,17 @@ async function mapBounded<T, R>(
 ) {
   const results: R[] = new Array<R>(items.length);
   let next = 0;
+  let failed = false;
   await Promise.all(
     Array.from({ length: Math.min(limit, items.length) }, async () => {
-      while (next < items.length) {
+      while (next < items.length && !failed) {
         const index = next++;
-        results[index] = await action(items[index]!);
+        try {
+          results[index] = await action(items[index]!);
+        } catch (error) {
+          failed = true;
+          throw error;
+        }
       }
     }),
   );
@@ -637,6 +662,8 @@ export async function collect(options: {
   concurrency?: number | undefined;
   /** With `all`, also collect the verified issue and Project inventory. */
   issues?: (() => Promise<IssueInventory>) | undefined;
+  /** Host platform label; defaults to this host. Fixtures use it to model other hosts. */
+  platform?: string | undefined;
   environment: NodeJS.ProcessEnv;
   runner?: string | undefined;
 }) {
@@ -659,7 +686,9 @@ export async function collect(options: {
       "portcove capabilities are unavailable or use an unsupported port capability schema",
     );
   const startedAt = new Date().toISOString();
-  const platform = hostPlatform();
+  const platform = options.platform ?? hostPlatform();
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/u.test(platform))
+    throw new MaintenanceStoreError("Invalid platform label");
   const subjects = await mapBounded(ids, options.concurrency ?? 4, async (id) => ({
     id,
     record: committedRecord(revision, id),
@@ -694,10 +723,10 @@ export async function collect(options: {
       ...(mode === "all"
         ? {
             latest: {
-              catalog: latestMembers(options.environment, "catalog-records"),
-              core: latestMembers(options.environment, coreSourceName(platform)),
+              catalog: latestMembers(options.environment, "catalog-records", startedAt),
+              core: latestMembers(options.environment, coreSourceName(platform), startedAt),
               ...(issueInventory
-                ? { issues: latestMembers(options.environment, "issues-project") }
+                ? { issues: latestMembers(options.environment, "issues-project", startedAt) }
                 : {}),
             },
           }
@@ -716,6 +745,8 @@ export async function collect(options: {
   };
 }
 
+const corePrefix = "core-port-capabilities-";
+
 const reportQuery = `WITH latest_issue AS (
     SELECT DISTINCT ON (o.subject_key) o.payload
       FROM portcove_maintenance.observations o
@@ -730,27 +761,58 @@ const reportQuery = `WITH latest_issue AS (
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
       WHERE r.source = 'catalog-records' AND r.coverage <> 'in_progress'
       ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC
+  ), core_latest AS (
+    -- The latest finished Core run of each host platform.
+    SELECT DISTINCT ON (source) source, substring(source FROM ${corePrefix.length + 1}) AS platform,
+           run_id, member_digest, gaps
+      FROM portcove_maintenance.collection_runs
+      WHERE source LIKE '${corePrefix}%' AND coverage <> 'in_progress'
+      ORDER BY source, started_at DESC
+  ), core_member AS (
+    SELECT cl.platform, m.subject_key
+      FROM core_latest cl CROSS JOIN LATERAL portcove_maintenance.run_members(cl.run_id) m
+      WHERE cl.member_digest IS NOT NULL
+    UNION ALL
+    SELECT cl.platform, o.subject_key
+      FROM core_latest cl JOIN portcove_maintenance.observations o ON o.run_id = cl.run_id
+      WHERE cl.member_digest IS NULL
+  ), core_gap AS (
+    SELECT cl.platform, g ->> 'subject_key' AS subject_key, g ->> 'code' AS code, g ->> 'message' AS message
+      FROM core_latest cl CROSS JOIN LATERAL jsonb_array_elements(cl.gaps) g
+  ), assessed AS (
+    SELECT c.*, split_part(c.subject_key, '@', 1) AS port_key, split_part(c.subject_key, '@', 2) AS platform
+      FROM portcove_maintenance.subject_current c
   )
 SELECT json_build_object(
   'runs', (SELECT coalesce(json_agg(r ORDER BY r.source, r.started_at DESC), '[]') FROM (
       SELECT DISTINCT ON (source) source, run_id, runner, source_revision, started_at, completed_at, coverage,
              expected_count, observed_count, gaps, member_count, member_digest
         FROM portcove_maintenance.collection_runs WHERE coverage <> 'in_progress' ORDER BY source, started_at DESC) r),
+  'unassessed_gaps', (SELECT coalesce(json_agg(json_build_object('subject_key', g.subject_key || '@' || g.platform,
+        'port_key', g.subject_key, 'platform', g.platform, 'code', g.code, 'message', g.message)
+        ORDER BY g.platform, g.subject_key), '[]')
+      FROM core_gap g
+      WHERE NOT EXISTS (SELECT 1 FROM assessed a WHERE a.port_key = g.subject_key AND a.platform = g.platform)),
   'subjects', (SELECT coalesce(json_agg(s ORDER BY s.subject_key), '[]') FROM (
-      SELECT c.subject_key, c.sequence, c.updated_at, a.state, a.policy_version, a.input_digest, a.assessed_at, a.explanation,
+      SELECT c.subject_key, c.port_key, c.platform, c.sequence, c.updated_at, a.state, a.policy_version, a.input_digest,
+        a.assessed_at, a.explanation,
         (SELECT json_agg(json_build_object('sequence', t.sequence, 'state', t.state, 'recorded_at', t.recorded_at,
                  'returns_to_earlier_result', t.returns_to_earlier_result) ORDER BY t.sequence)
            FROM portcove_maintenance.subject_transitions t WHERE t.subject_key = c.subject_key) AS history,
-        (SELECT json_agg(json_build_object('source', o.scope ->> 'source', 'run_id', o.run_id, 'input_revision', o.input_revision,
-                 'scope', o.scope, 'observed_at', o.observed_at, 'content_sha256', o.content_sha256) ORDER BY o.scope ->> 'source')
-           FROM (SELECT DISTINCT ON (scope ->> 'source') * FROM portcove_maintenance.observations
-                   WHERE subject_key = c.subject_key ORDER BY scope ->> 'source', observed_at DESC) o) AS observations,
-        CASE WHEN core.run_id IS NULL THEN false
-             WHEN core.member_digest IS NULL THEN EXISTS (
-               SELECT 1 FROM portcove_maintenance.observations o WHERE o.run_id = core.run_id AND o.subject_key = c.subject_key)
-             ELSE EXISTS (
-               SELECT 1 FROM portcove_maintenance.run_members(core.run_id) m WHERE m.subject_key = c.subject_key)
-        END AS in_latest_core_run,
+        (SELECT json_agg(json_build_object('source', o.source, 'run_id', o.run_id, 'input_revision', o.input_revision,
+                 'scope', o.scope, 'observed_at', o.observed_at, 'content_sha256', o.content_sha256,
+                 'absent', o.payload = portcove_maintenance.absent_payload()) ORDER BY o.source)
+           FROM (SELECT DISTINCT ON (r.source) r.source, ob.*
+                   FROM portcove_maintenance.observations ob
+                   JOIN portcove_maintenance.collection_runs r ON r.run_id = ob.run_id
+                   WHERE ob.subject_key = c.port_key AND r.coverage <> 'in_progress'
+                     AND (r.source = 'catalog-records' OR r.source = '${corePrefix}' || c.platform)
+                   ORDER BY r.source, r.started_at DESC, ob.observation_id DESC) o) AS observations,
+        EXISTS (SELECT 1 FROM core_member m WHERE m.platform = c.platform AND m.subject_key = c.port_key)
+          AS in_latest_core_run,
+        (SELECT json_build_object('code', g.code, 'message', g.message) FROM core_gap g
+          WHERE g.platform = c.platform AND g.subject_key = c.port_key LIMIT 1) AS latest_core_gap,
+        lc.payload = portcove_maintenance.absent_payload() AS removed,
         json_build_object(
           'name', lc.payload -> 'authored_record' -> 'listing' ->> 'name',
           'game', lc.payload -> 'authored_record' -> 'listing' ->> 'original_game_title',
@@ -771,15 +833,11 @@ SELECT json_build_object(
                    'canonical', (i.payload ->> 'number') = (lc.payload -> 'authored_record' -> 'listing' ->> 'issue_number'))
                  ORDER BY (i.payload ->> 'number')::integer), '[]')
            FROM present_issue i
-           WHERE i.payload -> 'catalog_ids' ? substring(c.subject_key FROM 6)
+           WHERE i.payload -> 'catalog_ids' ? substring(c.port_key FROM 6)
               OR (i.payload ->> 'number') = (lc.payload -> 'authored_record' -> 'listing' ->> 'issue_number')) AS work
-        FROM portcove_maintenance.subject_current c
+        FROM assessed c
         JOIN portcove_maintenance.assessments a ON a.assessment_id = c.assessment_id
-        LEFT JOIN latest_catalog lc ON lc.subject_key = c.subject_key
-        LEFT JOIN LATERAL (
-          SELECT run_id, member_digest FROM portcove_maintenance.collection_runs
-            WHERE source LIKE 'core-port-capabilities%' AND coverage <> 'in_progress'
-            ORDER BY started_at DESC LIMIT 1) core ON true) s)
+        LEFT JOIN latest_catalog lc ON lc.subject_key = c.port_key) s)
 );`;
 
 export interface InventoryReport {
@@ -794,22 +852,12 @@ export interface InventoryReport {
   unassessed_gaps?: { subject_key: string; code: string; message: string }[];
 }
 
-/** Gaps of the latest Core run, by subject: the current state there is not freshly assessed. */
-function latestCoreGaps(runs: unknown[]) {
-  const core = (
-    runs as { source: string; gaps?: { subject_key: string; code: string; message: string }[] }[]
-  ).find(({ source }) => source.startsWith("core-port-capabilities"));
-  return new Map(
-    (core?.gaps ?? []).map(({ subject_key, code, message }) => [subject_key, { code, message }]),
-  );
-}
-
 export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): InventoryReport {
   const data = JSON.parse(runSql(environment, reportQuery).trim()) as {
     runs: unknown[];
     subjects: unknown[];
+    unassessed_gaps: { subject_key: string; code: string; message: string }[];
   };
-  const gaps = latestCoreGaps(data.runs);
   // Membership-verified catalog runs cover every authored record at their revision.
   const catalogScope = (data.runs as { source: string; member_digest: string | null }[]).some(
     ({ source, member_digest }) => source === "catalog-records" && member_digest !== null,
@@ -818,14 +866,18 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     : "declared-sample";
   const subjects = data.subjects as {
     subject_key: string;
+    port_key: string;
     in_latest_core_run?: boolean;
+    latest_core_gap?: { code: string; message: string } | null;
+    removed?: boolean | null;
     identity?: { target_key?: string | null };
   }[];
   // Alternatives: other implementations sharing the authored lineage target key.
   const byTarget = new Map<string, string[]>();
   for (const subject of subjects) {
     const target = subject.identity?.target_key;
-    if (target) byTarget.set(target, [...(byTarget.get(target) ?? []), subject.subject_key]);
+    if (target && !(byTarget.get(target) ?? []).includes(subject.port_key))
+      byTarget.set(target, [...(byTarget.get(target) ?? []), subject.port_key]);
   }
   const issuesObserved = (data.runs as { source: string; coverage: string }[]).some(
     ({ source, coverage }) => source === "issues-project" && coverage === "complete",
@@ -844,21 +896,24 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
       .map(([source, reason]) => ({ source, reason })),
     runs: data.runs,
     subjects: subjects.map((subject) => {
-      const gap = gaps.get(subject.subject_key);
-      const assessedNow = subject.in_latest_core_run === true;
       const target = subject.identity?.target_key;
       return {
         ...subject,
         alternatives: target
-          ? (byTarget.get(target) ?? []).filter((key) => key !== subject.subject_key)
+          ? (byTarget.get(target) ?? []).filter((key) => key !== subject.port_key)
           : [],
-        latest_core_gap: gap ?? null,
-        latest_core_run: gap ? "gap" : assessedNow ? "assessed" : "not-included",
+        latest_core_gap: subject.latest_core_gap ?? null,
+        // Gap and membership both come from this subject's own platform's latest Core run.
+        latest_core_run: subject.removed
+          ? "removed"
+          : subject.latest_core_gap
+            ? "gap"
+            : subject.in_latest_core_run === true
+              ? "assessed"
+              : "not-included",
       };
     }),
-    unassessed_gaps: [...gaps]
-      .filter(([key]) => !subjects.some((subject) => subject.subject_key === key))
-      .map(([subject_key, gap]) => ({ subject_key, ...gap })),
+    unassessed_gaps: data.unassessed_gaps,
   };
 }
 
@@ -960,7 +1015,8 @@ function render(filter) {
     const row = body.insertRow();
     const gap = subject.latest_core_gap
       ? "not assessed: " + subject.latest_core_gap.code
-      : subject.latest_core_run === "assessed" ? "assessed" : "not in latest run";
+      : subject.latest_core_run === "assessed" ? "assessed"
+      : subject.latest_core_run === "removed" ? "removed from the catalog" : "not in latest run";
     for (const value of [subject.subject_key, [subject.name, subject.game].filter(Boolean).join(" — "), (subject.alternatives ?? []).join(", "), subject.state, String(subject.sequence), subject.assessed_at, gap, (subject.work ?? []).join("; ") || "no linked issue observed"])
       row.insertCell().textContent = value;
   }

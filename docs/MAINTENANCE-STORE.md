@@ -252,7 +252,15 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
 - `--all` covers every authored record committed at `HEAD`, not a sample.
   - Core is called for each port with bounded concurrency (`--concurrency`, default 4).
   - The Core source is per host platform, for example
-    `core-port-capabilities-linux-x86-64`, so hosts never overwrite each other.
+    `core-port-capabilities-linux-x86-64`. Assessments, transitions and
+    notifications use the platform-qualified subject `port:<id>@<platform>`, so
+    collecting on another host never overwrites or flips another host's state.
+  - The report takes each subject's latest-run status and gaps from its own
+    platform's latest Core run.
+  - Collectors of the same source are serialized by a transaction-scoped
+    advisory lock.
+  - A truncated Project field page fails the issue collection rather than
+    dropping fields.
 - `--issues` adds the `issues-project` source.
   - It reads the maintained, completeness-verified issue inventory with
     issue-side Project memberships (`RoadmapClient.repositoryIssues`), through a

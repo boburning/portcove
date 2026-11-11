@@ -11,6 +11,8 @@ import path from "node:path";
 import test from "node:test";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import {
+  assessmentSubject,
+  hostPlatform,
   acknowledgeDigest,
   buildDigest,
   renderDigestMarkdown,
@@ -165,7 +167,7 @@ void test(
       JSON.parse(
         runSql(
           store.owner,
-          `SELECT json_agg(json_build_object('subject', subject_key, 'sequence', sequence, 'state', state, 'returns', returns_to_earlier_result)
+          `SELECT json_agg(json_build_object('subject', split_part(subject_key, '@', 1), 'sequence', sequence, 'state', state, 'returns', returns_to_earlier_result)
              ORDER BY subject_key, sequence) FROM portcove_maintenance.subject_transitions;`,
         ),
       ) as { subject: string; sequence: number; state: string; returns: boolean }[];
@@ -197,6 +199,7 @@ void test(
     );
 
     // Changes-only digest: baselines are quiet, the return to an earlier result is flagged.
+    const shipSubject = assessmentSubject("2ship2harkinian", hostPlatform());
     const digest = buildDigest(store.as("report_login"));
     assert.deepEqual(
       digest.entries.map(({ subject_key, previous_state, state, returns_to_earlier_result }) => [
@@ -206,8 +209,8 @@ void test(
         returns_to_earlier_result,
       ]),
       [
-        ["port:2ship2harkinian", "managed-setup.automatic", "managed-setup.manual", false],
-        ["port:2ship2harkinian", "managed-setup.manual", "managed-setup.automatic", true],
+        [shipSubject, "managed-setup.automatic", "managed-setup.manual", false],
+        [shipSubject, "managed-setup.manual", "managed-setup.automatic", true],
       ],
     );
     assert.match(renderDigestMarkdown(digest), /returns to an earlier result/u);
@@ -319,11 +322,11 @@ void test(
     );
     const ship = (
       inventory.subjects as {
-        subject_key: string;
+        port_key: string;
         explanation: { listing_only: boolean; catalog_record_present: boolean };
         observations: { input_revision: string }[];
       }[]
-    ).find(({ subject_key }) => subject_key === "port:2ship2harkinian")!;
+    ).find(({ port_key }) => port_key === "port:2ship2harkinian")!;
     assert.equal(ship.explanation.catalog_record_present, true);
     assert.equal(ship.explanation.listing_only, false);
     assert.equal(ship.observations.length, 2);
@@ -334,10 +337,10 @@ void test(
     );
     const absent = (
       inventory.subjects as {
-        subject_key: string;
+        port_key: string;
         explanation: { catalog_record_present: boolean };
       }[]
-    ).find(({ subject_key }) => subject_key === "port:not-a-catalog-port")!;
+    ).find(({ port_key }) => port_key === "port:not-a-catalog-port")!;
     assert.equal(absent.explanation.catalog_record_present, false);
 
     const output = path.join(fixture.root, "report");
@@ -520,10 +523,10 @@ void test(
     assert.equal(withWork.scope, "complete-authored-catalog");
     const shipWork = (
       withWork.subjects as {
-        subject_key: string;
+        port_key: string;
         work: { number: number; state: string; project: { fields: Record<string, string> }[] }[];
       }[]
-    ).find(({ subject_key }) => subject_key === "port:2ship2harkinian")!.work;
+    ).find(({ port_key }) => port_key === "port:2ship2harkinian")!.work;
     assert.deepEqual(
       shipWork.map(({ number, state, project }) => [number, state, project[0]?.fields.Status]),
       [[1, "CLOSED", "Ready"]],
@@ -536,12 +539,60 @@ void test(
       runSql(
         environment,
         `SELECT json_agg(json_build_object('subject', c.subject_key, 'result', c.result_digest) ORDER BY c.subject_key)
-           FROM portcove_maintenance.subject_current c WHERE c.subject_key = 'port:2ship2harkinian';`,
+           FROM portcove_maintenance.subject_current c WHERE c.subject_key LIKE 'port:2ship2harkinian@%';`,
       ).trim();
     assert.equal(current(incremental.owner), current(direct.owner));
     assert.equal(
       count(direct.owner, "SELECT count(*) FROM portcove_maintenance.subject_transitions;"),
       1,
     );
+  },
+);
+
+void test(
+  "each host platform keeps its own assessment history, gaps and latest run",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("platforms");
+    migrate(store.owner);
+    const { cli, responses } = stubCli(fixture.root);
+    const ports = ["2ship2harkinian", "not-a-catalog-port"];
+    const on = (platform: string, ship: unknown) => {
+      writeFileSync(responses, JSON.stringify({ "2ship2harkinian": ship }));
+      return collect({
+        cli,
+        all: true,
+        ports,
+        platform,
+        environment: store.owner,
+        runner: "fixture",
+      });
+    };
+    // Identical Core results on alternating hosts: no spurious transitions or notifications.
+    await on("linux-x86-64", report("automatic"));
+    await on("windows-x86-64", report("automatic"));
+    await on("linux-x86-64", report("automatic"));
+    assert.equal(
+      runSql(store.owner, "SELECT count(*) FROM portcove_maintenance.subject_transitions;").trim(),
+      "4",
+      "one baseline per port and platform",
+    );
+    assert.equal(
+      runSql(store.owner, "SELECT count(*) FROM portcove_maintenance.notifications;").trim(),
+      "0",
+    );
+    // The latest Core run (Windows, partial) is not the alphabetically first source.
+    await on("windows-x86-64", "network");
+    const inventory = buildReport(store.owner);
+    const status = (inventory.subjects as { subject_key: string; latest_core_run: string }[]).map(
+      ({ subject_key, latest_core_run }) => [subject_key, latest_core_run],
+    );
+    assert.deepEqual(status, [
+      ["port:2ship2harkinian@linux-x86-64", "assessed"],
+      ["port:2ship2harkinian@windows-x86-64", "gap"],
+      ["port:not-a-catalog-port@linux-x86-64", "assessed"],
+      ["port:not-a-catalog-port@windows-x86-64", "assessed"],
+    ]);
   },
 );

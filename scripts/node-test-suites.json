@@ -1395,7 +1395,8 @@
           "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full on ubuntu-latest",
           "cases": [
             "declared records flow through Core assessment, the store and a static report",
-            "complete collection stores changes only, verifies membership and records absence"
+            "complete collection stores changes only, verifies membership and records absence",
+            "each host platform keeps its own assessment history, gaps and latest run"
           ],
           "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
         }
