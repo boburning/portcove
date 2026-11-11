@@ -1724,6 +1724,9 @@ impl PortcoveService {
             Some(port_id),
         )?;
         let result = (|| {
+            // A retention prune that was interrupted must not block the player's
+            // version change until restart: finish it here, under the same port lock.
+            self.resume_pending_backup_deletions(port_id);
             self.require_completed_backup_deletion(port_id)?;
             if collect_first {
                 // The snapshot must include what the game wrote most recently.
@@ -1762,6 +1765,33 @@ impl PortcoveService {
     /// Manual snapshots are never candidates. Best effort: the version change
     /// must not fail because an old snapshot could not be removed. Returns how
     /// many were removed.
+    /// Best-effort completion of this port's unfinished backup deletions through the
+    /// existing recovery. A deletion that cannot be completed stays pending and the
+    /// caller's `require_completed_backup_deletion` still refuses with its clear message.
+    fn resume_pending_backup_deletions(&self, port_id: &str) {
+        let store = OperationStore::new(self.library.clone());
+        let Ok(operations) = store.all() else {
+            return;
+        };
+        for mut operation in operations.into_iter().filter(|operation| {
+            operation.port_id == port_id && operation.kind == LifecycleOperationKind::DeleteBackup
+        }) {
+            let outcome = crate::recovery::recover_backup_deletion(self, &store, &mut operation);
+            let _ = self.library.finish_activity(
+                &operation.id,
+                if outcome.is_ok() {
+                    ActivityStatus::Succeeded
+                } else {
+                    ActivityStatus::Failed
+                },
+                Some(match outcome {
+                    Ok(()) => "completed before the next version change",
+                    Err(_) => "could not be completed; restart Portcove to retry recovery",
+                }),
+            );
+        }
+    }
+
     fn prune_automatic_snapshots(&self, port_id: &str) -> usize {
         let Ok(inventory) = self.list_backups(port_id) else {
             return 0;

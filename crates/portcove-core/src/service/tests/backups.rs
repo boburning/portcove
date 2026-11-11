@@ -3408,3 +3408,48 @@ fn only_the_nothing_to_back_up_error_is_a_recorded_skip() {
         "no such port"
     )));
 }
+
+#[test]
+fn a_pending_retention_deletion_is_finished_instead_of_blocking_the_snapshot() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    let user = library.user_dir(ZELDA);
+    fs::create_dir_all(&user).unwrap();
+    fs::write(user.join("general.json"), b"saves").unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let active = service.status(ZELDA).unwrap().active.unwrap();
+    let store = OperationStore::new(library.clone());
+    let mut operation =
+        LifecycleOperation::new("stuck-prune", LifecycleOperationKind::DeleteBackup, ZELDA);
+    let original = library
+        .backups_dir()
+        .join(ZELDA)
+        .join(Uuid::new_v4().to_string());
+    let quarantine = original
+        .parent()
+        .unwrap()
+        .join(format!(".deleting-{}", operation.id));
+    operation.paths.final_path = Some(original);
+    operation.paths.quarantine = Some(quarantine.clone());
+    operation.last_error = Some("interrupted prune".into());
+    fs::create_dir_all(&quarantine).unwrap();
+    fs::write(quarantine.join("partial-data"), b"remaining").unwrap();
+    operation.phase = LifecyclePhase::CleanupPending;
+    store.put(&mut operation).unwrap();
+
+    service
+        .snapshot_before_version_change(
+            ZELDA,
+            VersionChangeKind::Update,
+            &active,
+            Some("v1"),
+            "v2",
+            false,
+        )
+        .expect("the leftover prune no longer blocks the version change");
+
+    assert!(!quarantine.exists());
+    assert!(store.get("stuck-prune").unwrap().is_none());
+    assert_eq!(automatic_snapshots(&service).len(), 1);
+}
