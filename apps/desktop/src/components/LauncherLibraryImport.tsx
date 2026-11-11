@@ -237,6 +237,12 @@ export function LauncherLibraryImport({
                 <strong>{entry.name || entry.folder_name}</strong> — {STATUS_LABELS[entry.status]}
                 <br />
                 <small className="text-[var(--color-text-secondary)]">{entry.explanation}</small>
+                {entryDetails(entry).map((detail) => (
+                  <span key={detail}>
+                    <br />
+                    <small className="text-[var(--color-text-secondary)]">{detail}</small>
+                  </span>
+                ))}
                 {entry.not_carried_over.length > 0 && (
                   <>
                     <br />
@@ -286,4 +292,38 @@ function inventorySummary(inventory: LauncherLibraryInventory) {
   if (skipped === 1) parts.push("1 unreadable entry skipped");
   else if (skipped > 1) parts.push(`${skipped} unreadable entries skipped`);
   return parts.join(" · ");
+}
+
+const SHOWN_USER_DATA_PATHS = 5;
+
+/** What the inventory found for an app; labels and mod records are never trusted. */
+export function entryDetails(entry: LauncherLibraryEntry): string[] {
+  const details: string[] = [];
+  const paths = entry.user_data_paths;
+  if (paths.length > 0) {
+    const shown = paths.slice(0, SHOWN_USER_DATA_PATHS).join(", ");
+    const more = paths.length - SHOWN_USER_DATA_PATHS;
+    details.push(
+      more > 0
+        ? `Saves and settings found: ${shown}, and ${more === 1 ? "1 more" : `${more} more`}`
+        : `Saves and settings found: ${shown}`,
+    );
+  }
+  if (entry.mods) {
+    const records = entry.mods.records;
+    details.push(
+      !entry.mods.readable
+        ? "Launcher mod records could not be read"
+        : records === 0
+          ? "No launcher mod records"
+          : records === 1
+            ? "1 launcher mod record, listed only; it is not copied as a mod or turned on"
+            : `${records} launcher mod records, listed only; they are not copied as mods or turned on`,
+    );
+  }
+  if (entry.hints.installed_version_label)
+    details.push(`Installed version label: ${entry.hints.installed_version_label} (not verified)`);
+  if (entry.hints.preferred_version)
+    details.push(`Launcher version setting: ${entry.hints.preferred_version} (not verified)`);
+  return details;
 }
