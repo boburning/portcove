@@ -610,6 +610,8 @@ impl PortcoveService {
         let result: Result<BackupRecord> = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "backup")?;
+            // An interrupted retention prune must not block a player's own backup.
+            self.resume_pending_backup_deletions(port_id);
             self.require_completed_backup_deletion(port_id)?;
             self.collect_active_user_data_if_launched(port_id)?;
             self.create_backup_locked(port_id)
@@ -1785,7 +1787,7 @@ impl PortcoveService {
                     ActivityStatus::Failed
                 },
                 Some(match outcome {
-                    Ok(()) => "completed before the next version change",
+                    Ok(()) => "completed by the next backup or version change",
                     Err(_) => "could not be completed; restart Portcove to retry recovery",
                 }),
             );
