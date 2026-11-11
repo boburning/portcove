@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { performance } from "node:perf_hooks";
 import { createHash } from "node:crypto";
 import {
+  ControllerToolCustodyRefusal,
   receiveControllerTools,
   verifiedControllerToolPaths,
 } from "./release-controller-tool-admission.mts";
@@ -93,9 +94,11 @@ export async function launchFixedControllerJob(rawOperation: unknown) {
       rawOperation === "coordinator" &&
       process.env.PORTCOVE_EXECUTION_PURPOSE === "catalog-publication"
     )
-      await retainCatalogCoordinatorRefusal(process.env.RUNNER_TEMP ?? "", "launch", stage).catch(
-        () => {},
-      );
+      await retainCatalogCoordinatorRefusal(
+        process.env.RUNNER_TEMP ?? "",
+        "launch",
+        error instanceof ControllerToolCustodyRefusal ? `tool-custody-${error.phase}` : stage,
+      ).catch(() => {});
     // The bundle publishes its own settlement after entry. Preserve it if
     // present, and settle an earlier bootstrap failure for the waiting action.
     if (root && path.isAbsolute(root) && rawOperation === "coordinator")
