@@ -311,7 +311,7 @@ it.each(["dark", "light"])(
     await expectReadinessLabel("Readiness Ready (1)");
     await expectReadinessOption("Needs attention (1)", false);
     await chooseReadiness("Needs attention (1)");
-    await expect.element(button("Remove Target OS: Linux filter")).toBeInTheDocument();
+    await expect.element(button("Remove Runs on: Linux filter")).toBeInTheDocument();
     await openAdvancedFilters("Filters (1)");
     await expect.element(await filterChoice("Windows (1)")).toBeEnabled();
     await userEvent.click(await filterChoice("Preview (1)"));
@@ -370,12 +370,12 @@ it.each(["dark", "light"])(
     await expect.element(button("Filters (2)")).toHaveFocus();
     await captureParityState("library-zero-results");
     const chip = document.querySelector<HTMLButtonElement>(
-      'button[aria-label="Remove Target OS: Linux filter"]',
+      'button[aria-label="Remove Runs on: Linux filter"]',
     )!;
     chip.focus();
-    await expect.element(button("Remove Target OS: Linux filter")).toHaveFocus();
+    await expect.element(button("Remove Runs on: Linux filter")).toHaveFocus();
     await userEvent.keyboard("{Enter}");
-    await expect.element(button("Remove Target OS: Linux filter")).not.toBeInTheDocument();
+    await expect.element(button("Remove Runs on: Linux filter")).not.toBeInTheDocument();
     await expect.element(button("Filters (1)")).toHaveFocus();
     await userEvent.click(page.getByRole("button", { name: "Reset view", exact: true }));
     await expectReadinessLabel("Readiness All (3)");
@@ -575,7 +575,7 @@ it("selects one quick view at a time with counts from the shared search and filt
   await expect.element(quickView("Updates")).toHaveAttribute("aria-checked", "true");
   await expect.element(quickView("Favorites 1")).toHaveAttribute("aria-checked", "false");
   await expect.element(all).toHaveAccessibleDescription(/2 games$/);
-  await expect.element(button("Remove Target OS: Windows filter")).toBeVisible();
+  await expect.element(button("Remove Runs on: Windows filter")).toBeVisible();
   // The view itself is the visible selection; it adds no engineering filter chips.
   await expect.element(button("Filters (1)")).toBeInTheDocument();
   await expect
@@ -600,7 +600,7 @@ it("selects one quick view at a time with counts from the shared search and filt
   await userEvent.keyboard("{ArrowLeft}");
   await expect.element(all).toHaveFocus();
   await expect.element(search).toHaveValue("game");
-  await expect.element(button("Remove Target OS: Windows filter")).toBeVisible();
+  await expect.element(button("Remove Runs on: Windows filter")).toBeVisible();
   expect(
     [...document.querySelectorAll('[aria-label="Library quick views"] [role="radio"]')].map(
       (item) => item.getAttribute("tabindex"),
@@ -624,9 +624,9 @@ it("keeps selected filter labels and their popover bounded at 320px with enlarge
       name: "Remove Update channels: Preview filter",
       exact: true,
     });
-    const linux = page.getByRole("button", { name: "Remove Target OS: Linux filter", exact: true });
+    const linux = page.getByRole("button", { name: "Remove Runs on: Linux filter", exact: true });
     await expect.element(preview).toHaveTextContent("Update channels: Preview");
-    await expect.element(linux).toHaveTextContent("Target OS: Linux");
+    await expect.element(linux).toHaveTextContent("Runs on: Linux");
     for (const chip of [preview, linux]) {
       const element = chip.element();
       expect(element.scrollWidth).toBeLessThanOrEqual(element.clientWidth + 1);

@@ -36,7 +36,7 @@ import { Checkbox } from "../../components/ui/checkbox";
 import { CompactFilterField } from "../../components/ui/field";
 
 const fixedGroups = [
-  { key: "platforms", label: "Target OS" },
+  { key: "platforms", label: "Runs on" },
   { key: "portOptions", label: "Port options" },
   { key: "channels", label: "Update channels" },
   { key: "installationMethods", label: "Setup methods" },
@@ -74,7 +74,7 @@ function label(group: Group, value: string) {
   if (group === "portOptions") return value === "multiple" ? "Multiple ports" : "Single port";
   if (group === "installationMethods")
     return installationMethodLabels[value as keyof typeof installationMethodLabels] ?? value;
-  if (group === "platforms" && value === "this-device") return "For this device";
+  if (group === "platforms" && value === "this-device") return "Available for this device";
   if (group === "gameFiles") return states[value as keyof typeof states];
   if (group === "updates")
     return value === "available" ? "Available at last check" : "Matching update staged";
@@ -279,8 +279,8 @@ export function CatalogFilters({
           >
             <summary className="cursor-pointer py-2 font-medium">Advanced filters</summary>
             <p className="text-sm text-pc-muted-foreground">
-              Route-dependent filters must match the same setup or installation. Unknown facts
-              remain unknown.
+              When you combine these, one way of installing or setting up the game must match all of
+              them. Games with facts Portcove hasn’t checked aren’t counted as matches.
             </p>
             <div className="catalog-filter-groups items-start pt-3">
               {advanced}
@@ -377,7 +377,7 @@ export function CatalogFilters({
     const chosen = supported ? (query[group.key] ?? []) : [];
     const help: Partial<Record<Group, string>> = {
       platforms:
-        "Package targets, not tested device compatibility. For this device uses this PC’s platform; Intel and Apple silicon remain distinct.",
+        "Package targets, not tested device compatibility. Available for this device uses this PC’s platform; Intel and Apple silicon remain distinct.",
       membership:
         "Includes managed installations, registered runtimes and downloads awaiting setup. Membership does not imply readiness.",
       updates:

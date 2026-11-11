@@ -653,7 +653,7 @@ status owns count announcements. Clear filters and Reset view retain distinct
 scopes. Removal labels include the visible filter group and value for speech control. Empty/unavailable results retain accurate recovery; no-match headings use
 22px/1.35 with concise explicit reset scope and natural growth for longer text.
 
-Library starts with Target OS, Original system and Update channels. Other real
+Library starts with Runs on (including Available for this device, which states acquisition availability only), Original system and Update channels. Other real
 groups remain in Advanced filters, which opens for restored advanced selections.
 The Library panel places heading/help in a compact row and keeps closed Advanced
 controls beside the footer where space allows. Explanations, unknown-context
