@@ -6,6 +6,7 @@
     "summary": "Explore StarLancer / OpenReliant and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/OpenReliant/openreliant",
     "issue_number": 1789,
+    "listed_at": "2026-10-23",
     "availability": "packages",
     "setup_url": "https://github.com/OpenReliant/openreliant/blob/v0.20.0/docs/guide/installation.md",
     "artwork": {

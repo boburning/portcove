@@ -6,6 +6,7 @@
     "summary": "Attach the complete SWROTS-PC Windows player after your own Xbox USA disc setup. Keep swrots.exe with core.dll and all actual data; upstream reboot successors remain outside the selected session.",
     "project_url": "https://github.com/jedijosh920/SWROTS-PC",
     "issue_number": 1310,
+    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "packages",
     "setup_url": "https://github.com/jedijosh920/SWROTS-PC",

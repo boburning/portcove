@@ -6,6 +6,7 @@
     "original_game_title": "Rumble Roses XX",
     "summary": "The alpha reaches full matches on one IntelUHD PC. GPU-TDR and crash concerns remain. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/JesusTaylo/rumble-roses-xx-recomp",
+    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/JesusTaylo/rumble-roses-xx-recomp",

@@ -6,6 +6,7 @@
     "summary": "Native Windows player using your own matching original GBA game and retail GBA BIOS.",
     "project_url": "https://github.com/mstan/SuperMarioAdvance4Recomp",
     "issue_number": 1892,
+    "listed_at": "2026-10-23",
     "availability": "packages",
     "setup_url": "https://github.com/mstan/SuperMarioAdvance4Recomp#readme",
     "recommended_download_channel": "beta",

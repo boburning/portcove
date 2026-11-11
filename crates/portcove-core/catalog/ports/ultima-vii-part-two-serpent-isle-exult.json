@@ -9,6 +9,7 @@
     "availability": "packages",
     "setup_url": "https://github.com/exult/exult/blob/cacb4f584901dab59ff288c750d3622d3378435b/README.md",
     "issue_number": 2622,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "steps": [
         {

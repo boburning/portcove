@@ -6,6 +6,7 @@
     "summary": "Play Warcraft: Orcs & Humans with War1gus and the Stratagus engine using your original DOS game files.",
     "project_url": "https://github.com/Wargus/war1gus",
     "issue_number": 1905,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://wargus.github.io/war1gus.html",

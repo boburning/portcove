@@ -6,6 +6,7 @@
     "original_game_title": "SSX (2012)",
     "summary": "The project reports races and saves on an RTX4070. UI glitches remain at 2x, and Linux and macOS are untested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/pmrazor/SSX-RexGlue",
+    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/pmrazor/SSX-RexGlue",

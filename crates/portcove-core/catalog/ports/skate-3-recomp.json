@@ -6,6 +6,7 @@
     "summary": "Conditional existing-copy route for the Windows Skate 3 Recomp player. It needs your own Xbox 360 base game and Title Update 3 prepared upstream; fresh package/component permission remains unresolved. Registration does not extract originals or generate the game.",
     "project_url": "https://github.com/mchughalex/skate3recomp",
     "issue_number": 150,
+    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/mchughalex/skate3recomp",

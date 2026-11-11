@@ -17,6 +17,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2910,
+    "listed_at": "2026-10-25",
     "release_url": "https://github.com/MaurycyLiebner/eZeus/releases/tag/0.8.2-beta.4",
     "download_asset_hints": {
       "windows-x86-64": ["eZeus-0.8.2-beta.zip"]

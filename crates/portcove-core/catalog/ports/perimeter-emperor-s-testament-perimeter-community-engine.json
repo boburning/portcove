@@ -17,6 +17,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2890,
+    "listed_at": "2026-10-25",
     "release_url": "https://github.com/KD-lab-Open-Source/Perimeter/releases/tag/3.0.10",
     "manual_setup": {
       "steps": [

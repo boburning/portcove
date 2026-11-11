@@ -6,6 +6,7 @@
     "summary": "Use the native Xbox 360 Most Wanted player with your own game, integrated setup and upstream save tools.",
     "project_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled",
     "issue_number": 1580,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled/blob/f40889ac72dc86a14f8d951201b329ad35e71882/README.md",

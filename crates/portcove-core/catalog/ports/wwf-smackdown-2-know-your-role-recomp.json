@@ -6,6 +6,7 @@
     "summary": "Register a completed Know Your Role Windows player for your own SLUS-01234 disc, retaining its waiting Play entry and external saves.",
     "project_url": "https://github.com/Comfubar/KnowYourRoleRecomp",
     "issue_number": 1396,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/Comfubar/KnowYourRoleRecomp",

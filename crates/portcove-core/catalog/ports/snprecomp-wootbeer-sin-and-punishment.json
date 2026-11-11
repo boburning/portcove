@@ -41,6 +41,7 @@
       ]
     },
     "issue_number": 3564,
+    "listed_at": "2026-10-25",
     "release_url": "https://github.com/wootbeer/snprecomp/releases",
     "download_asset_hints": {
       "windows-x86-64": ["SnPRecompiled-", "-windows.zip"],

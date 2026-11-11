@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2614,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/dyzz/srw64-recomp/blob/96507db6e1484c213c73dede8882541f7cd3e709/README.md",
       "steps": [

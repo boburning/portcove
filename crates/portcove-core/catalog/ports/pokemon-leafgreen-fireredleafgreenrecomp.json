@@ -6,6 +6,7 @@
     "summary": "Play LeafGreenRecomp with your own matching GBA original and BIOS. Portcove can manage a separate Windows copy or launch a copy you prepared yourself.",
     "project_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
     "issue_number": 336,
+    "listed_at": "2026-10-23",
     "availability": "packages",
     "setup_url": "https://github.com/mstan/FireRedLeafGreenRecomp/blob/6174de77a599d0c1e125747b9553d90409a76a27/README.md",
     "artwork": {

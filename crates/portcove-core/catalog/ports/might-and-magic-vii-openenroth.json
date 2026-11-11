@@ -10,6 +10,7 @@
     "availability": "unknown",
     "setup_url": "https://github.com/OpenEnroth/OpenEnroth",
     "issue_number": 2885,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/OpenEnroth/OpenEnroth/tree/a644b752f05af0cdbb1c5d96d120d6967bd8b790",
       "steps": [

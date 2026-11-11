@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2754,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/mr-finster/vf3-recomp/blob/a3d609445d09644892ddd3d2bf8f65b3a8bbd540/README.md",
       "steps": [

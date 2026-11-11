@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2847,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/wootbeer/dinotale/blob/0bd9635a0db14a7e2e31602a6ec33b54714756e3/README.md",
       "steps": [

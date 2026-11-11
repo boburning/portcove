@@ -6,6 +6,7 @@
     "summary": "An experimental Echoes of Wisdom port translating AArch64 code to C with LAS-derived Vulkan/MoltenVK services. It is not fully playable: Linux reaches the opening and first controllable scene, with full progress, saves and PC features unfinished. The reviewed alpha_1 release has a Mac ARM64 ZIP, Android APK and checksums; Linux/Windows use source. Packages build your game locally. Apple Silicon macOS 15+ and Android ARM64 package tests covered setup without the game. Windows x64 was cross-built, with setup/game untested and no Windows release file. Use your own version 1.0.0 title 01008CF01BAAC000 without updates and prod.keys, as NSP/XCI/NCA. Generated code still reads original package data. Separate firmware, region and hashes are unspecified. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "The Legend of Zelda: Echoes of Wisdom",
     "project_url": "https://github.com/Nycolazs/EoWRecomp",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/Nycolazs/EoWRecomp",

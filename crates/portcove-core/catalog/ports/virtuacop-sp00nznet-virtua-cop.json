@@ -6,6 +6,7 @@
     "original_game_title": "Virtua Cop",
     "summary": "The project reaches boot, attract mode, coin/start and a playable first-person stage. Stage completion is unverified, and sound is entirely unimplemented. The main game CPU runs as native C; coprocessors remain emulated. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/virtuacop",
+    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/sp00nznet/virtuacop",

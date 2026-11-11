@@ -6,6 +6,7 @@
     "summary": "Play Warcraft II with Wargus and the Stratagus engine using your original game files.",
     "project_url": "https://github.com/Wargus/wargus",
     "issue_number": 1904,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://wargus.github.io/",

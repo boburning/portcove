@@ -6,6 +6,7 @@
     "summary": "A playable but unfinished Vagrant Story implementation according to the project. Unimplemented paths stop explicitly, and a complete playthrough is unconfirmed. Build from source on Linux x86-64 or cross-build Windows x86-64 through Linux/WSL and MinGW. There are no GitHub releases; Linux ARM and macOS are unsupported. Supply your own USA disc. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Vagrant Story (PlayStation)",
     "project_url": "https://github.com/noprompt/rood-boi",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/noprompt/rood-boi",
