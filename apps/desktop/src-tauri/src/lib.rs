@@ -1169,6 +1169,84 @@ async fn cancel_install_batch(
     .await
 }
 
+/// Records the player's choice for one game. Discover-only is the default.
+#[tauri::command]
+async fn set_port_intent(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    mode: portcove_core::PortIntentMode,
+) -> DesktopResult<portcove_core::PortIntent> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.set_port_intent(&port_id, mode).map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn get_port_intents(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<Vec<portcove_core::PortIntent>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.port_intents().map_err(Into::into)
+    })
+    .await
+}
+
+/// Reassesses remembered choices against current files, catalog and tools. Reads only.
+#[tauri::command]
+async fn assess_port_intents(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<portcove_core::PortIntentAssessments> {
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move { service.assess_port_intents().await.map_err(Into::into) },
+    )
+    .await
+}
+
+#[tauri::command]
+async fn acknowledge_port_readiness(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    acknowledgements: Vec<portcove_core::PortReadinessAcknowledgement>,
+) -> DesktopResult<()> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .acknowledge_port_readiness(&acknowledgements)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+/// Installs every set-up-when-ready game that is ready now, under the player's
+/// standing choice. Each game is re-planned and freshly authorized; none is launched.
+#[tauri::command]
+async fn run_standing_setup(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    on_event: Option<tauri::ipc::JavaScriptChannelId>,
+) -> DesktopResult<portcove_core::StandingSetupResult> {
+    let on_event: Option<tauri::ipc::Channel<OperationEvent>> =
+        on_event.map(|id| id.channel_on(webview));
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .run_standing_setup(|event| emit_install_operation(&app, &on_event, event))
+                .await
+                .map_err(Into::into)
+        },
+    )
+    .await
+}
+
 #[tauri::command]
 async fn get_install_batch(
     state: tauri::State<'_, DesktopState>,
@@ -3034,6 +3112,11 @@ pub fn run() -> std::process::ExitCode {
             start_install_batch,
             run_install_batch,
             get_unfinished_install_batches,
+            set_port_intent,
+            get_port_intents,
+            assess_port_intents,
+            acknowledge_port_readiness,
+            run_standing_setup,
             cancel_install_batch,
             get_install_batch,
             add_game_file_root,

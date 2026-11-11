@@ -7914,6 +7914,319 @@
     "title": "PendingSetupRecord",
     "type": "object"
   },
+  "port_intent": {
+    "$defs": {
+      "PortIntentMode": {
+        "oneOf": [
+          {
+            "const": "discover_only",
+            "description": "Portcove may show the game in discovery results. Nothing else happens.",
+            "type": "string"
+          },
+          {
+            "const": "notify",
+            "description": "Tell the player once each time the game becomes ready to install.",
+            "type": "string"
+          },
+          {
+            "const": "set_up_when_ready",
+            "description": "Install the game when it is ready, without another confirmation, as\nlong as this choice stands. Never launches it.",
+            "type": "string"
+          },
+          {
+            "const": "ignored",
+            "description": "Do not suggest or set up this game.",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "acknowledged_plan_sha256": {
+        "description": "The ready plan the player was last told about; a notification repeats\nonly when the ready plan changes.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "explicitly_uninstalled_at": {
+        "description": "Set when the player uninstalled the game. Standing setup and\nnotifications stay quiet until the player chooses a mode again.",
+        "format": "int64",
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "failed_plan_sha256": {
+        "description": "The plan whose standing setup last failed. It is not retried until the\nplan changes, so a permanent failure does not recur on every refresh.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "failure": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "format_version": {
+        "format": "uint8",
+        "maximum": 255,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "mode": {
+        "$ref": "#/$defs/PortIntentMode"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "updated_at": {
+        "format": "int64",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "format_version",
+      "port_id",
+      "mode",
+      "updated_at"
+    ],
+    "title": "PortIntent",
+    "type": "object"
+  },
+  "port_intent_assessments": {
+    "$defs": {
+      "PortIntentAssessment": {
+        "properties": {
+          "mode": {
+            "$ref": "#/$defs/PortIntentMode"
+          },
+          "newly_ready": {
+            "description": "Ready with a plan the player has not been told about yet.",
+            "type": "boolean"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "readiness": {
+            "$ref": "#/$defs/PortReadiness"
+          },
+          "suppressed": {
+            "description": "Why this intent will not act or notify right now, if it won't.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "port_id",
+          "mode",
+          "readiness",
+          "newly_ready"
+        ],
+        "type": "object"
+      },
+      "PortIntentMode": {
+        "oneOf": [
+          {
+            "const": "discover_only",
+            "description": "Portcove may show the game in discovery results. Nothing else happens.",
+            "type": "string"
+          },
+          {
+            "const": "notify",
+            "description": "Tell the player once each time the game becomes ready to install.",
+            "type": "string"
+          },
+          {
+            "const": "set_up_when_ready",
+            "description": "Install the game when it is ready, without another confirmation, as\nlong as this choice stands. Never launches it.",
+            "type": "string"
+          },
+          {
+            "const": "ignored",
+            "description": "Do not suggest or set up this game.",
+            "type": "string"
+          }
+        ]
+      },
+      "PortReadiness": {
+        "oneOf": [
+          {
+            "description": "Installed already; standing setup never reinstalls or updates it.",
+            "properties": {
+              "install_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "installed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "install_id"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A first install could start now with this exact plan.",
+            "properties": {
+              "plan_sha256": {
+                "type": "string"
+              },
+              "state": {
+                "const": "ready",
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "plan_sha256",
+              "version"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Something is missing or needs a person; the reason says what.",
+            "properties": {
+              "reason": {
+                "type": "string"
+              },
+              "state": {
+                "const": "waiting",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "assessments": {
+        "items": {
+          "$ref": "#/$defs/PortIntentAssessment"
+        },
+        "type": "array"
+      },
+      "not_assessed": {
+        "description": "Intents left for a later pass because one pass is bounded.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "assessments",
+      "not_assessed"
+    ],
+    "title": "PortIntentAssessments",
+    "type": "object"
+  },
+  "port_intents": {
+    "$defs": {
+      "PortIntent": {
+        "additionalProperties": false,
+        "properties": {
+          "acknowledged_plan_sha256": {
+            "description": "The ready plan the player was last told about; a notification repeats\nonly when the ready plan changes.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "explicitly_uninstalled_at": {
+            "description": "Set when the player uninstalled the game. Standing setup and\nnotifications stay quiet until the player chooses a mode again.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "failed_plan_sha256": {
+            "description": "The plan whose standing setup last failed. It is not retried until the\nplan changes, so a permanent failure does not recur on every refresh.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "failure": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "format_version": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "mode": {
+            "$ref": "#/$defs/PortIntentMode"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "format_version",
+          "port_id",
+          "mode",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "PortIntentMode": {
+        "oneOf": [
+          {
+            "const": "discover_only",
+            "description": "Portcove may show the game in discovery results. Nothing else happens.",
+            "type": "string"
+          },
+          {
+            "const": "notify",
+            "description": "Tell the player once each time the game becomes ready to install.",
+            "type": "string"
+          },
+          {
+            "const": "set_up_when_ready",
+            "description": "Install the game when it is ready, without another confirmation, as\nlong as this choice stands. Never launches it.",
+            "type": "string"
+          },
+          {
+            "const": "ignored",
+            "description": "Do not suggest or set up this game.",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "$ref": "#/$defs/PortIntent"
+    },
+    "title": "Array_of_PortIntent",
+    "type": "array"
+  },
   "preparation_cleanup_preview": {
     "$defs": {
       "AdoptionCopyFile": {
@@ -12357,6 +12670,253 @@
       "error"
     ],
     "title": "SourceBatchOutcome",
+    "type": "object"
+  },
+  "standing_setup": {
+    "$defs": {
+      "InstallBatchItem": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expected_plan_sha256": {
+            "type": "string"
+          },
+          "install_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/$defs/InstallBatchItemState"
+          }
+        },
+        "required": [
+          "port_id",
+          "expected_plan_sha256",
+          "state"
+        ],
+        "type": "object"
+      },
+      "InstallBatchItemState": {
+        "oneOf": [
+          {
+            "enum": [
+              "queued",
+              "running",
+              "failed",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ready",
+            "description": "The ordinary installer reached its supported prepared state. Never launched.",
+            "type": "string"
+          },
+          {
+            "const": "held",
+            "description": "Needs renewed review or input before it can run; nothing was changed.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "A restart found the item mid-run with no live owner and no committed\ninstall. Review again before another mutation.",
+            "type": "string"
+          }
+        ]
+      },
+      "InstallBatchRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "cancel_requested": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "format_version": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/$defs/InstallBatchItem"
+            },
+            "type": "array"
+          },
+          "updated_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "format_version",
+          "id",
+          "created_at",
+          "updated_at",
+          "cancel_requested",
+          "items"
+        ],
+        "type": "object"
+      },
+      "PortIntentAssessment": {
+        "properties": {
+          "mode": {
+            "$ref": "#/$defs/PortIntentMode"
+          },
+          "newly_ready": {
+            "description": "Ready with a plan the player has not been told about yet.",
+            "type": "boolean"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "readiness": {
+            "$ref": "#/$defs/PortReadiness"
+          },
+          "suppressed": {
+            "description": "Why this intent will not act or notify right now, if it won't.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "port_id",
+          "mode",
+          "readiness",
+          "newly_ready"
+        ],
+        "type": "object"
+      },
+      "PortIntentMode": {
+        "oneOf": [
+          {
+            "const": "discover_only",
+            "description": "Portcove may show the game in discovery results. Nothing else happens.",
+            "type": "string"
+          },
+          {
+            "const": "notify",
+            "description": "Tell the player once each time the game becomes ready to install.",
+            "type": "string"
+          },
+          {
+            "const": "set_up_when_ready",
+            "description": "Install the game when it is ready, without another confirmation, as\nlong as this choice stands. Never launches it.",
+            "type": "string"
+          },
+          {
+            "const": "ignored",
+            "description": "Do not suggest or set up this game.",
+            "type": "string"
+          }
+        ]
+      },
+      "PortReadiness": {
+        "oneOf": [
+          {
+            "description": "Installed already; standing setup never reinstalls or updates it.",
+            "properties": {
+              "install_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "installed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "install_id"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A first install could start now with this exact plan.",
+            "properties": {
+              "plan_sha256": {
+                "type": "string"
+              },
+              "state": {
+                "const": "ready",
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "plan_sha256",
+              "version"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Something is missing or needs a person; the reason says what.",
+            "properties": {
+              "reason": {
+                "type": "string"
+              },
+              "state": {
+                "const": "waiting",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "What one standing-setup pass did for each game it considered.",
+    "properties": {
+      "assessments": {
+        "items": {
+          "$ref": "#/$defs/PortIntentAssessment"
+        },
+        "type": "array"
+      },
+      "batches": {
+        "description": "One single-game batch per game that started, in order.",
+        "items": {
+          "$ref": "#/$defs/InstallBatchRecord"
+        },
+        "type": "array"
+      },
+      "not_assessed": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "assessments",
+      "not_assessed",
+      "batches"
+    ],
+    "title": "StandingSetupResult",
     "type": "object"
   },
   "steam_artwork_apply_result": {

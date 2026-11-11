@@ -1642,6 +1642,48 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 })?,
                 |record| human::install_batch(record),
             )?,
+            GamesCommand::Intent {
+                port_id,
+                mode: intent_mode,
+            } => render_read_success(
+                mode,
+                "games.intent",
+                service.set_port_intent(&port_id, intent_mode.into())?,
+                |intent| human::port_intent(intent),
+            )?,
+            GamesCommand::Intents => {
+                let assessed = service.assess_port_intents().await?;
+                render_read_success(mode, "games.intents", assessed, |value| {
+                    human::port_intent_assessments(value)
+                })?;
+            }
+            GamesCommand::IntentsAcknowledge { items } => {
+                let acknowledgements = items
+                    .iter()
+                    .map(|item| {
+                        parse_batch_item(item).map(|item| {
+                            portcove_core::PortReadinessAcknowledgement {
+                                port_id: item.port_id,
+                                plan_sha256: item.expected_plan_sha256,
+                            }
+                        })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                service.acknowledge_port_readiness(&acknowledgements)?;
+                render_read_success(
+                    mode,
+                    "games.intents-acknowledge",
+                    serde_json::json!({"acknowledged": acknowledgements.len()}),
+                    |_| "Marked as seen. The same ready plan won't be reported again.".to_owned(),
+                )?;
+            }
+            GamesCommand::SetupReady => {
+                let mut progress = progress_renderer(mode, service.catalog());
+                let result = service.run_standing_setup(&mut progress).await?;
+                render_read_success(mode, "games.setup-ready", result, |value| {
+                    human::standing_setup(value)
+                })?;
+            }
         },
         Commands::Launch {
             command: LaunchCommand::Show { .. },
@@ -3441,6 +3483,10 @@ fn command_name(command: &Commands) -> &'static str {
             GamesCommand::BatchResume { .. } => "games.batch-resume",
             GamesCommand::BatchCancel { .. } => "games.batch-cancel",
             GamesCommand::BatchShow { .. } => "games.batch-show",
+            GamesCommand::Intent { .. } => "games.intent",
+            GamesCommand::Intents => "games.intents",
+            GamesCommand::IntentsAcknowledge { .. } => "games.intents-acknowledge",
+            GamesCommand::SetupReady => "games.setup-ready",
         },
         Commands::Launch { command } => match command {
             LaunchCommand::Show { .. } => "launch.show",

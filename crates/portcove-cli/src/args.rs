@@ -666,6 +666,43 @@ pub(crate) enum GamesCommand {
         /// Batch ID returned by `games batch-run`.
         batch_id: String,
     },
+    /// Choose what Portcove does about one game over time. Discover-only is the default.
+    Intent {
+        /// Catalog port ID.
+        port_id: String,
+        /// discover-only, notify, set-up-when-ready or ignored.
+        #[arg(value_enum)]
+        mode: GameIntentMode,
+    },
+    /// Reassess remembered choices against current files, catalog and tools; changes nothing.
+    Intents,
+    /// Mark ready games as seen so the same opportunity is not reported again.
+    IntentsAcknowledge {
+        /// Ready game and plan digest from `games intents`, as PORT_ID=PLAN_SHA256. Repeat per game.
+        #[arg(long = "item", value_name = "PORT_ID=PLAN_SHA256", required = true)]
+        items: Vec<String>,
+    },
+    /// Install every set-up-when-ready game that is ready now. Never launches a game.
+    SetupReady,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub(crate) enum GameIntentMode {
+    DiscoverOnly,
+    Notify,
+    SetUpWhenReady,
+    Ignored,
+}
+
+impl From<GameIntentMode> for portcove_core::PortIntentMode {
+    fn from(mode: GameIntentMode) -> Self {
+        match mode {
+            GameIntentMode::DiscoverOnly => Self::DiscoverOnly,
+            GameIntentMode::Notify => Self::Notify,
+            GameIntentMode::SetUpWhenReady => Self::SetUpWhenReady,
+            GameIntentMode::Ignored => Self::Ignored,
+        }
+    }
 }
 
 #[derive(Debug, Subcommand)]

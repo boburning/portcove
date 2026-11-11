@@ -752,6 +752,32 @@ finished install. A game left mid-run with nothing committed is marked interrupt
 for renewed review, not retried. `games batch-show BATCH_ID` reports each game's
 state.
 
+### Remember a choice and set up games when they become ready
+
+`games intent PORT_ID MODE` remembers what Portcove does about one game over
+time. `discover-only` is the default and stores nothing. `notify` reports the
+game once each time it becomes ready to install. `set-up-when-ready` saves it to
+the Library and installs it without another confirmation when it is ready.
+`ignored` keeps Portcove from suggesting it. A choice is consent policy, not
+an authorization. Adding a folder or saving a game never chooses a mode for
+you, and choosing another mode withdraws standing setup.
+
+`games intents` reassesses every notify or set-up-when-ready choice with the
+ordinary first-install planner and changes nothing. New or changed files,
+catalog contracts and tools are reflected without selecting the files again.
+Each game shows `installed`, `ready` with its plan digest, or `waiting` with the
+reason. `games intents-acknowledge --item PORT_ID=PLAN_SHA256` marks a ready
+game as seen. It is reported again only when its ready plan changes.
+
+`games setup-ready` runs one standing-setup pass. Each set-up-when-ready game
+that is ready gets its own one-game batch. Before the batch starts, Portcove
+checks the choice still stands; then the game is re-planned and freshly
+authorized. It is never launched, and an installed game is never reinstalled or
+updated. A failed or interrupted attempt is not retried with the same plan; it
+becomes eligible again when the plan changes. Uninstalling a game is
+remembered, so it is not set up or reported again until you choose a mode for it.
+The desktop app runs the same pass once when a library opens.
+
 ### Register and inspect
 
 `source inspect PROFILE_ID` inspects an already registered source and takes no

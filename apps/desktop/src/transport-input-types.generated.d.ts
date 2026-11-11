@@ -114,6 +114,8 @@ export type InstallationContext =
       installation_id: string;
       kind: "external";
     };
+export type InputDesktopPortIntentMode = "discover_only" | "notify" | "set_up_when_ready" | "ignored";
+export type InputDesktopPortReadinessAcknowledgements = PortReadinessAcknowledgement[];
 /**
  * Separate reviewed Steam artwork action for one owned shortcut.
  */
@@ -149,6 +151,8 @@ export interface TransportInputs {
   desktop_install_input: InputDesktopInstallInput;
   desktop_library_membership_requests: InputDesktopLibraryMembershipRequests;
   desktop_organization_change: InputDesktopOrganizationChange;
+  desktop_port_intent_mode: InputDesktopPortIntentMode;
+  desktop_port_readiness_acknowledgements: InputDesktopPortReadinessAcknowledgements;
   desktop_steam_artwork_selection: InputDesktopSteamArtworkSelection;
   desktop_steam_batch_selection: InputDesktopSteamBatchSelection;
   desktop_steam_entry_selection: InputDesktopSteamEntrySelection;
@@ -309,6 +313,10 @@ export interface UpdateNoticeRelease {
 }
 export interface SetupConfirmation {
   context: InstallationContext;
+  port_id: string;
+}
+export interface PortReadinessAcknowledgement {
+  plan_sha256: string;
   port_id: string;
 }
 export interface InputDesktopSteamArtworkSelection {
