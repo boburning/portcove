@@ -243,6 +243,8 @@ void test("builders package the versioned CLI smoke test it and request explicit
     ["nsis", "appimage,deb,rpm", "dmg"],
   );
   assert.equal(releaseBuildMatrix().include[2]?.target, "aarch64-apple-darwin");
+  // Apple-silicon release builds share the supported image used by the Intel cross-build.
+  assert.equal(releaseBuildMatrix().include[2]?.os, "macos-15");
   assert.equal(workflowData.jobs.build_intel?.["runs-on"], "macos-15");
   assert.match(intelBuildSection, /--target x86_64-apple-darwin/);
   assert.match(intelBuildSection, /--bundles dmg/);
