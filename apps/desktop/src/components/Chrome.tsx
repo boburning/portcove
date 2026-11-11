@@ -503,7 +503,10 @@ export function StatusLayer({
   dismissInvocation,
   openActivity,
   preparationRecovery,
+  activityListsTasks = false,
 }: {
+  /** On Activity, tasks with a known Activity identity already show their own progress. */
+  activityListsTasks?: boolean;
   error?: unknown;
   clearError: () => void;
   reviewPreparation?: (() => void) | undefined;
@@ -514,7 +517,7 @@ export function StatusLayer({
   invocations?: ReadonlyMap<number, InvocationRecord>;
   operationEvents?: ReadonlyMap<string, OperationEvent>;
   dismissInvocation?: (id: number) => void;
-  openActivity?: (id?: string) => void;
+  openActivity?: ((id?: string) => void) | undefined;
   preparationRecovery?: (record: InvocationRecord) => (() => void) | undefined;
 }) {
   const acknowledgedSuccess = useRef(new Set<number>());
@@ -571,31 +574,33 @@ export function StatusLayer({
                 />
               )}
               {record.phase === "pending" ? (
-                <>
-                  <p className="mb-1 text-sm font-semibold [overflow-wrap:anywhere]">
-                    {record.context.action} · {record.context.target.label}
-                  </p>
-                  <OperationProgress
-                    // Invocation and event identities are distinct. Only an actual
-                    // explicitly owned ID permits this progress association.
-                    operation={
-                      record.context.activityId
-                        ? operationEvents?.get(record.context.activityId)
-                        : undefined
-                    }
-                    busy={record.outcome ? "refresh current state" : record.name}
-                    announcePhase={false}
-                  />
-                  {openActivity && (
-                    <Button
-                      variant="link"
-                      size="sm"
-                      onClick={() => openActivity(record.context.activityId)}
-                    >
-                      {record.context.activityId ? "View task in Activity" : "Open Activity"}
-                    </Button>
-                  )}
-                </>
+                activityListsTasks && record.context.activityId ? null : (
+                  <>
+                    <p className="mb-1 text-sm font-semibold [overflow-wrap:anywhere]">
+                      {record.context.action} · {record.context.target.label}
+                    </p>
+                    <OperationProgress
+                      // Invocation and event identities are distinct. Only an actual
+                      // explicitly owned ID permits this progress association.
+                      operation={
+                        record.context.activityId
+                          ? operationEvents?.get(record.context.activityId)
+                          : undefined
+                      }
+                      busy={record.outcome ? "refresh current state" : record.name}
+                      announcePhase={false}
+                    />
+                    {openActivity && (
+                      <Button
+                        variant="link"
+                        size="sm"
+                        onClick={() => openActivity(record.context.activityId)}
+                      >
+                        {record.context.activityId ? "View task in Activity" : "Open Activity"}
+                      </Button>
+                    )}
+                  </>
+                )
               ) : (
                 invocationFailure(record) === undefined &&
                 (record.id === latestSuccess ? (

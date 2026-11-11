@@ -21,9 +21,11 @@ const openActivity = vi.fn();
 function Fixture({
   generation = 7,
   activities = [],
+  onActivity = false,
 }: {
   generation?: number;
   activities?: ActivityRecord[];
+  onActivity?: boolean;
 }) {
   state = useOperationState({
     refresh,
@@ -36,7 +38,8 @@ function Fixture({
       invocations={state.invocations}
       dismissInvocation={state.dismissInvocation}
       clearError={() => state.setError(undefined)}
-      openActivity={openActivity}
+      openActivity={onActivity ? undefined : openActivity}
+      activityListsTasks={onActivity}
     />
   );
 }
@@ -212,6 +215,31 @@ it("offers an exact Activity link only for an explicitly supplied identity", asy
   )!;
   await act(async () => exact.click());
   expect(openActivity).toHaveBeenLastCalledWith("owned-activity-record");
+});
+
+it("shows no Activity link or duplicate listed progress while Activity is open", async () => {
+  await act(async () => root.render(<Fixture onActivity />));
+  const listed = deferred<void>();
+  const unlisted = deferred<void>();
+  let running!: Promise<unknown>;
+  await act(async () => {
+    running = Promise.all([
+      state.perform("prepare", () => listed.promise, {
+        context: { ...context("A"), activityId: "owned-activity-record" },
+      }),
+      state.perform("check", () => unlisted.promise, { context: context("B", "Check") }),
+    ]);
+  });
+  const text = host.textContent ?? "";
+  // Activity lists the owned task itself; the unlisted task keeps its progress here.
+  expect(text).not.toContain("Prepare · Game A");
+  expect(text).toContain("Check · Game B");
+  expect(text).not.toContain("Activity");
+  await act(async () => {
+    listed.resolve();
+    unlisted.resolve();
+    await running;
+  });
 });
 
 it("refuses a same-target same-turn submission while allowing another explicit target", async () => {

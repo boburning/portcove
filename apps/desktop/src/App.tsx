@@ -1049,10 +1049,16 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
                   invocations={model.operations.invocations}
                   operationEvents={model.operations.operationEvents}
                   dismissInvocation={model.operations.dismissInvocation}
-                  openActivity={(id) => {
-                    model.ui.setReviewedActivityId(id);
-                    model.setPrimaryView("updates");
-                  }}
+                  activityListsTasks={model.ui.view === "updates"}
+                  // Activity already lists these tasks; linking to it there is redundant.
+                  openActivity={
+                    model.ui.view === "updates"
+                      ? undefined
+                      : (id) => {
+                          model.ui.setReviewedActivityId(id);
+                          model.setPrimaryView("updates");
+                        }
+                  }
                   error={model.operations.error}
                   clearError={() => model.operations.setError(undefined)}
                   reviewCurrentState={model.data.retryRefresh}
