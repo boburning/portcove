@@ -631,11 +631,7 @@ impl PortcoveService {
         }
         let connection = self.library.connection()?;
         let current = profile_current(&connection, port_id, profile_id)?;
-        if current.revision != expected_revision {
-            return Err(PortcoveError::conflict(
-                "the profile changed after review; review its current revision again",
-            ));
-        }
+        require_reviewed_or_reordered(&connection, &current, expected_revision)?;
         let selected = profile::selection(&connection, port_id)?;
         let live = selected.as_ref().is_some_and(|(id, _)| id == profile_id);
         if live {
@@ -686,7 +682,7 @@ impl PortcoveService {
         }
         let orderings = with_override_order(&current.orderings, &packages);
         let request = ProfileRevisionRequest {
-            expected_revision,
+            expected_revision: current.revision,
             packages: Some(packages),
             orderings: Some(orderings),
             ..Default::default()
@@ -708,11 +704,7 @@ impl PortcoveService {
         self.recover_switch_locked(port_id, &layout)?;
         let connection = self.library.connection()?;
         let current = profile_current(&connection, port_id, profile_id)?;
-        if current.revision != expected_revision {
-            return Err(PortcoveError::conflict(
-                "the profile changed after review; review its current revision again",
-            ));
-        }
+        require_reviewed_or_reordered(&connection, &current, expected_revision)?;
         let mut packages = current.packages.clone();
         let package = packages
             .iter_mut()
@@ -729,7 +721,7 @@ impl PortcoveService {
             require_clean(&observe(&layout, &[&current])?, "changing a package")?;
         }
         let request = ProfileRevisionRequest {
-            expected_revision,
+            expected_revision: current.revision,
             packages: Some(packages),
             ..Default::default()
         };
@@ -1092,6 +1084,41 @@ pub struct LiveMods {
     pub changed_owned: Vec<String>,
     /// The game's own enabled-mods list compared with the selected revision.
     pub native_list: NativeModListStatus,
+}
+
+/// A change reviewed against `expected` still applies when the only newer
+/// revision changed nothing but mod order (a reorder kept from the game's menu):
+/// enabling, disabling or adding a package does not depend on order, and the
+/// newer order is kept. Any other change since review needs a new review.
+fn require_reviewed_or_reordered(
+    connection: &rusqlite::Connection,
+    current: &ProfileRevision,
+    expected: u64,
+) -> Result<()> {
+    if current.revision == expected {
+        return Ok(());
+    }
+    let order_only = current.parent_revision == Some(expected)
+        && profile::revision_by_number(connection, &current.profile_id, expected).is_ok_and(
+            |reviewed| {
+                let comparable = |revision: &ProfileRevision| {
+                    let mut copy = revision.clone();
+                    copy.revision = 0;
+                    copy.parent_revision = None;
+                    copy.orderings.clear();
+                    copy.created_at = 0;
+                    copy.digest.clear();
+                    copy
+                };
+                comparable(&reviewed) == comparable(current)
+            },
+        );
+    if order_only {
+        return Ok(());
+    }
+    Err(PortcoveError::conflict(
+        "the profile changed after review; review its current revision again",
+    ))
 }
 
 fn profile_current(

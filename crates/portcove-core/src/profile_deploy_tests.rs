@@ -749,3 +749,27 @@ fn the_setups_view_offers_mods_only_where_a_reviewed_contract_exists() {
     assert_eq!(live.profile_id.as_deref(), Some(w.default.as_str()));
     assert_eq!(live.native_list, NativeModListStatus::InSync);
 }
+
+#[test]
+fn a_change_reviewed_before_a_menu_reorder_still_applies_and_keeps_the_new_order() {
+    let w = world();
+    install(&w, &w.default, "b.o2r", 1).unwrap();
+    install(&w, &w.default, "a.o2r", 2).unwrap();
+    install(&w, &w.default, "c.o2r", 3).unwrap();
+    let shown = revision(&w, &w.default);
+    fs::write(
+        user(&w).join("starship.cfg.json"),
+        br#"{"CVars":{"gSettings":{"EnabledMods":"c|a|b"}}}"#,
+    )
+    .unwrap();
+    // The player turns off `a` from the view read before the reorder was kept.
+    let next = w
+        .service
+        .set_mod_package_enabled("starship", &w.default, "a.o2r", false, shown)
+        .unwrap();
+    assert_eq!(next.revision, shown + 2, "reorder kept, then the change");
+    assert_eq!(native_list(&w).as_deref(), Some("c|b"));
+    // A change that is not order-only still needs a new review.
+    let stale = install(&w, &w.default, "d.o2r", shown).unwrap_err();
+    assert_eq!(stale.code, crate::ErrorCode::Conflict);
+}

@@ -109,7 +109,9 @@ it("lists setups and mods in priority order and binds changes to the reviewed re
   expect(labels.indexOf("sfx.otr")).toBeLessThan(labels.indexOf("hd.o2r"));
 
   const hd = [...host.querySelectorAll("label")].find((label) => label.textContent === "hd.o2r");
-  await act(async () => (hd?.querySelector("[role=checkbox]") as HTMLElement).click());
+  const box = hd?.querySelector("[role=checkbox]");
+  if (!(box instanceof HTMLElement)) throw new Error("missing hd.o2r checkbox");
+  await act(async () => box.click());
   expect(toggle).toHaveBeenCalledWith("shipwright", "default", "hd.o2r", false, 3, 7);
   expect(host.querySelector("[role=status]")?.textContent).toContain("Turned off hd.o2r");
 
@@ -128,7 +130,7 @@ it("explains held changes and Core refusals without claiming success", async () 
         changed_owned: [],
         native_list: { state: "differs", missing: ["hd"], unexpected: [] },
       },
-    } as Partial<ModSetupsView>),
+    }),
   );
   const host = await render();
   expect(host.textContent).toContain("files this setup did not add");
@@ -151,9 +153,26 @@ it("offers the first setup and reports a refused change as an alert", async () =
   expect(host.querySelector("[role=status]")).toBeNull();
 });
 
-it("waits for the current operation before reading", async () => {
+it("waits for the current operation before reading and shows nothing until support is known", async () => {
   const read = vi.spyOn(desktopApi, "modSetups");
   const host = await render(true);
   expect(read).not.toHaveBeenCalled();
-  expect(host.textContent).toContain("Finish the current operation");
+  expect(host.textContent).toBe("");
+});
+
+it("keeps controls disabled until the view is read again after a change", async () => {
+  let release: (() => void) | undefined;
+  const read = vi
+    .spyOn(desktopApi, "modSetups")
+    .mockResolvedValueOnce(view())
+    .mockImplementation(() => new Promise((resolve) => (release = () => resolve(view()))));
+  vi.spyOn(desktopApi, "useModSetup").mockResolvedValue(
+    {} as Awaited<ReturnType<typeof desktopApi.useModSetup>>,
+  );
+  const host = await render();
+  await act(async () => button(host, "Use Clean").click());
+  expect(read).toHaveBeenCalledTimes(2);
+  expect(button(host, "Use Clean").disabled).toBe(true);
+  await act(async () => release?.());
+  expect(button(host, "Use Clean").disabled).toBe(false);
 });

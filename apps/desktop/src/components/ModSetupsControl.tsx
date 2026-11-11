@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { pickModPackagePath } from "../file-picker";
 import type { LiveMods, ModSetupView, ModSetupsView } from "../types";
@@ -17,10 +17,7 @@ type Props = {
 /** Thin view of Core-owned mod setups; Core decides support, locks and recovery. */
 export function ModSetupsControl(props: Props) {
   return (
-    <BoundModSetupsControl
-      key={JSON.stringify([props.portId, props.generation, props.busy])}
-      {...props}
-    />
+    <BoundModSetupsControl key={JSON.stringify([props.portId, props.generation])} {...props} />
   );
 }
 
@@ -30,7 +27,7 @@ function nativeListMessage(live: LiveMods | null | undefined): string | undefine
     case "not-written":
       return "Portcove writes this setup's mod order into the game before the next launch.";
     case "reordered":
-      return `You reordered mods in the game (${status.native_order.join(", ")}). Portcove keeps that order for this setup before its next change or launch.`;
+      return `You reordered mods in the game (${status.native_order.join(", ")}). Portcove keeps that order for this setup.`;
     case "differs":
       return "The game's mod list does not match this setup. Portcove restores this setup's mods and order before the next launch.";
     case "unreadable":
@@ -46,8 +43,20 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   const [outcome, setOutcome] = useState<string>();
   const [working, setWorking] = useState(false);
   const [request, setRequest] = useState(0);
+  // False from a change until the view is read again, so no control acts on a
+  // revision the change has replaced.
+  const [fresh, setFresh] = useState(true);
   const [copyName, setCopyName] = useState("");
   const copyId = useId();
+  const headingId = useId();
+  // A picker answer that arrives after this view was replaced is dropped.
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
   useEffect(() => {
     if (busy) return;
     let current = true;
@@ -59,6 +68,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
           return;
         }
         setView(next);
+        setFresh(true);
       },
       (failure: unknown) => {
         if (current) setError(errorText(failure));
@@ -79,29 +89,37 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
     setWorking(true);
     setOutcome(undefined);
     setError(undefined);
+    let succeeded = false;
     try {
       await action();
       setOutcome(success);
+      succeeded = true;
     } catch (failure) {
       setError(errorText(failure));
     } finally {
       setWorking(false);
+      setFresh(false);
       setRequest((value) => value + 1);
     }
+    return succeeded;
   };
 
-  if (busy) return <p role="status">Finish the current operation before changing mods.</p>;
   if (!view && error)
     return (
-      <section aria-label="Setups and mods">
+      <section aria-labelledby={headingId}>
+        <h3 id={headingId} className="text-base font-semibold">
+          Setups and mods
+        </h3>
         <p role="alert">{error}</p>
         <Button variant="outline" onClick={reread}>
           Read setups again
         </Button>
       </section>
     );
-  if (!view) return <p role="status">Reading setups and mods…</p>;
-  if (!view.supported) return null;
+  // Games without reviewed mod support show nothing, including while loading.
+  if (!view?.supported) return null;
+  if (busy) return <p role="status">Finish the current operation before changing mods.</p>;
+  const locked = working || !fresh;
 
   const setups = view.inventory?.profiles ?? [];
   const selectedId = view.live?.profile_id ?? undefined;
@@ -112,8 +130,10 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   );
 
   return (
-    <section aria-label="Setups and mods" className="grid gap-3">
-      <h3 className="text-base font-semibold">Setups and mods</h3>
+    <section aria-labelledby={headingId} className="grid gap-3">
+      <h3 id={headingId} className="text-base font-semibold">
+        Setups and mods
+      </h3>
       <p className="text-sm text-pc-muted-foreground">
         A setup is a set of mods with its own saves and settings. Switching setups puts away the
         current setup&rsquo;s saves and settings and brings back the other setup&rsquo;s. Turning a
@@ -129,7 +149,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
           </p>
           <Button
             variant="outline"
-            disabled={working}
+            disabled={locked}
             onClick={() =>
               void perform(
                 () => desktopApi.createDefaultModSetup(portId, generation),
@@ -165,7 +185,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                 key={entry.profile.id}
                 entry={entry}
                 inUse={entry.profile.id === selectedId}
-                disabled={working || blocked}
+                disabled={locked || blocked}
                 onUse={() =>
                   void perform(
                     () => desktopApi.useModSetup(portId, entry.profile.id, generation),
@@ -187,7 +207,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                       <label className="flex items-center gap-2 text-sm [overflow-wrap:anywhere]">
                         <Checkbox
                           checked={item.enabled}
-                          disabled={working || blocked}
+                          disabled={locked || blocked}
                           onCheckedChange={(value) =>
                             void perform(
                               () =>
@@ -218,12 +238,13 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
               <ActionRow>
                 <Button
                   variant="outline"
-                  disabled={working || blocked}
+                  disabled={locked || blocked}
                   onClick={() =>
                     void (async () => {
                       const path = await pickModPackagePath(view.package_types);
-                      // Closing the picker changes nothing and is not an error.
-                      if (typeof path !== "string") return;
+                      // Closing the picker changes nothing and is not an error, and an
+                      // answer for a view that was replaced is dropped.
+                      if (typeof path !== "string" || !alive.current) return;
                       await perform(
                         () =>
                           desktopApi.addModPackage(
@@ -241,6 +262,10 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                   Add mod file…
                 </Button>
               </ActionRow>
+              <p className="text-sm text-pc-muted-foreground">
+                A copy has the same mods but starts with no saves and the game&rsquo;s default
+                settings. Your current setup keeps its own.
+              </p>
               <ActionRow>
                 <label htmlFor={copyId} className="text-sm">
                   New setup name
@@ -253,13 +278,15 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                 />
                 <Button
                   variant="outline"
-                  disabled={working || copyName.trim() === ""}
+                  disabled={locked || copyName.trim() === ""}
                   onClick={() => {
                     const name = copyName.trim();
                     void perform(
                       () => desktopApi.copyModSetup(portId, selected.profile.id, name, generation),
-                      `Created ${name} with the same mods. It starts with its own saves.`,
-                    ).then(() => setCopyName(""));
+                      `Created ${name} with the same mods, no saves and default settings.`,
+                    ).then((created) => {
+                      if (created) setCopyName("");
+                    });
                   }}
                 >
                   Copy this setup
