@@ -55,6 +55,8 @@ import type {
   ActivityDiagnostic,
   ActivityFeed,
   AdoptionPreview,
+  LauncherKind,
+  LauncherLibraryInventory,
   ApplicationUpdateChoice,
   ApplicationUpdateCheckPhase,
   ApplicationUpdateCheckResult,
@@ -1024,6 +1026,18 @@ export const desktopApi = {
       path,
       generation,
       portId: portId ?? null,
+    }),
+  inspectLauncherLibrary: (
+    launcher: LauncherKind,
+    dataRoot: string,
+    generation: number,
+    appsRoot?: string,
+  ) =>
+    invoke<LauncherLibraryInventory>("inspect_launcher_library", {
+      launcher,
+      dataRoot,
+      appsRoot: appsRoot ?? null,
+      generation,
     }),
   adopt: (path: string, planSha256: string, generation: number, portId?: string) =>
     invoke<InstallRecord | null>("adopt_port", {

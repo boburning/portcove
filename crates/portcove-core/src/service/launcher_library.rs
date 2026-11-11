@@ -235,11 +235,27 @@ impl PortcoveService {
             let mut entry =
                 self.inspect_launcher_entry(launcher, raw, apps_root.as_deref(), platform);
             let path_key = entry.install_path.as_deref().map(normalized_key);
+            // Name the earlier entry as the player sees it, not by its position.
+            let earlier_label = |earlier: usize| {
+                entries
+                    .iter()
+                    .find(|listed: &&LauncherLibraryEntry| listed.index == earlier)
+                    .map(|listed| {
+                        if listed.name.trim().is_empty() {
+                            listed.folder_name.clone()
+                        } else {
+                            listed.name.clone()
+                        }
+                    })
+                    .unwrap_or_default()
+            };
             if let Some(earlier) = seen_instances.get(&instance).copied() {
                 // The same app listed again: the launcher itself keeps only one.
                 entry.status = LauncherEntryStatus::Duplicate;
-                entry.explanation =
-                    format!("Entry {earlier} already lists this app; review that entry.");
+                entry.explanation = format!(
+                    "The launcher lists this app twice; review the earlier \"{}\" entry instead.",
+                    earlier_label(earlier)
+                );
                 entry.adopt_port_id = None;
             } else {
                 seen_instances.insert(instance, entry.index);
@@ -249,7 +265,8 @@ impl PortcoveService {
                     if let Some(earlier) = seen_paths.get(&key).copied() {
                         entry.shares_folder_with = Some(earlier);
                         entry.explanation.push_str(&format!(
-                            " Entry {earlier} also names this folder; only one copy is needed."
+                            " \"{}\" uses the same folder; copy it only once.",
+                            earlier_label(earlier)
                         ));
                     } else {
                         seen_paths.insert(key, entry.index);

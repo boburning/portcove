@@ -2,7 +2,9 @@
 use crate::{
     DesktopResult, DesktopState, blocking_worker, confirm_destructive, service_at_generation,
 };
-use portcove_core::{AdoptionPreview, InstallRecord, PortcoveError};
+use portcove_core::{
+    AdoptionPreview, InstallRecord, LauncherKind, LauncherLibraryInventory, PortcoveError,
+};
 use std::path::PathBuf;
 
 #[tauri::command]
@@ -16,6 +18,25 @@ pub(crate) async fn preview_adoption(
     blocking_worker(move || {
         service_at_generation(&state, generation)?
             .preview_adoption(&path, port_id.as_deref())
+            .map_err(Into::into)
+    })
+    .await
+}
+
+/// Read-only inventory of another launcher's library; each entry is then reviewed
+/// through the ordinary generation-bound adoption preview.
+#[tauri::command]
+pub(crate) async fn inspect_launcher_library(
+    state: tauri::State<'_, DesktopState>,
+    launcher: LauncherKind,
+    data_root: PathBuf,
+    apps_root: Option<PathBuf>,
+    generation: u64,
+) -> DesktopResult<LauncherLibraryInventory> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .inspect_launcher_library(launcher, &data_root, apps_root.as_deref())
             .map_err(Into::into)
     })
     .await

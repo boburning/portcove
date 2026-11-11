@@ -1792,8 +1792,10 @@ unexpected value types or unsupported Quiver repository sources are listed in
 legacy `standard`/`experimental`/`custom` shapes. These are source-format
 observations, not tests against every launcher release. A UTF-8 byte-order mark
 is accepted; other encodings are refused. GitHub Launcher itself keeps only the
-first entry per repository, while Portcove lists each distinct folder. The
-command is CLI-only for now.
+first entry per repository, while Portcove lists each distinct folder. Desktop
+offers the same read-only list in **Copy an existing installation** under
+**Moving from GitHub Launcher or Quiver?**; choosing an app opens that dialog's
+ordinary copy review for its folder, one app at a time.
 
 ## Reviewed first installation
 

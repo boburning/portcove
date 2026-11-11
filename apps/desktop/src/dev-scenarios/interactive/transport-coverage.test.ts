@@ -47,7 +47,8 @@ const unsupportedByReason: Record<string, string[]> = {
   `.split(/\s+/),
   "review, plan or inspection step of a user-started flow the fixtures do not mount": `
     catalog_download_candidates check_definition_capabilities check_installed
-    check_port discover_setup_launch_targets discover_sources inspect_source
+    check_port discover_setup_launch_targets discover_sources inspect_launcher_library
+    inspect_source
     inspect_source_intake plan_catalog_update plan_game_update
     plan_game_update_acquisition plan_ghostship_legacy_recovery plan_library_import
     plan_library_move plan_output_relocation plan_port plan_source_import
