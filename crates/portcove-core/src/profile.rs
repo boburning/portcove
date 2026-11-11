@@ -26,7 +26,8 @@ use crate::{
 #[path = "profile_tests.rs"]
 mod tests;
 
-const MAX_PROFILES_PER_PORT: usize = 64;
+pub(crate) const MAX_PROFILES: usize = 64;
+const MAX_PROFILES_PER_PORT: usize = MAX_PROFILES;
 const MAX_PACKAGES: usize = 512;
 const MAX_SETTINGS: usize = 64;
 const MAX_LIMITS: usize = 64;
@@ -417,7 +418,7 @@ impl PortcoveService {
         .collect())
     }
 
-    fn publish_new_profile(
+    pub(crate) fn publish_new_profile(
         &self,
         profile: &Profile,
         install_id: &str,
@@ -483,7 +484,7 @@ pub(crate) fn new_profile(port_id: &str, display_name: &str, is_default: bool) -
     }
 }
 
-fn bind_original(requirement_id: &str, source: &SourceRecord) -> OriginalBinding {
+pub(crate) fn bind_original(requirement_id: &str, source: &SourceRecord) -> OriginalBinding {
     OriginalBinding {
         requirement_id: requirement_id.into(),
         sha256: source.sha256.clone(),
@@ -1075,4 +1076,8 @@ pub(crate) fn current_revision(
 ) -> Result<ProfileRevision> {
     let profile = profile_from(connection, port_id, profile_id)?;
     revision_from(connection, profile_id, profile.current_revision)
+}
+
+pub(crate) fn profile_count(connection: &Connection, port_id: &str) -> Result<usize> {
+    Ok(profiles_from(connection, port_id)?.len())
 }

@@ -47,7 +47,7 @@ fn adapter_extensions(port_id: &str) -> Option<&'static [&'static str]> {
     }
 }
 
-struct Layout {
+pub(crate) struct Layout {
     /// The port's canonical live data root, `user/<port>`.
     user: PathBuf,
     /// Package and parked-profile storage at `user/.portcove-profiles/<port>`. It
@@ -57,7 +57,7 @@ struct Layout {
 }
 
 impl Layout {
-    fn for_user(user: &Path) -> Self {
+    pub(crate) fn for_user(user: &Path) -> Self {
         let port = user
             .file_name()
             .map(|name| name.to_owned())
@@ -71,16 +71,16 @@ impl Layout {
             store,
         }
     }
-    fn store(&self) -> PathBuf {
+    pub(crate) fn store(&self) -> PathBuf {
         self.store.clone()
     }
-    fn package(&self, sha256: &str, file_name: &str) -> PathBuf {
+    pub(crate) fn package(&self, sha256: &str, file_name: &str) -> PathBuf {
         self.store().join("packages").join(sha256).join(file_name)
     }
     fn parked(&self, profile_id: &str) -> PathBuf {
         self.store().join("state").join(profile_id)
     }
-    fn tmp(&self) -> PathBuf {
+    pub(crate) fn tmp(&self) -> PathBuf {
         self.store().join("tmp")
     }
     fn mods(&self) -> PathBuf {
@@ -120,7 +120,7 @@ pub(crate) struct ModsObservation {
     pub drifted: Vec<String>,
 }
 
-fn sha256_file(path: &Path) -> Result<String> {
+pub(crate) fn sha256_file(path: &Path) -> Result<String> {
     crate::service::sha256_file(path)
 }
 
