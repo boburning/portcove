@@ -153,6 +153,35 @@ a review; **Install** applies the reviewed action. **Copy launch command** must
 copy an actual launch command, while a command with unresolved prerequisites
 is a **command template**. A review label must not conceal immediate mutation.
 
+### Shared action vocabulary
+
+Use one concise verb per actual route. These are presentation names, not a
+requirement to merge routes: managed installation, player-managed setup, import,
+repair and reuse of original files keep their own authority and effects.
+
+| Action                               | Use when                                                                                  |
+| ------------------------------------ | ----------------------------------------------------------------------------------------- |
+| **Install**                          | A Portcove-managed installation is available and the review is complete.                  |
+| **Choose file / Choose files**       | Required original game files or BIOS are missing for the selected route.                  |
+| **Finish setup**                     | The port is installed and Core reports remaining setup.                                   |
+| **Play**                             | The current readiness assessment permits launch. Name the game in repeated controls.      |
+| **Try launch**                       | Launch is permitted but an input is not yet confirmed.                                    |
+| **Start setup**                      | Launch is permitted and the game opens into its own first-run setup.                      |
+| **Check again**                      | A failed, unknown or stale read can be refreshed; it reads state and repeats no mutation. |
+| **Repair / Import / Open installer** | That is the actual operation.                                                             |
+
+The card, detail action, review title and confirmation name the same action.
+One screen offers one primary control per review; subordinate controls (for
+example, changing an input file) remain. Repeated controls carry the game, and a
+variant when needed, in their accessible name, with the visible label as its
+prefix (“Play: Title · Project”).
+
+Count and name entities that exist. Library entries can include several ports
+for one game, so Library counts read “N in your library” rather than “games” or
+“library entries”. Filters use player concepts: **Runs on**, **Available for this
+device** (acquisition availability, not a claim that the game works), **Original
+system** and **Update channels**.
+
 Search and view controls name their actual reset scope. **Clear search** clears
 text; **Clear filters** clears the described filters. **Reset view** explains the
 choices its handler resets and leaves unrelated layout/sort preferences alone.
