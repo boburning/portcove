@@ -371,6 +371,7 @@ const artworkReview: SteamArtworkReview = {
   ],
   steam_client_state: "closed",
   writes_required: true,
+  recovered: null,
 };
 
 it("reviews artwork separately, keeps existing art by default and applies only the reviewed plan", async () => {
@@ -425,6 +426,7 @@ it("requests replacement only when chosen and offers removal of Portcove artwork
   const preview = vi.spyOn(desktopApi, "previewSteamArtwork").mockResolvedValue({
     ...artworkReview,
     operation: { kind: "remove_owned" },
+    recovered: { completed: [], abandoned: ["portrait_cover"] },
     roles: artworkReview.roles.map((role) => ({
       ...role,
       action: role.role === "portrait_cover" ? "preserve_modified" : "absent",
@@ -458,6 +460,9 @@ it("requests replacement only when chosen and offers removal of Portcove artwork
     "Portrait cover: Kept: it was changed outside Portcove",
   );
   expect(document.body.textContent).toContain("Close Steam, then choose Check again.");
+  expect(document.body.textContent).toContain(
+    "Portcove first finished an interrupted artwork change for this profile.",
+  );
   const removeButton = [...document.body.querySelectorAll("button")].find(
     (button) => button.textContent === "Remove Portcove artwork",
   );

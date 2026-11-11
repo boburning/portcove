@@ -456,6 +456,13 @@ pub struct SteamArtworkSelection {
     pub operation: SteamArtworkOperation,
 }
 
+/// Roles an earlier interrupted artwork change settled before this review.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SteamArtworkRecovery {
+    pub completed: Vec<portcove_core::DestinationArtworkRole>,
+    pub abandoned: Vec<portcove_core::DestinationArtworkRole>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct SteamArtworkReview {
     pub schema_version: u32,
@@ -470,6 +477,7 @@ pub struct SteamArtworkReview {
     pub roles: Vec<SteamArtworkRoleChange>,
     pub steam_client_state: SteamClientState,
     pub writes_required: bool,
+    pub recovered: Option<SteamArtworkRecovery>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

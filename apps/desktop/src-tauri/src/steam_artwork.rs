@@ -15,6 +15,7 @@
 //! - publishes through no-clobber evacuation and renames with a recovery
 //!   journal and content-addressed backups of every file it displaces.
 
+pub use crate::desktop_contract::SteamArtworkRecovery;
 use crate::desktop_contract::{
     SteamArtworkApplyResult, SteamArtworkOperation, SteamArtworkRoleAction, SteamArtworkRoleChange,
     SteamClientState,
@@ -99,6 +100,10 @@ pub struct SteamArtworkPlan {
     pub plan_sha256: String,
     #[serde(skip)]
     ownership_after: Vec<OwnershipRecord>,
+    /// Every observed destination variant and digest, including roles whose
+    /// reported state is a preserved ambiguity; equality binds them all.
+    #[serde(skip)]
+    observed_variants: Vec<ObservedVariant>,
 }
 
 impl SteamArtworkPlan {
@@ -116,13 +121,6 @@ impl SteamArtworkPlan {
     fn ownership_changes(&self) -> bool {
         self.roles.iter().any(|role| role.forget_ownership)
     }
-}
-
-/// Settled outcome of an interrupted artwork publication.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct SteamArtworkRecovery {
-    pub completed: Vec<DestinationArtworkRole>,
-    pub abandoned: Vec<DestinationArtworkRole>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -147,6 +145,7 @@ struct OwnershipDocument {
 #[serde(deny_unknown_fields)]
 struct JournalStep {
     role: DestinationArtworkRole,
+    app_id: u32,
     before_path: Option<PathBuf>,
     before_sha256: Option<String>,
     backup_path: Option<PathBuf>,
@@ -168,6 +167,9 @@ struct ArtworkJournal {
     ownership_after: Vec<OwnershipRecord>,
 }
 
+/// An observed destination path and its digest when it is readable.
+type ObservedVariant = (PathBuf, Option<String>);
+
 struct ExistingVariant {
     path: PathBuf,
     /// `None` when the path is not an independent bounded regular file.
@@ -185,6 +187,7 @@ pub fn plan_steam_artwork(request: &SteamArtworkPlanRequest) -> Result<SteamArtw
     let (ownership_sha256, ownership_before) = read_ownership(&config)?;
     let mut ownership_after = ownership_before.clone();
     let mut roles = Vec::new();
+    let mut observed_variants = Vec::new();
     let (shortcuts_sha256, app_id) = match request.operation {
         SteamArtworkOperation::Update { replace_existing } => {
             let (shortcuts_sha256, app_id) =
@@ -196,7 +199,7 @@ pub fn plan_steam_artwork(request: &SteamArtworkPlanRequest) -> Result<SteamArtw
             })?;
             require_complete_roles(&request.roles)?;
             for (role, content) in &request.roles {
-                let change = plan_update_role(
+                let (change, observed) = plan_update_role(
                     &grid_path,
                     app_id,
                     *role,
@@ -206,6 +209,7 @@ pub fn plan_steam_artwork(request: &SteamArtworkPlanRequest) -> Result<SteamArtw
                     &mut ownership_after,
                 )?;
                 roles.push(change);
+                observed_variants.extend(observed);
             }
             (shortcuts_sha256, Some(app_id))
         }
@@ -239,6 +243,7 @@ pub fn plan_steam_artwork(request: &SteamArtworkPlanRequest) -> Result<SteamArtw
         roles,
         plan_sha256: String::new(),
         ownership_after,
+        observed_variants,
     };
     plan.plan_sha256 = sha256(&serde_json::to_vec(&plan)?);
     Ok(plan)
@@ -321,6 +326,20 @@ pub fn recover_steam_artwork(
 ) -> Result<Option<SteamArtworkRecovery>> {
     let config = steam_profile_config(steam_root, steam_user_id)?;
     let _lock = lock_profile(&config)?;
+    // An unpublished journal temporary precedes every staged or destination
+    // write, so discarding it changes no artwork.
+    let journal_temporary = config.join(JOURNAL_TEMPORARY_FILE);
+    if read_regular_file_bounded(
+        &journal_temporary,
+        "Steam artwork journal temporary file",
+        MAX_METADATA_BYTES,
+    )?
+    .is_some()
+    {
+        fs::remove_file(&journal_temporary)
+            .map_err(|source| io_error("removing the unpublished Steam artwork journal", source))?;
+        sync_directory_if_supported(&config)?;
+    }
     let Some(bytes) = read_regular_file_bounded(
         &config.join(JOURNAL_FILE),
         "Steam artwork recovery journal",
@@ -434,14 +453,13 @@ fn observe_variants(grid: &Path, stem: &str) -> Result<Vec<ExistingVariant>> {
                     && !is_link_like(&metadata)
                     && metadata.len() <= MAX_ARTWORK_BYTES
                 {
-                    read_regular_file_bounded(&path, "existing Steam artwork", MAX_ARTWORK_BYTES)
-                        .ok()
-                        .flatten()
+                    read_regular_file_bounded(&path, "existing Steam artwork", MAX_ARTWORK_BYTES)?
                         .map(|bytes| sha256(&bytes))
                 } else {
                     None
                 };
-                // Case-insensitive file systems can report one file under two names.
+                // Case-insensitive file systems report one file under each
+                // spelling; keep it once. Only lower-case extensions are probed.
                 if !variants
                     .iter()
                     .any(|existing: &ExistingVariant| same_file(&existing.path, &path))
@@ -465,6 +483,22 @@ fn observe_variants(grid: &Path, stem: &str) -> Result<Vec<ExistingVariant>> {
     Ok(variants)
 }
 
+#[cfg(unix)]
+fn same_inode(left: &Path, right: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    match (fs::symlink_metadata(left), fs::symlink_metadata(right)) {
+        (Ok(left), Ok(right)) => left.dev() == right.dev() && left.ino() == right.ino(),
+        _ => false,
+    }
+}
+
+/// Windows publication is a single atomic move, so a remaining staged name
+/// never aliases the destination.
+#[cfg(not(unix))]
+fn same_inode(_left: &Path, _right: &Path) -> bool {
+    false
+}
+
 fn same_file(left: &Path, right: &Path) -> bool {
     match (fs::canonicalize(left), fs::canonicalize(right)) {
         (Ok(left), Ok(right)) => left == right,
@@ -480,9 +514,22 @@ fn plan_update_role(
     replace_existing: bool,
     marker: &str,
     ownership: &mut Vec<OwnershipRecord>,
-) -> Result<SteamArtworkRoleChange> {
+) -> Result<(SteamArtworkRoleChange, Vec<ObservedVariant>)> {
+    if let Some(previous) = ownership
+        .iter()
+        .find(|record| record.marker == marker && record.role == role && record.app_id != app_id)
+    {
+        return Err(SteamEntryError::Conflict(format!(
+            "Portcove artwork {} belongs to an earlier shortcut for this game; review artwork removal first",
+            previous.file_name
+        )));
+    }
     let stem = role_stem(app_id, role);
     let variants = observe_variants(grid, &stem)?;
+    let observed = variants
+        .iter()
+        .map(|variant| (variant.path.clone(), variant.sha256.clone()))
+        .collect::<Vec<_>>();
     let mut change = SteamArtworkRoleChange {
         role,
         action: SteamArtworkRoleAction::Unavailable,
@@ -502,7 +549,7 @@ fn plan_update_role(
     let (asset_sha256, format) = match content {
         SteamArtworkRoleContent::Unavailable { reason } => {
             change.unavailable_reason = Some(*reason);
-            return Ok(change);
+            return Ok((change, observed));
         }
         SteamArtworkRoleContent::Available {
             asset_sha256,
@@ -540,7 +587,7 @@ fn plan_update_role(
             source_asset_sha256: asset_sha256.clone(),
         });
     }
-    Ok(change)
+    Ok((change, observed))
 }
 
 fn plan_remove_role(
@@ -575,10 +622,12 @@ fn plan_remove_role(
     observe_variants(grid, &role_stem(record.app_id, role))?;
     change.destination_path = Some(path.clone());
     let observed = match fs::symlink_metadata(&path) {
-        Ok(metadata) if metadata.is_file() && !is_link_like(&metadata) => {
-            read_regular_file_bounded(&path, "owned Steam artwork", MAX_ARTWORK_BYTES)
-                .ok()
-                .flatten()
+        Ok(metadata)
+            if metadata.is_file()
+                && !is_link_like(&metadata)
+                && metadata.len() <= MAX_ARTWORK_BYTES =>
+        {
+            read_regular_file_bounded(&path, "owned Steam artwork", MAX_ARTWORK_BYTES)?
                 .map(|bytes| sha256(&bytes))
         }
         Ok(_) => Some(String::new()),
@@ -694,6 +743,8 @@ fn prepare_publication(
         }
         require_grid_directory(grid)?;
     }
+    let (_, ownership_before) = read_ownership(config)?;
+    let marker = ownership_marker(&plan.library_id, &plan.port_id)?;
     let mut steps = Vec::new();
     let mut staged = Vec::new();
     for change in &plan.roles {
@@ -763,8 +814,19 @@ fn prepare_publication(
             }
             _ => (None, None, None),
         };
+        let app_id = match change.action {
+            SteamArtworkRoleAction::Remove => ownership_before
+                .iter()
+                .find(|record| record.marker == marker && record.role == change.role)
+                .map(|record| record.app_id),
+            _ => plan.app_id,
+        }
+        .ok_or_else(|| {
+            SteamEntryError::InvalidInput("Steam artwork plan has no shortcut AppID".into())
+        })?;
         steps.push(JournalStep {
             role: change.role,
+            app_id,
             before_path,
             before_sha256,
             backup_path,
@@ -774,11 +836,10 @@ fn prepare_publication(
             after_sha256,
         });
     }
-    let (_, ownership_before) = read_ownership(config)?;
     let journal = ArtworkJournal {
         schema_version: JOURNAL_SCHEMA_VERSION,
         plan_sha256: plan.plan_sha256.clone(),
-        marker: ownership_marker(&plan.library_id, &plan.port_id)?,
+        marker,
         grid_path: grid.clone(),
         steps,
         ownership_before,
@@ -884,9 +945,26 @@ fn remove_with_hash(path: &Path, expected: &str) -> Result<()> {
     }
 }
 
+/// A write completed only when Portcove's staged file became the destination:
+/// identical bytes that another program placed there are never claimed.
 fn step_completed(step: &JournalStep) -> Result<bool> {
     match (&step.after_path, &step.after_sha256) {
-        (Some(after), Some(expected)) => Ok(file_digest(after)?.as_deref() == Some(expected)),
+        (Some(after), Some(expected)) => {
+            if file_digest(after)?.as_deref() != Some(expected) {
+                return Ok(false);
+            }
+            Ok(match &step.staged_path {
+                Some(staged) => match fs::symlink_metadata(staged) {
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => true,
+                    Err(source) => {
+                        return Err(io_error("inspecting staged Steam artwork", source));
+                    }
+                    // A no-clobber link published it but the staged name remains.
+                    Ok(_) => same_inode(staged, after),
+                },
+                None => true,
+            })
+        }
         _ => Ok(step
             .before_path
             .as_ref()
@@ -901,15 +979,6 @@ fn settle_journal(config: &Path, journal: &ArtworkJournal) -> Result<SteamArtwor
     };
     let mut ownership = journal.ownership_after.clone();
     for step in &journal.steps {
-        if let Some(staged) = &step.staged_path {
-            let staged_digest = file_digest(staged)?;
-            if staged_digest.is_some() && staged_digest != step.after_sha256 {
-                return Err(SteamEntryError::RecoveryRequired(format!(
-                    "staged Steam artwork {} does not match the journal; it was preserved",
-                    staged.display()
-                )));
-            }
-        }
         let swap_digest = file_digest(&step.swap_path)?;
         if swap_digest.is_some() && swap_digest != step.before_sha256 {
             return Err(SteamEntryError::RecoveryRequired(format!(
@@ -942,27 +1011,35 @@ fn settle_journal(config: &Path, journal: &ArtworkJournal) -> Result<SteamArtwor
             if let Some(after) = &step.after_path
                 && step.before_path.as_ref() != Some(after)
                 && fs::symlink_metadata(after).is_ok()
+                && file_digest(after)? != step.after_sha256
             {
                 return Err(SteamEntryError::RecoveryRequired(format!(
                     "{} was written by another program during publication; it was preserved",
                     after.display()
                 )));
             }
-            ownership
-                .retain(|record| !(record.marker == journal.marker && record.role == step.role));
+            // Identical bytes another program placed are preserved but never claimed.
+            let affected = |record: &OwnershipRecord| {
+                record.role == step.role
+                    && (record.marker == journal.marker || record.app_id == step.app_id)
+            };
+            ownership.retain(|record| !affected(record));
             ownership.extend(
                 journal
                     .ownership_before
                     .iter()
-                    .filter(|record| record.marker == journal.marker && record.role == step.role)
+                    .filter(|record| affected(record))
                     .cloned(),
             );
             recovery.abandoned.push(step.role);
         }
+        // The staged name is reserved by the published journal and was absent
+        // at review, so any regular file there, even truncated, is Portcove's.
         if let Some(staged) = &step.staged_path
-            && let Some(expected) = &step.after_sha256
+            && file_digest(staged)?.is_some()
         {
-            remove_with_hash(staged, expected)?;
+            fs::remove_file(staged)
+                .map_err(|source| io_error("removing staged Steam artwork", source))?;
         }
         if let Some(expected) = &step.before_sha256 {
             remove_with_hash(&step.swap_path, expected)?;

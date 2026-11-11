@@ -10,8 +10,8 @@ pub use crate::desktop_contract::{
     SteamEntrySelection,
 };
 use crate::steam_artwork::{
-    ROLES, SteamArtworkPlan, SteamArtworkPlanRequest, SteamArtworkRoleContent,
-    apply_steam_artwork_plan, plan_steam_artwork,
+    ROLES, SteamArtworkPlan, SteamArtworkPlanRequest, SteamArtworkRecovery,
+    SteamArtworkRoleContent, apply_steam_artwork_plan, plan_steam_artwork, recover_steam_artwork,
 };
 use crate::steam_entries::{
     SteamCliIdentity, SteamClientState, SteamEntryApplyResult, SteamEntryError, SteamEntryPlan,
@@ -225,8 +225,17 @@ pub(crate) async fn preview_steam_artwork(
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
         let (display_name, plan_request) = artwork_request(&service, &request)?;
+        // Settling only returns each role to its exact prior file or to bytes
+        // the player already confirmed, so a review never stays blocked.
+        let recovered = recover_steam_artwork(&request.steam_root, &request.steam_user_id)
+            .map_err(steam_error)?;
         let plan = plan_steam_artwork(&plan_request).map_err(steam_error)?;
-        Ok(artwork_review(display_name, &plan, observe_steam_client()))
+        Ok(artwork_review(
+            display_name,
+            &plan,
+            observe_steam_client(),
+            recovered,
+        ))
     })
     .await
 }
@@ -357,6 +366,7 @@ fn artwork_review(
     display_name: String,
     plan: &SteamArtworkPlan,
     client_state: SteamClientState,
+    recovered: Option<SteamArtworkRecovery>,
 ) -> SteamArtworkReview {
     SteamArtworkReview {
         schema_version: 1,
@@ -371,6 +381,7 @@ fn artwork_review(
         roles: plan.roles.clone(),
         steam_client_state: client_state,
         writes_required: plan.writes_required(),
+        recovered,
     }
 }
 

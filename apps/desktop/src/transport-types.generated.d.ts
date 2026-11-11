@@ -4870,12 +4870,21 @@ export interface OutputDesktopSteamArtworkReview {
   operation: SteamArtworkOperation;
   plan_sha256: string;
   port_id: string;
+  recovered: SteamArtworkRecovery | null;
   roles: SteamArtworkRoleChange[];
   schema_version: number;
   steam_client_state: SteamClientState;
   steam_root: string;
   steam_user_id: string;
   writes_required: boolean;
+  [k: string]: unknown;
+}
+/**
+ * Roles an earlier interrupted artwork change settled before this review.
+ */
+export interface SteamArtworkRecovery {
+  abandoned: DestinationArtworkRole[];
+  completed: DestinationArtworkRole[];
   [k: string]: unknown;
 }
 export interface OutputDesktopSteamBatchReview {

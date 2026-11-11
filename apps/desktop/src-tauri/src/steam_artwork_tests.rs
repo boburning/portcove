@@ -377,3 +377,82 @@ fn linked_grid_folder_is_refused() {
     assert!(plan_steam_artwork(&fixture.update(false, b"art")).is_err());
     assert!(fs::read_dir(&elsewhere).unwrap().next().is_none());
 }
+
+#[test]
+fn recovery_discards_an_unpublished_journal_temporary_file() {
+    let fixture = Fixture::new().with_owned_shortcut();
+    fs::write(fixture.config.join(JOURNAL_TEMPORARY_FILE), b"{partial").unwrap();
+    assert!(plan_steam_artwork(&fixture.update(false, b"art")).is_err());
+    assert!(
+        recover_steam_artwork(&fixture.steam_root, "12345")
+            .unwrap()
+            .is_none()
+    );
+    assert!(!fixture.config.join(JOURNAL_TEMPORARY_FILE).exists());
+    assert!(plan_steam_artwork(&fixture.update(false, b"art")).is_ok());
+}
+
+#[test]
+fn recovery_discards_a_truncated_staged_file_and_settles() {
+    let fixture = Fixture::new().with_owned_shortcut();
+    let request = fixture.update(false, b"portcove art");
+    let plan = plan_steam_artwork(&request).unwrap();
+    let journal = prepare_publication(&fixture.config, &plan, &request).unwrap();
+    let staged = journal.steps[0].staged_path.clone().unwrap();
+    fs::write(&staged, b"portc").unwrap();
+    let recovery = recover_steam_artwork(&fixture.steam_root, "12345")
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        recovery.abandoned,
+        vec![DestinationArtworkRole::PortraitCover]
+    );
+    assert!(!staged.exists());
+    assert!(!fixture.grid().join(format!("{APP_ID}p.png")).exists());
+    assert!(plan_steam_artwork(&request).unwrap().writes_required());
+}
+
+#[test]
+fn identical_art_placed_by_another_program_is_preserved_but_not_claimed() {
+    let fixture = Fixture::new().with_owned_shortcut();
+    let request = fixture.update(false, b"portcove art");
+    let plan = plan_steam_artwork(&request).unwrap();
+    let journal = prepare_publication(&fixture.config, &plan, &request).unwrap();
+    let destination = fixture.grid().join(format!("{APP_ID}p.png"));
+    fs::write(&destination, b"portcove art").unwrap();
+    assert!(execute_step(&journal.steps[0]).is_err());
+    let recovery = recover_steam_artwork(&fixture.steam_root, "12345")
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        recovery.abandoned,
+        vec![DestinationArtworkRole::PortraitCover]
+    );
+    assert_eq!(fs::read(&destination).unwrap(), b"portcove art");
+    assert!(read_ownership(&fixture.config).unwrap().1.is_empty());
+}
+
+#[test]
+fn update_refuses_while_art_for_an_earlier_shortcut_is_still_recorded() {
+    let fixture = Fixture::new().with_owned_shortcut();
+    let update = fixture.update(false, b"portcove art");
+    apply(&plan_steam_artwork(&update).unwrap(), &update);
+    let marker = ownership_marker(LIBRARY, PORT).unwrap();
+    fs::write(
+        fixture.config.join("shortcuts.vdf"),
+        shortcuts_bytes(&[(APP_ID + 1, "Example Port", &marker)]),
+    )
+    .unwrap();
+    assert!(matches!(
+        plan_steam_artwork(&update),
+        Err(SteamEntryError::Conflict(_))
+    ));
+    // Removal still finds and cleans the earlier shortcut's unchanged art.
+    let remove = fixture.remove();
+    apply(&plan_steam_artwork(&remove).unwrap(), &remove);
+    assert!(!fixture.grid().join(format!("{APP_ID}p.png")).exists());
+    assert_eq!(
+        portrait(&plan_steam_artwork(&update).unwrap()).action,
+        SteamArtworkRoleAction::Write
+    );
+}

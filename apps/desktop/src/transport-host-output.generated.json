@@ -11602,6 +11602,28 @@
           }
         ]
       },
+      "SteamArtworkRecovery": {
+        "description": "Roles an earlier interrupted artwork change settled before this review.",
+        "properties": {
+          "abandoned": {
+            "items": {
+              "$ref": "#/$defs/DestinationArtworkRole"
+            },
+            "type": "array"
+          },
+          "completed": {
+            "items": {
+              "$ref": "#/$defs/DestinationArtworkRole"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "completed",
+          "abandoned"
+        ],
+        "type": "object"
+      },
       "SteamArtworkRoleAction": {
         "enum": [
           "write",
@@ -11708,6 +11730,16 @@
       "port_id": {
         "type": "string"
       },
+      "recovered": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/SteamArtworkRecovery"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "roles": {
         "items": {
           "$ref": "#/$defs/SteamArtworkRoleChange"
@@ -11744,7 +11776,8 @@
       "plan_sha256",
       "roles",
       "steam_client_state",
-      "writes_required"
+      "writes_required",
+      "recovered"
     ],
     "title": "SteamArtworkReview",
     "type": "object"

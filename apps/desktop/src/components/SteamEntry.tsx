@@ -876,6 +876,12 @@ function SteamArtworkReviewDetails({ review }: { review: SteamArtworkReview }) {
               : "No artwork will change for this game in the selected profile."}
         </strong>
       </p>
+      {review.recovered && (
+        <p className="[overflow-wrap:anywhere]" role="status">
+          Portcove first finished an interrupted artwork change for this profile. Each image is
+          either the one you confirmed earlier or the one that was there before.
+        </p>
+      )}
       <ul>
         {review.roles.map((role) => (
           <li className="[overflow-wrap:anywhere]" key={role.role}>

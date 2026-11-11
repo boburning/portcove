@@ -578,9 +578,13 @@ backup, and preserves and forgets art the player changed. Both actions bind the
 profile, owned shortcut, existing destination files, ownership record and the
 Core selection revision and content identity into one plan, require Steam closed,
 revalidate after native consent, and publish through no-clobber set-aside and
-rename with `config/portcove-steam-artwork.journal.json`. An interrupted write is
-settled per role to the exact prior file or the reviewed file; anything else is
-preserved with recovery required. Shortcut Repair still never writes artwork,
+rename with `config/portcove-steam-artwork.journal.json`. The next artwork review
+for that profile first settles an interrupted write per role to the exact prior
+file or the bytes the player already confirmed, and says so; anything else is
+preserved with recovery required. Identical bytes another program placed are
+kept but never claimed. A role's art recorded for an earlier shortcut AppID must
+be removed before new art is added. Only lower-case `png`, `jpg` and `jpeg`
+names are inspected. Shortcut Repair still never writes artwork,
 and Add does not yet offer Include artwork.
 
 Controlled
