@@ -122,6 +122,7 @@ unless the copy change is intended and reviewed.
 | Uninstall review                         | `components/RemovalReview.tsx`                             | `removal`           |
 | Saved file location removal              | `components/SourceRemoval.tsx`                             | `removal`           |
 | Backup restore and deletion review       | `components/BackupReview.tsx`                              | `backups`           |
+| Backup history                           | `components/BackupHistory.tsx`                             | `backups`           |
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-11 it
@@ -132,7 +133,7 @@ and are migrated with the surface that renders them. The count is a work
 inventory, not a coverage claim.
 
 Narrow technical-literal exclusions: the lint ignores the `aria-live`,
-`aria-atomic`, `aria-describedby`, `aria-labelledby`, `data-settings-control`,
+`aria-atomic`, `aria-describedby`, `aria-labelledby`, `data-backup-action`, `data-settings-control`,
 `data-slot`, `dir`, `intent`, `reviewSize`, `size`, `triggerId` and `variant`
 attributes, which carry design-system tokens, element ids or ARIA references,
 never player copy.

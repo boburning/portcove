@@ -17,6 +17,62 @@
     "summary_one": "{{count}} file · {{size}}",
     "summary_other": "{{count}} files · {{size}}"
   },
+  "history": {
+    "checksum": "SHA-256 {{sha256}}",
+    "deleteLabel": "Delete backup from {{time}}",
+    "description": "Backups include saves and settings managed by Portcove.",
+    "empty": "No backups yet",
+    "emptyDescription": "A backup will appear here after you back up this installation’s managed saves and settings.",
+    "loadFailed": "Backup history could not be loaded",
+    "loading": "Loading backup history",
+    "notLoadedYet": "The backup list has not been loaded yet.",
+    "refresh": "Refresh backup history",
+    "refreshing": "Refreshing backup history",
+    "restore": "Restore",
+    "retry": "Retry backup history",
+    "rowDetailsLabel": "Technical details for backup from {{time}}",
+    "showingLastStale": "Showing the last loaded backup list. It may have changed since it was read.",
+    "showingLastWhileChecking": "Showing the last loaded backup list while the current list is checked.",
+    "showOlder_one": "Show {{count}} older",
+    "showOlder_other": "Show {{count}} older",
+    "showRecent": "Show recent only",
+    "technicalDetails": "Technical details",
+    "title": "Backups",
+    "unknownRetry": "The backup list is unknown. Retry to read it again."
+  },
+  "notice": {
+    "attentionTitle": "Some backups need attention",
+    "listedAvailability": "Available backups remain listed. Review the current restore availability below.",
+    "listedRecoveryAll": "Available backups remain listed, but restoring and deleting require recovery to finish.",
+    "listedRecoveryRestore": "Available backups remain listed, but restoring requires recovery to finish.",
+    "listedReview": "Available backups remain listed. Review a backup before restoring it.",
+    "nextSteps": "What to do next",
+    "noneAvailable": "No backup is currently available to restore.",
+    "noneAvailableReview": "No backup is currently available to restore. Review the problems below.",
+    "notFullyChecked": "The backup inventory could not be fully checked.",
+    "problemAction": "{{label}}: {{action}}",
+    "recoveryAction": "Restart Portcove, then check your backups again. If recovery still needs attention, review diagnostics in Settings → Advanced.",
+    "recoveryTitle": "Backup recovery required",
+    "unavailableEntries_one": "{{count}} backup entry is unavailable.",
+    "unavailableEntries_other": "{{count}} backup entries are unavailable."
+  },
+  "problem": {
+    "identityMismatch": "Identity mismatch",
+    "malformedManifest": "Malformed manifest",
+    "missingManifest": "Missing manifest",
+    "recoveryRequired": "Recovery required",
+    "unknown": "Backup information unavailable",
+    "unreadableManifest": "Unreadable manifest",
+    "unsupportedEntry": "Unsupported entry"
+  },
+  "restore": {
+    "missingBackup": "No usable backup is currently available to restore.",
+    "recoveryRequired": "Restoring requires recovery to finish. Restart Portcove, then check your backups again. If recovery still needs attention, review diagnostics in Settings → Advanced.",
+    "unknownRefresh": "Restore eligibility is unknown. Refresh backup history before proceeding.",
+    "unknownUntilRead": "Restore eligibility is unknown until backup history is read again.",
+    "unreadableData": "Restore is on hold because Portcove’s managed saves folder could not be read.",
+    "unsafeData": "Restore is on hold. Review the backup and saves folder managed by Portcove."
+  },
   "review": {
     "applyDelete": "Delete this backup permanently",
     "applyRestore": "Restore this backup",
@@ -30,5 +86,15 @@
     "reviewAgain": "Review again",
     "titleDelete": "Review backup deletion",
     "titleRestore": "Review backup restore"
+  },
+  "summary": {
+    "count_one": "{{count}} backup",
+    "count_other": "{{count}} backups",
+    "lastLoaded_one": "{{count}} last-loaded backup",
+    "lastLoaded_other": "{{count}} last-loaded backups",
+    "lastLoadedEmpty": "Last-loaded backup list is empty",
+    "loading": "Loading backups",
+    "needsAttention": "Backups need attention",
+    "unavailable": "Backup history unavailable"
   }
 }

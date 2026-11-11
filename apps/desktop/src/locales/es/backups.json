@@ -18,6 +18,64 @@
     "summary_many": "{{count}} archivos · {{size}}",
     "summary_other": "{{count}} archivos · {{size}}"
   },
+  "history": {
+    "checksum": "SHA-256 {{sha256}}",
+    "deleteLabel": "Eliminar la copia de seguridad del {{time}}",
+    "description": "Las copias de seguridad incluyen las partidas y los ajustes que administra Portcove.",
+    "empty": "Aún no hay copias de seguridad",
+    "emptyDescription": "Aquí aparecerá una copia de seguridad cuando respaldes las partidas y los ajustes administrados de esta instalación.",
+    "loadFailed": "No se pudo cargar el historial de copias de seguridad",
+    "loading": "Cargando el historial de copias de seguridad",
+    "notLoadedYet": "La lista de copias de seguridad aún no se ha cargado.",
+    "refresh": "Actualizar el historial de copias de seguridad",
+    "refreshing": "Actualizando el historial de copias de seguridad",
+    "restore": "Restaurar",
+    "retry": "Reintentar el historial de copias de seguridad",
+    "rowDetailsLabel": "Detalles técnicos de la copia de seguridad del {{time}}",
+    "showingLastStale": "Se muestra la última lista de copias de seguridad cargada. Puede haber cambiado desde que se leyó.",
+    "showingLastWhileChecking": "Se muestra la última lista de copias de seguridad cargada mientras se comprueba la lista actual.",
+    "showOlder_one": "Mostrar {{count}} anterior",
+    "showOlder_many": "Mostrar {{count}} anteriores",
+    "showOlder_other": "Mostrar {{count}} anteriores",
+    "showRecent": "Mostrar solo las recientes",
+    "technicalDetails": "Detalles técnicos",
+    "title": "Copias de seguridad",
+    "unknownRetry": "Se desconoce la lista de copias de seguridad. Vuelve a intentarlo para leerla de nuevo."
+  },
+  "notice": {
+    "attentionTitle": "Algunas copias de seguridad requieren atención",
+    "listedAvailability": "Las copias de seguridad disponibles siguen en la lista. Revisa abajo la disponibilidad actual de restauración.",
+    "listedRecoveryAll": "Las copias de seguridad disponibles siguen en la lista, pero restaurar y eliminar requieren que termine la recuperación.",
+    "listedRecoveryRestore": "Las copias de seguridad disponibles siguen en la lista, pero restaurar requiere que termine la recuperación.",
+    "listedReview": "Las copias de seguridad disponibles siguen en la lista. Revisa una copia de seguridad antes de restaurarla.",
+    "nextSteps": "Qué hacer a continuación",
+    "noneAvailable": "No hay ninguna copia de seguridad disponible para restaurar.",
+    "noneAvailableReview": "No hay ninguna copia de seguridad disponible para restaurar. Revisa los problemas de abajo.",
+    "notFullyChecked": "No se pudo comprobar por completo el inventario de copias de seguridad.",
+    "problemAction": "{{label}}: {{action}}",
+    "recoveryAction": "Reinicia Portcove y vuelve a comprobar tus copias de seguridad. Si la recuperación sigue necesitando atención, revisa los diagnósticos en Ajustes → Avanzado.",
+    "recoveryTitle": "Se requiere recuperar las copias de seguridad",
+    "unavailableEntries_one": "{{count}} entrada de copia de seguridad no está disponible.",
+    "unavailableEntries_many": "{{count}} entradas de copia de seguridad no están disponibles.",
+    "unavailableEntries_other": "{{count}} entradas de copia de seguridad no están disponibles."
+  },
+  "problem": {
+    "identityMismatch": "La identidad no coincide",
+    "malformedManifest": "Manifiesto con formato no válido",
+    "missingManifest": "Falta el manifiesto",
+    "recoveryRequired": "Se requiere recuperación",
+    "unknown": "Información de la copia de seguridad no disponible",
+    "unreadableManifest": "Manifiesto ilegible",
+    "unsupportedEntry": "Entrada no admitida"
+  },
+  "restore": {
+    "missingBackup": "No hay ninguna copia de seguridad utilizable disponible para restaurar.",
+    "recoveryRequired": "Restaurar requiere que termine la recuperación. Reinicia Portcove y vuelve a comprobar tus copias de seguridad. Si la recuperación sigue necesitando atención, revisa los diagnósticos en Ajustes → Avanzado.",
+    "unknownRefresh": "Se desconoce si se puede restaurar. Actualiza el historial de copias de seguridad antes de continuar.",
+    "unknownUntilRead": "Se desconoce si se puede restaurar hasta que se vuelva a leer el historial de copias de seguridad.",
+    "unreadableData": "La restauración está en espera porque no se pudo leer la carpeta de partidas que administra Portcove.",
+    "unsafeData": "La restauración está en espera. Revisa la copia de seguridad y la carpeta de partidas que administra Portcove."
+  },
   "review": {
     "applyDelete": "Eliminar esta copia de seguridad de forma permanente",
     "applyRestore": "Restaurar esta copia de seguridad",
@@ -31,5 +89,17 @@
     "reviewAgain": "Revisar de nuevo",
     "titleDelete": "Revisar la eliminación de la copia de seguridad",
     "titleRestore": "Revisar la restauración de la copia de seguridad"
+  },
+  "summary": {
+    "count_one": "{{count}} copia de seguridad",
+    "count_many": "{{count}} copias de seguridad",
+    "count_other": "{{count}} copias de seguridad",
+    "lastLoaded_one": "{{count}} copia de seguridad cargada por última vez",
+    "lastLoaded_many": "{{count}} copias de seguridad cargadas por última vez",
+    "lastLoaded_other": "{{count}} copias de seguridad cargadas por última vez",
+    "lastLoadedEmpty": "La última lista de copias de seguridad cargada está vacía",
+    "loading": "Cargando las copias de seguridad",
+    "needsAttention": "Las copias de seguridad requieren atención",
+    "unavailable": "Historial de copias de seguridad no disponible"
   }
 }
