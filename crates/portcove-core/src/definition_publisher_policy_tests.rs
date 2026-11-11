@@ -1033,6 +1033,82 @@ async fn curated_capability_preserves_other_platform_publisher_digest_installati
     );
 }
 
+fn curated_catalog_with_preserved_location(location: Option<String>) -> Catalog {
+    let platform = crate::Platform::current().unwrap();
+    let mut document = curated_metadata_document();
+    let mut port = metadata_catalog().ports()[0].clone();
+    let mut record = crate::curated_acquisition::fixture_record();
+    record.repository = port.release.repository.clone();
+    record.upstream_url = format!("https://github.com/{}", record.repository);
+    record.platform = platform;
+    record.acquisition_url = format!(
+        "{}/releases/download/{}/{}",
+        record.upstream_url, record.tag, record.filename
+    );
+    if let Some(location) = location {
+        record.record_version = 2;
+        record.preserved_locations = vec![location.replace("{sha256}", &record.sha256)];
+    }
+    port.release.curated.insert(platform, record);
+    document.ports[0] = port;
+    Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+}
+
+/// Admits a signed schema-4 curated policy for `authored` and reports whether
+/// the library accepted it.
+async fn curated_policy_admission(authored: &Catalog) -> crate::Result<()> {
+    let fixture = RepositoryFixture::new();
+    let key = Key::new(fixture._directory.path());
+    let mut targets = repository_targets_for(authored, ID);
+    let mut document = managed_policy_for(&targets, true);
+    document["policy_schema"] = 4.into();
+    document["decision"]["curated_acquisition_checks"] = 1.into();
+    targets.push((
+        format!("policy/official/{ID}.json"),
+        serde_json::to_vec(&document).unwrap(),
+    ));
+    let root = fixture
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 1)),
+        )
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let admission = acquire_policy(&fixture, &root, ID).await.unwrap();
+    let (_directory, library) = library();
+    policy::install_authority_for_test(&library, &root).unwrap();
+    library.apply_definition_publisher_policy(&admission, Some(&candidate))?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn curated_preserved_location_hosts_must_already_be_granted() {
+    let granted =
+        "https://github.com/Owner/portcove-preserved/releases/download/preserved-1/{sha256}.asset";
+    curated_policy_admission(&curated_catalog_with_preserved_location(None))
+        .await
+        .unwrap();
+    curated_policy_admission(&curated_catalog_with_preserved_location(Some(
+        granted.into(),
+    )))
+    .await
+    .unwrap();
+    let ungranted = granted.replace("github.com", "mirror.example.org");
+    let error = curated_policy_admission(&curated_catalog_with_preserved_location(Some(ungranted)))
+        .await
+        .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("preserved location host is not granted")
+            || format!("{error:?}").contains("preserved location host is not granted"),
+        "{error:?}"
+    );
+}
+
 async fn curated_transition_fixture() -> (
     RepositoryFixture,
     Key,

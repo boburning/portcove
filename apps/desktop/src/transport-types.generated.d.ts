@@ -2213,6 +2213,12 @@ export interface CuratedAcquisitionRecord {
   filename: string;
   independent_review: CuratedEvidenceReference;
   platform: Platform;
+  /**
+   * Record version 2 only: authorized alternate transports for the same
+   * accepted bytes (#1306). Locations are never identity or authority; the
+   * accepted size and SHA-256 above still decide every acquisition.
+   */
+  preserved_locations?: string[];
   protected_acceptance: CuratedEvidenceReference;
   record_version: number;
   release_id: number;
