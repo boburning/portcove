@@ -23,6 +23,7 @@ import englishBackups from "./locales/en/backups.json";
 import englishGameUpdates from "./locales/en/gameUpdates.json";
 import englishLaunch from "./locales/en/launch.json";
 import englishWorkspace from "./locales/en/workspace.json";
+import englishReport from "./locales/en/report.json";
 import englishCounts from "./locales/en/counts.json";
 import englishSettings from "./locales/en/settings.json";
 import englishShell from "./locales/en/shell.json";
@@ -33,6 +34,7 @@ import engineeringBackups from "./locales/ar-XB/backups.json";
 import engineeringGameUpdates from "./locales/ar-XB/gameUpdates.json";
 import engineeringLaunch from "./locales/ar-XB/launch.json";
 import engineeringWorkspace from "./locales/ar-XB/workspace.json";
+import engineeringReport from "./locales/ar-XB/report.json";
 import engineeringSettings from "./locales/ar-XB/settings.json";
 import engineeringShell from "./locales/ar-XB/shell.json";
 import type { LocalePreferenceSnapshot } from "./types";
@@ -46,6 +48,7 @@ import draftSpanishBackups from "./locales/es/backups.json";
 import draftSpanishGameUpdates from "./locales/es/gameUpdates.json";
 import draftSpanishLaunch from "./locales/es/launch.json";
 import draftSpanishWorkspace from "./locales/es/workspace.json";
+import draftSpanishReport from "./locales/es/report.json";
 
 const supportedLocales = ["en", "ar-XB"] as const;
 export type SupportedLocale = (typeof supportedLocales)[number];
@@ -119,6 +122,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(englishGameUpdates, "gameUpdates");
   assertCatalog(englishLaunch, "launch");
   assertCatalog(englishWorkspace, "workspace");
+  assertCatalog(englishReport, "report");
   assertCatalog(engineeringSettings);
   assertCatalog(engineeringShell, "shell");
   assertCatalog(engineeringApplicationUpdate, "applicationUpdate");
@@ -128,6 +132,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(engineeringGameUpdates, "gameUpdates");
   assertCatalog(engineeringLaunch, "launch");
   assertCatalog(engineeringWorkspace, "workspace");
+  assertCatalog(engineeringReport, "report");
   assertCatalog(draftSpanishSettings, "es.settings");
   assertCatalog(draftSpanishCounts, "es.counts");
   assertCatalog(draftSpanishShell, "es.shell");
@@ -138,6 +143,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(draftSpanishGameUpdates, "es.gameUpdates");
   assertCatalog(draftSpanishLaunch, "es.launch");
   assertCatalog(draftSpanishWorkspace, "es.workspace");
+  assertCatalog(draftSpanishReport, "es.report");
   if (!i18next.isInitialized) {
     void i18next.use(initReactI18next).init({
       lng: resolveLocale(null, initialLocales),
@@ -154,6 +160,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
         "gameUpdates",
         "launch",
         "workspace",
+        "report",
       ],
       defaultNS: "settings",
       resources: {
@@ -168,6 +175,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           gameUpdates: englishGameUpdates,
           launch: englishLaunch,
           workspace: englishWorkspace,
+          report: englishReport,
         },
         "ar-XB": {
           settings: engineeringSettings,
@@ -179,6 +187,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           gameUpdates: engineeringGameUpdates,
           launch: engineeringLaunch,
           workspace: engineeringWorkspace,
+          report: engineeringReport,
         },
         // Unreviewed draft pilot (#1028): bundled for review and engineering
         // fixtures only. resolveLocale never selects it and the picker omits it.
@@ -193,6 +202,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           gameUpdates: draftSpanishGameUpdates,
           launch: draftSpanishLaunch,
           workspace: draftSpanishWorkspace,
+          report: draftSpanishReport,
         },
       },
       initAsync: false,

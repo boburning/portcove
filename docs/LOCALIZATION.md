@@ -128,6 +128,7 @@ unless the copy change is intended and reviewed.
 | Game update channel                      | `components/ReleaseChannel.tsx`                            | `gameUpdates`       |
 | Last-launch failure notice               | `components/LaunchFailureNotice.tsx`                       | `launch`            |
 | Library refresh and recovery notices     | `features/workspace/WorkspaceRefreshNotice.tsx`            | `workspace`         |
+| Bug report preview                       | `components/ReportProblem.tsx`                             | `report`            |
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-11 it

@@ -25,6 +25,7 @@ export default defineConfig({
       "src/components/ReleaseChannel.tsx",
       "src/components/LaunchFailureNotice.tsx",
       "src/features/workspace/WorkspaceRefreshNotice.tsx",
+      "src/components/ReportProblem.tsx",
     ],
     ignore: ["src/**/*.test.{ts,tsx}", "src/**/*.generated.d.ts", "src/design-compatibility/**"],
     output: "src/locales/{{language}}/{{namespace}}.json",
