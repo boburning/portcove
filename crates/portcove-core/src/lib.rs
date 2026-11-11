@@ -84,6 +84,7 @@ mod process;
 mod provider_observation;
 mod providers;
 pub use provider_observation::inspect_provider_observation;
+mod mod_package;
 mod profile;
 mod psx;
 #[cfg(feature = "qualification-fixtures")]
@@ -248,6 +249,9 @@ pub use library::{
 pub use library_import::LibraryImportPlan;
 pub use library_move::LibraryMoveResult;
 pub use library_transfer::{LibraryMovePlan, LibraryTreePlan};
+pub use mod_package::{
+    AssetConflict, ModPackageHold, ModPackageInspection, asset_conflicts, inspect_asset_archive,
+};
 pub use operation::{OPERATION_EVENT_SCHEMA_VERSION, OperationCoordinator};
 pub use output_relocation::{
     OutputRelocationInstall, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus,
