@@ -1987,6 +1987,27 @@ mod tests {
 
     use super::*;
 
+    #[test]
+    fn bundled_sqlite_has_the_wal_fix_and_checks_unsigned_values() {
+        let temporary = tempdir().unwrap();
+        let connection = connect(temporary.path()).unwrap();
+        let version: String = connection
+            .query_row("SELECT sqlite_version()", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, rusqlite::version());
+        assert!(rusqlite::version_number() >= 3_054_000, "{version}");
+
+        let overflow = u64::try_from(i64::MAX).unwrap() + 1;
+        assert!(matches!(
+            connection.query_row("SELECT ?1", [overflow], |row| row.get::<_, i64>(0)),
+            Err(rusqlite::Error::ToSqlConversionFailure(_))
+        ));
+        assert!(matches!(
+            connection.query_row("SELECT -1", [], |row| row.get::<_, u64>(0)),
+            Err(rusqlite::Error::IntegralValueOutOfRange(0, -1))
+        ));
+    }
+
     fn prepare_root(root: &Path) {
         fs::create_dir_all(root.join("locks")).unwrap();
     }
