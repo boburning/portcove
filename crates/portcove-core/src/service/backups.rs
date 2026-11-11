@@ -1759,14 +1759,10 @@ impl PortcoveService {
                 )?;
                 Ok(outcome)
             }
-            Err(error) => self.finish_activity(activity, Err(error)),
+            Err(error) => self.finish_activity(activity, Err(explain_snapshot_failure(error))),
         }
     }
 
-    /// Keeps the newest automatic snapshots and removes older automatic ones.
-    /// Manual snapshots are never candidates. Best effort: the version change
-    /// must not fail because an old snapshot could not be removed. Returns how
-    /// many were removed.
     /// Best-effort completion of this port's unfinished backup deletions through the
     /// existing recovery. A deletion that cannot be completed stays pending and the
     /// caller's `require_completed_backup_deletion` still refuses with its clear message.
@@ -1794,6 +1790,10 @@ impl PortcoveService {
         }
     }
 
+    /// Keeps the newest automatic snapshots and removes older automatic ones.
+    /// Manual snapshots are never candidates. Best effort: the version change
+    /// must not fail because an old snapshot could not be removed. Returns how
+    /// many were removed.
     fn prune_automatic_snapshots(&self, port_id: &str) -> usize {
         let Ok(inventory) = self.list_backups(port_id) else {
             return 0;
@@ -2312,5 +2312,33 @@ mod assessment_tests {
                 .reason,
             PortActionReason::MissingBackup
         );
+    }
+}
+
+/// Tells the player that a failed automatic snapshot stopped the version change
+/// before anything changed, and how to continue. The cause stays in the message and
+/// the error keeps its code and details. A pending backup deletion already carries
+/// its own recovery guidance.
+fn explain_snapshot_failure(mut error: PortcoveError) -> PortcoveError {
+    if error.details.get("recovery_action").map(String::as_str) == Some("restart_then_doctor") {
+        return error;
+    }
+    error.message = format!(
+        "Portcove could not back up this game's saves first, so nothing was changed. {} Try again once that is fixed, or turn off automatic snapshots in Settings > Library to continue without one.",
+        sentence(&error.message)
+    );
+    error.details.insert(
+        "recovery_action".into(),
+        "retry_or_disable_snapshots".into(),
+    );
+    error
+}
+
+fn sentence(cause: &str) -> String {
+    let cause = cause.trim();
+    if cause.ends_with(['.', '!', '?']) {
+        cause.to_owned()
+    } else {
+        format!("{cause}.")
     }
 }

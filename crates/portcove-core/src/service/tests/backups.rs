@@ -3300,6 +3300,15 @@ fn a_failed_snapshot_stops_the_version_change_before_any_mutation() {
         error.message.contains("injected snapshot failure"),
         "{error:?}"
     );
+    assert!(
+        error.message.contains("nothing was changed")
+            && error.message.contains("turn off automatic snapshots"),
+        "the player is told nothing changed and how to continue: {error:?}"
+    );
+    assert_eq!(
+        error.details.get("recovery_action").map(String::as_str),
+        Some("retry_or_disable_snapshots")
+    );
     let status = library.status(ZELDA, ReleaseChannel::Stable).unwrap();
     assert_eq!(
         status.active.unwrap().version,
@@ -3384,6 +3393,15 @@ fn a_failed_snapshot_also_stops_staged_activation_before_any_mutation() {
     assert!(
         error.message.contains("injected snapshot failure"),
         "{error:?}"
+    );
+    assert!(
+        error.message.contains("nothing was changed")
+            && error.message.contains("turn off automatic snapshots"),
+        "the player is told nothing changed and how to continue: {error:?}"
+    );
+    assert_eq!(
+        error.details.get("recovery_action").map(String::as_str),
+        Some("retry_or_disable_snapshots")
     );
     let status = library.status(ZELDA, ReleaseChannel::Stable).unwrap();
     assert_eq!(
