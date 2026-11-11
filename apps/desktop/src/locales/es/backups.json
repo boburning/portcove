@@ -1,4 +1,12 @@
 {
+  "automaticSnapshots": {
+    "control": "Crear una instantánea de los datos guardados antes de cada cambio de versión",
+    "description": "Antes de que se instale una actualización, se active una actualización guardada o restaures una versión anterior, Portcove copia las partidas y los ajustes administrados de un juego para que puedas restaurarlos si la nueva versión los interpreta mal. Omite los juegos cuyas partidas se guardan fuera de Portcove y los juegos que aún no tienen datos guardados, y si no se puede crear una instantánea, el cambio de versión se detiene. Portcove conserva las cinco instantáneas automáticas más recientes de cada juego y nunca elimina las que creas tú. Esto se aplica a todos los juegos de esta biblioteca a partir del próximo cambio de versión.",
+    "heading": "Crear una instantánea de los datos guardados antes de cambiar de versión",
+    "readFailed": "No se pudo leer el ajuste.",
+    "retry": "Reintentar",
+    "saveFailed": "No se pudo guardar el ajuste."
+  },
   "details": {
     "catalogId": "ID del catálogo: {{id}}",
     "dataFolder": "Carpeta de datos guardados",

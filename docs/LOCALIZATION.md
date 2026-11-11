@@ -124,6 +124,7 @@ unless the copy change is intended and reviewed.
 | Backup restore and deletion review       | `components/BackupReview.tsx`                              | `backups`           |
 | Backup history                           | `components/BackupHistory.tsx`                             | `backups`           |
 | Backups and updates summary              | `components/ProtectionSummary.tsx`                         | `backups`           |
+| Automatic snapshot setting               | `components/AutomaticSnapshotsSetting.tsx`                 | `backups`           |
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-11 it

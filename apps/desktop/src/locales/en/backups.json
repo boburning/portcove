@@ -1,4 +1,12 @@
 {
+  "automaticSnapshots": {
+    "control": "Snapshot saved data before each version change",
+    "description": "Before an update installs, a saved update is activated, or you restore a previous version, Portcove copies a game’s managed saves and settings so you can restore them if the new version misreads them. It skips games whose saves live outside Portcove and games with no saved data yet, and if a snapshot cannot be taken the version change stops. Portcove keeps the newest five automatic snapshots for each game and never removes the ones you take yourself. This applies to every game in this library, starting with the next version change.",
+    "heading": "Snapshot saved data before version changes",
+    "readFailed": "The setting could not be read.",
+    "retry": "Try again",
+    "saveFailed": "The setting could not be saved."
+  },
   "details": {
     "catalogId": "Catalog ID: {{id}}",
     "dataFolder": "Saved-data folder",
