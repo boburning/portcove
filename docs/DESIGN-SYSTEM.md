@@ -612,7 +612,11 @@ at the smallest widths. More and Favorite remain independently reachable;
 truly narrow or enlarged content may stack personal controls. Long identities
 wrap and remain accessible in full.
 
-At short desktop heights (up to800px, from761px width), Library covers use a10rem
+At desktop windows up to 760px high (from 761px width, including the 1280×720
+reference), chrome rhythm tightens (toolbar, header, quick views and query rows)
+and the cover project reserves one line instead of two, expanding on focus, so
+the first row's primary actions are visible on arrival without changing cover
+geometry. At short desktop heights (up to800px, from761px width), Library covers use a10rem
 minimum track. The220px artwork cap remains; no obsolete180px cap is reintroduced.
 Ordinary/tall and compact width rules retain their existing density. Rem-based
 minimums continue honoring whole-interface enlargement. The effective cover-to-
