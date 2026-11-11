@@ -80,7 +80,10 @@ export function deferredWindowsRun(listing: unknown): boolean {
   const records = jobs.filter(isRecord);
   const named = (name: string) => records.filter((job) => job.name === name);
   const partitions = records.filter(
-    (job) => typeof job.name === "string" && job.name.startsWith("fast-rust-test (windows-x86_64,"),
+    // A matrix job skipped before expansion may keep its template name or fall back to its key.
+    (job) =>
+      typeof job.name === "string" &&
+      (job.name.startsWith("fast-rust-test (windows-x86_64,") || job.name === "fast_rust_tests"),
   );
   const [gate] = named("rust");
   const [build] = named("fast-rust-build (windows-x86_64)");
@@ -171,7 +174,7 @@ async function main() {
         });
         cancelled = true;
       }
-      if (wait >= 20)
+      if (wait >= 15)
         throw new Error(`Run ${own} did not finish; re-run it to execute the Windows partitions`);
       await new Promise((resolve) => setTimeout(resolve, 10000));
     }

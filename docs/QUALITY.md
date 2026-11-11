@@ -336,7 +336,8 @@ ready does not start a second CI run on the same head, which would duplicate eve
 required context: the supersede workflow instead re-runs that head's run (cancelling
 it first if it is still active) when it deferred, and the new attempt reads the
 ready state and executes the partitions. That step is best effort; if it does not
-happen, re-run the head's CI run. Push, qualification, release and reused plans
+happen, use "Re-run all jobs" on the head's CI run; re-running only failed jobs keeps the
+draft classification. Push, qualification, release and reused plans
 never defer.
 
 Retain failures, diagnose the smallest useful reproduction, and repeat only

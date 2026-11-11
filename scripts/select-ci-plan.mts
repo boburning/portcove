@@ -91,7 +91,7 @@ export async function liveDraftState({
   }
 }
 
-async function readRepositoryRoute(route: string): Promise<unknown> {
+export async function readRepositoryRoute(route: string): Promise<unknown> {
   const deadline = performance.now() + 20000;
   const { localDeveloperCredential } = await import("./github-cli.mts");
   const { createGitHubClient } = await import("./github-client.mts");

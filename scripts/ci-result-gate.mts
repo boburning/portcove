@@ -220,7 +220,7 @@ export function evaluateCiResults({
           `fast_rust_tests was ${fast?.fast_rust_tests || "missing"}, expected skipped for a draft`,
         );
       const deferral: ResultGateError = new Error(
-        "Windows test partitions are deferred while this pull request is a draft; mark it ready for review to run them",
+        "Windows test partitions are deferred while this pull request is a draft; mark it ready for review, or re-run all jobs once it is ready, to run them",
       );
       deferral.deferral = true;
       throw deferral;

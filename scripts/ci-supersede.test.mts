@@ -85,6 +85,10 @@ void test("only a run that deferred its Windows partitions for a draft is re-run
     partition("skipped"),
   ];
   assert.equal(deferredWindowsRun({ jobs: deferred }), true);
+  assert.equal(
+    deferredWindowsRun({ jobs: [...deferred.slice(0, 2), job("fast_rust_tests", "skipped")] }),
+    true,
+  );
   // A real test failure, a failed build, a passing gate or partitions that ran are not deferrals.
   assert.equal(
     deferredWindowsRun({ jobs: [...deferred.slice(0, 2), partition("failure")] }),

@@ -106,14 +106,15 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
+      # Pull requests need the client for the live draft read; pushes for postmerge observation.
       - name: Set up pinned packages for postmerge observation
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
         uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           package_json_file: package.json
           run_install: false
       - name: Install locked postmerge observation dependencies before credentials
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
         run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts
       - name: Select the fail-closed CI plan
         id: plan
