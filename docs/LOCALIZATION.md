@@ -124,8 +124,8 @@ unless the copy change is intended and reviewed.
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-11 it
-reported 1,764 findings in 85 of 208 analyzed files, measured after this
-slice and with the attribute exclusions below. That count covers JSX text
+reported 1,628 findings in 79 of 208 analyzed files, measured after the
+migrations listed above and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
 and are migrated with the surface that renders them. The count is a work
 inventory, not a coverage claim.
