@@ -11,10 +11,13 @@ type Phase =
   | { kind: "running"; batchId: string; total: number }
   | { kind: "finished"; record: InstallBatchRecord };
 
+const stillRunning = (record: InstallBatchRecord) =>
+  record.items.some((item) => item.state === "running" || item.state === "queued");
+
 const stateLabel: Record<InstallBatchRecord["items"][number]["state"], string> = {
   queued: "Not started",
   running: "Installing",
-  ready: "Installed and ready to play",
+  ready: "Installed",
   held: "Waiting for review",
   failed: "Couldn't install",
   cancelled: "Cancelled",
@@ -80,11 +83,13 @@ export function InstallBatchPanel({
 
   const run = async (batchId: string, total: number) => {
     const expected = generation;
+    setError(undefined);
     setPhase({ kind: "running", batchId, total });
     try {
       const record = await desktopApi.runInstallBatch(batchId, expected, () => undefined);
       if (!accepts(expected)) return;
-      setUnfinished(undefined);
+      // Games another Portcove window is still installing keep the batch unfinished.
+      setUnfinished(stillRunning(record) ? record : undefined);
       setPhase({ kind: "finished", record });
     } catch (value) {
       if (!accepts(expected)) return;
@@ -126,6 +131,7 @@ export function InstallBatchPanel({
   const cancel = async (batchId: string) => {
     try {
       await desktopApi.cancelInstallBatch(batchId, generation);
+      setError(undefined);
     } catch (value) {
       setError(errorText(value));
     }
@@ -168,7 +174,13 @@ export function InstallBatchPanel({
       )}
       {phase.kind === "finished" && (
         <div>
-          <h3>Setup batch results</h3>
+          <h3>{stillRunning(phase.record) ? "Setup batch in progress" : "Setup batch results"}</h3>
+          {stillRunning(phase.record) && (
+            <p role="status">
+              Another Portcove window is still installing part of this batch. Check again after it
+              finishes.
+            </p>
+          )}
           <ul>
             {phase.record.items.map((item) => (
               <li key={item.port_id}>

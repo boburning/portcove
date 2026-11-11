@@ -141,23 +141,28 @@ enum ItemOutcome {
     Cancelled,
 }
 
+fn validate_request(items: &[InstallBatchRequestItem]) -> Result<()> {
+    validate_selection(items.iter().map(|item| item.port_id.clone()))?;
+    let digest = |value: &str| {
+        value.len() == 64
+            && value
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    };
+    if items.iter().any(|item| !digest(&item.expected_plan_sha256)) {
+        return Err(PortcoveError::usage(
+            "each reviewed game needs its lowercase SHA-256 plan digest",
+        ));
+    }
+    Ok(())
+}
+
 impl Library {
     pub fn create_install_batch(
         &self,
         items: &[InstallBatchRequestItem],
     ) -> Result<InstallBatchRecord> {
-        validate_selection(items.iter().map(|item| item.port_id.clone()))?;
-        let digest = |value: &str| {
-            value.len() == 64
-                && value
-                    .bytes()
-                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-        };
-        if items.iter().any(|item| !digest(&item.expected_plan_sha256)) {
-            return Err(PortcoveError::usage(
-                "each reviewed game needs its lowercase SHA-256 plan digest",
-            ));
-        }
+        validate_request(items)?;
         let now = Self::now();
         let record = InstallBatchRecord {
             format_version: INSTALL_BATCH_FORMAT_VERSION,
@@ -214,7 +219,15 @@ impl Library {
             .collect::<rusqlite::Result<Vec<_>>>()?;
         let mut unfinished = Vec::new();
         for (id, json) in rows {
-            let record = decode_batch(&id, &json)?;
+            // One unreadable batch must not hide the others; it stays readable
+            // (and reports its error) by id.
+            let record = match decode_batch(&id, &json) {
+                Ok(record) => record,
+                Err(error) => {
+                    tracing::warn!(batch_id = %id, error = %error.message, "skipping unreadable install batch");
+                    continue;
+                }
+            };
             if record.items.iter().any(|item| {
                 matches!(
                     item.state,
@@ -320,7 +333,9 @@ impl PortcoveService {
         items: &[InstallBatchRequestItem],
         origin: crate::LibraryMembershipOrigin,
     ) -> Result<InstallBatchRecord> {
-        let record = self.library.create_install_batch(items)?;
+        // Validate before writing anything, then save memberships before the
+        // batch, so a failed start never leaves a batch that could run later.
+        validate_request(items)?;
         // A game no longer in the catalog cannot be saved; its batch item is
         // held with the planner's reason instead.
         let memberships = items
@@ -335,7 +350,7 @@ impl PortcoveService {
         if !memberships.is_empty() {
             self.add_games_to_library(&memberships)?;
         }
-        Ok(record)
+        self.library.create_install_batch(items)
     }
 
     pub fn install_batch(&self, batch_id: &str) -> Result<Option<InstallBatchRecord>> {
@@ -354,7 +369,12 @@ impl PortcoveService {
         batch_id: &str,
         mut emit: impl FnMut(OperationEvent),
     ) -> Result<InstallBatchRecord> {
-        self.reconcile_install_batch(batch_id)?;
+        // One process owns a batch for its whole run. Another process that is
+        // already running it keeps its items; this call only reports them.
+        let Some(_owner) = self.try_own_install_batch(batch_id)? else {
+            return self.existing_install_batch(batch_id);
+        };
+        self.reconcile_owned_install_batch(batch_id)?;
         loop {
             let claimed = self.library.update_install_batch(batch_id, |record| {
                 if record.cancel_requested {
@@ -400,9 +420,26 @@ impl PortcoveService {
                 }
             })?;
         }
+        self.existing_install_batch(batch_id)
+    }
+
+    fn existing_install_batch(&self, batch_id: &str) -> Result<InstallBatchRecord> {
         self.library.install_batch(batch_id)?.ok_or_else(|| {
             PortcoveError::state("install batch does not exist").detail("batch_id", batch_id)
         })
+    }
+
+    /// Takes the batch's ownership lock, or `None` while another process runs it.
+    fn try_own_install_batch(&self, batch_id: &str) -> Result<Option<crate::PortOperationGuard>> {
+        self.existing_install_batch(batch_id)?;
+        match self
+            .library
+            .try_lock_activity(&format!("install-batch-{batch_id}"))
+        {
+            Ok(guard) => Ok(Some(guard)),
+            Err(error) if error.code == ErrorCode::Conflict => Ok(None),
+            Err(error) => Err(error),
+        }
     }
 
     async fn run_install_batch_item(
@@ -441,12 +478,19 @@ impl PortcoveService {
     }
 
     /// Resolves items left Running by an interruption against authoritative
-    /// state: committed install -> Ready; no live owner and nothing committed ->
-    /// Interrupted (review again); a live owner is left alone. Never retries.
+    /// state: committed install -> Ready; nothing committed -> Interrupted
+    /// (review again). Changes nothing while another process runs the batch,
+    /// and leaves an item alone while another operation holds its game. Never
+    /// retries.
     pub fn reconcile_install_batch(&self, batch_id: &str) -> Result<InstallBatchRecord> {
-        let record = self.library.install_batch(batch_id)?.ok_or_else(|| {
-            PortcoveError::state("install batch does not exist").detail("batch_id", batch_id)
-        })?;
+        let Some(_owner) = self.try_own_install_batch(batch_id)? else {
+            return self.existing_install_batch(batch_id);
+        };
+        self.reconcile_owned_install_batch(batch_id)
+    }
+
+    fn reconcile_owned_install_batch(&self, batch_id: &str) -> Result<InstallBatchRecord> {
+        let record = self.existing_install_batch(batch_id)?;
         let mut decisions = Vec::new();
         for item in record
             .items
@@ -460,13 +504,26 @@ impl PortcoveService {
                 .status(&item.port_id, crate::ReleaseChannel::Stable)?
                 .active;
             if let Some(active) = committed {
-                decisions.push((item.port_id.clone(), Some(active.id)));
-            } else if self
+                decisions.push((item.port_id.clone(), Ok(active.id)));
+                continue;
+            }
+            match self
                 .library
                 .try_lock_port(&item.port_id, "reconcile-install-batch")
-                .is_ok()
             {
-                decisions.push((item.port_id.clone(), None));
+                Ok(_) => decisions.push((
+                    item.port_id.clone(),
+                    Err("interrupted before completion; review installation again".to_owned()),
+                )),
+                // Another operation is changing this game now; check again later.
+                Err(error) if error.code == ErrorCode::Conflict => {}
+                Err(error) => decisions.push((
+                    item.port_id.clone(),
+                    Err(format!(
+                        "interrupted before completion; review installation again ({})",
+                        error.message
+                    )),
+                )),
             }
         }
         self.library.update_install_batch(batch_id, |record| {
@@ -475,16 +532,13 @@ impl PortcoveService {
                     item.port_id == port_id && item.state == InstallBatchItemState::Running
                 }) {
                     match install_id {
-                        Some(id) => {
+                        Ok(id) => {
                             item.state = InstallBatchItemState::Ready;
                             item.install_id = Some(id);
                         }
-                        None => {
+                        Err(reason) => {
                             item.state = InstallBatchItemState::Interrupted;
-                            item.detail = Some(
-                                "interrupted before completion; review installation again"
-                                    .to_owned(),
-                            );
+                            item.detail = Some(reason);
                         }
                     }
                 }
@@ -496,6 +550,14 @@ impl PortcoveService {
     fn install_plan_hold(&self, plan: &GameInstallPlan) -> Option<String> {
         if plan.plan.action == crate::InstallPlanAction::BlockedUnverified {
             return Some("verify or repair the retained copy before installation".to_owned());
+        }
+        // Shared preferences need their own explicit acknowledgment, which a
+        // batch never gives on the player's behalf.
+        if plan.plan.shared_preferences.is_some() {
+            return Some(
+                "review this game's shared preferences in its own setup before installing"
+                    .to_owned(),
+            );
         }
         Self::require_registered_install_inputs(plan)
             .err()
@@ -629,6 +691,56 @@ mod tests {
         let finished = service.run_install_batch(&batch.id, |_| {}).await.unwrap();
         assert_eq!(finished.summary().interrupted, 2);
         assert!(service.status(PORT).unwrap().active.is_none());
+        assert!(service.unfinished_install_batches().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_batch_owned_by_another_process_is_reported_not_reconciled_or_run() {
+        let (_temporary, service, digest) = reviewed_service().await;
+        let batch = service
+            .start_install_batch(
+                &[request(PORT, &digest)],
+                crate::LibraryMembershipOrigin::Manual,
+            )
+            .unwrap();
+        service
+            .library
+            .update_install_batch(&batch.id, |record| {
+                record.items[0].state = InstallBatchItemState::Running;
+            })
+            .unwrap();
+        // Simulates a live owner: the same lock a running process holds.
+        let owner = service
+            .library
+            .try_lock_activity(&format!("install-batch-{}", batch.id))
+            .unwrap();
+        let observed = service.run_install_batch(&batch.id, |_| {}).await.unwrap();
+        assert_eq!(observed.items[0].state, InstallBatchItemState::Running);
+        let observed = service.reconcile_install_batch(&batch.id).unwrap();
+        assert_eq!(observed.items[0].state, InstallBatchItemState::Running);
+        drop(owner);
+        let reconciled = service.reconcile_install_batch(&batch.id).unwrap();
+        assert_eq!(
+            reconciled.items[0].state,
+            InstallBatchItemState::Interrupted
+        );
+        assert!(service.status(PORT).unwrap().active.is_none());
+    }
+
+    #[test]
+    fn a_failed_start_writes_nothing() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = crate::service::tests::service_with_release(library, "v1");
+        assert!(
+            service
+                .start_install_batch(
+                    &[request(PORT, "not-a-digest")],
+                    crate::LibraryMembershipOrigin::Manual,
+                )
+                .is_err()
+        );
+        assert!(service.library_memberships().unwrap().is_empty());
         assert!(service.unfinished_install_batches().unwrap().is_empty());
     }
 
