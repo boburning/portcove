@@ -209,6 +209,18 @@ impl DefinitionContentIndex {
                 "managed Linux TAR.XZ requires native capability version 8",
             ));
         }
+        if !port.release.tar_xz_platforms.is_empty() {
+            crate::runtime::validate_generated_cache_tar_xz(&port)?;
+            if !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "generated-cache"
+                    && requirement.minimum_version
+                        >= crate::runtime::GENERATED_CACHE_TAR_XZ_CAPABILITY
+            }) {
+                return Err(PortcoveError::verification(
+                    "managed Mac TAR.XZ requires generated-cache capability version 3",
+                ));
+            }
+        }
         if port.portable_marker_file.is_some()
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "native-portable" && requirement.minimum_version >= 19

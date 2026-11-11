@@ -2146,6 +2146,10 @@ export interface ReleaseSpec {
   provider: "github" | "gitlab" | "direct-manifest" | "user-prepared";
   repository: string;
   rolling_tag: string | null;
+  /**
+   * GeneratedCache3: select a checked TAR.XZ player archive on the declared Mac routes.
+   */
+  tar_xz_platforms?: Platform[];
   user_prepared: {
     "linux-x86-64"?: UserPreparedRuntimeSpec;
     "macos-aarch64"?: UserPreparedRuntimeSpec;

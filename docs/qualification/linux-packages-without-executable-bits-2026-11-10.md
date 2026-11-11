@@ -6,7 +6,7 @@ The fresh definitions therefore stop offering Linux for these three. Their Windo
 
 ## Update: OpenJazz restored through a verified grant
 
-OpenJazz's Linux route is offered again through `release.grant_declared_executable` (native capability 20). After extraction Core sets execute permission on the resolved `OpenJazz` only when its header is an ELF64 x86-64 executable or shared object; unmarked scripts, other architectures and links refuse, and a publisher-set bit is never altered. Paperboat (libultraship setup flow) and Perfect Dark (generated-cache adapter) remain unoffered on Linux: the grant is native-only so far. No Linux player executed OpenJazz; the evidence is Core unit tests of the header checks and the earlier real-archive extraction.
+OpenJazz's Linux route is offered again through `release.grant_declared_executable` (native capability 22). After extraction Core sets execute permission on the resolved `OpenJazz` only when its header is an ELF64 x86-64 executable or shared object; unmarked scripts, other architectures and links refuse, and a publisher-set bit is never altered. Paperboat (libultraship setup flow) and Perfect Dark (generated-cache adapter) remain unoffered on Linux: the grant is native-only so far. No Linux player executed OpenJazz; the evidence is Core unit tests of the header checks and the earlier real-archive extraction.
 
 ## Update: Paperboat and Perfect Dark restored through the same grant
 

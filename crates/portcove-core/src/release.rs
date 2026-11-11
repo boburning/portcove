@@ -1918,12 +1918,13 @@ fn choose_asset<'a>(
             if conflicts_with_platform(&name, platform) {
                 return None;
             }
-            if port.adapter == AdapterKind::PsxRecompManaged
+            if (port.adapter == AdapterKind::PsxRecompManaged
+                || port.release.tar_xz_platforms.contains(&platform))
                 && !hints
                     .iter()
                     .all(|hint| name.contains(&hint.to_ascii_lowercase()))
             {
-                // Preparation-kit and package-variant choices stay mandatory.
+                // Preparation-kit and declared TAR.XZ package choices stay mandatory.
                 // PSX kits retain their own supported archive contract; source
                 // preparation is not a native-player package disqualifier.
                 return None;
@@ -4348,6 +4349,40 @@ mod tests {
         let error = choose_asset(port, Platform::WindowsX86_64, &assets).unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Conflict);
         assert!(error.message.contains("equally qualified"));
+    }
+
+    #[test]
+    fn generated_cache_mac_tar_xz_refuses_a_successor_without_the_declared_package() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("perfect-dark").unwrap();
+        let asset = |name: &str| GithubAsset {
+            id: None,
+            name: name.into(),
+            browser_download_url: format!("https://example.invalid/{name}"),
+            size: 1,
+            digest: None,
+        };
+        for (platform, selected, other) in [
+            (
+                Platform::MacosX86_64,
+                "pd-x86_64-osx.tar.xz",
+                "pd-arm64-osx.tar.xz",
+            ),
+            (
+                Platform::MacosAarch64,
+                "pd-arm64-osx.tar.xz",
+                "pd-x86_64-osx.tar.xz",
+            ),
+        ] {
+            let incompatible = [asset(other), asset("pd-osx.tar.xz"), asset("pd-osx.zip")];
+            assert!(choose_asset(port, platform, &incompatible).is_err());
+            assert_eq!(
+                choose_asset(port, platform, &[asset(selected)])
+                    .unwrap()
+                    .name,
+                selected
+            );
+        }
     }
 
     #[test]

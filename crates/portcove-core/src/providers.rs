@@ -161,6 +161,7 @@ mod tests {
                 rolling_tag: None,
                 asset_hints: BTreeMap::new(),
                 linux_tar_xz: false,
+                tar_xz_platforms: Vec::new(),
                 archive_file_links: false,
                 grant_declared_executable: false,
                 direct,

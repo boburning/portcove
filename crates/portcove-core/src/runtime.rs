@@ -6,6 +6,41 @@ use crate::{
     Result, RuntimeIdentity, RuntimeOrigin,
 };
 
+pub(crate) const GENERATED_CACHE_TAR_XZ_CAPABILITY: u32 = 3;
+
+fn has_github_tar_xz_route(port: &PortDefinition, platform: Platform) -> bool {
+    let release = &port.release;
+    release.provider == crate::ReleaseSource::Github
+        && port.platforms.contains(&platform)
+        && !release.curated.contains_key(&platform)
+        && !release.direct.contains_key(&platform)
+        && !release.user_prepared.contains_key(&platform)
+        && !release.managed_build.contains_key(&platform)
+        && !port.bundled_runtime.contains_key(&platform)
+        && release.asset_hints.get(&platform).is_some_and(|hints| {
+            hints
+                .iter()
+                .any(|hint| hint.to_ascii_lowercase().ends_with(".tar.xz"))
+        })
+}
+
+pub(crate) fn validate_generated_cache_tar_xz(port: &PortDefinition) -> Result<()> {
+    let release = &port.release;
+    for (index, platform) in release.tar_xz_platforms.iter().enumerate() {
+        if port.adapter != crate::AdapterKind::GeneratedCache
+            || release.linux_tar_xz
+            || !matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64)
+            || release.tar_xz_platforms[..index].contains(platform)
+            || !has_github_tar_xz_route(port, *platform)
+        {
+            return Err(PortcoveError::usage(
+                "generated-cache TAR.XZ requires a distinct declared Mac GitHub player route and an archive-specific asset hint",
+            ));
+        }
+    }
+    Ok(())
+}
+
 impl BundledRuntime {
     pub(crate) fn identity(&self) -> RuntimeIdentity {
         RuntimeIdentity {
@@ -28,21 +63,11 @@ impl BundledRuntime {
 
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     crate::native_external_profile::validate(port)?;
+    validate_generated_cache_tar_xz(port)?;
     let linux = Platform::LinuxX86_64;
-    if port.release.requires_tar_xz(linux)
+    if port.release.linux_tar_xz
         && (port.adapter != crate::AdapterKind::NativePortable
-            || port.release.provider != crate::ReleaseSource::Github
-            || !port.platforms.contains(&linux)
-            || port.release.curated.contains_key(&linux)
-            || port.release.direct.contains_key(&linux)
-            || port.release.user_prepared.contains_key(&linux)
-            || port.release.managed_build.contains_key(&linux)
-            || port.bundled_runtime.contains_key(&linux)
-            || !port.release.asset_hints.get(&linux).is_some_and(|hints| {
-                hints
-                    .iter()
-                    .any(|hint| hint.to_ascii_lowercase().ends_with(".tar.xz"))
-            }))
+            || !has_github_tar_xz_route(port, linux))
     {
         return Err(PortcoveError::usage(
             "managed TAR.XZ requires a Linux x86-64 GitHub NativePortable player and an archive-specific asset hint",

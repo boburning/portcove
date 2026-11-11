@@ -3446,6 +3446,28 @@ mod tests {
                 .asset_hints
                 .insert(Platform::LinuxX86_64, vec![hint.into()]);
         }
+        let perfect_dark = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "perfect-dark")
+            .unwrap();
+        perfect_dark
+            .release
+            .asset_hints
+            .insert(Platform::LinuxX86_64, vec!["pd-x86_64-linux.tar.gz".into()]);
+        for (platform, package, player) in [
+            (Platform::MacosX86_64, "pd-x86_64-osx.tar.xz", "pd.x86_64"),
+            (Platform::MacosAarch64, "pd-arm64-osx.tar.xz", "pd.arm64"),
+        ] {
+            perfect_dark.platforms.push(platform);
+            perfect_dark.release.tar_xz_platforms.push(platform);
+            perfect_dark
+                .release
+                .asset_hints
+                .insert(platform, vec![package.into()]);
+            perfect_dark
+                .executable_hints
+                .insert(platform, vec![player.into()]);
+        }
         // Reviewed macOS additions after the frozen input: universal app bundles for
         // three ports and an Apple Silicon bundle for Donkey Kong 64.
         for (id, platforms, hint, executable) in [
@@ -6161,6 +6183,25 @@ mod tests {
         );
         let port = catalog.port("perfect-dark").unwrap();
         assert_eq!(port.channels, vec![crate::ReleaseChannel::Rolling]);
+        assert_eq!(
+            port.platforms,
+            [
+                Platform::WindowsX86_64,
+                Platform::LinuxX86_64,
+                Platform::MacosX86_64,
+                Platform::MacosAarch64
+            ]
+        );
+        assert_eq!(
+            port.release.tar_xz_platforms,
+            [Platform::MacosX86_64, Platform::MacosAarch64]
+        );
+        assert!(port.release.grant_declared_executable);
+        assert_eq!(port.executable_hints[&Platform::LinuxX86_64], ["pd.x86_64"]);
+        assert_eq!(port.executable_hints[&Platform::MacosX86_64], ["pd.x86_64"]);
+        assert_eq!(port.executable_hints[&Platform::MacosAarch64], ["pd.arm64"]);
+        assert_eq!(port.automated_tested_platforms, [Platform::WindowsX86_64]);
+        assert_eq!(port.manually_validated_platforms, [Platform::WindowsX86_64]);
         assert_eq!(port.launch_arguments, vec!["--portable"]);
         assert_eq!(
             port.runtime_source_filename.as_deref(),
@@ -7795,6 +7836,19 @@ mod tests {
         );
 
         let port = catalog.port("paperboat").unwrap();
+        assert_eq!(
+            port.platforms,
+            [Platform::WindowsX86_64, Platform::LinuxX86_64]
+        );
+        assert!(port.release.grant_declared_executable);
+        assert_eq!(
+            port.executable_hints[&Platform::LinuxX86_64],
+            ["Paperboat.AppImage"]
+        );
+        assert_eq!(
+            port.setup_executable_hints[&Platform::LinuxX86_64],
+            ["Paperboat.AppImage"]
+        );
         assert_eq!(
             port.runtime_source_materialization,
             Some(RuntimeSourceMaterialization::N64BigEndian)
