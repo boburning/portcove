@@ -1699,7 +1699,22 @@ void test("gated push runs are not history loss and each trigger window must cov
   gated.publisher();
   const pushedAt = gated.run.created_at;
   gated.run.created_at = new Date(Date.parse(pushedAt) - 60000).toISOString();
-  gated.extraRuns.push({ ...gated.run, id: 205, event: "push", created_at: pushedAt });
+  const newerSource = "f".repeat(40);
+  gated.extraRuns.push({
+    ...gated.run,
+    id: 205,
+    event: "push",
+    head_sha: newerSource,
+    created_at: pushedAt,
+  });
+  const read = gated.api.read;
+  gated.api.read = async (endpoint) => {
+    assert.ok(
+      !endpoint.includes(`/compare/${newerSource}...`),
+      "a push without a matching snapshot has no ancestry evidence to validate",
+    );
+    return read(endpoint);
+  };
   const gatedRoot = await directory(t);
   const restored = await recover(gatedRoot, gated);
   assert.equal(restored.origin, "artifact");
