@@ -1052,8 +1052,7 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
                   onActivity={model.ui.view === "updates"}
                   openActivity={(id) => {
                     model.ui.setReviewedActivityId(id);
-                    // Already on Activity, the view does not change; show Tasks directly.
-                    model.ui.setActivitySection("tasks");
+                    // Also selects the Tasks section, even when Activity is already open.
                     model.setPrimaryView("updates");
                   }}
                   error={model.operations.error}
