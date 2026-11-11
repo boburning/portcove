@@ -38,6 +38,28 @@ export { isInformationalPath };
 export { fastPlatformMatrix, qualificationMatrices } from "./validation-platforms.mts";
 import { fastPlatformMatrix, qualificationMatrices } from "./validation-platforms.mts";
 
+/**
+ * True only for a fast pull-request run of a draft that would execute the Rust partitions itself.
+ * Qualification, push, prose and reused plans never defer, and any value other than "true" for the
+ * draft flag keeps the partitions.
+ */
+export function windowsTestsDeferred(
+  plan: Pick<ValidationPlan, "mode" | "groups">,
+  {
+    eventName,
+    draft,
+    reused,
+  }: { eventName: string | undefined; draft: string | undefined; reused: boolean },
+) {
+  return (
+    eventName === "pull_request" &&
+    draft === "true" &&
+    plan.mode === "fast" &&
+    plan.groups.includes("rust") &&
+    !reused
+  );
+}
+
 export function parseRawDiff(buffer: unknown): (ValidationChange & { score: string | null })[] {
   if (!Buffer.isBuffer(buffer)) throw new Error("raw diff must be a Buffer");
   const fields = buffer.toString("utf8").split("\0");
@@ -273,6 +295,15 @@ export async function writeGithubOutputs(
     frontend_browser_shards: String(
       !reuse?.groups.includes("frontend") &&
         (await import("./ci-baseline.mts")).baselineBrowserShardsRequired(plan),
+    ),
+    // A draft pull request defers the Windows test partitions; the rust gate then fails until a
+    // ready_for_review or later run executes them on the same contract.
+    windows_tests_deferred: String(
+      windowsTestsDeferred(plan, {
+        eventName: process.env.GITHUB_EVENT_NAME,
+        draft: process.env.PORTCOVE_PULL_REQUEST_DRAFT,
+        reused: Boolean(reuse?.groups.includes("rust")),
+      }),
     ),
     native_tools: String(windowsNativeToolsRequired(plan)),
     linux_diagnostics: String(linuxRuntimeDiagnosticsRequired(plan)),

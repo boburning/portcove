@@ -26,6 +26,7 @@ import {
   parseRawDiff,
   isInformationalPath,
   writeGithubOutputs,
+  windowsTestsDeferred,
 } from "./select-ci-plan.mts";
 import {
   buildValidationPlan,
@@ -843,4 +844,18 @@ void test("the classifier flags sharded browser execution only for a complete fr
     );
     assert.equal(values.get("frontend_browser_shards"), expected, file);
   }
+});
+
+void test("only a fast pull-request run of a draft that executes Rust defers the Windows partitions", () => {
+  const rustPlan = { mode: "fast" as const, groups: ["rust", "rust-quality"] as never };
+  const draft = { eventName: "pull_request", draft: "true", reused: false };
+  assert.equal(windowsTestsDeferred(rustPlan, draft), true);
+  assert.equal(windowsTestsDeferred(rustPlan, { ...draft, draft: "false" }), false);
+  assert.equal(windowsTestsDeferred(rustPlan, { ...draft, draft: undefined }), false);
+  assert.equal(windowsTestsDeferred(rustPlan, { ...draft, draft: "" }), false);
+  for (const eventName of ["push", "workflow_call", "workflow_dispatch", "schedule", undefined])
+    assert.equal(windowsTestsDeferred(rustPlan, { ...draft, eventName }), false, String(eventName));
+  assert.equal(windowsTestsDeferred(rustPlan, { ...draft, reused: true }), false);
+  assert.equal(windowsTestsDeferred({ ...rustPlan, mode: "qualification" }, draft), false);
+  assert.equal(windowsTestsDeferred({ ...rustPlan, groups: ["frontend"] as never }, draft), false);
 });

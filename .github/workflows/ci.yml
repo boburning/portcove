@@ -2,6 +2,8 @@ name: CI
 
 on:
   pull_request:
+    # ready_for_review runs the Windows test partitions that a draft run deferred.
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   workflow_call:
@@ -98,6 +100,7 @@ jobs:
       frontend_tools: ${{ steps.plan.outputs.frontend_tools }}
       frontend_workspace: ${{ steps.plan.outputs.frontend_workspace }}
       frontend_browser_shards: ${{ steps.plan.outputs.frontend_browser_shards }}
+      windows_tests_deferred: ${{ steps.plan.outputs.windows_tests_deferred }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -127,6 +130,7 @@ jobs:
           PORTCOVE_RELEASE_PROFILE: ${{ inputs.release_profile || 'full' }}
           PORTCOVE_QUALIFICATION_CALLER: ${{ inputs.qualification_caller || '' }}
           PORTCOVE_CALLER_WORKFLOW: ${{ inputs.caller_workflow || '' }}
+          PORTCOVE_PULL_REQUEST_DRAFT: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft || false }}
         run: node scripts/select-ci-plan.mts
       - name: Retain the exact validation plan
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -316,7 +320,8 @@ jobs:
     timeout-minutes: 45
     name: fast-rust-test (windows-x86_64, ${{ matrix.partition }})
     needs: [classify, fast_rust]
-    if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
+    # Draft pull requests defer the partitions; the required rust result then fails until ready.
+    if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust') && needs.classify.outputs.windows_tests_deferred != 'true'
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -1278,6 +1283,7 @@ jobs:
           PORTCOVE_CLASSIFIER_RESULT: ${{ needs.classify.result }}
           PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
           PORTCOVE_GROUP: rust
+          PORTCOVE_WINDOWS_TESTS_DEFERRED: ${{ needs.classify.outputs.windows_tests_deferred }}
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
           PORTCOVE_FAST_RESULTS: '{"fast_rust":"${{ needs.fast_rust.result }}","fast_rust_tests":"${{ needs.fast_rust_tests.result }}","fast_rust_transport":"${{ needs.fast_rust_transport.result }}"}'
           PORTCOVE_TARGETED_RESULTS: "{}"

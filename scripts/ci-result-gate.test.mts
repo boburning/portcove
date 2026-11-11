@@ -347,3 +347,66 @@ void test("sharded browser results are mandatory exactly when the classifier fla
     /Accepted qualification plan/u,
   );
 });
+
+void test("a draft defers the Windows partitions and the rust result fails until ready", () => {
+  const rust = (overrides: Partial<CiResultInputs> = {}) =>
+    evaluate({
+      group: "rust",
+      plan: plan("crates/portcove-core/src/lib.rs"),
+      fast: { fast_rust: "success", fast_rust_tests: "skipped", fast_rust_transport: "success" },
+      qualification: { rust_tests: "skipped" },
+      targeted: {},
+      windowsTestsDeferred: "true",
+      ...overrides,
+    });
+  // Even with every executed lane green, the deferred draft result is a failure, never a pass.
+  assert.throws(() => rust(), /deferred while this pull request is a draft/u);
+  // The draft run still requires the build and transport it did execute.
+  for (const lane of ["fast_rust", "fast_rust_transport"])
+    for (const result of ["failure", "cancelled", "skipped"])
+      assert.throws(
+        () =>
+          rust({
+            fast: {
+              fast_rust: "success",
+              fast_rust_tests: "skipped",
+              fast_rust_transport: "success",
+              [lane]: result,
+            },
+          }),
+        /expected success/u,
+        `${lane} ${result}`,
+      );
+  // Partitions that ran despite the flag mean the flag and the workflow disagree.
+  assert.throws(
+    () =>
+      rust({
+        fast: { fast_rust: "success", fast_rust_tests: "success", fast_rust_transport: "success" },
+      }),
+    /expected skipped for a draft/u,
+  );
+  // A ready run with the flag false needs the partitions as before.
+  assert.match(
+    rust({
+      windowsTestsDeferred: "false",
+      fast: { fast_rust: "success", fast_rust_tests: "success", fast_rust_transport: "success" },
+    }),
+    /Accepted fast plan/u,
+  );
+  assert.throws(
+    () => rust({ windowsTestsDeferred: "false" }),
+    /fast_rust_tests was skipped, expected success/u,
+  );
+  // The flag cannot apply to another group or to a plan that does not execute Rust.
+  assert.throws(() => evaluate({ windowsTestsDeferred: "true" }), /applies only/u);
+  assert.throws(
+    () =>
+      rust({
+        plan: plan("apps/desktop/src/App.tsx"),
+        fast: { fast_rust: "skipped", fast_rust_tests: "skipped", fast_rust_transport: "skipped" },
+      }),
+    /applies only/u,
+  );
+  for (const malformed of ["yes", "", "TRUE"])
+    assert.throws(() => rust({ windowsTestsDeferred: malformed }), /must be true or false/u);
+});

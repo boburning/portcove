@@ -325,6 +325,17 @@ wrong flag therefore cannot omit coverage. Sharding changes where the same tests
 not what is required, and it adds runner jobs per full run, so queue time still
 counts toward latency.
 
+A draft pull request defers the eight Windows Rust test partitions. When a fast plan
+selects Rust that the run would execute itself, the classifier sets
+`windows_tests_deferred` from the pull request's draft state. The draft run still
+builds the Windows workspace and runs the live transport comparison, and the
+required `rust` result then fails with an explicit deferral message, so a draft head
+never carries a passing `rust` result without its partitions. Marking the pull
+request ready (`ready_for_review`) or any later push to a ready pull request starts a
+full run on that head, and the supersede workflow cancels the draft run. Push,
+qualification, release and reused plans never defer. In practice, expect red `rust`
+on drafts that change Rust; that is the deferral, not a test failure.
+
 Retain failures, diagnose the smallest useful reproduction, and repeat only
 invalidated obligations. Preserve assertions, coverage, cleanup and finite
 termination; an unchanged later pass does not establish a causal repair.

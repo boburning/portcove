@@ -5,7 +5,7 @@ name: Cancel superseded CI runs
 # because ci.yml is also a reusable workflow whose callers grant only actions: read.
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
