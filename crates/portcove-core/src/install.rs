@@ -228,7 +228,7 @@ impl InstallQualification {
             executable_hints,
             runtime_subdirectory: port.runtime_subdirectory.clone(),
             external_profile_policy: port.external_profile_policy,
-            persistent_paths: port.persistent_paths.clone(),
+            persistent_paths: crate::persistence::declared_paths(port, platform).to_vec(),
             persistent_file_patterns: port.persistent_file_patterns.clone(),
             runtime_mutable_paths: port.runtime_mutable_paths.clone(),
             runtime_mutable_file_patterns: port.runtime_mutable_file_patterns.clone(),
@@ -1232,6 +1232,15 @@ impl Installer {
             ) {
                 return Err(PortcoveError::verification(
                     "OpenMoHAA archive differs from its retained Unix package selector",
+                ));
+            }
+            if !crate::native_external_profile::openjk::matches_asset(
+                port,
+                request.qualification.platform,
+                &artifact.asset_name,
+            ) {
+                return Err(PortcoveError::verification(
+                    "OpenJK or OpenJO archive differs from its retained Unix package selector",
                 ));
             }
             crate::package_layout::require_reviewed_layout(
@@ -4037,6 +4046,11 @@ pub(crate) fn resolve_declared_executable(
         }
         Some(crate::ExternalProfilePolicy::Doom3LinuxV1) if platform == Platform::LinuxX86_64 => {
             crate::native_external_profile::doom3_linux::require_payload(&executable)?;
+        }
+        Some(crate::ExternalProfilePolicy::OpenjkUnixV1)
+            if crate::native_external_profile::openjk::applies_to(platform) =>
+        {
+            crate::native_external_profile::openjk::require_payload(&executable, platform)?;
         }
         _ => {}
     }

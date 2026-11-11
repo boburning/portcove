@@ -3,7 +3,7 @@
   "listing": {
     "id": "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo",
     "name": "Star Wars Jedi Knight II: Jedi Outcast (single player) (OpenJK / OpenJO)",
-    "summary": "Use the official OpenJO Windows player with an already prepared, matching working original-data copy. New original-game first setup remains held.",
+    "summary": "Use the official OpenJO campaign player with matching original data from an already working OpenJO setup.",
     "original_game_title": "Star Wars Jedi Knight II: Jedi Outcast (single player)",
     "project_url": "https://github.com/JACoders/OpenJK",
     "availability": "packages",
@@ -21,29 +21,30 @@
       "steps": [
         {
           "title": "Use already prepared OpenJO data",
-          "instruction": "This managed route accepts only a matching original-data copy already prepared for a working OpenJO installation. Copy that known-working original base folder beside the official player and keep the complete original installation and creating runtime unchanged and separate. New Outcast first setup remains held until upstream establishes the exact original-data, patch and layout contract. Keep the package's OpenJK game-library folder and all its own DLLs intact; do not copy old executables or DLLs into this runtime. Jedi Academy is a different game. Portcove does not verify original-game identity or perform that first setup. Customized layouts can retain their existing external registration."
+          "instruction": "This managed route accepts only a matching original-data copy already prepared for a working OpenJO installation. On Windows, copy that known-working original base folder beside the official player and keep the complete original installation and creating runtime unchanged and separate. New Outcast first setup remains held until upstream establishes the exact original-data, patch and layout contract. Keep the package's OpenJK game-library folder and all its own DLLs intact; do not copy old executables or DLLs into this runtime. Jedi Academy is a different game. Portcove does not verify original-game identity or perform that first setup. Customized layouts can retain their existing external registration."
         },
         {
           "title": "Keep the correct player and profile",
-          "instruction": "The managed player follows the Rolling latest build; this channel does not establish gameplay qualification. The managed copy selects openjo_sp.x86_64.exe for single player. OpenJO multiplayer is outside this upstream player; upstream describes Outcast single player as working but still needing attention. This selected Windows package contains the non-portable home-directory branch: normal saves, configuration and logs use the actual Documents/My Games/OpenJO profile."
+          "instruction": "The managed player follows the Rolling latest build; this channel does not establish gameplay qualification. On Windows, the managed copy selects openjo_sp.x86_64.exe for single player. OpenJO multiplayer is outside this upstream player; upstream describes Outcast single player as working but still needing attention. This selected Windows package contains the non-portable home-directory branch: normal saves, configuration and logs use the actual Documents/My Games/OpenJO profile."
         },
         {
           "title": "Keep an existing prepared copy",
           "instruction": "Use this route only for an already prepared, working upstream OpenJO installation with your own matching Outcast data. The inspected official OpenJO-windows-x86_64.zip contains openjo_sp.x86_64.exe; keep its companions. Register the existing player and its already working directory/arguments. Do not apply the Academy setup recipe to Outcast or treat this package inspection as original-data acceptance."
         },
         {
-          "title": "Prepare the upstream Linux player",
-          "instruction": "Unpack OpenJO-linux-x86_64.tar.gz into the matching Jedi Outcast GameData working folder with its own base data. Keep the packaged OpenJK modules next to the launcher. The current build needs host SDL2, zlib and glibc 2.34 or newer. Run openjo_sp.x86_64 for the campaign. Use the project’s setup and replacement steps."
+          "title": "Prepare the Linux OpenJO campaign profile",
+          "instruction": "Put the original archives in $XDG_DATA_HOME/openjo/base when XDG_DATA_HOME is set to an absolute path. Otherwise, with XDG_DATA_HOME unset, use ~/.local/share/openjo/base. Use only matching data archives from an already working Outcast installation. The inspected official build requires glibc 2.34, libstdc++ with GLIBCXX_3.4.29, SDL2, zlib, libjpeg.so.8, libpng16.so.16 and libOpenGL.so.0."
         },
         {
-          "title": "Prepare the upstream Mac player",
-          "instruction": "Unpack the official OpenJO Mac tarball for your Mac with the system archive tools. Keep the app and its required game data in the matching Jedi Outcast GameData layout. Open openjo_sp.arm64.app or openjo_sp.x86_64.app for the campaign. Keep the complete app, including libSDL2-2.0.0.dylib in Contents/Frameworks and follow the project’s data setup instructions. The inspected packages require macOS 14 or later on Intel and macOS 15 or later on Apple Silicon."
+          "title": "Prepare the Mac OpenJO campaign profile",
+          "instruction": "Put the same prepared Outcast original archives in ~/Library/Application Support/OpenJO/base. Use the matching Intel or Apple Silicon package. The inspected bundled SDL2 requires macOS 14 or later on Intel and macOS 15 or later on Apple Silicon."
         }
       ],
       "warnings": [
         "New Outcast setup remains held until upstream establishes the exact original-data/patch/layout contract. Upstream labels Outcast single player as needing attention and does not support Outcast multiplayer here.",
         "Back it up separately with your originals and creating runtime before changing versions.",
-        "A runtime rollback does not rewind external saves or establish older-runtime, mod or recorded-demo compatibility."
+        "A runtime rollback does not rewind external saves or establish older-runtime, mod or recorded-demo compatibility.",
+        "Keep the Unix profile and original archives outside the Portcove library and back them up separately. Use a separately prepared copy for profiles with alternate native modules. Managed runtime replacement and rollback leave this external data in place."
       ],
       "help_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md",
       "references": [
@@ -60,8 +61,7 @@
           "instruction": "Preserve the Linux OpenJO profile at $XDG_DATA_HOME/openjo or ~/.local/share/openjo, or ~/Library/Application Support/OpenJO on Mac. Keep any explicit fs_homepath, original data, mods and the creating runtime."
         }
       ]
-    },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -78,7 +78,7 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["rolling"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "adapter": "native-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
@@ -87,17 +87,23 @@
       "repository": "JACoders/OpenJK",
       "rolling_tag": "latest",
       "asset_hints": {
-        "windows-x86-64": ["OpenJO-windows-x86_64.zip"]
+        "windows-x86-64": ["OpenJO-windows-x86_64.zip"],
+        "linux-x86-64": ["OpenJO-linux-x86_64.tar.gz"],
+        "macos-x86-64": ["OpenJO-macos-x86_64.tar.gz"],
+        "macos-aarch64": ["OpenJO-macos-arm64.tar.gz"]
       }
     },
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "This managed route accepts only a matching original-data copy already prepared for a working OpenJO installation. Copy that known-working original base folder beside the official player and keep the complete original installation and creating runtime unchanged and separate. New Outcast first setup remains held until upstream establishes the exact original-data, patch and layout contract. Keep the package's OpenJK game-library folder and all its own DLLs intact; do not copy old executables or DLLs into this runtime. Jedi Academy is a different game. Portcove does not verify original-game identity or perform that first setup. Customized layouts can retain their existing external registration. This managed copy selects openjo_sp.x86_64.exe for single player. This selected Windows package contains the non-portable home-directory branch: normal saves, configuration and logs use the actual Documents/My Games/OpenJO profile. Back it up separately with your originals and creating runtime before changing versions. Portable builds, unavailable Documents folders and explicit home-path overrides can change the write location; those configurations need their own preserved external registration. A runtime rollback does not rewind external saves or establish older-runtime, mod or recorded-demo compatibility. Portcove replaces only its separate official managed runtime and preserves the declared local originals during compatible replacement and backup, including originals copied before first Play. Its backup excludes external profiles. The rolling latest release is identified by its accepted archive digest as well as its version; a rebuilt tag is a new artifact decision. Use a short Windows library path containing plain ASCII characters; the external profile has its own upstream path limits. Older installations retain their original path contract. Gameplay, first original setup and populated-save compatibility remain unqualified."
+      "manual_preparation": "This managed route accepts only a matching original-data copy already prepared for a working OpenJO installation. On Windows, copy that known-working original base folder beside the official player and keep the complete original installation and creating runtime unchanged and separate. New Outcast first setup remains held until upstream establishes the exact original-data, patch and layout contract. Keep the package's OpenJK game-library folder and all its own DLLs intact; do not copy old executables or DLLs into this runtime. Jedi Academy is a different game. Portcove does not verify original-game identity or perform that first setup. Customized layouts can retain their existing external registration. On Windows the managed copy selects openjo_sp.x86_64.exe for single player. This selected Windows package contains the non-portable home-directory branch: normal saves, configuration and logs use the actual Documents/My Games/OpenJO profile. Back it up separately with your originals and creating runtime before changing versions. Portable builds, unavailable Documents folders and explicit home-path overrides can change the write location; those configurations need their own preserved external registration. A runtime rollback does not rewind external saves or establish older-runtime, mod or recorded-demo compatibility. Portcove replaces only its separate official managed runtime and preserves the declared Windows local originals during compatible replacement and backup, including originals copied before first Play. Its backup excludes external profiles. The rolling latest release is identified by its accepted archive digest as well as its version; a rebuilt tag is a new artifact decision. Use a short Windows library path containing plain ASCII characters; the external profile has its own upstream path limits. Older installations retain their original path contract. Gameplay, first original setup and populated-save compatibility remain unqualified. On Unix, keep your matching original archives in the external profile at $XDG_DATA_HOME/openjo/base, or ~/.local/share/openjo/base with XDG_DATA_HOME unset on Linux, or ~/Library/Application Support/OpenJO/base on Mac. Back up the profile and its original archives separately."
     },
     "executable_hints": {
-      "windows-x86-64": ["openjo_sp.x86_64.exe"]
+      "windows-x86-64": ["openjo_sp.x86_64.exe"],
+      "linux-x86-64": ["openjo_sp.x86_64"],
+      "macos-x86-64": ["openjo_sp.x86_64.app/Contents/MacOS/openjo_sp.x86_64"],
+      "macos-aarch64": ["openjo_sp.arm64.app/Contents/MacOS/openjo_sp.arm64"]
     },
     "persistent_paths": ["base"],
     "windows_runtime_path_policy": "printable-ascii-max-path",
@@ -105,7 +111,30 @@
       "windows-x86-64": {
         "directories": ["openjk"],
         "executables": ["openjo_sp.x86_64.exe"]
+      },
+      "linux-x86-64": {
+        "directories": ["openjk"],
+        "executables": ["openjo_sp.x86_64"]
+      },
+      "macos-x86-64": {
+        "directories": ["contents"],
+        "executables": [
+          "contents/macos/openjk/jospgamex86_64.dylib",
+          "contents/macos/openjo_sp.x86_64",
+          "contents/macos/rdjosp-vanilla_x86_64.dylib",
+          "contents/resources/english.lproj/infoplist.strings"
+        ]
+      },
+      "macos-aarch64": {
+        "directories": ["contents"],
+        "executables": [
+          "contents/macos/openjk/jospgamearm64.dylib",
+          "contents/macos/openjo_sp.arm64",
+          "contents/macos/rdjosp-vanilla_arm64.dylib",
+          "contents/resources/english.lproj/infoplist.strings"
+        ]
       }
-    }
+    },
+    "external_profile_policy": "openjk-unix-v1"
   }
 }

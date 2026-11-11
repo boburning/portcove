@@ -180,7 +180,8 @@ impl ReleaseSelectionCacheKey {
                 )
                 || crate::native_external_profile::archive_siblings::requires_archive(
                     port, platform,
-                ),
+                )
+                || crate::native_external_profile::openjk::requires_archive(port, platform),
             scope_binding: None,
             repository: port.release.repository.clone(),
             channel,
@@ -1860,6 +1861,11 @@ fn choose_asset<'a>(
         .filter_map(|asset| {
             let name = asset.name.to_ascii_lowercase();
             if !crate::native_external_profile::openmohaa::matches_asset(port, platform, &name)
+                || !crate::native_external_profile::openjk::matches_asset(
+                    port,
+                    platform,
+                    &asset.name,
+                )
                 || !crate::native_external_profile::quake_linux::matches_ironwail_tar(
                     port, platform, &name,
                 )

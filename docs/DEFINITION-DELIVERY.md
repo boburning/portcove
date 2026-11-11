@@ -138,6 +138,15 @@ It holds a DUDE first launch that would copy a legacy profile. Earlier
 creating definitions keep their Windows launch and ownership contracts.
 Fresh and retained indexed entries declaring the policy require version 23.
 
+Native portable version 24 consumes `openjk-unix-v1` for the official
+OpenJK and OpenJO Linux campaign packages and OpenJO on Intel and Apple
+Silicon Macs. It binds the release selector and checked native package
+members. Launch checks the upstream-selected external profile and refuses
+alternate native modules in that profile. Original assets and Unix saves
+stay in the player-owned profile. The Windows routes keep their existing
+creating layouts and persistent paths. Fresh and retained indexed entries
+declaring this policy require version 24.
+
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
 entry that relies on the package-layout gate. Previously admitted

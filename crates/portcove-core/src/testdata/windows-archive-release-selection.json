@@ -1,5 +1,23 @@
 {
   "cases": {
+    "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo": {
+      "inventory": "openjk",
+      "repository_id": 9214660,
+      "selected_assets": ["OpenJO-windows-x86_64.zip", "OpenJO-windows-x86_64.zip"],
+      "linux_selected_assets": ["OpenJO-linux-x86_64.tar.gz", "OpenJO-linux-x86_64.tar.gz"],
+      "macos_x86_64_selected_assets": ["OpenJO-macos-x86_64.tar.gz", "OpenJO-macos-x86_64.tar.gz"],
+      "macos_aarch64_selected_assets": ["OpenJO-macos-arm64.tar.gz", "OpenJO-macos-arm64.tar.gz"],
+      "channel": "rolling",
+      "mutable_tag_snapshots": true
+    },
+    "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo": {
+      "inventory": "openjk",
+      "repository_id": 9214660,
+      "selected_assets": ["OpenJK-windows-x86_64.zip", "OpenJK-windows-x86_64.zip"],
+      "linux_selected_assets": ["OpenJK-linux-x86_64.tar.gz", "OpenJK-linux-x86_64.tar.gz"],
+      "channel": "rolling",
+      "mutable_tag_snapshots": true
+    },
     "paperboat": {
       "inventory": "paperboat",
       "repository_id": 1175026745,
@@ -1426,6 +1444,194 @@
     }
   },
   "inventories": {
+    "openjk": [
+      {
+        "id": 398990609,
+        "tag_name": "latest",
+        "published_at": "2026-09-29T09:22:50Z",
+        "prerelease": false,
+        "draft": false,
+        "assets": [
+          {
+            "id": 597802096,
+            "name": "OpenJK-linux-x86.tar.gz",
+            "size": 8322171,
+            "digest": "sha256:eab5537a8963b035c48cd4d3f93cb39b0df1eb948f60b23bae04a24f64f18796",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-linux-x86.tar.gz"
+          },
+          {
+            "id": 597802113,
+            "name": "OpenJK-linux-x86_64.tar.gz",
+            "size": 7911522,
+            "digest": "sha256:8116857544cc8ca90713edae43db0b13108cb044af7ea7312c739a677464c297",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-linux-x86_64.tar.gz"
+          },
+          {
+            "id": 597802131,
+            "name": "OpenJK-macos-arm64.tar.gz",
+            "size": 7882022,
+            "digest": "sha256:5e3a27ae044b184b80d23d1804ebaf07a078aced7d39895e061ff4d38a3eeaef",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-macos-arm64.tar.gz"
+          },
+          {
+            "id": 597802160,
+            "name": "OpenJK-macos-x86_64.tar.gz",
+            "size": 8363775,
+            "digest": "sha256:b5e381243361436f9af2bcf55cc0f03d15110ed267816b9a373ae5b2e0483f30",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-macos-x86_64.tar.gz"
+          },
+          {
+            "id": 597802004,
+            "name": "OpenJK-windows-x86.zip",
+            "size": 6070474,
+            "digest": "sha256:1479e81abbe9ef79f99620230deccd8374b07b797237a87b571e38b4666645df",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-windows-x86.zip"
+          },
+          {
+            "id": 597802024,
+            "name": "OpenJK-windows-x86_64.zip",
+            "size": 7064516,
+            "digest": "sha256:a88727208476ac4b3f2f3f4d182cd63b9a77c33d33171a66feda8084a331e385",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-windows-x86_64.zip"
+          },
+          {
+            "id": 597802183,
+            "name": "OpenJO-linux-x86.tar.gz",
+            "size": 1928063,
+            "digest": "sha256:0ce130c8e2b6def71218f38d5d8f74cd79c69748df88d56c9b09a7411ac704bd",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-linux-x86.tar.gz"
+          },
+          {
+            "id": 597802201,
+            "name": "OpenJO-linux-x86_64.tar.gz",
+            "size": 1814038,
+            "digest": "sha256:1820cc3125db95b4cfbbc3294c413a778d02e3473856e27dc14f8ee9a75b5b4d",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-linux-x86_64.tar.gz"
+          },
+          {
+            "id": 597802226,
+            "name": "OpenJO-macos-arm64.tar.gz",
+            "size": 2286685,
+            "digest": "sha256:1ba6426e55dbcd9de597bc4891d085519509bf84b95d9ed7c0a7786e6d98ccb0",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-macos-arm64.tar.gz"
+          },
+          {
+            "id": 597802241,
+            "name": "OpenJO-macos-x86_64.tar.gz",
+            "size": 2385118,
+            "digest": "sha256:2d06987b9b68f43b0a516d3752168b48d4ca0731784f32de3abb1d727b7dc27d",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-macos-x86_64.tar.gz"
+          },
+          {
+            "id": 597802045,
+            "name": "OpenJO-windows-x86.zip",
+            "size": 1991285,
+            "digest": "sha256:f30df5649c28f740fe55e2de0d514108b7c2c67b43ab39d3157582c7777fdb7e",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-windows-x86.zip"
+          },
+          {
+            "id": 597802075,
+            "name": "OpenJO-windows-x86_64.zip",
+            "size": 2282795,
+            "digest": "sha256:ba4379dca68e4eecc2e7eea2c84b0821d04fe421b7418f2d64055ab2a6c4f7ad",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-windows-x86_64.zip"
+          }
+        ]
+      },
+      {
+        "id": 398990610,
+        "tag_name": "latest",
+        "published_at": "2026-10-01T00:00:00Z",
+        "prerelease": false,
+        "draft": false,
+        "assets": [
+          {
+            "id": 597803096,
+            "name": "OpenJK-linux-x86.tar.gz",
+            "size": 8322172,
+            "digest": "sha256:6f7646f715cc865c5b2712321c58c700f07e45dcb6fae1392a58500b5d58c140",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-linux-x86.tar.gz"
+          },
+          {
+            "id": 597803113,
+            "name": "OpenJK-linux-x86_64.tar.gz",
+            "size": 7911523,
+            "digest": "sha256:952977b87694774ec515837610ea6904646e3d93262ba68d8501a32cc994691d",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-linux-x86_64.tar.gz"
+          },
+          {
+            "id": 597803131,
+            "name": "OpenJK-macos-arm64.tar.gz",
+            "size": 7882023,
+            "digest": "sha256:6b7efbbf1bb92a077b41ccdfd014b9c1656ce26b83b5ab3c0e3da73940d39ac2",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-macos-arm64.tar.gz"
+          },
+          {
+            "id": 597803160,
+            "name": "OpenJK-macos-x86_64.tar.gz",
+            "size": 8363776,
+            "digest": "sha256:8856c230176d187afd31737a2b2f94e53f0ed4667d824dcaf5dbc58d4c113883",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-macos-x86_64.tar.gz"
+          },
+          {
+            "id": 597803004,
+            "name": "OpenJK-windows-x86.zip",
+            "size": 6070475,
+            "digest": "sha256:b8bbfc776e083b0fdab6a5eb022d39531766efdf0ae606f7568a24138fcc6635",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-windows-x86.zip"
+          },
+          {
+            "id": 597803024,
+            "name": "OpenJK-windows-x86_64.zip",
+            "size": 7064517,
+            "digest": "sha256:9255e81d1d963795420580fac4420413268bb4f1991a3fe452a2085d7890e62c",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-windows-x86_64.zip"
+          },
+          {
+            "id": 597803183,
+            "name": "OpenJO-linux-x86.tar.gz",
+            "size": 1928064,
+            "digest": "sha256:8e5108d6a744db3a1b7e9fda4753eb1ee8106b0bb851af6a0e6ebcb7a3628243",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-linux-x86.tar.gz"
+          },
+          {
+            "id": 597803201,
+            "name": "OpenJO-linux-x86_64.tar.gz",
+            "size": 1814039,
+            "digest": "sha256:430baf1eb88857ce41f323910d5c04e03de01e0ea945e9a2aeecd8734db0bbe6",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-linux-x86_64.tar.gz"
+          },
+          {
+            "id": 597803226,
+            "name": "OpenJO-macos-arm64.tar.gz",
+            "size": 2286686,
+            "digest": "sha256:17c40bfe249f9747900e1b8e210177d6ab43ff9f1af2a37ac3e052f6b3ce1c0d",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-macos-arm64.tar.gz"
+          },
+          {
+            "id": 597803241,
+            "name": "OpenJO-macos-x86_64.tar.gz",
+            "size": 2385119,
+            "digest": "sha256:8afac59ecd1ec403175872ac21a03f27d98035d2e5a9c5b120ae8cd59fdc7242",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-macos-x86_64.tar.gz"
+          },
+          {
+            "id": 597803045,
+            "name": "OpenJO-windows-x86.zip",
+            "size": 1991286,
+            "digest": "sha256:123cba4917ab92980e85ad586a9124442fb7c759c4fcf477d122a3a003a4ae69",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-windows-x86.zip"
+          },
+          {
+            "id": 597803075,
+            "name": "OpenJO-windows-x86_64.zip",
+            "size": 2282796,
+            "digest": "sha256:ec3695f6bba4b27e31a7fb6af974627f38113f7c6005cd91f504ab5152484153",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-windows-x86_64.zip"
+          }
+        ]
+      }
+    ],
     "paperboat": [
       {
         "id": 390372419,
@@ -7620,6 +7826,26 @@
     ]
   },
   "other_zip_assets": [
+    {
+      "inventory": "openjk",
+      "release_index": 0,
+      "asset": "OpenJK-windows-x86.zip"
+    },
+    {
+      "inventory": "openjk",
+      "release_index": 0,
+      "asset": "OpenJO-windows-x86.zip"
+    },
+    {
+      "inventory": "openjk",
+      "release_index": 1,
+      "asset": "OpenJK-windows-x86.zip"
+    },
+    {
+      "inventory": "openjk",
+      "release_index": 1,
+      "asset": "OpenJO-windows-x86.zip"
+    },
     {
       "inventory": "paperboat",
       "release_index": 0,
