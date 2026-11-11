@@ -30,6 +30,12 @@ impl From<PolicyArg> for ProfileUpdatePolicy {
     }
 }
 
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub(crate) enum ToggleArg {
+    On,
+    Off,
+}
+
 #[derive(Debug, Subcommand)]
 pub(crate) enum ProfileCommand {
     /// List a port's profiles with their current exact revision and original availability.
@@ -68,6 +74,45 @@ pub(crate) enum ProfileCommand {
         #[arg(value_enum)]
         policy: PolicyArg,
     },
+    /// Review and install a local mod archive into a profile as a new revision.
+    InstallPackage {
+        /// Catalog port ID owning the profile.
+        port_id: String,
+        /// Profile ID from `profile list`.
+        profile_id: String,
+        /// Local archive; it is inspected, never executed, and copied by digest.
+        file: PathBuf,
+        /// Revision you reviewed; a newer revision makes the install stale.
+        #[arg(long)]
+        expected_revision: u64,
+    },
+    /// Enable or disable an installed package as a new revision.
+    SetPackage {
+        /// Catalog port ID owning the profile.
+        port_id: String,
+        /// Profile ID from `profile list`.
+        profile_id: String,
+        /// Package native ID shown by `profile list`.
+        native_id: String,
+        /// `on` or `off`.
+        #[arg(value_enum)]
+        state: ToggleArg,
+        /// Revision you reviewed.
+        #[arg(long)]
+        expected_revision: u64,
+    },
+    /// Make a profile the one whose mods and progress are live for play.
+    Activate {
+        /// Catalog port ID owning the profile.
+        port_id: String,
+        /// Profile ID from `profile list`.
+        profile_id: String,
+    },
+    /// Show live mod files that are not owned by the selected profile or were changed.
+    Live {
+        /// Catalog port ID.
+        port_id: String,
+    },
     /// Append a successor revision from a reviewed JSON request file (`-` reads stdin).
     Revise {
         /// Catalog port ID owning the profile.
@@ -88,11 +133,18 @@ impl ProfileCommand {
             Self::Revisions { .. } => "profile.revisions",
             Self::Policy { .. } => "profile.policy",
             Self::Revise { .. } => "profile.revise",
+            Self::InstallPackage { .. } => "profile.install-package",
+            Self::SetPackage { .. } => "profile.set-package",
+            Self::Activate { .. } => "profile.activate",
+            Self::Live { .. } => "profile.live",
         }
     }
 
     pub(crate) fn mutates(&self) -> bool {
-        !matches!(self, Self::List { .. } | Self::Revisions { .. })
+        !matches!(
+            self,
+            Self::List { .. } | Self::Revisions { .. } | Self::Live { .. }
+        )
     }
 }
 
@@ -164,6 +216,57 @@ pub(crate) fn execute(
             service.set_profile_update_policy(&port_id, &profile_id, policy.into())?,
             |profile| summary("Update policy saved", profile),
         ),
+        ProfileCommand::InstallPackage {
+            port_id,
+            profile_id,
+            file,
+            expected_revision,
+        } => render_read_success(
+            mode,
+            name,
+            service.install_mod_package(&port_id, &profile_id, &file, expected_revision)?,
+            |revision| format!("Package installed\n{}", revision_line(revision)),
+        ),
+        ProfileCommand::SetPackage {
+            port_id,
+            profile_id,
+            native_id,
+            state,
+            expected_revision,
+        } => render_read_success(
+            mode,
+            name,
+            service.set_mod_package_enabled(
+                &port_id,
+                &profile_id,
+                &native_id,
+                matches!(state, ToggleArg::On),
+                expected_revision,
+            )?,
+            |revision| format!("Package state saved\n{}", revision_line(revision)),
+        ),
+        ProfileCommand::Activate {
+            port_id,
+            profile_id,
+        } => render_read_success(
+            mode,
+            name,
+            service.activate_profile(&port_id, &profile_id)?,
+            |revision| format!("Profile active\n{}", revision_line(revision)),
+        ),
+        ProfileCommand::Live { port_id } => {
+            render_read_success(mode, name, service.observe_live_mods(&port_id)?, |live| {
+                if live.unmanaged.is_empty() && live.changed_owned.is_empty() {
+                    "Live mods match the selected profile.".into()
+                } else {
+                    format!(
+                        "Unmanaged files: {}\nChanged installed files: {}",
+                        live.unmanaged.join(", "),
+                        live.changed_owned.join(", ")
+                    )
+                }
+            })
+        }
         ProfileCommand::Revise {
             port_id,
             profile_id,

@@ -143,6 +143,28 @@ fn profile_commands_migrate_default_append_revisions_and_refuse_stale_review() {
     assert!(!unknown.status.success());
     assert_eq!(json_stdout(&unknown)["error"]["code"], "usage");
 
+    // A port without a reviewed mod package contract refuses installs up front.
+    let package = root.join("anything.o2r");
+    fs::write(&package, b"not inspected").unwrap();
+    let unsupported = invoke(
+        root,
+        &[
+            "--json",
+            "profile",
+            "install-package",
+            PORT,
+            profile_id,
+            package.to_str().unwrap(),
+            "--expected-revision",
+            "2",
+        ],
+    );
+    assert!(!unsupported.status.success());
+    assert_eq!(json_stdout(&unsupported)["error"]["code"], "unsupported");
+    let live = invoke(root, &["--json", "profile", "live", PORT]);
+    assert!(!live.status.success());
+    assert_eq!(json_stdout(&live)["error"]["code"], "unsupported");
+
     let revisions = result(
         root,
         &["--json", "profile", "revisions", PORT, profile_id],

@@ -296,3 +296,22 @@ fn installing_into_a_background_profile_waits_in_the_store_and_deploys_on_activa
     assert_eq!(live_mods(&w), ["later.o2r"]);
     let _ = (Library::now(), ProfileUpdatePolicy::KeepCurrent);
 }
+
+#[test]
+fn pending_restore_mark_guards_collection_and_clears_once_the_build_is_synced() {
+    let w = world();
+    let layout = Layout { user: user(&w) };
+    assert!(!restore_pending(&layout.user));
+    mark_restore_pending(&layout).unwrap();
+    assert!(restore_pending(&layout.user));
+    clear_restore_pending(&layout.user).unwrap();
+    clear_restore_pending(&layout.user).unwrap();
+    assert!(!restore_pending(&layout.user));
+    // Profile changes leave no lasting mark when the build can be refreshed
+    // (here the fixture build is unlaunched, so launch preparation restores it).
+    let package = archive(&w.scratch, "pending.o2r", &[("a.bin", b"x")]);
+    w.service
+        .install_mod_package("starship", &w.default, &package, 1)
+        .unwrap();
+    assert!(!restore_pending(&layout.user));
+}

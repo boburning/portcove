@@ -70,6 +70,26 @@ impl Layout {
     fn journal(&self) -> PathBuf {
         self.store().join("switch.json")
     }
+    fn pending(&self) -> PathBuf {
+        self.store().join("restore-pending")
+    }
+}
+
+/// True while the canonical live data is newer than the installed build's copy.
+pub(crate) fn restore_pending(user: &Path) -> bool {
+    Layout { user: user.into() }.pending().exists()
+}
+
+pub(crate) fn clear_restore_pending(user: &Path) -> Result<()> {
+    match fs::remove_file(Layout { user: user.into() }.pending()) {
+        Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(error.into()),
+        _ => Ok(()),
+    }
+}
+
+fn mark_restore_pending(layout: &Layout) -> Result<()> {
+    fs::create_dir_all(layout.store())?;
+    crate::durability::write_bytes_atomically(&layout.pending(), b"1", true)
 }
 
 /// What the live mods root holds relative to the revision that should own it.
@@ -392,8 +412,10 @@ impl PortcoveService {
             if current_revision == target.revision {
                 return Ok(target);
             }
+            mark_restore_pending(&layout)?;
             deploy(&layout, Some(&departing), &target)?;
             profile::set_selection(&connection, port_id, profile_id, target.revision)?;
+            self.sync_build_after_change(port_id, &layout);
             return Ok(target);
         }
         // Bring live data up to date from the launched build before parking it.
@@ -431,12 +453,14 @@ impl PortcoveService {
         departing: &ProfileRevision,
         target: &ProfileRevision,
     ) -> Result<()> {
+        mark_restore_pending(layout)?;
         move_paths(paths, &layout.user, &layout.parked(from))?;
         deploy(layout, Some(departing), target)?;
         move_paths(paths, &layout.parked(to), &layout.user)?;
         let connection = self.library.connection()?;
         profile::set_selection(&connection, port_id, to, target.revision)?;
         fs::remove_file(layout.journal())?;
+        self.sync_build_after_change(port_id, layout);
         Ok(())
     }
 
@@ -479,11 +503,22 @@ impl PortcoveService {
     ) -> Result<ProfileRevision> {
         let next = self.create_profile_revision_locked(port_id, profile_id, request)?;
         if live {
+            mark_restore_pending(layout)?;
             deploy(layout, Some(current), &next)?;
             let connection = self.library.connection()?;
             profile::set_selection(&connection, port_id, profile_id, next.revision)?;
+            self.sync_build_after_change(port_id, layout);
         }
         Ok(next)
+    }
+
+    /// Refreshes the active build from canonical data and clears the pending mark
+    /// only when that succeeded. Otherwise the mark keeps collection from copying
+    /// the stale build over the profile until launch restores it.
+    fn sync_build_after_change(&self, port_id: &str, layout: &Layout) {
+        if self.restore_active_user_data_if_launched(port_id) {
+            let _ = clear_restore_pending(&layout.user);
+        }
     }
 
     /// Read-only view of live mods against the selected revision.
