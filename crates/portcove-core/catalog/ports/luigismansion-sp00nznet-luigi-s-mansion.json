@@ -6,6 +6,7 @@
     "original_game_title": "Luigi's Mansion",
     "summary": "Upstream reports early runtime, audio and operating-system initialization, followed by a scheduler loop polling RunQueueBits with an uninitialized interrupt-handler table. No title screen or gameplay is available. Yasiki’s completed decompilation supplies symbols; it does not make this port complete. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/luigismansion",
+    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/sp00nznet/luigismansion",

@@ -6,6 +6,7 @@
     "summary": "Documented Windows Earthworm Jim 2 source-build route from your own exact European PlayStation disc. Register the completed out/EarthwormJim2_Recompiled.exe; upstream owns rebuilding and updates, including replacement of packaged mods.",
     "project_url": "https://github.com/elprogramadorloco-arch/jim2-recomp",
     "issue_number": 1819,
+    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/elprogramadorloco-arch/jim2-recomp",

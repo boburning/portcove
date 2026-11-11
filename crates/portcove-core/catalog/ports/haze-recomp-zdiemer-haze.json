@@ -6,6 +6,7 @@
     "original_game_title": "Haze",
     "summary": "Upstream demonstrates menus, opening gameplay, audio and checkpoints. A full campaign is unconfirmed; co-op uses two local instances only. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/zdiemer/haze-recomp",
+    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/zdiemer/haze-recomp",

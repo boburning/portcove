@@ -6,6 +6,7 @@
     "summary": "Use a permitted Snowboard Kids player and select your own North American cartridge dump on first Play.",
     "project_url": "https://github.com/cdlewis/snowboardkids-recomp",
     "issue_number": 1886,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/README.md",

@@ -6,6 +6,7 @@
     "summary": "Use your permitted noncommercial Cannonball DX Windows player with your own matching OutRun ROM data.",
     "project_url": "https://github.com/Endprodukt/cannonball-dx",
     "issue_number": 1132,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/Endprodukt/cannonball-dx/blob/afbe061c50ad1aa50795daa98e4ab689a4d3ca46/README.md",

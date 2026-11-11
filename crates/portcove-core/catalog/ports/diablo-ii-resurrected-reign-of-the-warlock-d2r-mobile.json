@@ -6,6 +6,7 @@
     "summary": "An experimental Diablo II: Resurrected-specific ARM64 compatibility project using Metal/Vulkan. Broad mobile playability and performance are project claims; the early Mac version has keyboard/gamepad limits described in its guide. setup.sh prepares patched modules and shaders locally, and mac_app.sh builds a Mac app; DM_MAC_M3 selects the older API. iOS shell ZIPs and Android/HarmonyOS shell files still need your own runtime and game data, and updates require rebuilding. Documented platforms are Apple Silicon macOS 26+ or older API 15–25, iOS 26 or older API 18–25, and Android ARM64 API 31+/Vulkan 1.1; Intel is unsupported. HarmonyOS has separate community support, while tvOS is only a character-selection preview. Use your own Switch game and required expansion 1.0.34.0 (PC 3.3.94012), matching ExeFS/RomFS and prod.keys for extraction. Other build IDs are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "Diablo II: Resurrected — Reign of the Warlock",
     "project_url": "https://github.com/jhaizhou-ops/d2r-mobile",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/jhaizhou-ops/d2r-mobile",

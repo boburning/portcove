@@ -6,6 +6,7 @@
     "summary": "Keep your permitted Standard or Lite Gardendless player, export your saves and preserve the data used by that edition.",
     "project_url": "https://github.com/Gzh0821/pvzg_site",
     "issue_number": 1874,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/Gzh0821/pvzg_site/blob/0bbd7dc892ca39b302f3492cf02fcafe795f822d/README.md",

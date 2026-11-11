@@ -17,6 +17,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2764,
+    "listed_at": "2026-10-25",
     "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
     "recommended_download_channel": "beta",
     "download_asset_hints": {

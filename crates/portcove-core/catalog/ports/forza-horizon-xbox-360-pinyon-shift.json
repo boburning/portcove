@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2576,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/arcanite24/pinyon-shift/blob/9494adadef6a73b340d204f29cfa75d711b78c6a/README.md",
       "steps": [

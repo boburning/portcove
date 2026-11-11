@@ -6,6 +6,7 @@
     "summary": "An experimental Crash Team Racing port with critical post-race and ChangeLevel failures reported by the project. Windows, Linux and macOS setup packages use Generate & Build; exact host CPU architectures are unconfirmed. Use your own USA PlayStation SCUS-94426 CUE/BIN. The current game.toml requires data track 1 to be 605,698,800 bytes with SHA-1 1bb785082def3fe25f6b46be06d4eaf33c5bc772 and boot executable SCUS_944.26. Setup uses OpenBIOS unless you supply your own local SCPH BIOS. Original images and proprietary BIOS are not distributed. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Crash Team Racing",
     "project_url": "https://github.com/TechnicallyComputers/Crash-Team-Racing-Recomp",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/TechnicallyComputers/Crash-Team-Racing-Recomp",

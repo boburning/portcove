@@ -513,6 +513,86 @@ mod tests {
     }
 
     #[test]
+    fn the_first_listed_date_needs_format_nine_and_older_exports_omit_it() {
+        let listing = |date: Option<&str>| -> crate::PortListing {
+            let mut value = json!({"id":"fixture","name":"Fixture","summary":"Fixture","project_url":"https://example.com/fixture"});
+            if let Some(date) = date {
+                value["listed_at"] = json!(date);
+            }
+            serde_json::from_value(value).unwrap()
+        };
+        let document = |format_version, date| crate::CatalogListingDocument {
+            format_version,
+            listings: vec![listing(date)],
+        };
+        // Accepted from format 9, refused below it so an earlier strict reader never meets it.
+        assert!(document(9, Some("2026-11-09")).validate().is_ok());
+        for older in [5, 6, 7, 8] {
+            assert!(
+                document(older, Some("2026-11-09")).validate().is_err(),
+                "{older}"
+            );
+        }
+        // Exports to earlier formats drop the inert date; format 9 keeps it.
+        let dated = document(9, Some("2026-11-09"));
+        for version in [5, 6, 7, 8] {
+            assert!(
+                dated.export_format(version).unwrap().listings[0]
+                    .listed_at
+                    .is_none()
+            );
+        }
+        assert_eq!(
+            dated.export_format(9).unwrap().listings[0]
+                .listed_at
+                .as_deref(),
+            Some("2026-11-09")
+        );
+        assert!(dated.export_format(10).is_err());
+    }
+
+    #[test]
+    fn the_first_listed_date_must_be_a_real_calendar_date() {
+        for bad in [
+            "2026-13-01",
+            "2026-02-30",
+            "2025-02-29",
+            "2026-1-9",
+            "26-11-09",
+            "2026/11/09",
+            "2026-11-09T00:00:00Z",
+            " 2026-11-09",
+            "2026-11-09 ",
+            "",
+            "tomorrow",
+            "２０２６-11-09",
+        ] {
+            let listing: crate::PortListing = serde_json::from_value(json!({
+                "id":"fixture","name":"Fixture","summary":"Fixture",
+                "project_url":"https://example.com/fixture","listed_at":bad
+            }))
+            .unwrap();
+            let document = crate::CatalogListingDocument {
+                format_version: 9,
+                listings: vec![listing],
+            };
+            assert!(document.validate().is_err(), "{bad:?} must be refused");
+        }
+        for good in ["2026-11-09", "2024-02-29", "2000-01-01"] {
+            let listing: crate::PortListing = serde_json::from_value(json!({
+                "id":"fixture","name":"Fixture","summary":"Fixture",
+                "project_url":"https://example.com/fixture","listed_at":good
+            }))
+            .unwrap();
+            let document = crate::CatalogListingDocument {
+                format_version: 9,
+                listings: vec![listing],
+            };
+            assert!(document.validate().is_ok(), "{good:?} must be accepted");
+        }
+    }
+
+    #[test]
     fn legacy_export_keeps_real_acquisition_restrictions() {
         let listing: crate::PortListing = serde_json::from_value(json!({"id":"fixture", "name":"Fixture", "summary":"Fixture", "project_url":"https://example.com/fixture", "download_block_reason":"No accepted original-input route.", "compatibility":{"format_version":2}})).unwrap();
         let document = crate::CatalogListingDocument {

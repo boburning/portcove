@@ -31,6 +31,18 @@ keeps its own exact-scope failure and correction semantics. The feature report
 shows those records as historical until the recommendation owner has a matching
 environment and identity; it does not produce another recommendation score.
 
+A listing may carry `listed_at`, the UTC date (`YYYY-MM-DD`, a real calendar day, no
+time or offset) on which it was first added to the directory. It is descriptive: it
+orders a "Recently added" view and grants no support, availability, trust or
+operation. A directory carrying any date requires listing format 9, and exports to
+formats 5 through 8 omit it so an earlier strict reader never meets it. Authoring
+stamps the current UTC day on a newly prepared listing and keeps an existing date.
+`node scripts/backfill-listing-dates.mts` (add `--write`) fills the date from the
+commit that first added each authored port file; it only edits listings without one
+and inserts a single line. The date is excluded from the observer's listing
+declaration hash, so adding or backfilling it does not invalidate retained upstream
+observations. A listing without a date is valid and simply has no recency.
+
 Legacy format-5/6 exports omit only inert compatibility advice and retain
 acquisition restrictions. GitLab-bearing directories refuse exports below format
 8; format 7 retains advice without accepting GitLab observation identities.

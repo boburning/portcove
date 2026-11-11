@@ -6,6 +6,7 @@
     "summary": "Prepare a permitted Dante's Inferno PC player with your own Xbox 360 disc and keep its upstream launcher.",
     "project_url": "https://github.com/florinp93/hells-gate-recomp",
     "issue_number": 367,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/florinp93/hells-gate-recomp/blob/1c455387570b9d1daad87688707c8d6ba118f750/README.md",

@@ -6,6 +6,7 @@
     "summary": "Prepare either Golden Sun game from your own matching ROM through the shared upstream launcher.",
     "project_url": "https://github.com/Shmargus/GSRecomp",
     "issue_number": 1619,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/README.md",

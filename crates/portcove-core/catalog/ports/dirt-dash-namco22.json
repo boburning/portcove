@@ -6,6 +6,7 @@
     "summary": "Conditional existing-copy route for Dirt Dash using your own World DT2 Ver.A dirtdash.zip, plus dirtdasha.zip for a split MAME set. Japanese DT1 is a different revision. Permission for the bundled original C71 BIOS and Namco-derived program remains unresolved.",
     "project_url": "https://github.com/spacestate1/namco22-decompile",
     "issue_number": 1568,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md",

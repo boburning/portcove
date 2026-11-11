@@ -6,6 +6,7 @@
     "summary": "Use the distinct ConkerBFDReloaded player with your own USA ROM and keep its complete profile.",
     "project_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded",
     "issue_number": 1806,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/d8ea30f220d7c1464997e6cdd013c16b204f81d8/README.md",

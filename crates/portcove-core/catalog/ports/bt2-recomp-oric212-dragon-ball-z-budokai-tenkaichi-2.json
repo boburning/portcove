@@ -6,6 +6,7 @@
     "original_game_title": "Dragon Ball Z: Budokai Tenkaichi 2",
     "summary": "The project reports versus, other modes and training working. Saving and 60 FPS remain in progress; a full playthrough is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/oric212/BT2-Recomp",
+    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/oric212/BT2-Recomp",

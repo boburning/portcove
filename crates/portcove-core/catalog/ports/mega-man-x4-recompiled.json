@@ -6,6 +6,7 @@
     "summary": "Native Mega Man X4 port for your own unmodified USA SLUS-00561 PlayStation CUE and complete BIN set. Finish upstream setup before registering the prepared player; another region, patched disc or bare filename is not the documented input contract.",
     "project_url": "https://github.com/mstan/MegaManX4Recomp",
     "issue_number": 144,
+    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/mstan/MegaManX4Recomp",

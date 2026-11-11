@@ -6,6 +6,7 @@
     "summary": "Register the completed Fable II native Windows player after upstream preparation of your own supported GOTY game. Upstream owns extraction and runtime replacement.",
     "project_url": "https://github.com/himdo/Fable-2-Recomp",
     "issue_number": 1124,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/himdo/Fable-2-Recomp",

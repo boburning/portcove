@@ -17,6 +17,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2592,
+    "listed_at": "2026-10-25",
     "release_url": "https://github.com/openmoh/openmohaa/releases/latest",
     "download_asset_hints": {
       "windows-x86-64": ["openmohaa-", "-windows-x64.zip"],

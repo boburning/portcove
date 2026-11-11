@@ -6,6 +6,7 @@
     "summary": "Prepare a permitted OpenCiv3 player and choose your own Civilization III files or permitted standalone content.",
     "project_url": "https://github.com/C7-Game/OpenCiv3",
     "issue_number": 1850,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/C7-Game/OpenCiv3/blob/5a2a868b3411db71528d7b0fd51d80cdbb37aac1/README.md",

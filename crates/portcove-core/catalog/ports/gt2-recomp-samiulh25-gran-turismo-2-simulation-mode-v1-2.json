@@ -6,6 +6,7 @@
     "original_game_title": "Gran Turismo 2 (Simulation Mode v1.2)",
     "summary": "Upstream reports menus, the garage and race rendering from a mix of recompiled and progressively decompiled code. Save/load through a full session remains unconfirmed. Portcove has not confirmed runtime behavior or gameplay. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/SamiulH25/gt2-recomp",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/SamiulH25/gt2-recomp",

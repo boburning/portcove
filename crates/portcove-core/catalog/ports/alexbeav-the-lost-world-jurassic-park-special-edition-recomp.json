@@ -6,6 +6,7 @@
     "summary": "Play The Lost World: Jurassic Park Special Edition with a native player built from your matching original disc.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp",
     "issue_number": 483,
+    "listed_at": "2026-10-23",
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp#readme",

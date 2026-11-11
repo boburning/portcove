@@ -6,6 +6,7 @@
     "original_game_title": "Demon's Souls",
     "summary": "The project reports a playable tutorial and saving, with only short tests beyond the tutorial. A full playthrough is unconfirmed; particle and sky defects remain. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/troler11/demons-souls-port-pc",
+    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/troler11/demons-souls-port-pc",

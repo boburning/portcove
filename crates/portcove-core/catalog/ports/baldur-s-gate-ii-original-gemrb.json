@@ -9,6 +9,7 @@
     "availability": "packages",
     "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
     "issue_number": 2629,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "steps": [
         {

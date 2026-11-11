@@ -9,6 +9,7 @@
     "availability": "packages",
     "setup_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf",
     "issue_number": 2588,
+    "listed_at": "2026-10-25",
     "release_url": "https://github.com/Aleph-One-Marathon/alephone/releases/tag/release-20260930",
     "manual_setup": {
       "steps": [

@@ -6,6 +6,7 @@
     "original_game_title": "Crash Twinsanity",
     "summary": "The project offers a macOS player and reports sound, movies and saves. Stable 60 FPS and testing on physical Intel Macs remain unfinished. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/HAB3X/Crash-Twinsanity-Mac",
+    "listed_at": "2026-10-25",
     "platforms": ["macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/HAB3X/Crash-Twinsanity-Mac",

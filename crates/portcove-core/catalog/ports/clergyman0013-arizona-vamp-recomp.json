@@ -10,6 +10,7 @@
     "availability": "unknown",
     "setup_url": "https://github.com/Clergyman0013/arizona-vamp-recomp",
     "issue_number": 2740,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/Clergyman0013/arizona-vamp-recomp/blob/e4fa6f32661decb0850b9336cfc45af238435946/darkwatch-hle/tools/README-release-windows.txt",
       "steps": [

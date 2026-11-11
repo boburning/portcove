@@ -6,6 +6,7 @@
     "original_game_title": "Dragon Quest VIII: Journey of the Cursed King",
     "summary": "Build Dragon Quest VIII locally from your USA ISO using the upstream launcher. Upstream reports startup, saves and field gameplay; sustained play and a complete playthrough have not been confirmed. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Sinan-Karakaya/DQ8-Recompiled",
+    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Sinan-Karakaya/DQ8-Recompiled",

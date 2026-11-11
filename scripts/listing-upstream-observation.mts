@@ -19,6 +19,9 @@ export const listingProjectionHash = observationHash({
 export function listingDeclarationHash(listing: Record<string, unknown>) {
   const declaration = { ...listing };
   delete declaration.upstream_observation;
+  // A first-listed date does not change what the listing declares, so adding it
+  // to every listing must not invalidate retained observations bound to this hash.
+  delete declaration.listed_at;
   return observationHash(declaration);
 }
 const packageLimit = 32;

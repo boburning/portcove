@@ -7,6 +7,7 @@
     "summary": "Build a native Incredible Crisis player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp",
     "issue_number": 1598,
+    "listed_at": "2026-10-23",
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp#readme",

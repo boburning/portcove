@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2724,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/citrongames/Dora64-3/blob/bea71eec9846ed0b13f203f644af6732c0bec553/docs/user-guide.md",
       "steps": [

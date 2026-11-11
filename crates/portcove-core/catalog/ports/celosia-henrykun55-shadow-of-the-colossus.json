@@ -6,6 +6,7 @@
     "original_game_title": "Shadow of the Colossus",
     "summary": "This independent USA port uses different original files from LightVelox’s PAL port. Check this project’s status guide for current gameplay limits. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/HenryKun55/celosia",
+    "listed_at": "2026-10-25",
     "platforms": ["macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/HenryKun55/celosia",

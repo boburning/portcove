@@ -617,6 +617,7 @@ export async function preparePort(options: PrepareOptions) {
     });
     const { id, previous, base } = resolveIdentity(facts.project_url, facts.issue?.id);
     const metadata = isRecord(facts.project?.body) ? facts.project.body : {};
+    const existingListedAt = base?.listing.listed_at ?? previous?.listing.listed_at;
     let record = checkedAuthoredPort({
       ...(base ?? { format_version: 1 }),
       listing: {
@@ -631,6 +632,17 @@ export async function preparePort(options: PrepareOptions) {
             ? metadata.description
             : "Upstream project; setup requirements have not been reviewed."),
         ...(facts.issue ? { issue_number: facts.issue.number } : {}),
+        // An existing date is always kept, even when the caller passes a record without it.
+        // Only a listing with no base and no previous record is new and records today (UTC).
+        ...(existingListedAt !== undefined
+          ? { listed_at: existingListedAt }
+          : !base && !previous
+            ? {
+                listed_at: new Date(options.facts?.now?.() ?? Date.now())
+                  .toISOString()
+                  .slice(0, 10),
+              }
+            : {}),
       },
     });
     if (previous) checkLineageChange(previous, record);

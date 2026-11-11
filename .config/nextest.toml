@@ -190,12 +190,15 @@ success-output = "immediate"
 # CI 42368507152/1 and 42376265339/1 reached removal at 166.9s and
 # 169.3s before the 180s cutoff. CI 42368507152/2 took 21.4s from
 # removal start through completion. Both 42586091120 attempts reached removal
-# after 204.758s and 217.075s before the 225s cutoff. Allow 270s for this case.
+# after 204.758s and 217.075s before the 225s cutoff. CI 42926560343 (both
+# attempts, PR #4972) reached removal at 270.503s and 256.977s before the 270s
+# cutoff on a loaded runner. Allow 420s for this case.
 # Keep product deadlines, assertions, cleanup, workers and zero retries.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::native_portable::tests::ready_staged_archive_observed_lifecycle_cases$/)'
-slow-timeout = { period = "5s", terminate-after = 54, grace-period = "0s" }
+retries = 0
+slow-timeout = { period = "5s", terminate-after = 84, grace-period = "0s" }
 success-output = "immediate"
 
 # CI41914595618/a1 Windows7 retained a90.327s harness cutoff in SDLPal's

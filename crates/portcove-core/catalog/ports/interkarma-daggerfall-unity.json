@@ -6,6 +6,7 @@
     "summary": "Play The Elder Scrolls II: Daggerfall with Daggerfall Unity and your own compatible game folder. Choose your original files in the game’s first-run setup wizard; keep external saves and originals recoverable.",
     "project_url": "https://github.com/Interkarma/daggerfall-unity",
     "issue_number": 1809,
+    "listed_at": "2026-10-23",
     "availability": "packages",
     "setup_url": "https://github.com/Interkarma/daggerfall-unity/blob/v1.1.1-cve-2025/README.md",
     "original_game_title": "The Elder Scrolls II: Daggerfall",

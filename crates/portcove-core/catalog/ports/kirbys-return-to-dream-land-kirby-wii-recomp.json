@@ -6,6 +6,7 @@
     "summary": "Register the supported Kirby Wii Recomp Windows launcher for your own SUKE01 disc and preserve its separate user profile.",
     "project_url": "https://github.com/ExpansionPak/ModernGekko",
     "issue_number": 1131,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/ExpansionPak/ModernGekko",

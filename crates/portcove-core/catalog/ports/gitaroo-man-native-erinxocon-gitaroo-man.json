@@ -6,6 +6,7 @@
     "original_game_title": "Gitaroo Man",
     "summary": "This project includes game code and a native renderer/runtime. The extent of working gameplay is unknown here; check the upstream progress notes before setup. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/erinxocon/gitaroo-man-native",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/erinxocon/gitaroo-man-native",

@@ -6,6 +6,7 @@
     "original_game_title": "Mobile Suit Gundam Extreme VS. Maxiboost ON",
     "summary": "Experimental project. The project reports early offline Free Battle at 60 FPS, saves and split-screen play, plus limited online tests using two instances or two PCs and one DLC. Complete mode coverage and the full game have not been confirmed. Portcove has not tested networking. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/johnnygentoo/MaxiboostPort",
+    "listed_at": "2026-10-25",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/johnnygentoo/MaxiboostPort",

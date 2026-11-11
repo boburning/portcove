@@ -6,6 +6,7 @@
     "summary": "Use a permitted MikuPan player with your matching Fatal Frame PlayStation 2 game files.",
     "project_url": "https://github.com/Mikompilation/MikuPan",
     "issue_number": 346,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/Mikompilation/MikuPan/blob/ec204d75441e98d8bd43ddd95cae744eb683f00c/README.md",

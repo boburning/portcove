@@ -9,6 +9,7 @@
     "availability": "packages",
     "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa/README.md",
     "issue_number": 2762,
+    "listed_at": "2026-10-25",
     "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
     "recommended_download_channel": "beta",
     "download_asset_hints": {
