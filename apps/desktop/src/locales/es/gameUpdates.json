@@ -11,7 +11,7 @@
     "checking": "Canal {{channel}} seleccionado. Comprobando versiones…",
     "explanation": "Estable: versiones regulares. Vista previa: versiones tempranas. Continuo: compilaciones de desarrollo frecuentes. Estos nombres no garantizan un juego sin errores.",
     "label": "Canal de actualización del juego",
-    "only": "Solo canal {{channel}}",
+    "only": "Solo el canal {{channel}}",
     "refreshed": "Canal {{channel}} seleccionado. Información de versiones actualizada.",
     "refreshFailed": "Canal {{channel}} guardado. No se pudo actualizar la información de versiones; vuelve a buscar actualizaciones.",
     "saved": "Canal seleccionado: {{channel}}",
