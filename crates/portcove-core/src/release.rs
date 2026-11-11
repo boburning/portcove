@@ -79,7 +79,11 @@ pub trait ReleaseProvider: Send + Sync {
 /// The request cost of one GitHub check from what is already cached. An ordinary request
 /// is conditional, so a cached resource answers 304 and is not counted. A managed-scope
 /// request is unconditional and unauthenticated: it always counts, and signing in never
-/// raises its limit. Pages beyond the first of a long release list are not forecast.
+/// raises its limit. The forecast is a floor for managed-scope curated ports (an
+/// annotated tag adds peel requests), ignores pages beyond the first of a long release
+/// list and the five-minute in-memory selection cache, and reads the persisted cache
+/// without extending it. A provider that cannot forecast reports the default, which
+/// means unknown, not free.
 fn github_cost_forecast(
     scoped: bool,
     curated: bool,
@@ -630,6 +634,12 @@ impl GithubReleaseProvider {
             ..commit()?
         };
         Ok(())
+    }
+
+    /// A cached response saves a counted request only when it carries a validator.
+    fn has_conditional_cache(&self, url: &str) -> bool {
+        self.cached_http_response(url)
+            .is_some_and(|entry| entry.etag.is_some() || entry.last_modified.is_some())
     }
 
     fn cached_http_response(&self, url: &str) -> Option<HttpCacheEntry> {
@@ -1237,8 +1247,8 @@ impl ReleaseProvider for GithubReleaseProvider {
         Ok(github_cost_forecast(
             scoped,
             port.release.curated.contains_key(&platform),
-            self.cached_http_response(&repository_url).is_some(),
-            self.cached_http_response(&releases_url).is_some(),
+            self.has_conditional_cache(&repository_url),
+            self.has_conditional_cache(&releases_url),
         ))
     }
 }
@@ -5122,6 +5132,14 @@ mod tests {
             cost(&provider, &port, false).await,
             crate::RequestCostForecast::default()
         );
+        // A cached body with no validator is sent unconditionally, so it saves nothing.
+        library
+            .store_http_cache(repository, None, None, "{}")
+            .unwrap();
+        assert_eq!(cost(&provider, &port, false).await.counted_requests, 1);
+        library
+            .store_http_cache(repository, Some("\"r\""), None, "{}")
+            .unwrap();
         // The same warm cache does not help a managed-scope port.
         assert_eq!(
             cost(&provider, &port, true).await,
