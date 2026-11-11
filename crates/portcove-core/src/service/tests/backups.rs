@@ -3409,16 +3409,8 @@ fn only_the_nothing_to_back_up_error_is_a_recorded_skip() {
     )));
 }
 
-#[test]
-fn a_pending_retention_deletion_is_finished_instead_of_blocking_the_snapshot() {
-    let temporary = tempfile::tempdir().unwrap();
-    let library = Library::open(temporary.path().join("library")).unwrap();
-    register_zelda_install(&library, "v1", true);
-    let user = library.user_dir(ZELDA);
-    fs::create_dir_all(&user).unwrap();
-    fs::write(user.join("general.json"), b"saves").unwrap();
-    let service = PortcoveService::new(library.clone()).unwrap();
-    let active = service.status(ZELDA).unwrap().active.unwrap();
+/// Leaves a retention deletion interrupted mid-cleanup for `ZELDA`; returns its quarantine.
+fn seed_stuck_prune(library: &Library) -> std::path::PathBuf {
     let store = OperationStore::new(library.clone());
     let mut operation =
         LifecycleOperation::new("stuck-prune", LifecycleOperationKind::DeleteBackup, ZELDA);
@@ -3437,6 +3429,21 @@ fn a_pending_retention_deletion_is_finished_instead_of_blocking_the_snapshot() {
     fs::write(quarantine.join("partial-data"), b"remaining").unwrap();
     operation.phase = LifecyclePhase::CleanupPending;
     store.put(&mut operation).unwrap();
+    quarantine
+}
+
+#[test]
+fn a_pending_retention_deletion_is_finished_instead_of_blocking_the_snapshot() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    let user = library.user_dir(ZELDA);
+    fs::create_dir_all(&user).unwrap();
+    fs::write(user.join("general.json"), b"saves").unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let active = service.status(ZELDA).unwrap().active.unwrap();
+    let quarantine = seed_stuck_prune(&library);
+    let store = OperationStore::new(library.clone());
 
     service
         .snapshot_before_version_change(
@@ -3452,4 +3459,29 @@ fn a_pending_retention_deletion_is_finished_instead_of_blocking_the_snapshot() {
     assert!(!quarantine.exists());
     assert!(store.get("stuck-prune").unwrap().is_none());
     assert_eq!(automatic_snapshots(&service).len(), 1);
+}
+
+#[test]
+fn a_pending_retention_deletion_does_not_block_a_manual_backup() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    let user = library.user_dir(ZELDA);
+    fs::create_dir_all(&user).unwrap();
+    fs::write(user.join("general.json"), b"saves").unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let quarantine = seed_stuck_prune(&library);
+
+    let backup = service
+        .create_backup(ZELDA)
+        .expect("the leftover prune no longer blocks a manual backup");
+
+    assert!(backup.automatic.is_none());
+    assert!(!quarantine.exists());
+    assert!(
+        OperationStore::new(library)
+            .get("stuck-prune")
+            .unwrap()
+            .is_none()
+    );
 }
