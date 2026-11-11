@@ -15,8 +15,9 @@ use crate::steam_artwork::{
 };
 use crate::steam_entries::{
     SteamCliIdentity, SteamClientState, SteamEntryApplyResult, SteamEntryChangeKind,
-    SteamEntryError, SteamEntryPlan, SteamEntryPlanRequest, SteamGameEntryTarget,
-    apply_steam_entry_plan, local_steam_profiles, plan_steam_entries,
+    SteamEntryError, SteamEntryPlan, SteamEntryPlanRequest, SteamEntryRecoveryOutcome,
+    SteamGameEntryTarget, apply_steam_entry_plan, local_steam_profiles, plan_steam_entries,
+    recover_steam_entries, shortcut_operation_pending, steam_profile_config,
 };
 use crate::{
     DesktopError, DesktopResult, DesktopState, blocking_worker, cli_context, confirm_destructive,
@@ -59,6 +60,8 @@ pub(crate) async fn preview_steam_entry(
     let state = state.inner().clone();
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
+        let recovered_shortcut_change =
+            settle_shortcuts(&request.steam_root, &request.steam_user_id)?;
         let context = entry_context(&service, &request.port_id, request.operation)?;
         let plan = plan_entry(
             &context,
@@ -75,6 +78,7 @@ pub(crate) async fn preview_steam_entry(
             &mut review.artwork_review_sha256,
             &artwork,
         );
+        review.recovered_shortcut_change = recovered_shortcut_change;
         Ok(review)
     })
     .await
@@ -158,6 +162,8 @@ pub(crate) async fn preview_steam_batch_add(
     let state = state.inner().clone();
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
+        let recovered_shortcut_change =
+            settle_shortcuts(&request.steam_root, &request.steam_user_id)?;
         let contexts = batch_contexts(&service, &request.port_ids)?;
         let plan = plan_batch(&contexts, &request).map_err(steam_error)?;
         let artwork = included_artwork(&service, &plan, request.include_artwork);
@@ -167,6 +173,7 @@ pub(crate) async fn preview_steam_batch_add(
             &mut review.artwork_review_sha256,
             &artwork,
         );
+        review.recovered_shortcut_change = recovered_shortcut_change;
         Ok(review)
     })
     .await
@@ -263,16 +270,15 @@ pub(crate) async fn preview_steam_artwork(
         // Settling only returns each role to its exact prior file or to bytes
         // the player already confirmed, so a review never stays blocked. It
         // runs before the Core handoff so a catalog change cannot prevent it.
+        let recovered_shortcut_change =
+            settle_shortcuts(&request.steam_root, &request.steam_user_id)?;
         let recovered = recover_steam_artwork(&request.steam_root, &request.steam_user_id)
             .map_err(steam_error)?;
         let (display_name, plan_request) = artwork_request(&service, &request, None)?;
         let plan = plan_steam_artwork(&plan_request).map_err(steam_error)?;
-        Ok(artwork_review(
-            display_name,
-            &plan,
-            observe_steam_client(),
-            recovered,
-        ))
+        let mut review = artwork_review(display_name, &plan, observe_steam_client(), recovered);
+        review.recovered_shortcut_change = recovered_shortcut_change;
+        Ok(review)
     })
     .await
 }
@@ -332,6 +338,22 @@ pub(crate) async fn apply_steam_artwork(
 
 /// Derives artwork inputs from Core's destination handoff; the renderer never
 /// supplies bytes, paths or provider data.
+/// Settles an interrupted shortcut publication in the selected profile before
+/// a review. Recovery only keeps reviewed bytes that were already committed or
+/// restores the exact pre-change file; anything else is refused with every
+/// file preserved, so a later review is never silently blocked.
+fn settle_shortcuts(steam_root: &std::path::Path, steam_user_id: &str) -> DesktopResult<bool> {
+    let config = steam_profile_config(steam_root, steam_user_id).map_err(steam_error)?;
+    if !shortcut_operation_pending(&config) {
+        return Ok(false);
+    }
+    match recover_steam_entries(steam_root, steam_user_id).map_err(steam_error)? {
+        SteamEntryRecoveryOutcome::NoJournal => Ok(false),
+        SteamEntryRecoveryOutcome::AbandonedBeforeCommit
+        | SteamEntryRecoveryOutcome::CompletedCommit => Ok(true),
+    }
+}
+
 /// One game's artwork reviewed with a shortcut Add, or why it is unavailable.
 type IncludedArtwork = (
     String,
@@ -567,6 +589,7 @@ fn artwork_review(
         steam_client_state: client_state,
         writes_required: plan.writes_required(),
         recovered,
+        recovered_shortcut_change: false,
     }
 }
 
@@ -667,6 +690,7 @@ fn batch_review(
         writes_required: plan.changes_required(),
         artwork: Vec::new(),
         artwork_review_sha256: None,
+        recovered_shortcut_change: false,
     }
 }
 
@@ -819,6 +843,7 @@ fn review_from_plan(
         writes_required: plan.changes_required(),
         artwork: Vec::new(),
         artwork_review_sha256: None,
+        recovered_shortcut_change: false,
     }
 }
 

@@ -843,6 +843,12 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamB
               : "The Portcove shortcut already matches this setup."}
         </strong>
       </p>
+      {review.recovered_shortcut_change && (
+        <p className="[overflow-wrap:anywhere]" role="status">
+          Portcove first finished an interrupted shortcut change for this profile. The shortcut file
+          is either the one you confirmed earlier or the one that was there before.
+        </p>
+      )}
       <dl className="grid gap-3 [&>div]:grid [&>div]:gap-1">
         <div>
           <dt>Steam profile</dt>
@@ -953,6 +959,12 @@ function SteamArtworkReviewDetails({ review }: { review: SteamArtworkReview }) {
               : "No artwork will change for this game in the selected profile."}
         </strong>
       </p>
+      {review.recovered_shortcut_change && (
+        <p className="[overflow-wrap:anywhere]" role="status">
+          Portcove first finished an interrupted shortcut change for this profile. The shortcut file
+          is either the one you confirmed earlier or the one that was there before.
+        </p>
+      )}
       {review.recovered && (
         <p className="[overflow-wrap:anywhere]" role="status">
           Portcove first finished an interrupted artwork change for this profile. Each image is

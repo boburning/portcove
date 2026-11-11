@@ -40,6 +40,7 @@ const review: SteamEntryReview = {
   writes_required: true,
   artwork: [{ port_id: port.id, roles: [portraitWrite], unavailable: null }],
   artwork_review_sha256: "reviewed-artwork",
+  recovered_shortcut_change: false,
 };
 let root: RenderResult;
 let container: HTMLDivElement;
@@ -317,6 +318,7 @@ it("reviews an exact selected batch and applies only its frozen selection", asyn
     writes_required: true,
     artwork: [],
     artwork_review_sha256: null,
+    recovered_shortcut_change: false,
   };
   const preview = vi.spyOn(desktopApi, "previewSteamBatchAdd").mockResolvedValue(batchReview);
   const apply = vi.spyOn(desktopApi, "applySteamBatchAdd").mockResolvedValue(null);
@@ -405,6 +407,7 @@ const artworkReview: SteamArtworkReview = {
   steam_client_state: "closed",
   writes_required: true,
   recovered: null,
+  recovered_shortcut_change: false,
 };
 
 it("reviews artwork separately, keeps existing art by default and applies only the reviewed plan", async () => {
@@ -504,9 +507,12 @@ it("requests replacement only when chosen and offers removal of Portcove artwork
 });
 
 it("adds a shortcut without artwork when Include artwork is cleared and reports an artwork failure separately", async () => {
-  const preview = vi
-    .spyOn(desktopApi, "previewSteamEntry")
-    .mockResolvedValue({ ...review, artwork: [], artwork_review_sha256: null });
+  const preview = vi.spyOn(desktopApi, "previewSteamEntry").mockResolvedValue({
+    ...review,
+    artwork: [],
+    artwork_review_sha256: null,
+    recovered_shortcut_change: true,
+  });
   const apply = vi.spyOn(desktopApi, "applySteamEntry").mockResolvedValue({
     plan_sha256: review.plan_sha256,
     shortcuts_path: review.shortcuts_path,
@@ -537,6 +543,9 @@ it("adds a shortcut without artwork when Include artwork is cleared and reports 
     5,
   );
   expect(document.body.querySelector('[aria-label="Included Steam artwork"]')).toBeNull();
+  expect(document.body.textContent).toContain(
+    "Portcove first finished an interrupted shortcut change for this profile.",
+  );
   await click("Add or repair shortcut");
   expect(apply).toHaveBeenCalledExactlyOnceWith(
     port.id,

@@ -11740,6 +11740,10 @@
           }
         ]
       },
+      "recovered_shortcut_change": {
+        "description": "An interrupted shortcut change in this profile was settled before review.",
+        "type": "boolean"
+      },
       "roles": {
         "items": {
           "$ref": "#/$defs/SteamArtworkRoleChange"
@@ -11777,7 +11781,8 @@
       "roles",
       "steam_client_state",
       "writes_required",
-      "recovered"
+      "recovered",
+      "recovered_shortcut_change"
     ],
     "title": "SteamArtworkReview",
     "type": "object"
@@ -11989,6 +11994,10 @@
       "proposed_sha256": {
         "type": "string"
       },
+      "recovered_shortcut_change": {
+        "description": "An interrupted shortcut change in this profile was settled before review.",
+        "type": "boolean"
+      },
       "review_sha256": {
         "type": "string"
       },
@@ -12046,7 +12055,8 @@
       "steam_client_state",
       "writes_required",
       "artwork",
-      "artwork_review_sha256"
+      "artwork_review_sha256",
+      "recovered_shortcut_change"
     ],
     "title": "SteamBatchReview",
     "type": "object"
@@ -12473,6 +12483,10 @@
       "proposed_sha256": {
         "type": "string"
       },
+      "recovered_shortcut_change": {
+        "description": "An interrupted shortcut change in this profile was settled before review.",
+        "type": "boolean"
+      },
       "schema_version": {
         "format": "uint32",
         "minimum": 0,
@@ -12519,7 +12533,8 @@
       "steam_client_state",
       "writes_required",
       "artwork",
-      "artwork_review_sha256"
+      "artwork_review_sha256",
+      "recovered_shortcut_change"
     ],
     "title": "SteamEntryReview",
     "type": "object"

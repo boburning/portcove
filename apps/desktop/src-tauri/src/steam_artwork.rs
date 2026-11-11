@@ -384,6 +384,12 @@ pub fn recover_steam_artwork(
     steam_user_id: &str,
 ) -> Result<Option<SteamArtworkRecovery>> {
     let config = steam_profile_config(steam_root, steam_user_id)?;
+    if [JOURNAL_FILE, JOURNAL_TEMPORARY_FILE]
+        .iter()
+        .all(|name| fs::symlink_metadata(config.join(name)).is_err())
+    {
+        return Ok(None);
+    }
     let _lock = lock_profile(&config)?;
     // An unpublished journal temporary precedes every staged or destination
     // write, so discarding it changes no artwork.

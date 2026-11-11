@@ -4871,6 +4871,10 @@ export interface OutputDesktopSteamArtworkReview {
   plan_sha256: string;
   port_id: string;
   recovered: SteamArtworkRecovery | null;
+  /**
+   * An interrupted shortcut change in this profile was settled before review.
+   */
+  recovered_shortcut_change: boolean;
   roles: SteamArtworkRoleChange[];
   schema_version: number;
   steam_client_state: SteamClientState;
@@ -4896,6 +4900,10 @@ export interface OutputDesktopSteamBatchReview {
   cli_sha256: string;
   library_root: string;
   proposed_sha256: string;
+  /**
+   * An interrupted shortcut change in this profile was settled before review.
+   */
+  recovered_shortcut_change: boolean;
   review_sha256: string;
   schema_version: number;
   selected_games: SteamGameEntryTarget[];
@@ -4968,6 +4976,10 @@ export interface OutputDesktopSteamEntryReview {
   plan_sha256: string;
   port_id: string;
   proposed_sha256: string;
+  /**
+   * An interrupted shortcut change in this profile was settled before review.
+   */
+  recovered_shortcut_change: boolean;
   schema_version: number;
   shortcuts_path: string;
   snapshot_sha256: string | null;

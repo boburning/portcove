@@ -419,6 +419,8 @@ pub struct SteamBatchReview {
     pub writes_required: bool,
     pub artwork: Vec<SteamEntryArtworkPreview>,
     pub artwork_review_sha256: Option<String>,
+    /// An interrupted shortcut change in this profile was settled before review.
+    pub recovered_shortcut_change: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
@@ -442,6 +444,8 @@ pub struct SteamEntryReview {
     pub writes_required: bool,
     pub artwork: Vec<SteamEntryArtworkPreview>,
     pub artwork_review_sha256: Option<String>,
+    /// An interrupted shortcut change in this profile was settled before review.
+    pub recovered_shortcut_change: bool,
 }
 
 /// Separate reviewed Steam artwork action for one owned shortcut.
@@ -511,6 +515,8 @@ pub struct SteamArtworkReview {
     pub steam_client_state: SteamClientState,
     pub writes_required: bool,
     pub recovered: Option<SteamArtworkRecovery>,
+    /// An interrupted shortcut change in this profile was settled before review.
+    pub recovered_shortcut_change: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

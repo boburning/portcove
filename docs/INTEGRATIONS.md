@@ -596,6 +596,12 @@ unavailable role, a changed destination or an artwork failure is reported per
 game beside the successfully added shortcut, with **Review artwork update** as
 the retry.
 
+Every shortcut or artwork review first settles an interrupted shortcut or
+artwork publication in the selected profile, keeping either the committed
+reviewed bytes or the exact earlier file, and says so in the review. It writes
+nothing when no operation is pending; anything that matches neither side is
+preserved and the review refuses with recovery required.
+
 Controlled
 host and renderer tests prove the
 review/apply contract and isolated shortcut-file behavior. Native positive-path

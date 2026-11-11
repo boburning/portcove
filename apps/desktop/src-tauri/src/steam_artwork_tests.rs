@@ -540,3 +540,14 @@ fn artwork_after_a_shortcut_write_requires_that_shortcut_to_exist() {
     ));
     assert!(!fixture.grid().exists());
 }
+
+#[test]
+fn recovery_with_nothing_pending_writes_nothing_to_the_profile() {
+    let fixture = Fixture::new().with_owned_shortcut();
+    assert!(
+        recover_steam_artwork(&fixture.steam_root, "12345")
+            .unwrap()
+            .is_none()
+    );
+    assert!(!fixture.config.join("shortcuts.vdf.portcove-lock").exists());
+}
