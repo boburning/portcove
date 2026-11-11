@@ -86,6 +86,7 @@ mod providers;
 pub use provider_observation::inspect_provider_observation;
 mod mod_package;
 mod profile;
+mod profile_deploy;
 mod psx;
 #[cfg(feature = "qualification-fixtures")]
 mod qualification_checkpoint;
@@ -283,6 +284,7 @@ pub use profile::{
     ProfileUpdatePolicy, ProfileView, ProviderPackageRef, RequestedPackage, ResolvedPackage,
     TypedOrdering,
 };
+pub use profile_deploy::LiveMods;
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;
 pub use release::{

@@ -226,7 +226,12 @@ impl PortcoveService {
         let build = self.verified_retained_build(port_id, &install_id)?;
         let originals = self.registered_originals(port_id)?;
         let profile = new_profile(port_id, "Default", true);
-        self.publish_new_profile(&profile, &install_id, build, originals, None, None)
+        let created =
+            self.publish_new_profile(&profile, &install_id, build, originals, None, None)?;
+        // Existing live player data belongs to the equivalent default profile.
+        let connection = self.library.connection()?;
+        set_selection(&connection, port_id, &created.id, 1)?;
+        Ok(created)
     }
 
     /// Creates another profile from a source profile's current revision. The copy
@@ -270,6 +275,16 @@ impl PortcoveService {
         let _guard = self
             .library
             .try_lock_port(port_id, "create-profile-revision")?;
+        self.create_profile_revision_locked(port_id, profile_id, request)
+    }
+
+    /// The caller holds the port lock.
+    pub(crate) fn create_profile_revision_locked(
+        &self,
+        port_id: &str,
+        profile_id: &str,
+        request: &ProfileRevisionRequest,
+    ) -> Result<ProfileRevision> {
         let connection = self.library.connection()?;
         let profile = profile_from(&connection, port_id, profile_id)?;
         if profile.current_revision != request.expected_revision {
@@ -636,6 +651,9 @@ fn digest_matches(revision: &ProfileRevision) -> Result<bool> {
 pub struct LibraryProfile {
     pub profile: Profile,
     pub revisions: Vec<ProfileRevision>,
+    /// Set when this profile's revision currently owns the port's live player data.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selected_revision: Option<u64>,
 }
 
 pub(crate) const MAX_EXPORTED_PROFILES: usize = 1024;
@@ -657,7 +675,14 @@ pub(crate) fn export(connection: &Connection) -> Result<Vec<LibraryProfile>> {
                     crate::portability::portable_relative(&revision.build.selected_executable)?,
                 );
             }
-            exported.push(LibraryProfile { profile, revisions });
+            let selected_revision = selection(connection, &port_id)?
+                .filter(|(id, _)| *id == profile.id)
+                .map(|(_, revision)| revision);
+            exported.push(LibraryProfile {
+                profile,
+                revisions,
+                selected_revision,
+            });
         }
     }
     if exported.len() > MAX_EXPORTED_PROFILES {
@@ -685,6 +710,7 @@ pub(crate) fn validate_export(
     }
     let mut ids = BTreeSet::new();
     let mut defaults = BTreeSet::new();
+    let mut selected_ports = BTreeSet::new();
     for entry in profiles {
         let profile = &entry.profile;
         if !ids.insert(profile.id.as_str())
@@ -708,6 +734,18 @@ pub(crate) fn validate_export(
             .retained_builds()
             .map(|build| build.install_id.as_str())
             .collect::<BTreeSet<_>>();
+        if let Some(selected) = entry.selected_revision {
+            if selected == 0 || selected > profile.current_revision {
+                return Err(PortcoveError::verification(
+                    "a selected profile revision does not exist",
+                ));
+            }
+            if !selected_ports.insert(profile.port_id.as_str()) {
+                return Err(PortcoveError::verification(
+                    "a port has more than one selected profile",
+                ));
+            }
+        }
         for (index, revision) in entry.revisions.iter().enumerate() {
             validate_revision(revision)?;
             if revision.profile_id != profile.id
@@ -731,6 +769,14 @@ pub(crate) fn restore(connection: &Connection, profiles: &[LibraryProfile]) -> R
         for revision in &entry.revisions {
             write_revision(connection, revision)?;
         }
+        if let Some(selected) = entry.selected_revision {
+            set_selection(
+                connection,
+                &entry.profile.port_id,
+                &entry.profile.id,
+                selected,
+            )?;
+        }
     }
     Ok(())
 }
@@ -749,6 +795,58 @@ pub(crate) fn any_profiles(connection: &Connection) -> Result<bool> {
             row.get(0)
         })?,
     )
+}
+
+pub(crate) fn migrate_selection(transaction: &rusqlite::Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE profile_selection (
+            port_id TEXT PRIMARY KEY NOT NULL,
+            profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE RESTRICT,
+            materialized_revision INTEGER NOT NULL CHECK(materialized_revision >= 1)
+        );",
+    )?;
+    Ok(())
+}
+
+pub(crate) fn verify_selection_migration(connection: &Connection) -> Result<()> {
+    let mut statement = connection.prepare("PRAGMA table_info(profile_selection)")?;
+    let present = statement
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<std::result::Result<BTreeSet<_>, _>>()?;
+    for column in ["port_id", "profile_id", "materialized_revision"] {
+        if !present.contains(column) {
+            return Err(PortcoveError::state(format!(
+                "library schema is missing profile_selection.{column}"
+            )));
+        }
+    }
+    Ok(())
+}
+
+/// The profile whose revision currently owns the port's live player data and mods.
+pub(crate) fn selection(connection: &Connection, port_id: &str) -> Result<Option<(String, u64)>> {
+    Ok(connection
+        .query_row(
+            "SELECT profile_id, materialized_revision FROM profile_selection WHERE port_id=?1",
+            [port_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?)
+}
+
+pub(crate) fn set_selection(
+    connection: &Connection,
+    port_id: &str,
+    profile_id: &str,
+    revision: u64,
+) -> Result<()> {
+    connection.execute(
+        "INSERT INTO profile_selection(port_id, profile_id, materialized_revision) VALUES (?1, ?2, ?3)
+         ON CONFLICT(port_id) DO UPDATE SET profile_id=excluded.profile_id,
+         materialized_revision=excluded.materialized_revision",
+        params![port_id, profile_id, revision],
+    )?;
+    Ok(())
 }
 
 pub(crate) fn migrate(transaction: &rusqlite::Transaction<'_>) -> Result<()> {
@@ -942,4 +1040,21 @@ pub(crate) fn write_revision(connection: &Connection, revision: &ProfileRevision
         ],
     )?;
     Ok(())
+}
+
+pub(crate) fn revision_by_number(
+    connection: &Connection,
+    profile_id: &str,
+    revision: u64,
+) -> Result<ProfileRevision> {
+    revision_from(connection, profile_id, revision)
+}
+
+pub(crate) fn current_revision(
+    connection: &Connection,
+    port_id: &str,
+    profile_id: &str,
+) -> Result<ProfileRevision> {
+    let profile = profile_from(connection, port_id, profile_id)?;
+    revision_from(connection, profile_id, profile.current_revision)
 }
