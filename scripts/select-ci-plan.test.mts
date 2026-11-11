@@ -1,4 +1,6 @@
 import { workflow } from "./ci-workflow-fixture.mts";
+import { parse } from "yaml";
+import { isRecord } from "./runtime-values.mts";
 import { workflowJobSource } from "./ci-workflow-fixture.mts";
 import { qualificationWorkflow } from "./ci-workflow-fixture.mts";
 import { rustTests } from "./ci-workflow-fixture.mts";
@@ -900,9 +902,31 @@ void test("the draft state is read live and any doubt keeps the Windows partitio
 
 void test("drafts re-run their own CI run instead of starting a second run on the same head", async () => {
   const triggers = (file: string) => readFile(new URL(`../${file}`, import.meta.url), "utf8");
-  // A second CI run on one head would duplicate every required context name.
-  assert.match(await triggers(".github/workflows/ci.yml"), /^on:\n {2}pull_request:\n {2}push:/mu);
-  const supersede = await triggers(".github/workflows/ci-supersede.yml");
-  assert.match(supersede, /types: \[opened, synchronize, reopened, ready_for_review\]/u);
-  assert.match(supersede, /EVENT_ACTION: \$\{\{ github\.event\.action \}\}/u);
+  // A second CI run on one head would duplicate every required context name, so ci.yml keeps
+  // GitHub's default pull_request activity types (no ready_for_review). Read the parsed workflow
+  // so equivalent YAML is judged by meaning, not layout.
+  const ci: unknown = parse(workflow);
+  assert.ok(isRecord(ci) && isRecord(ci.on) && "pull_request" in ci.on);
+  const pullRequest = ci.on.pull_request;
+  assert.ok(pullRequest === null || (isRecord(pullRequest) && !("types" in pullRequest)));
+  const supersede: unknown = parse(await triggers(".github/workflows/ci-supersede.yml"));
+  assert.ok(isRecord(supersede) && isRecord(supersede.on) && isRecord(supersede.on.pull_request));
+  assert.deepEqual(supersede.on.pull_request.types, [
+    "opened",
+    "synchronize",
+    "reopened",
+    "ready_for_review",
+  ]);
+  const steps =
+    isRecord(supersede.jobs) && isRecord(supersede.jobs.cancel) ? supersede.jobs.cancel.steps : [];
+  assert.ok(
+    Array.isArray(steps) &&
+      steps.some(
+        (step: unknown) =>
+          isRecord(step) &&
+          step.run === "node scripts/ci-supersede.mts" &&
+          isRecord(step.env) &&
+          step.env.EVENT_ACTION === "${{ github.event.action }}",
+      ),
+  );
 });
