@@ -104,6 +104,35 @@ fn accepts_reviewed_platform_and_fixture_literals_including_unicode() {
 }
 
 #[test]
+fn scopes_launcher_metadata_rejection_fixtures_to_their_exact_values_and_file() {
+    let root = repository();
+    let owner = "crates/portcove-core/src/service/launcher_library_tests.rs";
+    let product = "crates/portcove-core/src/service/launcher_library.rs";
+    write(
+        root.path(),
+        owner,
+        r#"fn fixture() { let _ = [
+            r"\\host\share\Game", r"\\?\UNC\host\share\Game",
+            r"\\.\pipe\x", r"\\?\C:\Games", r"\\host\share\Other",
+        ]; }"#,
+    );
+    write(
+        root.path(),
+        product,
+        r#"const ROOT: &str = r"\\host\share\Game";"#,
+    );
+    let result = scan(root.path());
+    let stderr = String::from_utf8(result.stderr).unwrap();
+    assert_eq!(result.status.code(), Some(1), "{stderr}");
+    let findings: Vec<_> = stderr.lines().collect();
+    assert_eq!(findings.len(), 2, "{stderr}");
+    assert!(
+        findings[0].starts_with(product) && findings[0].ends_with(r#""\\\\host\\share\\Game""#)
+    );
+    assert!(findings[1].starts_with(owner) && findings[1].ends_with(r#""\\\\host\\share\\Other""#));
+}
+
+#[test]
 fn fails_closed_when_source_or_source_inventory_is_unavailable() {
     let root = repository();
     let nested = root.path().join("nested");

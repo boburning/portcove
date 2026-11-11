@@ -135,6 +135,16 @@ const SCOPED: &[(&str, &[&str])] = &[
             "/download/game.zip.sha256",
         ],
     ),
+    // Launcher metadata must reject these remote and Windows device paths.
+    (
+        "crates/portcove-core/src/service/launcher_library_tests.rs",
+        &[
+            r"\\host\share\Game",
+            r"\\?\UNC\host\share\Game",
+            r"\\.\pipe\x",
+            r"\\?\C:\Games",
+        ],
+    ),
     (
         "crates/portcove-core/src/failure_tests.rs",
         &[
