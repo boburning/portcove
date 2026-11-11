@@ -394,8 +394,9 @@ describe("desktop components", () => {
       .match(/<button\b[^>]*>[\s\S]*?<\/button>/gu)
       ?.find((button) => button.endsWith(">Play</button>"));
     expect(play).toBeDefined();
-    expect(play).toContain('data-variant="outline"');
-    expect(play).not.toContain('data-variant="primary"');
+    // Ready cards lead with the signature red Play, named for the game.
+    expect(play).toContain('data-variant="primary"');
+    expect(play).toMatch(/aria-label="Play: [^"]+"/u);
     expect(html).not.toContain("Update channel: Stable");
     expect(html).toMatch(/<article class="port-card [^"]*\bport-card-library\b/u);
     expect(html).toContain(">Play</button>");
