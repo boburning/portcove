@@ -503,10 +503,10 @@ export function StatusLayer({
   dismissInvocation,
   openActivity,
   preparationRecovery,
-  activityListsTasks = false,
+  onActivity = false,
 }: {
-  /** On Activity, tasks with a known Activity identity already show their own progress. */
-  activityListsTasks?: boolean;
+  /** Activity is open: a link may reveal a known task there but never re-open Activity. */
+  onActivity?: boolean;
   error?: unknown;
   clearError: () => void;
   reviewPreparation?: (() => void) | undefined;
@@ -571,36 +571,35 @@ export function StatusLayer({
                   invocation={record}
                   announceNeutral={false}
                   openActivity={openActivity}
+                  onActivity={onActivity}
                 />
               )}
               {record.phase === "pending" ? (
-                activityListsTasks && record.context.activityId ? null : (
-                  <>
-                    <p className="mb-1 text-sm font-semibold [overflow-wrap:anywhere]">
-                      {record.context.action} · {record.context.target.label}
-                    </p>
-                    <OperationProgress
-                      // Invocation and event identities are distinct. Only an actual
-                      // explicitly owned ID permits this progress association.
-                      operation={
-                        record.context.activityId
-                          ? operationEvents?.get(record.context.activityId)
-                          : undefined
-                      }
-                      busy={record.outcome ? "refresh current state" : record.name}
-                      announcePhase={false}
-                    />
-                    {openActivity && (
-                      <Button
-                        variant="link"
-                        size="sm"
-                        onClick={() => openActivity(record.context.activityId)}
-                      >
-                        {record.context.activityId ? "View task in Activity" : "Open Activity"}
-                      </Button>
-                    )}
-                  </>
-                )
+                <>
+                  <p className="mb-1 text-sm font-semibold [overflow-wrap:anywhere]">
+                    {record.context.action} · {record.context.target.label}
+                  </p>
+                  <OperationProgress
+                    // Invocation and event identities are distinct. Only an actual
+                    // explicitly owned ID permits this progress association.
+                    operation={
+                      record.context.activityId
+                        ? operationEvents?.get(record.context.activityId)
+                        : undefined
+                    }
+                    busy={record.outcome ? "refresh current state" : record.name}
+                    announcePhase={false}
+                  />
+                  {openActivity && (!onActivity || record.context.activityId) && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      onClick={() => openActivity(record.context.activityId)}
+                    >
+                      {activityLinkLabel(record.context.activityId, onActivity)}
+                    </Button>
+                  )}
+                </>
               ) : (
                 invocationFailure(record) === undefined &&
                 (record.id === latestSuccess ? (
@@ -615,7 +614,7 @@ export function StatusLayer({
                           size="sm"
                           onClick={() => openActivity(record.context.activityId)}
                         >
-                          View in Activity
+                          {onActivity ? "Show task" : "View in Activity"}
                         </Button>
                       )}
                       {dismissInvocation && (
@@ -683,6 +682,12 @@ function invocationAnnouncement(
   return outcome ? `${identity}: ${outcome}.` : undefined;
 }
 
+/** On Activity itself, a link only reveals the exact task; it never re-opens Activity. */
+function activityLinkLabel(activityId: string | undefined, onActivity: boolean) {
+  if (onActivity) return "Show task";
+  return activityId ? "View task in Activity" : "Open Activity";
+}
+
 function ErrorNotice({
   error,
   clearError,
@@ -690,8 +695,10 @@ function ErrorNotice({
   reviewCurrentState,
   invocation,
   openActivity,
+  onActivity = false,
   announceNeutral = true,
 }: {
+  onActivity?: boolean;
   error: unknown;
   clearError: () => void;
   reviewPreparation?: (() => void) | undefined;
@@ -754,14 +761,14 @@ function ErrorNotice({
       </span>
       <div data-slot="notice-body">{renderFailureDetails()}</div>
       <div data-slot="notice-actions" className="error-actions flex gap-1">
-        {openActivity && invocation && (
+        {openActivity && invocation && (!onActivity || invocation.context.activityId) && (
           <Button
             data-focusable
             variant="outline"
             size="sm"
             onClick={() => openActivity(invocation.context.activityId)}
           >
-            {invocation.context.activityId ? "View task in Activity" : "Open Activity"}
+            {activityLinkLabel(invocation.context.activityId, onActivity)}
           </Button>
         )}
         {reviewCurrentState && presentation?.recovery_actions.includes("review_current_state") && (

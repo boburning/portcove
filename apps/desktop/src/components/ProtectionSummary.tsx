@@ -64,8 +64,8 @@ export function ProtectionSummary({
             : readState?.status === "pending"
               ? "Checking backup information. Previously loaded information may be out of date."
               : readState?.status === "current" && readState.hasInventory
-                ? // The list itself was just read; only this installation's protection details are missing.
-                  "Protection details for this installation aren’t available. The backup list was read just now; refresh backup history to check protection again."
+                ? // The list was read; only this installation's protection details are missing.
+                  "Protection details for this installation aren’t available in the loaded backup information. Refresh backup history to check again."
                 : "Backup information is unavailable for this installation. Refresh backup history before continuing."}
         </p>
       )}

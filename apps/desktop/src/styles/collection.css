@@ -678,18 +678,6 @@
   .discover-game-identity:hover {
     background: transparent;
   }
-  /* Ready cards lead with the signature red Play; other card actions stay quiet. */
-  .library-card-play {
-    color: var(--color-pc-action-foreground);
-    background: var(--color-pc-primary);
-    border: 1px solid var(--color-pc-primary);
-  }
-  .library-card-play:hover,
-  .library-card-play:focus-visible {
-    color: var(--color-pc-action-foreground);
-    background: var(--color-pc-primary-hover);
-    border-color: var(--color-pc-primary-hover);
-  }
   .collection-row .collection-title {
     font-weight: 580;
   }

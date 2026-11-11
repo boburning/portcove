@@ -279,8 +279,8 @@ export function CatalogFilters({
           >
             <summary className="cursor-pointer py-2 font-medium">Advanced filters</summary>
             <p className="text-sm text-pc-muted-foreground">
-              When you combine these, one way of installing or setting up the game must match all of
-              them. Games with facts Portcove hasn’t checked aren’t counted as matches.
+              Setup and installation filters must all match the same way of installing or setting up
+              a game. Projects with unknown facts aren’t counted as matches.
             </p>
             <div className="catalog-filter-groups items-start pt-3">
               {advanced}

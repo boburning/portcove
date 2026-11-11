@@ -38,8 +38,8 @@ function Fixture({
       invocations={state.invocations}
       dismissInvocation={state.dismissInvocation}
       clearError={() => state.setError(undefined)}
-      openActivity={onActivity ? undefined : openActivity}
-      activityListsTasks={onActivity}
+      openActivity={openActivity}
+      onActivity={onActivity}
     />
   );
 }
@@ -217,7 +217,7 @@ it("offers an exact Activity link only for an explicitly supplied identity", asy
   expect(openActivity).toHaveBeenLastCalledWith("owned-activity-record");
 });
 
-it("shows no Activity link or duplicate listed progress while Activity is open", async () => {
+it("reveals a known task instead of re-opening Activity while Activity is open", async () => {
   await act(async () => root.render(<Fixture onActivity />));
   const listed = deferred<void>();
   const unlisted = deferred<void>();
@@ -230,13 +230,17 @@ it("shows no Activity link or duplicate listed progress while Activity is open",
       state.perform("check", () => unlisted.promise, { context: context("B", "Check") }),
     ]);
   });
-  // Activity lists the owned task itself; the unlisted task keeps its progress here.
-  // Live-region announcements are unchanged and are not part of these groups.
   const groups = [...host.querySelectorAll<HTMLElement>("[data-invocation-id]")];
   const text = groups.map((group) => group.textContent ?? "").join(" ");
-  expect(text).not.toContain("Prepare · Game A");
+  // Progress stays visible: Activity's other tabs may not list either task.
+  expect(text).toContain("Prepare · Game A");
   expect(text).toContain("Check · Game B");
-  expect(text).not.toContain("Activity");
+  const labels = [...host.querySelectorAll<HTMLButtonElement>("button")].map(
+    (button) => button.textContent,
+  );
+  expect(labels).toEqual(["Show task"]);
+  await act(async () => host.querySelector<HTMLButtonElement>("button")!.click());
+  expect(openActivity).toHaveBeenLastCalledWith("owned-activity-record");
   await act(async () => {
     listed.resolve();
     unlisted.resolve();

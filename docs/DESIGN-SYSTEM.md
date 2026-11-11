@@ -409,7 +409,7 @@ an existing registered runtime. Counts follow the actual result unit.
 | Activate a retained checked update   | Apply update · {version}                                              | Calls the existing activation owner; no new review step.                                                                                                           |
 | Retained checked game update         | Update saved for later                                                | A checked staged record is present; it can reuse local bytes without a new download. Partial download/recovery and failed-check states remain distinct.            |
 | Update notices                       | Pause update notices / Resume update notices / Skip this version      | Current scope is the selected Library and port; skip binds the exact version and artifact digest. It changes notices, not installed/staged files or update policy. |
-| Library filtered empty state         | No matching library entries                                           | A Library result counts entries, including separate implementations of one game. Discover can use No matching games for its grouped results.                       |
+| Library filtered empty state         | Nothing in your library matches                                       | A Library result counts entries, including separate implementations of one game. Discover can use No matching games for its grouped results.                       |
 
 **Saves and settings** names that data scope; **Saved data** covers broader declared
 files. **Saves & backups** is the destination. **Steam shortcut** is the integration
