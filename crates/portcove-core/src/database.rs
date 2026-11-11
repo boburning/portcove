@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 50;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 51;
 
 struct Migration {
     version: i64,
@@ -323,7 +323,34 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_50,
         verify: verify_migration_50,
     },
+    Migration {
+        version: 51,
+        name: "folder setup consent",
+        apply: migration_51,
+        verify: verify_migration_51,
+    },
 ];
+
+fn migration_51(transaction: &Transaction<'_>) -> Result<()> {
+    // Consent policy for automatic setup from one saved folder, with its
+    // enrollment boundary; never an authorization.
+    transaction.execute_batch(
+        "CREATE TABLE game_file_root_setup (
+            root_id TEXT PRIMARY KEY,
+            updated_at INTEGER NOT NULL,
+            record_json TEXT NOT NULL CHECK(length(record_json)<=524288)
+        );",
+    )?;
+    verify_migration_51(transaction)
+}
+
+fn verify_migration_51(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "game_file_root_setup",
+        &["root_id", "updated_at", "record_json"],
+    )
+}
 
 fn migration_50(transaction: &Transaction<'_>) -> Result<()> {
     // Intent is consent policy and remembered choices, never an authorization.
@@ -3025,6 +3052,7 @@ mod tests {
         schema_47: 47,
         schema_48: 48,
         schema_49: 49,
+        schema_50: 50,
     }
 
     #[test]

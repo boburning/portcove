@@ -192,10 +192,13 @@ impl Library {
 
     pub fn remove_game_file_root(&self, id: &str) -> Result<bool> {
         validate_id(id)?;
-        Ok(self
-            .connection()?
-            .execute("DELETE FROM game_file_roots WHERE id=?1", [id])?
-            > 0)
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        // Removing a folder ends its automatic setup; installed games remain.
+        transaction.execute("DELETE FROM game_file_root_setup WHERE root_id=?1", [id])?;
+        let removed = transaction.execute("DELETE FROM game_file_roots WHERE id=?1", [id])? > 0;
+        transaction.commit()?;
+        Ok(removed)
     }
 
     #[cfg(test)]
