@@ -155,9 +155,12 @@ is a **command template**. A review label must not conceal immediate mutation.
 
 ### Shared action vocabulary
 
-Use one concise verb per actual route. These are presentation names, not a
-requirement to merge routes: managed installation, player-managed setup, import,
-repair and reuse of original files keep their own authority and effects.
+This is the target vocabulary: use one concise verb per actual route. These are
+presentation names, not a requirement to merge routes: managed installation,
+player-managed setup, import, repair and reuse of original files keep their own
+authority and effects. Known gaps remain tracked in #5058: Library cards still
+say Set up or Continue setup where details say Finish setup, and several reread
+controls use specific Refresh/Retry labels instead of Check again.
 
 | Action                               | Use when                                                                                  |
 | ------------------------------------ | ----------------------------------------------------------------------------------------- |
