@@ -15,7 +15,8 @@ export type SignInOffer = {
   remainingRequests: number;
 };
 
-/** True only when the check is forecast to exceed what is left and sign-in would relieve it. */
+/** Mirrors `UpdateCheckForecast::sign_in_would_help` in Core; an unknown allowance never offers.
+ * True only when the check is forecast to exceed what is left and sign-in would relieve it. */
 export function signInOfferFor(
   forecast: UpdateCheckForecast,
   auth: GithubAuthStatus,
@@ -63,6 +64,8 @@ export function useUpdateCenter(perform: UpdateCheckOperation, statuses: PortSta
     status: UpdateBatchRead["status"];
     failure?: FailureDisplay;
   }>();
+  // An offer describes the library it was forecast for and is shown only for it.
+  const [offered, setSignInOffer] = useState<{ selection: typeof selection; offer: SignInOffer }>();
   const requests = useRef(new LatestRequestGeneration());
   const currentSelection = useRef<typeof selection | undefined>(undefined);
   useLayoutEffect(() => {
@@ -76,7 +79,6 @@ export function useUpdateCenter(perform: UpdateCheckOperation, statuses: PortSta
   }, [selection]);
   const current = checked?.selection === selection ? checked : undefined;
   const outcomes = current?.outcomes ?? [];
-  const [signInOffer, setSignInOffer] = useState<SignInOffer>();
   const runCheck = useCallback(async () => {
     if (currentSelection.current !== selection) return;
     const request = requests.current.begin();
@@ -134,16 +136,17 @@ export function useUpdateCenter(perform: UpdateCheckOperation, statuses: PortSta
       return signInOfferFor(forecast, auth);
     })().catch(() => undefined);
     if (offer) {
-      setSignInOffer(offer);
+      if (currentSelection.current === selection) setSignInOffer({ selection, offer });
       return;
     }
     setSignInOffer(undefined);
     await runCheck();
-  }, [runCheck]);
+  }, [runCheck, selection]);
   const checkAnyway = useCallback(async () => {
     setSignInOffer(undefined);
     await runCheck();
   }, [runCheck]);
+  const signInOffer = offered?.selection === selection ? offered.offer : undefined;
   const dismissSignInOffer = useCallback(() => setSignInOffer(undefined), []);
   const batchRead: UpdateBatchRead = {
     status: current?.status ?? "idle",
