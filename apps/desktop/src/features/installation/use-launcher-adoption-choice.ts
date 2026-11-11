@@ -22,6 +22,11 @@ export function useLauncherAdoptionChoice(path: string, fallbackPortId: string |
       pendingReview.current = true;
       setPath(entry.install_path);
     },
+    /** Forget the choice when the dialog session ends. */
+    reset() {
+      setChoice(undefined);
+      pendingReview.current = false;
+    },
     /** True once, after the chosen folder became the reviewed path. */
     takePendingReview() {
       if (!pendingReview.current || !chosen) return false;

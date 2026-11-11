@@ -1937,6 +1937,7 @@ function AdoptionOverlay({
 }) {
   const launcher = useLauncherAdoptionChoice(ui.adoptPath, ui.selectedId);
   const finish = () => {
+    launcher.reset();
     ui.setAdoptOpen(false);
     ui.setAdoptPath("");
   };
@@ -1969,6 +1970,7 @@ function AdoptionOverlay({
       busy={operations.busy}
       close={() => {
         planning.invalidate();
+        launcher.reset();
         ui.setAdoptOpen(false);
       }}
       pickFolder={() => {
@@ -1977,9 +1979,19 @@ function AdoptionOverlay({
       launcherImport={
         <LauncherLibraryImport
           disabled={Boolean(operations.busy) || planning.applying}
-          inspect={(launcher, dataRoot) =>
-            operations.perform("inspect launcher library", () =>
-              desktopApi.inspectLauncherLibrary(launcher, dataRoot, libraryGeneration),
+          inspect={(kind, dataRoot, appsRoot) =>
+            operations.perform(
+              "list launcher apps",
+              () => desktopApi.inspectLauncherLibrary(kind, dataRoot, libraryGeneration, appsRoot),
+              {
+                refresh: "none",
+                invalidateDiagnostics: false,
+                context: targetInvocationContext(
+                  "List launcher apps",
+                  { kind: "source", id: dataRoot, label: "Launcher data folder" },
+                  libraryGeneration,
+                ),
+              },
             )
           }
           pickFolder={async (current) => {

@@ -94,6 +94,8 @@ afterEach(() => {
   Reflect.deleteProperty(window, "__TAURI_INTERNALS__");
 });
 
+let resetChoice: () => void = () => {};
+
 function LauncherCopyDialog() {
   const [path, setPath] = useState("");
   const perform: Perform = async (_name, task) => task();
@@ -105,6 +107,10 @@ function LauncherCopyDialog() {
   const changePath = (next: string) => {
     planning.invalidate();
     setPath(next);
+  };
+  resetChoice = () => {
+    launcher.reset();
+    changePath("");
   };
   return (
     <AdoptionModal
@@ -119,7 +125,9 @@ function LauncherCopyDialog() {
       launcherImport={
         <LauncherLibraryImport
           disabled={false}
-          inspect={(kind, dataRoot) => desktopApi.inspectLauncherLibrary(kind, dataRoot, 7)}
+          inspect={(kind, dataRoot, appsRoot) =>
+            desktopApi.inspectLauncherLibrary(kind, dataRoot, 7, appsRoot)
+          }
           choose={(chosen) => launcher.choose(chosen, changePath)}
         />
       }
@@ -165,6 +173,14 @@ it("opens the ordinary copy review for a chosen launcher app with that app's gam
     await expect
       .poll(() => calls.filter((call) => call.command === "preview_adoption").at(-1)?.args)
       .toEqual({ path: "C:/Apps/Shared", generation: 7, portId: null });
+
+    // Closing the dialog session forgets the choice, even for the same folder later.
+    await act(async () => resetChoice());
+    await userEvent.fill(page.getByLabelText("Existing installation folder"), "C:/Apps/Game");
+    await page.getByRole("button", { name: "Review copy plan" }).click();
+    await expect
+      .poll(() => calls.filter((call) => call.command === "preview_adoption").at(-1)?.args)
+      .toEqual({ path: "C:/Apps/Game", generation: 7, portId: "selected-in-browser" });
 
     // Editing the folder by hand restores the dialog's ordinary port scope.
     await userEvent.fill(page.getByLabelText("Existing installation folder"), "C:/Elsewhere");

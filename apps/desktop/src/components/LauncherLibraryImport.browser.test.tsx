@@ -97,16 +97,20 @@ it("lists a chosen launcher's apps and hands only reviewable ones to the copy re
       .toHaveAttribute("aria-pressed", "true");
     await userEvent.fill(page.getByLabelText("Quiver data folder"), "  C:\\Quiver  ");
     await page.getByRole("button", { name: "List apps" }).click();
-    expect(inspect).toHaveBeenCalledWith("quiver", "C:\\Quiver");
+    expect(inspect).toHaveBeenCalledWith("quiver", "C:\\Quiver", undefined);
     await expect
       .element(page.getByText("3 apps listed · 1 ready to review · 1 unreadable entry skipped"))
       .toBeVisible();
     await expect.element(page.getByText("Not carried over: custom launch command")).toBeVisible();
     expect(page.getByRole("button", { name: "Review copying Other" }).elements()).toHaveLength(0);
+    // No app is missing its folder, so no apps-folder recovery is offered.
+    expect(page.getByLabelText("Apps folder, if it moved").elements()).toHaveLength(0);
     await page.getByRole("button", { name: "Review copying Shared" }).click();
     expect(choose).toHaveBeenCalledWith(expect.objectContaining({ name: "Shared" }));
     // Choosing collapses the list so the copy review is next; it can be reopened.
     await expect.poll(() => document.querySelector("details")?.open).toBe(false);
+    // Focus stays on the collapsed list's summary rather than falling to the page.
+    await expect.poll(() => document.activeElement?.tagName).toBe("SUMMARY");
     await page.getByText("Moving from GitHub Launcher or Quiver?").click();
     await page.getByRole("button", { name: "Review copying Game" }).click();
     expect(choose).toHaveBeenLastCalledWith(expect.objectContaining({ adopt_port_id: "game" }));
@@ -115,6 +119,42 @@ it("lists a chosen launcher's apps and hands only reviewable ones to the copy re
     await page.getByText("Moving from GitHub Launcher or Quiver?").click();
     await userEvent.fill(page.getByLabelText("Quiver data folder"), "C:\\Elsewhere");
     expect(page.getByText(/apps listed/).elements()).toHaveLength(0);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
+it("offers a moved apps folder and lists again with it when apps were not found", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const unresolved: LauncherLibraryInventory = {
+    ...inventory,
+    apps_root: null,
+    apps_root_origin: "unresolved",
+    entries: [
+      entry({ status: "not-installed", install_path: "C:\\Old\\Game", adopt_port_id: null }),
+    ],
+    skipped_entries: [],
+  };
+  const inspect = vi.fn(async () => unresolved);
+  try {
+    await act(async () =>
+      root.render(<LauncherLibraryImport disabled={false} inspect={inspect} choose={vi.fn()} />),
+    );
+    await page.getByText("Moving from GitHub Launcher or Quiver?").click();
+    await userEvent.fill(page.getByLabelText("GitHub Launcher data folder"), "C:\\GHL");
+    await page.getByRole("button", { name: "List apps" }).click();
+    await expect.element(page.getByText("1 app listed · none ready to review")).toBeVisible();
+    await expect
+      .element(page.getByText(/apps folder could not be read from its settings/))
+      .toBeVisible();
+    await expect.element(page.getByRole("button", { name: "List apps again" })).toBeDisabled();
+    await userEvent.fill(page.getByLabelText("Apps folder, if it moved"), "D:\\Apps");
+    await page.getByRole("button", { name: "List apps again" }).click();
+    expect(inspect).toHaveBeenLastCalledWith("github-launcher", "C:\\GHL", "D:\\Apps");
   } finally {
     await act(async () => root.unmount());
     container.remove();

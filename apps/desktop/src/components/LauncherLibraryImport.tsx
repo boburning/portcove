@@ -43,6 +43,7 @@ export function LauncherLibraryImport({
   inspect: (
     launcher: LauncherKind,
     dataRoot: string,
+    appsRoot?: string,
   ) => Promise<LauncherLibraryInventory | undefined>;
   pickFolder?: (currentPath: string) => Promise<string | null>;
   choose: (entry: LauncherLibraryEntry) => void;
@@ -50,10 +51,12 @@ export function LauncherLibraryImport({
   const id = useId();
   const [launcher, setLauncher] = useState<LauncherKind>("github-launcher");
   const [dataRoot, setDataRoot] = useState("");
+  const [appsRoot, setAppsRoot] = useState("");
   const [inventory, setInventory] = useState<LauncherLibraryInventory>();
   const [listing, setListing] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const request = useRef(0);
+  const summaryRef = useRef<HTMLElement>(null);
   const reset = () => {
     request.current += 1;
     setInventory(undefined);
@@ -62,13 +65,17 @@ export function LauncherLibraryImport({
     const current = ++request.current;
     setListing(true);
     try {
-      const result = await inspect(launcher, dataRoot.trim());
+      const result = await inspect(launcher, dataRoot.trim(), appsRoot.trim() || undefined);
       if (current === request.current) setInventory(result);
     } finally {
       if (current === request.current) setListing(false);
     }
   };
-  const ready = inventory?.entries.filter((entry) => entry.status === "ready-to-review").length;
+  const status = listing ? "Listing apps…" : inventory ? inventorySummary(inventory) : "";
+  const needsAppsRoot =
+    inventory !== undefined &&
+    (inventory.apps_root_origin === "unresolved" ||
+      inventory.entries.some((entry) => entry.status === "not-installed"));
   const launcherLabel = LAUNCHERS.find((item) => item.kind === launcher)?.label ?? "launcher";
   return (
     <details
@@ -76,7 +83,7 @@ export function LauncherLibraryImport({
       open={expanded}
       onToggle={(event) => setExpanded(event.currentTarget.open)}
     >
-      <summary className="cursor-pointer font-medium">
+      <summary ref={summaryRef} className="cursor-pointer font-medium">
         Moving from GitHub Launcher or Quiver?
       </summary>
       <p className="mt-2 text-[var(--color-text-secondary)]">
@@ -94,6 +101,7 @@ export function LauncherLibraryImport({
             disabled={disabled || listing}
             onClick={() => {
               setLauncher(item.kind);
+              setAppsRoot("");
               reset();
             }}
           >
@@ -154,21 +162,67 @@ export function LauncherLibraryImport({
         <Icon glyph={ListChecks} />
         {listing ? "Listing apps…" : "List apps"}
       </Button>
+      <p aria-live="polite" className="mt-3 text-[var(--color-text-secondary)]">
+        {status}
+      </p>
       {inventory && (
         <section aria-label={`Apps in ${launcherLabel}`} className="mt-3">
-          <p aria-live="polite" className="text-[var(--color-text-secondary)]">
-            {inventory.entries.length} {inventory.entries.length === 1 ? "app" : "apps"} listed ·{" "}
-            {ready} ready to review
-            {inventory.skipped_entries.length > 0 &&
-              ` · ${inventory.skipped_entries.length} unreadable ${
-                inventory.skipped_entries.length === 1 ? "entry" : "entries"
-              } skipped`}
-          </p>
           {inventory.apps_root_origin === "unresolved" && (
             <p role="note" className="text-[var(--color-warning-text)]">
               The launcher&apos;s apps folder could not be read from its settings, so apps listed by
               folder name were not checked.
             </p>
+          )}
+          {needsAppsRoot && (
+            <div className="mb-3">
+              <label htmlFor={`${id}-apps-root`}>Apps folder, if it moved</label>
+              <p
+                id={`${id}-apps-root-hint`}
+                className="text-[length:var(--text-xs)] text-[var(--color-text-secondary)]"
+              >
+                Choose where the launcher&apos;s apps are now, then list the apps again.
+              </p>
+              <div className="flex items-stretch gap-2 [&_input]:min-w-0">
+                <Input
+                  data-focusable
+                  id={`${id}-apps-root`}
+                  aria-describedby={`${id}-apps-root-hint`}
+                  value={appsRoot}
+                  disabled={disabled || listing}
+                  onChange={(event) => setAppsRoot(event.target.value)}
+                  placeholder="Choose or paste the full folder path"
+                />
+                {pickFolder && (
+                  <Button
+                    data-focusable
+                    type="button"
+                    variant="outline"
+                    disabled={disabled || listing}
+                    onClick={() => {
+                      void pickFolder(appsRoot).then((path) => {
+                        if (path) setAppsRoot(path);
+                      });
+                    }}
+                  >
+                    <Icon glyph={FolderOpen} />
+                    Browse
+                  </Button>
+                )}
+              </div>
+              <Button
+                data-focusable
+                type="button"
+                variant="outline"
+                className="mt-2"
+                disabled={disabled || listing || !appsRoot.trim()}
+                onClick={() => {
+                  void list();
+                }}
+              >
+                <Icon glyph={ListChecks} />
+                List apps again
+              </Button>
+            </div>
           )}
           <ul className="grid gap-2 ps-0" aria-label="Launcher apps">
             {inventory.entries.map((entry) => (
@@ -196,8 +250,10 @@ export function LauncherLibraryImport({
                       className="mt-2"
                       disabled={disabled}
                       onClick={() => {
-                        // Collapse the list so the copy review below is next; it stays available.
+                        // Collapse the list so the copy review below is next; it stays available
+                        // from the summary, which keeps keyboard and controller focus.
                         setExpanded(false);
+                        summaryRef.current?.focus();
                         choose(entry);
                       }}
                     >
@@ -212,4 +268,18 @@ export function LauncherLibraryImport({
       )}
     </details>
   );
+}
+
+/** Complete per-count messages; English suffixes are never appended. */
+function inventorySummary(inventory: LauncherLibraryInventory) {
+  const listed = inventory.entries.length;
+  const ready = inventory.entries.filter((entry) => entry.status === "ready-to-review").length;
+  const skipped = inventory.skipped_entries.length;
+  const parts = [
+    listed === 0 ? "No apps listed" : listed === 1 ? "1 app listed" : `${listed} apps listed`,
+    ready === 0 ? "none ready to review" : `${ready} ready to review`,
+  ];
+  if (skipped === 1) parts.push("1 unreadable entry skipped");
+  else if (skipped > 1) parts.push(`${skipped} unreadable entries skipped`);
+  return parts.join(" · ");
 }
