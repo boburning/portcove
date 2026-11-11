@@ -581,8 +581,18 @@ Library uses Title A–Z only when no sort preference exists; explicit legacy Ca
 order and saved sorts remain available. Unreadable stored preferences retain Catalog
 order for explicit recovery and are not replaced without an explicit save. Discover
 retains Suggested order. Everyday
-Library quick views compose existing query and favorites state; collection editing
-and Hidden stay in the collection menu. Clear filters retains search; Reset view
+Library quick views (All, Favorites, Needs attention, Updates) are one exclusive
+choice exposed as a radio group with a single tab stop; arrow, Home and End keys move
+and select. Selecting a view clears the other views' state, never search, the
+selected collection or declared filters. Every count uses the same base: library
+membership, search, the selected collection and declared filters other than the
+Updates view's own selection; a count never derives from another view's narrowed
+result, and unknown counts stay unavailable rather than zero. Updates includes
+available and downloaded (staged) updates and adds no filter chips; a custom
+Observed updates filter remains an ordinary filter. When Readiness or combined
+legacy state narrows results, no single view is selected. Collection editing
+and Hidden stay in the collection menu. (Supersedes the earlier composed-toggle
+quick views; see #5058.) Clear filters retains search; Reset view
 states that it also clears search, quick views and collection selection. At compact
 widths search occupies its own toolbar row.
 

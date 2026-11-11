@@ -96,6 +96,13 @@ import {
   type CatalogQueryContext,
 } from "../features/browsing/catalog-query";
 import { CatalogFilters, queryFromFilter } from "../features/browsing/CatalogFilters";
+import {
+  activeLibraryQuickView,
+  libraryQuickViewCounts,
+  withoutUpdatesQuickView,
+  withUpdatesQuickView,
+  type LibraryQuickView,
+} from "../features/browsing/library-quick-views";
 import type { GameFileFilterState } from "../features/browsing/use-game-file-filter-context";
 
 const catalogSortOptions: readonly { value: CatalogSort; label: string }[] = [
@@ -349,6 +356,15 @@ function usePortBrowser({
     view === "catalog",
     catalogUniverse ?? ports,
   );
+  const quickViewCounts = libraryQuickViewCounts({
+    base: composedLibrary ? candidates : undefined,
+    filter,
+    favoriteIds: favorites?.ids ?? undefined,
+    statuses,
+    context: queryContext,
+    scope: (scoped) =>
+      organizedPorts(scoped, organization, organizationView, false, catalogUniverse ?? ports),
+  });
   const resultCount = browserResultCountLabel({
     view,
     visiblePorts,
@@ -430,6 +446,7 @@ function usePortBrowser({
     resultsUnavailable,
     unresolvedFilter,
     favoriteCount,
+    quickViewCounts,
     visiblePorts,
     resultCount,
     reset,
@@ -1643,106 +1660,121 @@ function BrowserQuickViews({
 }) {
   const countId = useId();
   if (!model.composedLibrary || model.firstUseEmpty) return null;
-  const updateQuery = queryFromFilter(model.filter).updates ?? [];
-  const clearUpdates = (current: Filter | CatalogQuery) => {
-    const query = queryFromFilter(current);
-    return query.version === 1 ? { ...query, updates: [] } : current;
+  const active = activeLibraryQuickView({
+    favoritesOnly: favorites?.only === true,
+    readiness: model.libraryReadiness,
+    filter: model.filter,
+  });
+  const counts = model.quickViewCounts;
+  const select = (view: LibraryQuickView) => {
+    model.setLibraryReadiness?.(view === "attention" ? "setup" : "all");
+    if (view === "favorites") favorites?.setOnly(true);
+    else if (favorites?.only) favorites.setOnly(false);
+    model.setFilter((current) =>
+      view === "updates" ? withUpdatesQuickView(current) : withoutUpdatesQuickView(current),
+    );
   };
-  const allCount = model.readinessCount("all");
-  const attentionCount = model.readinessCount("setup");
-  const all =
-    model.libraryReadiness === "all" &&
-    !favorites?.only &&
-    !updateQuery.length &&
-    model.organizationView === "all";
+  const views: { view: LibraryQuickView; label: string; description: string }[] = [
+    { view: "all", label: "All", description: "Every game in this library scope" },
+    ...(favorites
+      ? [
+          {
+            view: "favorites" as const,
+            label: "Favorites",
+            description: "Games you marked as favorites",
+          },
+        ]
+      : []),
+    {
+      view: "attention",
+      label: "Needs attention",
+      description: "Games that need setup, files or repair before they can play",
+    },
+    {
+      view: "updates",
+      label: "Updates",
+      description: "Games with an update available or downloaded and ready to apply",
+    },
+  ];
+  const enabled = (view: LibraryQuickView) =>
+    view === "favorites"
+      ? Boolean(favorites?.ids)
+      : view === "updates"
+        ? !model.unresolvedFilter
+        : true;
+  // One tab stop: the selected view, or the first view when constraints combine.
+  const tabStop = active && enabled(active) ? active : "all";
+  const move = (from: LibraryQuickView, key: string, group: HTMLElement | null) => {
+    const order = views.map((item) => item.view).filter(enabled);
+    const index = order.indexOf(from);
+    const target =
+      key === "Home"
+        ? order[0]
+        : key === "End"
+          ? order.at(-1)
+          : key === "ArrowRight" || key === "ArrowDown"
+            ? order[(index + 1) % order.length]
+            : key === "ArrowLeft" || key === "ArrowUp"
+              ? order[(index - 1 + order.length) % order.length]
+              : undefined;
+    if (!target) return false;
+    select(target);
+    group?.querySelector<HTMLButtonElement>(`[data-quick-view="${target}"]`)?.focus();
+    return true;
+  };
   return (
     <div
-      role="group"
+      role="radiogroup"
       aria-label="Library quick views"
       data-focus-group
       className="flex min-w-0 flex-wrap items-center gap-1"
     >
-      <Button
-        size="sm"
-        data-focusable
-        variant={all ? "selected" : "ghost"}
-        aria-pressed={all}
-        aria-describedby={`${countId}-all`}
-        title="Reset quick views and collection selection; keep search and other filters"
-        onClick={() => {
-          model.setLibraryReadiness?.("all");
-          favorites?.setOnly(false);
-          model.setOrganizationView("all");
-          model.setFilter(clearUpdates);
-        }}
-      >
-        All games
-        {typeof model.readinessCount("all") === "number" && (
-          <span className="browse-count" aria-hidden="true">
-            {model.readinessCount("all")}
+      {views.map(({ view, label }) => {
+        const count = counts[view];
+        const checked = active === view;
+        return (
+          <Button
+            key={view}
+            size="sm"
+            role="radio"
+            data-focusable
+            data-quick-view={view}
+            data-favorites-filter={view === "favorites" ? true : undefined}
+            ref={view === "favorites" ? filterButton : undefined}
+            variant={checked ? "selected" : "ghost"}
+            aria-checked={checked}
+            tabIndex={view === tabStop ? 0 : -1}
+            disabled={!enabled(view)}
+            aria-label={view === "favorites" ? `Favorites ${count}` : undefined}
+            aria-describedby={`${countId}-${view}`}
+            onClick={() => {
+              if (!checked) select(view);
+            }}
+            onKeyDown={(event) => {
+              if (event.altKey || event.ctrlKey || event.metaKey) return;
+              if (move(view, event.key, event.currentTarget.parentElement)) event.preventDefault();
+            }}
+          >
+            {label}
+            {typeof count === "number" && (
+              <span className="browse-count" aria-hidden="true">
+                {count}
+              </span>
+            )}
+          </Button>
+        );
+      })}
+      {views.map(({ view, description }) => {
+        const count = counts[view];
+        return (
+          <span key={view} id={`${countId}-${view}`} className="sr-only">
+            {description}.{" "}
+            {typeof count === "number"
+              ? `${count} ${count === 1 ? "game" : "games"}`
+              : "Count unavailable"}
           </span>
-        )}
-      </Button>
-      {favorites && (
-        <Button
-          size="sm"
-          data-focusable
-          data-favorites-filter
-          ref={filterButton}
-          variant={favorites.only ? "selected" : "ghost"}
-          aria-pressed={favorites.only}
-          disabled={!favorites.ids}
-          aria-label={`Favorites ${model.favoriteCount ?? "unavailable"}`}
-          onClick={() => favorites.setOnly(!favorites.only)}
-        >
-          Favorites{" "}
-          <span className="browse-count" aria-hidden="true">
-            {model.favoriteCount ?? "unavailable"}
-          </span>
-        </Button>
-      )}
-      <Button
-        size="sm"
-        data-focusable
-        variant={model.libraryReadiness === "setup" ? "selected" : "ghost"}
-        aria-pressed={model.libraryReadiness === "setup"}
-        aria-describedby={`${countId}-attention`}
-        title="Recorded setup, repair or readiness needs"
-        onClick={() =>
-          model.setLibraryReadiness?.(model.libraryReadiness === "setup" ? "all" : "setup")
-        }
-      >
-        Needs attention
-        {typeof model.readinessCount("setup") === "number" && (
-          <span className="browse-count" aria-hidden="true">
-            {model.readinessCount("setup")}
-          </span>
-        )}
-      </Button>
-      <Button
-        size="sm"
-        data-focusable
-        variant={updateQuery.length ? "selected" : "ghost"}
-        aria-pressed={updateQuery.length > 0}
-        disabled={model.unresolvedFilter}
-        onClick={() =>
-          model.setFilter((current) => {
-            const query = queryFromFilter(current);
-            return query.version === 1
-              ? { ...query, updates: query.updates?.length ? [] : ["available", "staged"] }
-              : current;
-          })
-        }
-      >
-        Updates
-      </Button>
-      <span id={`${countId}-all`} className="sr-only">
-        {typeof allCount === "number" ? `${allCount} library entries` : "Count unavailable"}
-      </span>
-      <span id={`${countId}-attention`} className="sr-only">
-        Recorded setup, repair or readiness needs.{" "}
-        {typeof attentionCount === "number" ? `${attentionCount} entries` : "Count unavailable"}
-      </span>
+        );
+      })}
     </div>
   );
 }
@@ -1948,6 +1980,7 @@ function BrowserCollectionTools({
           summary={summary}
           gameFileQuery={model.gameFileQuery}
           view={model.view === "library" ? "library" : "catalog"}
+          quickViewUpdates={model.composedLibrary}
           candidates={model.declaredCandidates}
           context={model.queryContext}
           filter={model.filter}

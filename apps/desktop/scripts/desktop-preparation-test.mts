@@ -1176,9 +1176,7 @@ export async function preparationScenarios({
     await clickVisible(
       browser,
       await browser.findElement(
-        By.xpath(
-          '//*[@aria-label="Library quick views"]//button[text()[normalize-space(.)="All games"]]',
-        ),
+        By.xpath('//*[@aria-label="Library quick views"]//button[@data-quick-view="all"]'),
       ),
     );
     const card = By.xpath(`//button[@data-detail-game-id="${port.id}"]`);

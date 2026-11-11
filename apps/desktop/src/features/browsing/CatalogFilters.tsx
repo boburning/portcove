@@ -28,6 +28,7 @@ import {
   type CatalogQueryContext,
 } from "./catalog-query";
 import { states } from "./game-file-query-context";
+import { isQuickViewUpdateSelection } from "./quick-view-updates";
 import { GameFileFilterControls } from "./GameFileFilterControls";
 import type { GameFileFilterState } from "./use-game-file-filter-context";
 
@@ -103,8 +104,11 @@ export function CatalogFilters({
   after,
   summary,
   advanced,
+  quickViewUpdates = false,
 }: {
   advanced?: ReactNode;
+  /** The Library Updates quick view owns its update selection; show no chips for it. */
+  quickViewUpdates?: boolean;
   before?: ReactNode;
   after?: ReactNode;
   summary?: ReactNode;
@@ -157,11 +161,14 @@ export function CatalogFilters({
   const result = evaluateCatalogQuery(candidates ?? [], query, context);
   const editable = result.state === "matched";
   const supported = result.state !== "unresolved";
+  const quickViewOwnsUpdates = quickViewUpdates && isQuickViewUpdateSelection(query.updates);
   const selected = supported
     ? groups.flatMap((group) =>
-        group.values
-          .filter((value) => query[group.key]?.includes(value))
-          .map((value) => ({ group: group.key, value })),
+        quickViewOwnsUpdates && group.key === "updates"
+          ? []
+          : group.values
+              .filter((value) => query[group.key]?.includes(value))
+              .map((value) => ({ group: group.key, value })),
       )
     : [];
   const additionalCount = !supported
