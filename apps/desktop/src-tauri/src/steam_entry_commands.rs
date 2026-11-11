@@ -445,7 +445,8 @@ fn apply_included_artwork(artwork: Vec<IncludedArtwork>) -> Vec<SteamEntryArtwor
     artwork
         .into_iter()
         .map(|(port_id, planned)| {
-            let outcome = planned.and_then(|(request, reviewed)| {
+            let outcome = planned.and_then(|(mut request, reviewed)| {
+                request.require_written_shortcut = true;
                 let current =
                     plan_steam_artwork(&request).map_err(|error| steam_error(error).message)?;
                 if current != reviewed {
@@ -528,6 +529,7 @@ fn artwork_request(
             operation: selection.operation,
             roles,
             planned_app_id,
+            require_written_shortcut: false,
         },
     ))
 }

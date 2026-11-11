@@ -293,16 +293,17 @@ export function SteamEntryDialog({
             resetReview={resetReview}
           />
         )}
+        {installed && !reviewing && (
+          <IncludeArtworkChoice
+            id="steam-include-artwork"
+            checked={includeArtwork}
+            disabled={Boolean(pending)}
+            onChange={setIncludeArtwork}
+          />
+        )}
         {pending === "review" && <p role="status">Inspecting the selected Steam profile…</p>}
         {!reviewing && (
           <Fieldset legend="Steam artwork" disabled={Boolean(pending)} className="mt-6 grid gap-3">
-            {installed && (
-              <IncludeArtworkChoice
-                id="steam-include-artwork"
-                checked={includeArtwork}
-                onChange={setIncludeArtwork}
-              />
-            )}
             <p>
               Add this game's selected Portcove cover to its Portcove shortcut. Artwork already in
               Steam is kept unless you choose to replace it.
@@ -810,8 +811,8 @@ function SteamEntryResult({ result, batch }: { result: SteamEntryApplyResult; ba
             return outcome.error
               ? [
                   <li className="[overflow-wrap:anywhere]" key={outcome.port_id}>
-                    {name}: shortcut added, but no artwork was added ({outcome.error}). Try Review
-                    artwork update.
+                    {name}: shortcut added; artwork was not completed. Open Review artwork update to
+                    check and finish it. <span className="block">Reason: {outcome.error}</span>
                   </li>,
                 ]
               : outcome.roles.map((role) => (
@@ -871,8 +872,9 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamB
               return preview.unavailable
                 ? [
                     <li className="[overflow-wrap:anywhere]" key={preview.port_id}>
-                      {name}: artwork can't be added now. The shortcut is still added; try Review
-                      artwork update later.
+                      {name}: artwork can't be added with this shortcut. The shortcut is still
+                      added; try Review artwork update later.{" "}
+                      <span className="block">Reason: {preview.unavailable}</span>
                     </li>,
                   ]
                 : preview.roles.map((role) => (

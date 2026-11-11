@@ -550,6 +550,6 @@ it("adds a shortcut without artwork when Include artwork is cleared and reports 
   );
   expect(document.body.textContent).toContain("Steam shortcut updated.");
   expect(document.body.textContent).toContain(
-    `${port.name}: shortcut added, but no artwork was added`,
+    `${port.name}: shortcut added; artwork was not completed.`,
   );
 });

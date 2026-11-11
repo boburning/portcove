@@ -55,6 +55,7 @@ impl Fixture {
                 (DestinationArtworkRole::HeroBanner, unprovided()),
             ],
             planned_app_id: None,
+            require_written_shortcut: false,
         }
     }
 
@@ -480,4 +481,62 @@ fn artwork_reviewed_with_a_shortcut_add_uses_the_planned_app_id() {
         plan_steam_artwork(&request),
         Err(SteamEntryError::Conflict(_))
     ));
+}
+
+#[test]
+fn selected_games_reviewed_together_each_receive_their_artwork() {
+    let fixture = Fixture::new();
+    let other = "other-port";
+    let mut first = fixture.update(false, b"first art");
+    first.planned_app_id = Some(APP_ID);
+    let mut second = fixture.update(false, b"second art");
+    second.port_id = other.into();
+    second.planned_app_id = Some(APP_ID + 1);
+    // Both are reviewed before either shortcut or artwork is written.
+    let first_plan = plan_steam_artwork(&first).unwrap();
+    let second_plan = plan_steam_artwork(&second).unwrap();
+    fs::write(
+        fixture.config.join("shortcuts.vdf"),
+        shortcuts_bytes(&[
+            (
+                APP_ID,
+                "Example Port",
+                &ownership_marker(LIBRARY, PORT).unwrap(),
+            ),
+            (
+                APP_ID + 1,
+                "Other Port",
+                &ownership_marker(LIBRARY, other).unwrap(),
+            ),
+        ]),
+    )
+    .unwrap();
+    for (request, reviewed) in [(&mut first, &first_plan), (&mut second, &second_plan)] {
+        request.require_written_shortcut = true;
+        let current = plan_steam_artwork(request).unwrap();
+        assert_eq!(&current, reviewed);
+        assert!(apply(&current, request).wrote);
+    }
+    assert_eq!(
+        fs::read(fixture.grid().join(format!("{APP_ID}p.png"))).unwrap(),
+        b"first art"
+    );
+    assert_eq!(
+        fs::read(fixture.grid().join(format!("{}p.png", APP_ID + 1))).unwrap(),
+        b"second art"
+    );
+    assert_eq!(read_ownership(&fixture.config).unwrap().1.len(), 2);
+}
+
+#[test]
+fn artwork_after_a_shortcut_write_requires_that_shortcut_to_exist() {
+    let fixture = Fixture::new();
+    let mut request = fixture.update(false, b"portcove art");
+    request.planned_app_id = Some(APP_ID);
+    request.require_written_shortcut = true;
+    assert!(matches!(
+        plan_steam_artwork(&request),
+        Err(SteamEntryError::Conflict(_))
+    ));
+    assert!(!fixture.grid().exists());
 }
