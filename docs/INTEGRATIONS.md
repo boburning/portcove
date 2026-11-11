@@ -558,14 +558,38 @@ inspection merely by containing the scanner. Desktop does not execute or shell
 out to a discovered candidate, and this compatibility marker is not a
 publisher-signature claim.
 
-Local folder discovery is a read-only aid to explicit profile selection. This
-consumer does not deliver artwork or qualify the actual Steam client. Controlled
+Local folder discovery is a read-only aid to explicit profile selection.
+
+The same Desktop shortcut review offers **Review artwork update** and **Review
+artwork removal** as separate actions. Update requires a shortcut carrying this
+library and game's Portcove ownership marker and reads each role through Core's
+versioned destination handoff; the renderer supplies no bytes, paths or provider
+data. It currently publishes the selected imported portrait original as
+`config/grid/<shortcut AppID>p.png` or `.jpg`; landscape and hero roles report
+unavailable until #208/#527 provide them, and a catalog default or generated
+fallback is reported rather than copied. Existing art for a role is preserved by
+default. Replacement requires the explicit **Replace artwork already in Steam**
+choice, accepts exactly one readable existing file and keeps a content-addressed
+backup in the profile `config` folder; several variants or a linked, oversized or
+unreadable file are always preserved. Removal does not need the shortcut or an
+installed game: it removes only a file recorded in
+`config/portcove-steam-artwork.json` whose bytes still match that record, keeps a
+backup, and preserves and forgets art the player changed. Both actions bind the
+profile, owned shortcut, existing destination files, ownership record and the
+Core selection revision and content identity into one plan, require Steam closed,
+revalidate after native consent, and publish through no-clobber set-aside and
+rename with `config/portcove-steam-artwork.journal.json`. An interrupted write is
+settled per role to the exact prior file or the reviewed file; anything else is
+preserved with recovery required. Shortcut Repair still never writes artwork,
+and Add does not yet offer Include artwork.
+
+Controlled
 host and renderer tests prove the
 review/apply contract and isolated shortcut-file behavior. Native positive-path
 qualification may use the compile-time fixture that reports the client closed;
 that proves UI, consent, stale-plan and writer integration against an output-owned
 Steam tree, not an actual closed Steam process. It does **not** prove Steam
-consumed the entry, client restart behavior, Steam-facing launch/Stop/return,
+consumed the entry or displayed its artwork, client restart behavior, Steam-facing launch/Stop/return,
 Desktop presentation in a packaged candidate, or Steam Deck behavior. Those
 remain separate implementation and actual-platform gates for #292, #527 and #217.
 

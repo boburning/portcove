@@ -111,6 +111,19 @@ export type InstallationContext =
       installation_id: string;
       kind: "external";
     };
+/**
+ * Separate reviewed Steam artwork action for one owned shortcut.
+ */
+export type SteamArtworkOperation =
+  | {
+      kind: "update";
+      replace_existing: boolean;
+      [k: string]: unknown;
+    }
+  | {
+      kind: "remove_owned";
+      [k: string]: unknown;
+    };
 export type SteamEntryOperation = "add_or_repair" | "remove";
 
 export interface TransportInputs {
@@ -131,6 +144,7 @@ export interface TransportInputs {
   desktop_game_file_query_request: InputGameFileQueryRequest;
   desktop_install_input: InputDesktopInstallInput;
   desktop_organization_change: InputDesktopOrganizationChange;
+  desktop_steam_artwork_selection: InputDesktopSteamArtworkSelection;
   desktop_steam_batch_selection: InputDesktopSteamBatchSelection;
   desktop_steam_entry_selection: InputDesktopSteamEntrySelection;
 }
@@ -271,6 +285,13 @@ export interface UpdateNoticeRelease {
 export interface SetupConfirmation {
   context: InstallationContext;
   port_id: string;
+}
+export interface InputDesktopSteamArtworkSelection {
+  operation: SteamArtworkOperation;
+  portId: string;
+  steamRoot: string;
+  steamUserId: string;
+  [k: string]: unknown;
 }
 export interface InputDesktopSteamBatchSelection {
   portIds: string[];

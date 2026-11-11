@@ -411,6 +411,75 @@ pub struct SteamEntryReview {
     pub writes_required: bool,
 }
 
+/// Separate reviewed Steam artwork action for one owned shortcut.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum SteamArtworkOperation {
+    /// Fill missing roles; replace existing art only when explicitly requested.
+    Update { replace_existing: bool },
+    /// Remove only recorded, unchanged Portcove-written art for this entry.
+    RemoveOwned,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SteamArtworkRoleAction {
+    Write,
+    Replace,
+    Preserve,
+    Unchanged,
+    Unavailable,
+    Remove,
+    PreserveModified,
+    Absent,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SteamArtworkRoleChange {
+    pub role: portcove_core::DestinationArtworkRole,
+    pub action: SteamArtworkRoleAction,
+    pub destination_path: Option<PathBuf>,
+    pub existing_paths: Vec<PathBuf>,
+    pub existing_sha256: Option<String>,
+    pub proposed_sha256: Option<String>,
+    pub unavailable_reason: Option<portcove_core::DestinationArtworkUnavailableReason>,
+    /// The destination-local ownership record for this role is dropped.
+    pub forget_ownership: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SteamArtworkSelection {
+    pub port_id: String,
+    pub steam_root: PathBuf,
+    pub steam_user_id: String,
+    pub operation: SteamArtworkOperation,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct SteamArtworkReview {
+    pub schema_version: u32,
+    pub operation: SteamArtworkOperation,
+    pub port_id: String,
+    pub display_name: String,
+    pub steam_root: PathBuf,
+    pub steam_user_id: String,
+    pub app_id: Option<u32>,
+    pub grid_path: PathBuf,
+    pub plan_sha256: String,
+    pub roles: Vec<SteamArtworkRoleChange>,
+    pub steam_client_state: SteamClientState,
+    pub writes_required: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SteamArtworkApplyResult {
+    pub plan_sha256: String,
+    pub roles: Vec<SteamArtworkRoleChange>,
+    pub backup_paths: Vec<PathBuf>,
+    pub wrote: bool,
+}
+
 fn output<T: JsonSchema>() -> Value {
     json!(
         SchemaSettings::default()
@@ -477,6 +546,8 @@ pub fn export_transport_schemas() -> Value {
             "steam_profiles": output::<Vec<String>>(),
             "steam_batch_review": output::<SteamBatchReview>(),
             "steam_entry_apply_result": output::<SteamEntryApplyResult>(),
+            "steam_artwork_review": output::<SteamArtworkReview>(),
+            "steam_artwork_apply_result": output::<SteamArtworkApplyResult>(),
         },
         "input": {
             "game_comparison_request": schemars::schema_for!(portcove_core::GameComparisonRequest),
@@ -492,6 +563,7 @@ pub fn export_transport_schemas() -> Value {
             "application_update_manual_check_request": schemars::schema_for!(ApplicationUpdateManualCheckRequest),
             "steam_entry_selection": schemars::schema_for!(SteamEntrySelection),
             "steam_batch_selection": schemars::schema_for!(SteamBatchSelection),
+            "steam_artwork_selection": schemars::schema_for!(SteamArtworkSelection),
         },
         "events": events,
     })

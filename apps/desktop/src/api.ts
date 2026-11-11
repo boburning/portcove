@@ -113,6 +113,9 @@ import type {
   SourceRelinkPlan,
   SourceRemovalPreview,
   SourceVerificationOutcome,
+  SteamArtworkApplyResult,
+  SteamArtworkReview,
+  SteamArtworkSelection,
   SteamEntryApplyResult,
   SteamEntryOperation,
   SteamEntryReview,
@@ -316,6 +319,18 @@ export const desktopApi = {
     invoke<SteamEntryApplyResult | null>("apply_steam_batch_add", {
       request,
       expectedReviewSha256,
+      generation,
+    }),
+  previewSteamArtwork: (request: SteamArtworkSelection, generation: number) =>
+    invoke<SteamArtworkReview>("preview_steam_artwork", { request, generation }),
+  applySteamArtwork: (
+    request: SteamArtworkSelection,
+    expectedPlanSha256: string,
+    generation: number,
+  ) =>
+    invoke<SteamArtworkApplyResult | null>("apply_steam_artwork", {
+      request,
+      expectedPlanSha256,
       generation,
     }),
   listingDeliveryStatus: () => invoke<ListingDeliveryStatus>("get_listing_delivery_status"),

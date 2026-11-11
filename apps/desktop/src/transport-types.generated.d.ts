@@ -910,8 +910,23 @@ export type InstallationContext =
       installation_id: string;
       kind: "external";
     };
-export type SteamEntryChangeKind = "add" | "repair" | "remove" | "unchanged";
+export type SteamArtworkRoleAction =
+  "write" | "replace" | "preserve" | "unchanged" | "unavailable" | "remove" | "preserve_modified" | "absent";
+/**
+ * Separate reviewed Steam artwork action for one owned shortcut.
+ */
+export type SteamArtworkOperation =
+  | {
+      kind: "update";
+      replace_existing: boolean;
+      [k: string]: unknown;
+    }
+  | {
+      kind: "remove_owned";
+      [k: string]: unknown;
+    };
 export type SteamClientState = "closed" | "running" | "unknown";
+export type SteamEntryChangeKind = "add" | "repair" | "remove" | "unchanged";
 export type SteamEntryOperation = "add_or_repair" | "remove";
 export type OutputDesktopSteamProfiles = string[];
 export type SupportBundleScope = "bounded_recent_diagnostics";
@@ -1106,6 +1121,8 @@ export interface TransportOutputs {
   desktop_setup_launch_targets: OutputSetupLaunchTargets;
   desktop_source_reuse_review: OutputSourceReuseReview;
   desktop_source_verification_outcome: OutputSourceBatchOutcome;
+  desktop_steam_artwork_apply_result: OutputDesktopSteamArtworkApplyResult;
+  desktop_steam_artwork_review: OutputDesktopSteamArtworkReview;
   desktop_steam_batch_review: OutputDesktopSteamBatchReview;
   desktop_steam_entry_apply_result: OutputDesktopSteamEntryApplyResult;
   desktop_steam_entry_review: OutputDesktopSteamEntryReview;
@@ -4823,6 +4840,42 @@ export interface UpdateNoticeRelease {
 }
 export interface OutputDesktopLocalePreference {
   locale: string | null;
+  [k: string]: unknown;
+}
+export interface OutputDesktopSteamArtworkApplyResult {
+  backup_paths: string[];
+  plan_sha256: string;
+  roles: SteamArtworkRoleChange[];
+  wrote: boolean;
+  [k: string]: unknown;
+}
+export interface SteamArtworkRoleChange {
+  action: SteamArtworkRoleAction;
+  destination_path: string | null;
+  existing_paths: string[];
+  existing_sha256: string | null;
+  /**
+   * The destination-local ownership record for this role is dropped.
+   */
+  forget_ownership: boolean;
+  proposed_sha256: string | null;
+  role: DestinationArtworkRole;
+  unavailable_reason: DestinationArtworkUnavailableReason | null;
+  [k: string]: unknown;
+}
+export interface OutputDesktopSteamArtworkReview {
+  app_id: number | null;
+  display_name: string;
+  grid_path: string;
+  operation: SteamArtworkOperation;
+  plan_sha256: string;
+  port_id: string;
+  roles: SteamArtworkRoleChange[];
+  schema_version: number;
+  steam_client_state: SteamClientState;
+  steam_root: string;
+  steam_user_id: string;
+  writes_required: boolean;
   [k: string]: unknown;
 }
 export interface OutputDesktopSteamBatchReview {
