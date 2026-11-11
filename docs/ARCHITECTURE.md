@@ -542,6 +542,20 @@ Ordinary production builds exclude these fixtures
 and the embedded driver. Qualification evidence is labeled separately from
 installed production packages and physical or human observations.
 
+## File coordination and disk-space observations
+
+Core library, migration and application-runtime locks and Desktop update locks
+use the pinned Rust standard library's file locking API. Keep each lock on its
+existing read/write handle and translate the typed contention result separately
+from I/O failures. The supported Unix targets use flock. Windows uses the same
+whole-file LockFileEx range as previous releases, so older and newer processes
+coordinate on the same files.
+
+Disk-capacity queries use fs4 without its optional locking features. Available
+space reflects bytes available to the current caller, including Windows quota
+limits. The total field reports the filesystem total returned by the platform.
+These observations may change after a check, so writes retain their own errors.
+
 ## Repair diagnostic snapshots
 
 One `repair_plan` pass reads the lifecycle-operation journal once and reuses that

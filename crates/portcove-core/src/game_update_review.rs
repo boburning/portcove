@@ -39,7 +39,7 @@ impl PortcoveService {
             None
         };
         let data_transition = transition.as_ref().map(|review| {
-            let available_bytes = fs2::available_space(self.library.root()).ok();
+            let available_bytes = fs4::available_space(self.library.root()).ok();
             plan.preservation_notices.push(format!("This first update preserves the current runtime and its build-specific states while carrying conventional saves/settings through the reviewed data transition. Keep the old runtime in Versions when your progress exists only in its snapshots. No state conversion or save rewind is performed. Temporary preservation needs an additional {} MiB in this library.", review.required_bytes.div_ceil(1024 * 1024)));
             crate::ArchiveDataTransitionReview { preimage_sha256:review.preimage_sha256.clone(), producing_archive_sha256:review.active.artifact.sha256.clone(), retained_installations:review.installs.len() as u32,
                 temporary_space:crate::InstallSpaceRequirement { path:self.library.root().to_path_buf(), required_bytes:review.required_bytes, available_bytes, volume_identity:None, sufficient:available_bytes.map(|available|available>=review.required_bytes) } }
