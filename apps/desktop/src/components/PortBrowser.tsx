@@ -1797,6 +1797,8 @@ function BrowserQuickViews({
             }}
           >
             {label}
+            {/* The space keeps visible text matching a counted name ("Favorites 1"). */}
+            {typeof count === "number" && " "}
             {typeof count === "number" && (
               <span className="browse-count" aria-hidden="true">
                 {count}
