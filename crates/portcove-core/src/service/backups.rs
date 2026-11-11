@@ -802,6 +802,7 @@ impl PortcoveService {
             .collect::<HashSet<_>>();
         let mut problems = pending_deletions
             .iter()
+            .filter(|operation| !self.deletion_finishes_on_next_action(operation))
             .map(|operation| BackupProblem {
                 kind: BackupProblemKind::RecoveryRequired,
                 backup_id: operation
@@ -1045,7 +1046,8 @@ impl PortcoveService {
         };
         if operations.iter().any(|operation| {
             operation.port_id == port_id
-                && (operation.kind == LifecycleOperationKind::DeleteBackup
+                && ((operation.kind == LifecycleOperationKind::DeleteBackup
+                    && !self.deletion_finishes_on_next_action(operation))
                     || (operation.kind == LifecycleOperationKind::Restore
                         && operation.phase != LifecyclePhase::Preparing))
         }) {
@@ -1100,7 +1102,9 @@ impl PortcoveService {
             definition: None,
         };
         if operations.iter().any(|operation| {
-            operation.port_id == port_id && operation.kind == LifecycleOperationKind::DeleteBackup
+            operation.port_id == port_id
+                && operation.kind == LifecycleOperationKind::DeleteBackup
+                && !self.deletion_finishes_on_next_action(operation)
         }) {
             return decision(Availability::Held, Reason::RecoveryRequired);
         }
@@ -1216,8 +1220,9 @@ impl PortcoveService {
     ) -> Result<BackupActionPreview> {
         self.catalog.port(port_id)?;
         if action == BackupAction::Restore {
+            // Read-only: an unfinished retention deletion is completed, or still
+            // refused, by the restore itself under its port lock.
             self.require_completed_restore(port_id)?;
-            self.require_completed_backup_deletion(port_id)?;
         }
         let backup = self.load_backup(port_id, backup_id)?;
         let backup_data = backup.path.join("data");
@@ -1379,6 +1384,8 @@ impl PortcoveService {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "restore-backup")?;
             self.require_completed_restore(port_id)?;
+            // An interrupted retention prune must not block restoring saves.
+            self.resume_pending_backup_deletions(port_id);
             self.require_completed_backup_deletion(port_id)?;
             let reviewed_runtime = self.collectible_data_review(port_id)?;
             let reviewed_canonical = self.canonical_data_review(port_id)?;
@@ -1599,6 +1606,10 @@ impl PortcoveService {
                 Some(_) => Some(self.library.try_lock_port(port_id, "delete-backup")?),
                 None => None,
             };
+            if authorization_token.is_some() {
+                // Retention already finished pending deletions before its snapshot.
+                self.resume_pending_backup_deletions(port_id);
+            }
             self.require_completed_backup_deletion(port_id)?;
             let candidate = self.load_backup(port_id, backup_id)?;
             if authorization_token.is_none() && candidate.automatic.is_none() {
@@ -1763,6 +1774,30 @@ impl PortcoveService {
         }
     }
 
+    /// Read-only: whether this pending deletion has already moved its backup out of
+    /// view and is finished, without any judgement call, by the next backup, restore,
+    /// deletion or version change. Such a deletion does not hold those actions; any
+    /// other pending deletion still requires recovery.
+    pub(super) fn deletion_finishes_on_next_action(&self, operation: &LifecycleOperation) -> bool {
+        operation.kind == LifecycleOperationKind::DeleteBackup
+            && operation.backup_deletion.is_none()
+            && self
+                .library
+                .require_no_ghostship_recovery(&operation.port_id)
+                .is_ok()
+            && self
+                .validate_backup_deletion_operation(operation)
+                .is_ok_and(|deletion| {
+                    matches!(
+                        deletion.phase,
+                        BackupDeletionPhase::Quarantined
+                            | BackupDeletionPhase::Deleted
+                            | BackupDeletionPhase::CleanupPending
+                    ) && fs::symlink_metadata(&deletion.original)
+                        .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
+                })
+    }
+
     /// Best-effort completion of this port's unfinished backup deletions through the
     /// existing recovery. A deletion that cannot be completed stays pending and the
     /// caller's `require_completed_backup_deletion` still refuses with its clear message.
@@ -1783,7 +1818,7 @@ impl PortcoveService {
                     ActivityStatus::Failed
                 },
                 Some(match outcome {
-                    Ok(()) => "completed by the next backup or version change",
+                    Ok(()) => "completed by a later backup, restore, deletion or version change",
                     Err(_) => "could not be completed; restart Portcove to retry recovery",
                 }),
             );

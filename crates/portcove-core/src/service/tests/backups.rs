@@ -698,11 +698,16 @@ fn backup_restore_preview_preserves_preparing_and_usable_degraded_history() {
     operation.kind = LifecycleOperationKind::DeleteBackup;
     store.put(&mut operation).unwrap();
     let before = format!("{:?}", store.all().unwrap());
-    let error = service
-        .preview_backup_action(port_id, &backup.id, BackupAction::Restore)
-        .unwrap_err();
-    assert_eq!(error.code, crate::ErrorCode::Conflict);
-    assert!(error.message.contains("unfinished backup deletion"));
+    // An unfinished backup deletion is left to the restore, which completes it
+    // or refuses under its port lock; the review itself stays read-only.
+    assert_eq!(
+        service
+            .preview_backup_action(port_id, &backup.id, BackupAction::Restore)
+            .unwrap()
+            .backup
+            .id,
+        backup.id
+    );
     assert_eq!(format!("{:?}", store.all().unwrap()), before);
     assert_eq!(fs::read(&user_file).unwrap(), b"wanted");
 }
@@ -2448,9 +2453,29 @@ fn assert_backup_deletion_recovers_after_every_recorded_transition(point: Lifecy
     let error = delete_backup_authorized(&service, "zelda64-recomp", &backup.id).unwrap_err();
     assert!(error.message.contains("injected lifecycle failure"));
     let interrupted = service.list_backups("zelda64-recomp").unwrap();
+    // Until the backup has left view, the deletion holds the backup actions. After
+    // that, the next backup, restore, deletion or restart finishes it without a
+    // judgement call, so it holds nothing; doctor still lists it either way.
+    let backup_out_of_view = !matches!(
+        point,
+        LifecycleFaultPoint::DeleteBackupPrepared | LifecycleFaultPoint::DeleteBackupQuarantined
+    );
     assert_eq!(
         interrupted.state,
-        BackupInventoryState::RecoveryRequired,
+        if backup_out_of_view {
+            BackupInventoryState::Healthy
+        } else {
+            BackupInventoryState::RecoveryRequired
+        },
+        "{point:?}"
+    );
+    assert_eq!(
+        interrupted.create_assessment.availability == PortActionAvailability::Allowed,
+        backup_out_of_view,
+        "{point:?}"
+    );
+    assert!(
+        !service.repair_plan().unwrap().items.is_empty(),
         "{point:?}"
     );
 
@@ -2511,9 +2536,13 @@ fn backup_deletion_recovery_completes_a_partially_removed_quarantine() {
     let service = service_with_fault(library.clone(), LifecycleFaultPoint::DeleteBackupDeleting);
     let backup = service.create_backup("zelda64-recomp").unwrap();
     delete_backup_authorized(&service, "zelda64-recomp", &backup.id).unwrap_err();
-    let quarantine = service.list_backups("zelda64-recomp").unwrap().problems[0]
-        .path
-        .clone();
+    let quarantine = OperationStore::new(library.clone())
+        .all()
+        .unwrap()
+        .into_iter()
+        .find(|operation| operation.kind == LifecycleOperationKind::DeleteBackup)
+        .and_then(|operation| operation.paths.quarantine)
+        .unwrap();
     fs::remove_file(quarantine.join("data/save.dat")).unwrap();
 
     let recovered = service_with_release(library, "v1");
@@ -3501,6 +3530,133 @@ fn a_pending_retention_deletion_does_not_block_a_manual_backup() {
             .get("stuck-prune")
             .unwrap()
             .is_none()
+    );
+}
+
+/// Saves a player can later restore, plus one older snapshot of them.
+fn zelda_with_a_backup(library: &Library, service: &PortcoveService) -> (PathBuf, BackupRecord) {
+    register_zelda_install(library, "v1", true);
+    let user = library.user_dir(ZELDA).join("general.json");
+    fs::create_dir_all(user.parent().unwrap()).unwrap();
+    fs::write(&user, b"saves worth keeping").unwrap();
+    let backup = service.create_backup(ZELDA).unwrap();
+    fs::write(&user, b"progress after a bad update").unwrap();
+    (user, backup)
+}
+
+#[test]
+fn a_pending_retention_deletion_does_not_block_restoring_saves() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let (user, backup) = zelda_with_a_backup(&library, &service);
+    let quarantine = seed_stuck_prune(&library);
+    let store = OperationStore::new(library.clone());
+
+    // The history the player sees offers Restore, Delete and Back up now.
+    let inventory = service.list_backups(ZELDA).unwrap();
+    assert_eq!(inventory.state, BackupInventoryState::Healthy);
+    assert!(inventory.problems.is_empty());
+    assert_eq!(
+        inventory.restore_assessment.availability,
+        PortActionAvailability::Allowed
+    );
+    assert_eq!(
+        inventory.create_assessment.availability,
+        PortActionAvailability::Allowed
+    );
+    // The review stays read-only and does not refuse.
+    let authorization = backup_authorization(&service, ZELDA, &backup.id, BackupAction::Restore);
+    assert!(store.get("stuck-prune").unwrap().is_some());
+
+    service
+        .restore_backup(ZELDA, &backup.id, &authorization.token)
+        .expect("the leftover prune no longer blocks a restore");
+
+    assert_eq!(fs::read(&user).unwrap(), b"saves worth keeping");
+    assert!(!quarantine.exists());
+    assert!(store.get("stuck-prune").unwrap().is_none());
+}
+
+#[test]
+fn a_pending_retention_deletion_does_not_block_deleting_a_backup() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let (_, backup) = zelda_with_a_backup(&library, &service);
+    let quarantine = seed_stuck_prune(&library);
+
+    let authorization = backup_authorization(&service, ZELDA, &backup.id, BackupAction::Delete);
+    service
+        .delete_backup(ZELDA, &backup.id, &authorization.token)
+        .expect("the leftover prune no longer blocks deleting a backup");
+
+    assert!(!backup.path.exists());
+    assert!(!quarantine.exists());
+    assert!(
+        OperationStore::new(library)
+            .get("stuck-prune")
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
+fn a_deletion_that_cannot_finish_still_refuses_the_restore_and_keeps_the_saves() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let (user, backup) = zelda_with_a_backup(&library, &service);
+    seed_stuck_prune(&library);
+    let store = OperationStore::new(library.clone());
+    // Both the visible and the quarantined copy exist: recovery must not guess.
+    let mut operation = store.get("stuck-prune").unwrap().unwrap();
+    let original = operation.paths.final_path.clone().unwrap();
+    fs::create_dir_all(&original).unwrap();
+    fs::write(original.join("partial-data"), b"visible").unwrap();
+    store.put(&mut operation).unwrap();
+
+    let authorization = backup_authorization(&service, ZELDA, &backup.id, BackupAction::Restore);
+    let error = service
+        .restore_backup(ZELDA, &backup.id, &authorization.token)
+        .unwrap_err();
+
+    assert_eq!(error.code, crate::ErrorCode::Conflict);
+    assert!(
+        error.message.contains("unfinished backup deletion"),
+        "{error:?}"
+    );
+    assert_eq!(
+        error.details.get("recovery_action").map(String::as_str),
+        Some("restart_then_doctor")
+    );
+    assert_eq!(fs::read(&user).unwrap(), b"progress after a bad update");
+    assert!(store.get("stuck-prune").unwrap().is_some());
+    assert!(original.exists());
+}
+
+#[test]
+fn a_deletion_whose_backup_is_still_visible_keeps_restore_and_backup_on_hold() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    zelda_with_a_backup(&library, &service);
+    seed_stuck_prune(&library);
+    let store = OperationStore::new(library.clone());
+    let mut operation = store.get("stuck-prune").unwrap().unwrap();
+    fs::create_dir_all(operation.paths.final_path.as_ref().unwrap()).unwrap();
+    store.put(&mut operation).unwrap();
+
+    let inventory = service.list_backups(ZELDA).unwrap();
+
+    assert_eq!(inventory.state, BackupInventoryState::RecoveryRequired);
+    assert_eq!(
+        inventory.restore_assessment.reason,
+        PortActionReason::RecoveryRequired
+    );
+    assert_eq!(
+        inventory.create_assessment.reason,
+        PortActionReason::RecoveryRequired
     );
 }
 
