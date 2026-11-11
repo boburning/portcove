@@ -22,7 +22,8 @@ use crate::{PortcoveError, Result, inspect_asset_archive, zip_read};
 const MANIFEST: &str = "mod.json";
 const MAX_MANIFEST_BYTES: u64 = 64 * 1024;
 const MAX_TEXT: usize = 256;
-const MAX_LIST: usize = 128;
+const MAX_LONG_TEXT: usize = 4096;
+const MAX_LIST: usize = 4096;
 const LIMITS: zip_read::Limits = zip_read::Limits {
     bytes: 4 * 1024 * 1024 * 1024,
     entries: 100_000,
@@ -91,37 +92,40 @@ fn invalid(message: &str) -> PortcoveError {
     PortcoveError::verification(format!("Recomp mod package cannot be reviewed: {message}"))
 }
 
-fn plain(value: &str) -> bool {
-    !value.is_empty()
-        && value.len() <= MAX_TEXT
-        && value
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b"_-.".contains(&b))
+/// Upstream identity rule (`N64Recomp::validate_mod_id`): a C identifier.
+fn mod_id(value: &str) -> bool {
+    let mut bytes = value.bytes();
+    value.len() <= MAX_TEXT
+        && bytes
+            .next()
+            .is_some_and(|b| b.is_ascii_alphabetic() || b == b'_')
+        && bytes.all(|b| b.is_ascii_alphanumeric() || b == b'_')
 }
 
+fn bounded_text(value: &str) -> bool {
+    value.len() <= MAX_LONG_TEXT && !value.chars().any(char::is_control)
+}
+
+/// Upstream `Version::from_string`: three `u16` parts; the last may carry a `+` or
+/// `-` label.
 fn version(value: &str) -> bool {
-    let core = value.split_once('-').map_or(value, |(core, _)| core);
-    let parts = core.split('.').collect::<Vec<_>>();
-    value.len() <= 64
-        && parts.len() == 3
-        && parts
-            .iter()
-            .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()))
-        && value.chars().all(|c| c.is_ascii_graphic())
+    let parts = value.splitn(3, '.').collect::<Vec<_>>();
+    let number = |part: &str| {
+        !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()) && part.parse::<u16>().is_ok()
+    };
+    if value.len() > 64 || value.chars().any(char::is_control) || parts.len() != 3 {
+        return false;
+    }
+    let patch_end = parts[2].find(['+', '-']).unwrap_or(parts[2].len());
+    number(parts[0]) && number(parts[1]) && number(&parts[2][..patch_end])
 }
 
 fn text(manifest: &Value, field: &str, required: bool) -> Result<Option<String>> {
     match manifest.get(field) {
         None if !required => Ok(None),
         None => Err(invalid(&format!("`{field}` is missing"))),
-        Some(Value::String(value))
-            if !value.is_empty()
-                && value.len() <= MAX_TEXT
-                && !value.chars().any(char::is_control) =>
-        {
-            Ok(Some(value.clone()))
-        }
-        Some(_) => Err(invalid(&format!("`{field}` must be short text"))),
+        Some(Value::String(value)) if bounded_text(value) => Ok(Some(value.clone())),
+        Some(_) => Err(invalid(&format!("`{field}` must be text"))),
     }
 }
 
@@ -142,7 +146,9 @@ fn dependencies(manifest: &Value, field: &str) -> Result<Vec<RecompDependency>> 
             Some((id, minimum)) => (id, Some(minimum)),
             None => (entry, None),
         };
-        if !plain(id) || minimum_version.is_some_and(|minimum| !version(minimum)) {
+        // `.` names the mod itself and `*` the base runtime, as upstream allows.
+        let special = matches!(id, "." | "*");
+        if !(special || mod_id(id)) || minimum_version.is_some_and(|minimum| !version(minimum)) {
             return Err(invalid(&format!("`{field}` has an unreadable entry")));
         }
         parsed.push(RecompDependency {
@@ -158,6 +164,10 @@ pub fn inspect_recomp_mod(path: &Path, game_id: &str) -> Result<RecompModInspect
     // Shared bounded checks: plain name, regular file, digest, safe entry paths,
     // no links or encryption, bounded declared size.
     let archive_view = inspect_asset_archive(path)?;
+    // The runtime opens only files whose extension is exactly `.nrm`.
+    if !archive_view.file_name.ends_with(".nrm") {
+        return Err(invalid("the runtime loads only `.nrm` files"));
+    }
     let mut archive = zip_read::open(File::open(path)?, LIMITS, &mut |_| Ok(()))
         .map_err(|error| invalid(&error.message))?;
     let mut manifest_bytes = Vec::new();
@@ -175,15 +185,21 @@ pub fn inspect_recomp_mod(path: &Path, game_id: &str) -> Result<RecompModInspect
     if manifest_bytes.len() as u64 > MAX_MANIFEST_BYTES {
         return Err(invalid("mod.json is too large"));
     }
-    let crate::definition_entry::strict_json::UniqueValue(manifest) =
-        serde_json::from_slice(&manifest_bytes)
-            .map_err(|_| invalid("mod.json is not JSON with unique keys"))?;
+    let crate::definition_entry::strict_json::UniqueValue(manifest) = serde_json::from_slice(
+        // The runtime's JSON reader skips a leading byte-order mark.
+        manifest_bytes
+            .strip_prefix(b"\xEF\xBB\xBF".as_slice())
+            .unwrap_or(&manifest_bytes),
+    )
+    .map_err(|_| invalid("mod.json is not JSON with unique keys"))?;
     if !manifest.is_object() {
         return Err(invalid("mod.json must be an object"));
     }
     let native_id = text(&manifest, "id", true)?.unwrap_or_default();
-    if !plain(&native_id) {
-        return Err(invalid("the mod ID is not a plain identifier"));
+    if !mod_id(&native_id) {
+        return Err(invalid(
+            "the mod ID must be a C identifier, as the runtime requires",
+        ));
     }
     let native_version = text(&manifest, "version", true)?.unwrap_or_default();
     let minimum_runtime_version =
@@ -194,21 +210,20 @@ pub fn inspect_recomp_mod(path: &Path, game_id: &str) -> Result<RecompModInspect
     let manifest_game = text(&manifest, "game_id", true)?.unwrap_or_default();
     let display_name = text(&manifest, "display_name", true)?.unwrap_or_default();
     let authors = match manifest.get("authors") {
-        Some(Value::Array(items)) if !items.is_empty() && items.len() <= MAX_LIST => items
+        Some(Value::Array(items)) if items.len() <= MAX_LIST => items
             .iter()
             .map(|item| {
                 item.as_str()
-                    .filter(|value| {
-                        !value.is_empty()
-                            && value.len() <= MAX_TEXT
-                            && !value.chars().any(char::is_control)
-                    })
+                    .filter(|value| bounded_text(value))
                     .map(str::to_owned)
-                    .ok_or_else(|| invalid("`authors` entries must be short text"))
+                    .ok_or_else(|| invalid("`authors` entries must be text"))
             })
             .collect::<Result<Vec<_>>>()?,
-        _ => return Err(invalid("`authors` must be a non-empty list")),
+        _ => return Err(invalid("`authors` must be a list")),
     };
+    // Optional text fields the runtime type-checks.
+    text(&manifest, "description", false)?;
+    text(&manifest, "short_description", false)?;
     let mut native_libraries = BTreeMap::new();
     if let Some(value) = manifest.get("native_libraries") {
         let object = value
@@ -222,12 +237,18 @@ pub fn inspect_recomp_mod(path: &Path, game_id: &str) -> Result<RecompModInspect
                 .and_then(|items| {
                     items
                         .iter()
-                        .map(|item| item.as_str().filter(|name| plain(name)).map(str::to_owned))
+                        .map(|item| {
+                            item.as_str()
+                                .filter(|name| !name.is_empty() && bounded_text(name))
+                                .map(str::to_owned)
+                        })
                         .collect::<Option<Vec<_>>>()
                 })
-                .ok_or_else(|| invalid("`native_libraries` exports must be plain names"))?;
-            if !plain(library) {
-                return Err(invalid("a native library name is not plain"));
+                .ok_or_else(|| invalid("`native_libraries` exports must be text"))?;
+            // The runtime loads `<mods>/<name><ext>` without checking the name, so
+            // a name must stay a plain file name inside the mods folder.
+            if !crate::profile::valid_native_id(library) || library.contains("..") {
+                return Err(invalid("a native library name must be a plain file name"));
             }
             native_libraries.insert(library.clone(), exports);
         }
@@ -237,11 +258,28 @@ pub fn inspect_recomp_mod(path: &Path, game_id: &str) -> Result<RecompModInspect
         Some(Value::Bool(value)) => *value,
         Some(_) => return Err(invalid("`enabled_by_default` must be true or false")),
     };
-    let has_settings = manifest
-        .get("config_schema")
-        .and_then(|schema| schema.get("options"))
-        .and_then(Value::as_array)
-        .is_some_and(|options| !options.is_empty());
+    let has_settings = match manifest.get("config_schema") {
+        None => false,
+        Some(schema) => {
+            let options = schema
+                .get("options")
+                .and_then(Value::as_array)
+                .filter(|options| options.len() <= MAX_LIST)
+                .ok_or_else(|| invalid("`config_schema` must have an `options` list"))?;
+            for option in options {
+                let field = |name: &str| option.get(name).and_then(Value::as_str);
+                if field("id").is_none()
+                    || field("name").is_none()
+                    || !matches!(field("type"), Some("Enum" | "Number" | "String"))
+                {
+                    return Err(invalid(
+                        "each setting needs text `id` and `name` and a type of Enum, Number or String",
+                    ));
+                }
+            }
+            !options.is_empty()
+        }
+    };
 
     let has = |name: &str| archive_view.asset_paths.iter().any(|path| path == name);
     let mut execution = Vec::new();
@@ -311,7 +349,7 @@ mod tests {
         "version": "1.2.0", "authors": ["someone"], "minimum_recomp_version": "1.2.0",
         "dependencies": ["mm_recomp_dpad_builtin:1.0.0"],
         "optional_dependencies": ["extra_ui"],
-        "config_schema": {"options": [{"id": "speed", "type": "Number"}]},
+        "config_schema": {"options": [{"id": "speed", "name": "Speed", "type": "Number"}]},
         "future_field": {"kept": "ignored"}
     }"#;
 
@@ -361,7 +399,7 @@ mod tests {
         let library = nrm(
             directory.path(),
             "lib.offline.nrm",
-            &[("mod.json", with_library), ("helper.dll", b"MZ")],
+            &[("mod.json", with_library)],
         );
         let inspection = inspect_recomp_mod(&library, "mm").unwrap();
         assert_eq!(
@@ -371,12 +409,15 @@ mod tests {
                 RecompExecution::ExternalCode
             ]
         );
+        assert_eq!(inspection.holds, [RecompModHold::ExecutableContent]);
+        let bundled = nrm(
+            directory.path(),
+            "bundled.nrm",
+            &[("mod.json", MANIFEST_OK), ("helper.dll", b"MZ")],
+        );
         assert_eq!(
-            inspection.holds,
-            [
-                RecompModHold::ExecutableContent,
-                RecompModHold::HostExecutableFiles
-            ]
+            inspect_recomp_mod(&bundled, "mm").unwrap().holds,
+            [RecompModHold::HostExecutableFiles]
         );
 
         let other = nrm(directory.path(), "other.nrm", &[("mod.json", MANIFEST_OK)]);
@@ -394,7 +435,6 @@ mod tests {
             br#"{"id":"a","id":"b"}"#,
             br#"{"game_id":"mm","id":"../x","display_name":"X","version":"1.0.0","authors":["a"],"minimum_recomp_version":"1.0.0"}"#,
             br#"{"game_id":"mm","id":"x","display_name":"X","version":"latest","authors":["a"],"minimum_recomp_version":"1.0.0"}"#,
-            br#"{"game_id":"mm","id":"x","display_name":"X","version":"1.0.0","authors":[],"minimum_recomp_version":"1.0.0"}"#,
             br#"{"game_id":"mm","id":"x","display_name":"X","version":"1.0.0","authors":["a"],"minimum_recomp_version":"1.0.0","dependencies":["y:>=2"]}"#,
             br#"{"game_id":"mm","id":"x","display_name":"X","version":"1.0.0","authors":["a"],"minimum_recomp_version":"1.0.0","native_libraries":{"../evil":[]}}"#,
             br#"[1,2]"#,
@@ -418,5 +458,78 @@ mod tests {
             &[("mod.json", MANIFEST_OK), ("../escape.bin", b"x")],
         );
         assert!(inspect_recomp_mod(&traversal, "mm").is_err());
+    }
+}
+
+#[cfg(test)]
+mod grammar_tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn identity_and_versions_follow_the_runtime_grammar() {
+        for ok in ["1.0.0", "1.2.3+build", "1.2.3-beta 2", "65535.0.0"] {
+            assert!(version(ok), "{ok}");
+        }
+        for bad in ["70000.0.0", "1.0", "1.x.0", "latest", "1.0.0.0"] {
+            assert!(!version(bad), "{bad}");
+        }
+        for ok in ["better_dpad", "_x", "Mod2"] {
+            assert!(mod_id(ok), "{ok}");
+        }
+        for bad in ["my-mod", "1abc", "..", "", "a.b"] {
+            assert!(!mod_id(bad), "{bad}");
+        }
+    }
+
+    fn write(directory: &Path, name: &str, manifest: &[u8]) -> std::path::PathBuf {
+        let path = directory.join(name);
+        let mut writer = zip::ZipWriter::new(File::create(&path).unwrap());
+        writer
+            .start_file("mod.json", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        writer.write_all(manifest).unwrap();
+        writer.finish().unwrap();
+        path
+    }
+
+    const BASE: &str = r#""game_id":"mm","id":"x","display_name":"X","version":"1.0.0","authors":[],"minimum_recomp_version":"1.0.0""#;
+
+    #[test]
+    fn manifests_the_runtime_accepts_are_accepted_and_ones_it_refuses_are_refused() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut accepted = b"\xEF\xBB\xBF".to_vec();
+        accepted.extend_from_slice(
+            br#"{"game_id":"mm","id":"x","display_name":"","version":"1.0.0+b","authors":[],
+            "minimum_recomp_version":"1.0.0","dependencies":[".:1.0.0","*:1.2.0","y"],
+            "native_libraries":{"my lib":["_f@4"]}}"#,
+        );
+        let inspection =
+            inspect_recomp_mod(&write(directory.path(), "ok.nrm", &accepted), "mm").unwrap();
+        assert!(inspection.authors.is_empty());
+        assert_eq!(inspection.dependencies.len(), 3);
+        for (index, extra) in [
+            r#""description":5"#,
+            r#""config_schema":{}"#,
+            r#""config_schema":{"options":[{"id":"a","type":"Number"}]}"#,
+            r#""dependencies":["a-b:1.0.0"]"#,
+            r#""native_libraries":{"..":[]}"#,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let manifest = format!("{{{BASE},{extra}}}");
+            let path = write(
+                directory.path(),
+                &format!("r{index}.nrm"),
+                manifest.as_bytes(),
+            );
+            assert!(inspect_recomp_mod(&path, "mm").is_err(), "{extra}");
+        }
+        let zipped = write(directory.path(), "m.zip", format!("{{{BASE}}}").as_bytes());
+        assert!(
+            inspect_recomp_mod(&zipped, "mm").is_err(),
+            "only .nrm loads"
+        );
     }
 }
