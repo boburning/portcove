@@ -106,6 +106,9 @@ export type GhostshipRecoveryPlan = Generated.TransportOutputs["ghostship_recove
 export type GhostshipRecoveryResult = Generated.TransportOutputs["ghostship_recovery_result"];
 
 export type AdoptionPreview = Generated.TransportOutputs["adoption_preview"];
+export type LauncherLibraryInventory = Generated.TransportOutputs["launcher_library_inventory"];
+export type LauncherLibraryEntry = LauncherLibraryInventory["entries"][number];
+export type LauncherKind = LauncherLibraryInventory["launcher"];
 export type ExternalRuntimePreview = Generated.TransportOutputs["desktop_external_runtime_preview"];
 export type ExternalRuntimeRelinkPreview =
   Generated.TransportOutputs["desktop_external_runtime_relink_preview"];
