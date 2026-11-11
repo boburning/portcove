@@ -146,6 +146,19 @@ const SCOPED: &[(&str, &[&str])] = &[
         ],
     ),
     (
+        "crates/portcove-core/src/native_portable_data.rs",
+        &[
+            // OpenSC2K writes to this fixed Godot temp path on Linux. Its parent must be sticky.
+            "/tmp/OpenSC2K Autosaves",
+            "/tmp",
+            // The inline tests exercise Godot profile fallback and reject a Windows drive path.
+            "/profiles",
+            "/home/player",
+            "/config",
+            "C:/redirect",
+        ],
+    ),
+    (
         "crates/portcove-core/src/failure_tests.rs",
         &[
             "C:/Games/<preserve>",

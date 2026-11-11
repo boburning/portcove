@@ -133,6 +133,29 @@ fn scopes_launcher_metadata_rejection_fixtures_to_their_exact_values_and_file() 
 }
 
 #[test]
+fn scopes_opensc2k_host_and_profile_paths_to_their_exact_values_and_file() {
+    let root = repository();
+    let owner = "crates/portcove-core/src/native_portable_data.rs";
+    let adjacent = "crates/portcove-core/src/service/native_portable.rs";
+    write(
+        root.path(),
+        owner,
+        r#"fn fixture() { let _ = [
+            "/tmp/OpenSC2K Autosaves", "/tmp", "/profiles", "/home/player", "/config",
+            "C:/redirect", "/tmp/other autosaves",
+        ]; }"#,
+    );
+    write(root.path(), adjacent, r#"const ROOT: &str = "/tmp";"#);
+    let result = scan(root.path());
+    let stderr = String::from_utf8(result.stderr).unwrap();
+    assert_eq!(result.status.code(), Some(1), "{stderr}");
+    let findings: Vec<_> = stderr.lines().collect();
+    assert_eq!(findings.len(), 2, "{stderr}");
+    assert!(findings[0].starts_with(owner) && findings[0].ends_with(r#""/tmp/other autosaves""#));
+    assert!(findings[1].starts_with(adjacent) && findings[1].ends_with(r#""/tmp""#));
+}
+
+#[test]
 fn fails_closed_when_source_or_source_inventory_is_unavailable() {
     let root = repository();
     let nested = root.path().join("nested");
