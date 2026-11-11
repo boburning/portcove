@@ -43,10 +43,11 @@ jobs:
         env:
           RUN_ID: ${{ inputs.run_id }}
         run: |
+          mapfile -d '' -t reports < <(find work/timing-reports -name junit.xml -print0 | sort -z)
           node scripts/rust-timing-hints.mts generate \
             --source "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" \
             --out work/rust-test-timing-hints.json \
-            $(find work/timing-reports -name junit.xml | sort)
+            "${reports[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: rust-test-timing-hints
