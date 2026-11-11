@@ -20,10 +20,10 @@ fn write(root: &Path, path: &str, source: &str) {
 }
 
 fn scan(root: &Path) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_portcove-rust-portability"))
-        .current_dir(root)
-        .output()
-        .unwrap()
+    let binary = std::env::var_os("NEXTEST_BIN_EXE_portcove-rust-portability")
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_portcove-rust-portability").into());
+    Command::new(binary).current_dir(root).output().unwrap()
 }
 
 #[test]
