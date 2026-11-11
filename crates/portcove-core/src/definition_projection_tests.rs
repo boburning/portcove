@@ -99,7 +99,9 @@ fn entry_with_reference(document: &Value, reference: &str, port_index: usize) ->
     let port = &document["catalog"]["ports"][port_index];
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
-    let version = if typed.release.grant_declared_executable {
+    let version = if !typed.release.tar_xz_platforms.is_empty() {
+        3
+    } else if typed.release.grant_declared_executable {
         crate::test_fixture::grant_declared_executable_capability(&typed)
     } else if typed.portable_marker_file.is_some() {
         19

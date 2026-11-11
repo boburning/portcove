@@ -17435,6 +17435,13 @@
               "null"
             ]
           },
+          "tar_xz_platforms": {
+            "description": "GeneratedCache3: select a checked TAR.XZ player archive on the declared Mac routes.",
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
           "user_prepared": {
             "additionalProperties": false,
             "default": {},

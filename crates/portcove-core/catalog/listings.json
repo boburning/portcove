@@ -1699,6 +1699,15 @@
       "project_url": "https://github.com/perfect-dark-pc-port/perfect_dark",
       "listed_at": "2026-10-23",
       "original_game_title": "Perfect Dark",
+      "manual_setup": {
+        "help_url": "https://github.com/perfect-dark-pc-port/perfect_dark#macos",
+        "steps": [
+          {
+            "title": "Set up SDL2 on your Mac",
+            "instruction": "Before Play on Intel or Apple Silicon, follow the upstream Mac instructions to install SDL2.framework for your Mac in /Library/Frameworks. Portcove manages the Perfect Dark player archive. You manage the system framework separately. Use your own US Rev 1 Perfect Dark source with this player."
+          }
+        ]
+      },
       "artwork": {
         "game_id": 271424,
         "cover_id": 336876,
@@ -1710,7 +1719,9 @@
       "issue_number": 106,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "unknown"
     },

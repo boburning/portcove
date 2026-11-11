@@ -28,7 +28,7 @@
       "grant_declared_executable": true,
       "asset_hints": {
         "windows-x86-64": ["win64"],
-        "linux-x86-64": ["linux"]
+        "linux-x86-64": ["Linux.zip"]
       }
     },
     "source_profile": "paperboat-paper-mario-us",

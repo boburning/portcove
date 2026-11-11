@@ -609,6 +609,9 @@ pub struct ReleaseSpec {
     /// Native8: select the checked TAR.XZ player archive on Linux x86-64.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub linux_tar_xz: bool,
+    /// GeneratedCache3: select a checked TAR.XZ player archive on the declared Mac routes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tar_xz_platforms: Vec<Platform>,
     /// Native13: the package relies on in-archive file links, which extraction writes as
     /// regular copies of the files they name.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -626,7 +629,8 @@ pub struct ReleaseSpec {
 
 impl ReleaseSpec {
     pub(crate) fn requires_tar_xz(&self, platform: Platform) -> bool {
-        self.linux_tar_xz && platform == Platform::LinuxX86_64
+        (self.linux_tar_xz && platform == Platform::LinuxX86_64)
+            || self.tar_xz_platforms.contains(&platform)
     }
 }
 
