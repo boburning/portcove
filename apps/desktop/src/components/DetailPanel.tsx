@@ -2501,11 +2501,11 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
     <div className="install-plan mt-[16px] grid grid-cols-1 [align-items:end] gap-[18px] rounded-pc-lg border border-pc-border bg-pc-surface p-[14px] @min-[30rem]/detail:grid-cols-[1fr_auto]">
       <div>
         <strong className="block text-[length:var(--text-sm)]">{plan.release.version}</strong>
-        <span className="mt-[4px] block text-xs text-[var(--color-text-secondary)] capitalize">
+        <span className="mt-[4px] block text-xs text-[var(--color-text-secondary)]">
           {releaseChannelPresentation(plan.channel).label} · {installPlanActionLabel(plan.action)}
         </span>
         {plan.bundled_runtime && (
-          <span className="mt-[4px] block text-xs text-[var(--color-text-secondary)] capitalize">
+          <span className="mt-[4px] block text-xs text-[var(--color-text-secondary)]">
             Required component included · {formatBytes(plan.bundled_runtime.asset.size)}
           </span>
         )}
@@ -2519,7 +2519,7 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
         <strong className="block text-[length:var(--text-sm)]">
           {download ? formatBytes(plan.download_bytes) : "No download"}
         </strong>
-        <span className="mt-[4px] block text-xs text-[var(--color-text-secondary)] capitalize">
+        <span className="mt-[4px] block text-xs text-[var(--color-text-secondary)]">
           {download
             ? libraryOutput
               ? plan.temporary_space?.available_bytes === null
