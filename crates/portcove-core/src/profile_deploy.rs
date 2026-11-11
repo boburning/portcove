@@ -48,12 +48,31 @@ fn adapter_extensions(port_id: &str) -> Option<&'static [&'static str]> {
 }
 
 struct Layout {
+    /// The port's canonical live data root, `user/<port>`.
     user: PathBuf,
+    /// Package and parked-profile storage at `user/.portcove-profiles/<port>`. It
+    /// sits beside the port directories (so it travels with the `user` tree) but
+    /// outside them, so per-port backups and restores never carry or replace it.
+    store: PathBuf,
 }
 
 impl Layout {
+    fn for_user(user: &Path) -> Self {
+        let port = user
+            .file_name()
+            .map(|name| name.to_owned())
+            .unwrap_or_default();
+        let store = user
+            .parent()
+            .map(|root| root.join(STORE).join(&port))
+            .unwrap_or_else(|| user.join(STORE));
+        Self {
+            user: user.into(),
+            store,
+        }
+    }
     fn store(&self) -> PathBuf {
-        self.user.join(STORE)
+        self.store.clone()
     }
     fn package(&self, sha256: &str, file_name: &str) -> PathBuf {
         self.store().join("packages").join(sha256).join(file_name)
@@ -77,11 +96,11 @@ impl Layout {
 
 /// True while the canonical live data is newer than the installed build's copy.
 pub(crate) fn restore_pending(user: &Path) -> bool {
-    Layout { user: user.into() }.pending().exists()
+    Layout::for_user(user).pending().exists()
 }
 
 pub(crate) fn clear_restore_pending(user: &Path) -> Result<()> {
-    match fs::remove_file(Layout { user: user.into() }.pending()) {
+    match fs::remove_file(Layout::for_user(user).pending()) {
         Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(error.into()),
         _ => Ok(()),
     }
@@ -177,28 +196,34 @@ fn deploy(layout: &Layout, from: Option<&ProfileRevision>, to: &ProfileRevision)
     let wanted = enabled(to)
         .map(|package| (package.native_id.clone(), package.sha256.clone()))
         .collect::<std::collections::BTreeMap<_, _>>();
+    // Verify every destination first so a missing or corrupt stored package fails
+    // before any departing file is removed.
+    let mut to_place = Vec::new();
+    for package in enabled(to) {
+        let live = live_package_path(layout, &package.native_id)?;
+        if live.try_exists()? && sha256_file(&live)? == package.sha256 {
+            continue;
+        }
+        let stored = layout.package(&package.sha256, &package.native_id);
+        if !stored.try_exists()? || sha256_file(&stored)? != package.sha256 {
+            return Err(PortcoveError::verification(
+                "stored package bytes are missing or no longer match their recorded digest; nothing was changed",
+            )
+            .detail("package", &package.native_id));
+        }
+        to_place.push((stored, live));
+    }
     if let Some(from) = from {
         for package in enabled(from) {
             if wanted.get(&package.native_id) != Some(&package.sha256) {
-                let live = layout.mods().join(&package.native_id);
+                let live = live_package_path(layout, &package.native_id)?;
                 if live.try_exists()? {
                     fs::remove_file(live)?;
                 }
             }
         }
     }
-    for package in enabled(to) {
-        let live = layout.mods().join(&package.native_id);
-        let stored = layout.package(&package.sha256, &package.native_id);
-        if live.try_exists()? && sha256_file(&live)? == package.sha256 {
-            continue;
-        }
-        if sha256_file(&stored)? != package.sha256 {
-            return Err(PortcoveError::verification(
-                "stored package bytes no longer match their recorded digest; nothing was deployed",
-            )
-            .detail("package", &package.native_id));
-        }
+    for (stored, live) in to_place {
         stage_copy(layout, &stored, &live)?;
     }
     Ok(())
@@ -213,6 +238,22 @@ fn declared_state_paths(service: &PortcoveService, port_id: &str) -> Result<Vec<
         .filter(|path| path.as_str() != MODS)
         .cloned()
         .collect())
+}
+
+fn live_package_path(layout: &Layout, native_id: &str) -> Result<PathBuf> {
+    if !profile::valid_native_id(native_id) {
+        return Err(PortcoveError::verification(
+            "a package native ID is not a plain file name; nothing was changed",
+        )
+        .detail("package", native_id));
+    }
+    let path = layout.mods().join(native_id);
+    if path.parent() != Some(layout.mods().as_path()) {
+        return Err(PortcoveError::verification(
+            "a package would leave the mods folder; nothing was changed",
+        ));
+    }
+    Ok(path)
 }
 
 /// Moves each path that exists at `from` to `to`; idempotent so an interrupted
@@ -239,6 +280,39 @@ fn move_paths(paths: &[String], from: &Path, to: &Path) -> Result<()> {
     Ok(())
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Phase {
+    Start,
+    Parked,
+    Deployed,
+}
+
+impl Phase {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Start => "start",
+            Self::Parked => "parked",
+            Self::Deployed => "deployed",
+        }
+    }
+    fn parse(value: &str) -> Option<Self> {
+        [Self::Start, Self::Parked, Self::Deployed]
+            .into_iter()
+            .find(|phase| phase.name() == value)
+    }
+}
+
+fn write_journal(layout: &Layout, from: &str, to: &str, revision: u64, phase: Phase) -> Result<()> {
+    let journal = serde_json::json!({
+        "from": from, "to": to, "revision": revision, "phase": phase.name(),
+    });
+    crate::durability::write_bytes_atomically(
+        &layout.journal(),
+        journal.to_string().as_bytes(),
+        true,
+    )
+}
+
 impl PortcoveService {
     fn deploy_layout(&self, port_id: &str) -> Result<Layout> {
         if adapter_extensions(port_id).is_none() {
@@ -252,9 +326,7 @@ impl PortcoveService {
                 "this port does not declare a mods root",
             ));
         }
-        Ok(Layout {
-            user: self.library.user_dir(port_id),
-        })
+        Ok(Layout::for_user(&self.library.user_dir(port_id)))
     }
 
     /// Reviews and installs one local asset archive into a profile as a new
@@ -271,7 +343,16 @@ impl PortcoveService {
         let extensions = adapter_extensions(port_id).unwrap_or(&[]);
         let _guard = self.library.try_lock_port(port_id, "install-mod-package")?;
         self.recover_switch_locked(port_id, &layout)?;
-        let inspection = inspect_asset_archive(source)?;
+        // Copy first, then inspect and store the private copy only, so the bytes that
+        // were reviewed are the bytes that are kept.
+        fs::create_dir_all(layout.tmp())?;
+        let staging = tempfile::tempdir_in(layout.tmp())?;
+        let file_name = source
+            .file_name()
+            .ok_or_else(|| PortcoveError::usage("the package path has no file name"))?;
+        let private = staging.path().join(file_name);
+        fs::copy(source, &private)?;
+        let inspection = inspect_asset_archive(&private)?;
         let extension = inspection
             .file_name
             .rsplit_once('.')
@@ -299,10 +380,9 @@ impl PortcoveService {
             ));
         }
         let selected = profile::selection(&connection, port_id)?;
-        let live = selected
-            .as_ref()
-            .is_some_and(|(id, revision)| id == profile_id && *revision == current.revision);
+        let live = selected.as_ref().is_some_and(|(id, _)| id == profile_id);
         if live {
+            self.reconcile_selected(port_id, &layout, &connection, &current)?;
             require_clean(&observe(&layout, &[&current])?, "installing a package")?;
         }
         let stored = layout.package(&inspection.sha256, &inspection.file_name);
@@ -310,7 +390,10 @@ impl PortcoveService {
             if let Some(parent) = stored.parent() {
                 fs::create_dir_all(parent)?;
             }
-            stage_copy(&layout, source, &stored)?;
+            if stored.try_exists()? {
+                fs::remove_file(&stored)?;
+            }
+            fs::rename(&private, &stored)?;
             if sha256_file(&stored)? != inspection.sha256 {
                 let _ = fs::remove_file(&stored);
                 return Err(PortcoveError::verification(
@@ -370,10 +453,9 @@ impl PortcoveService {
         }
         package.enabled = enabled_state;
         let selected = profile::selection(&connection, port_id)?;
-        let live = selected
-            .as_ref()
-            .is_some_and(|(id, revision)| id == profile_id && *revision == current.revision);
+        let live = selected.as_ref().is_some_and(|(id, _)| id == profile_id);
         if live {
+            self.reconcile_selected(port_id, &layout, &connection, &current)?;
             require_clean(&observe(&layout, &[&current])?, "changing a package")?;
         }
         let request = ProfileRevisionRequest {
@@ -412,23 +494,19 @@ impl PortcoveService {
             if current_revision == target.revision {
                 return Ok(target);
             }
-            mark_restore_pending(&layout)?;
-            deploy(&layout, Some(&departing), &target)?;
-            profile::set_selection(&connection, port_id, profile_id, target.revision)?;
-            self.sync_build_after_change(port_id, &layout);
+            self.reconcile_selected(port_id, &layout, &connection, &target)?;
             return Ok(target);
         }
         // Bring live data up to date from the launched build before parking it.
         self.collect_active_user_data_if_launched(port_id)?;
         let paths = declared_state_paths(self, port_id)?;
-        let journal = serde_json::json!({
-            "from": current_id, "to": profile_id, "revision": target.revision,
-        });
         fs::create_dir_all(layout.store())?;
-        crate::durability::write_bytes_atomically(
-            &layout.journal(),
-            journal.to_string().as_bytes(),
-            true,
+        write_journal(
+            &layout,
+            &current_id,
+            profile_id,
+            target.revision,
+            Phase::Start,
         )?;
         self.switch_steps(
             port_id,
@@ -438,8 +516,36 @@ impl PortcoveService {
             &paths,
             &departing,
             &target,
+            Phase::Start,
         )?;
         Ok(target)
+    }
+
+    /// If a same-profile deployment was interrupted, finish it: the selection
+    /// still names an older revision than the profile's current one.
+    fn reconcile_selected(
+        &self,
+        port_id: &str,
+        layout: &Layout,
+        connection: &rusqlite::Connection,
+        current: &ProfileRevision,
+    ) -> Result<()> {
+        let Some((id, revision)) = profile::selection(connection, port_id)? else {
+            return Ok(());
+        };
+        if id != current.profile_id || revision == current.revision {
+            return Ok(());
+        }
+        let materialized = profile::revision_by_number(connection, &id, revision)?;
+        require_clean(
+            &observe(layout, &[&materialized, current])?,
+            "finishing an interrupted change",
+        )?;
+        mark_restore_pending(layout)?;
+        deploy(layout, Some(&materialized), current)?;
+        profile::set_selection(connection, port_id, &id, current.revision)?;
+        self.sync_build_after_change(port_id, layout);
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -452,11 +558,22 @@ impl PortcoveService {
         paths: &[String],
         departing: &ProfileRevision,
         target: &ProfileRevision,
+        mut phase: Phase,
     ) -> Result<()> {
         mark_restore_pending(layout)?;
-        move_paths(paths, &layout.user, &layout.parked(from))?;
-        deploy(layout, Some(departing), target)?;
-        move_paths(paths, &layout.parked(to), &layout.user)?;
+        if phase == Phase::Start {
+            move_paths(paths, &layout.user, &layout.parked(from))?;
+            phase = Phase::Parked;
+            write_journal(layout, from, to, target.revision, phase)?;
+        }
+        if phase == Phase::Parked {
+            deploy(layout, Some(departing), target)?;
+            phase = Phase::Deployed;
+            write_journal(layout, from, to, target.revision, phase)?;
+        }
+        if phase == Phase::Deployed {
+            move_paths(paths, &layout.parked(to), &layout.user)?;
+        }
         let connection = self.library.connection()?;
         profile::set_selection(&connection, port_id, to, target.revision)?;
         fs::remove_file(layout.journal())?;
@@ -464,9 +581,9 @@ impl PortcoveService {
         Ok(())
     }
 
-    /// Finishes a switch interrupted after its journal was written. Every step is
-    /// a move of a path that exists at the source or already sits at the
-    /// destination, so repeating it cannot lose or merge data.
+    /// Finishes a switch interrupted after its journal was written. The journal
+    /// records the last completed phase, and each phase is skipped once done, so a
+    /// resumed switch never re-parks data that has already arrived.
     fn recover_switch_locked(&self, port_id: &str, layout: &Layout) -> Result<()> {
         let journal = layout.journal();
         if !journal.try_exists()? {
@@ -474,9 +591,12 @@ impl PortcoveService {
         }
         let value: serde_json::Value = serde_json::from_slice(&fs::read(&journal)?)?;
         let field = |name: &str| value[name].as_str().map(str::to_owned);
-        let (Some(from), Some(to), Some(revision)) =
-            (field("from"), field("to"), value["revision"].as_u64())
-        else {
+        let (Some(from), Some(to), Some(revision), Some(phase)) = (
+            field("from"),
+            field("to"),
+            value["revision"].as_u64(),
+            field("phase").and_then(|phase| Phase::parse(&phase)),
+        ) else {
             return Err(PortcoveError::state("profile switch journal is unreadable"));
         };
         let connection = self.library.connection()?;
@@ -488,8 +608,14 @@ impl PortcoveService {
         }
         let departing = profile::revision_by_number(&connection, &selected, selected_revision)?;
         let target = profile::revision_by_number(&connection, &to, revision)?;
+        require_clean(
+            &observe(layout, &[&departing, &target])?,
+            "resuming an interrupted profile switch",
+        )?;
         let paths = declared_state_paths(self, port_id)?;
-        self.switch_steps(port_id, layout, &from, &to, &paths, &departing, &target)
+        self.switch_steps(
+            port_id, layout, &from, &to, &paths, &departing, &target, phase,
+        )
     }
 
     fn advance_and_deploy(

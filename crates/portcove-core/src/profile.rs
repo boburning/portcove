@@ -529,6 +529,16 @@ fn original_statuses(
         .collect()
 }
 
+/// A native ID that may name a file inside a mods folder: plain ASCII, no
+/// separators, drive or stream markers, controls or leading dot.
+pub(crate) fn valid_native_id(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 128
+        && value.is_ascii()
+        && !value.starts_with('.')
+        && !value.chars().any(|c| c.is_control() || "/\\:".contains(c))
+}
+
 fn text(value: &str, name: &str) -> Result<()> {
     if value.is_empty() || value.len() > MAX_TEXT || value.chars().any(char::is_control) {
         return Err(PortcoveError::usage(format!(
@@ -560,6 +570,12 @@ pub(crate) fn validate_revision(revision: &ProfileRevision) -> Result<()> {
     let mut native_ids = BTreeSet::new();
     for package in &revision.packages {
         text(&package.native_id, "package native ID")?;
+        if !valid_native_id(&package.native_id) {
+            return Err(PortcoveError::verification(
+                "a package native ID must be a plain file name",
+            )
+            .detail("package", &package.native_id));
+        }
         if !hash(&package.sha256) || !native_ids.insert(package.native_id.as_str()) {
             return Err(PortcoveError::verification(
                 "profile packages need distinct native IDs and exact SHA-256 digests",
@@ -748,7 +764,8 @@ pub(crate) fn validate_export(
         }
         for (index, revision) in entry.revisions.iter().enumerate() {
             validate_revision(revision)?;
-            if revision.profile_id != profile.id
+            if revision.build.port_id != profile.port_id
+                || revision.profile_id != profile.id
                 || revision.revision != index as u64 + 1
                 || !digest_matches(revision)?
                 || !retained.contains(revision.build.install_id.as_str())

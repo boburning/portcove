@@ -246,11 +246,12 @@ fn an_interrupted_switch_resumes_without_losing_either_profiles_progress() {
     fs::create_dir_all(user(&w).join("saves")).unwrap();
     fs::write(user(&w).join("saves/a.sav"), b"default progress").unwrap();
     // Simulate a crash after parking: the journal exists, data already moved.
-    let layout = Layout { user: user(&w) };
+    let layout = Layout::for_user(&user(&w));
     fs::create_dir_all(layout.store()).unwrap();
     fs::write(
         layout.journal(),
-        serde_json::json!({"from": w.default, "to": other.id, "revision": 1}).to_string(),
+        serde_json::json!({"from": w.default, "to": other.id, "revision": 1, "phase": "start"})
+            .to_string(),
     )
     .unwrap();
     fs::create_dir_all(layout.parked(&w.default)).unwrap();
@@ -300,7 +301,7 @@ fn installing_into_a_background_profile_waits_in_the_store_and_deploys_on_activa
 #[test]
 fn pending_restore_mark_guards_collection_and_clears_once_the_build_is_synced() {
     let w = world();
-    let layout = Layout { user: user(&w) };
+    let layout = Layout::for_user(&user(&w));
     assert!(!restore_pending(&layout.user));
     mark_restore_pending(&layout).unwrap();
     assert!(restore_pending(&layout.user));
@@ -314,4 +315,139 @@ fn pending_restore_mark_guards_collection_and_clears_once_the_build_is_synced() 
         .install_mod_package("starship", &w.default, &package, 1)
         .unwrap();
     assert!(!restore_pending(&layout.user));
+}
+
+#[test]
+fn a_switch_interrupted_after_unparking_resumes_without_reparking_arrived_data() {
+    let w = world();
+    let other = w
+        .service
+        .copy_profile("starship", &w.default, "Other")
+        .unwrap();
+    let layout = Layout::for_user(&user(&w));
+    // State at "deployed": the default's saves are parked, the target's already live.
+    fs::create_dir_all(layout.parked(&w.default).join("saves")).unwrap();
+    fs::write(
+        layout.parked(&w.default).join("saves/a.sav"),
+        b"default progress",
+    )
+    .unwrap();
+    fs::create_dir_all(user(&w).join("saves")).unwrap();
+    fs::write(user(&w).join("saves/a.sav"), b"other progress").unwrap();
+    write_journal(&layout, &w.default, &other.id, 1, Phase::Deployed).unwrap();
+    // Recovery must neither re-park the arrived data nor fail on a name collision.
+    w.service
+        .recover_switch_locked("starship", &layout)
+        .unwrap();
+    assert!(!layout.journal().exists());
+    assert_eq!(
+        fs::read(user(&w).join("saves/a.sav")).unwrap(),
+        b"other progress"
+    );
+    assert_eq!(
+        fs::read(layout.parked(&w.default).join("saves/a.sav")).unwrap(),
+        b"default progress"
+    );
+    // Both profiles keep their own progress through the next switch back.
+    w.service.activate_profile("starship", &w.default).unwrap();
+    assert_eq!(
+        fs::read(user(&w).join("saves/a.sav")).unwrap(),
+        b"default progress"
+    );
+}
+
+#[test]
+fn imported_native_ids_cannot_name_files_outside_the_mods_folder() {
+    for bad in [
+        "../../x",
+        "/etc/passwd",
+        "a/b.o2r",
+        "a\\b.o2r",
+        ".hidden",
+        "c:evil",
+        "",
+    ] {
+        assert!(!profile::valid_native_id(bad), "{bad}");
+    }
+    assert!(profile::valid_native_id("hd-link.o2r"));
+    let layout = Layout::for_user(Path::new("/tmp/does-not-matter/user/starship"));
+    assert!(live_package_path(&layout, "../escape").is_err());
+    assert!(live_package_path(&layout, "ok.o2r").is_ok());
+}
+
+#[test]
+fn a_missing_target_package_fails_before_any_departing_mod_is_removed() {
+    let w = world();
+    let package = archive(&w.scratch, "keep.o2r", &[("a.bin", b"x")]);
+    w.service
+        .install_mod_package("starship", &w.default, &package, 1)
+        .unwrap();
+    let other = w
+        .service
+        .copy_profile("starship", &w.default, "Other")
+        .unwrap();
+    // The other profile names a package whose stored bytes are absent (as after an
+    // import that did not carry the package store).
+    let missing = ResolvedPackage {
+        native_id: "missing.o2r".into(),
+        native_version: None,
+        provider: None,
+        sha256: "d".repeat(64),
+        size: 1,
+        enabled: true,
+        requires: Vec::new(),
+    };
+    let request = ProfileRevisionRequest {
+        expected_revision: 1,
+        packages: Some(vec![missing]),
+        orderings: Some(Vec::new()),
+        ..Default::default()
+    };
+    w.service
+        .create_profile_revision("starship", &other.id, &request)
+        .unwrap();
+    let error = w
+        .service
+        .activate_profile("starship", &other.id)
+        .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Verification);
+    assert_eq!(
+        live_mods(&w),
+        ["keep.o2r"],
+        "departing mods were not removed"
+    );
+    let selected = w.service.library().connection().unwrap();
+    assert_eq!(
+        profile::selection(&selected, "starship")
+            .unwrap()
+            .unwrap()
+            .0,
+        w.default
+    );
+}
+
+#[test]
+fn recovery_holds_instead_of_deleting_a_player_edited_owned_file() {
+    let w = world();
+    let package = archive(&w.scratch, "mine.o2r", &[("a.bin", b"x")]);
+    w.service
+        .install_mod_package("starship", &w.default, &package, 1)
+        .unwrap();
+    let other = w
+        .service
+        .copy_profile("starship", &w.default, "Other")
+        .unwrap();
+    let layout = Layout::for_user(&user(&w));
+    write_journal(&layout, &w.default, &other.id, 1, Phase::Start).unwrap();
+    fs::write(user(&w).join("mods/mine.o2r"), b"edited by the player").unwrap();
+    assert!(
+        w.service
+            .recover_switch_locked("starship", &layout)
+            .is_err()
+    );
+    assert_eq!(
+        fs::read(user(&w).join("mods/mine.o2r")).unwrap(),
+        b"edited by the player"
+    );
+    assert!(layout.journal().exists(), "the switch stays resumable");
 }
