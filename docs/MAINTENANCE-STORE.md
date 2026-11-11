@@ -207,7 +207,10 @@ node scripts/maintenance-inventory.mts report --output work/maintenance-report/2
   then runs `portcove --json port-capabilities` for each port. Every CLI call
   gets its own temporary library, preferences, diagnostics and runtime lock,
   through the CLI's `--library`, `PORTCOVE_PREFERENCES` and
-  `PORTCOVE_APPLICATION_RUNTIME_LOCK` overrides. Collection therefore never
+  `PORTCOVE_APPLICATION_RUNTIME_LOCK` overrides. The temporary root is a
+  resolved real path, because Core refuses paths below a symlink. The platform
+  home and configuration variables also point into the root, so any fallback
+  stays isolated. Collection therefore never
   reads, writes or rotates the maintainer's real Portcove state. Core's report is projected unchanged: routes, features, modes
   and Core's own explanations. The recorded state names Core's managed-route
   setup mode. A refusal about the port itself (`not_found`) is recorded as
@@ -251,7 +254,7 @@ stub Core CLI, using the collector and report roles. It checks:
 
 - repeated-pass convergence and A to B to A history;
 - host-failure gaps (`partial` and `failed` runs with no transition);
-- per-call isolation and its removal;
+- per-call isolation and its removal, including under a symlinked `TMPDIR`;
 - coverage, listing and absence facts;
 - report output and HTML escaping. The
   cases need non-root PostgreSQL 16+ server binaries and are a declared

@@ -14,6 +14,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   renameSync,
   rmSync,
   writeFileSync,
@@ -144,9 +145,12 @@ export const isolationScope = "fresh-empty-library-preferences-diagnostics-lock"
  * touches or rotates the maintainer's real Portcove state.
  */
 function isolatedCli(cli: string, args: string[]) {
-  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-inventory-"));
+  // Core refuses paths below a symlink (macOS /var, a linked TMPDIR) and diagnostics
+  // would then fall back to the platform directory, so the root is a resolved real path.
+  const root = mkdtempSync(path.join(realpathSync(os.tmpdir()), "portcove-inventory-"));
   try {
     const library = path.join(root, "library");
+    const home = path.join(root, "home");
     const result = spawnSync(cli, ["--library", library, "--json", ...args], {
       encoding: "utf8",
       timeout: 120_000,
@@ -156,6 +160,15 @@ function isolatedCli(cli: string, args: string[]) {
         ...process.env,
         PORTCOVE_PREFERENCES: path.join(root, "config", "preferences.json"),
         PORTCOVE_APPLICATION_RUNTIME_LOCK: path.join(root, "config", "runtime.lock"),
+        // Defence in depth: any platform-directory fallback also stays inside the root.
+        HOME: home,
+        USERPROFILE: home,
+        XDG_CONFIG_HOME: path.join(home, "config"),
+        XDG_DATA_HOME: path.join(home, "data"),
+        XDG_CACHE_HOME: path.join(home, "cache"),
+        XDG_STATE_HOME: path.join(home, "state"),
+        APPDATA: path.join(home, "roaming"),
+        LOCALAPPDATA: path.join(home, "local"),
       },
     });
     if (result.error || result.signal)
@@ -423,6 +436,17 @@ export interface InventoryReport {
   unsupported_sources: { source: string; reason: string }[];
   runs: unknown[];
   subjects: unknown[];
+  unassessed_gaps?: { subject_key: string; code: string; message: string }[];
+}
+
+/** Gaps of the latest Core run, by subject: the current state there is not freshly assessed. */
+function latestCoreGaps(runs: unknown[]) {
+  const core = (
+    runs as { source: string; gaps?: { subject_key: string; code: string; message: string }[] }[]
+  ).find(({ source }) => source === "core-port-capabilities");
+  return new Map(
+    (core?.gaps ?? []).map(({ subject_key, code, message }) => [subject_key, { code, message }]),
+  );
 }
 
 export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): InventoryReport {
@@ -441,7 +465,19 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     },
     unsupported_sources: unsupportedSources.map(([source, reason]) => ({ source, reason })),
     runs: data.runs,
-    subjects: data.subjects,
+    subjects: data.subjects.map((subject) => ({
+      ...(subject as Record<string, unknown>),
+      latest_core_gap:
+        latestCoreGaps(data.runs).get((subject as { subject_key: string }).subject_key) ?? null,
+    })),
+    unassessed_gaps: [...latestCoreGaps(data.runs)]
+      .filter(
+        ([key]) =>
+          !(data.subjects as { subject_key: string }[]).some(
+            (subject) => subject.subject_key === key,
+          ),
+      )
+      .map(([subject_key, gap]) => ({ subject_key, ...gap })),
   };
 }
 
@@ -472,35 +508,36 @@ input { width: 100%; padding: .5rem; font: inherit; }
 Published delivery: <span class="unknown">${escapeHtml(report.publication.status)}</span> — ${escapeHtml(report.publication.reason)}</p>
 <p>Core assessments come from a fully isolated CLI run on the collecting host; the CLI binary is bound by digest and its build source is <span class="unknown">unverified</span>.</p>
 <h2>Sources</h2>
-<table><thead><tr><th>Source</th><th>Coverage</th><th>Revision</th><th>Observed</th><th>Completed</th></tr></thead><tbody>
+<table><thead><tr><th>Source</th><th>Coverage</th><th>Revision</th><th>Observed</th><th>Completed</th><th>Gaps</th></tr></thead><tbody>
 ${(report.runs as Record<string, unknown>[])
   .map(
     (run) =>
-      `<tr><td>${escapeHtml(run.source)}</td><td>${escapeHtml(run.coverage)}</td><td><code>${escapeHtml(run.source_revision)}</code></td><td>${escapeHtml(run.observed_count)} of ${escapeHtml(run.expected_count ?? "unknown")} declared</td><td>${escapeHtml(run.completed_at)}</td></tr>`,
+      `<tr><td>${escapeHtml(run.source)}</td><td>${escapeHtml(run.coverage)}</td><td><code>${escapeHtml(run.source_revision)}</code></td><td>${escapeHtml(run.observed_count)} of ${escapeHtml(run.expected_count ?? "unknown")} declared</td><td>${escapeHtml(run.completed_at)}</td><td>${(Array.isArray(run.gaps) ? (run.gaps as { subject_key: string; code: string }[]) : []).map((gap) => `${escapeHtml(gap.subject_key)}: ${escapeHtml(gap.code)}`).join("<br>")}</td></tr>`,
   )
   .join("\n")}
 ${report.unsupported_sources
   .map(
     (source) =>
-      `<tr><td>${escapeHtml(source.source)}</td><td class="unknown">unknown</td><td colspan="3">${escapeHtml(source.reason)}</td></tr>`,
+      `<tr><td>${escapeHtml(source.source)}</td><td class="unknown">unknown</td><td colspan="4">${escapeHtml(source.reason)}</td></tr>`,
   )
   .join("\n")}
 </tbody></table>
 <h2>Subjects</h2>
 <label for="search">Search</label>
 <input id="search" type="search" placeholder="Port ID or state">
-<table><thead><tr><th>Subject</th><th>Core assessment</th><th>Changes</th><th>Assessed</th></tr></thead><tbody id="subjects"></tbody></table>
+<table><thead><tr><th>Subject</th><th>Core assessment</th><th>Changes</th><th>Assessed</th><th>Latest Core run</th></tr></thead><tbody id="subjects"></tbody></table>
 <script id="inventory" type="application/json">${embedded}</script>
 <script>
 const report = JSON.parse(document.getElementById("inventory").textContent);
 const body = document.getElementById("subjects");
 function render(filter) {
   body.replaceChildren();
-  for (const subject of report.subjects) {
+  for (const subject of [...report.subjects, ...(report.unassessed_gaps ?? []).map((gap) => ({ subject_key: gap.subject_key, state: "unknown", sequence: 0, assessed_at: "never", latest_core_gap: gap }))]) {
     const text = (subject.subject_key + " " + subject.state).toLowerCase();
     if (filter && !text.includes(filter)) continue;
     const row = body.insertRow();
-    for (const value of [subject.subject_key, subject.state, String(subject.sequence), subject.assessed_at])
+    const gap = subject.latest_core_gap ? "not assessed: " + subject.latest_core_gap.code : "assessed";
+    for (const value of [subject.subject_key, subject.state, String(subject.sequence), subject.assessed_at, gap])
       row.insertCell().textContent = value;
   }
 }
