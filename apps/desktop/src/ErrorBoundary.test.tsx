@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { AppErrorBoundary } from "./ErrorBoundary";
+import { initializeLocalization } from "./localization";
 
 describe("top-level render recovery", () => {
   it("keeps recovery available when a reporter throws or rejects and reports only once", async () => {
@@ -53,5 +54,20 @@ describe("top-level render recovery", () => {
     boundary.state = AppErrorBoundary.getDerivedStateFromError(new Error(""));
 
     expect(renderToStaticMarkup(boundary.render())).toContain("Unknown display error");
+  });
+
+  it("localizes recovery outside the provider and keeps the original diagnostic", async () => {
+    const instance = initializeLocalization(["en-US"]);
+    try {
+      await instance.changeLanguage("ar-XB");
+      const boundary = new AppErrorBoundary({ children: <p>workspace</p> });
+      boundary.state = AppErrorBoundary.getDerivedStateFromError(new Error("original failure"));
+      const html = renderToStaticMarkup(boundary.render());
+      expect(html).toContain("تعذر على Portcove عرض هذه الشاشة");
+      expect(html).toContain("original failure");
+      expect(html).not.toContain("renderRecovery.");
+    } finally {
+      await instance.changeLanguage("en");
+    }
   });
 });

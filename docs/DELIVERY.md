@@ -48,7 +48,11 @@ Existing #45/#46 retain later native/platform and final-package qualification;
 Linux GLib defect, actual remediation and exact scope/expiry/effect limits of
 existing Linux-only risk decisions. This Windows decision neither fixes the
 advisory nor exercises, renews or expands those decisions. A later Linux release
-must satisfy its applicable security and package requirements afresh.
+must satisfy its applicable security and package requirements afresh. Use
+[package qualification](RELEASING.md#declared-package-policy) for final package
+and uninstall acceptance, and the [upgrade acceptance procedure](RELEASING.md#upgrade-acceptance-and-technical-previews)
+for platform-specific updater continuity. Additional distribution such as winget
+can be prioritized independently of the existing release commitments.
 
 The selected additive profile is `initial-beta-windows-x86_64-v1` through the
 existing qualification, release admission, package and feed machinery. It must
@@ -368,8 +372,14 @@ relevant owner decision. Current protections remain effective until replacement.
 
 The baseline adds $0 in service/certificate fees, not zero engineering, custody
 or hardware effort. Authenticode and Developer ID/notarization are optional
-installation-trust improvements, independently authorized in response to measured
-support burden. Flatpak, extra formats/architectures, repositories, deltas,
+installation-trust improvements. The protected release decision owner in
+[#534](https://github.com/boburning/portcove/issues/534) can reconsider Windows
+publisher signing when repeated actionable reports or native observations show
+that OS publisher prompts or enforcement prevent ordinary installation.
+Record the affected Windows versions, observed OS behavior and install outcomes.
+Updater signatures authenticate updater payloads, release hashes verify byte
+integrity, Authenticode identifies a Windows publisher, and Windows enforces its
+own installation policies. Flatpak, extra formats/architectures, repositories, deltas,
 percentage rollouts, standalone CLI self-update, continuous Steam synchronization
 and Decky are outside the baseline. The separately owned #292
 Add/Repair/Update-artwork/Remove commitment coordinates stable runtime paths with

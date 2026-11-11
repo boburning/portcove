@@ -12,7 +12,6 @@ use std::sync::{Mutex, OnceLock};
 #[cfg(feature = "application-update-qualification")]
 use std::task::{Context, Poll};
 
-use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 #[cfg(feature = "application-update-qualification")]
@@ -224,7 +223,7 @@ struct StagingLock {
 
 impl Drop for StagingLock {
     fn drop(&mut self) {
-        let _ = FileExt::unlock(&self.file);
+        let _ = self.file.unlock();
     }
 }
 
@@ -353,11 +352,11 @@ impl ApplicationUpdateStagingStore {
         let required = required_staging_bytes(candidate.release.artifact.bytes)?;
         #[cfg(feature = "application-update-qualification")]
         let available = controlled_available_space(
-            fs2::available_space(&self.root)?,
+            fs4::available_space(&self.root)?,
             self.controlled_available_space,
         );
         #[cfg(not(feature = "application-update-qualification"))]
-        let available = fs2::available_space(&self.root)?;
+        let available = fs4::available_space(&self.root)?;
         if available < required {
             return Err(ApplicationUpdateStagingError::InsufficientSpace {
                 required,
@@ -730,15 +729,13 @@ impl ApplicationUpdateStagingStore {
             .read(true)
             .write(true)
             .open(lock_path)?;
-        match file.try_lock_exclusive() {
+        match file.try_lock() {
             Ok(()) => Ok(StagingLock {
                 file,
                 _process: process,
             }),
-            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                Err(ApplicationUpdateStagingError::Busy)
-            }
-            Err(error) => Err(error.into()),
+            Err(std::fs::TryLockError::WouldBlock) => Err(ApplicationUpdateStagingError::Busy),
+            Err(std::fs::TryLockError::Error(error)) => Err(error.into()),
         }
     }
 }

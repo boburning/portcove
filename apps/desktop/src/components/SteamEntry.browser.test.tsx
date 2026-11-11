@@ -6,10 +6,20 @@ import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import { portDefinition } from "../test-fixtures";
-import type { SteamBatchReview, SteamEntryReview } from "../types";
+import type { SteamArtworkReview, SteamBatchReview, SteamEntryReview } from "../types";
 import { SteamBatchEntryDialog, SteamEntryDialog } from "./SteamEntry";
 
 const port = portDefinition();
+const portraitWrite: SteamArtworkReview["roles"][number] = {
+  role: "portrait_cover",
+  action: "write",
+  destination_path: "C:\\Steam\\userdata\\12345\\config\\grid\\2147488308p.png",
+  existing_paths: [],
+  existing_sha256: null,
+  proposed_sha256: "a".repeat(64),
+  unavailable_reason: null,
+  forget_ownership: false,
+};
 const review: SteamEntryReview = {
   schema_version: 1,
   operation: "add_or_repair",
@@ -28,6 +38,9 @@ const review: SteamEntryReview = {
   changes: [{ port_id: port.id, display_name: port.name, kind: "add" }],
   steam_client_state: "closed",
   writes_required: true,
+  artwork: [{ port_id: port.id, roles: [portraitWrite], unavailable: null }],
+  artwork_review_sha256: "reviewed-artwork",
+  recovered_shortcut_change: false,
 };
 let root: RenderResult;
 let container: HTMLDivElement;
@@ -73,6 +86,9 @@ it("uses the selected installation and profile, shows exact consumer evidence, a
     backup_path: "C:\\Steam\\userdata\\12345\\config\\shortcuts.vdf.portcove-backup",
     changes: review.changes,
     wrote: true,
+    artwork: [
+      { port_id: port.id, roles: [portraitWrite], backup_paths: [], wrote: true, error: null },
+    ],
   });
   await root.rerender(<SteamEntryDialog port={port} generation={7} installed close={vi.fn()} />);
   const installation = document.body.querySelector<HTMLInputElement>("#steam-installation");
@@ -93,8 +109,10 @@ it("uses the selected installation and profile, shows exact consumer evidence, a
     "C:\\Steam",
     "12345",
     "add_or_repair",
+    true,
     7,
   );
+  expect(document.body.textContent).toContain(`${port.name}, portrait cover: Will be added`);
   for (const value of [
     review.shortcuts_path,
     review.library_root,
@@ -125,10 +143,13 @@ it("uses the selected installation and profile, shows exact consumer evidence, a
     review.steam_root,
     review.steam_user_id,
     review.operation,
+    true,
     review.plan_sha256,
+    "reviewed-artwork",
     7,
   );
   expect(document.body.textContent).toContain("Steam shortcut updated.");
+  expect(document.body.textContent).toContain(`${port.name}, portrait cover: Added`);
   expect(document.body.textContent).toContain("shortcuts.vdf.portcove-backup");
 });
 
@@ -202,6 +223,7 @@ it("selects an explicit discovered profile and clears it when the installation c
     "C:\\Steam",
     "12345",
     "add_or_repair",
+    true,
     7,
   );
   await input("Steam installation folder", "D:\\Steam");
@@ -260,7 +282,14 @@ it("offers owned-shortcut removal after uninstall without offering Add or Repair
   expect(add?.disabled).toBe(true);
   expect(document.body.textContent).toContain("game is not installed here");
   await click("Review shortcut removal");
-  expect(preview).toHaveBeenCalledExactlyOnceWith(port.id, "C:\\Steam", "12345", "remove", 7);
+  expect(preview).toHaveBeenCalledExactlyOnceWith(
+    port.id,
+    "C:\\Steam",
+    "12345",
+    "remove",
+    false,
+    7,
+  );
   expect(document.body.textContent).toContain("selected profile and shortcut are checked");
   expect(document.body.textContent).toContain("Not required for this removal review");
 });
@@ -287,6 +316,9 @@ it("reviews an exact selected batch and applies only its frozen selection", asyn
     changes: [...review.changes, { port_id: second.id, display_name: second.name, kind: "add" }],
     steam_client_state: "closed",
     writes_required: true,
+    artwork: [],
+    artwork_review_sha256: null,
+    recovered_shortcut_change: false,
   };
   const preview = vi.spyOn(desktopApi, "previewSteamBatchAdd").mockResolvedValue(batchReview);
   const apply = vi.spyOn(desktopApi, "applySteamBatchAdd").mockResolvedValue(null);
@@ -308,6 +340,7 @@ it("reviews an exact selected batch and applies only its frozen selection", asyn
       portIds: [port.id, second.id],
       steamRoot: review.steam_root,
       steamUserId: review.steam_user_id,
+      includeArtwork: true,
     },
     7,
   );
@@ -319,10 +352,213 @@ it("reviews an exact selected batch and applies only its frozen selection", asyn
       portIds: [port.id, second.id],
       steamRoot: review.steam_root,
       steamUserId: review.steam_user_id,
+      includeArtwork: true,
     },
     "batch-review",
+    null,
     7,
   );
   await page.getByRole("checkbox", { name: second.name }).click();
   expect(document.body.textContent).not.toContain(review.shortcuts_path);
+});
+
+const artworkReview: SteamArtworkReview = {
+  schema_version: 1,
+  operation: { kind: "update", replace_existing: false },
+  port_id: port.id,
+  display_name: port.name,
+  steam_root: "C:\\Steam",
+  steam_user_id: "12345",
+  app_id: 2147488308,
+  grid_path: "C:\\Steam\\userdata\\12345\\config\\grid",
+  plan_sha256: "reviewed-artwork-plan",
+  roles: [
+    {
+      role: "portrait_cover",
+      action: "write",
+      destination_path: "C:\\Steam\\userdata\\12345\\config\\grid\\2147488308p.png",
+      existing_paths: [],
+      existing_sha256: null,
+      proposed_sha256: "a".repeat(64),
+      unavailable_reason: null,
+      forget_ownership: false,
+    },
+    {
+      role: "landscape_cover",
+      action: "unavailable",
+      destination_path: null,
+      existing_paths: [],
+      existing_sha256: null,
+      proposed_sha256: null,
+      unavailable_reason: "role_not_provided",
+      forget_ownership: false,
+    },
+    {
+      role: "hero_banner",
+      action: "preserve",
+      destination_path: null,
+      existing_paths: ["C:\\Steam\\userdata\\12345\\config\\grid\\2147488308_hero.png"],
+      existing_sha256: "b".repeat(64),
+      proposed_sha256: null,
+      unavailable_reason: null,
+      forget_ownership: false,
+    },
+  ],
+  steam_client_state: "closed",
+  writes_required: true,
+  recovered: null,
+  recovered_shortcut_change: false,
+};
+
+it("reviews artwork separately, keeps existing art by default and applies only the reviewed plan", async () => {
+  const preview = vi.spyOn(desktopApi, "previewSteamArtwork").mockResolvedValue(artworkReview);
+  const apply = vi.spyOn(desktopApi, "applySteamArtwork").mockResolvedValue({
+    plan_sha256: artworkReview.plan_sha256,
+    roles: artworkReview.roles,
+    backup_paths: [],
+    wrote: true,
+  });
+  const shortcutPreview = vi.spyOn(desktopApi, "previewSteamEntry");
+  await root.rerender(<SteamEntryDialog port={port} generation={7} installed close={vi.fn()} />);
+  await input("Steam installation folder", "C:\\Steam");
+  await input("Steam profile ID", "12345");
+  await click("Review artwork update");
+  expect(preview).toHaveBeenCalledExactlyOnceWith(
+    {
+      portId: port.id,
+      steamRoot: "C:\\Steam",
+      steamUserId: "12345",
+      operation: { kind: "update", replace_existing: false },
+    },
+    7,
+  );
+  expect(shortcutPreview).not.toHaveBeenCalled();
+  for (const value of [
+    "Portrait cover: Will be added",
+    "Landscape cover: Not available: Portcove has no image for this role yet",
+    "Hero banner: Kept: Steam already has artwork here",
+    artworkReview.grid_path,
+  ])
+    expect(document.body.textContent).toContain(value);
+  expect(document.body.textContent).not.toContain("Review shortcut setup");
+  await click("Update Steam artwork");
+  expect(apply).toHaveBeenCalledExactlyOnceWith(
+    {
+      portId: port.id,
+      steamRoot: "C:\\Steam",
+      steamUserId: "12345",
+      operation: artworkReview.operation,
+    },
+    artworkReview.plan_sha256,
+    7,
+  );
+  expect(document.body.textContent).toContain(
+    "Steam artwork updated. Restart Steam to see the change.",
+  );
+  expect(document.body.textContent).toContain("Portrait cover: Added");
+});
+
+it("requests replacement only when chosen and offers removal of Portcove artwork after uninstall", async () => {
+  const preview = vi.spyOn(desktopApi, "previewSteamArtwork").mockResolvedValue({
+    ...artworkReview,
+    operation: { kind: "remove_owned" },
+    recovered: { completed: [], abandoned: ["portrait_cover"] },
+    roles: artworkReview.roles.map((role) => ({
+      ...role,
+      action: role.role === "portrait_cover" ? "preserve_modified" : "absent",
+      forget_ownership: role.role === "portrait_cover",
+    })),
+    steam_client_state: "running",
+  });
+  const apply = vi.spyOn(desktopApi, "applySteamArtwork");
+  await root.rerender(
+    <SteamEntryDialog port={port} generation={3} installed={false} close={vi.fn()} />,
+  );
+  await input("Steam installation folder", "C:\\Steam");
+  await input("Steam profile ID", "12345");
+  const replace = document.body.querySelector<HTMLElement>("[data-steam-artwork-replace]");
+  await act(async () => replace?.click());
+  await click("Review artwork update");
+  expect(preview).toHaveBeenLastCalledWith(
+    expect.objectContaining({ operation: { kind: "update", replace_existing: true } }),
+    3,
+  );
+  await click("Check again");
+  // Changing the selected profile clears the artwork review and returns to the choices.
+  await input("Steam profile ID", "1234");
+  await input("Steam profile ID", "12345");
+  await click("Review artwork removal");
+  expect(preview).toHaveBeenLastCalledWith(
+    expect.objectContaining({ operation: { kind: "remove_owned" } }),
+    3,
+  );
+  expect(document.body.textContent).toContain(
+    "Portrait cover: Kept: it was changed outside Portcove",
+  );
+  expect(document.body.textContent).toContain("Close Steam, then choose Check again.");
+  expect(document.body.textContent).toContain(
+    "Portcove first finished an interrupted artwork change for this profile.",
+  );
+  const removeButton = [...document.body.querySelectorAll("button")].find(
+    (button) => button.textContent === "Remove Portcove artwork",
+  );
+  expect(removeButton?.disabled).toBe(true);
+  expect(apply).not.toHaveBeenCalled();
+});
+
+it("adds a shortcut without artwork when Include artwork is cleared and reports an artwork failure separately", async () => {
+  const preview = vi.spyOn(desktopApi, "previewSteamEntry").mockResolvedValue({
+    ...review,
+    artwork: [],
+    artwork_review_sha256: null,
+    recovered_shortcut_change: true,
+  });
+  const apply = vi.spyOn(desktopApi, "applySteamEntry").mockResolvedValue({
+    plan_sha256: review.plan_sha256,
+    shortcuts_path: review.shortcuts_path,
+    backup_path: null,
+    changes: review.changes,
+    wrote: true,
+    artwork: [
+      {
+        port_id: port.id,
+        roles: [],
+        backup_paths: [],
+        wrote: false,
+        error: "Steam artwork changed after review; use Review artwork update",
+      },
+    ],
+  });
+  await root.rerender(<SteamEntryDialog port={port} generation={5} installed close={vi.fn()} />);
+  await input("Steam installation folder", "C:\\Steam");
+  await input("Steam profile ID", "12345");
+  await page.getByRole("checkbox", { name: "Include artwork when adding a shortcut" }).click();
+  await click("Review shortcut setup");
+  expect(preview).toHaveBeenCalledExactlyOnceWith(
+    port.id,
+    "C:\\Steam",
+    "12345",
+    "add_or_repair",
+    false,
+    5,
+  );
+  expect(document.body.querySelector('[aria-label="Included Steam artwork"]')).toBeNull();
+  expect(document.body.textContent).toContain(
+    "Portcove first finished an interrupted Steam shortcut or artwork change for this profile.",
+  );
+  await click("Add or repair shortcut");
+  expect(apply).toHaveBeenCalledExactlyOnceWith(
+    port.id,
+    review.steam_root,
+    review.steam_user_id,
+    review.operation,
+    false,
+    review.plan_sha256,
+    null,
+    5,
+  );
+  expect(document.body.textContent).toContain("Steam shortcut updated.");
+  expect(document.body.textContent).toContain(
+    `${port.name}: shortcut added; artwork was not completed.`,
+  );
 });

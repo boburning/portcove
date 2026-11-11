@@ -18,7 +18,7 @@ struct Fixture {
 
 impl Fixture {
     fn new() -> Self {
-        let directory = tempfile::tempdir().unwrap();
+        let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
         // Span several verification buffers and include non-text executable bytes.
         let payload: Vec<u8> = (0..180_321).map(|index| (index % 251) as u8).collect();
         let keys = KeyPair::generate_unencrypted_keypair().unwrap();

@@ -67,6 +67,7 @@ mod managed_shared_preferences;
 mod managed_tfe;
 mod n64_graphics;
 mod native_external_profile;
+mod native_portable_data;
 mod native_temp;
 mod operation;
 mod output_relocation;
@@ -307,10 +308,13 @@ pub use service::{
     CatalogDownloadCandidate, CatalogDownloadCandidates, CatalogDownloadCoverage,
     CatalogDownloadPreview, CatalogDownloadRelease, CatalogDownloadReleaseId,
     CatalogDownloadRequest, CatalogForeignAssetId, CatalogForeignReleaseId,
-    CatalogPackageAssessment, IdentifiedLaunchRequest, InstallOverrides, InstallationProtection,
-    ManagedRouteChangePreview, ManagedRouteChangeResult, PendingSetupRecord, PendingSetupState,
-    PlayerDataProtection, PortCapabilityFeature, PortCapabilityNotice, PortCapabilityReport,
-    PortCapabilityRoute, PortRemovalPreview, PortcoveService, ProtectionDeclaration,
+    CatalogPackageAssessment, GITHUB_LAUNCHER_FORMAT_REVISION, IdentifiedLaunchRequest,
+    InstallOverrides, InstallationProtection, LauncherAppsRootOrigin, LauncherEntryHints,
+    LauncherEntryStatus, LauncherKind, LauncherLibraryEntry, LauncherLibraryInventory,
+    LauncherLibrarySkippedEntry, LauncherModInventory, ManagedRouteChangePreview,
+    ManagedRouteChangeResult, PendingSetupRecord, PendingSetupState, PlayerDataProtection,
+    PortCapabilityFeature, PortCapabilityNotice, PortCapabilityReport, PortCapabilityRoute,
+    PortRemovalPreview, PortcoveService, ProtectionDeclaration, QUIVER_FORMAT_REVISION,
     SetupLaunchTarget, SetupLaunchTargets,
 };
 pub use signed_catalog::{

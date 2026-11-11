@@ -334,7 +334,7 @@ impl PortcoveService {
                 "player data or retained receipts changed; review this update again",
             ));
         }
-        if fs2::available_space(self.library.root())? < review.required_bytes {
+        if fs4::available_space(self.library.root())? < review.required_bytes {
             return Err(held(
                 "this library has insufficient temporary space to preserve the reviewed data transition",
             ));

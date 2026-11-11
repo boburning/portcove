@@ -132,7 +132,10 @@ void test("active port work is additive and preserves the complete inventory vie
   const active = config.views.find((view) => view.name === "Active Port Work");
   assert.ok(active);
   assert.equal(active.layout, "TABLE_LAYOUT");
-  assert.equal(active.filter, "work-type:Port -status:Done -status:Deferred");
+  assert.equal(
+    active.filter,
+    'work-type:Port status:"In progress",Validating,Blocked horizon:Now,Next -port-stage:Watchlist',
+  );
   assert.deepEqual(active.fields, [
     "Title",
     "Priority",
@@ -194,6 +197,21 @@ void test("next work excludes workstreams, completed items, and Later horizon", 
     {
       title: "Done",
       status: "Done",
+      priority: "Urgent",
+      horizon: "Now",
+      "work type": "Bug",
+    },
+    {
+      title: "Watchlist",
+      status: "Ready",
+      priority: "Urgent",
+      horizon: "Now",
+      "work type": "Port",
+      "port stage": "Watchlist",
+    },
+    {
+      title: "Triage",
+      status: "Triage",
       priority: "Urgent",
       horizon: "Now",
       "work type": "Bug",

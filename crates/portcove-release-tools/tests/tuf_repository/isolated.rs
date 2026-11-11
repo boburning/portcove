@@ -117,7 +117,7 @@ impl Fixture {
     }
 
     async fn with_profile(populated_seed: bool, single_owner: bool) -> Self {
-        let directory = tempfile::tempdir().unwrap();
+        let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
         let root = directory.path();
         let offline = [
             TestKey::generate(root, "root1.der"),

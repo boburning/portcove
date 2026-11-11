@@ -461,3 +461,96 @@ fn qualification_preparation_requires_the_compile_feature_and_exact_opt_in() {
         println!("diagnostic-bootstrap-policy: flag={flag:?} observed={observed}");
     }
 }
+
+#[test]
+fn panic_record_preserves_previous_hook_and_reaches_a_later_bundle() {
+    use portcove_core::runtime_diagnostics::PANIC_RECORD_NAME;
+    use std::process::Stdio;
+
+    const ROOT: &str = "PORTCOVE_TEST_PANIC_ROOT";
+    const MODE: &str = "PORTCOVE_TEST_PANIC_MODE";
+    if let Some(root) = std::env::var_os(ROOT) {
+        std::panic::set_hook(Box::new(|_| eprintln!("previous hook observed")));
+        install_panic_hook();
+        let (host, guard) = HostDiagnostics::start_in(Path::new(&root), Surface::Cli, false);
+        if std::env::var_os(MODE).as_deref() == Some(std::ffi::OsStr::new("unhandled")) {
+            assert!(host.session_directory().is_some());
+            panic!("private panic canary");
+        }
+        for _ in 0..2 {
+            assert!(std::panic::catch_unwind(|| panic!("private panic canary")).is_err());
+        }
+        if host.session_directory().is_some() {
+            finish(guard);
+        }
+        return;
+    }
+
+    for mode in ["caught", "unhandled", "unavailable"] {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("logs");
+        if mode == "unavailable" {
+            fs::write(&root, b"not a diagnostic directory").unwrap();
+        }
+        let stderr = fs::File::create(temporary.path().join("stderr")).unwrap();
+        let mut command = portcove_core::ChildProcessPolicy::native_command(
+            portcove_core::ChildProcessClass::HostIntegration,
+            std::env::current_exe().unwrap(),
+        )
+        .unwrap();
+        let mut child = command
+            .args([
+                "--exact",
+                "tests::panic_record_preserves_previous_hook_and_reaches_a_later_bundle",
+                "--nocapture",
+            ])
+            .env(ROOT, &root)
+            .env(MODE, mode)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(stderr)
+            .spawn()
+            .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(30);
+        let status = loop {
+            match child.try_wait() {
+                Ok(Some(status)) => break status,
+                Ok(None) if Instant::now() < deadline => {
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                other => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    panic!("panic fixture did not complete: {other:?}");
+                }
+            }
+        };
+        assert_eq!(status.success(), mode != "unhandled", "{mode}");
+        let stderr = fs::read_to_string(temporary.path().join("stderr")).unwrap();
+        assert_eq!(
+            stderr.matches("previous hook observed").count(),
+            if mode == "unhandled" { 1 } else { 2 },
+            "{mode}: {stderr}"
+        );
+        if mode == "unavailable" {
+            assert_eq!(fs::read(&root).unwrap(), b"not a diagnostic directory");
+            continue;
+        }
+
+        let record = fs::read_to_string(root.join(SLOT_NAMES[0]).join(PANIC_RECORD_NAME)).unwrap();
+        assert_eq!(record.lines().count(), 1);
+        assert!(record.contains("Rust panic observed"));
+        assert!(!record.contains("private panic canary"));
+        let exported = portcove_core::export_support_bundle(portcove_core::SupportBundleRequest {
+            destination_dir: &temporary.path().join("exports"),
+            logs_dir: Some(&root),
+            library: None,
+            startup_failure: None,
+        })
+        .unwrap();
+        let entry = format!("logs/{}/{}", SLOT_NAMES[0], PANIC_RECORD_NAME);
+        assert!(exported.manifest.sections.iter().any(|section| {
+            section.entry.as_deref() == Some(entry.as_str()) && section.records == Some(1)
+        }));
+    }
+}

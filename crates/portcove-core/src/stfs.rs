@@ -54,7 +54,7 @@ pub(crate) fn extract_with_checkpoint(
     let parent = destination
         .parent()
         .ok_or_else(|| PortcoveError::state("STFS destination has no parent directory"))?;
-    if expanded > fs2::available_space(parent)? {
+    if expanded > fs4::available_space(parent)? {
         return Err(PortcoveError::state(
             "STFS package cannot fit in the available destination space",
         )

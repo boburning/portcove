@@ -267,6 +267,11 @@ export type SteamEntryOperation = SteamEntryReview["operation"];
 export type SteamEntrySelection = Requests.TransportInputs["desktop_steam_entry_selection"];
 export type SteamBatchReview = Generated.TransportOutputs["desktop_steam_batch_review"];
 export type SteamBatchSelection = Requests.TransportInputs["desktop_steam_batch_selection"];
+export type SteamArtworkReview = Generated.TransportOutputs["desktop_steam_artwork_review"];
+export type SteamArtworkApplyResult =
+  Generated.TransportOutputs["desktop_steam_artwork_apply_result"];
+export type SteamArtworkOperation = SteamArtworkReview["operation"];
+export type SteamArtworkSelection = Requests.TransportInputs["desktop_steam_artwork_selection"];
 
 export type GameComparison = Generated.TransportOutputs["desktop_game_comparison"];
 export type BugReportDraft = Generated.TransportOutputs["desktop_bug_report_draft"];

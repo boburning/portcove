@@ -230,6 +230,16 @@ impl DefinitionContentIndex {
                 "named portable marker files require native capability version 19",
             ));
         }
+        if port.linux_portable_data_directory.is_some()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable"
+                    && requirement.minimum_version >= crate::native_portable_data::NATIVE_CAPABILITY
+            })
+        {
+            return Err(PortcoveError::verification(
+                "Linux portable data directories require native capability version 25",
+            ));
+        }
         if port.release.grant_declared_executable {
             let (template, minimum) = match port.adapter {
                 crate::AdapterKind::NativePortable => ("native-portable", 22),

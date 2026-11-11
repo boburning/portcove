@@ -7,7 +7,8 @@ type InterfaceSizeSnapshot = {
   applied: InterfaceSize;
   requested: InterfaceSize;
   pending: boolean;
-  error: string | undefined;
+  /** Presentation maps this stable code to localized copy. */
+  error: "unconfirmed" | undefined;
   sessionOnly: boolean;
 };
 
@@ -94,9 +95,7 @@ export class InterfaceSizeController {
         }
         this.publish({ applied: value, sessionOnly, error: undefined });
       } catch {
-        this.publish({
-          error: "Interface size could not be confirmed. Try again or reset to 100%.",
-        });
+        this.publish({ error: "unconfirmed" });
       }
       this.publish({
         requested: this.next ?? this.snapshot.applied,

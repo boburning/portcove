@@ -8,7 +8,7 @@
     "eyebrow": "LANGUAGE",
     "loadFailed": "Couldn't load your language preference. Using {{language}} for now.",
     "pickerLabel": "Display language",
-    "previewDescription": "This preview changes the language panel and text direction. The rest of Portcove remains in English.",
+    "previewDescription": "This preview changes text direction and the screens prepared for translation so far. Other screens remain in English.",
     "previewTitle": "Language preview",
     "richProof": "Keyboard focus stays <strong>where you left it</strong> when the language changes.",
     "sample_one": "{{count}} localized message is ready.",

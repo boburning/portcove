@@ -113,6 +113,9 @@ import type {
   SourceRelinkPlan,
   SourceRemovalPreview,
   SourceVerificationOutcome,
+  SteamArtworkApplyResult,
+  SteamArtworkReview,
+  SteamArtworkSelection,
   SteamEntryApplyResult,
   SteamEntryOperation,
   SteamEntryReview,
@@ -287,10 +290,17 @@ export const desktopApi = {
     steamRoot: string,
     steamUserId: string,
     operation: SteamEntryOperation,
+    includeArtwork: boolean,
     generation: number,
   ) =>
     invoke<SteamEntryReview>("preview_steam_entry", {
-      request: { portId, steamRoot, steamUserId, operation } satisfies SteamEntrySelection,
+      request: {
+        portId,
+        steamRoot,
+        steamUserId,
+        operation,
+        includeArtwork,
+      } satisfies SteamEntrySelection,
       generation,
     }),
   applySteamEntry: (
@@ -298,12 +308,21 @@ export const desktopApi = {
     steamRoot: string,
     steamUserId: string,
     operation: SteamEntryOperation,
+    includeArtwork: boolean,
     expectedPlanSha256: string,
+    expectedArtworkReviewSha256: string | null,
     generation: number,
   ) =>
     invoke<SteamEntryApplyResult | null>("apply_steam_entry", {
-      request: { portId, steamRoot, steamUserId, operation } satisfies SteamEntrySelection,
+      request: {
+        portId,
+        steamRoot,
+        steamUserId,
+        operation,
+        includeArtwork,
+      } satisfies SteamEntrySelection,
       expectedPlanSha256,
+      expectedArtworkReviewSha256,
       generation,
     }),
   previewSteamBatchAdd: (request: SteamBatchSelection, generation: number) =>
@@ -311,11 +330,25 @@ export const desktopApi = {
   applySteamBatchAdd: (
     request: SteamBatchSelection,
     expectedReviewSha256: string,
+    expectedArtworkReviewSha256: string | null,
     generation: number,
   ) =>
     invoke<SteamEntryApplyResult | null>("apply_steam_batch_add", {
       request,
       expectedReviewSha256,
+      expectedArtworkReviewSha256,
+      generation,
+    }),
+  previewSteamArtwork: (request: SteamArtworkSelection, generation: number) =>
+    invoke<SteamArtworkReview>("preview_steam_artwork", { request, generation }),
+  applySteamArtwork: (
+    request: SteamArtworkSelection,
+    expectedPlanSha256: string,
+    generation: number,
+  ) =>
+    invoke<SteamArtworkApplyResult | null>("apply_steam_artwork", {
+      request,
+      expectedPlanSha256,
       generation,
     }),
   listingDeliveryStatus: () => invoke<ListingDeliveryStatus>("get_listing_delivery_status"),

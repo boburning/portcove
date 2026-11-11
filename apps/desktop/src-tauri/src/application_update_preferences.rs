@@ -13,7 +13,6 @@ use std::fs::{self, File, OpenOptions};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
-use fs2::FileExt;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
@@ -108,7 +107,7 @@ struct PreferenceLock {
 
 impl Drop for PreferenceLock {
     fn drop(&mut self) {
-        let _ = FileExt::unlock(&self.file);
+        let _ = self.file.unlock();
     }
 }
 
@@ -329,15 +328,13 @@ impl ApplicationUpdatePreferenceStore {
             .read(true)
             .write(true)
             .open(&lock_path)?;
-        match file.try_lock_exclusive() {
+        match file.try_lock() {
             Ok(()) => Ok(PreferenceLock {
                 file,
                 _process: process,
             }),
-            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                Err(ApplicationUpdatePreferenceError::Busy)
-            }
-            Err(error) => Err(error.into()),
+            Err(std::fs::TryLockError::WouldBlock) => Err(ApplicationUpdatePreferenceError::Busy),
+            Err(std::fs::TryLockError::Error(error)) => Err(error.into()),
         }
     }
 

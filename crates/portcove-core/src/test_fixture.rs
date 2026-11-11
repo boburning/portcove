@@ -299,7 +299,9 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = format!("sha256/{}.json", self.contract_sha256);
         let port = self.port.as_ref();
         let port_id = &port.id;
-        let capability_version = if !port.release.tar_xz_platforms.is_empty() {
+        let capability_version = if port.linux_portable_data_directory.is_some() {
+            crate::native_portable_data::NATIVE_CAPABILITY
+        } else if !port.release.tar_xz_platforms.is_empty() {
             3
         } else if port.release.grant_declared_executable {
             crate::test_fixture::grant_declared_executable_capability(port)

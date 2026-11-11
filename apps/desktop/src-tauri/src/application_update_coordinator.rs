@@ -14,7 +14,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::application_update::ApplicationChannel;
 use async_trait::async_trait;
-use fs2::FileExt;
 
 use crate::application_update_preferences::{
     ApplicationUpdateChoice, ApplicationUpdatePreferenceError, ApplicationUpdatePreferenceStore,
@@ -172,7 +171,7 @@ struct CheckLock {
 
 impl Drop for CheckLock {
     fn drop(&mut self) {
-        let _ = FileExt::unlock(&self.file);
+        let _ = self.file.unlock();
     }
 }
 
@@ -437,15 +436,13 @@ impl ApplicationUpdateCoordinator {
             .read(true)
             .write(true)
             .open(&self.lock_path)?;
-        match file.try_lock_exclusive() {
+        match file.try_lock() {
             Ok(()) => Ok(CheckLock {
                 file,
                 _active: active,
             }),
-            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                Err(ApplicationUpdateCoordinatorError::Busy)
-            }
-            Err(error) => Err(error.into()),
+            Err(std::fs::TryLockError::WouldBlock) => Err(ApplicationUpdateCoordinatorError::Busy),
+            Err(std::fs::TryLockError::Error(error)) => Err(error.into()),
         }
     }
 }

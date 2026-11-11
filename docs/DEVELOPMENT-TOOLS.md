@@ -6,6 +6,58 @@ and [Shared local resources](#shared-local-resources) before heavyweight work.
 [Quality](QUALITY.md#required-hosted-baseline) owns required validation and review;
 the detailed recipes and retained observations below do not add merge gates.
 
+## Dependency patches
+
+- **Tauri event registration.** The `@tauri-apps/api@2.12.4` patch releases the
+  callback allocated by a rejected `listen()` and rethrows the original error.
+  Both published entrypoints at 2.12.4 retain the refused handler.
+  `desktop-events.test.ts` uses the actual API with an emulated transport and
+  checks successful registration and unlisten alongside a refused registration.
+  Remove the patch when the selected upstream ESM and CommonJS entrypoints
+  pass the cleanup and live-listener controls. The existing native
+  rejected-registration and late-disposal scenarios exercise the WebView lifetime.
+  [Published API 2.12.4](https://www.npmjs.com/package/@tauri-apps/api/v/2.12.4)
+- **Localization lint.** The patch applies to `i18next-cli@>=1.82.4 <2` and
+  makes both primary-translation loaders try the configured string
+  `extract.defaultNS` before their existing namespace fallbacks. Unset and false
+  defaults use the original fallbacks. The workspace pins 1.85.0. Published
+  1.87.0 still misses Portcove's `settings.json` and accepts a missing nested
+  interpolation argument. The patched CLI rejects that fixture and accepts the
+  provided argument. A changed patch context or out-of-range version fails
+  installation. Remove the patch when the selected upstream CLI handles the
+  configured namespace and passes the existing nested missing/provided controls and
+  placeholder checks in `check-i18n-negative-fixture.mts`.
+  [Published CLI 1.87.0](https://www.npmjs.com/package/i18next-cli/v/1.87.0)
+- **Signing transport.** The `@sigstore/sign@5.1.0` patch routes signing
+  requests through the explicitly scoped Portcove transport. Published 5.1.0
+  owns its HTTP client and retry loop. The existing signing tests exercise scope
+  isolation, refusal outside a scope, bounded response handling and ordered
+  signing calls. Remove the patch when a supported SDK hook can carry that
+  transport for all signing requests while preserving refusal of ambient HTTP
+  and retry fallback. The regressions are in
+  `release-coordinator-checkpoint-signing.test.mts`.
+  [Published signing SDK 5.1.0](https://www.npmjs.com/package/@sigstore/sign/v/5.1.0)
+- **GTK dialog formatting.** Desktop's `tauri-plugin-dialog@2.8.4` requires RFD
+  `^0.17`. The vendored RFD 0.17.2 backports the literal GTK secondary-text
+  format fix published in RFD 0.18.0. The provenance contract checks the
+  publisher's files and the targeted change. The package rehearsal exercises
+  the actual GTK constructor. Check compatibility through the existing
+  dependency review when a fixed RFD 0.17 release appears or a supported dialog
+  release admits a fixed RFD version. Remove the vendor tree, source patch and
+  qualification inputs together after that graph passes the GTK and native
+  open/save/cancel/overwrite checks. [RFD release](https://github.com/PolyMeilex/rfd/releases/tag/0.18.0)
+  · [Backport qualification](https://github.com/boburning/portcove/pull/3948)
+  · [Dependency workflow](https://github.com/boburning/portcove/issues/1372)
+
+The narrow glob 13.0.6 and minimatch 10.2.6 security overrides remain in policy.
+The pinned Renovate 44.156.3 tooling client still declares those versions.
+The localization CLI consumes glob 14 and minimatch 11 directly. Validate the
+applicable overrides in each generated tooling-client graph.
+
+Root pnpm `patches/*.patch` changes, including removal, select the complete UI
+suite. Their bytes also invalidate format, UI and release evidence fingerprints.
+Unrelated files in that directory remain subject to unknown-input refusal.
+
 ## Verification input and execution identities
 
 `native-rejected-listener-registration` is a standalone Windows qualification
@@ -16,36 +68,6 @@ rejected handler and invoke callbacks settle, degraded live-update guidance and
 read-only refresh remain usable, and a genuine library-generation remount obtains
 a fresh listener without repeating preparation. This controlled invalid-input
 case does not establish natural transport loss or Linux listener qualification.
-
-The version-bound `@tauri-apps/api@2.12.4` patch releases only the callback allocated
-by a rejected `listen()` call and rethrows its original error. ESM and CommonJS
-entrypoints carry the same patch; successful registration and native unlisten
-retain upstream behavior. The maintained adapter regression uses the actual API
-package with an emulated transport. Review the patch and regression when updating
-that dependency; remove the patch only after equivalent upstream cleanup is proven.
-The `i18next-cli-default-namespace.patch` applies to `i18next-cli@>=1.82.4 <2`.
-Both published ESM and CommonJS primary-translation loaders try the configured
-string `extract.defaultNS` before their existing namespace fallbacks. Upstream
-1.81.0 otherwise misses Portcove's `settings.json`, so its nested-resource
-interpolation check can accept missing arguments. Unset/false defaults retain
-the existing fallbacks; this is not general multi-namespace discovery.
-
-The range selector lets compatible 1.x upgrades retain the patch instead of
-failing artifact generation on an unused old version key. Patch application
-remains mandatory: changed context or an out-of-range version fails installation;
-no unused-patch exemption is enabled. The separate missing/provided nested-key
-fixtures exercise the actual CLI without inline defaults. Review every upgrade
-and remove the patch only after a mature upstream release handles the configured
-namespace and passes those controls; 1.84.0's linter still guesses namespace names
-instead of reading the configured default. The narrow glob 13.0.6 and minimatch
-10.2.6 security overrides
-remain in policy: the pinned Renovate 44.156.3 tooling client still declares those
-versions, even though this CLI release consumes glob 14 and minimatch 11 directly.
-Validate their application in each generated tooling-client graph separately.
-
-Root pnpm `patches/*.patch` changes, including removal, select the complete UI
-suite. Their bytes also invalidate format, UI and release evidence fingerprints; unrelated
-files in that directory remain subject to unknown-input refusal.
 
 The Windows/Linux native CLI wrapper captures declared inputs before importing
 the harness. Supported standalone products and cached drivers execute retained
@@ -3303,6 +3325,13 @@ raw scanner status. `just audit` includes the scanner and development decision;
 no special risk flag is required. The known GLib error stays visible and remains
 a raw failed scan. Release expiry, tags, inventories and native source review
 belong exclusively to Linux release authorization; see [QUALITY](QUALITY.md).
+
+Portcove builds SQLite from the `libsqlite3-sys` source selected by `Cargo.lock`
+through rusqlite's `bundled` feature. Review the effective amalgamation when
+updating either crate. Keep the Windows canonical-path WAL fix and the
+[RUSTSEC-2026-0459](https://rustsec.org/advisories/RUSTSEC-2026-0459.html) fix
+in SQLite 3.54.0 or later, along with checked unsigned conversions and the
+connection limits used by Core.
 
 ## Cloud agent sessions
 

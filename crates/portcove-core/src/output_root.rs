@@ -226,8 +226,8 @@ fn destination_volume_details(path: &Path) -> std::result::Result<(u64, u64, Str
             TestVolumeDetails::Unavailable(message) => Err(message),
         };
     }
-    let available = fs2::available_space(path).map_err(|error| error.to_string())?;
-    let total = fs2::total_space(path).map_err(|error| error.to_string())?;
+    let available = fs4::available_space(path).map_err(|error| error.to_string())?;
+    let total = fs4::total_space(path).map_err(|error| error.to_string())?;
     let identity = volume_identity(path).map_err(|error| error.to_string())?;
     Ok((available, total, identity))
 }
@@ -661,7 +661,7 @@ fn validate_marker(
 }
 
 fn require_capacity(path: &Path, required_bytes: u64) -> Result<()> {
-    let available = fs2::available_space(path)?;
+    let available = fs4::available_space(path)?;
     if available < required_bytes {
         return Err(PortcoveError::install(
             "game output volume does not have enough available space",

@@ -3,6 +3,11 @@
 //! This is a log format, not operation, recovery, or capture authority. The
 //! emitting host and support export use the same closed field policy.
 
+/// Fixed local panic event shared by the host writer and support collector.
+pub const PANIC_RECORD_NAME: &str = "portcove-panic.jsonl";
+pub const PANIC_RECORD: &[u8] =
+    b"{\"level\":\"ERROR\",\"fields\":{\"message\":\"Rust panic observed\"}}\n";
+
 use serde_json::{Map, Value, json};
 
 pub const SCHEMA_VERSION: u32 = 1;

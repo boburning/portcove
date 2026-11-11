@@ -250,6 +250,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::NativePortable,
             contract_version: crate::native_external_profile::openjk::NATIVE_CAPABILITY,
         });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::native_portable_data::NATIVE_CAPABILITY,
+        });
         supported
     }
 }
