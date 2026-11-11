@@ -87,6 +87,9 @@ import type {
   GithubDeviceLogin,
   GithubDeviceLoginResult,
   GameFileRoot,
+  InstallBatchRecord,
+  InstallBatchRequestItem,
+  InstallBatchReview,
   LibraryMembership,
   LibraryMembershipOutcome,
   LibraryMembershipRequest,
@@ -609,6 +612,31 @@ export const desktopApi = {
     invoke<LibraryMembershipOutcome[]>("add_games_to_library", { requests, generation }),
   removeLibraryMembership: (portId: string, generation: number) =>
     invoke<boolean>("remove_library_membership", { portId, generation }),
+  planInstallBatch: (portIds: string[], generation: number) =>
+    invoke<InstallBatchReview>("plan_install_batch", { portIds, generation }),
+  /** Saves the reviewed games to the Library and records them as one batch. Runs nothing. */
+  startInstallBatch: (items: InstallBatchRequestItem[], generation: number) =>
+    invoke<InstallBatchRecord>("start_install_batch", { items, generation }),
+  /** Runs unstarted games once each; finished games are never repeated. Never launches a game. */
+  runInstallBatch: (
+    batchId: string,
+    generation: number,
+    onEvent: (event: OperationEvent) => void,
+  ) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = onEvent;
+    return invoke<InstallBatchRecord>("run_install_batch", {
+      batchId,
+      generation,
+      onEvent: channel,
+    });
+  },
+  unfinishedInstallBatches: (generation: number) =>
+    invoke<InstallBatchRecord[]>("get_unfinished_install_batches", { generation }),
+  cancelInstallBatch: (batchId: string, generation: number) =>
+    invoke<InstallBatchRecord>("cancel_install_batch", { batchId, generation }),
+  installBatch: (batchId: string, generation: number) =>
+    invoke<InstallBatchRecord | null>("get_install_batch", { batchId, generation }),
   addGameFileRoot: (path: string, generation: number) =>
     invoke<GameFileRoot>("add_game_file_root", { path, generation }),
   relinkGameFileRoot: (rootId: string, path: string, generation: number) =>

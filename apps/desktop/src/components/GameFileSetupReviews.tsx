@@ -20,6 +20,7 @@ export function GameFileSetupReviews({
   busy,
   onOpenPort,
   onAddToLibrary,
+  onReviewInstall,
   focusFallback,
 }: {
   ports: PortDefinition[];
@@ -31,6 +32,7 @@ export function GameFileSetupReviews({
   busy: boolean;
   onOpenPort?: ((portId: string, originKey: string) => void) | undefined;
   onAddToLibrary?: ((portIds: string[]) => void) | undefined;
+  onReviewInstall?: ((portIds: string[]) => void) | undefined;
   focusFallback?: (() => HTMLElement | null) | undefined;
 }) {
   const { selected, toggle, clear, requestReview } = useSetupReviewSelection();
@@ -165,6 +167,18 @@ export function GameFileSetupReviews({
               }}
             >
               Add {selected.length} selected to Library
+            </Button>
+          )}
+          {onReviewInstall && (
+            <Button
+              data-focusable
+              disabled={!current || busy || !selected.some(canReview)}
+              onClick={() => {
+                onReviewInstall(selected);
+                clear();
+              }}
+            >
+              Review installing {selected.length} selected
             </Button>
           )}
           <Button

@@ -20,6 +20,7 @@ pub const INSTALL_BATCH_FORMAT_VERSION: u8 = 1;
 /// into several batches rather than truncated.
 pub const MAX_INSTALL_BATCH_ITEMS: usize = 512;
 const MAX_RECORD_BYTES: usize = 512 * 1024;
+const MAX_RECENT_BATCHES: i64 = 32;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -198,6 +199,34 @@ impl Library {
         json.map(|json| decode_batch(id, &json)).transpose()
     }
 
+    /// Batches that still have unstarted or running games, newest first. Only
+    /// the most recent batches are considered; older finished ones stay readable
+    /// by id.
+    pub fn unfinished_install_batches(&self) -> Result<Vec<InstallBatchRecord>> {
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT id, record_json FROM install_batches ORDER BY updated_at DESC, id LIMIT ?1",
+        )?;
+        let rows = statement
+            .query_map([MAX_RECENT_BATCHES], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        let mut unfinished = Vec::new();
+        for (id, json) in rows {
+            let record = decode_batch(&id, &json)?;
+            if record.items.iter().any(|item| {
+                matches!(
+                    item.state,
+                    InstallBatchItemState::Queued | InstallBatchItemState::Running
+                )
+            }) {
+                unfinished.push(record);
+            }
+        }
+        Ok(unfinished)
+    }
+
     /// Read-modify-write under one immediate transaction, so concurrent
     /// processes cannot both claim the same item or lose each other's outcome.
     pub(crate) fn update_install_batch<R>(
@@ -282,13 +311,39 @@ impl PortcoveService {
         Ok(InstallBatchReview { items })
     }
 
-    /// Persists exactly the reviewed games and their plan digests. No
-    /// authorization is stored and nothing runs until `run_install_batch`.
+    /// Persists exactly the reviewed games and their plan digests, and saves
+    /// each catalog game to the Library so a held or failed install keeps its
+    /// place. No authorization is stored and nothing runs until
+    /// `run_install_batch`.
     pub fn start_install_batch(
         &self,
         items: &[InstallBatchRequestItem],
+        origin: crate::LibraryMembershipOrigin,
     ) -> Result<InstallBatchRecord> {
-        self.library.create_install_batch(items)
+        let record = self.library.create_install_batch(items)?;
+        // A game no longer in the catalog cannot be saved; its batch item is
+        // held with the planner's reason instead.
+        let memberships = items
+            .iter()
+            .filter(|item| self.catalog.listing(&item.port_id).is_ok())
+            .map(|item| crate::LibraryMembershipRequest {
+                port_id: item.port_id.clone(),
+                origin,
+                sources: Vec::new(),
+            })
+            .collect::<Vec<_>>();
+        if !memberships.is_empty() {
+            self.add_games_to_library(&memberships)?;
+        }
+        Ok(record)
+    }
+
+    pub fn install_batch(&self, batch_id: &str) -> Result<Option<InstallBatchRecord>> {
+        self.library.install_batch(batch_id)
+    }
+
+    pub fn unfinished_install_batches(&self) -> Result<Vec<InstallBatchRecord>> {
+        self.library.unfinished_install_batches()
     }
 
     /// Runs every queued item once, in order. Safe to call again after an
@@ -490,7 +545,10 @@ mod tests {
         assert!(review.items[0].plan.is_some() && review.items[0].hold.is_none());
         assert!(review.items[1].plan.is_none() && review.items[1].hold.is_some());
         let batch = service
-            .start_install_batch(&[request(PORT, &digest), request("no-such-port", &digest)])
+            .start_install_batch(
+                &[request(PORT, &digest), request("no-such-port", &digest)],
+                crate::LibraryMembershipOrigin::Manual,
+            )
             .unwrap();
         let finished = service.run_install_batch(&batch.id, |_| {}).await.unwrap();
         let summary = finished.summary();
@@ -511,18 +569,28 @@ mod tests {
     async fn a_changed_plan_holds_that_game_without_installing_it() {
         let (_temporary, service, _digest) = reviewed_service().await;
         let batch = service
-            .start_install_batch(&[request(PORT, &"0".repeat(64))])
+            .start_install_batch(
+                &[request(PORT, &"0".repeat(64))],
+                crate::LibraryMembershipOrigin::Manual,
+            )
             .unwrap();
         let finished = service.run_install_batch(&batch.id, |_| {}).await.unwrap();
         assert_eq!(finished.items[0].state, InstallBatchItemState::Held);
         assert!(service.status(PORT).unwrap().active.is_none());
+        // The held game keeps its saved Library entry without being installed.
+        let saved = service.library_memberships().unwrap();
+        assert_eq!(saved.len(), 1);
+        assert_eq!(saved[0].port_id, PORT);
     }
 
     #[tokio::test]
     async fn cancellation_stops_unstarted_items_and_persists() {
         let (_temporary, service, digest) = reviewed_service().await;
         let batch = service
-            .start_install_batch(&[request(PORT, &digest), request("other", &digest)])
+            .start_install_batch(
+                &[request(PORT, &digest), request("other", &digest)],
+                crate::LibraryMembershipOrigin::Manual,
+            )
             .unwrap();
         let cancelled = service.cancel_install_batch(&batch.id).unwrap();
         assert_eq!(cancelled.summary().cancelled, 2);
@@ -535,7 +603,10 @@ mod tests {
     async fn restart_reconciles_running_items_against_authoritative_state() {
         let (_temporary, service, digest) = reviewed_service().await;
         let batch = service
-            .start_install_batch(&[request(PORT, &digest), request("other", &digest)])
+            .start_install_batch(
+                &[request(PORT, &digest), request("other", &digest)],
+                crate::LibraryMembershipOrigin::Manual,
+            )
             .unwrap();
         service
             .library
@@ -545,6 +616,11 @@ mod tests {
                 }
             })
             .unwrap();
+        assert_eq!(
+            service.unfinished_install_batches().unwrap()[0].id,
+            batch.id,
+            "a batch interrupted mid-run is offered for continuation"
+        );
         let reconciled = service.reconcile_install_batch(&batch.id).unwrap();
         // Nothing was committed and no operation owns either game: review again.
         assert_eq!(reconciled.summary().interrupted, 2);
@@ -553,6 +629,7 @@ mod tests {
         let finished = service.run_install_batch(&batch.id, |_| {}).await.unwrap();
         assert_eq!(finished.summary().interrupted, 2);
         assert!(service.status(PORT).unwrap().active.is_none());
+        assert!(service.unfinished_install_batches().unwrap().is_empty());
     }
 
     #[test]

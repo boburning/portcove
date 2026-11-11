@@ -1073,6 +1073,113 @@ async fn remove_library_membership(
     .await
 }
 
+/// Reviews first installs for the selected games. Changes nothing.
+#[tauri::command]
+async fn plan_install_batch(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_ids: Vec<String>,
+) -> DesktopResult<portcove_core::InstallBatchReview> {
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .plan_install_batch(&port_ids)
+                .await
+                .map_err(Into::into)
+        },
+    )
+    .await
+}
+
+/// Saves the reviewed games to the Library and records exactly them as one
+/// confirmed batch. Stores no authorization and runs nothing yet.
+#[tauri::command]
+async fn start_install_batch(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    items: Vec<portcove_core::InstallBatchRequestItem>,
+) -> DesktopResult<portcove_core::InstallBatchRecord> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .start_install_batch(
+                &items,
+                portcove_core::LibraryMembershipOrigin::GameFileDiscovery,
+            )
+            .map_err(Into::into)
+    })
+    .await
+}
+
+/// Runs the batch's unstarted games once each. Every game re-plans and is
+/// freshly authorized before it runs; finished games are never repeated and no
+/// game is launched.
+#[tauri::command]
+async fn run_install_batch(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    batch_id: String,
+    on_event: Option<tauri::ipc::JavaScriptChannelId>,
+) -> DesktopResult<portcove_core::InstallBatchRecord> {
+    let on_event: Option<tauri::ipc::Channel<OperationEvent>> =
+        on_event.map(|id| id.channel_on(webview));
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .run_install_batch(&batch_id, |event| {
+                    emit_install_operation(&app, &on_event, event)
+                })
+                .await
+                .map_err(Into::into)
+        },
+    )
+    .await
+}
+
+/// Batches with games that have not finished, newest first, so an interrupted
+/// batch can be continued after a restart.
+#[tauri::command]
+async fn get_unfinished_install_batches(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<Vec<portcove_core::InstallBatchRecord>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.unfinished_install_batches().map_err(Into::into)
+    })
+    .await
+}
+
+/// Stops games in the batch that have not started; a running install keeps its
+/// ordinary cancellation and cleanup boundaries.
+#[tauri::command]
+async fn cancel_install_batch(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    batch_id: String,
+) -> DesktopResult<portcove_core::InstallBatchRecord> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.cancel_install_batch(&batch_id).map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn get_install_batch(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    batch_id: String,
+) -> DesktopResult<Option<portcove_core::InstallBatchRecord>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.install_batch(&batch_id).map_err(Into::into)
+    })
+    .await
+}
+
 #[tauri::command]
 async fn add_game_file_root(
     state: tauri::State<'_, DesktopState>,
@@ -2920,6 +3027,12 @@ pub fn run() -> std::process::ExitCode {
             get_library_memberships,
             add_games_to_library,
             remove_library_membership,
+            plan_install_batch,
+            start_install_batch,
+            run_install_batch,
+            get_unfinished_install_batches,
+            cancel_install_batch,
+            get_install_batch,
             add_game_file_root,
             relink_game_file_root,
             remove_game_file_root,

@@ -38,7 +38,8 @@ const unsupportedByReason: Record<string, string[]> = {
     remove_external_runtime remove_game_file_root remove_library_membership remove_port remove_source
     reset_application_update_preferences reset_artwork reset_output_location
     restart_to_apply_application_update restore_backup revoke_catalog_key
-    rollback_catalog rollback_port set_application_update_preferences set_channel
+    rollback_catalog rollback_port run_install_batch start_install_batch cancel_install_batch
+    set_application_update_preferences set_channel
     set_default_library set_github_token set_host_tool_path set_locale_preference
     set_output_location set_policy trust_catalog_key use_cached_catalog
     use_embedded_catalog verify_port verify_sources
@@ -54,12 +55,13 @@ const unsupportedByReason: Record<string, string[]> = {
     preview_external_runtime_relink preview_managed_route_change preview_removal
     preview_source_removal preview_steam_batch_add preview_steam_entry
     preview_user_selected_runtime preview_user_selected_runtime_relink
-    review_game_setting review_source_reuse scan_game_file_roots scan_source_inbox
+    plan_install_batch review_game_setting review_source_reuse scan_game_file_roots
+    scan_source_inbox
   `.split(/\s+/),
   "read-only getter that the mounted fixture surfaces do not request, or a user-started flow they do not mount (get_catalog and get_statuses are replaced by get_workspace_snapshot)":
     `
     forecast_installed_update_checks get_catalog get_catalog_media_thumbnail get_default_library_root
-    get_engine_capabilities get_game_settings get_library_identity
+    get_engine_capabilities get_game_settings get_install_batch get_library_identity
     get_library_memberships get_runtime_diagnostic_health get_sources get_statuses
     list_steam_profiles
   `.split(/\s+/),

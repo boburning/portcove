@@ -193,8 +193,14 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             LaunchCommand::Show { .. } | LaunchCommand::Recover { .. } => Recovering,
         },
         Commands::Games { command } => match command {
-            GamesCommand::List => ReadOnly,
-            GamesCommand::Add { .. } | GamesCommand::Remove { .. } => Recovering,
+            GamesCommand::List
+            | GamesCommand::BatchPlan { .. }
+            | GamesCommand::BatchShow { .. } => ReadOnly,
+            GamesCommand::Add { .. }
+            | GamesCommand::Remove { .. }
+            | GamesCommand::BatchRun { .. }
+            | GamesCommand::BatchResume { .. }
+            | GamesCommand::BatchCancel { .. } => Recovering,
         },
         // These commands return before shared service construction. Preserve the
         // historical policy bit without moving their own dispatch/constructors.

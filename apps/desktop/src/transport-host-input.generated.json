@@ -472,6 +472,33 @@
     "title": "GameFileQueryRefreshRequest",
     "type": "object"
   },
+  "install_batch_request_items": {
+    "$defs": {
+      "InstallBatchRequestItem": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_plan_sha256": {
+            "description": "Digest of the plan the player reviewed for this game.",
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "expected_plan_sha256"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "$ref": "#/$defs/InstallBatchRequestItem"
+    },
+    "title": "Array_of_InstallBatchRequestItem",
+    "type": "array"
+  },
   "install_input": {
     "$defs": {
       "ReleaseChannel": {
@@ -547,6 +574,69 @@
     ],
     "title": "InstallInput",
     "type": "object"
+  },
+  "library_membership_requests": {
+    "$defs": {
+      "LibraryMembershipOrigin": {
+        "oneOf": [
+          {
+            "const": "game_file_discovery",
+            "description": "Selected from reviewed game-file discovery results.",
+            "type": "string"
+          },
+          {
+            "const": "manual",
+            "description": "Added directly by the player.",
+            "type": "string"
+          }
+        ]
+      },
+      "LibraryMembershipRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "origin": {
+            "$ref": "#/$defs/LibraryMembershipOrigin"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/$defs/LibraryMembershipSource"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "port_id",
+          "origin"
+        ],
+        "type": "object"
+      },
+      "LibraryMembershipSource": {
+        "additionalProperties": false,
+        "description": "A reviewed original the player associated with the saved entry. This is a\nhint for explaining requirements; reinspection remains the authority.",
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "sha256"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "$ref": "#/$defs/LibraryMembershipRequest"
+    },
+    "title": "Array_of_LibraryMembershipRequest",
+    "type": "array"
   },
   "organization_change": {
     "$defs": {

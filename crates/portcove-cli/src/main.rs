@@ -1590,6 +1590,57 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     },
                 )?;
             }
+            GamesCommand::BatchPlan { port_ids } => {
+                let review = service.plan_install_batch(&port_ids).await?;
+                render_read_success(mode, "games.batch-plan", review, |review| {
+                    human::install_batch_review(review)
+                })?;
+            }
+            GamesCommand::BatchRun { items, yes } => {
+                let items = items
+                    .iter()
+                    .map(|item| parse_batch_item(item))
+                    .collect::<Result<Vec<_>>>()?;
+                require_confirmation(
+                    "Save these games to the Library and install each reviewed game whose plan is unchanged?",
+                    yes,
+                    cli.non_interactive,
+                )?;
+                let batch = service
+                    .start_install_batch(&items, portcove_core::LibraryMembershipOrigin::Manual)?;
+                let mut progress = progress_renderer(mode, service.catalog());
+                let finished = service.run_install_batch(&batch.id, &mut progress).await?;
+                render_read_success(mode, "games.batch-run", finished, |record| {
+                    human::install_batch(record)
+                })?;
+            }
+            GamesCommand::BatchResume { batch_id, yes } => {
+                require_confirmation(
+                    "Continue this batch? Finished games are not repeated and each plan is checked again.",
+                    yes,
+                    cli.non_interactive,
+                )?;
+                let mut progress = progress_renderer(mode, service.catalog());
+                let finished = service.run_install_batch(&batch_id, &mut progress).await?;
+                render_read_success(mode, "games.batch-resume", finished, |record| {
+                    human::install_batch(record)
+                })?;
+            }
+            GamesCommand::BatchCancel { batch_id } => render_read_success(
+                mode,
+                "games.batch-cancel",
+                service.cancel_install_batch(&batch_id)?,
+                |record| human::install_batch(record),
+            )?,
+            GamesCommand::BatchShow { batch_id } => render_read_success(
+                mode,
+                "games.batch-show",
+                service.install_batch(&batch_id)?.ok_or_else(|| {
+                    PortcoveError::not_found("install batch does not exist")
+                        .detail("batch_id", &batch_id)
+                })?,
+                |record| human::install_batch(record),
+            )?,
         },
         Commands::Launch {
             command: LaunchCommand::Show { .. },
@@ -3353,6 +3404,11 @@ fn command_name(command: &Commands) -> &'static str {
             GamesCommand::List => "games.list",
             GamesCommand::Add { .. } => "games.add",
             GamesCommand::Remove { .. } => "games.remove",
+            GamesCommand::BatchPlan { .. } => "games.batch-plan",
+            GamesCommand::BatchRun { .. } => "games.batch-run",
+            GamesCommand::BatchResume { .. } => "games.batch-resume",
+            GamesCommand::BatchCancel { .. } => "games.batch-cancel",
+            GamesCommand::BatchShow { .. } => "games.batch-show",
         },
         Commands::Launch { command } => match command {
             LaunchCommand::Show { .. } => "launch.show",
@@ -3440,6 +3496,18 @@ fn command_name(command: &Commands) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    use super::parse_batch_item;
+
+    #[test]
+    fn batch_items_need_a_port_and_digest_pair() {
+        let item = parse_batch_item("zelda64-recomp=abc").unwrap();
+        assert_eq!(
+            (item.port_id.as_str(), item.expected_plan_sha256.as_str()),
+            ("zelda64-recomp", "abc")
+        );
+        assert!(parse_batch_item("zelda64-recomp").is_err());
+    }
+
     #[test]
     fn stderr_verbosity_keeps_existing_levels_and_excludes_host_observations() {
         use tracing_subscriber::{Layer, layer::SubscriberExt};
@@ -4751,4 +4819,15 @@ mod tests {
                 .contains("Unknown expiry (invalid timestamp)")
         );
     }
+}
+
+/// Parses one reviewed `PORT_ID=PLAN_SHA256` batch item; Core validates the digest.
+fn parse_batch_item(value: &str) -> Result<portcove_core::InstallBatchRequestItem> {
+    let (port_id, digest) = value.split_once('=').ok_or_else(|| {
+        PortcoveError::usage("write each batch item as PORT_ID=PLAN_SHA256 from `games batch-plan`")
+    })?;
+    Ok(portcove_core::InstallBatchRequestItem {
+        port_id: port_id.to_owned(),
+        expected_plan_sha256: digest.to_owned(),
+    })
 }

@@ -32,6 +32,7 @@ import {
 } from "./SourceDiscovery";
 import { Button } from "./ui/button";
 import { GameFileSetupReviews } from "./GameFileSetupReviews";
+import { InstallBatchPanel } from "./InstallBatchPanel";
 
 const setupReturnOrigin = "game-file-libraries-setup";
 
@@ -711,6 +712,7 @@ export function GameFileLibraries({
   const accepts = () => owner.current === generation;
   const viewCompletion = useCompletedScanView(scanState, view, setError);
   const [notice, setNotice] = useState<string>();
+  const [batchPorts, setBatchPorts] = useState<string[]>();
   const [removingId, setRemovingId] = useState<string>();
   const [reviewedPlan, setReviewedPlan] = useState<{
     generation: number;
@@ -1061,7 +1063,20 @@ export function GameFileLibraries({
       busy={Boolean(busy) || Boolean(plan)}
       onOpenPort={openPort}
       onAddToLibrary={(portIds) => void addToLibrary(portIds)}
+      onReviewInstall={(portIds) => setBatchPorts(portIds)}
       focusFallback={() => heading.current}
+    />
+  );
+  const renderInstallBatch = () => (
+    <InstallBatchPanel
+      key={batchPorts?.join("\n") ?? ""}
+      generation={generation}
+      ports={ports}
+      portIds={batchPorts}
+      onDone={() => {
+        setBatchPorts(undefined);
+        void onAdded?.();
+      }}
     />
   );
   const renderSourceReview = () => (
@@ -1133,6 +1148,7 @@ export function GameFileLibraries({
       {notice && <p role="status">{notice}</p>}
       {renderCompletedScan()}
       {renderSetupReviews()}
+      {renderInstallBatch()}
       {renderSourceReview()}
       {renderContinue()}
     </SettingsRow>

@@ -41,6 +41,9 @@ export type CatalogForeignReleaseId = {
   provider: "gitlab";
   tag: string;
 };
+export type InputDesktopInstallBatchRequestItems = InstallBatchRequestItem[];
+export type LibraryMembershipOrigin = "game_file_discovery" | "manual";
+export type InputDesktopLibraryMembershipRequests = LibraryMembershipRequest[];
 export type InputDesktopOrganizationChange =
   | {
       game_id: string;
@@ -117,7 +120,6 @@ export interface TransportInputs {
   catalog_update_source: InputCatalogUpdateSource;
   definition_capability_request: InputDefinitionCapabilityRequest;
   game_file_query_request: InputGameFileQueryRequest;
-  library_membership_requests: InputLibraryMembershipRequests;
   game_setting_change: InputGameSettingChange;
   source_discovery_limits: SourceDiscoveryLimits;
   source_discovery_request: InputSourceDiscoveryRequest;
@@ -130,7 +132,9 @@ export interface TransportInputs {
   desktop_catalog_download_request: InputDesktopCatalogDownloadRequest;
   desktop_game_comparison_request: InputDesktopGameComparisonRequest;
   desktop_game_file_query_request: InputGameFileQueryRequest;
+  desktop_install_batch_request_items: InputDesktopInstallBatchRequestItems;
   desktop_install_input: InputDesktopInstallInput;
+  desktop_library_membership_requests: InputDesktopLibraryMembershipRequests;
   desktop_organization_change: InputDesktopOrganizationChange;
   desktop_steam_batch_selection: InputDesktopSteamBatchSelection;
   desktop_steam_entry_selection: InputDesktopSteamEntrySelection;
@@ -147,17 +151,6 @@ export interface DefinitionCapabilityRequirement {
 /**
  * Explicit refresh inputs. Inspection reports are never accepted from a client.
  */
-export type InputLibraryMembershipRequests = LibraryMembershipRequest[];
-export type LibraryMembershipOrigin = "game_file_discovery" | "manual";
-export interface LibraryMembershipRequest {
-  origin: LibraryMembershipOrigin;
-  port_id: string;
-  sources?: LibraryMembershipSource[];
-}
-export interface LibraryMembershipSource {
-  profile_id: string;
-  sha256: string;
-}
 export interface InputGameFileQueryRequest {
   limits: RegisteredSourceInspectionLimits;
   maximum_age_seconds: number;
@@ -256,6 +249,13 @@ export interface InputDesktopGameComparisonRequest {
    */
   source_profile_ids?: string[] | null;
 }
+export interface InstallBatchRequestItem {
+  /**
+   * Digest of the plan the player reviewed for this game.
+   */
+  expected_plan_sha256: string;
+  port_id: string;
+}
 export interface InputDesktopInstallInput {
   bios?: string | null;
   channel?: ReleaseChannel | null;
@@ -267,6 +267,19 @@ export interface InputDesktopInstallInput {
 export interface SourceRegistrationReference {
   profile_id: string;
   reference_sha256: string;
+}
+export interface LibraryMembershipRequest {
+  origin: LibraryMembershipOrigin;
+  port_id: string;
+  sources?: LibraryMembershipSource[];
+}
+/**
+ * A reviewed original the player associated with the saved entry. This is a
+ * hint for explaining requirements; reinspection remains the authority.
+ */
+export interface LibraryMembershipSource {
+  profile_id: string;
+  sha256: string;
 }
 export interface UpdateNoticeChoice {
   paused: boolean;

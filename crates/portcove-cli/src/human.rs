@@ -876,6 +876,71 @@ pub(crate) fn library_membership_outcomes(
     lines.join("\n")
 }
 
+pub(crate) fn install_batch_review(review: &portcove_core::InstallBatchReview) -> String {
+    let mut ready = Vec::new();
+    let mut lines = Vec::new();
+    for item in &review.items {
+        match (&item.plan, &item.hold) {
+            (Some(plan), None) => {
+                lines.push(format!("{}: ready to install", clean(&item.port_id)));
+                ready.push(format!(
+                    "--item {}={}",
+                    clean(&item.port_id),
+                    plan.plan_sha256
+                ));
+            }
+            (_, Some(hold)) => lines.push(format!(
+                "{}: waiting - {}",
+                clean(&item.port_id),
+                clean(hold)
+            )),
+            (None, None) => lines.push(format!("{}: waiting", clean(&item.port_id))),
+        }
+    }
+    if ready.is_empty() {
+        lines.push("No game in this review can install yet. Nothing was changed.".to_owned());
+    } else {
+        lines.push(format!(
+            "Nothing was changed. To save these games and install the ready ones:\nportcove games batch-run {}",
+            ready.join(" ")
+        ));
+    }
+    lines.join("\n")
+}
+
+pub(crate) fn install_batch(record: &portcove_core::InstallBatchRecord) -> String {
+    use portcove_core::InstallBatchItemState as State;
+    let mut lines = vec![format!("Batch {}", clean(&record.id))];
+    for item in &record.items {
+        let state = match item.state {
+            State::Queued => "not started",
+            State::Running => "running",
+            State::Ready => "installed and ready to launch",
+            State::Held => "waiting for review",
+            State::Failed => "failed",
+            State::Cancelled => "cancelled",
+            State::Interrupted => "interrupted; review installation again",
+        };
+        let detail = item
+            .detail
+            .as_deref()
+            .map(|detail| format!(" - {}", clean(detail)))
+            .unwrap_or_default();
+        lines.push(format!("{}: {state}{detail}", clean(&item.port_id)));
+    }
+    let summary = record.summary();
+    lines.push(format!(
+        "{} ready, {} waiting, {} failed, {} cancelled, {} interrupted, {} not finished. No game was launched.",
+        summary.ready,
+        summary.held,
+        summary.failed,
+        summary.cancelled,
+        summary.interrupted,
+        summary.queued + summary.running
+    ));
+    lines.join("\n")
+}
+
 pub(crate) fn game_file_roots(roots: &[GameFileRoot]) -> String {
     if roots.is_empty() {
         return "No game-file folders are connected.".into();

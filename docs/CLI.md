@@ -732,6 +732,25 @@ different objects; none alone grants installation or launch permission.
 | Correct a registered file's location | `source relink PROFILE_ID PATH`                                | Review only until the same inputs are applied with the returned fingerprint.                                                                                                                                                                                                                                           |
 | Forget a registered file             | `source remove PROFILE_ID`                                     | Requires confirmation and removes only the reference.                                                                                                                                                                                                                                                                  |
 
+### Install several reviewed games once
+
+`games batch-plan PORT_ID...` reviews first installs for up to 512 games and
+changes nothing. It shows a plan digest for each game that is ready, and a
+reason for each game that is waiting. `games batch-run --item PORT_ID=PLAN_SHA256
+...` asks once, saves each game to the Library, and then installs each listed game
+through the ordinary reviewed installer. Before each game runs, Portcove plans it
+again and authorizes it fresh. A game whose plan changed, or that needs a decision
+such as shared preferences, waits for review while the others continue. The batch
+stores no authorization. No game is launched, and an already installed game is not
+reinstalled or updated.
+
+`games batch-cancel BATCH_ID` stops games that haven't started; a running install
+keeps its ordinary cancellation and cleanup boundaries. After an interruption,
+`games batch-resume BATCH_ID` checks committed state first. It never repeats a
+finished install. A game left mid-run with nothing committed is marked interrupted
+for renewed review, not retried. `games batch-show BATCH_ID` reports each game's
+state.
+
 ### Register and inspect
 
 `source inspect PROFILE_ID` inspects an already registered source and takes no
