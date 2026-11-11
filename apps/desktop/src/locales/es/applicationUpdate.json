@@ -77,7 +77,7 @@
     "mode_automatic": "Automático",
     "mode_manual": "Manual",
     "mode_notifyOnly": "Solo avisar",
-    "modeDescription_automatic": "Permite que Portcove compruebe y prepare actualizaciones verificadas sin preguntar por cada versión. La aplicación sigue esperando a un cierre seguro o a la acción explícita Reiniciar para actualizar.",
+    "modeDescription_automatic": "Permite que Portcove compruebe y prepare actualizaciones verificadas sin preguntar por cada versión. Instalar cada actualización sigue requiriendo un cierre seguro o la acción explícita Reiniciar para actualizar.",
     "modeDescription_manual": "No comprueba automáticamente. Usa Buscar actualizaciones cuando quieras buscar una versión.",
     "modeDescription_notifyOnly": "Busca actualizaciones aptas y te avisa cuando hay una disponible. Descargar y aplicar requieren acciones explícitas.",
     "modeGroup": "Modo de actualización de la aplicación",
