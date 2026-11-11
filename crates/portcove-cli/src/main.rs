@@ -4805,6 +4805,23 @@ mod tests {
         ] {
             assert!(capabilities.commands.iter().any(|command| command == name));
         }
+        for name in [
+            "games",
+            "games.list",
+            "games.add",
+            "games.remove",
+            "games.batch-plan",
+            "games.batch-run",
+            "games.batch-resume",
+            "games.batch-cancel",
+            "games.batch-show",
+            "games.intent",
+            "games.intents",
+            "games.intents-acknowledge",
+            "games.setup-ready",
+        ] {
+            assert!(capabilities.commands.iter().any(|command| command == name));
+        }
         assert!(capabilities.commands.contains(&"artwork".to_owned()));
         assert!(capabilities.commands.contains(&"tool".to_owned()));
         assert!(capabilities.commands.contains(&"plan".to_owned()));
