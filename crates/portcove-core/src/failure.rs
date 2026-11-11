@@ -91,6 +91,39 @@ pub(crate) struct FailureContext {
     preparation_cause: Option<PreparationFailureCause>,
     preparation_target: Option<PreparationTarget>,
     known_cause: Option<KnownFailureCause>,
+    upstream: Option<UpstreamObservation>,
+}
+
+/// Transport facts recorded where an upstream request failed. They classify
+/// acquisition failover (#1306) and never change presentation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum UpstreamObservation {
+    /// The connection could not be established or a timeout budget expired.
+    Transport { timed_out: bool },
+    /// The upstream answered with this non-success HTTP status.
+    Status(u16),
+}
+
+/// How an upstream acquisition failure relates to preserved-location failover.
+/// Only `Unavailable` permits it; every other class keeps today's behavior.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum UpstreamFailure {
+    /// The upstream or its asset is gone or unreachable.
+    Unavailable,
+    /// Authentication, authorization or rate limiting refused the request.
+    Forbidden,
+    /// The upstream answered with identity that differs from the accepted record.
+    Disagreement,
+    Other,
+}
+
+impl UpstreamObservation {
+    /// Connect and timeout failures only; mid-stream resets stay unclassified.
+    pub(crate) fn from_reqwest(error: &reqwest::Error) -> Option<Self> {
+        (error.is_connect() || error.is_timeout()).then(|| Self::Transport {
+            timed_out: error.is_timeout(),
+        })
+    }
 }
 
 /// Facts attached at the refusing domain branch, never recovered from diagnostics.
@@ -445,6 +478,41 @@ impl PortcoveError {
         self
     }
 
+    pub(crate) fn with_upstream(mut self, observation: Option<UpstreamObservation>) -> Self {
+        if observation.is_some() {
+            self.failure.upstream = observation;
+        }
+        self
+    }
+
+    /// Classify this failure for preserved-location failover from recorded facts
+    /// only, never from message text.
+    pub(crate) fn upstream_failure(&self) -> UpstreamFailure {
+        let (status, rate_limited) = match (&self.failure.known_cause, self.failure.upstream) {
+            (
+                Some(KnownFailureCause::ProviderRequest {
+                    status,
+                    rate_limited,
+                    ..
+                }),
+                _,
+            ) => (Some(*status), *rate_limited),
+            (_, Some(UpstreamObservation::Status(status))) => (Some(status), false),
+            (_, Some(UpstreamObservation::Transport { .. })) => {
+                return UpstreamFailure::Unavailable;
+            }
+            _ => (None, false),
+        };
+        match status {
+            _ if rate_limited => UpstreamFailure::Forbidden,
+            Some(401 | 403 | 407 | 429) => UpstreamFailure::Forbidden,
+            Some(404 | 410) => UpstreamFailure::Unavailable,
+            Some(_) => UpstreamFailure::Other,
+            None if self.code == crate::ErrorCode::Verification => UpstreamFailure::Disagreement,
+            None => UpstreamFailure::Other,
+        }
+    }
+
     /// The publication owner supplies its observed successful metadata commit.
     /// Failure diagnostics and optional database readback never establish it.
     pub(crate) fn mark_managed_route_committed(
@@ -742,3 +810,66 @@ fn diagnostic_secret_length(after: &str) -> usize {
 #[cfg(test)]
 #[path = "failure_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod upstream_classification_tests {
+    use super::*;
+
+    fn provider(status: u16, rate_limited: bool) -> PortcoveError {
+        PortcoveError::network("provider").with_known_cause(KnownFailureCause::ProviderRequest {
+            provider: FailureProvider::Github,
+            status,
+            rate_limited,
+            resets_at: None,
+        })
+    }
+
+    #[test]
+    fn only_recorded_unavailability_permits_preserved_failover() {
+        let transport = |timed_out| {
+            PortcoveError::network("no connection")
+                .with_upstream(Some(UpstreamObservation::Transport { timed_out }))
+        };
+        let bytes = |status| {
+            PortcoveError::network("bytes").with_upstream(Some(UpstreamObservation::Status(status)))
+        };
+        for (error, expected) in [
+            (provider(404, false), UpstreamFailure::Unavailable),
+            (provider(410, false), UpstreamFailure::Unavailable),
+            (bytes(404), UpstreamFailure::Unavailable),
+            (bytes(410), UpstreamFailure::Unavailable),
+            (transport(false), UpstreamFailure::Unavailable),
+            (transport(true), UpstreamFailure::Unavailable),
+            (provider(401, false), UpstreamFailure::Forbidden),
+            (provider(403, false), UpstreamFailure::Forbidden),
+            (provider(403, true), UpstreamFailure::Forbidden),
+            (provider(429, false), UpstreamFailure::Forbidden),
+            // A rate-limited answer is never treated as disappearance.
+            (provider(404, true), UpstreamFailure::Forbidden),
+            (bytes(407), UpstreamFailure::Forbidden),
+            (provider(500, false), UpstreamFailure::Other),
+            (bytes(502), UpstreamFailure::Other),
+            (
+                PortcoveError::verification("identity differs"),
+                UpstreamFailure::Disagreement,
+            ),
+            // Message text never classifies a failure.
+            (
+                PortcoveError::network("HTTP status client error (404 Not Found)"),
+                UpstreamFailure::Other,
+            ),
+            (PortcoveError::conflict("held"), UpstreamFailure::Other),
+            (
+                PortcoveError::new(crate::ErrorCode::Cancelled, "stopped"),
+                UpstreamFailure::Other,
+            ),
+        ] {
+            assert_eq!(error.upstream_failure(), expected, "{error:?}");
+        }
+        // `None` observations leave an existing fact untouched.
+        assert_eq!(
+            bytes(404).with_upstream(None).upstream_failure(),
+            UpstreamFailure::Unavailable
+        );
+    }
+}

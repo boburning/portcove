@@ -1636,7 +1636,8 @@ fn github_request_error(error: reqwest::Error) -> PortcoveError {
         ResponseTestPhase::Headers,
         error.is_timeout(),
     ));
-    PortcoveError::network(error.to_string())
+    let observation = crate::failure::UpstreamObservation::from_reqwest(&error);
+    PortcoveError::network(error.to_string()).with_upstream(observation)
 }
 
 fn github_http_error(status: StatusCode, headers: &header::HeaderMap) -> PortcoveError {

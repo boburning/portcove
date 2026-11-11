@@ -1798,13 +1798,16 @@ impl Installer {
         validate_download_progress(0, asset.size)?;
         let response = operation
             .interruptible(async {
-                client
-                    .get(&asset.url)
-                    .send()
-                    .await
-                    .map_err(|error| PortcoveError::network(error.to_string()))?
-                    .error_for_status()
-                    .map_err(|error| PortcoveError::network(error.to_string()))
+                let response = client.get(&asset.url).send().await.map_err(|error| {
+                    PortcoveError::network(error.to_string())
+                        .with_upstream(crate::failure::UpstreamObservation::from_reqwest(&error))
+                })?;
+                let status = response.status();
+                response.error_for_status().map_err(|error| {
+                    PortcoveError::network(error.to_string()).with_upstream(Some(
+                        crate::failure::UpstreamObservation::Status(status.as_u16()),
+                    ))
+                })
             })
             .await?;
         let total = response
@@ -1825,7 +1828,10 @@ impl Installer {
                 .interruptible(async { Ok(stream.next().await) })
                 .await?
             {
-                let chunk = chunk.map_err(|error| PortcoveError::network(error.to_string()))?;
+                let chunk = chunk.map_err(|error| {
+                    PortcoveError::network(error.to_string())
+                        .with_upstream(crate::failure::UpstreamObservation::from_reqwest(&error))
+                })?;
                 let next = completed
                     .checked_add(chunk.len() as u64)
                     .ok_or_else(|| PortcoveError::verification("download byte count overflowed"))?;
