@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 49;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 50;
 
 struct Migration {
     version: i64,
@@ -317,7 +317,33 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_49,
         verify: verify_migration_49,
     },
+    Migration {
+        version: 50,
+        name: "remembered game intent",
+        apply: migration_50,
+        verify: verify_migration_50,
+    },
 ];
+
+fn migration_50(transaction: &Transaction<'_>) -> Result<()> {
+    // Intent is consent policy and remembered choices, never an authorization.
+    transaction.execute_batch(
+        "CREATE TABLE port_intents (
+            port_id TEXT PRIMARY KEY CHECK(length(port_id) BETWEEN 1 AND 128),
+            updated_at INTEGER NOT NULL,
+            record_json TEXT NOT NULL CHECK(length(record_json)<=16384)
+        );",
+    )?;
+    verify_migration_50(transaction)
+}
+
+fn verify_migration_50(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "port_intents",
+        &["port_id", "updated_at", "record_json"],
+    )
+}
 
 fn migration_49(transaction: &Transaction<'_>) -> Result<()> {
     // A batch associates reviewed plan digests with their outcomes. It stores no
@@ -2998,6 +3024,7 @@ mod tests {
         schema_46: 46,
         schema_47: 47,
         schema_48: 48,
+        schema_49: 49,
     }
 
     #[test]

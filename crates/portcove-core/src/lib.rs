@@ -320,10 +320,12 @@ pub use service::{
     InstallOverrides, InstallationProtection, LauncherAppsRootOrigin, LauncherEntryHints,
     LauncherEntryStatus, LauncherKind, LauncherLibraryEntry, LauncherLibraryInventory,
     LauncherLibrarySkippedEntry, LauncherModInventory, MAX_INSTALL_BATCH_ITEMS,
-    ManagedRouteChangePreview, ManagedRouteChangeResult, PendingSetupRecord, PendingSetupState,
-    PlayerDataProtection, PortCapabilityFeature, PortCapabilityNotice, PortCapabilityReport,
-    PortCapabilityRoute, PortRemovalPreview, PortcoveService, ProtectionDeclaration,
-    QUIVER_FORMAT_REVISION, SetupLaunchTarget, SetupLaunchTargets,
+    MAX_PORT_INTENT_ASSESSMENTS, ManagedRouteChangePreview, ManagedRouteChangeResult,
+    PORT_INTENT_FORMAT_VERSION, PendingSetupRecord, PendingSetupState, PlayerDataProtection,
+    PortCapabilityFeature, PortCapabilityNotice, PortCapabilityReport, PortCapabilityRoute,
+    PortIntent, PortIntentAssessment, PortIntentAssessments, PortIntentMode, PortReadiness,
+    PortReadinessAcknowledgement, PortRemovalPreview, PortcoveService, ProtectionDeclaration,
+    QUIVER_FORMAT_REVISION, SetupLaunchTarget, SetupLaunchTargets, StandingSetupResult,
 };
 pub use signed_catalog::{
     CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope, SignedCatalogPayload,

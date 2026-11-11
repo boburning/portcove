@@ -547,7 +547,7 @@ impl PortcoveService {
         })
     }
 
-    fn install_plan_hold(&self, plan: &GameInstallPlan) -> Option<String> {
+    pub(crate) fn install_plan_hold(&self, plan: &GameInstallPlan) -> Option<String> {
         if plan.plan.action == crate::InstallPlanAction::BlockedUnverified {
             return Some("verify or repair the retained copy before installation".to_owned());
         }

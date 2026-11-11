@@ -128,10 +128,17 @@ std::thread_local! {
 mod game_install_review;
 #[path = "install_batch.rs"]
 mod install_batch;
+#[path = "port_intent.rs"]
+mod port_intent;
 pub use install_batch::{
     INSTALL_BATCH_FORMAT_VERSION, InstallBatchItem, InstallBatchItemState, InstallBatchRecord,
     InstallBatchRequestItem, InstallBatchReview, InstallBatchReviewItem, InstallBatchSummary,
     MAX_INSTALL_BATCH_ITEMS,
+};
+pub use port_intent::{
+    MAX_PORT_INTENT_ASSESSMENTS, PORT_INTENT_FORMAT_VERSION, PortIntent, PortIntentAssessment,
+    PortIntentAssessments, PortIntentMode, PortReadiness, PortReadinessAcknowledgement,
+    StandingSetupResult,
 };
 mod game_settings;
 #[path = "game_update_acquisition.rs"]
@@ -4615,6 +4622,14 @@ impl PortcoveService {
             }
             lifecycle.last_error = Some(error.message.clone());
             let _ = store.put(&mut lifecycle);
+        }
+        // Remember the completed explicit uninstall so standing setup and
+        // notifications do not bring the game back without a new choice. The
+        // removal already committed, so a failure here is logged, not returned.
+        if result.is_ok()
+            && let Err(error) = self.library.record_explicit_uninstall(port_id)
+        {
+            tracing::warn!(port_id, error = %error.message, "could not remember the uninstall");
         }
         self.finish_activity(activity, result)
     }
