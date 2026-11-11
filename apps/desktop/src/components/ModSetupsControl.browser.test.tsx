@@ -176,3 +176,21 @@ it("keeps controls disabled until the view is read again after a change", async 
   await act(async () => release?.());
   expect(button(host, "Use Clean").disabled).toBe(false);
 });
+
+it("offers to read again when the view cannot be refreshed after a change", async () => {
+  const read = vi
+    .spyOn(desktopApi, "modSetups")
+    .mockResolvedValueOnce(view())
+    .mockRejectedValueOnce(new Error("controlled read failure"))
+    .mockResolvedValue(view());
+  vi.spyOn(desktopApi, "useModSetup").mockResolvedValue(
+    {} as Awaited<ReturnType<typeof desktopApi.useModSetup>>,
+  );
+  const host = await render();
+  await act(async () => button(host, "Use Clean").click());
+  expect(host.querySelector("[role=alert]")?.textContent).toContain("controlled read failure");
+  expect(button(host, "Use Clean").disabled).toBe(true);
+  await act(async () => button(host, "Read setups again").click());
+  expect(read).toHaveBeenCalledTimes(3);
+  expect(button(host, "Use Clean").disabled).toBe(false);
+});

@@ -141,6 +141,13 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
         turn it on again.
       </p>
       {error && <p role="alert">{error}</p>}
+      {error && !fresh && !working && (
+        <ActionRow>
+          <Button variant="outline" onClick={reread}>
+            Read setups again
+          </Button>
+        </ActionRow>
+      )}
       {outcome && <p role="status">{outcome}</p>}
       {setups.length === 0 ? (
         <ActionRow>
