@@ -1,7 +1,7 @@
 import { defineConfig } from "vite-plus";
 import { registeredNodeCommand } from "./scripts/node-test-suites.mts";
 import { desktopProjects, testReporters } from "./scripts/frontend-tests.ts";
-import { WeightedShardSequencer } from "./scripts/browser-shard-balance.mts";
+import { browserShardSequence } from "./scripts/browser-shard-balance.mts";
 import { checkStagedFiles, exactByteFormatInputs } from "./scripts/viteplus-cli.mts";
 
 export default defineConfig({
@@ -226,8 +226,8 @@ export default defineConfig({
   test: {
     projects: desktopProjects,
     reporters: testReporters,
-    // Only `--shard` runs use this: shards split by recorded file duration, not path hash.
-    sequence: { sequencer: WeightedShardSequencer },
+    // Hosted shard jobs split by recorded file duration instead of path hash.
+    ...browserShardSequence(),
   },
   staged: { "*": { title: "Check staged files", task: (files) => checkStagedFiles(files) } },
   run: {

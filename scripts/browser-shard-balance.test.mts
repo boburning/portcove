@@ -4,7 +4,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  browserShardSequence,
   partitionByWeight,
+  selectWeightedShard,
+  WeightedShardSequencer,
   readBrowserWeights,
   validateBrowserWeights,
   weighItems,
@@ -122,4 +125,72 @@ void test("the committed weights file is valid", () => {
   const weights = readBrowserWeights();
   assert.ok(Object.keys(weights).length > 0);
   for (const key of Object.keys(weights)) assert.match(key, /\.browser\.test\.tsx?$/u);
+});
+
+const root = path.join(tmpdir(), "repo");
+const spec = (project: string, file: string) => ({
+  project: { name: project },
+  moduleId: path.join(root, ...file.split("/")),
+});
+const ctx = (index: number, count: number) => ({ config: { root, shard: { index, count } } });
+
+void test("each shard process selects a disjoint part and together they cover every spec", () => {
+  const files = Array.from({ length: 40 }, (_, index) =>
+    spec(index % 7 ? "browser" : "browser-locale", `apps/src/f${index}.browser.test.tsx`),
+  );
+  const weights = Object.fromEntries(
+    files
+      .slice(0, 30)
+      .map((file, index) => [
+        path.relative(root, file.moduleId).split(path.sep).join("/"),
+        (index % 9) + 1,
+      ]),
+  );
+  // Each job lists specs independently and possibly in another order.
+  const shards = [1, 2, 3].map((index) =>
+    selectWeightedShard(index % 2 ? files : [...files].reverse(), ctx(index, 3), weights),
+  );
+  const seen = shards.flat();
+  assert.equal(seen.length, files.length);
+  assert.deepEqual(new Set(seen), new Set(files));
+});
+
+void test("the same file in two projects is kept as two specs", () => {
+  const files = [
+    spec("browser", "apps/a.browser.test.tsx"),
+    spec("browser-locale", "apps/a.browser.test.tsx"),
+  ];
+  const weights = { "apps/a.browser.test.tsx": 5 };
+  const forward = [1, 2].map((index) => selectWeightedShard(files, ctx(index, 2), weights));
+  const reverse = [1, 2].map((index) =>
+    selectWeightedShard([...files].reverse(), ctx(index, 2), weights),
+  );
+  assert.deepEqual(new Set([...forward[0]!, ...reverse[1]!]), new Set(files));
+  assert.deepEqual(forward, reverse);
+});
+
+void test("shard selection requires a shard and rejects an index outside it", () => {
+  const files = [spec("browser", "apps/a.browser.test.tsx")];
+  assert.throws(() => selectWeightedShard(files, { config: { root } }, {}), /--shard/u);
+  assert.throws(() => selectWeightedShard(files, ctx(3, 2), {}), /outside the partition/u);
+});
+
+void test("only hosted shard jobs install the weighted sequencer", () => {
+  assert.deepEqual(browserShardSequence({}), {});
+  assert.deepEqual(browserShardSequence({ PORTCOVE_BROWSER_SHARD: "2/3" }), {
+    sequence: { sequencer: WeightedShardSequencer },
+  });
+});
+
+void test("the Vitest sequencer shards through its context with the committed weights", async () => {
+  const weights = readBrowserWeights();
+  const keys = Object.keys(weights).slice(0, 12);
+  const files = keys.map((key) => spec("browser", key));
+  const shards = await Promise.all(
+    [1, 2, 3].map((index) =>
+      new WeightedShardSequencer({ config: ctx(index, 3).config } as never).shard(files as never),
+    ),
+  );
+  assert.deepEqual(new Set(shards.flat()), new Set(files));
+  assert.equal(shards.flat().length, files.length);
 });

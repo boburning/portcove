@@ -22,7 +22,10 @@ const purpose =
 
 export interface WeightedItem<T> {
   item: T;
+  /** Repository-relative path; the weight lookup key. */
   key: string;
+  /** Unique identity for tie-breaking, such as project and path; defaults to the key. */
+  identity?: string | undefined;
   weight: number;
 }
 
@@ -36,7 +39,7 @@ const pathHash = (key: string) => createHash("sha1").update(key).digest("hex");
 export function partitionByWeight<T>(items: readonly WeightedItem<T>[], count: number): T[][] {
   if (!Number.isSafeInteger(count) || count < 1) throw new Error("Shard count must be at least 1");
   const ordered = items
-    .map((entry) => ({ ...entry, hash: pathHash(entry.key) }))
+    .map((entry) => ({ ...entry, hash: pathHash(entry.identity ?? entry.key) }))
     .sort((left, right) =>
       left.weight !== right.weight
         ? right.weight - left.weight
@@ -88,7 +91,7 @@ export function readBrowserWeights(file = browserWeightsPath): Record<string, nu
 
 /** Weights keyed by repository-relative path; unknown files take the median known weight. */
 export function weighItems<T>(
-  items: readonly { item: T; key: string }[],
+  items: readonly { item: T; key: string; identity?: string }[],
   weights: Record<string, number>,
 ): WeightedItem<T>[] {
   const fallback = median(
@@ -96,22 +99,50 @@ export function weighItems<T>(
       .map(({ key }) => weights[key])
       .filter((value): value is number => value !== undefined && value > 0),
   );
-  return items.map(({ item, key }) => ({ item, key, weight: weights[key] ?? fallback }));
+  return items.map(({ item, key, identity }) => ({
+    item,
+    key,
+    identity,
+    weight: weights[key] ?? fallback,
+  }));
 }
 
-/** Vitest sequencer that changes only shard assignment; per-shard ordering stays Vitest's own. */
+interface ShardContext {
+  config: { root: string; shard?: { index: number; count: number } | undefined };
+}
+
+/** Assigns this process's shard; every process computes the same partition independently. */
+export function selectWeightedShard<T extends { moduleId: string; project: { name: string } }>(
+  files: readonly T[],
+  ctx: ShardContext,
+  weights: Record<string, number> = readBrowserWeights(),
+): T[] {
+  if (!ctx.config.shard) throw new Error("Weighted sharding requires a --shard index and count");
+  const { index, count } = ctx.config.shard;
+  const keyed = files.map((spec) => {
+    const key = path.relative(ctx.config.root, spec.moduleId).split(path.sep).join("/");
+    return { item: spec, key, identity: `${spec.project.name}\0${key}` };
+  });
+  const shard = partitionByWeight(weighItems(keyed, weights), count)[index - 1];
+  if (!shard) throw new Error(`Shard ${index}/${count} is outside the partition`);
+  return shard;
+}
+
+/**
+ * Vitest sequencer that changes only shard assignment; per-shard ordering stays Vitest's own.
+ * It is installed only for the hosted shard jobs (see `browserShardSequence`), so shuffled,
+ * unit, local and qualification runs keep Vitest's default sequencer selection.
+ */
 export class WeightedShardSequencer extends BaseSequencer {
   override async shard(files: TestSpecification[]): Promise<TestSpecification[]> {
-    const { index, count } = this.ctx.config.shard!;
-    const root = this.ctx.config.root;
-    const keyed = files.map((spec) => ({
-      item: spec,
-      key: path.relative(root, spec.moduleId).split(path.sep).join("/"),
-    }));
-    const shard = partitionByWeight(weighItems(keyed, readBrowserWeights()), count)[index - 1];
-    if (!shard) throw new Error(`Shard ${index}/${count} is outside the partition`);
-    return shard;
+    const { root, shard } = this.ctx.config;
+    return selectWeightedShard(files, { config: { root, shard } });
   }
+}
+
+/** Root `test` options for the hosted shard jobs, which set PORTCOVE_BROWSER_SHARD. */
+export function browserShardSequence(env: NodeJS.ProcessEnv = process.env) {
+  return env.PORTCOVE_BROWSER_SHARD ? { sequence: { sequencer: WeightedShardSequencer } } : {};
 }
 
 interface VitestJsonReport {

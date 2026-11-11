@@ -325,10 +325,12 @@ wrong flag therefore cannot omit coverage. Sharding changes where the same tests
 not what is required, and it adds runner jobs per full run, so queue time still
 counts toward latency.
 
-The root Vitest sequencer in `scripts/browser-shard-balance.mts` assigns shards by
-recorded file duration instead of path hash: longest file first, onto the lightest
-shard, with ties broken by path hash. Every current spec still lands in exactly one
-shard. `.config/browser-test-weights.json` holds scheduling estimates only. A file
+In the hosted shard jobs, which set `PORTCOVE_BROWSER_SHARD`, the root Vitest
+sequencer in `scripts/browser-shard-balance.mts` assigns shards by recorded file
+duration instead of path hash: longest file first, onto the lightest shard, with
+ties broken by the hash of project and path. Every current spec still lands in
+exactly one shard. Other runs, including the seeded `shuffled` diagnostic, keep
+Vitest's default sequencer. `.config/browser-test-weights.json` holds scheduling estimates only. A file
 without a weight gets the median weight, and a missing or malformed weights file
 fails the shard run instead of falling back. Regenerate the weights from a Vitest
 JSON report of the three browser projects with
