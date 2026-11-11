@@ -197,6 +197,22 @@ export default interface Resources {
       "waitingRestartTitle": "Update requested. Waiting for Portcove to restart."
     }
   },
+  "catalogUpdates": {
+    "definition": {
+      "cancel": "Cancel setup check",
+      "cancelled": "Setup check cancelled. Review current setup information before continuing.",
+      "check": "Check setup availability",
+      "checking": "Checking setup availability…",
+      "checkingFor": "Checking setup availability for {{name}}…",
+      "description": "Check the official catalog for setup options. Checking does not install or replace game files.",
+      "ineligible": "The offered setup could not be selected. Review the current setup options and requirements.",
+      "revoked": "The publisher withdrew this setup. Review the current options before continuing.",
+      "section": "Official setup information",
+      "selected": "Setup information checked. Review the current setup options before continuing.",
+      "settings": "Catalog update settings",
+      "unsupported": "The setup check returned an unsupported result. Review current setup information."
+    }
+  },
   "counts": {
     "copiedFiles_one": "{{count, number}} file will be copied.",
     "copiedFiles_other": "{{count, number}} files will be copied.",
