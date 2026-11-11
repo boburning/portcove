@@ -1,6 +1,9 @@
 import { ExternalLink } from "../../components/ExternalLink";
 import { SettingsRow } from "../../components/ui/patterns";
 import { useEffect, useRef, useState, type SetStateAction } from "react";
+import i18next, { type TFunction } from "i18next";
+import { Trans } from "react-i18next";
+import { useAppTranslation } from "../../localization";
 import { desktopApi } from "../../api";
 import { LatestRequestGeneration } from "../../shared/concurrency-state";
 import type { ApplicationUpdatePreferencesState } from "./use-application-update-preferences";
@@ -42,26 +45,30 @@ function choicesMatch(left: ApplicationUpdateChoice | null, right: ApplicationUp
   );
 }
 
-const recoveryCopy: Record<
-  ApplicationUpdateRecoveryArea,
-  { title: string; description: string; action: string }
-> = {
-  schedule: {
-    title: "Update check history needs repair",
-    description: "Reset check timing and retry history. Your update settings stay unchanged.",
-    action: "Reset update-check history",
-  },
-  staging: {
-    title: "Update download needs repair",
-    description: "Delete the damaged download. You will need to download and verify it again.",
-    action: "Delete damaged update download",
-  },
-  apply: {
-    title: "The pending update request needs repair",
-    description: "Clear only the pending request. This does not delete a verified download.",
-    action: "Clear pending update request",
-  },
-};
+// Copy functions take `TFunction<"applicationUpdate">` so extraction keeps each
+// static key in its namespace. State stores message identities, never English.
+function recoveryCopy(t: TFunction<"applicationUpdate">, area: ApplicationUpdateRecoveryArea) {
+  switch (area) {
+    case "schedule":
+      return {
+        title: t("status.recoveryScheduleTitle"),
+        description: t("status.recoveryScheduleDescription"),
+        action: t("status.recoveryScheduleAction"),
+      };
+    case "staging":
+      return {
+        title: t("status.recoveryStagingTitle"),
+        description: t("status.recoveryStagingDescription"),
+        action: t("status.recoveryStagingAction"),
+      };
+    case "apply":
+      return {
+        title: t("status.recoveryApplyTitle"),
+        description: t("status.recoveryApplyDescription"),
+        action: t("status.recoveryApplyAction"),
+      };
+  }
+}
 
 function formatTimestamp(value: number) {
   return new Date(value * 1000).toLocaleString();
@@ -75,148 +82,268 @@ function formatBytes(value: number) {
   }).format(value / (1024 * 1024));
 }
 
-const nativeLaunchCopy = {
-  starting: {
-    title: "Installer start is unconfirmed",
-    description:
-      "Portcove cannot confirm whether the installer started. Reopen Portcove to check the installed version before another update attempt.",
-  },
-  started: {
-    title: "Installer started",
-    description:
-      "The installer started, but Portcove has not confirmed the update. Reopen Portcove to check the installed version.",
-  },
-  failed: {
-    title: "Installer didn't start",
-    description: "The installer didn't start.",
-  },
-  "installer-succeeded": {
-    title: "Installer reported success",
-    description:
-      "The installer reported success. Reopen Portcove to confirm the installed version and application health.",
-  },
-  "installer-failed": {
-    title: "Installer did not complete",
-    description: "The installer couldn't finish the update.",
-  },
-} as const;
+function checkProgressCopy(t: TFunction<"applicationUpdate">, phase: ApplicationUpdateCheckPhase) {
+  switch (phase) {
+    case "checking":
+      return t("check.progress_checking");
+    case "acquiring-and-verifying":
+      return t("check.progress_acquiringAndVerifying");
+    case "staged":
+      return t("check.progress_staged");
+    case "complete":
+      return t("check.progress_complete");
+  }
+}
 
-const checkProgressCopy: Record<ApplicationUpdateCheckPhase, string> = {
-  checking: "Checking for Portcove updates…",
-  "acquiring-and-verifying": "Downloading and verifying the application update…",
-  staged: "The Portcove update is downloaded and checked. It has not been installed.",
-  complete: "Application update check complete.",
-};
-
-function applicationUpdateCheckCopy(result: ApplicationUpdateCheckResult) {
+function applicationUpdateCheckCopy(
+  t: TFunction<"applicationUpdate">,
+  result: ApplicationUpdateCheckResult,
+) {
   const version = result.candidate?.version;
+  const completeTitle = t("result.completeTitle");
   switch (result.kind) {
     case "update-available":
       return result.staged
         ? {
-            title: "Update downloaded and verified",
-            description: `Portcove ${version ?? "update"} has been downloaded and checked. Installation conditions will be checked again when you restart or close Portcove.`,
+            title: t("result.stagedTitle"),
+            description: version
+              ? t("result.stagedDescription", { version })
+              : t("result.stagedDescriptionNoVersion"),
           }
         : {
-            title: "Update check complete",
-            description: `Portcove ${version ?? "update"} is available. Its download has not started.`,
+            title: completeTitle,
+            description: version
+              ? t("result.availableDescription", { version })
+              : t("result.availableDescriptionNoVersion"),
           };
     case "current":
-      return {
-        title: "Update check complete",
-        description: "Portcove is current on the selected application update channel.",
-      };
+      return { title: completeTitle, description: t("result.current") };
     case "held":
-      return {
-        title: "Update check complete",
-        description: "No update can be offered on this channel.",
-      };
+      return { title: completeTitle, description: t("result.held") };
     case "incompatible":
-      return {
-        title: "Update check complete",
-        description: "The available release is not compatible with this installation.",
-      };
+      return { title: completeTitle, description: t("result.incompatible") };
     case "no-candidate":
-      return {
-        title: "Update check complete",
-        description: "No eligible release is published for the selected channel.",
-      };
+      return { title: completeTitle, description: t("result.noCandidate") };
     case "superseded":
-      return {
-        title: "Update check not completed",
-        description:
-          "Your update choice changed during the check. Run it again for the current choice.",
-      };
+      return { title: t("result.supersededTitle"), description: t("result.superseded") };
     case "consent-required":
       return {
-        title: "Automatic updates are off",
-        description: "Choose update settings to enable automatic checks. You can still check once.",
+        title: t("result.consentRequiredTitle"),
+        description: t("result.consentRequired"),
       };
     case "offline":
-      return {
-        title: "Couldn't check for updates",
-        description: "Connect to the internet and try again.",
-      };
+      return { title: t("result.offlineTitle"), description: t("result.offline") };
     case "paused":
-      return {
-        title: "Automatic update checks are paused",
-        description: "Manual checks remain available. Resume downloads in update settings.",
-      };
+      return { title: t("result.pausedTitle"), description: t("result.paused") };
     case "manual-mode":
-      return {
-        title: "Automatic update checks are off",
-        description: "Use Check for updates when you want to look for a release.",
-      };
+      return { title: t("result.manualModeTitle"), description: t("result.manualMode") };
     case "metered":
-      return {
-        title: "Waiting to check for updates",
-        description: "Automatic checks are waiting for an unmetered connection.",
-      };
+      return { title: t("result.meteredTitle"), description: t("result.metered") };
     case "metered-state-unknown":
-      return {
-        title: "Waiting to check for updates",
-        description: "Portcove cannot confirm whether this connection is unmetered.",
-      };
+      return { title: t("result.meteredTitle"), description: t("result.meteredUnknown") };
     case "startup-delay":
     case "cadence":
-      return {
-        title: "Next automatic check is scheduled for later",
-        description: "You can check manually now, or wait for the scheduled automatic check.",
-      };
+      return { title: t("result.scheduledTitle"), description: t("result.scheduled") };
   }
 }
 
-function applicationUpdateApplyCopy(status: ApplicationUpdateStatus) {
+function nativeLaunchCopy(t: TFunction<"applicationUpdate">, status: ApplicationUpdateStatus) {
+  const retry = restartIsAvailable(status);
+  switch (status.apply?.native_launch) {
+    case "starting":
+      return { title: t("status.launchStartingTitle"), description: t("status.launchStarting") };
+    case "started":
+      return { title: t("status.launchStartedTitle"), description: t("status.launchStarted") };
+    case "failed":
+      return {
+        title: t("status.launchFailedTitle"),
+        description: retry ? t("status.launchFailedRetry") : t("status.launchFailedRefresh"),
+      };
+    case "installer-succeeded":
+      return {
+        title: t("status.installerSucceededTitle"),
+        description: t("status.installerSucceeded"),
+      };
+    case "installer-failed":
+      return {
+        title: t("status.installerFailedTitle"),
+        description: retry ? t("status.installerFailedRetry") : t("status.installerFailedRefresh"),
+      };
+    default:
+      return undefined;
+  }
+}
+
+function terminationCopy(
+  t: TFunction<"applicationUpdate">,
+  termination: NonNullable<NonNullable<ApplicationUpdateStatus["apply"]>["termination"]>,
+) {
+  switch (termination) {
+    case "normal-exit":
+      return t("status.terminationNormalExit");
+    case "restart-to-apply":
+      return t("status.terminationRestartToApply");
+    case "crash":
+      return t("status.terminationCrash");
+    case "os-shutdown":
+      return t("status.terminationOsShutdown");
+    case "steam-stop":
+      return t("status.terminationSteamStop");
+    default:
+      return t("status.terminationUnknown");
+  }
+}
+
+function applicationUpdateApplyCopy(
+  t: TFunction<"applicationUpdate">,
+  status: ApplicationUpdateStatus,
+) {
   const apply = status.apply;
   if (!apply) return undefined;
-  if (apply.native_launch) {
-    const copy = nativeLaunchCopy[apply.native_launch];
-    if (apply.native_launch === "failed" || apply.native_launch === "installer-failed") {
-      return {
-        ...copy,
-        description: `${copy.description} ${restartIsAvailable(status) ? "Try Restart to update again." : "Refresh update status to review the next available action."}`,
-      };
-    }
-    return copy;
+  if (apply.native_launch) return nativeLaunchCopy(t, status);
+  if (apply.termination) {
+    return {
+      title: t("status.terminationTitle"),
+      description: terminationCopy(t, apply.termination),
+    };
   }
-
-  const terminationCopy = {
-    "normal-exit": "Portcove closed normally.",
-    "restart-to-apply": "Portcove closed to apply the update.",
-    crash: "Portcove closed unexpectedly.",
-    "os-shutdown": "The computer shut down.",
-    "steam-stop": "Steam stopped Portcove.",
-  };
   return {
-    title: apply.termination
-      ? "Installer start unconfirmed"
-      : apply.request === "restart-to-apply"
-        ? "Update requested. Waiting for Portcove to restart."
-        : "Update requested. Waiting for Portcove to close.",
-    description: apply.termination
-      ? `${terminationCopy[apply.termination] ?? "Portcove couldn’t confirm how the app closed."} Refresh update status before trying again.`
-      : "Portcove checks that it can safely install the update before replacing the app.",
+    title:
+      apply.request === "restart-to-apply"
+        ? t("status.waitingRestartTitle")
+        : t("status.waitingCloseTitle"),
+    description: t("status.applyDescription"),
   };
+}
+
+type StatusBusy =
+  | ""
+  | "loadingStatus"
+  | "refreshingStatus"
+  | "repairingSchedule"
+  | "repairingStaging"
+  | "repairingApply";
+type SettingsBusy =
+  | ""
+  | "loadingSettings"
+  | "savingSettings"
+  | "resettingDamaged"
+  | "clearingChoice"
+  | "preparingRestart"
+  | "restarting";
+type RestartBlocker = "noChoice" | "changed";
+type UpdateNotice =
+  | "saved"
+  | "resetDamaged"
+  | "resetPreferences"
+  | "repairedSchedule"
+  | "repairedStaging"
+  | "repairedApplyWithDownload"
+  | "repairedApplyNoDownload";
+/** `text` keeps a Core or upstream diagnostic verbatim; other kinds are app-owned copy. */
+type UpdateMessage =
+  | { kind: "text"; text: string }
+  | { kind: "saveFailedRefreshed"; error: string }
+  | {
+      kind:
+        | "requestIncomplete"
+        | "channelMismatch"
+        | "unexpectedStaged"
+        | "repairIncomplete"
+        | "restartUnconfirmed";
+    };
+
+/** App-owned check failures keep a stable code; the message serves diagnostics. */
+class ApplicationUpdateCheckError extends Error {
+  constructor(readonly code: "channelMismatch" | "unexpectedStaged") {
+    super(
+      code === "channelMismatch"
+        ? i18next.t("check.channelMismatch", { ns: "applicationUpdate" })
+        : i18next.t("check.unexpectedStaged", { ns: "applicationUpdate" }),
+    );
+  }
+}
+
+function failureMessage(value: unknown): UpdateMessage {
+  return value instanceof ApplicationUpdateCheckError
+    ? { kind: value.code }
+    : { kind: "text", text: errorText(value) };
+}
+
+function updateMessageCopy(t: TFunction<"applicationUpdate">, message: UpdateMessage) {
+  switch (message.kind) {
+    case "text":
+      return message.text;
+    case "saveFailedRefreshed":
+      return t("outcome.saveFailedRefreshed", { error: message.error });
+    case "requestIncomplete":
+      return t("check.requestIncomplete");
+    case "channelMismatch":
+      return t("check.channelMismatch");
+    case "unexpectedStaged":
+      return t("check.unexpectedStaged");
+    case "repairIncomplete":
+      return t("status.repairIncomplete");
+    case "restartUnconfirmed":
+      return t("status.restartUnconfirmed");
+  }
+}
+
+function statusBusyCopy(t: TFunction<"applicationUpdate">, busy: Exclude<StatusBusy, "">) {
+  switch (busy) {
+    case "loadingStatus":
+      return t("busy.loadingStatus");
+    case "refreshingStatus":
+      return t("busy.refreshingStatus");
+    case "repairingSchedule":
+      return t("busy.repairingSchedule");
+    case "repairingStaging":
+      return t("busy.repairingStaging");
+    case "repairingApply":
+      return t("busy.repairingApply");
+  }
+}
+
+function settingsBusyCopy(t: TFunction<"applicationUpdate">, busy: Exclude<SettingsBusy, "">) {
+  switch (busy) {
+    case "loadingSettings":
+      return t("busy.loadingSettings");
+    case "savingSettings":
+      return t("busy.savingSettings");
+    case "resettingDamaged":
+      return t("busy.resettingDamaged");
+    case "clearingChoice":
+      return t("busy.clearingChoice");
+    case "preparingRestart":
+      return t("busy.preparingRestart");
+    case "restarting":
+      return t("busy.restarting");
+  }
+}
+
+function noticeCopy(t: TFunction<"applicationUpdate">, notice: UpdateNotice) {
+  switch (notice) {
+    case "saved":
+      return t("outcome.saved");
+    case "resetDamaged":
+      return t("outcome.resetDamaged");
+    case "resetPreferences":
+      return t("outcome.resetPreferences");
+    case "repairedSchedule":
+      return t("outcome.repairedSchedule");
+    case "repairedStaging":
+      return t("outcome.repairedStaging");
+    case "repairedApplyWithDownload":
+      return t("outcome.repairedApplyWithDownload");
+    case "repairedApplyNoDownload":
+      return t("outcome.repairedApplyNoDownload");
+  }
+}
+
+function restartBlockerCopy(t: TFunction<"applicationUpdate">, blocker: RestartBlocker) {
+  return blocker === "noChoice"
+    ? t("settings.restartBlockedNoChoice")
+    : t("settings.restartBlockedChanged");
 }
 
 function isRecoverableStateError(value: unknown) {
@@ -236,8 +363,9 @@ function ApplicationUpdateRecoveryItems({
   busy: boolean;
   onRecover: (area: ApplicationUpdateRecoveryArea) => Promise<void>;
 }) {
+  const { t } = useAppTranslation("applicationUpdate");
   return recoveries.map((recovery) => {
-    const copy = recoveryCopy[recovery.area];
+    const copy = recoveryCopy(t, recovery.area);
     return (
       <div
         className="application-update-recovery flex items-start justify-between gap-3 rounded-pc-md border border-[var(--color-danger-border)] bg-pc-danger-subtle p-3 text-pc-danger-foreground max-[65rem]:flex-col"
@@ -278,20 +406,23 @@ function restartIsAvailable(status: ApplicationUpdateStatus) {
   );
 }
 
-function installRestrictionCopy(status: ApplicationUpdateStatus) {
+function installRestrictionCopy(
+  t: TFunction<"applicationUpdate">,
+  status: ApplicationUpdateStatus,
+) {
   switch (status.install_eligibility) {
     case "package-managed-deb":
-      return "This DEB installation is managed by its package manager. Update it through the same package source.";
+      return t("status.restrictionDeb");
     case "package-managed-rpm":
-      return "This RPM installation is managed by its package manager. Update it through the same package source.";
+      return t("status.restrictionRpm");
     case "not-configured":
-      return "This build cannot update itself. Follow the manual upgrade instructions for your package.";
+      return t("status.restrictionNotConfigured");
     case "unavailable":
-      return "This installation cannot update itself. Follow the manual upgrade instructions for your package.";
+      return t("status.restrictionUnavailable");
     case "eligible":
       return status.recovery_required.some(({ area }) => area === "apply")
-        ? "Repair the pending update request before trying again."
-        : "Review the pending request or installer result below before another restart.";
+        ? t("status.restrictionRepairApply")
+        : t("status.restrictionReviewPending");
   }
 }
 
@@ -300,10 +431,11 @@ function ManualUpgradeLink({
 }: {
   eligibility: ApplicationUpdateStatus["install_eligibility"];
 }) {
+  const { t } = useAppTranslation("applicationUpdate");
   if (eligibility !== "not-configured" && eligibility !== "unavailable") return null;
   return (
     <ExternalLink href="https://github.com/boburning/portcove/blob/main/docs/UPGRADING.md#upgrade-portcove">
-      Manual upgrade and recovery instructions
+      {t("status.manualLink")}
     </ExternalLink>
   );
 }
@@ -316,25 +448,31 @@ function StagedApplicationUpdateItem({
 }: {
   status: ApplicationUpdateStatus;
   disabled: boolean;
-  blocker?: string | undefined;
+  blocker?: RestartBlocker | undefined;
   onRestart: () => Promise<void>;
 }) {
+  const { t } = useAppTranslation("applicationUpdate");
   if (!status.staged) return null;
   const canRestart = restartIsAvailable(status);
+  const summaryValues = {
+    version: status.staged.version,
+    size: formatBytes(status.staged.bytes),
+  };
   return (
     <div className={updateStatusItemClass}>
       <strong>
-        {canRestart && !blocker ? "Update ready to install" : "Verified update downloaded"}
+        {canRestart && !blocker ? t("status.readyTitle") : t("status.downloadedTitle")}
       </strong>
+      {/* Complete sentences; a channel name is never inserted into a sentence. */}
       <p className={updateMutedCopyClass}>
-        Portcove {status.staged.version} (
-        {status.staged.channel === "preview" ? "Preview" : "Stable"},{" "}
-        {formatBytes(status.staged.bytes)}) has been downloaded and verified.
+        {status.staged.channel === "preview"
+          ? t("status.stagedSummary", { context: "preview", ...summaryValues })
+          : t("status.stagedSummary", { context: "stable", ...summaryValues })}{" "}
         {blocker
-          ? ` ${blocker}`
+          ? restartBlockerCopy(t, blocker)
           : canRestart
-            ? " Restart to update will check package ownership and other installation requirements again."
-            : ` ${installRestrictionCopy(status)}`}
+            ? t("status.restartNote")
+            : installRestrictionCopy(t, status)}
       </p>
       <ManualUpgradeLink eligibility={status.install_eligibility} />
       {canRestart && (
@@ -345,7 +483,7 @@ function StagedApplicationUpdateItem({
           disabled={disabled}
           onClick={() => void onRestart()}
         >
-          {status.apply ? "Retry restart to update" : "Restart to update"}
+          {status.apply ? t("status.retryRestart") : t("status.restart")}
         </Button>
       )}
     </div>
@@ -357,16 +495,19 @@ function ApplicationUpdateScheduleSummary({
 }: {
   schedule: ApplicationUpdateStatus["schedule"];
 }) {
+  const { t } = useAppTranslation("applicationUpdate");
   if (!schedule) return null;
   return (
     <p className={`application-update-schedule ${updateSurfaceClass} ${updateMutedCopyClass}`}>
       {schedule.last_success_unix_seconds
-        ? `Last successful check: ${formatTimestamp(schedule.last_success_unix_seconds)}.`
-        : "No successful application update check is recorded."}{" "}
+        ? t("status.lastSuccess", { time: formatTimestamp(schedule.last_success_unix_seconds) })
+        : t("status.noSuccess")}{" "}
       {schedule.consecutive_failures > 0 &&
-        `${schedule.consecutive_failures} consecutive check failure${schedule.consecutive_failures === 1 ? "" : "s"} recorded.`}{" "}
+        t("status.failures", { count: schedule.consecutive_failures })}{" "}
       {schedule.next_automatic_check_unix_seconds &&
-        `Next automatic attempt: ${formatTimestamp(schedule.next_automatic_check_unix_seconds)}.`}
+        t("status.nextAttempt", {
+          time: formatTimestamp(schedule.next_automatic_check_unix_seconds),
+        })}
     </p>
   );
 }
@@ -383,27 +524,26 @@ function ApplicationUpdateStatusPanel({
   restartBlocker,
 }: {
   status: ApplicationUpdateStatus | undefined;
-  busy: string;
-  error: string | undefined;
+  busy: StatusBusy;
+  error: UpdateMessage | undefined;
   disabled: boolean;
   onRefresh: () => Promise<void>;
   onRecover: (area: ApplicationUpdateRecoveryArea) => Promise<void>;
   onRestart: () => Promise<void>;
   restartDisabled: boolean;
-  restartBlocker?: string | undefined;
+  restartBlocker?: RestartBlocker | undefined;
 }) {
-  const applyCopy = status?.apply ? applicationUpdateApplyCopy(status) : undefined;
+  const { t } = useAppTranslation("applicationUpdate");
+  const applyCopy = status?.apply ? applicationUpdateApplyCopy(t, status) : undefined;
 
   return (
     <section className={updatePanelClass} aria-labelledby="application-status-title">
       <div className={updatePanelHeadingClass}>
         <div className="grid gap-1">
           <h3 id="application-status-title" tabIndex={-1}>
-            Update activity
+            {t("status.title")}
           </h3>
-          <p className={updateMutedCopyClass}>
-            See the download, restart request, and installer state.
-          </p>
+          <p className={updateMutedCopyClass}>{t("status.description")}</p>
         </div>
         <Button
           data-focusable
@@ -413,7 +553,7 @@ function ApplicationUpdateStatusPanel({
           disabled={disabled || Boolean(busy)}
           onClick={() => void onRefresh()}
         >
-          Refresh update status
+          {t("status.refresh")}
         </Button>
       </div>
 
@@ -421,7 +561,7 @@ function ApplicationUpdateStatusPanel({
         <>
           {!status.staged && status.install_eligibility !== "eligible" && (
             <div className={`${updateSurfaceClass} ${updateMutedCopyClass}`}>
-              <p>{installRestrictionCopy(status)}</p>
+              <p>{installRestrictionCopy(t, status)}</p>
               <ManualUpgradeLink eligibility={status.install_eligibility} />
             </div>
           )}
@@ -447,7 +587,7 @@ function ApplicationUpdateStatusPanel({
 
           {!status.staged && !status.apply && status.recovery_required.length === 0 && (
             <p className={`application-update-idle ${updateSurfaceClass} ${updateMutedCopyClass}`}>
-              No verified application update is staged.
+              {t("status.idle")}
             </p>
           )}
 
@@ -455,8 +595,8 @@ function ApplicationUpdateStatusPanel({
         </>
       )}
 
-      {busy && <p role="status">{busy}</p>}
-      {error && <p role="alert">{error}</p>}
+      {busy && <p role="status">{statusBusyCopy(t, busy)}</p>}
+      {error && <p role="alert">{updateMessageCopy(t, error)}</p>}
     </section>
   );
 }
@@ -470,7 +610,7 @@ type ApplicationUpdateOperationState = {
   active: "check" | "download" | undefined;
   phase: ApplicationUpdateCheckPhase | undefined;
   result: ApplicationUpdateCheckResult | undefined;
-  error: string | undefined;
+  error: UpdateMessage | undefined;
   check: () => Promise<void>;
   download: () => Promise<void>;
   cancel: () => Promise<void>;
@@ -529,7 +669,7 @@ function useApplicationUpdateOperation({
   const [active, setActive] = useState<"check" | "download">();
   const [phase, setPhase] = useState<ApplicationUpdateCheckPhase>();
   const [boundResult, setBoundResult] = useState<BoundUpdateResult>();
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<UpdateMessage>();
   const currentAutomaticResult =
     automaticNotice && automaticNotice.preference_revision === preferences?.revision
       ? {
@@ -591,13 +731,13 @@ function useApplicationUpdateOperation({
       );
       if (!requests.current.isCurrent(request)) return;
       if (!nextResult) {
-        setError("The request did not complete. Review Activity before trying again.");
+        setError({ kind: "requestIncomplete" });
         return;
       }
       setBoundResult({ preferenceRevision, ...nextResult });
       if (operation === "download") await onComplete();
     } catch (value) {
-      if (requests.current.isCurrent(request)) setError(errorText(value));
+      if (requests.current.isCurrent(request)) setError(failureMessage(value));
     } finally {
       running.current = false;
       if (requests.current.isCurrent(request)) {
@@ -615,11 +755,8 @@ function useApplicationUpdateOperation({
         checked.checked_channel !== checkChannel ||
         (checked.result.candidate && checked.result.candidate.channel !== checkChannel)
       )
-        throw new Error("The update check returned a different channel. Check again.");
-      if (checked.result.staged)
-        throw new Error(
-          "The one-time check returned an unexpected download result. Refresh update activity to review it.",
-        );
+        throw new ApplicationUpdateCheckError("channelMismatch");
+      if (checked.result.staged) throw new ApplicationUpdateCheckError("unexpectedStaged");
       return { value: checked.result, checkedChannel: checked.checked_channel };
     });
 
@@ -660,7 +797,7 @@ function useApplicationUpdateOperation({
     try {
       await desktopApi.cancelApplicationUpdateCheck();
     } catch (value) {
-      setError(errorText(value));
+      setError(failureMessage(value));
     }
   };
 
@@ -681,17 +818,31 @@ function useApplicationUpdateOperation({
 }
 
 function downloadSettingsBlocker(
+  t: TFunction<"applicationUpdate">,
   preferences: ApplicationUpdatePreferences | undefined,
   changed: boolean,
   channel: ApplicationUpdateChoice["channel"] | undefined,
 ) {
-  if (!preferences?.choice)
-    return "Choose and save update settings before downloading. This check does not enable automatic updates.";
-  if (changed) return "Save or discard your update settings changes before downloading.";
-  if (preferences.choice.paused) return "Resume application update activity before downloading.";
+  if (!preferences?.choice) return t("check.blockerNoChoice");
+  if (changed) return t("check.blockerChanged");
+  if (preferences.choice.paused) return t("check.blockerPaused");
   if (channel !== preferences.choice.channel)
-    return `Save ${channel === "stable" ? "Stable" : "Preview"} as your update channel before downloading this result.`;
+    return channel === "stable"
+      ? t("check.blockerChannel", { context: "stable" })
+      : t("check.blockerChannel", { context: "preview" });
   return undefined;
+}
+
+function resultSourceCopy(
+  t: TFunction<"applicationUpdate">,
+  oneTime: boolean,
+  channel: ApplicationUpdateChoice["channel"] | undefined,
+) {
+  if (oneTime)
+    return channel === "stable"
+      ? t("check.source_oneTimeStable")
+      : t("check.source_oneTimePreview");
+  return channel === "stable" ? t("check.source_savedStable") : t("check.source_savedPreview");
 }
 
 function ApplicationUpdateCheckResultItem({
@@ -703,7 +854,8 @@ function ApplicationUpdateCheckResultItem({
   downloadDisabled: boolean;
   onDownload: () => Promise<void>;
 }) {
-  const copy = applicationUpdateCheckCopy(result);
+  const { t } = useAppTranslation("applicationUpdate");
+  const copy = applicationUpdateCheckCopy(t, result);
   const candidateCanDownload =
     result.kind === "update-available" && Boolean(result.candidate) && !result.staged;
   return (
@@ -725,7 +877,7 @@ function ApplicationUpdateCheckResultItem({
           disabled={downloadDisabled}
           onClick={() => void onDownload()}
         >
-          Download and verify update
+          {t("check.download")}
         </Button>
       )}
     </div>
@@ -745,8 +897,9 @@ function ApplicationUpdateCheckPanel({
   preferences: ApplicationUpdatePreferences | undefined;
   operation: ApplicationUpdateOperationState;
 }) {
+  const { t } = useAppTranslation("applicationUpdate");
   const actionsDisabled = disabled;
-  const blocker = downloadSettingsBlocker(preferences, changed, operation.resultChannel);
+  const blocker = downloadSettingsBlocker(t, preferences, changed, operation.resultChannel);
 
   return (
     <section
@@ -757,12 +910,9 @@ function ApplicationUpdateCheckPanel({
       <div className={updatePanelHeadingClass}>
         <div className="grid gap-1">
           <h3 id="application-check-title" tabIndex={-1}>
-            Check for application updates
+            {t("check.title")}
           </h3>
-          <p className={updateMutedCopyClass}>
-            Check once without changing your update settings. This checks trusted release metadata;
-            it does not download or install Portcove.
-          </p>
+          <p className={updateMutedCopyClass}>{t("check.description")}</p>
         </div>
         {operation.busy ? (
           <Button
@@ -772,7 +922,7 @@ function ApplicationUpdateCheckPanel({
             className="shrink-0"
             onClick={() => void operation.cancel()}
           >
-            {operation.active === "download" ? "Cancel download" : "Cancel check"}
+            {operation.active === "download" ? t("check.cancelDownload") : t("check.cancelCheck")}
           </Button>
         ) : (
           <Button
@@ -783,13 +933,13 @@ function ApplicationUpdateCheckPanel({
             disabled={actionsDisabled}
             onClick={() => void operation.check()}
           >
-            Check for updates
+            {t("check.start")}
           </Button>
         )}
       </div>
-      <div role="group" aria-label="One-time update channel" className="flex flex-wrap gap-2">
+      <div role="group" aria-label={t("check.channelGroup")} className="flex flex-wrap gap-2">
         <span className="self-center text-sm text-pc-muted-foreground">
-          Channel for this check only
+          {t("check.channelOnly")}
         </span>
         {(["stable", "preview"] as const).map((channel) => (
           <Button
@@ -801,17 +951,16 @@ function ApplicationUpdateCheckPanel({
             disabled={actionsDisabled || operation.busy}
             onClick={() => operation.changeCheckChannel(channel)}
           >
-            {channel === "stable" ? "Stable" : "Preview"}
+            {channel === "stable" ? t("channel.stable") : t("channel.preview")}
           </Button>
         ))}
       </div>
       {operation.busy && operation.phase && (
-        <p role="status">{checkProgressCopy[operation.phase]}</p>
+        <p role="status">{checkProgressCopy(t, operation.phase)}</p>
       )}
       {operation.result && (
         <p className={updateMutedCopyClass}>
-          {operation.isOneTimeResult ? "One-time check" : "Saved update activity"} ·{" "}
-          {operation.resultChannel === "stable" ? "Stable" : "Preview"}
+          {resultSourceCopy(t, operation.isOneTimeResult, operation.resultChannel)}
         </p>
       )}
       {operation.result?.kind === "update-available" && blocker && (
@@ -824,7 +973,7 @@ function ApplicationUpdateCheckPanel({
           onDownload={operation.download}
         />
       )}
-      {operation.error && <p role="alert">{operation.error}</p>}
+      {operation.error && <p role="alert">{updateMessageCopy(t, operation.error)}</p>}
     </section>
   );
 }
@@ -863,13 +1012,13 @@ function useApplicationUpdateSettings({
       source: preferences,
       choice: typeof next === "function" ? next(draft) : next,
     });
-  const [actionBusy, setBusy] = useState("");
-  const busy = preferencesState?.loading ? "Loading application update settings…" : actionBusy;
-  const [statusBusy, setStatusBusy] = useState("Loading application update status…");
-  const [error, setError] = useState<string>();
+  const [actionBusy, setBusy] = useState<SettingsBusy>("");
+  const busy: SettingsBusy = preferencesState?.loading ? "loadingSettings" : actionBusy;
+  const [statusBusy, setStatusBusy] = useState<StatusBusy>("loadingStatus");
+  const [error, setError] = useState<UpdateMessage>();
   const canRecoverPreferences = isRecoverableStateError(preferencesState?.failure);
-  const [statusError, setStatusError] = useState<string>();
-  const [notice, setNotice] = useState<string>();
+  const [statusError, setStatusError] = useState<UpdateMessage>();
+  const [notice, setNotice] = useState<UpdateNotice>();
   const changed = Boolean(preferences && !choicesMatch(preferences.choice, draft));
 
   const applyPreferences = (value: ApplicationUpdatePreferences) => {
@@ -879,7 +1028,7 @@ function useApplicationUpdateSettings({
 
   const load = async () => {
     const request = requests.current.begin();
-    setBusy("Loading application update settings…");
+    setBusy("loadingSettings");
     setError(undefined);
     setNotice(undefined);
     try {
@@ -887,7 +1036,7 @@ function useApplicationUpdateSettings({
       if (value && requests.current.isCurrent(request)) setDraft(value.choice ?? recommendedChoice);
     } catch (value) {
       if (requests.current.isCurrent(request)) {
-        setError(errorText(value));
+        setError(failureMessage(value));
       }
     } finally {
       if (requests.current.isCurrent(request)) setBusy("");
@@ -896,13 +1045,13 @@ function useApplicationUpdateSettings({
 
   const loadStatus = async () => {
     const request = statusRequests.current.begin();
-    setStatusBusy("Refreshing application update status…");
+    setStatusBusy("refreshingStatus");
     setStatusError(undefined);
     try {
       const value = await desktopApi.applicationUpdateStatus();
       if (statusRequests.current.isCurrent(request)) setStatus(value);
     } catch (value) {
-      if (statusRequests.current.isCurrent(request)) setStatusError(errorText(value));
+      if (statusRequests.current.isCurrent(request)) setStatusError(failureMessage(value));
     } finally {
       if (statusRequests.current.isCurrent(request)) setStatusBusy("");
     }
@@ -934,7 +1083,7 @@ function useApplicationUpdateSettings({
         if (statusTracker.isCurrent(statusRequest)) setStatus(value);
       })
       .catch((value: unknown) => {
-        if (statusTracker.isCurrent(statusRequest)) setStatusError(errorText(value));
+        if (statusTracker.isCurrent(statusRequest)) setStatusError(failureMessage(value));
       })
       .finally(() => {
         if (statusTracker.isCurrent(statusRequest)) setStatusBusy("");
@@ -948,22 +1097,26 @@ function useApplicationUpdateSettings({
   const save = async () => {
     if (!preferences || choicesMatch(preferences.choice, draft)) return;
     const request = requests.current.begin();
-    setBusy("Saving application update settings…");
+    setBusy("savingSettings");
     setError(undefined);
     setNotice(undefined);
     try {
       const value = await desktopApi.setApplicationUpdatePreferences(preferences.revision, draft);
       if (!requests.current.isCurrent(request)) return;
       applyPreferences(value);
-      setNotice("Update settings saved. Saving these settings does not start an update.");
+      setNotice("saved");
     } catch (value) {
       if (!requests.current.isCurrent(request)) return;
-      const message = errorText(value);
+      const message = failureMessage(value);
       try {
         const current = await preferencesState?.refresh();
         if (current && requests.current.isCurrent(request)) {
           setDraft(current.choice ?? recommendedChoice);
-          setError(`${message} Current settings were refreshed; review them before saving again.`);
+          setError(
+            message.kind === "text"
+              ? { kind: "saveFailedRefreshed", error: message.text }
+              : message,
+          );
         }
       } catch {
         if (requests.current.isCurrent(request)) setError(message);
@@ -977,11 +1130,7 @@ function useApplicationUpdateSettings({
     if (preferences && !preferences.choice) return;
     const recovering = !preferences;
     const request = requests.current.begin();
-    setBusy(
-      recovering
-        ? "Resetting damaged application update settings…"
-        : "Clearing the saved application update choice…",
-    );
+    setBusy(recovering ? "resettingDamaged" : "clearingChoice");
     setError(undefined);
     setNotice(undefined);
     try {
@@ -991,13 +1140,9 @@ function useApplicationUpdateSettings({
       if (!requests.current.isCurrent(request)) return;
       if (recovering) preferencesState?.acceptRecovered(value);
       else applyPreferences(value);
-      setNotice(
-        recovering
-          ? "Damaged update settings reset. No choice is saved, and automatic application update checks remain off."
-          : "Update preferences reset. Automatic checks remain off until you save a new choice.",
-      );
+      setNotice(recovering ? "resetDamaged" : "resetPreferences");
     } catch (value) {
-      if (requests.current.isCurrent(request)) setError(errorText(value));
+      if (requests.current.isCurrent(request)) setError(failureMessage(value));
     } finally {
       if (requests.current.isCurrent(request)) setBusy("");
     }
@@ -1005,7 +1150,13 @@ function useApplicationUpdateSettings({
 
   const recover = async (area: ApplicationUpdateRecoveryArea) => {
     const request = statusRequests.current.begin();
-    setStatusBusy(`Repairing ${area} state…`);
+    setStatusBusy(
+      area === "schedule"
+        ? "repairingSchedule"
+        : area === "staging"
+          ? "repairingStaging"
+          : "repairingApply",
+    );
     setStatusError(undefined);
     setNotice(undefined);
     try {
@@ -1017,28 +1168,28 @@ function useApplicationUpdateSettings({
       );
       if (!statusRequests.current.isCurrent(request)) return;
       if (!value) {
-        setStatusError("Repair did not complete. Review Activity and refresh the current state.");
+        setStatusError({ kind: "repairIncomplete" });
         return;
       }
       setStatus(value);
       setNotice(
-        {
-          schedule: "Update-check history reset.",
-          staging: "Damaged update download deleted. Download the update again.",
-          apply: value.staged
-            ? "Pending update request cleared. The verified download remains available."
-            : "Pending update request cleared. No verified download is currently available.",
-        }[area],
+        area === "schedule"
+          ? "repairedSchedule"
+          : area === "staging"
+            ? "repairedStaging"
+            : value.staged
+              ? "repairedApplyWithDownload"
+              : "repairedApplyNoDownload",
       );
     } catch (value) {
-      if (statusRequests.current.isCurrent(request)) setStatusError(errorText(value));
+      if (statusRequests.current.isCurrent(request)) setStatusError(failureMessage(value));
     } finally {
       if (statusRequests.current.isCurrent(request)) setStatusBusy("");
     }
   };
 
   const restartToUpdate = async () => {
-    setBusy("Preparing a safe restart to update…");
+    setBusy("preparingRestart");
     setError(undefined);
     setNotice(undefined);
     try {
@@ -1053,12 +1204,12 @@ function useApplicationUpdateSettings({
       );
       if (!accepted) {
         setBusy("");
-        setError("Restart was not confirmed. Review Activity and refresh the current state.");
+        setError({ kind: "restartUnconfirmed" });
         return;
       }
-      setBusy("Restarting Portcove to apply the verified update…");
+      setBusy("restarting");
     } catch (value) {
-      setError(errorText(value));
+      setError(failureMessage(value));
       setBusy("");
       await loadStatus();
     }
@@ -1076,7 +1227,7 @@ function useApplicationUpdateSettings({
     focusAndReveal(
       settings?.querySelector<HTMLElement>(
         active === preferencesHeading
-          ? '[aria-label="Application update channel"] button:not(:disabled)'
+          ? "#application-update-channel-group button:not(:disabled)"
           : "button:not(:disabled)",
       ),
     );
@@ -1137,6 +1288,7 @@ export function ApplicationUpdateSettings(
     unavailable,
     loadStatus,
   } = useApplicationUpdateSettings(props);
+  const { t } = useAppTranslation("applicationUpdate");
   const renderPreferences = () =>
     preferences && (
       <section
@@ -1145,28 +1297,30 @@ export function ApplicationUpdateSettings(
         aria-busy={Boolean(busy)}
       >
         <h3 id="application-preferences-title" tabIndex={-1}>
-          Future update behavior
+          {t("preferences.title")}
         </h3>
         {preferences.choice && (
           <p className="m-0 text-sm text-pc-muted-foreground">
-            Saved default: {preferences.choice.channel === "preview" ? "Preview" : "Stable"}.
-            Changes below apply after saving; they do not change the check above.
+            {preferences.choice.channel === "preview"
+              ? t("preferences.savedDefault", { context: "preview" })
+              : t("preferences.savedDefault", { context: "stable" })}
           </p>
         )}
         {!preferences.choice && (
           <p className="application-update-consent rounded-pc-md border border-[var(--color-warning-border)] bg-pc-warning-subtle p-3 text-pc-warning-foreground">
-            No application update choice is saved. Automatic checks remain off until you save one.
+            {t("preferences.noChoice")}
           </p>
         )}
 
         <section className={updateChoiceClass} aria-labelledby="application-channel-label">
           <h3 id="application-channel-label" className="text-sm">
-            Default channel
+            {t("preferences.channelHeading")}
           </h3>
           <div
+            id="application-update-channel-group"
             className="segmented grid [grid-auto-columns:1fr] [grid-auto-flow:column] rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-[3px]"
             role="group"
-            aria-label="Application update channel"
+            aria-label={t("preferences.channelGroup")}
           >
             {(["preview", "stable"] as const).map((channel) => (
               <Button
@@ -1178,31 +1332,31 @@ export function ApplicationUpdateSettings(
                 disabled={unavailable}
                 onClick={() => setDraft((value) => ({ ...value, channel }))}
               >
-                {channel === "preview" ? "Preview" : "Stable"}
+                {channel === "preview" ? t("channel.preview") : t("channel.stable")}
               </Button>
             ))}
           </div>
           <p className={updateMutedCopyClass}>
             {draft.channel === "preview"
-              ? "Preview receives public test releases and later eligible final releases."
-              : "Stable waits for an eligible production release that is newer than your installed version; it never downgrades Portcove."}
+              ? t("preferences.channelDescription", { context: "preview" })
+              : t("preferences.channelDescription", { context: "stable" })}
           </p>
         </section>
 
         <section className={updateChoiceClass} aria-labelledby="application-mode-label">
           <h3 id="application-mode-label" className="text-sm">
-            Update mode
+            {t("preferences.modeHeading")}
           </h3>
           <div
             className="segmented grid [grid-auto-columns:1fr] [grid-auto-flow:column] rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-[3px]"
             role="group"
-            aria-label="Application update mode"
+            aria-label={t("preferences.modeGroup")}
           >
             {(
               [
-                ["automatic", "Automatic"],
-                ["notify-only", "Notify only"],
-                ["manual", "Manual"],
+                ["automatic", t("preferences.mode_automatic")],
+                ["notify-only", t("preferences.mode_notifyOnly")],
+                ["manual", t("preferences.mode_manual")],
               ] as const
             ).map(([mode, label]) => (
               <Button
@@ -1216,17 +1370,19 @@ export function ApplicationUpdateSettings(
               >
                 {label}
                 {mode === "automatic" && (
-                  <small className="text-[length:var(--text-2xs)] normal-case">Recommended</small>
+                  <small className="text-[length:var(--text-2xs)] normal-case">
+                    {t("preferences.recommended")}
+                  </small>
                 )}
               </Button>
             ))}
           </div>
           <p className={updateMutedCopyClass}>
             {draft.mode === "automatic"
-              ? "Allows Portcove to check and stage verified updates without asking for each release. Applying still waits for a safe exit or an explicit Restart to update action."
+              ? t("preferences.modeDescription_automatic")
               : draft.mode === "notify-only"
-                ? "Checks for eligible updates and tells you when one is available. Downloading and applying require explicit actions."
-                : "Does not check automatically. Use Check for updates when you want to look for a release."}
+                ? t("preferences.modeDescription_notifyOnly")
+                : t("preferences.modeDescription_manual")}
           </p>
         </section>
 
@@ -1249,15 +1405,15 @@ export function ApplicationUpdateSettings(
               id="pause-application-updates-label"
               className="cursor-pointer font-bold text-pc-foreground"
             >
-              Pause application update activity
+              {t("preferences.pauseLabel")}
             </span>
             <small id="pause-application-updates-description" className={updateMutedCopyClass}>
-              Stop automatic checks and all downloads until resumed. Manual checks remain available.
+              {t("preferences.pauseDescription")}
             </small>
           </span>
         </label>
 
-        <p className={updateDisclosureClass}>Saving these settings does not start an update.</p>
+        <p className={updateDisclosureClass}>{t("preferences.saveDoesNotStart")}</p>
         <div className="flex flex-wrap gap-2">
           <Button
             data-focusable
@@ -1266,7 +1422,7 @@ export function ApplicationUpdateSettings(
             disabled={unavailable || !changed}
             onClick={() => void save()}
           >
-            Save application update settings
+            {t("preferences.save")}
           </Button>
           <Button
             data-focusable
@@ -1275,7 +1431,7 @@ export function ApplicationUpdateSettings(
             disabled={unavailable || !changed}
             onClick={() => setDraft(preferences.choice ?? recommendedChoice)}
           >
-            Discard changes
+            {t("preferences.discard")}
           </Button>
           <Button
             data-focusable
@@ -1284,13 +1440,10 @@ export function ApplicationUpdateSettings(
             disabled={unavailable || !preferences.choice}
             onClick={() => void reset()}
           >
-            Reset update preferences
+            {t("preferences.reset")}
           </Button>
         </div>
-        <p className={updateDisclosureClass}>
-          Reset update preferences clears your saved choice and turns off automatic checks until you
-          choose again.
-        </p>
+        <p className={updateDisclosureClass}>{t("preferences.resetDisclosure")}</p>
       </section>
     );
   const restartAvailability = applicationRestartAvailability(
@@ -1309,11 +1462,16 @@ export function ApplicationUpdateSettings(
       <div className="application-update-heading flex items-start justify-between gap-4 max-[65rem]:flex-col">
         <div>
           <h2 id="application-update-settings-title" ref={headingRef} tabIndex={-1}>
-            Portcove updates
+            {t("settings.title")}
           </h2>
         </div>
         <p className="rounded-pc-md bg-[var(--color-bg-subtle)] px-3 py-2 text-xs whitespace-nowrap text-[var(--color-text-secondary)] max-[65rem]:whitespace-normal">
-          Current version <strong>{currentVersion}</strong>
+          <Trans
+            t={t}
+            i18nKey="settings.currentVersion"
+            values={{ version: currentVersion }}
+            components={{ strong: <strong /> }}
+          />
         </p>
       </div>
 
@@ -1334,7 +1492,7 @@ export function ApplicationUpdateSettings(
             disabled={disabled || !preferencesState}
             onClick={() => void load()}
           >
-            Retry loading settings
+            {t("settings.retryLoad")}
           </Button>
           {canRecoverPreferences && (
             <Button
@@ -1344,7 +1502,7 @@ export function ApplicationUpdateSettings(
               disabled={disabled}
               onClick={() => void reset()}
             >
-              Reset update settings
+              {t("settings.resetDamaged")}
             </Button>
           )}
         </div>
@@ -1363,10 +1521,12 @@ export function ApplicationUpdateSettings(
         {...restartAvailability}
       />
 
-      {busy && <p role="status">{busy}</p>}
-      {notice && <p role="status">{notice}</p>}
+      {busy && <p role="status">{settingsBusyCopy(t, busy)}</p>}
+      {notice && <p role="status">{noticeCopy(t, notice)}</p>}
       {(error || preferencesState?.failure !== undefined) && (
-        <p role="alert">{error ?? errorText(preferencesState?.failure)}</p>
+        <p role="alert">
+          {error ? updateMessageCopy(t, error) : errorText(preferencesState?.failure)}
+        </p>
       )}
     </SettingsRow>
   );
@@ -1382,9 +1542,9 @@ function applicationRestartAvailability(
   return {
     restartDisabled: disabled || busy || operationBusy || changed || !preferences?.choice,
     restartBlocker: !preferences?.choice
-      ? "Save your update settings before restarting to update."
+      ? ("noChoice" as const)
       : changed
-        ? "Save or discard your changes before restarting to update."
+        ? ("changed" as const)
         : undefined,
   };
 }

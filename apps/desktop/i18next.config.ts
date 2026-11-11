@@ -11,6 +11,7 @@ export default defineConfig({
       "src/ErrorBoundary.tsx",
       "src/InterfaceSize.tsx",
       "src/features/application-update/ApplicationUpdateNotices.tsx",
+      "src/features/application-update/ApplicationUpdates.tsx",
     ],
     ignore: ["src/**/*.test.{ts,tsx}", "src/**/*.generated.d.ts", "src/design-compatibility/**"],
     output: "src/locales/{{language}}/{{namespace}}.json",
@@ -30,6 +31,7 @@ export default defineConfig({
     ignoredAttributes: [
       "aria-live",
       "aria-atomic",
+      "aria-describedby",
       "aria-labelledby",
       "data-slot",
       "intent",

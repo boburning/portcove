@@ -79,23 +79,24 @@ locale names and fallback plumbing, so it receives extraction and key checks onl
 Migrate a complete surface before listing it, and keep English output identical
 unless the copy change is intended and reviewed.
 
-| Surface                    | Files                                                      | Namespace           |
-| -------------------------- | ---------------------------------------------------------- | ------------------- |
-| Language settings          | `components/LanguageSettings.tsx`, `localization.tsx`      | `settings`          |
-| Startup render recovery    | `ErrorBoundary.tsx`                                        | `shell`             |
-| Interface size             | `InterfaceSize.tsx`                                        | `shell`             |
-| Application-update notices | `features/application-update/ApplicationUpdateNotices.tsx` | `applicationUpdate` |
+| Surface                     | Files                                                      | Namespace           |
+| --------------------------- | ---------------------------------------------------------- | ------------------- |
+| Language settings           | `components/LanguageSettings.tsx`, `localization.tsx`      | `settings`          |
+| Startup render recovery     | `ErrorBoundary.tsx`                                        | `shell`             |
+| Interface size              | `InterfaceSize.tsx`                                        | `shell`             |
+| Application-update notices  | `features/application-update/ApplicationUpdateNotices.tsx` | `applicationUpdate` |
+| Application-update settings | `features/application-update/ApplicationUpdates.tsx`       | `applicationUpdate` |
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-11 it
-reported 1,823 findings in 86 of 208 analyzed files, measured after this
+reported 1,764 findings in 85 of 208 analyzed files, measured after this
 slice and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
 and are migrated with the surface that renders them. The count is a work
 inventory, not a coverage claim.
 
 Narrow technical-literal exclusions: the lint ignores the `aria-live`,
-`aria-atomic`, `aria-labelledby`, `data-slot`, `intent`, `size` and `variant`
+`aria-atomic`, `aria-describedby`, `aria-labelledby`, `data-slot`, `intent`, `size` and `variant`
 attributes, which carry design-system or ARIA reference values, never player copy.
 Thrown `Error` messages that are caught and never displayed, stable state codes,
 keyboard key names and product names remain literals.
@@ -106,6 +107,13 @@ outside the provider, such as render recovery, shows complete English instead of
 raw keys. The global instance is the only runtime i18next instance; a test or
 fixture that mounts a separate instance does not reach these surfaces. Domain or controller state stores stable codes (for example the interface
 size `unconfirmed` error), never translated text.
+
+Component state stores message identities (busy, notice and failure kinds),
+not English, so a live language change re-renders current copy. A Core or
+upstream diagnostic stays verbatim as `text`. App-owned check failures throw a
+typed error whose stable code drives presentation; its message serves
+diagnostics only. Focus and test selectors use stable ids, never translated
+`aria-label` text.
 
 Channel-dependent messages use static i18next contexts (`readyBody_preview`,
 `readyBody_stable`) at explicit call sites. A dynamic context would make the
