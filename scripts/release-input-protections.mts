@@ -3,6 +3,13 @@ import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  activeRefRuleset,
+  hasControllerTagProtection,
+  hasOnlyActor,
+  hasOnlyRules,
+  releaseOwner,
+} from "./release-ref-rulesets.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import {
   inspectReleaseControlPhase,
@@ -471,37 +478,12 @@ export function requireCatalogMaintenancePolicy(
     throw new Error("catalog environment protection inventory unavailable");
   }
   const tag = controllerRef.slice("refs/tags/".length);
-  // Shared environments can retain other exact appointments. They must remain
-  // immutable so a disjoint selector cannot admit newly substituted source.
-  const immutableTags = new Set<string>();
+  // Shared environments can retain other exact appointments. A ruleset
+  // proves ref protection independently of the selectors below.
   const rulesets: unknown = raw.inventory.rulesets;
   if (!Array.isArray(rulesets)) throw new Error("catalog tag protection inventory unavailable");
-  for (const rule of rulesets as unknown[]) {
-    if (
-      !isRecord(rule) ||
-      rule.target !== "tag" ||
-      rule.enforcement !== "active" ||
-      !Array.isArray(rule.bypass_actors) ||
-      rule.bypass_actors.length !== 0 ||
-      !Array.isArray(rule.rules) ||
-      !isRecord(rule.conditions) ||
-      !isRecord(rule.conditions.ref_name)
-    )
-      continue;
-    const { include, exclude } = rule.conditions.ref_name;
-    const rules: unknown[] = rule.rules;
-    if (
-      Array.isArray(include) &&
-      include.length === 1 &&
-      typeof include[0] === "string" &&
-      Array.isArray(exclude) &&
-      exclude.length === 0 &&
-      ["creation", "update", "deletion"].every((type) =>
-        rules.some((entry) => isRecord(entry) && entry.type === type),
-      )
-    )
-      immutableTags.add(include[0]);
-  }
+  if (!hasControllerTagProtection(rulesets, controllerRef))
+    throw new Error("catalog controller tag lacks immutable protection");
   const identities = new Set<number>();
   for (const [index, name] of catalogProtectionEnvironments.entries()) {
     const row: unknown = raw.inventory.environments[index];
@@ -570,7 +552,7 @@ export function requireCatalogMaintenancePolicy(
           (selector.name === "portcove-upstream-rehearsal-20261104r3" && name === "github-pages");
         if (!retained)
           throw new Error("catalog environment additional tag is outside retained appointments");
-        if (!immutableTags.has(`refs/tags/${selector.name}`))
+        if (!hasControllerTagProtection(rulesets, `refs/tags/${selector.name}`))
           throw new Error("catalog environment additional tag lacks exact immutable protection");
       }
     }
@@ -669,55 +651,38 @@ function requireInputPolicy(
     if (rows.length !== 1 || !isRecord(row) || !Array.isArray(row.effective_rules))
       throw new Error("protection branch coverage incomplete");
     const effective = row.effective_rules;
-    const applicable = rulesets.filter((rule) => {
-      if (
-        !isRecord(rule) ||
-        rule.enforcement !== "active" ||
-        !isRecord(rule.conditions) ||
-        !isRecord(rule.conditions.ref_name)
-      )
-        return false;
-      const conditions = rule.conditions.ref_name;
-      // Deliberately refuse unimplemented glob/exclusion semantics. The selected
-      // proposal uses exact-ref rulesets; no glob evaluator or new trust system.
-      return (
-        Array.isArray(conditions.include) &&
-        conditions.include.length === 1 &&
-        conditions.include[0] === `refs/heads/${branch}` &&
-        Array.isArray(conditions.exclude) &&
-        conditions.exclude.length === 0
-      );
+    const applicable = rulesets.flatMap((rule: unknown) => {
+      const active = activeRefRuleset(rule, "branch", `refs/heads/${branch}`);
+      return active ? [active] : [];
     });
-    const has = (type: string, writer: boolean) =>
-      applicable.some((rule) => {
-        if (
-          !isRecord(rule) ||
-          !Array.isArray(rule.rules) ||
-          !Array.isArray(rule.bypass_actors) ||
-          !effective.some(
-            (value) => isRecord(value) && value.type === type && value.ruleset_id === rule.id,
-          ) ||
-          !rule.rules.some((value) => isRecord(value) && value.type === type)
-        )
-          return false;
-        if (!writer) return rule.bypass_actors.length === 0;
-        const actor: unknown = rule.bypass_actors[0];
-        return (
-          rule.bypass_actors.length === 1 &&
-          isRecord(actor) &&
-          actor.actor_type === (branch === "portcove-release-pause" ? "User" : "Integration") &&
-          actor.actor_id ===
-            (branch === journalBranch
-              ? journal!.writer_app_id
-              : branch === "portcove-release-inputs"
-                ? writerAppId
-                : 43177418) &&
-          actor.bypass_mode === "always"
-        );
-      });
+    const isEffective = (ruleId: unknown, type: string) =>
+      Number.isSafeInteger(ruleId) &&
+      effective.some(
+        (value) => isRecord(value) && value.type === type && value.ruleset_id === ruleId,
+      );
+    const writer =
+      branch === "portcove-release-pause"
+        ? releaseOwner
+        : {
+            actor_type: "Integration",
+            actor_id: branch === journalBranch ? journal!.writer_app_id : writerAppId,
+            bypass_mode: "always",
+          };
     if (
-      !has("update", true) ||
-      !["creation", "deletion", "non_fast_forward"].every((type) => has(type, false))
+      !applicable.some(
+        ({ id, rules, actors }) =>
+          hasOnlyRules(rules, ["update"]) &&
+          hasOnlyActor(actors, writer) &&
+          isEffective(id, "update"),
+      ) ||
+      !["creation", "deletion", "non_fast_forward"].every((type) =>
+        applicable.some(
+          ({ id, rules, actors }) =>
+            actors.length === 0 &&
+            rules.some((rule) => isRecord(rule) && rule.type === type) &&
+            isEffective(id, type),
+        ),
+      )
     )
       throw new Error("exact writer or immutable ref protection is unproven");
   }
