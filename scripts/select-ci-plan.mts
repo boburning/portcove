@@ -89,6 +89,31 @@ interface CiDiscoveryOptions {
 }
 type CiGitRunner = (args: string[], options?: ExecFileSyncOptions) => string | Buffer;
 
+function testedPullRequestTarget(
+  eventBase: string,
+  head: string,
+  checkout: string,
+  runGit: CiGitRunner,
+): string {
+  const read = (args: string[]) => String(runGit(args, { encoding: "utf8" })).trim();
+  const [commit, target, source, ...extra] = read([
+    "rev-list",
+    "--parents",
+    "-n",
+    "1",
+    checkout,
+  ]).split(/\s+/u);
+  if (commit !== checkout || source !== head || extra.length !== 0)
+    throw new Error("PR test merge does not bind the checkout and exact source parents");
+  const testedTarget = checkedSha(target, "tested target SHA");
+  if (testedTarget !== eventBase) {
+    const sharedTarget = read(["merge-base", "--all", eventBase, testedTarget]);
+    if (sharedTarget !== eventBase && sharedTarget !== testedTarget)
+      throw new Error("PR test merge target is outside the event base ancestry");
+  }
+  return testedTarget;
+}
+
 export function discoverCiPlan(
   {
     eventName = "",
@@ -146,8 +171,10 @@ export function discoverCiPlan(
   try {
     if (eventName === "push" && (!baseSha || /^0{40}$/u.test(baseSha)))
       return buildValidationPlan({ changes: [], eventName, checkout });
-    const base = checkedSha(baseSha, "base SHA");
+    const eventBase = checkedSha(baseSha, "base SHA");
     const head = checkedSha(headSha, "head SHA");
+    const testMerge = eventName === "pull_request" && checkout !== head;
+    const base = testMerge ? testedPullRequestTarget(eventBase, head, checkout, runGit) : eventBase;
     if (eventName === "push") {
       // A missing historical base uses the whole baseline. A missing current
       // head, unavailable Git, or failed/truncated diff still blocks discovery.
@@ -167,10 +194,12 @@ export function discoverCiPlan(
     const mergeBase = checkedSha(
       eventName === "push"
         ? base
-        : String(runGit(["merge-base", base, head], { encoding: "utf8" })).trim(),
+        : String(runGit(["merge-base", "--all", base, head], { encoding: "utf8" })).trim(),
       "merge base",
     );
-    const raw = runGit(["diff", "--raw", "-z", "--find-renames", mergeBase, head], {
+    const comparisonBase = testMerge ? base : mergeBase;
+    const comparisonHead = testMerge ? checkout : head;
+    const raw = runGit(["diff", "--raw", "-z", "--find-renames", comparisonBase, comparisonHead], {
       encoding: "buffer",
       maxBuffer: 16 * 1024 * 1024,
     });
@@ -178,14 +207,14 @@ export function discoverCiPlan(
       parseRawDiff(raw),
       (file) =>
         decodeGuideCopyBlob(
-          runGit(["show", `${mergeBase}:${file}`], {
+          runGit(["show", `${comparisonBase}:${file}`], {
             encoding: "buffer",
             maxBuffer: catalogGuideCopyMaxBytes,
           }),
         ),
       (file) =>
         decodeGuideCopyBlob(
-          runGit(["show", `${head}:${file}`], {
+          runGit(["show", `${comparisonHead}:${file}`], {
             encoding: "buffer",
             maxBuffer: catalogGuideCopyMaxBytes,
           }),
@@ -288,6 +317,12 @@ export async function writeGithubOutputs(
 }
 
 async function main() {
+  if (
+    process.env.GITHUB_EVENT_NAME === "pull_request" &&
+    execFileSync("git", ["rev-parse", "HEAD"], { cwd: projectRoot, encoding: "utf8" }).trim() !==
+      process.env.GITHUB_SHA
+  )
+    throw new Error("Checked-out HEAD differs from the workflow checkout identity");
   const plan = discoverCiPlan({
     eventName: process.env.GITHUB_EVENT_NAME,
     baseSha: process.env.PORTCOVE_BASE_SHA,
