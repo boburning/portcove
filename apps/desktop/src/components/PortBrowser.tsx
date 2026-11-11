@@ -356,6 +356,11 @@ function usePortBrowser({
     view === "catalog",
     catalogUniverse ?? ports,
   );
+  const activeQuickView = activeLibraryQuickView({
+    favoritesOnly: favorites?.only === true,
+    readiness: libraryReadiness,
+    filter,
+  });
   const quickViewCounts = libraryQuickViewCounts({
     base: composedLibrary ? candidates : undefined,
     filter,
@@ -446,6 +451,7 @@ function usePortBrowser({
     resultsUnavailable,
     unresolvedFilter,
     favoriteCount,
+    activeQuickView,
     quickViewCounts,
     visiblePorts,
     resultCount,
@@ -1660,11 +1666,7 @@ function BrowserQuickViews({
 }) {
   const countId = useId();
   if (!model.composedLibrary || model.firstUseEmpty) return null;
-  const active = activeLibraryQuickView({
-    favoritesOnly: favorites?.only === true,
-    readiness: model.libraryReadiness,
-    filter: model.filter,
-  });
+  const active = model.activeQuickView;
   const counts = model.quickViewCounts;
   const select = (view: LibraryQuickView) => {
     model.setLibraryReadiness?.(view === "attention" ? "setup" : "all");
@@ -1980,7 +1982,7 @@ function BrowserCollectionTools({
           summary={summary}
           gameFileQuery={model.gameFileQuery}
           view={model.view === "library" ? "library" : "catalog"}
-          quickViewUpdates={model.composedLibrary}
+          quickViewUpdates={model.composedLibrary && model.activeQuickView === "updates"}
           candidates={model.declaredCandidates}
           context={model.queryContext}
           filter={model.filter}

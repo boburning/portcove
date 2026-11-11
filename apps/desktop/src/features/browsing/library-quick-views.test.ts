@@ -35,6 +35,9 @@ describe("Library quick views", () => {
     expect(
       activeLibraryQuickView({ favoritesOnly: false, readiness: "ready", filter: "all" }),
     ).toBeUndefined();
+    expect(
+      activeLibraryQuickView({ favoritesOnly: false, readiness: "ready", filter: updates }),
+    ).toBeUndefined();
   });
 
   it("keeps custom update filters while switching away from the Updates view", () => {

@@ -44,9 +44,10 @@ export function activeLibraryQuickView({
     readiness === "setup" && ("attention" as const),
     updates && ("updates" as const),
   ].filter((view): view is Exclude<LibraryQuickView, "all"> => Boolean(view));
+  // Readiness values other than the attention view (such as Ready) are filters.
+  if (readiness !== "all" && readiness !== "setup") return undefined;
   if (active.length > 1) return undefined;
-  if (active.length === 1) return active[0];
-  return readiness === "all" ? "all" : undefined;
+  return active[0] ?? "all";
 }
 
 export type QuickViewCount = number | "unavailable";
