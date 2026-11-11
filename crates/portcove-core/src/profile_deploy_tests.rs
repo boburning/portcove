@@ -559,27 +559,137 @@ fn other_differences_are_reported_and_rewritten_before_launch_without_a_revision
     install(&w, &w.default, "b.o2r", 1).unwrap();
     install(&w, &w.default, "a.o2r", 2).unwrap();
     // A disable in the game's menu would not survive its next start anyway.
+    // `mine` is the player's own entry and is neither reported nor moved.
     fs::write(
         user(&w).join("starship.cfg.json"),
-        br#"{"CVars":{"gSettings":{"EnabledMods":"b|ghost"}}}"#,
+        br#"{"CVars":{"gSettings":{"EnabledMods":"mine|b"}}}"#,
     )
     .unwrap();
     assert_eq!(
         native_status(&w),
         NativeModListStatus::Differs {
             missing: vec!["a".into()],
-            unexpected: vec!["ghost".into()],
+            unexpected: Vec::new(),
         }
     );
     w.service
         .prepare_native_mod_list_locked("starship")
         .unwrap();
-    assert_eq!(native_list(&w).as_deref(), Some("b|a"));
+    assert_eq!(native_list(&w).as_deref(), Some("mine|b|a"));
     assert_eq!(revision(&w, &w.default), 3, "no revision was created");
     assert!(
         restore_pending(&user(&w)),
         "the build copy is refreshed at launch"
     );
+}
+
+#[test]
+fn the_players_own_list_entries_keep_their_positions() {
+    let w = world();
+    install(&w, &w.default, "hd.o2r", 1).unwrap();
+    install(&w, &w.default, "sfx.o2r", 2).unwrap();
+    // The player's own mods surround the managed ones in their chosen order.
+    fs::write(
+        user(&w).join("starship.cfg.json"),
+        br#"{"CVars":{"gSettings":{"EnabledMods":"zz-mine|hd|aa-mine|sfx"}}}"#,
+    )
+    .unwrap();
+    assert_eq!(native_status(&w), NativeModListStatus::InSync);
+    w.service
+        .prepare_native_mod_list_locked("starship")
+        .unwrap();
+    assert_eq!(native_list(&w).as_deref(), Some("zz-mine|hd|aa-mine|sfx"));
+    // Disabling a managed mod only removes its own entry.
+    w.service
+        .set_mod_package_enabled("starship", &w.default, "hd.o2r", false, 3)
+        .unwrap();
+    assert_eq!(native_list(&w).as_deref(), Some("zz-mine|sfx|aa-mine"));
+}
+
+#[test]
+fn a_revision_the_game_cannot_load_unambiguously_is_never_recorded_or_switched_to() {
+    let w = world();
+    install(&w, &w.default, "a.o2r", 1).unwrap();
+    let connection = w.service.library().connection().unwrap();
+    let current = profile::current_revision(&connection, "starship", &w.default).unwrap();
+    let mut colliding = current.packages[0].clone();
+    colliding.native_id = "A.otr".into();
+    let mut packages = current.packages.clone();
+    packages.push(colliding);
+    let refused = w
+        .service
+        .create_profile_revision(
+            "starship",
+            &w.default,
+            &ProfileRevisionRequest {
+                expected_revision: 2,
+                packages: Some(packages.clone()),
+                ..Default::default()
+            },
+        )
+        .unwrap_err();
+    assert_eq!(refused.code, crate::ErrorCode::Conflict);
+    assert_eq!(revision(&w, &w.default), 2);
+
+    // A legacy or imported profile already holding such a revision: switching to
+    // it refuses before any data is parked.
+    let other = w
+        .service
+        .copy_profile("starship", &w.default, "Legacy")
+        .unwrap();
+    let mut legacy = profile::current_revision(&connection, "starship", &other.id).unwrap();
+    legacy.revision = 2;
+    legacy.parent_revision = Some(1);
+    legacy.packages = packages;
+    profile::seal(&mut legacy).unwrap();
+    profile::write_revision(&connection, &legacy).unwrap();
+    let mut record = w
+        .service
+        .profile_inventory("starship")
+        .unwrap()
+        .profiles
+        .into_iter()
+        .find(|view| view.profile.id == other.id)
+        .unwrap()
+        .profile;
+    record.current_revision = 2;
+    profile::write_profile(&connection, &record).unwrap();
+    fs::create_dir_all(user(&w).join("saves")).unwrap();
+    fs::write(user(&w).join("saves/file1.sav"), b"progress").unwrap();
+    assert!(w.service.activate_profile("starship", &other.id).is_err());
+    assert!(!Layout::for_user(&user(&w)).journal().exists());
+    assert_eq!(
+        fs::read(user(&w).join("saves/file1.sav")).unwrap(),
+        b"progress"
+    );
+    // Switching among valid profiles still works.
+    let clean = w
+        .service
+        .copy_profile("starship", &w.default, "Clean")
+        .unwrap();
+    w.service.activate_profile("starship", &clean.id).unwrap();
+}
+
+#[test]
+fn a_menu_reorder_is_kept_before_switching_away() {
+    let w = world();
+    install(&w, &w.default, "b.o2r", 1).unwrap();
+    install(&w, &w.default, "a.o2r", 2).unwrap();
+    let clean = w
+        .service
+        .copy_profile("starship", &w.default, "Clean")
+        .unwrap();
+    fs::write(
+        user(&w).join("starship.cfg.json"),
+        br#"{"CVars":{"gSettings":{"EnabledMods":"a|b"}}}"#,
+    )
+    .unwrap();
+    w.service.activate_profile("starship", &clean.id).unwrap();
+    w.service.activate_profile("starship", &w.default).unwrap();
+    assert_eq!(native_list(&w).as_deref(), Some("a|b"));
+    let connection = w.service.library().connection().unwrap();
+    let adopted = profile::current_revision(&connection, "starship", &w.default).unwrap();
+    assert_eq!(adopted.orderings[0].native_ids, ["a.o2r", "b.o2r"]);
 }
 
 #[test]

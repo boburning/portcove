@@ -320,6 +320,8 @@ impl PortcoveService {
             created_at: Library::now(),
             digest: String::new(),
         };
+        // A revision the game could not load unambiguously is never recorded.
+        crate::profile_deploy::require_projectable(port_id, &next)?;
         seal(&mut next)?;
         let mut connection = self.library.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;

@@ -25151,7 +25151,7 @@
             "type": "object"
           },
           {
-            "description": "The game's list names exactly the enabled packages in the revision's order.",
+            "description": "The list names the enabled packages in the revision's order. Entries for\nthe player's own files are not compared.",
             "properties": {
               "state": {
                 "const": "in-sync",
@@ -25177,7 +25177,7 @@
             "type": "object"
           },
           {
-            "description": "The same mods in a different order, set in the game's menu. Portcove keeps\nit as the profile's next revision at the next profile change or launch.",
+            "description": "The same mods in a different order, set in the game's menu. Portcove keeps\nit as the profile's next revision when supervised play ends, or at the next\nprofile change or launch.",
             "properties": {
               "native_order": {
                 "items": {
@@ -25197,7 +25197,7 @@
             "type": "object"
           },
           {
-            "description": "The list differs in which mods it names (for example a mod disabled in the\ngame's menu, which the game re-enables at its next start). Portcove\nrewrites the list from the revision before the next launch.",
+            "description": "The list differs in which of the profile's mods it names (for example a\nmod disabled in the game's menu, which the game re-enables at its next\nstart). Portcove rewrites those entries before the next launch.",
             "properties": {
               "missing": {
                 "items": {

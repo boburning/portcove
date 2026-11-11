@@ -6010,7 +6010,16 @@ impl PortcoveService {
         let port = catalog.port(port_id)?;
         let collected = self.collect_user_data_from(port, &install_root)?;
         // A reorder made in the game's mod menu becomes the profile's next revision.
-        self.adopt_native_mod_order_locked(port_id)?;
+        // Best effort: the data is already collected, so a failure here must not
+        // leave the session unfinished. The reorder stays reported and is adopted
+        // again before the next profile change or launch.
+        if let Err(error) = self.adopt_native_mod_order_locked(port_id) {
+            tracing::warn!(
+                port_id,
+                error = %error.message,
+                "the game's mod order could not be recorded after play"
+            );
+        }
         Ok(collected)
     }
 

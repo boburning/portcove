@@ -249,21 +249,30 @@ fn deploy(layout: &Layout, from: Option<&ProfileRevision>, to: &ProfileRevision)
     Ok(())
 }
 
-/// The loader keys mods by file name without extension; two enabled files with
-/// the same key would load unpredictably, so deployment refuses them.
-fn require_distinct_native_names(layout: &Layout, revision: &ProfileRevision) -> Result<()> {
-    if native_mod_list::contract(&layout.port_id()).is_none() {
+/// Refuses a revision this game could not load unambiguously: two enabled
+/// packages with the same loader name, or a name its list cannot carry. Checked
+/// when a revision is created and before any change starts, so nothing is parked,
+/// marked or deployed for a revision that would fail part way.
+pub(crate) fn require_projectable(port_id: &str, revision: &ProfileRevision) -> Result<()> {
+    if native_mod_list::contract(port_id).is_none() {
         return Ok(());
+    }
+    for package in enabled(revision) {
+        native_mod_list::require_listable(&package.native_id)?;
     }
     if let Some((first, second)) = native_mod_list::identity_collision(
         enabled(revision).map(|package| package.native_id.as_str()),
     ) {
-        return Err(PortcoveError::verification(
+        return Err(PortcoveError::conflict(
             "two enabled packages would load as the same mod; nothing was changed",
         )
         .detail("packages", format!("{first}, {second}")));
     }
     Ok(())
+}
+
+fn require_distinct_native_names(layout: &Layout, revision: &ProfileRevision) -> Result<()> {
+    require_projectable(&layout.port_id(), revision)
 }
 
 /// The revision's enabled packages as the loader names them, in the
@@ -296,6 +305,36 @@ pub(crate) fn native_projection(revision: &ProfileRevision) -> Vec<String> {
         .collect()
 }
 
+/// Loader names of every package the revision owns, enabled or not. Other list
+/// entries belong to the player (their own files in `mods`) and are never moved.
+fn managed_names(revision: &ProfileRevision) -> BTreeSet<String> {
+    revision
+        .packages
+        .iter()
+        .map(|package| native_mod_list::native_name(&package.native_id).to_owned())
+        .collect()
+}
+
+/// The game's list with only the revision's own entries replaced: managed slots
+/// take the revision's enabled packages in order, extra ones are appended, and
+/// every entry the player owns keeps its position.
+fn merged_list(existing: &[String], revision: &ProfileRevision) -> Vec<String> {
+    let managed = managed_names(revision);
+    let mut wanted = native_projection(revision).into_iter();
+    let mut merged = Vec::new();
+    for entry in existing {
+        if managed.contains(entry) {
+            if let Some(next) = wanted.next() {
+                merged.push(next);
+            }
+        } else {
+            merged.push(entry.clone());
+        }
+    }
+    merged.extend(wanted);
+    merged
+}
+
 /// How the game's own mod list relates to the selected revision.
 #[derive(
     Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
@@ -305,16 +344,18 @@ pub enum NativeModListStatus {
     /// This game has no reviewed native mod list.
     #[default]
     NotApplicable,
-    /// The game's list names exactly the enabled packages in the revision's order.
+    /// The list names the enabled packages in the revision's order. Entries for
+    /// the player's own files are not compared.
     InSync,
     /// No list yet; Portcove writes it before the next launch.
     NotWritten,
     /// The same mods in a different order, set in the game's menu. Portcove keeps
-    /// it as the profile's next revision at the next profile change or launch.
+    /// it as the profile's next revision when supervised play ends, or at the next
+    /// profile change or launch.
     Reordered { native_order: Vec<String> },
-    /// The list differs in which mods it names (for example a mod disabled in the
-    /// game's menu, which the game re-enables at its next start). Portcove
-    /// rewrites the list from the revision before the next launch.
+    /// The list differs in which of the profile's mods it names (for example a
+    /// mod disabled in the game's menu, which the game re-enables at its next
+    /// start). Portcove rewrites those entries before the next launch.
     Differs {
         missing: Vec<String>,
         unexpected: Vec<String>,
@@ -328,44 +369,61 @@ fn native_status(layout: &Layout, revision: &ProfileRevision) -> NativeModListSt
         return NativeModListStatus::NotApplicable;
     };
     let expected = native_projection(revision);
+    let managed = managed_names(revision);
     match native_mod_list::read(&layout.user, &contract) {
         NativeList::Absent | NativeList::Unlisted => NativeModListStatus::NotWritten,
         NativeList::Unreadable(reason) => NativeModListStatus::Unreadable { reason },
-        NativeList::Listed(names) if names == expected => NativeModListStatus::InSync,
         NativeList::Listed(names) => {
+            let listed = names
+                .into_iter()
+                .filter(|name| managed.contains(name))
+                .collect::<Vec<_>>();
+            if listed == expected {
+                return NativeModListStatus::InSync;
+            }
+            let mut sorted_listed = listed.clone();
+            sorted_listed.sort();
+            let mut sorted_expected = expected.clone();
+            sorted_expected.sort();
+            if sorted_listed == sorted_expected {
+                return NativeModListStatus::Reordered {
+                    native_order: listed,
+                };
+            }
             let wanted = expected.iter().collect::<BTreeSet<_>>();
-            let found = names.iter().collect::<BTreeSet<_>>();
-            if wanted == found && names.len() == expected.len() {
-                NativeModListStatus::Reordered {
-                    native_order: names,
-                }
-            } else {
-                NativeModListStatus::Differs {
-                    missing: wanted
-                        .difference(&found)
-                        .map(|name| (*name).clone())
-                        .collect(),
-                    unexpected: found
-                        .difference(&wanted)
-                        .map(|name| (*name).clone())
-                        .collect(),
-                }
+            let found = listed.iter().collect::<BTreeSet<_>>();
+            NativeModListStatus::Differs {
+                missing: wanted
+                    .difference(&found)
+                    .map(|name| (*name).clone())
+                    .collect(),
+                unexpected: found
+                    .difference(&wanted)
+                    .map(|name| (*name).clone())
+                    .collect(),
             }
         }
     }
 }
 
 /// The override order after the player reordered the same enabled mods in the
-/// game's menu; disabled packages keep their relative place at the end.
-fn adopted_order(revision: &ProfileRevision, native_order: &[String]) -> Vec<TypedOrdering> {
-    let mut order = native_order
-        .iter()
-        .filter_map(|name| {
-            enabled(revision)
-                .find(|package| native_mod_list::native_name(&package.native_id) == name)
-                .map(|package| package.native_id.clone())
-        })
-        .collect::<Vec<_>>();
+/// game's menu; disabled packages keep their relative place at the end. None when
+/// the list cannot be mapped one-to-one onto the revision's packages.
+fn adopted_order(
+    revision: &ProfileRevision,
+    native_order: &[String],
+) -> Option<Vec<TypedOrdering>> {
+    let mut order = Vec::new();
+    for name in native_order {
+        let id = enabled(revision)
+            .find(|package| native_mod_list::native_name(&package.native_id) == name)?
+            .native_id
+            .clone();
+        if order.contains(&id) {
+            return None;
+        }
+        order.push(id);
+    }
     let previous = revision
         .orderings
         .iter()
@@ -392,7 +450,7 @@ fn adopted_order(revision: &ProfileRevision, native_order: &[String]) -> Vec<Typ
         domain: OVERRIDE_DOMAIN.into(),
         native_ids: order,
     });
-    orderings
+    Some(orderings)
 }
 
 fn declared_state_paths(service: &PortcoveService, port_id: &str) -> Result<Vec<String>> {
@@ -691,6 +749,8 @@ impl PortcoveService {
                 "the port has no selected profile; create its default profile first",
             ));
         };
+        // Refuse before anything is parked or marked, so a refusal changes nothing.
+        require_projectable(port_id, &target)?;
         let departing = profile::revision_by_number(&connection, &current_id, current_revision)?;
         let latest = if current_id == profile_id {
             Some(&target)
@@ -709,8 +769,13 @@ impl PortcoveService {
             self.reconcile_selected(port_id, &layout, &connection, &target)?;
             return Ok(target);
         }
-        // Bring live data up to date from the launched build before parking it.
+        // Bring live data up to date from the launched build before parking it, and
+        // keep a reorder made in the game's menu before the configuration is parked.
         self.collect_active_user_data_if_launched(port_id)?;
+        self.adopt_native_mod_order_locked(port_id)?;
+        let (current_id, current_revision) = profile::selection(&connection, port_id)?
+            .ok_or_else(|| PortcoveError::state("the port has no selected profile"))?;
+        let departing = profile::revision_by_number(&connection, &current_id, current_revision)?;
         let paths = declared_state_paths(self, port_id)?;
         fs::create_dir_all(layout.store())?;
         write_journal(
@@ -749,6 +814,7 @@ impl PortcoveService {
             return Ok(());
         }
         let materialized = profile::revision_by_number(connection, &id, revision)?;
+        require_projectable(port_id, current)?;
         require_clean(
             &observe(layout, &[&materialized, current])?,
             "finishing an interrupted change",
@@ -849,6 +915,10 @@ impl PortcoveService {
             return Ok(());
         }
         let layout = self.deploy_layout(port_id)?;
+        if layout.journal().try_exists()? {
+            // Mid-switch, the live configuration may belong to the arriving profile.
+            return Ok(());
+        }
         let connection = self.library.connection()?;
         let Some((id, revision)) = profile::selection(&connection, port_id)? else {
             return Ok(());
@@ -862,9 +932,12 @@ impl PortcoveService {
         else {
             return Ok(());
         };
+        let Some(orderings) = adopted_order(&current, &native_order) else {
+            return Ok(());
+        };
         let request = ProfileRevisionRequest {
             expected_revision: current.revision,
-            orderings: Some(adopted_order(&current, &native_order)),
+            orderings: Some(orderings),
             ..Default::default()
         };
         let next = self.create_profile_revision_locked(port_id, &id, &request)?;
@@ -879,13 +952,12 @@ impl PortcoveService {
         let Some(contract) = native_mod_list::contract(&layout.port_id()) else {
             return Ok(false);
         };
-        if matches!(
-            native_mod_list::read(&layout.user, &contract),
-            NativeList::Unreadable(_)
-        ) {
-            return Ok(false);
-        }
-        native_mod_list::write(&layout.user, &contract, &native_projection(revision))
+        let names = match native_mod_list::read(&layout.user, &contract) {
+            NativeList::Unreadable(_) => return Ok(false),
+            NativeList::Listed(existing) => merged_list(&existing, revision),
+            NativeList::Absent | NativeList::Unlisted => native_projection(revision),
+        };
+        native_mod_list::write(&layout.user, &contract, &names)
     }
 
     /// Before a launch restores canonical data into the build: adopt a menu
@@ -907,9 +979,10 @@ impl PortcoveService {
             return Ok(());
         };
         let selected = profile::revision_by_number(&connection, &id, revision)?;
-        if self.project_native_mod_list(&layout, &selected)? {
-            mark_restore_pending(&layout)?;
-        }
+        require_projectable(port_id, &selected)?;
+        // Mark first: from here the canonical copy may be newer than the build's.
+        mark_restore_pending(&layout)?;
+        self.project_native_mod_list(&layout, &selected)?;
         Ok(())
     }
 

@@ -1,7 +1,9 @@
 //! The native enabled-mods list of the reviewed libultraship mod menu.
 //!
 //! Source observations (no native run): Shipwright 9.2.3
-//! (`cb71e22a79bc5d1f688fa881795bbd93094895fc`, `soh/soh/Enhancements/mod_menu.cpp`)
+//! (`cb71e22a79bc5d1f688fa881795bbd93094895fc`, `soh/soh/Enhancements/mod_menu.cpp`,
+//! unchanged in this respect in 9.3.1 `f0599f96`; the catalog follows the latest
+//! release, so a later upstream change to this list must be re-reviewed)
 //! keeps the enabled mods and their order in the `gSettings.EnabledMods` CVar of
 //! `shipofharkinian.json`, `|`-separated, keyed by file name without its last
 //! extension. At startup every `.o2r`/`.otr` under `mods` that the list does not
@@ -137,7 +139,10 @@ pub(crate) fn read(user: &Path, contract: &NativeListContract) -> NativeList {
     };
     let mut value = &parsed;
     for part in contract.key {
-        match value.get(part) {
+        let Some(object) = value.as_object() else {
+            return NativeList::Unreadable("the configuration has an unexpected shape".into());
+        };
+        match object.get(*part) {
             Some(child) => value = child,
             None => return NativeList::Unlisted,
         }
@@ -284,6 +289,11 @@ mod tests {
             assert_eq!(fs::read(&path).unwrap(), before);
         }
         fs::write(&path, b"{not json").unwrap();
+        assert!(matches!(
+            read(directory.path(), &SHIP),
+            NativeList::Unreadable(_)
+        ));
+        fs::write(&path, br#"{"CVars":{"gSettings":"flat"}}"#).unwrap();
         assert!(matches!(
             read(directory.path(), &SHIP),
             NativeList::Unreadable(_)

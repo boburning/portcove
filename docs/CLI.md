@@ -1596,21 +1596,29 @@ Portcove ensures) and the profile's order takes effect only when written into th
 list. Portcove writes that entry from the selected revision after every change,
 switch and before each launch, keeping every other key in the file. The
 `asset-override` order is the list order; the game adds archives in that order and
-the last one providing an asset wins. Two package files the game would load as one
-mod (the same name without extension, ignoring case) and names containing
-`|<>"?*` are refused at install.
+the last one providing an asset wins. Only the profile's own entries are rewritten:
+entries for mods the player placed in `mods` themselves keep their positions. Two
+package files the game would load as one mod (the same name without extension,
+ignoring case) and names containing `|<>"?*` are refused when a revision is created,
+and a switch to an older revision with such packages refuses before anything is
+parked.
 
 `profile live` reports `native_list`: `in-sync`, `not-written`, `reordered`,
 `differs` (with `missing` and `unexpected` names) or `unreadable`. A reorder made in
 the game's mod menu (the same mods in another order) is kept as the profile's next
-revision when supervised play ends, or at the next profile change or launch. Any
-other difference, such as a mod disabled in the game's menu (which the game would
-re-enable at its next start), is reported and rewritten from the revision before the
-next launch. An unreadable configuration is never rewritten: the game itself
-discards a configuration it cannot parse.
+revision when supervised play ends (or, if that cannot be recorded, at the next
+profile change or launch). A revision created this way changes the profile's
+revision number, so a plan reviewed against the earlier revision must be reviewed
+again. Any other difference among the profile's own entries, such as a mod
+disabled in the game's menu (which the game would re-enable at its next start), is
+reported and rewritten from the revision before the next launch. An unreadable or
+unexpectedly shaped configuration is never rewritten: the game itself discards a
+configuration it cannot parse.
 
-These behaviors come from Shipwright 9.2.3 (`cb71e22a`) and its libultraship
-(`fdcaf633`) source; they have not yet been observed in a running game.
+These behaviors come from Shipwright 9.2.3 (`cb71e22a`) and 9.3.1 (`f0599f96`)
+and libultraship (`fdcaf633`) source; they have not yet been observed in a running
+game. The catalog follows the latest Shipwright release, so a change to this list
+upstream needs a new review.
 
 ### Installing from GameBanana
 
