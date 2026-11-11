@@ -93,7 +93,7 @@ fn definition_requirements_are_inspected_offline_without_opening_a_library() {
         "required_capabilities": [
             {"template":"n64-recomp-portable", "minimum_version":1, "maximum_version":1},
             {"template":"future-template", "minimum_version":1, "maximum_version":1},
-            {"template":"generated-cache", "minimum_version":2, "maximum_version":3}
+            {"template":"generated-cache", "minimum_version":3, "maximum_version":4}
         ]
     });
     std::fs::write(&file, serde_json::to_vec(&request).unwrap()).unwrap();
@@ -124,7 +124,7 @@ fn definition_requirements_are_inspected_offline_without_opening_a_library() {
         assert_eq!(checks[1]["outcome"], "unsupported_template");
         assert!(checks[1]["installed_version"].is_null());
         assert_eq!(checks[2]["outcome"], "unsupported_version");
-        assert_eq!(checks[2]["installed_version"], 1);
+        assert_eq!(checks[2]["installed_version"], 2);
         assert!(!library.exists());
     }
     request["publisher_approved"] = true.into();
