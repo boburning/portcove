@@ -258,7 +258,7 @@ export const retainedApplicationContextUpload = Object.freeze({
 export const retainedApplicationContextSettlement = Object.freeze({
   checkpoint: "e6160a6b2c8b7784ef83e1f0c36bec0804acf2e3",
   previous: retainedApplicationContextUpload.checkpoint,
-  successor_ref: "refs/tags/portcove-production-controller-20261111r79",
+  successor_ref: "refs/tags/portcove-production-controller-20261111r80",
   workflow_sha256: retainedApplicationContextUpload.workflow_sha256,
   revision: "fd45c587cd21fbd3ab125aaa9e1096577bbb5351",
   ref: retainedApplicationContextUpload.successor_ref,
