@@ -335,6 +335,9 @@ impl RestoreOperation {
     }
 }
 
+/// Marks a pending deletion that a later backup action already failed to finish.
+const RESUME_FAILED: &str = "could not be finished on retry: ";
+
 /// Internal interpretation of the released deletion envelope, never consent or path authority.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum BackupDeletionPhase {
@@ -1220,9 +1223,12 @@ impl PortcoveService {
     ) -> Result<BackupActionPreview> {
         self.catalog.port(port_id)?;
         if action == BackupAction::Restore {
-            // Read-only: an unfinished retention deletion is completed, or still
-            // refused, by the restore itself under its port lock.
             self.require_completed_restore(port_id)?;
+            // Read-only: a deletion the restore itself finishes under its port lock
+            // does not stop the review; any other one still does.
+            if self.has_unfinishable_backup_deletion(port_id)? {
+                self.require_completed_backup_deletion(port_id)?;
+            }
         }
         let backup = self.load_backup(port_id, backup_id)?;
         let backup_data = backup.path.join("data");
@@ -1775,12 +1781,17 @@ impl PortcoveService {
     }
 
     /// Read-only: whether this pending deletion has already moved its backup out of
-    /// view and is finished, without any judgement call, by the next backup, restore,
-    /// deletion or version change. Such a deletion does not hold those actions; any
-    /// other pending deletion still requires recovery.
+    /// view and is expected to be finished, without a judgement call, by the next
+    /// backup, restore, deletion or version change. Such a deletion does not hold
+    /// those actions. One that a later attempt already failed to finish, and every
+    /// other pending deletion, still requires recovery.
     pub(super) fn deletion_finishes_on_next_action(&self, operation: &LifecycleOperation) -> bool {
         operation.kind == LifecycleOperationKind::DeleteBackup
             && operation.backup_deletion.is_none()
+            && !operation
+                .last_error
+                .as_deref()
+                .is_some_and(|error| error.starts_with(RESUME_FAILED))
             && self
                 .library
                 .require_no_ghostship_recovery(&operation.port_id)
@@ -1795,7 +1806,26 @@ impl PortcoveService {
                             | BackupDeletionPhase::CleanupPending
                     ) && fs::symlink_metadata(&deletion.original)
                         .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
+                        // Recovery refuses a quarantine holding an unauthorized
+                        // runtime-safety companion; so must this prediction.
+                        && (fs::symlink_metadata(&deletion.quarantine).is_err_and(|error| {
+                            error.kind() == std::io::ErrorKind::NotFound
+                        }) || self
+                            .require_backup_deletion_preimage(&deletion.quarantine, None)
+                            .is_ok())
                 })
+    }
+
+    /// Whether any pending deletion of this port still requires recovery.
+    fn has_unfinishable_backup_deletion(&self, port_id: &str) -> Result<bool> {
+        Ok(OperationStore::new(self.library.clone())
+            .all()?
+            .iter()
+            .any(|operation| {
+                operation.port_id == port_id
+                    && operation.kind == LifecycleOperationKind::DeleteBackup
+                    && !self.deletion_finishes_on_next_action(operation)
+            }))
     }
 
     /// Best-effort completion of this port's unfinished backup deletions through the
@@ -1810,6 +1840,12 @@ impl PortcoveService {
             operation.port_id == port_id && operation.kind == LifecycleOperationKind::DeleteBackup
         }) {
             let outcome = crate::recovery::recover_backup_deletion(self, &store, &mut operation);
+            if let Err(error) = &outcome {
+                // Stop predicting that the next action finishes it: history shows
+                // recovery as required again, with the cause.
+                operation.last_error = Some(format!("{RESUME_FAILED}{}", error.message));
+                let _ = store.put(&mut operation);
+            }
             let _ = self.library.finish_activity(
                 &operation.id,
                 if outcome.is_ok() {
