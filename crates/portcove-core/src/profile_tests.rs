@@ -3,9 +3,13 @@ use crate::retained_build::tests::{fixture, install};
 use crate::{ErrorCode, ObservedSourceIdentity};
 
 fn requirement(service: &PortcoveService) -> String {
-    service.catalog().port("starship").unwrap().source_profiles[0]
-        .id
+    service
+        .catalog()
+        .port("starship")
+        .unwrap()
+        .source_profile
         .clone()
+        .expect("starship requires an original")
 }
 
 fn register_original(service: &PortcoveService, id: &str, sha: char, path: &str) -> SourceRecord {

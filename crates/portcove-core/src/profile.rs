@@ -387,16 +387,19 @@ impl PortcoveService {
     fn registered_originals(&self, port_id: &str) -> Result<Vec<OriginalBinding>> {
         let port = self.catalog().port(port_id)?;
         let sources = self.library.sources()?;
-        Ok(port
-            .source_profiles
-            .iter()
-            .filter_map(|requirement| {
-                sources
-                    .iter()
-                    .find(|source| source.profile_id == requirement.id)
-                    .map(|source| bind_original(&requirement.id, source))
-            })
-            .collect())
+        Ok([
+            port.source_profile.as_ref(),
+            port.bios_source_profile.as_ref(),
+        ]
+        .into_iter()
+        .flatten()
+        .filter_map(|requirement| {
+            sources
+                .iter()
+                .find(|source| &source.profile_id == requirement)
+                .map(|source| bind_original(requirement, source))
+        })
+        .collect())
     }
 
     fn publish_new_profile(
