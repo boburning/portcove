@@ -2356,6 +2356,7 @@ impl CapabilityDocument {
                 "installation.reference-removal-plan".into(),
                 "installation.reference-remove".into(),
                 "adopt".into(),
+                "launcher-library.inspect".into(),
                 "ensure".into(),
                 "update".into(),
                 "verify".into(),

@@ -2,7 +2,8 @@
 use portcove_core::{
     AdoptionPreview, BackupRecord, CancellationPhase, CancellationState, Catalog,
     ExternalRuntimePreview, ExternalRuntimeRecord, ExternalRuntimeRelinkPreview,
-    ExternalRuntimeRemovalPreview, InstallRecord, OutputRelocationResult, PortRemovalPreview,
+    ExternalRuntimeRemovalPreview, InstallRecord, LauncherAppsRootOrigin, LauncherEntryStatus,
+    LauncherKind, LauncherLibraryInventory, OutputRelocationResult, PortRemovalPreview,
     ReconcileAction, ReconcileResult, RestoreResult, UpdateCheck, VerificationReport,
 };
 
@@ -135,6 +136,120 @@ pub(crate) fn reconcile_result(result: &ReconcileResult, catalog: &Catalog) -> S
         ));
     }
     text.push_str(&format!("\nNext step: Using the same library, run portcove status {} to inspect the resulting readiness.", clean(&result.port_id)));
+    text
+}
+
+pub(crate) fn launcher_library_inventory(
+    inventory: &LauncherLibraryInventory,
+    catalog: &Catalog,
+) -> String {
+    let launcher = match inventory.launcher {
+        LauncherKind::GithubLauncher => "GitHub Launcher",
+        LauncherKind::Quiver => "Quiver",
+    };
+    let apps_root = match (&inventory.apps_root, inventory.apps_root_origin) {
+        (Some(path), LauncherAppsRootOrigin::Settings) => {
+            format!(
+                "{} (from launcher settings)",
+                clean(&path.display().to_string())
+            )
+        }
+        (Some(path), LauncherAppsRootOrigin::Override) => {
+            format!(
+                "{} (chosen for this review)",
+                clean(&path.display().to_string())
+            )
+        }
+        (Some(path), _) => format!("{} (launcher default)", clean(&path.display().to_string())),
+        (None, _) => "Unknown; launcher settings could not be read. Use --apps-root.".into(),
+    };
+    let ready = inventory
+        .entries
+        .iter()
+        .filter(|entry| entry.status == LauncherEntryStatus::ReadyToReview)
+        .count();
+    let mut text = format!(
+        "{launcher} library review\nLibrary file: {}\nApps folder: {apps_root}\nApps listed: {}\nReady to review for copying: {ready}\nLauncher files will be modified: {}",
+        clean(&inventory.library_file.display().to_string()),
+        inventory.entries.len(),
+        if inventory.original_will_be_modified {
+            "Yes"
+        } else {
+            "No"
+        },
+    );
+    for entry in &inventory.entries {
+        let status = match entry.status {
+            LauncherEntryStatus::ReadyToReview => "Ready to review",
+            LauncherEntryStatus::Ambiguous => "Choose a port",
+            LauncherEntryStatus::NotInCatalog => "Not in the catalog",
+            LauncherEntryStatus::UnrecognizedFiles => "Files not recognized",
+            LauncherEntryStatus::AdoptionUnsupported => "Cannot be copied",
+            LauncherEntryStatus::NotInstalled => "Not installed",
+            LauncherEntryStatus::UnsafePath => "Location not inspected",
+            LauncherEntryStatus::Duplicate => "Listed twice",
+        };
+        let name = if entry.name.trim().is_empty() {
+            entry.folder_name.as_str()
+        } else {
+            entry.name.as_str()
+        };
+        text.push_str(&format!("\n\n{}: {status}", clean(name)));
+        if !entry.repository.is_empty() {
+            text.push_str(&format!("\nUpstream: {}", clean(&entry.repository)));
+        }
+        if let Some(path) = &entry.install_path {
+            text.push_str(&format!("\nFolder: {}", clean(&path.display().to_string())));
+        }
+        let ports = if entry.detected_port_ids.is_empty() {
+            &entry.candidate_port_ids
+        } else {
+            &entry.detected_port_ids
+        };
+        if !ports.is_empty() {
+            text.push_str(&format!(
+                "\nCatalog port: {}",
+                ports
+                    .iter()
+                    .map(|id| format!("{} ({})", port_name(catalog, id), clean(id)))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
+        for path in &entry.user_data_paths {
+            text.push_str(&format!(
+                "\nSave/settings found: {}",
+                clean(&path.display().to_string())
+            ));
+        }
+        if let Some(version) = &entry.hints.preferred_version {
+            text.push_str(&format!(
+                "\nLauncher version label: {} (not verified)",
+                clean(version)
+            ));
+        }
+        if let Some(mods) = &entry.mods {
+            text.push_str(&if mods.readable {
+                format!(
+                    "\nLauncher mod records: {} (listed only; not copied as mods or enabled)",
+                    mods.records
+                )
+            } else {
+                "\nLauncher mod records: present but unreadable".into()
+            });
+        }
+        text.push_str(&format!("\n{}", clean(&entry.explanation)));
+        if let Some(step) = &entry.next_step {
+            text.push_str(&format!("\nNext: {}", clean(step)));
+        }
+    }
+    for skipped in &inventory.skipped_entries {
+        text.push_str(&format!(
+            "\n\nEntry {} skipped: {}",
+            skipped.index,
+            clean(&skipped.reason)
+        ));
+    }
     text
 }
 

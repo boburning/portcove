@@ -51,6 +51,7 @@ pub use catalog_download_identity::{
     CatalogForeignReleaseId,
 };
 pub(crate) use catalog_download_provider::CatalogDownloadRepository;
+mod launcher_library;
 mod native_portable;
 pub(crate) mod package_selection;
 mod retained_direct_compatibility;
@@ -58,6 +59,11 @@ mod setup_discovery;
 pub use catalog_download::{
     CatalogDownloadCandidate, CatalogDownloadCandidates, CatalogDownloadCoverage,
     CatalogDownloadPreview, CatalogDownloadRequest, PendingSetupRecord, PendingSetupState,
+};
+pub use launcher_library::{
+    GITHUB_LAUNCHER_FORMAT_REVISION, LauncherAppsRootOrigin, LauncherEntryHints,
+    LauncherEntryStatus, LauncherKind, LauncherLibraryEntry, LauncherLibraryInventory,
+    LauncherLibrarySkippedEntry, LauncherModInventory, QUIVER_FORMAT_REVISION,
 };
 pub use package_selection::{CatalogDownloadRelease, CatalogPackageAssessment};
 pub use setup_discovery::{SetupLaunchTarget, SetupLaunchTargets};

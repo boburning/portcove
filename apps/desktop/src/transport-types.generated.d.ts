@@ -696,6 +696,17 @@ export type HostToolProbeState =
 export type OutputLaunchRequest = LaunchSessionView | null;
 export type LaunchSessionOutcome = "succeeded" | "failed" | "cancelled";
 export type LaunchSessionPhase = "preparing" | "spawning" | "running" | "collecting" | "recovering";
+export type LauncherAppsRootOrigin = "settings" | "default" | "override" | "unresolved";
+export type LauncherEntryStatus =
+  | "ready-to-review"
+  | "ambiguous"
+  | "not-in-catalog"
+  | "unrecognized-files"
+  | "adoption-unsupported"
+  | "not-installed"
+  | "unsafe-path"
+  | "duplicate";
+export type LauncherKind = "github-launcher" | "quiver";
 export type LibraryContentKind =
   "application_versions" | "user_data" | "source_inbox" | "backups" | "toolchains" | "local_artwork";
 /**
@@ -1000,6 +1011,7 @@ export interface TransportOutputs {
   host_tool_status: HostToolStatus;
   install_plan: InstallPlan;
   launch_request: OutputLaunchRequest;
+  launcher_library_inventory: OutputLauncherLibraryInventory;
   library_identity: LibraryIdentity;
   library_import_plan: OutputLibraryImportPlan;
   library_import_result: OutputLibraryImportResult;
@@ -3566,6 +3578,106 @@ export interface ExitExplanation {
    */
   raw_code: string;
   table_version: number;
+  [k: string]: unknown;
+}
+export interface OutputLauncherLibraryInventory {
+  apps_root: string | null;
+  apps_root_origin: LauncherAppsRootOrigin;
+  data_root: string;
+  entries: LauncherLibraryEntry[];
+  /**
+   * Upstream source revision whose library format this reader implements.
+   */
+  format_revision: string;
+  /**
+   * Content fingerprint of this inventory, excluding this field.
+   */
+  inventory_sha256: string;
+  launcher: LauncherKind;
+  /**
+   * True when only the launcher's legacy `games.json` was present.
+   */
+  legacy_library_file: boolean;
+  library_file: string;
+  /**
+   * Inspection reads only; launcher data and installations stay untouched.
+   */
+  original_will_be_modified: boolean;
+  skipped_entries: LauncherLibrarySkippedEntry[];
+  [k: string]: unknown;
+}
+export interface LauncherLibraryEntry {
+  /**
+   * Catalog ports whose reviewed upstream repository matches this entry.
+   */
+  candidate_port_ids: string[];
+  /**
+   * Catalog ports whose declared executable was found in the installation.
+   */
+  detected_port_ids: string[];
+  explanation: string;
+  /**
+   * True when `installPath` was explicit rather than apps folder plus folder name.
+   */
+  explicit_install_path: boolean;
+  folder_name: string;
+  hints: LauncherEntryHints;
+  /**
+   * Zero-based position across the launcher library's entry arrays.
+   */
+  index: number;
+  /**
+   * Resolved installation folder, when the entry names a safe absolute location.
+   */
+  install_path: string | null;
+  mods: LauncherModInventory | null;
+  name: string;
+  /**
+   * The existing reviewed adoption command for this entry, when one applies.
+   */
+  next_step: string | null;
+  repository: string;
+  /**
+   * `github`, `gitlab`, `codeberg` or `manual`, as the launcher interprets the entry.
+   */
+  repository_source: string;
+  status: LauncherEntryStatus;
+  /**
+   * Declared saves/configuration present in the installation for a single match.
+   */
+  user_data_paths: string[];
+  [k: string]: unknown;
+}
+export interface LauncherEntryHints {
+  /**
+   * First line of `version.txt` in the installation. Untrusted label.
+   */
+  installed_version_label: string | null;
+  /**
+   * `preferredVersion` from the launcher library. Untrusted label.
+   */
+  preferred_version: string | null;
+  /**
+   * First line of `selected_executable.txt`. Portcove uses its own declared executable.
+   */
+  selected_executable: string | null;
+  [k: string]: unknown;
+}
+export interface LauncherModInventory {
+  providers: string[];
+  /**
+   * False when the sidecar exists but could not be read within limits.
+   */
+  readable: boolean;
+  /**
+   * Records in `.quiver-mods.json`; they are inventoried, never activated.
+   */
+  records: number;
+  [k: string]: unknown;
+}
+export interface LauncherLibrarySkippedEntry {
+  index: number;
+  reason: string;
   [k: string]: unknown;
 }
 /**

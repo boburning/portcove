@@ -17910,6 +17910,322 @@
     ],
     "title": "Nullable_LaunchSessionView"
   },
+  "launcher_library_inventory": {
+    "$defs": {
+      "LauncherAppsRootOrigin": {
+        "oneOf": [
+          {
+            "const": "settings",
+            "description": "`AppsPath` from the launcher's `settings.json`.",
+            "type": "string"
+          },
+          {
+            "const": "default",
+            "description": "The launcher's default `Apps` folder beside its data.",
+            "type": "string"
+          },
+          {
+            "const": "override",
+            "description": "The folder the player supplied for this inspection.",
+            "type": "string"
+          },
+          {
+            "const": "unresolved",
+            "description": "`settings.json` could not be read, so folder-name entries stay unresolved.",
+            "type": "string"
+          }
+        ]
+      },
+      "LauncherEntryHints": {
+        "properties": {
+          "installed_version_label": {
+            "description": "First line of `version.txt` in the installation. Untrusted label.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "preferred_version": {
+            "description": "`preferredVersion` from the launcher library. Untrusted label.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "selected_executable": {
+            "description": "First line of `selected_executable.txt`. Portcove uses its own declared executable.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "preferred_version",
+          "installed_version_label",
+          "selected_executable"
+        ],
+        "type": "object"
+      },
+      "LauncherEntryStatus": {
+        "oneOf": [
+          {
+            "const": "ready-to-review",
+            "description": "Exactly one catalog port matches; review it with the existing adoption command.",
+            "type": "string"
+          },
+          {
+            "const": "ambiguous",
+            "description": "More than one catalog port matches these files; the player chooses with `--port`.",
+            "type": "string"
+          },
+          {
+            "const": "not-in-catalog",
+            "description": "No catalog port uses this upstream repository.",
+            "type": "string"
+          },
+          {
+            "const": "unrecognized-files",
+            "description": "The catalog port matches, but its declared executable is not in this folder.",
+            "type": "string"
+          },
+          {
+            "const": "adoption-unsupported",
+            "description": "The catalog port matches, but this installation cannot be copied into Portcove.",
+            "type": "string"
+          },
+          {
+            "const": "not-installed",
+            "description": "The launcher lists this entry, but no installation folder is present.",
+            "type": "string"
+          },
+          {
+            "const": "unsafe-path",
+            "description": "The entry names an unsafe or unusable location; it was not inspected.",
+            "type": "string"
+          },
+          {
+            "const": "duplicate",
+            "description": "An earlier entry already names the same installation.",
+            "type": "string"
+          }
+        ]
+      },
+      "LauncherKind": {
+        "enum": [
+          "github-launcher",
+          "quiver"
+        ],
+        "type": "string"
+      },
+      "LauncherLibraryEntry": {
+        "properties": {
+          "candidate_port_ids": {
+            "description": "Catalog ports whose reviewed upstream repository matches this entry.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "detected_port_ids": {
+            "description": "Catalog ports whose declared executable was found in the installation.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "explicit_install_path": {
+            "description": "True when `installPath` was explicit rather than apps folder plus folder name.",
+            "type": "boolean"
+          },
+          "folder_name": {
+            "type": "string"
+          },
+          "hints": {
+            "$ref": "#/$defs/LauncherEntryHints"
+          },
+          "index": {
+            "description": "Zero-based position across the launcher library's entry arrays.",
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "install_path": {
+            "description": "Resolved installation folder, when the entry names a safe absolute location.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mods": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LauncherModInventory"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "next_step": {
+            "description": "The existing reviewed adoption command for this entry, when one applies.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "repository": {
+            "type": "string"
+          },
+          "repository_source": {
+            "description": "`github`, `gitlab`, `codeberg` or `manual`, as the launcher interprets the entry.",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/$defs/LauncherEntryStatus"
+          },
+          "user_data_paths": {
+            "description": "Declared saves/configuration present in the installation for a single match.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "index",
+          "name",
+          "repository_source",
+          "repository",
+          "folder_name",
+          "install_path",
+          "explicit_install_path",
+          "status",
+          "candidate_port_ids",
+          "detected_port_ids",
+          "user_data_paths",
+          "hints",
+          "mods",
+          "explanation",
+          "next_step"
+        ],
+        "type": "object"
+      },
+      "LauncherLibrarySkippedEntry": {
+        "properties": {
+          "index": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "index",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "LauncherModInventory": {
+        "properties": {
+          "providers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "readable": {
+            "description": "False when the sidecar exists but could not be read within limits.",
+            "type": "boolean"
+          },
+          "records": {
+            "description": "Records in `.quiver-mods.json`; they are inventoried, never activated.",
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "records",
+          "providers",
+          "readable"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "apps_root": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "apps_root_origin": {
+        "$ref": "#/$defs/LauncherAppsRootOrigin"
+      },
+      "data_root": {
+        "type": "string"
+      },
+      "entries": {
+        "items": {
+          "$ref": "#/$defs/LauncherLibraryEntry"
+        },
+        "type": "array"
+      },
+      "format_revision": {
+        "description": "Upstream source revision whose library format this reader implements.",
+        "type": "string"
+      },
+      "inventory_sha256": {
+        "description": "Content fingerprint of this inventory, excluding this field.",
+        "type": "string"
+      },
+      "launcher": {
+        "$ref": "#/$defs/LauncherKind"
+      },
+      "legacy_library_file": {
+        "description": "True when only the launcher's legacy `games.json` was present.",
+        "type": "boolean"
+      },
+      "library_file": {
+        "type": "string"
+      },
+      "original_will_be_modified": {
+        "description": "Inspection reads only; launcher data and installations stay untouched.",
+        "type": "boolean"
+      },
+      "skipped_entries": {
+        "items": {
+          "$ref": "#/$defs/LauncherLibrarySkippedEntry"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "launcher",
+      "format_revision",
+      "data_root",
+      "library_file",
+      "legacy_library_file",
+      "apps_root",
+      "apps_root_origin",
+      "entries",
+      "skipped_entries",
+      "original_will_be_modified",
+      "inventory_sha256"
+    ],
+    "title": "LauncherLibraryInventory",
+    "type": "object"
+  },
   "library_identity": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "description": "Durable library identity and its current effective location.",
