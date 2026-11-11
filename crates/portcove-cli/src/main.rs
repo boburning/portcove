@@ -32,6 +32,7 @@ mod human_adapters;
 mod profile;
 mod progress;
 mod retained_build_human;
+mod saves;
 use progress::HumanProgress;
 mod schema;
 mod setup;
@@ -131,7 +132,7 @@ fn main() -> ExitCode {
 }
 
 fn command_is_observation(command: &Commands) -> bool {
-    startup::startup_mode(command) == startup::StartupMode::ReadOnly
+    crate::startup::startup_mode(command) == crate::startup::StartupMode::ReadOnly
 }
 
 #[tokio::main]
@@ -974,6 +975,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         }
         Commands::GameSettings { command } => {
             game_settings::execute(command, &service, mode)?;
+        }
+        Commands::Saves { command } => {
+            saves::execute(command, &service, mode, cli.non_interactive)?;
         }
         Commands::Catalog { command } => {
             catalog::execute(command, &service, mode, cli.non_interactive).await?;
@@ -3280,6 +3284,7 @@ fn command_name(command: &Commands) -> &'static str {
             BackupCommand::Restore { .. } => "backup.restore",
         },
         Commands::GameSettings { command } => game_settings::name(command),
+        Commands::Saves { command } => saves::name(command),
         Commands::Catalog { command } => command.name(),
         Commands::Source { command } => match command {
             SourceCommand::Add { .. } => "source.add",
@@ -4136,6 +4141,63 @@ mod tests {
     }
 
     #[test]
+    fn saves_commands_require_reviewed_identities() {
+        let export = Cli::try_parse_from([
+            "portcove",
+            "saves",
+            "export",
+            "shipwright",
+            "--output",
+            "saves.json",
+            "--expected-content",
+            &"a".repeat(64),
+        ])
+        .unwrap();
+        assert_eq!(super::command_name(&export.command), "saves.export");
+        assert_eq!(
+            crate::startup::startup_mode(&export.command),
+            crate::startup::StartupMode::Recovering
+        );
+        assert!(
+            Cli::try_parse_from(["portcove", "saves", "export", "shipwright", "--output", "x"])
+                .is_err()
+        );
+        let import = Cli::try_parse_from([
+            "portcove",
+            "saves",
+            "import",
+            "shipwright",
+            "saves.json",
+            "--replace-diverged-progress",
+            "--expected-preview",
+            &"b".repeat(64),
+            "--yes",
+        ])
+        .unwrap();
+        assert!(matches!(
+            import.command,
+            Commands::Saves {
+                command: crate::args::SavesCommand::Import { ref port_id, ref choices, yes, .. }
+            } if port_id == "shipwright"
+                && choices.replace_diverged_progress
+                && !choices.remove_local_only_saves
+                && yes
+        ));
+        let preview = Cli::try_parse_from([
+            "portcove",
+            "saves",
+            "import-preview",
+            "shipwright",
+            "saves.json",
+        ])
+        .unwrap();
+        assert_eq!(
+            crate::startup::startup_mode(&preview.command),
+            crate::startup::StartupMode::ReadOnly
+        );
+    }
+
+    #[test]
     fn backup_create_and_list_have_explicit_port_targets() {
         let create = Cli::try_parse_from(["portcove", "backup", "create", "lighthouse"]).unwrap();
         assert!(matches!(
@@ -4617,6 +4679,11 @@ mod tests {
         assert!(capabilities.commands.contains(&"doctor".to_owned()));
         assert!(capabilities.commands.contains(&"backup".to_owned()));
         for name in [
+            "saves",
+            "saves.export-preview",
+            "saves.export",
+            "saves.import-preview",
+            "saves.import",
             "game-settings",
             "game-settings.list",
             "game-settings.review",

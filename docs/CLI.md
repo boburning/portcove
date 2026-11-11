@@ -18,6 +18,7 @@ for current integration development. A local candidate is not a public release.
 | Check releases, manage updates and inspect outcomes | [Automation and game management](#idempotent-automation)                                                                                                      |
 | Keep an exact local build for a stable setup        | [Retained builds and setup references](#retained-builds-and-setup-references)                                                                                 |
 | Export metadata and restore copied library content  | [Export and restore](#export-and-restore-a-library)                                                                                                           |
+| Continue a qualified game's saves on another device | [Portable saves](#portable-saves)                                                                                                                             |
 | Move a library or recover a transfer                | [Move](#move-a-library) and [interrupted transfers](#recover-an-interrupted-transfer)                                                                         |
 | Request cancellation and establish the outcome      | [Cancel work safely](#cancel-work-safely)                                                                                                                     |
 | Resolve disc-tool prerequisites or GitHub access    | [Disc tools](#disc-formats-and-optional-tools) and [authentication](#github-authentication)                                                                   |
@@ -1427,6 +1428,67 @@ Before an update installs, a staged version is activated, or a rollback runs, Po
 `backup restore` is destructive to current persistent data and therefore requires confirmation, or `--yes` for an unattended caller. It copies the selected snapshot into an operation-private staging directory, recomputes and compares its file count, byte count, and tree SHA-256, then creates an automatic safety backup of current non-empty data before replacing the canonical user root with same-volume renames. Those renames and the lifecycle journal prevent another running process from observing a partial staged tree and allow unambiguous process-crash recovery; they are not a cross-platform sudden-power-loss guarantee. A missing, mismatched, symlinked, or tampered backup fails before live data or the backup list changes. The result includes both `restored_backup` and the new `safety_backup`; the latter is absent only when no current files existed. Restore does not modify application versions or original game sources, and the restored data is synchronized into the active release on its next Portcove launch.
 
 `backup delete` also requires confirmation or `--yes`. Declining an interactive backup restore or deletion is a successful neutral result that says no changes were made; unattended use still requires `--yes`. Deletion validates the selected snapshot and records a core-owned lifecycle operation with the exact original and private quarantine paths before moving that directory out of the visible backup set. The journal advances after quarantine, filesystem removal, and commit. On restart, Portcove completes an unambiguous authorized deletion, including a partially removed quarantine; it never treats both paths, neither pre-publication path, a reappeared visible backup, or out-of-root paths as successful deletion. Such state remains recovery-required in backup inventory and `doctor`. This is process-interruption recovery and visibility isolation, not a cross-platform sudden-power-loss claim. Current persistent data, application versions, original sources, and every other backup remain outside the deletion target.
+
+### Portable saves
+
+Portable saves move only a game's classified save progress between devices.
+They are not a backup and not a library transfer: settings, controller and
+window layout, mods, generated files, files made from your originals, Portcove
+records and unrecognized files stay on each device.
+
+```bash
+portcove --library <path> --json saves export-preview <port-id>
+portcove --library <path> --json saves export <port-id> --output <new-file> --expected-content <content_sha256>
+portcove --library <path> --json saves import-preview <port-id> <file> [--remove-local-only-saves] [--replace-diverged-progress]
+portcove --library <path> --json saves import <port-id> <file> [choices] --expected-preview <preview_sha256> --yes
+```
+
+The only qualified contract is `shipwright-save-files-v1`: Ship of Harkinian
+9.3.1 managed by Portcove on Windows x86-64 or Linux x86-64, with the same
+version on both devices. `Save/file1.sav`, `Save/file2.sav` and `Save/file3.sav`
+move. `Save/global.sav` (file-select options), `shipofharkinian.json`, `imgui.ini`,
+`mods`, `randomizer`, `logs`, `saves`, `SoHTimeSplitData.json`, `oot.o2r`,
+`oot-mq.o2r` and every other entry stay local; each review lists them with their
+role. Other games, versions and platforms report a blocker rather than guessing.
+Saves made with mods or enhancements may depend on the same choices on the other
+device; those are not moved.
+
+`export-preview` lists exactly what moves and what stays. `export` takes the
+per-game lock (a running game blocks it), collects the game's latest writes, and
+refuses if the content no longer matches the reviewed `content_sha256`. It
+creates a new file and never replaces one. The file is a bounded JSON document
+that names its game, contract, version and platform and carries each save with
+its size and SHA-256; import rejects unknown fields, other contracts, any path
+outside the contract's exact files, and any checksum mismatch. It contains no
+library paths, settings or credentials, but it is your save progress: keep it
+private.
+
+`import-preview` is read-only and reports the source and destination identities,
+each file's effect (`add`, `replace`, `unchanged`, `remove` or `keep-local`), what
+stays local and any blockers. Progress is related by content, never by
+timestamps. `continues` means the file's progress was made from exactly this
+device's current saves; `diverged` means both devices changed (or history is
+unknown) and requires `--replace-diverged-progress`. Save slots present only on
+this device are kept unless `--remove-local-only-saves` is chosen. The review's
+`preview_sha256` binds the file, the choices and current player data.
+
+`import` repeats the review under the per-game lock, consumes one-use consent
+bound to that state, collects the game's latest writes and refuses if anything
+changed. It then publishes a normal backup of current data with the reviewed
+saves applied and restores it through the ordinary [backup restore](#managed-saved-data-and-backups)
+path: a safety backup of current data is made first, and the journaled restore
+owns interruption recovery. The result names both backups, so either branch can
+be restored later. If restore fails after the imported-state backup exists, the
+error's `imported_progress_snapshot` detail names it. Each player-data folder
+keeps `portcove-portable-saves.json`, the last synchronized content digest; it
+travels with that data through backups and restores. Editing save files outside
+Portcove cannot be detected, so such edits may be treated as continuing progress;
+the safety backup still keeps the previous saves.
+
+Automated tests cover classification, file integrity, version and game
+blockers, conflicts, deletion choices, changed input, a running game and
+interruption recovery. They do not show that the game loads moved saves; that
+remains a separate qualification for the exact device pair.
 
 ### Concurrency and failure-isolated batches
 

@@ -78,6 +78,7 @@ mod persistence;
 mod port_recommendation;
 mod portability;
 mod portability_authority;
+mod portable_saves;
 mod portable_tree;
 mod preparation;
 mod process;
@@ -275,6 +276,12 @@ pub use portability::{
     LibraryMetadataFile, LibraryPortSettings,
 };
 pub use portability_authority::PortabilityAuthority;
+pub use portable_saves::{
+    LocalDataEntry, PersistentDataRole, PortableSaveBlocker, PortableSaveExportPreview,
+    PortableSaveExportResult, PortableSaveFile, PortableSaveFileChange, PortableSaveFileEffect,
+    PortableSaveIdentity, PortableSaveImportOptions, PortableSaveImportPreview,
+    PortableSaveImportResult, PortableSaveRelation,
+};
 pub use preparation::{
     PreparationCleanupPreview, PreparationInputs, PreparationMode, PreparationOptions,
     PreparationPlan, PreparationTool,
