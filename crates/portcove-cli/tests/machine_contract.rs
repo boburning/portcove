@@ -8,6 +8,8 @@ use serde_json::Value;
 #[path = "machine_contract/preparation.rs"]
 mod preparation_contract;
 
+#[path = "machine_contract/profiles.rs"]
+mod profiles;
 #[path = "machine_contract/retained_builds.rs"]
 mod retained_build_contract;
 

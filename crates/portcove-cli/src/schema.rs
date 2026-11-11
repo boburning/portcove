@@ -664,6 +664,18 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 >(contract)),
             ),
             (
+                "profile_inventory",
+                serde_json::json!(schema_for_contract::<portcove_core::ProfileInventory>(
+                    contract
+                )),
+            ),
+            (
+                "profile_revision",
+                serde_json::json!(schema_for_contract::<portcove_core::ProfileRevision>(
+                    contract
+                )),
+            ),
+            (
                 "game_update_plan",
                 serde_json::json!(schema_for_contract::<portcove_core::GameUpdatePlan>(
                     contract

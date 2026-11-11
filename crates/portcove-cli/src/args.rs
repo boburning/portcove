@@ -205,6 +205,11 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         command: ExternalCommand,
     },
+    /// Manage stable local profiles and their immutable revisions.
+    Profile {
+        #[command(subcommand)]
+        command: crate::profile::ProfileCommand,
+    },
     /// Download an upstream package and continue setup in a user-owned folder.
     Setup {
         #[command(subcommand)]
