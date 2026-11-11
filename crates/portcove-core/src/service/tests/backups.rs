@@ -3523,3 +3523,64 @@ fn snapshot_failure_wording_leaves_errors_with_their_own_remedy_untouched() {
     assert!(copy.message.contains("disk full."));
     assert!(copy.message.contains("the version was not changed"));
 }
+
+/// A save file the player's account cannot read stops the rollback with an actionable
+/// message and leaves the version alone; once the file is readable again, retrying works
+/// and takes the snapshot. This runs the real copy path, not an injected fault.
+#[cfg(unix)]
+#[test]
+fn an_unreadable_save_stops_the_rollback_and_a_retry_succeeds_once_it_is_readable() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    register_zelda_install(&library, "v2", true);
+    let save = library.user_dir(ZELDA).join("general.json");
+    fs::create_dir_all(save.parent().unwrap()).unwrap();
+    fs::write(&save, b"progress").unwrap();
+    fs::set_permissions(&save, fs::Permissions::from_mode(0o000)).unwrap();
+    if fs::File::open(&save).is_ok() {
+        // Running with privileges that ignore file modes (for example as root).
+        fs::set_permissions(&save, fs::Permissions::from_mode(0o644)).unwrap();
+        return;
+    }
+    let service = PortcoveService::new(library.clone()).unwrap();
+
+    let error = service.rollback(ZELDA).unwrap_err();
+
+    assert!(
+        error
+            .message
+            .contains("could not back up this game's saves")
+            && error.message.contains("the version was not changed")
+            && error.message.contains("turn off automatic snapshots"),
+        "{error:?}"
+    );
+    let status = library.status(ZELDA, ReleaseChannel::Stable).unwrap();
+    assert_eq!(status.active.unwrap().version, "v2", "no version change");
+    assert!(automatic_snapshots(&service).is_empty());
+    assert!(
+        service.list_backups(ZELDA).unwrap().backups.is_empty(),
+        "no partial snapshot is published"
+    );
+
+    fs::set_permissions(&save, fs::Permissions::from_mode(0o644)).unwrap();
+    service.rollback(ZELDA).unwrap();
+
+    let snapshots = automatic_snapshots(&service);
+    assert_eq!(snapshots.len(), 1);
+    assert_eq!(
+        fs::read(snapshots[0].path.join("data/general.json")).unwrap(),
+        b"progress"
+    );
+    assert_eq!(
+        library
+            .status(ZELDA, ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap()
+            .version,
+        "v1"
+    );
+}
