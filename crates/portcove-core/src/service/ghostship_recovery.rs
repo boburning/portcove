@@ -169,7 +169,7 @@ impl PortcoveService {
             PortcoveError::state("legacy recovery target has no owned output parent")
         })?;
         for root in [self.library.root(), output_root] {
-            if fs2::available_space(root)? < required_bytes {
+            if fs4::available_space(root)? < required_bytes {
                 return Err(PortcoveError::conflict(
                     "legacy recovery needs space for the checked derivative, staged data and independent safety snapshots",
                 ));
