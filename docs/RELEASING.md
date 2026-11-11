@@ -1362,7 +1362,12 @@ appointment can opt into it with the exact `manual_actor_id`, the nominated prov
 selects one purpose and excludes automatic wakes until it is removed. The
 worker verifies the original GitHub run and triggering identity, refuses an
 earlier started wake or any receiver in the appointment window, and uses the
-same retained intent and single job-token dispatch. The wake job has a
+same retained intent and single job-token dispatch. A named catalog wake can
+continue when main advances from the initiating commit if GitHub confirms
+ancestry and the live wake workflow retains the appointed digest. The worker
+rechecks the immutable controller tag and verifies the initiating workflow bytes
+independently. Application source selection still requires the exact main tip.
+The wake job has a
 two-minute ceiling. Preparation and dispatch use the same original provider
 job start and refuse after 115 seconds, including setup. The remaining five
 seconds are reserved for hosted receipt handling. The shared controller

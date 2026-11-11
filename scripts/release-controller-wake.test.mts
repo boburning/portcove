@@ -346,7 +346,7 @@ function fixture(jobToken = false, bytes = Buffer.from("fixed inert controller w
     path: ".github/workflows/application-update-production.yml",
     event: "workflow_dispatch",
     run_attempt: 1,
-    display_title: `Portcove application release wake ${wake}`,
+    display_title: `Portcove ${config.publication_purpose === "catalog-publication" ? "catalog publication" : "application release"} wake ${wake}`,
     actor: { id: Number(config.dispatch_actor_id) },
     triggering_actor: { id: Number(config.dispatch_actor_id) },
     repository: { id: 1354613114, full_name: "boburning/portcove" },
@@ -398,6 +398,9 @@ function fixture(jobToken = false, bytes = Buffer.from("fixed inert controller w
               sha: changed && calls.length > 4 ? "c".repeat(40) : config.revision,
             },
           };
+    },
+    async compareAncestry() {
+      throw new Error("unexpected comparison");
     },
     async file(filename) {
       seen(`${base}/contents/${filename}`);
@@ -990,6 +993,68 @@ void test("immutable identity failures, unavailable responses and deadline exhau
   );
   assert.equal(reads, 2);
 });
+void test("a named manual catalog wake permits only verified main advances with the same workflow", async () => {
+  const advanced = "d".repeat(40);
+  for (const outcome of [
+    "allowed",
+    "diverged",
+    "wrong-base",
+    "workflow-changed",
+    "late-change",
+    "application",
+  ] as const) {
+    const f = fixture(true);
+    f.manual();
+    if (outcome !== "application")
+      Object.assign(f.config, { publication_purpose: "catalog-publication" });
+    const ref = f.api.ref;
+    const file = f.api.file;
+    let changedAfterPrepare = false;
+    f.api.ref = async (name) =>
+      name === "heads/main"
+        ? { ref: "refs/heads/main", object: { type: "commit", sha: advanced } }
+        : ref(name);
+    f.api.compareAncestry = async (base, head) => {
+      assert.equal(base, f.env.GITHUB_SHA);
+      assert.equal(head, advanced);
+      return {
+        status: outcome === "diverged" ? "diverged" : "ahead",
+        merge_base_commit: { sha: outcome === "wrong-base" ? "e".repeat(40) : base },
+      };
+    };
+    f.api.file = async (name, revision) => {
+      const original = await file(name, revision);
+      if (revision !== advanced || (outcome !== "workflow-changed" && !changedAfterPrepare))
+        return original;
+      const bytes = Buffer.from("changed workflow\n");
+      assert.ok(isRecord(original));
+      return {
+        ...original,
+        content: bytes.toString("base64"),
+        size: bytes.length,
+        sha: createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex"),
+      };
+    };
+    if (outcome === "allowed") {
+      await f.prepare();
+      assert.equal((await f.dispatch()).decision, "dispatch-acknowledged-only");
+      assert.equal(f.calls.filter(({ method }) => method === "POST").length, 1);
+    } else {
+      if (outcome === "late-change") {
+        await f.prepare();
+        changedAfterPrepare = true;
+        await assert.rejects(f.dispatch(), /workflow changed/u);
+      } else {
+        await assert.rejects(
+          f.prepare(),
+          /ancestry|workflow changed|source\/controller ref changed/u,
+        );
+      }
+      assert.equal(f.calls.filter(({ method }) => method === "POST").length, 0);
+    }
+  }
+});
+
 void test("exact opt-in manual owner uses the same single job-token receiver and replay check", async () => {
   const positive = fixture(true);
   positive.manual();
@@ -1734,6 +1799,9 @@ function nativeFixture(jobToken: boolean, native: boolean) {
     jobs: async (id, attempt = 1) =>
       get(`/actions/runs/${id}/attempts/${attempt}/jobs?per_page=100`),
     ref: async (name) => get(`/git/ref/${name}`),
+    compareAncestry: async () => {
+      throw new Error("unexpected comparison");
+    },
     file: async (filename, revision) => get(`/contents/${filename}?ref=${revision}`),
     runs: async (workflow, filters, page) =>
       get(
