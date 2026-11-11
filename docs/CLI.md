@@ -844,14 +844,23 @@ total expanded bytes no larger than the image. Free space must cover the expande
 size plus the larger of 64 MiB or one thirty-second of it.
 
 Phases, in order: identify, plan, free-space check, extract (bytes completed of the
-planned total), verify and activate. Stable error codes (`failure.code` in structured
-errors) are `disc_image_unsupported`, `disc_image_limit`, `disc_product_mismatch`
-(details `found` and `expected`) and `disc_space_insufficient` (details
-`required_bytes` and `available_bytes`). A wrong game is refused before any
-extraction, and a failure or cancellation never reports success: the previous
-runtime directory is kept and private staging is removed. Operation events for these
-phases are not yet emitted by the CLI or Desktop; the core phase reporter exists
-and delivery is tracked on issue #4959.
+planned total), verify and activate. While `portcove exec PORT_ID` prepares such a
+port, each phase is shown on stderr as player-readable progress ("Checking your disc
+image", "Reading the disc contents", "Checking free space", "Unpacking game files"
+with bytes completed, "Verifying game files", "Finishing game file setup") before
+the game starts; the game's own streams are untouched, and a port that does not
+unpack a disc prints nothing extra. The same phases are the stable operation-event
+ids `disc.identify`, `disc.plan`, `disc.free-space`, `disc.extract` (unit `bytes`,
+`completed` and `total`), `disc.verify` and `disc.activate`, delivered by core to a
+caller of `supervise_launch_observed`. `exec` rejects `--json` and `--jsonl`
+because it inherits the game's streams, so these events are not JSONL output of
+any CLI command, and the Desktop launch supervisor does not yet forward them
+(issue #4959). Stable error codes (`failure.code` in structured errors) are
+`disc_image_unsupported`, `disc_image_limit`, `disc_product_mismatch` (details
+`found` and `expected`) and `disc_space_insufficient` (details `required_bytes` and
+`available_bytes`). A wrong game is refused before any extraction, and a failure or
+cancellation never reports success: the previous runtime directory is kept and
+private staging is removed.
 
 ### Check registered files
 

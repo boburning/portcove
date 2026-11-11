@@ -121,6 +121,7 @@ fn opentyrian_windows_paths_refuse_before_preparation_and_leave_linux_unchanged(
         selected_executable: &executable,
         source: None,
         source_record: None,
+        disc_progress: None,
     };
     let adapter = crate::adapter::standard(port.adapter);
     for error in [
@@ -342,6 +343,7 @@ fn adapter_refuses_lossy_runtime_before_creating_or_preparing_data() {
         selected_executable: &executable,
         source: None,
         source_record: None,
+        disc_progress: None,
     };
     for error in [
         adapter

@@ -34,6 +34,19 @@ pub struct LaunchSpecRequest<'a> {
     pub selected_executable: &'a Path,
     pub source: Option<&'a Path>,
     pub source_record: Option<&'a SourceRecord>,
+    /// Observes a disc-image unpacking while preparing this launch. Reporting
+    /// only: it never grants authority and is ignored by every other adapter path.
+    pub(crate) disc_progress: Option<DiscProgressSink<'a>>,
+}
+
+/// `report(phase, completed, total)`; bytes are carried only by `Extract`.
+#[derive(Clone, Copy)]
+pub(crate) struct DiscProgressSink<'a>(pub(crate) &'a dyn Fn(DiscUnpackPhase, u64, Option<u64>));
+
+impl std::fmt::Debug for DiscProgressSink<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("DiscProgressSink")
+    }
 }
 
 pub trait Adapter: Send + Sync {
@@ -86,6 +99,7 @@ pub trait Adapter: Send + Sync {
                 selected_executable: &executable,
                 source,
                 source_record: source_record.as_ref(),
+                disc_progress: None,
             },
             &|| Ok(()),
         )
@@ -225,6 +239,7 @@ impl Adapter for StandardAdapter {
                 selected_executable: &executable,
                 source,
                 source_record: source_record.as_ref(),
+                disc_progress: None,
             },
             &|| Ok(()),
         )
@@ -515,9 +530,14 @@ impl Adapter for StandardAdapter {
             let materialization = port
                 .runtime_source_materialization
                 .unwrap_or(RuntimeSourceMaterialization::N64BigEndian);
+            let forward = |phase: DiscUnpackPhase, completed: u64, total: Option<u64>| {
+                if let Some(sink) = request.disc_progress {
+                    (sink.0)(phase, completed, total);
+                }
+            };
             let disc = port.runtime_disc_image.as_ref().map(|profile| DiscUnpack {
                 profile,
-                report: &|_, _, _| {},
+                report: &forward,
             });
             let input = match request.source_record {
                 Some(record) => {
@@ -807,6 +827,20 @@ pub(crate) enum DiscUnpackPhase {
     Extract,
     Verify,
     Activate,
+}
+
+impl DiscUnpackPhase {
+    /// Stable machine id shared with operation events and CLI phase names.
+    pub(crate) fn id(self) -> &'static str {
+        match self {
+            Self::Identify => "disc.identify",
+            Self::Plan => "disc.plan",
+            Self::FreeSpace => "disc.free-space",
+            Self::Extract => "disc.extract",
+            Self::Verify => "disc.verify",
+            Self::Activate => "disc.activate",
+        }
+    }
 }
 
 /// Catalog-declared disc-image facts plus an optional progress observer.
@@ -3844,6 +3878,7 @@ mod tests {
                         selected_executable: &executable,
                         source: Some(&source),
                         source_record: None,
+                        disc_progress: None,
                     },
                     &|| Ok(()),
                 )
@@ -3875,6 +3910,7 @@ mod tests {
             selected_executable: &executable,
             source: None,
             source_record: None,
+            disc_progress: None,
         };
         let checkpoint = || {
             Err(PortcoveError::new(
@@ -4338,6 +4374,7 @@ mod tests {
                         selected_executable: &executable,
                         source: source.map(|record| record.path.as_path()),
                         source_record: source,
+                        disc_progress: None,
                     },
                     &|| Ok(()),
                 )
@@ -4554,6 +4591,7 @@ mod tests {
                     selected_executable: &executable,
                     source: Some(&source),
                     source_record: None,
+                    disc_progress: None,
                 },
                 &|| Ok(()),
             )
@@ -4662,6 +4700,7 @@ mod tests {
             selected_executable: &executable,
             source: Some(&source),
             source_record: Some(&source_record),
+            disc_progress: None,
         };
         let planned = plan_libultraship_source(request, false).unwrap();
         assert!(matches!(&planned, LibultrashipSourcePlan::Archived { .. }));
@@ -4821,6 +4860,7 @@ mod tests {
             selected_executable: temporary.path(),
             source: Some(&source),
             source_record: Some(&admitted),
+            disc_progress: None,
         };
         let no_source = plan_libultraship_source(
             LaunchSpecRequest {
@@ -4999,6 +5039,7 @@ mod tests {
             selected_executable: &executable,
             source: Some(&source),
             source_record: None,
+            disc_progress: None,
         };
         let adapter = AdapterRegistry.get(AdapterKind::PsxRecompManaged);
         let before = launch_fixture_inventory(temporary.path());

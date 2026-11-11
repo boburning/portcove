@@ -4905,6 +4905,23 @@ impl PortcoveService {
         A: FnOnce(&LaunchSessionRecord),
         F: FnOnce(&LaunchSessionRecord),
     {
+        self.supervise_launch_observed(request, &|_| {}, on_accepted, on_started)
+    }
+
+    /// As `supervise_launch_identified`, also delivering the launch activity's
+    /// preparation events (disc-image unpacking phases) to `on_event` while the
+    /// launch is being prepared. Events are best-effort reporting only.
+    pub fn supervise_launch_observed<A, F>(
+        &self,
+        request: IdentifiedLaunchRequest<'_>,
+        on_event: &dyn Fn(OperationEvent),
+        on_accepted: A,
+        on_started: F,
+    ) -> Result<SupervisedLaunchOutcome>
+    where
+        A: FnOnce(&LaunchSessionRecord),
+        F: FnOnce(&LaunchSessionRecord),
+    {
         let IdentifiedLaunchRequest {
             request_id,
             port_id,
@@ -5037,13 +5054,14 @@ impl PortcoveService {
 
             operation.checkpoint()?;
             let spec = match (&active, &external) {
-                (Some(install), None) => self.prepare_launch_for_install(
+                (Some(install), None) => self.prepare_launch_for_install_observed(
                     port.ok_or_else(|| {
                         PortcoveError::state("managed launch has no retained definition")
                     })?,
                     install,
                     source_override,
                     Some(&operation),
+                    Some(on_event),
                 )?,
                 (None, Some((record, retained_catalog))) => self.prepare_launch_for_external(
                     record,

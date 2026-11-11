@@ -6,6 +6,12 @@ const OTHER_PHASE: &str = "Other operation phase";
 pub(crate) fn phase_name(phase: &str) -> &'static str {
     match phase {
         "download" => "Downloading release files",
+        "disc.identify" => "Checking your disc image",
+        "disc.plan" => "Reading the disc contents",
+        "disc.free-space" => "Checking free space",
+        "disc.extract" => "Unpacking game files",
+        "disc.verify" => "Verifying game files",
+        "disc.activate" => "Finishing game file setup",
         "verify" => "Checking file identity",
         "copy" => "Copying game files",
         "psx-toolchain-download" => "Downloading PlayStation build tools",
@@ -92,6 +98,27 @@ fn numbered_phase_name(phase: &str) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::{OTHER_PHASE, phase_name};
+
+    #[test]
+    fn disc_unpacking_phases_are_named_for_the_player() {
+        let names: Vec<_> = [
+            "disc.identify",
+            "disc.plan",
+            "disc.free-space",
+            "disc.extract",
+            "disc.verify",
+            "disc.activate",
+        ]
+        .into_iter()
+        .map(phase_name)
+        .collect();
+        assert!(names.iter().all(|name| *name != OTHER_PHASE));
+        let mut unique = names.clone();
+        unique.sort_unstable();
+        unique.dedup();
+        assert_eq!(unique.len(), names.len());
+        assert_eq!(phase_name("disc.identify"), "Checking your disc image");
+    }
 
     #[test]
     fn shipped_cartridge_capture_phases_are_named_and_distinguish_build_steps() {
