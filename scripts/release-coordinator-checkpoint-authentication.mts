@@ -253,6 +253,19 @@ export const retainedApplicationContextUpload = Object.freeze({
   diagnostics_sha256: "9cf48b2f3a32d217b1ea15b4a26d0c0e0b667ff8aab267c37cd0871601460c76",
 });
 
+// The earlier run's terminal Actions result remains failed. Its exact signed
+// zero-effect settlement is the current predecessor for qualified review.
+export const retainedApplicationContextSettlement = Object.freeze({
+  checkpoint: "e6160a6b2c8b7784ef83e1f0c36bec0804acf2e3",
+  previous: retainedApplicationContextUpload.checkpoint,
+  successor_ref: "refs/tags/portcove-production-controller-20261111r79",
+  workflow_sha256: retainedApplicationContextUpload.workflow_sha256,
+  revision: "fd45c587cd21fbd3ab125aaa9e1096577bbb5351",
+  ref: retainedApplicationContextUpload.successor_ref,
+  run_id: "42959512182",
+  job_id: 130324385057,
+});
+
 /** Resume the settled signed renewal descriptor before any context upload or feed write. */
 export function matchesRetainedApplicationRenewalHandoff(
   checkpoint: { checkpoint: string; previous: string | null },
@@ -262,7 +275,10 @@ export function matchesRetainedApplicationRenewalHandoff(
 ) {
   const pin = retainedApplicationRenewalClaim;
   if (purpose !== "application") return false;
-  const context = retainedApplicationContextUpload;
+  const context =
+    source.execution_ref === retainedApplicationContextSettlement.successor_ref
+      ? retainedApplicationContextSettlement
+      : retainedApplicationContextUpload;
   if (source.execution_ref === context.successor_ref) {
     return (
       source.workflow_sha256 === context.workflow_sha256 &&

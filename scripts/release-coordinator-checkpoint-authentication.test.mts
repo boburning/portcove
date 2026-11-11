@@ -36,6 +36,7 @@ import {
   isRetainedApplicationRenewalClaimScope,
   retainedApplicationRenewalClaim,
   retainedApplicationContextUpload,
+  retainedApplicationContextSettlement,
 } from "./release-coordinator-checkpoint-authentication.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { inspectCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-evidence.mts";
@@ -1312,60 +1313,61 @@ void test("the repaired application controller accepts only the settled renewal 
   }
 });
 
-void test("only the appointed application successor can consume the original pending context proof", () => {
-  const pin = retainedApplicationContextUpload;
-  const checkpoint = { checkpoint: pin.checkpoint, previous: pin.previous };
-  const source = { execution_ref: pin.successor_ref, workflow_sha256: pin.workflow_sha256 };
-  const producer = {
-    controller_revision: pin.revision,
-    controller_ref: pin.ref,
-    workflow_sha256: pin.workflow_sha256,
-    run_id: pin.run_id,
-    run_attempt: 1,
-    job_id: String(pin.job_id),
-    check_run_id: String(pin.job_id),
-  };
-  assert.equal(
-    matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "application"),
-    true,
-  );
-  assert.equal(
-    matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "catalog-publication"),
-    false,
-  );
-  assert.equal(
-    matchesRetainedApplicationRenewalHandoff(
-      checkpoint,
-      producer,
-      { ...source, workflow_sha256: "f".repeat(64) },
-      "application",
-    ),
-    false,
-  );
-  assert.equal(
-    matchesRetainedApplicationRenewalHandoff(
-      { ...checkpoint, previous: null },
-      producer,
-      source,
-      "application",
-    ),
-    false,
-  );
-  assert.equal(
-    matchesRetainedApplicationRenewalHandoff(
-      { ...checkpoint, checkpoint: pin.previous },
-      producer,
-      source,
-      "application",
-    ),
-    false,
-  );
-  for (const [key, value] of Object.entries(producer)) {
-    const changed = { ...producer, [key]: typeof value === "number" ? 2 : `${value}0` };
+for (const pin of [retainedApplicationContextUpload, retainedApplicationContextSettlement]) {
+  void test(`only ${pin.successor_ref} can consume application context proof ${pin.checkpoint}`, () => {
+    const checkpoint = { checkpoint: pin.checkpoint, previous: pin.previous };
+    const source = { execution_ref: pin.successor_ref, workflow_sha256: pin.workflow_sha256 };
+    const producer = {
+      controller_revision: pin.revision,
+      controller_ref: pin.ref,
+      workflow_sha256: pin.workflow_sha256,
+      run_id: pin.run_id,
+      run_attempt: 1,
+      job_id: String(pin.job_id),
+      check_run_id: String(pin.job_id),
+    };
     assert.equal(
-      matchesRetainedApplicationRenewalHandoff(checkpoint, changed, source, "application"),
-      false,
-      key,
+      matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "application"),
+      true,
     );
-  }
-});
+    assert.equal(
+      matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "catalog-publication"),
+      false,
+    );
+    assert.equal(
+      matchesRetainedApplicationRenewalHandoff(
+        checkpoint,
+        producer,
+        { ...source, workflow_sha256: "f".repeat(64) },
+        "application",
+      ),
+      false,
+    );
+    assert.equal(
+      matchesRetainedApplicationRenewalHandoff(
+        { ...checkpoint, previous: null },
+        producer,
+        source,
+        "application",
+      ),
+      false,
+    );
+    assert.equal(
+      matchesRetainedApplicationRenewalHandoff(
+        { ...checkpoint, checkpoint: pin.previous },
+        producer,
+        source,
+        "application",
+      ),
+      false,
+    );
+    for (const [key, value] of Object.entries(producer)) {
+      const changed = { ...producer, [key]: typeof value === "number" ? 2 : `${value}0` };
+      assert.equal(
+        matchesRetainedApplicationRenewalHandoff(checkpoint, changed, source, "application"),
+        false,
+        key,
+      );
+    }
+  });
+}

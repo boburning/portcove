@@ -14,17 +14,30 @@ import { validateValidationPlan } from "./validation-plan.mts";
 const repository = "repos/boburning/portcove";
 // Exact retained initial-beta Windows package qualification. These three
 // recipes were reviewed at the qualified source, before controller-only drift.
-const historicalWindowsQualification = {
-  source: "fd4b1a1c5bf3a4253ee06a357df04bb1f203cb2f",
-  run: 42407004590,
-  attempt: 1,
-  recipes: {
-    "ci.yml": "93e2dccd4516e42e54bf0ae39df09873e6e4351868d52bca36e6adbbedc3aefe",
-    "application-release.yml": "bfafab0997b22d09d55544c58d5afa89e5780209cf92e9c90e918a1f95f31ee7",
-    "application-release-package.yml":
-      "77ab2083dad7e277923c543dc0685502e531941cded966f68c71a458d4f75a76",
-  } as Record<string, string>,
-};
+const historicalWindowsQualifications = [
+  {
+    source: "fd4b1a1c5bf3a4253ee06a357df04bb1f203cb2f",
+    run: 42407004590,
+    attempt: 1,
+    recipes: {
+      "ci.yml": "93e2dccd4516e42e54bf0ae39df09873e6e4351868d52bca36e6adbbedc3aefe",
+      "application-release.yml": "bfafab0997b22d09d55544c58d5afa89e5780209cf92e9c90e918a1f95f31ee7",
+      "application-release-package.yml":
+        "77ab2083dad7e277923c543dc0685502e531941cded966f68c71a458d4f75a76",
+    } as Record<string, string>,
+  },
+  {
+    source: "29f33f577dd08888daa308f6534e1ba2e0d10eaf",
+    run: 42656355737,
+    attempt: 2,
+    recipes: {
+      "ci.yml": "3a962f90cddf474ceca68b6625320687fc0c403f99b0217b0e9055a1ff09b010",
+      "application-release.yml": "0eb363f8495439971f574e3216e2dc121282a34633333c553f35de53bf4e62fb",
+      "application-release-package.yml":
+        "77ab2083dad7e277923c543dc0685502e531941cded966f68c71a458d4f75a76",
+    } as Record<string, string>,
+  },
+];
 
 const sharedAndWindowsJobs = Object.freeze([
   "classify-ci-plan",
@@ -236,12 +249,12 @@ export async function readWindowsApplicationQualification(
   assert.ok(isRecord(run) && Number.isSafeInteger(run.run_attempt) && Number(run.run_attempt) > 0);
   assert.equal(run.id, runId);
   const attempt = Number(run.run_attempt);
-  const historical = runId === historicalWindowsQualification.run;
+  const historical = historicalWindowsQualifications.find(({ run }) => run === runId);
   if (historical) {
     assert.ok(
-      source === historicalWindowsQualification.source &&
+      source === historical.source &&
         run.head_sha === source &&
-        attempt === historicalWindowsQualification.attempt &&
+        attempt === historical.attempt &&
         run.path === ".github/workflows/application-release.yml",
       "historical Windows qualification source or attempt differs",
     );
@@ -262,7 +275,7 @@ export async function readWindowsApplicationQualification(
     const bytes = Buffer.from(remote.content, "base64");
     assert.equal(remote.size, bytes.length);
     if (historical) {
-      const expected = historicalWindowsQualification.recipes[workflow];
+      const expected = historical.recipes[workflow];
       assert.ok(expected, "historical Windows qualification recipe was not reviewed");
       assert.equal(
         createHash("sha256").update(bytes).digest("hex"),
