@@ -1,7 +1,7 @@
 import { ExternalLink } from "../../components/ExternalLink";
 import { SettingsRow } from "../../components/ui/patterns";
 import { useEffect, useRef, useState, type SetStateAction } from "react";
-import i18next, { type TFunction } from "i18next";
+import type { TFunction } from "i18next";
 import { Trans } from "react-i18next";
 import { useAppTranslation } from "../../localization";
 import { desktopApi } from "../../api";
@@ -256,10 +256,11 @@ type UpdateMessage =
 /** App-owned check failures keep a stable code; the message serves diagnostics. */
 class ApplicationUpdateCheckError extends Error {
   constructor(readonly code: "channelMismatch" | "unexpectedStaged") {
+    // Diagnostics stay English, like Core's; presentation localizes the code.
     super(
       code === "channelMismatch"
-        ? i18next.t("check.channelMismatch", { ns: "applicationUpdate" })
-        : i18next.t("check.unexpectedStaged", { ns: "applicationUpdate" }),
+        ? "The update check returned a different channel. Check again."
+        : "The one-time check returned an unexpected download result. Refresh update activity to review it.",
     );
   }
 }

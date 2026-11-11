@@ -73,7 +73,8 @@ function DefinitionControls({
     setNotice(undefined);
     try {
       const result = await perform(
-        t("definition.checkingFor", { name: portName }),
+        // Activity records this name at start; see docs/LOCALIZATION.md.
+        `Checking setup availability for ${portName}…`,
         async (reportEvent) => {
           const refreshed = await desktopApi.refreshOfficialDefinition(
             portId,

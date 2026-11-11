@@ -129,6 +129,11 @@ without stable codes, so `CatalogUpdates.tsx` still classifies their text to
 choose a localized summary. The original diagnostic stays visible verbatim and
 unknown reasons use a generic summary. Replacing this needs stable Core codes.
 
+Operation names passed to the shared Activity owner and app-owned diagnostic
+messages stay English for now, like Core diagnostics. Activity records a name
+when an operation starts, so translating it there would freeze one language.
+Those names will be localized when the Activity surface resolves them at render.
+
 Channel-dependent messages use static i18next contexts (`readyBody_preview`,
 `readyBody_stable`) at explicit call sites. A dynamic context would make the
 extractor add a base key whose value is the raw key, and inserting a translated

@@ -104,7 +104,9 @@ function OfficialCatalogControls({ generation, disabled, onChanged }: OfficialCa
     setNotice(undefined);
     try {
       const result = await perform(
-        confirmed ? t("catalog.enabling") : t("catalog.refreshing"),
+        // Activity records this name at start; operation names stay English until
+        // the Activity surface resolves them at render (docs/LOCALIZATION.md).
+        confirmed ? "Enabling official catalog updates…" : "Refreshing official catalog…",
         async (reportEvent) => {
           try {
             if (confirmed) {
