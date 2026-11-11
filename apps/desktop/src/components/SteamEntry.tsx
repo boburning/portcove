@@ -5,6 +5,9 @@ import { desktopApi } from "../api";
 import { pickSteamFolder } from "../file-picker";
 import type {
   PortDefinition,
+  SteamArtworkApplyResult,
+  SteamArtworkOperation,
+  SteamArtworkReview,
   SteamEntryApplyResult,
   SteamEntryOperation,
   SteamEntryReview,
@@ -28,6 +31,65 @@ function steamChangeLabel(kind: SteamEntryReview["changes"][number]["kind"]) {
     unchanged: "No shortcut change",
   };
   return Object.hasOwn(labels, kind) ? labels[kind] : "Shortcut change unavailable";
+}
+
+type SteamArtworkRole = SteamArtworkReview["roles"][number];
+
+const artworkRoleNames: Record<SteamArtworkRole["role"], string> = {
+  portrait_cover: "Portrait cover",
+  landscape_cover: "Landscape cover",
+  hero_banner: "Hero banner",
+};
+
+function steamArtworkRoleName(role: SteamArtworkRole["role"]) {
+  return Object.hasOwn(artworkRoleNames, role) ? artworkRoleNames[role] : "Artwork";
+}
+
+function steamArtworkUnavailableLabel(reason: SteamArtworkRole["unavailable_reason"]) {
+  switch (reason) {
+    case "no_local_original":
+      return "Not available: choose an imported image for this game in Portcove first";
+    case "selected_original_unavailable":
+      return "Not available: the selected image could not be read; import it again";
+    default:
+      return "Not available: Portcove has no image for this role yet";
+  }
+}
+
+function steamArtworkPlanLabel(role: SteamArtworkRole) {
+  switch (role.action) {
+    case "write":
+      return "Will be added";
+    case "replace":
+      return "Will replace the current Steam artwork, which is backed up first";
+    case "preserve":
+      return "Kept: Steam already has artwork here";
+    case "unchanged":
+      return "Already up to date";
+    case "unavailable":
+      return steamArtworkUnavailableLabel(role.unavailable_reason);
+    case "remove":
+      return "Will be removed, with a backup kept";
+    case "preserve_modified":
+      return "Kept: it was changed outside Portcove";
+    case "absent":
+      return "No Portcove artwork to remove";
+    default:
+      return "Change unavailable";
+  }
+}
+
+function steamArtworkResultLabel(role: SteamArtworkRole) {
+  switch (role.action) {
+    case "write":
+      return "Added";
+    case "replace":
+      return "Replaced";
+    case "remove":
+      return "Removed";
+    default:
+      return steamArtworkPlanLabel(role);
+  }
 }
 
 export function SteamEntryControl({
@@ -82,6 +144,9 @@ export function SteamEntryDialog({
   const [steamUserId, setSteamUserId] = useState("");
   const [review, setReview] = useState<SteamEntryReview>();
   const [result, setResult] = useState<SteamEntryApplyResult>();
+  const [artworkReview, setArtworkReview] = useState<SteamArtworkReview>();
+  const [artworkResult, setArtworkResult] = useState<SteamArtworkApplyResult>();
+  const [replaceArtwork, setReplaceArtwork] = useState(false);
   const [pending, setPending] = useState<"review" | "apply">();
   const [error, setError] = useState<string>();
   const dismiss = () => {
@@ -91,7 +156,52 @@ export function SteamEntryDialog({
   const resetReview = () => {
     setReview(undefined);
     setResult(undefined);
+    setArtworkReview(undefined);
+    setArtworkResult(undefined);
     setError(undefined);
+  };
+  const loadArtworkReview = async (operation: SteamArtworkOperation) => {
+    if (pending) return;
+    setPending("review");
+    resetReview();
+    try {
+      setArtworkReview(
+        await desktopApi.previewSteamArtwork(
+          { portId: port.id, steamRoot, steamUserId, operation },
+          generation,
+        ),
+      );
+    } catch (value) {
+      setError(errorText(value));
+    } finally {
+      setPending(undefined);
+    }
+  };
+  const applyArtwork = async () => {
+    if (!artworkReview || pending) return;
+    setPending("apply");
+    setError(undefined);
+    try {
+      const applied = await desktopApi.applySteamArtwork(
+        {
+          portId: port.id,
+          steamRoot: artworkReview.steam_root,
+          steamUserId: artworkReview.steam_user_id,
+          operation: artworkReview.operation,
+        },
+        artworkReview.plan_sha256,
+        generation,
+      );
+      if (applied) {
+        setArtworkResult(applied);
+        setArtworkReview(undefined);
+      }
+    } catch (value) {
+      setArtworkReview(undefined);
+      setError(errorText(value));
+    } finally {
+      setPending(undefined);
+    }
   };
   const loadReview = async (operation: SteamEntryOperation) => {
     if (pending) return;
@@ -135,6 +245,7 @@ export function SteamEntryDialog({
     }
   };
   const selected = steamRoot.trim() && steamUserId.trim();
+  const reviewing = Boolean(review || result || artworkReview || artworkResult);
   return (
     <Dialog
       open
@@ -159,7 +270,7 @@ export function SteamEntryDialog({
             ? `Add, repair, or remove the Steam shortcut for ${port.name} in one selected local profile.`
             : "Remove a previously added Portcove shortcut from one selected local Steam profile. The game is not installed here."}
         </DialogDescription>
-        {!result && (
+        {!result && !artworkResult && (
           <SteamProfileFields
             key={generation}
             idPrefix="steam"
@@ -173,8 +284,51 @@ export function SteamEntryDialog({
           />
         )}
         {pending === "review" && <p role="status">Inspecting the selected Steam profile…</p>}
+        {!reviewing && (
+          <Fieldset legend="Steam artwork" disabled={Boolean(pending)} className="mt-6 grid gap-3">
+            <p>
+              Add this game's selected Portcove cover to its Portcove shortcut. Artwork already in
+              Steam is kept unless you choose to replace it.
+            </p>
+            <label
+              htmlFor="steam-artwork-replace"
+              className="flex min-h-10 cursor-pointer items-center gap-3 py-2"
+            >
+              <Checkbox
+                data-focusable
+                id="steam-artwork-replace"
+                data-steam-artwork-replace
+                checked={replaceArtwork}
+                onCheckedChange={(checked) => setReplaceArtwork(checked === true)}
+              />
+              Replace artwork already in Steam
+            </label>
+            <ActionRow>
+              <Button
+                data-focusable
+                variant="outline"
+                disabled={!selected || Boolean(pending)}
+                onClick={() =>
+                  void loadArtworkReview({ kind: "update", replace_existing: replaceArtwork })
+                }
+              >
+                Review artwork update
+              </Button>
+              <Button
+                data-focusable
+                variant="outline"
+                disabled={!selected || Boolean(pending)}
+                onClick={() => void loadArtworkReview({ kind: "remove_owned" })}
+              >
+                Review artwork removal
+              </Button>
+            </ActionRow>
+          </Fieldset>
+        )}
         {review && <SteamEntryReviewDetails review={review} />}
         {result && <SteamEntryResult result={result} batch={false} />}
+        {artworkReview && <SteamArtworkReviewDetails review={artworkReview} />}
+        {artworkResult && <SteamArtworkResult result={artworkResult} />}
         {error && <p role="alert">{error}</p>}
         <DialogFooter className="mt-4">
           <Button
@@ -184,9 +338,9 @@ export function SteamEntryDialog({
             disabled={pending === "apply"}
             onClick={dismiss}
           >
-            {result ? "Close" : "Cancel"}
+            {result || artworkResult ? "Close" : "Cancel"}
           </Button>
-          {!review && !result && (
+          {!reviewing && (
             <>
               <Button
                 data-focusable
@@ -227,6 +381,34 @@ export function SteamEntryDialog({
                     : review.operation === "remove"
                       ? "Remove shortcut"
                       : "Add or repair shortcut"}
+                </Button>
+              )}
+            </>
+          )}
+          {artworkReview && (
+            <>
+              <Button
+                data-focusable
+                variant="outline"
+                disabled={Boolean(pending)}
+                onClick={() => void loadArtworkReview(artworkReview.operation)}
+              >
+                Check again
+              </Button>
+              {artworkReview.writes_required && (
+                <Button
+                  data-focusable
+                  variant={
+                    artworkReview.operation.kind === "remove_owned" ? "destructive" : "primary"
+                  }
+                  disabled={Boolean(pending) || artworkReview.steam_client_state !== "closed"}
+                  onClick={() => void applyArtwork()}
+                >
+                  {pending === "apply"
+                    ? "Applying reviewed change…"
+                    : artworkReview.operation.kind === "remove_owned"
+                      ? "Remove Portcove artwork"
+                      : "Update Steam artwork"}
                 </Button>
               )}
             </>
@@ -677,6 +859,96 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamB
           )}
         </dl>
       </details>
+    </section>
+  );
+}
+
+function SteamArtworkReviewDetails({ review }: { review: SteamArtworkReview }) {
+  const removing = review.operation.kind === "remove_owned";
+  return (
+    <section className="removal-review-details mt-6 grid gap-3" aria-label="Reviewed Steam artwork">
+      <p className="[overflow-wrap:anywhere]">
+        <strong>
+          {review.writes_required
+            ? "Review the exact artwork change before applying it."
+            : removing
+              ? "There is no Portcove artwork to remove for this game in the selected profile."
+              : "No artwork will change for this game in the selected profile."}
+        </strong>
+      </p>
+      {review.recovered && (
+        <p className="[overflow-wrap:anywhere]" role="status">
+          Portcove first finished an interrupted artwork change for this profile. Each image is
+          either the one you confirmed earlier or the one that was there before.
+        </p>
+      )}
+      <ul>
+        {review.roles.map((role) => (
+          <li className="[overflow-wrap:anywhere]" key={role.role}>
+            {steamArtworkRoleName(role.role)}: {steamArtworkPlanLabel(role)}
+          </li>
+        ))}
+      </ul>
+      {review.steam_client_state === "running" && (
+        <p className="[overflow-wrap:anywhere]" role="alert">
+          Close Steam, then choose Check again. Portcove will not close Steam for you.
+        </p>
+      )}
+      {review.steam_client_state === "unknown" && (
+        <p className="[overflow-wrap:anywhere]" role="alert">
+          Portcove could not determine whether Steam is running, so no change can be applied.
+        </p>
+      )}
+      <p className="[overflow-wrap:anywhere]">
+        {removing
+          ? "Only artwork Portcove added and that has not changed since is removed. The shortcut, the game, its saves and your other Steam artwork are not affected."
+          : "Only this game's Portcove shortcut artwork changes. The shortcut, the game, its saves and your other Steam artwork are not affected."}
+      </p>
+      <details>
+        <summary data-focusable>Technical details</summary>
+        <dl className="grid gap-3 wrap-anywhere">
+          <div>
+            <dt>Steam profile</dt>
+            <dd>{review.steam_user_id}</dd>
+          </div>
+          <div>
+            <dt>Artwork folder</dt>
+            <dd>{review.grid_path}</dd>
+          </div>
+          {review.app_id !== null && review.app_id !== undefined && (
+            <div>
+              <dt>Shortcut app ID</dt>
+              <dd>{review.app_id}</dd>
+            </div>
+          )}
+        </dl>
+      </details>
+    </section>
+  );
+}
+
+function SteamArtworkResult({ result }: { result: SteamArtworkApplyResult }) {
+  return (
+    <section className="removal-review-details" aria-label="Steam artwork result">
+      <p className="[overflow-wrap:anywhere]" role="status">
+        <strong>
+          {result.wrote
+            ? "Steam artwork updated. Restart Steam to see the change."
+            : "Steam artwork already matches this review."}
+        </strong>
+      </p>
+      <ul>
+        {result.roles.map((role) => (
+          <li className="[overflow-wrap:anywhere]" key={role.role}>
+            {steamArtworkRoleName(role.role)}: {steamArtworkResultLabel(role)}
+          </li>
+        ))}
+      </ul>
+      {result.backup_paths.map((path) => (
+        <p className="[overflow-wrap:anywhere]" key={path}>
+          Backup: <code>{path}</code>
+        </p>
+      ))}
     </section>
   );
 }

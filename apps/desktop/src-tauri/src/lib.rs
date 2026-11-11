@@ -61,6 +61,7 @@ mod removal;
 #[cfg(any(windows, target_os = "linux"))]
 mod runtime_support;
 mod source_removal;
+pub mod steam_artwork;
 pub mod steam_entries;
 pub mod steam_entry_commands;
 mod transport;
@@ -2806,6 +2807,8 @@ pub fn run() -> std::process::ExitCode {
             steam_entry_commands::apply_steam_entry,
             steam_entry_commands::preview_steam_batch_add,
             steam_entry_commands::apply_steam_batch_add,
+            steam_entry_commands::preview_steam_artwork,
+            steam_entry_commands::apply_steam_artwork,
             library_selection::get_library_identity,
             library_selection::get_default_library_root,
             library_selection::set_default_library,
