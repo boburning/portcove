@@ -7,7 +7,7 @@
  * no support, admission or publication claim is made: unavailable facts are
  * reported as unknown with their reason.
  */
-import { spawnSync } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
   existsSync,
@@ -28,6 +28,7 @@ import {
   defaultDatabaseEnvironment,
   runSql,
 } from "./maintenance-store.mts";
+import { portCatalogMarkers, portKeyMarkers } from "./roadmap-issue.mts";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 export const defaultSamplePath = path.join(
@@ -144,37 +145,48 @@ export const isolationScope = "fresh-empty-library-preferences-diagnostics-lock"
  * lock (the CLI's maintained isolation overrides), so a collection never
  * touches or rotates the maintainer's real Portcove state.
  */
-function isolatedCli(cli: string, args: string[]) {
+async function isolatedCli(cli: string, args: string[]) {
   // Core refuses paths below a symlink (macOS /var, a linked TMPDIR) and diagnostics
   // would then fall back to the platform directory, so the root is a resolved real path.
   const root = mkdtempSync(path.join(realpathSync(os.tmpdir()), "portcove-inventory-"));
   try {
     const library = path.join(root, "library");
     const home = path.join(root, "home");
-    const result = spawnSync(cli, ["--library", library, "--json", ...args], {
-      encoding: "utf8",
-      timeout: 120_000,
-      maxBuffer: 16 * 1024 * 1024,
-      windowsHide: true,
-      env: {
-        ...process.env,
-        PORTCOVE_PREFERENCES: path.join(root, "config", "preferences.json"),
-        PORTCOVE_APPLICATION_RUNTIME_LOCK: path.join(root, "config", "runtime.lock"),
-        // Defence in depth on Linux and macOS: a platform-directory fallback also stays
-        // inside the root. Windows resolves known folders without these variables, so
-        // there isolation rests on the two overrides above preparing successfully.
-        HOME: home,
-        USERPROFILE: home,
-        XDG_CONFIG_HOME: path.join(home, "config"),
-        XDG_DATA_HOME: path.join(home, "data"),
-        XDG_CACHE_HOME: path.join(home, "cache"),
-        XDG_STATE_HOME: path.join(home, "state"),
-        APPDATA: path.join(home, "roaming"),
-        LOCALAPPDATA: path.join(home, "local"),
+    const result = await new Promise<{ status: number | null; stdout: string; stderr: string }>(
+      (resolve, reject) => {
+        execFile(
+          cli,
+          ["--library", library, "--json", ...args],
+          {
+            encoding: "utf8",
+            timeout: 120_000,
+            maxBuffer: 16 * 1024 * 1024,
+            windowsHide: true,
+            env: {
+              ...process.env,
+              PORTCOVE_PREFERENCES: path.join(root, "config", "preferences.json"),
+              PORTCOVE_APPLICATION_RUNTIME_LOCK: path.join(root, "config", "runtime.lock"),
+              // Defence in depth on Linux and macOS: a platform-directory fallback also stays
+              // inside the root. Windows resolves known folders without these variables, so
+              // there isolation rests on the two overrides above preparing successfully.
+              HOME: home,
+              USERPROFILE: home,
+              XDG_CONFIG_HOME: path.join(home, "config"),
+              XDG_DATA_HOME: path.join(home, "data"),
+              XDG_CACHE_HOME: path.join(home, "cache"),
+              XDG_STATE_HOME: path.join(home, "state"),
+              APPDATA: path.join(home, "roaming"),
+              LOCALAPPDATA: path.join(home, "local"),
+            },
+          },
+          (error, stdout, stderr) => {
+            if (error && (error.killed || error.signal || typeof error.code !== "number"))
+              reject(new MaintenanceStoreError(`portcove ${args[0]} did not finish`));
+            else resolve({ status: error ? (error.code as number) : 0, stdout, stderr });
+          },
+        );
       },
-    });
-    if (result.error || result.signal)
-      throw new MaintenanceStoreError(`portcove ${args[0]} did not finish`);
+    );
     let parsed: unknown;
     try {
       parsed = JSON.parse(result.stdout);
@@ -197,8 +209,8 @@ function isolatedCli(cli: string, args: string[]) {
 }
 
 /** The maintained Core assessment, read with fully isolated host state. */
-export function coreCapabilities(cli: string, id: string): CapabilityObservation {
-  const envelope = isolatedCli(cli, ["port-capabilities", id]);
+export async function coreCapabilities(cli: string, id: string): Promise<CapabilityObservation> {
+  const envelope = await isolatedCli(cli, ["port-capabilities", id]);
   return envelope.ok
     ? { ok: true, report: envelope.data }
     : {
@@ -272,8 +284,137 @@ export interface CollectedSubject {
   capabilities: CapabilityObservation;
 }
 
-/** One transaction: two collection runs, their observations, assessments and transitions. */
+/** The fields of the maintained issue inventory this source reads. */
+export interface IssueInventory {
+  repository: string;
+  observed_at: string;
+  total: number;
+  issues: readonly {
+    id: string;
+    number: number;
+    title: string;
+    state: string;
+    body?: string;
+    blockedBy?: { nodes: readonly { number: number; state: string }[] };
+  }[];
+  memberships: readonly {
+    project_id: string;
+    issue_id: string;
+    isArchived: boolean;
+    fieldValues: unknown;
+  }[];
+}
+
+/** Single-select Project field values by field name, as GitHub reports them. */
+function projectFields(fieldValues: unknown) {
+  const nodes = (fieldValues as { nodes?: unknown[] } | null)?.nodes ?? [];
+  const fields: Record<string, string> = {};
+  for (const node of nodes) {
+    const value = node as { name?: unknown; field?: { name?: unknown } };
+    if (typeof value.name === "string" && typeof value.field?.name === "string")
+      fields[value.field.name] = value.name;
+  }
+  return fields;
+}
+
+/** Issue facts without bodies: state, Project placement, blockers and canonical port markers. */
+export function issueFacts(inventory: IssueInventory) {
+  if (inventory.total !== inventory.issues.length)
+    throw new MaintenanceStoreError("Issue inventory is incomplete");
+  const memberships = new Map<string, IssueInventory["memberships"][number][]>();
+  for (const membership of inventory.memberships)
+    memberships.set(membership.issue_id, [
+      ...(memberships.get(membership.issue_id) ?? []),
+      membership,
+    ]);
+  return new Map(
+    inventory.issues.map((issue) => [
+      `issue:${issue.number}`,
+      {
+        number: issue.number,
+        title: issue.title,
+        state: issue.state,
+        catalog_ids: [...new Set(portCatalogMarkers(issue.body))].sort(),
+        port_keys: [...new Set(portKeyMarkers(issue.body))].sort(),
+        blocked_by: (issue.blockedBy?.nodes ?? [])
+          .map(({ number, state }) => ({ number, state }))
+          .sort((left, right) => left.number - right.number),
+        project: (memberships.get(issue.id) ?? [])
+          .map(({ project_id, isArchived, fieldValues }) => ({
+            project_id,
+            archived: isArchived,
+            fields: projectFields(fieldValues),
+          }))
+          .sort((left, right) => (left.project_id < right.project_id ? -1 : 1)),
+      },
+    ]),
+  );
+}
+
+/** The maintained, completeness-verified issue and Project inventory, read-only. */
+export async function readIssueInventory(): Promise<IssueInventory> {
+  const { RoadmapClient, validateConfig } = await import("./roadmap.mts");
+  const { createRoadmapRequestScope } = await import("./roadmap-capacity-continuation.mts");
+  const config = validateConfig(
+    JSON.parse(readFileSync(path.join(repositoryRoot, ".github", "roadmap.json"), "utf8")),
+  );
+  const client = await RoadmapClient.connect(
+    config,
+    createRoadmapRequestScope({
+      allowMutations: false,
+      ghCommand: process.env.PORTCOVE_ROADMAP_GH,
+    }),
+  );
+  const inventory = await client.repositoryIssues({ projectMemberships: true });
+  return {
+    repository: inventory.repository,
+    observed_at: inventory.observed_at,
+    total: inventory.evidence.total ?? -1,
+    issues: inventory.issues,
+    memberships: inventory.project_memberships ?? [],
+  };
+}
+
+const absentPayload = { absent: true };
+type Fact = { digest: string; scope: unknown; revision: string; payload: unknown };
+
+/** sha256 over sorted `subject \t digest` lines; the database recomputes the same value. */
+export function membershipDigest(members: ReadonlyMap<string, string>) {
+  return sha256(
+    [...members]
+      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+      .map(([key, digest]) => `${key}\t${digest}`)
+      .join("\n"),
+  );
+}
+
+/** Latest present content digest per subject from finished runs of one source. */
+function latestMembers(environment: NodeJS.ProcessEnv, source: string) {
+  const rows = parseJson(
+    runSql(
+      environment,
+      `SELECT coalesce(json_agg(json_build_object('subject', subject_key, 'digest', content_sha256, 'absent', absent)), '[]')
+         FROM (SELECT DISTINCT ON (o.subject_key) o.subject_key, o.content_sha256,
+                      o.payload = portcove_maintenance.absent_payload() AS absent
+                 FROM portcove_maintenance.observations o
+                 JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
+                WHERE r.source = ${literal(source)} AND r.coverage <> 'in_progress'
+                ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC) latest;`,
+    ).trim(),
+    "latest maintenance members",
+  ) as { subject: string; digest: string; absent: boolean }[];
+  return new Map(
+    rows.filter(({ absent }) => !absent).map(({ subject, digest }) => [subject, digest]),
+  );
+}
+
+/**
+ * One transaction: the catalog and Core runs, their observations, assessments and
+ * transitions. In `all` mode a source stores only changed subjects plus absences
+ * from a complete run, and declares its membership for the database to verify.
+ */
 export function collectionSql(input: {
+  mode: "sample" | "all";
   revision: string;
   cliSha256: string;
   apiSchema: number;
@@ -281,18 +422,33 @@ export function collectionSql(input: {
   startedAt: string;
   platform: string;
   subjects: CollectedSubject[];
+  latest?: {
+    catalog: ReadonlyMap<string, string>;
+    core: ReadonlyMap<string, string>;
+    issues?: ReadonlyMap<string, string>;
+  };
+  issues?: { repository: string; observedAt: string; facts: ReadonlyMap<string, unknown> };
 }) {
   const token = randomUUID();
+  const coreSource = coreSourceName(input.platform);
   const catalogRun = `catalog-records:${input.revision.slice(0, 12)}:${token}`;
-  const coreRun = `core-port-capabilities:${input.cliSha256.slice(0, 12)}:${token}`;
+  const coreRun = `${coreSource}:${input.cliSha256.slice(0, 12)}:${token}`;
+  const coreRevision = `cli-sha256:${input.cliSha256}`;
   const policy = `port-capabilities;api=${input.apiSchema};cli-sha256=${input.cliSha256}`;
   const lines = [
     // Quoting below must never depend on server or role settings.
     "SET LOCAL standard_conforming_strings = on;",
     `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at) VALUES
       (${literal(catalogRun)}, 'catalog-records', ${literal(input.runner)}, ${literal(input.revision)}, ${literal(input.startedAt)}),
-      (${literal(coreRun)}, 'core-port-capabilities', ${literal(input.runner)}, ${literal(`cli-sha256:${input.cliSha256}`)}, ${literal(input.startedAt)});`,
+      (${literal(coreRun)}, ${literal(coreSource)}, ${literal(input.runner)}, ${literal(coreRevision)}, ${literal(input.startedAt)});`,
   ];
+  const observe = (run: string, key: string, fact: Fact) =>
+    lines.push(
+      `INSERT INTO portcove_maintenance.observations (run_id, subject_key, scope, input_revision, content_sha256, observed_at, payload) VALUES
+        (${literal(run)}, ${literal(key)}, ${jsonLiteral(fact.scope)}, ${literal(fact.revision)}, ${literal(fact.digest)}, statement_timestamp(), ${jsonLiteral(fact.payload)});`,
+    );
+  const catalogFacts = new Map<string, Fact>();
+  const coreFacts = new Map<string, Fact>();
   const gaps: { subject_key: string; code: string; message: string }[] = [];
   for (const subject of input.subjects) {
     const key = `port:${subject.id}`;
@@ -301,13 +457,14 @@ export function collectionSql(input: {
       operational_definition: subject.operational,
       scoped_qualification: subject.qualification,
     };
-    const capabilityFact = subject.capabilities;
     const catalogDigest = sha256(canonicalJson(catalogFact));
-    const capabilityDigest = sha256(canonicalJson(capabilityFact));
-    lines.push(
-      `INSERT INTO portcove_maintenance.observations (run_id, subject_key, scope, input_revision, content_sha256, observed_at, payload) VALUES
-        (${literal(catalogRun)}, ${literal(key)}, ${jsonLiteral({ source: "catalog-records" })}, ${literal(input.revision)}, ${literal(catalogDigest)}, statement_timestamp(), ${jsonLiteral(catalogFact)});`,
-    );
+    catalogFacts.set(key, {
+      digest: catalogDigest,
+      scope: { source: "catalog-records" },
+      revision: input.revision,
+      payload: catalogFact,
+    });
+    const capabilityFact = subject.capabilities;
     if (!capabilityFact.ok && !subjectScopedRefusals.has(capabilityFact.error?.code ?? "")) {
       // A host, network or lock failure says nothing about the port: no observation,
       // assessment or transition, and the Core run reports the gap.
@@ -318,10 +475,18 @@ export function collectionSql(input: {
       });
       continue;
     }
-    lines.push(
-      `INSERT INTO portcove_maintenance.observations (run_id, subject_key, scope, input_revision, content_sha256, observed_at, payload) VALUES
-        (${literal(coreRun)}, ${literal(key)}, ${jsonLiteral({ source: "core-port-capabilities", host_platform: input.platform, isolation: isolationScope, cli_source_binding: "unverified" })}, ${literal(`cli-sha256:${input.cliSha256}`)}, ${literal(capabilityDigest)}, statement_timestamp(), ${jsonLiteral(capabilityFact)});`,
-    );
+    const capabilityDigest = sha256(canonicalJson(capabilityFact));
+    coreFacts.set(key, {
+      digest: capabilityDigest,
+      scope: {
+        source: coreSource,
+        host_platform: input.platform,
+        isolation: isolationScope,
+        cli_source_binding: "unverified",
+      },
+      revision: coreRevision,
+      payload: capabilityFact,
+    });
     const result = capabilityResult(subject.capabilities);
     const explanation = {
       ...result.explanation,
@@ -343,33 +508,145 @@ export function collectionSql(input: {
           LEFT JOIN portcove_maintenance.subject_current c ON c.subject_key = a.subject_key
           WHERE a.subject_key = ${literal(key)} AND a.policy_version = ${literal(policy)} AND a.input_digest = ${literal(inputDigest)}
             AND c.result_digest IS DISTINCT FROM a.result_digest;`,
+      // Changes-only: a transition after the subject's baseline is a pending notification.
+      `INSERT INTO portcove_maintenance.notifications (notification_key, subject_key, transition_sequence, created_at)
+        SELECT 'transition:' || t.subject_key || ':' || t.sequence, t.subject_key, t.sequence, statement_timestamp()
+          FROM portcove_maintenance.subject_transitions t
+          JOIN portcove_maintenance.subject_current c ON c.subject_key = t.subject_key AND c.sequence = t.sequence
+          WHERE t.subject_key = ${literal(key)} AND t.sequence > 1
+        ON CONFLICT (notification_key) DO NOTHING;`,
     );
+  }
+  const issueFactsByKey = new Map<string, Fact>();
+  const issueRun = `issues-project:${token}`;
+  let issueRevision = "";
+  if (input.issues) {
+    if (input.mode !== "all") throw new MaintenanceStoreError("Issue collection requires --all");
+    issueRevision = `issues-sha256:${sha256(canonicalJson([...input.issues.facts]))}`;
+    lines.push(
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at) VALUES
+        (${literal(issueRun)}, 'issues-project', ${literal(input.runner)}, ${literal(issueRevision)}, ${literal(input.startedAt)});`,
+    );
+    for (const [key, payload] of input.issues.facts)
+      issueFactsByKey.set(key, {
+        digest: sha256(canonicalJson(payload)),
+        scope: {
+          source: "issues-project",
+          repository: input.issues.repository,
+          observed_at: input.issues.observedAt,
+        },
+        revision: issueRevision,
+        payload,
+      });
   }
   const expected = input.subjects.length;
   const coreCoverage = !gaps.length ? "complete" : gaps.length === expected ? "failed" : "partial";
-  for (const [run, revision, coverage, runGaps] of [
-    [catalogRun, input.revision, "complete", []],
-    [coreRun, `cli-sha256:${input.cliSha256}`, coreCoverage, gaps],
-  ] as const)
+  const runs: [
+    string,
+    string,
+    string,
+    unknown[],
+    Map<string, Fact>,
+    ReadonlyMap<string, string> | undefined,
+    number,
+  ][] = [
+    [catalogRun, input.revision, "complete", [], catalogFacts, input.latest?.catalog, expected],
+    [coreRun, coreRevision, coreCoverage, gaps, coreFacts, input.latest?.core, expected],
+  ];
+  if (input.issues)
+    runs.push([
+      issueRun,
+      issueRevision,
+      "complete",
+      [],
+      issueFactsByKey,
+      input.latest?.issues,
+      issueFactsByKey.size,
+    ]);
+  for (const [run, revision, coverage, runGaps, facts, latest, runExpected] of runs) {
+    let membership = "";
+    if (input.mode === "all") {
+      const members = new Map([...facts].map(([key, fact]) => [key, fact.digest]));
+      for (const [key, fact] of facts)
+        if (latest?.get(key) !== fact.digest) observe(run, key, fact);
+      // Only a complete run may say that a previously present subject is gone.
+      if (coverage === "complete")
+        for (const key of latest?.keys() ?? [])
+          if (!facts.has(key))
+            observe(run, key, {
+              digest: sha256(canonicalJson(absentPayload)),
+              scope: {
+                source:
+                  run === catalogRun
+                    ? "catalog-records"
+                    : run === coreRun
+                      ? coreSource
+                      : "issues-project",
+              },
+              revision,
+              payload: absentPayload,
+            });
+      membership = `, member_count = ${members.size}, member_digest = ${literal(membershipDigest(members))}`;
+    } else for (const [key, fact] of facts) observe(run, key, fact);
     lines.push(
       `UPDATE portcove_maintenance.collection_runs SET coverage = ${literal(coverage)}, completed_at = clock_timestamp(),
-         source_revision = ${literal(revision)}, expected_count = ${expected}, gaps = ${jsonLiteral(runGaps)}
+         source_revision = ${literal(revision)}, expected_count = ${runExpected}, gaps = ${jsonLiteral(runGaps)}${membership}
          WHERE run_id = ${literal(run)};`,
     );
+  }
   return lines.join("\n");
 }
 
-export function collect(options: {
+export const coreSourceName = (platform: string) => `core-port-capabilities-${platform}`;
+
+/** Every authored port ID committed at the revision. */
+function committedPortIds(revision: string) {
+  return git(["ls-tree", "--name-only", revision, "--", "crates/portcove-core/catalog/ports/"])
+    .split("\n")
+    .map((line) => path.posix.basename(line.trim()))
+    .filter((name) => name.endsWith(".json"))
+    .map((name) => name.slice(0, -".json".length))
+    .filter((id) => portIdPattern.test(id))
+    .sort();
+}
+
+async function mapBounded<T, R>(
+  items: readonly T[],
+  limit: number,
+  action: (item: T) => Promise<R>,
+) {
+  const results: R[] = new Array<R>(items.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, async () => {
+      while (next < items.length) {
+        const index = next++;
+        results[index] = await action(items[index]!);
+      }
+    }),
+  );
+  return results;
+}
+
+export async function collect(options: {
   cli: string;
   sample?: string | undefined;
+  all?: boolean | undefined;
+  /** With `all`, the authored universe; defaults to every record committed at HEAD. */
+  ports?: readonly string[] | undefined;
+  concurrency?: number | undefined;
+  /** With `all`, also collect the verified issue and Project inventory. */
+  issues?: (() => Promise<IssueInventory>) | undefined;
   environment: NodeJS.ProcessEnv;
   runner?: string | undefined;
 }) {
-  const sample = readSample(options.sample);
   const revision = git(["rev-parse", "HEAD"]).trim();
+  const ids = options.all
+    ? (options.ports ?? committedPortIds(revision))
+    : readSample(options.sample).ports;
   const definitions = committedOperationalDefinition(revision);
   const cliSha256 = sha256(readFileSync(options.cli));
-  const envelope = isolatedCli(options.cli, ["capabilities"]);
+  const envelope = await isolatedCli(options.cli, ["capabilities"]);
   const capabilities = envelope.data as
     | { schema_version?: unknown; port_capability_schema?: unknown }
     | undefined;
@@ -382,40 +659,83 @@ export function collect(options: {
       "portcove capabilities are unavailable or use an unsupported port capability schema",
     );
   const startedAt = new Date().toISOString();
-  const subjects = sample.ports.map((id) => ({
+  const platform = hostPlatform();
+  const subjects = await mapBounded(ids, options.concurrency ?? 4, async (id) => ({
     id,
     record: committedRecord(revision, id),
     operational: definitions.ids.has(id),
     qualification: definitions.qualification.filter((record) => record.scope?.port_id === id),
-    capabilities: coreCapabilities(options.cli, id),
+    capabilities: await coreCapabilities(options.cli, id),
   }));
+  const mode = options.all ? "all" : "sample";
+  if (options.issues && !options.all)
+    throw new MaintenanceStoreError("Issue collection requires --all");
+  const issueInventory = options.issues ? await options.issues() : undefined;
   runSql(
     options.environment,
     collectionSql({
+      mode,
       revision,
       cliSha256,
       apiSchema: capabilities.schema_version,
       runner: options.runner ?? process.env.PORTCOVE_MAINTENANCE_RUNNER?.trim() ?? "generic",
       startedAt,
-      platform: hostPlatform(),
+      platform,
       subjects,
+      ...(issueInventory
+        ? {
+            issues: {
+              repository: issueInventory.repository,
+              observedAt: issueInventory.observed_at,
+              facts: issueFacts(issueInventory),
+            },
+          }
+        : {}),
+      ...(mode === "all"
+        ? {
+            latest: {
+              catalog: latestMembers(options.environment, "catalog-records"),
+              core: latestMembers(options.environment, coreSourceName(platform)),
+              ...(issueInventory
+                ? { issues: latestMembers(options.environment, "issues-project") }
+                : {}),
+            },
+          }
+        : {}),
     }),
   );
   return {
+    mode,
     revision,
     cli_sha256: cliSha256,
     subjects: subjects.length,
+    issues: issueInventory?.issues.length ?? null,
     core_gaps: subjects.filter(
       ({ capabilities: fact }) => !fact.ok && !subjectScopedRefusals.has(fact.error?.code ?? ""),
     ).length,
   };
 }
 
-const reportQuery = `SELECT json_build_object(
+const reportQuery = `WITH latest_issue AS (
+    SELECT DISTINCT ON (o.subject_key) o.payload
+      FROM portcove_maintenance.observations o
+      JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
+      WHERE r.source = 'issues-project' AND r.coverage <> 'in_progress'
+      ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC
+  ), present_issue AS (
+    SELECT payload FROM latest_issue WHERE payload <> portcove_maintenance.absent_payload()
+  ), latest_catalog AS (
+    SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
+      FROM portcove_maintenance.observations o
+      JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
+      WHERE r.source = 'catalog-records' AND r.coverage <> 'in_progress'
+      ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC
+  )
+SELECT json_build_object(
   'runs', (SELECT coalesce(json_agg(r ORDER BY r.source, r.started_at DESC), '[]') FROM (
       SELECT DISTINCT ON (source) source, run_id, runner, source_revision, started_at, completed_at, coverage,
-             expected_count, observed_count, gaps
-        FROM portcove_maintenance.collection_runs ORDER BY source, started_at DESC) r),
+             expected_count, observed_count, gaps, member_count, member_digest
+        FROM portcove_maintenance.collection_runs WHERE coverage <> 'in_progress' ORDER BY source, started_at DESC) r),
   'subjects', (SELECT coalesce(json_agg(s ORDER BY s.subject_key), '[]') FROM (
       SELECT c.subject_key, c.sequence, c.updated_at, a.state, a.policy_version, a.input_digest, a.assessed_at, a.explanation,
         (SELECT json_agg(json_build_object('sequence', t.sequence, 'state', t.state, 'recorded_at', t.recorded_at,
@@ -424,16 +744,49 @@ const reportQuery = `SELECT json_build_object(
         (SELECT json_agg(json_build_object('source', o.scope ->> 'source', 'run_id', o.run_id, 'input_revision', o.input_revision,
                  'scope', o.scope, 'observed_at', o.observed_at, 'content_sha256', o.content_sha256) ORDER BY o.scope ->> 'source')
            FROM (SELECT DISTINCT ON (scope ->> 'source') * FROM portcove_maintenance.observations
-                   WHERE subject_key = c.subject_key ORDER BY scope ->> 'source', observed_at DESC) o) AS observations
+                   WHERE subject_key = c.subject_key ORDER BY scope ->> 'source', observed_at DESC) o) AS observations,
+        CASE WHEN core.run_id IS NULL THEN false
+             WHEN core.member_digest IS NULL THEN EXISTS (
+               SELECT 1 FROM portcove_maintenance.observations o WHERE o.run_id = core.run_id AND o.subject_key = c.subject_key)
+             ELSE EXISTS (
+               SELECT 1 FROM portcove_maintenance.run_members(core.run_id) m WHERE m.subject_key = c.subject_key)
+        END AS in_latest_core_run,
+        json_build_object(
+          'name', lc.payload -> 'authored_record' -> 'listing' ->> 'name',
+          'game', lc.payload -> 'authored_record' -> 'listing' ->> 'original_game_title',
+          'platforms', lc.payload -> 'authored_record' -> 'listing' -> 'platforms',
+          'operational_definition', lc.payload -> 'operational_definition',
+          'target_key', lc.payload -> 'authored_record' -> 'upstream_lineage' ->> 'target_key',
+          'lineage', (SELECT coalesce(json_agg(json_build_object('relationship', d ->> 'relationship',
+                        'outcome', d ->> 'outcome', 'related_port', d -> 'related_port' ->> 'id')), '[]')
+                        FROM jsonb_array_elements(coalesce(lc.payload -> 'authored_record' -> 'upstream_lineage' -> 'decisions', '[]')) d),
+          'qualification', (SELECT coalesce(json_agg(json_build_object('platform', q -> 'scope' ->> 'platform',
+                        'outcome', q ->> 'outcome', 'check_version', q -> 'scope' ->> 'check_version',
+                        'artifact_sha256', q -> 'scope' ->> 'artifact_sha256')), '[]')
+                        FROM jsonb_array_elements(coalesce(lc.payload -> 'scoped_qualification', '[]')) q)
+        ) AS identity,
+        (SELECT coalesce(json_agg(json_build_object('number', (i.payload ->> 'number')::integer,
+                   'state', i.payload ->> 'state', 'title', i.payload ->> 'title',
+                   'project', i.payload -> 'project', 'blocked_by', i.payload -> 'blocked_by',
+                   'canonical', (i.payload ->> 'number') = (lc.payload -> 'authored_record' -> 'listing' ->> 'issue_number'))
+                 ORDER BY (i.payload ->> 'number')::integer), '[]')
+           FROM present_issue i
+           WHERE i.payload -> 'catalog_ids' ? substring(c.subject_key FROM 6)
+              OR (i.payload ->> 'number') = (lc.payload -> 'authored_record' -> 'listing' ->> 'issue_number')) AS work
         FROM portcove_maintenance.subject_current c
-        JOIN portcove_maintenance.assessments a ON a.assessment_id = c.assessment_id) s)
+        JOIN portcove_maintenance.assessments a ON a.assessment_id = c.assessment_id
+        LEFT JOIN latest_catalog lc ON lc.subject_key = c.subject_key
+        LEFT JOIN LATERAL (
+          SELECT run_id, member_digest FROM portcove_maintenance.collection_runs
+            WHERE source LIKE 'core-port-capabilities%' AND coverage <> 'in_progress'
+            ORDER BY started_at DESC LIMIT 1) core ON true) s)
 );`;
 
 export interface InventoryReport {
   format: "portcove-maintenance-inventory";
   format_version: typeof inventoryFormatVersion;
   generated_at: string;
-  scope: "declared-sample";
+  scope: "declared-sample" | "complete-authored-catalog";
   publication: { status: "unknown"; reason: string };
   unsupported_sources: { source: string; reason: string }[];
   runs: unknown[];
@@ -445,7 +798,7 @@ export interface InventoryReport {
 function latestCoreGaps(runs: unknown[]) {
   const core = (
     runs as { source: string; gaps?: { subject_key: string; code: string; message: string }[] }[]
-  ).find(({ source }) => source === "core-port-capabilities");
+  ).find(({ source }) => source.startsWith("core-port-capabilities"));
   return new Map(
     (core?.gaps ?? []).map(({ subject_key, code, message }) => [subject_key, { code, message }]),
   );
@@ -457,32 +810,48 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     subjects: unknown[];
   };
   const gaps = latestCoreGaps(data.runs);
-  const latestCoreRun = (data.runs as { source: string; run_id: string }[]).find(
-    ({ source }) => source === "core-port-capabilities",
-  )?.run_id;
+  // Membership-verified catalog runs cover every authored record at their revision.
+  const catalogScope = (data.runs as { source: string; member_digest: string | null }[]).some(
+    ({ source, member_digest }) => source === "catalog-records" && member_digest !== null,
+  )
+    ? "complete-authored-catalog"
+    : "declared-sample";
   const subjects = data.subjects as {
     subject_key: string;
-    observations?: { source: string; run_id: string }[] | null;
+    in_latest_core_run?: boolean;
+    identity?: { target_key?: string | null };
   }[];
+  // Alternatives: other implementations sharing the authored lineage target key.
+  const byTarget = new Map<string, string[]>();
+  for (const subject of subjects) {
+    const target = subject.identity?.target_key;
+    if (target) byTarget.set(target, [...(byTarget.get(target) ?? []), subject.subject_key]);
+  }
+  const issuesObserved = (data.runs as { source: string; coverage: string }[]).some(
+    ({ source, coverage }) => source === "issues-project" && coverage === "complete",
+  );
   return {
     format: "portcove-maintenance-inventory",
     format_version: inventoryFormatVersion,
     generated_at: now.toISOString(),
-    scope: "declared-sample",
+    scope: catalogScope,
     publication: {
       status: "unknown",
       reason: unsupportedSources.find(([source]) => source === "definition-publication")![1],
     },
-    unsupported_sources: unsupportedSources.map(([source, reason]) => ({ source, reason })),
+    unsupported_sources: unsupportedSources
+      .filter(([source]) => !(issuesObserved && (source === "issues" || source === "project")))
+      .map(([source, reason]) => ({ source, reason })),
     runs: data.runs,
     subjects: subjects.map((subject) => {
       const gap = gaps.get(subject.subject_key);
-      const assessedNow = subject.observations?.some(
-        (observation) =>
-          observation.source === "core-port-capabilities" && observation.run_id === latestCoreRun,
-      );
+      const assessedNow = subject.in_latest_core_run === true;
+      const target = subject.identity?.target_key;
       return {
         ...subject,
+        alternatives: target
+          ? (byTarget.get(target) ?? []).filter((key) => key !== subject.subject_key)
+          : [],
         latest_core_gap: gap ?? null,
         latest_core_run: gap ? "gap" : assessedNow ? "assessed" : "not-included",
       };
@@ -498,7 +867,48 @@ const escapeHtml = (value: unknown) =>
 
 /** A self-contained, searchable page; data is embedded as escaped JSON, never as markup. */
 export function renderHtml(report: InventoryReport) {
-  const embedded = JSON.stringify(report).replace(/</gu, "\\u003c");
+  // The page embeds only what it renders; inventory.json keeps every explanation.
+  const view = {
+    subjects: (report.subjects as Record<string, unknown>[]).map(
+      ({
+        subject_key,
+        state,
+        sequence,
+        assessed_at,
+        latest_core_gap,
+        latest_core_run,
+        work,
+        identity,
+        alternatives,
+      }) => ({
+        subject_key,
+        name: (identity as { name?: string } | undefined)?.name ?? null,
+        game: (identity as { game?: string } | undefined)?.game ?? null,
+        target_key: (identity as { target_key?: string } | undefined)?.target_key ?? null,
+        alternatives,
+        state,
+        sequence,
+        assessed_at,
+        latest_core_gap,
+        latest_core_run,
+        work: Array.isArray(work)
+          ? (
+              work as {
+                number: number;
+                state: string;
+                canonical: boolean;
+                project: { fields: Record<string, string> }[];
+              }[]
+            ).map(
+              ({ number, state: issueState, canonical, project }) =>
+                `#${number}${canonical ? " (canonical)" : ""} ${issueState}${project[0]?.fields.Status ? ` · ${project[0].fields.Status}` : ""}`,
+            )
+          : [],
+      }),
+    ),
+    unassessed_gaps: report.unassessed_gaps ?? [],
+  };
+  const embedded = JSON.stringify(view).replace(/</gu, "\\u003c");
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -537,7 +947,7 @@ ${report.unsupported_sources
 <h2>Subjects</h2>
 <label for="search">Search</label>
 <input id="search" type="search" placeholder="Port ID or state">
-<table><thead><tr><th>Subject</th><th>Core assessment</th><th>Changes</th><th>Assessed</th><th>Latest Core run</th></tr></thead><tbody id="subjects"></tbody></table>
+<table><thead><tr><th>Subject</th><th>Name and game</th><th>Alternatives</th><th>Core assessment</th><th>Changes</th><th>Assessed</th><th>Latest Core run</th><th>Work</th></tr></thead><tbody id="subjects"></tbody></table>
 <script id="inventory" type="application/json">${embedded}</script>
 <script>
 const report = JSON.parse(document.getElementById("inventory").textContent);
@@ -545,13 +955,13 @@ const body = document.getElementById("subjects");
 function render(filter) {
   body.replaceChildren();
   for (const subject of [...report.subjects, ...(report.unassessed_gaps ?? []).map((gap) => ({ subject_key: gap.subject_key, state: "unknown", sequence: 0, assessed_at: "never", latest_core_gap: gap }))]) {
-    const text = (subject.subject_key + " " + subject.state).toLowerCase();
+    const text = [subject.subject_key, subject.state, subject.name, subject.game, subject.target_key].join(" ").toLowerCase();
     if (filter && !text.includes(filter)) continue;
     const row = body.insertRow();
     const gap = subject.latest_core_gap
       ? "not assessed: " + subject.latest_core_gap.code
       : subject.latest_core_run === "assessed" ? "assessed" : "not in latest run";
-    for (const value of [subject.subject_key, subject.state, String(subject.sequence), subject.assessed_at, gap])
+    for (const value of [subject.subject_key, [subject.name, subject.game].filter(Boolean).join(" — "), (subject.alternatives ?? []).join(", "), subject.state, String(subject.sequence), subject.assessed_at, gap, (subject.work ?? []).join("; ") || "no linked issue observed"])
       row.insertCell().textContent = value;
   }
 }
@@ -579,6 +989,87 @@ export function writeReport(report: InventoryReport, output: string) {
   }
 }
 
+export interface DigestEntry {
+  notification_key: string;
+  subject_key: string;
+  sequence: number;
+  previous_state: string | null;
+  state: string;
+  returns_to_earlier_result: boolean;
+  recorded_at: string;
+}
+
+/** Pending changes-only notifications; an unchanged subject never appears here. */
+export function buildDigest(environment: NodeJS.ProcessEnv) {
+  const entries = parseJson(
+    runSql(
+      environment,
+      `SELECT coalesce(json_agg(json_build_object('notification_key', n.notification_key, 'subject_key', n.subject_key,
+          'sequence', t.sequence, 'previous_state', p.state, 'state', t.state,
+          'returns_to_earlier_result', t.returns_to_earlier_result, 'recorded_at', t.recorded_at)
+          ORDER BY t.recorded_at, n.subject_key COLLATE "C"), '[]')
+         FROM portcove_maintenance.notifications n
+         JOIN portcove_maintenance.subject_transitions t
+           ON t.subject_key = n.subject_key AND t.sequence = n.transition_sequence
+         LEFT JOIN portcove_maintenance.subject_transitions p
+           ON p.subject_key = t.subject_key AND p.sequence = t.sequence - 1
+        WHERE n.status = 'pending';`,
+    ).trim(),
+    "maintenance digest",
+  ) as DigestEntry[];
+  return { format: "portcove-maintenance-digest", format_version: 1, entries };
+}
+
+export function renderDigestMarkdown(digest: ReturnType<typeof buildDigest>) {
+  if (!digest.entries.length) return "No maintenance changes since the last delivered digest.\n";
+  const line = (entry: DigestEntry) =>
+    `- \`${entry.subject_key}\`: ${entry.previous_state ?? "none"} → ${entry.state}${entry.returns_to_earlier_result ? " (returns to an earlier result)" : ""}`;
+  return `${digest.entries.length} maintenance change${digest.entries.length === 1 ? "" : "s"}:\n\n${digest.entries.map(line).join("\n")}\n`;
+}
+
+/** Writes digest.json and digest.md to a new directory; marks nothing delivered. */
+export function writeDigest(digest: ReturnType<typeof buildDigest>, output: string) {
+  if (existsSync(output))
+    throw new MaintenanceStoreError(`Digest destination already exists: ${output}`);
+  mkdirSync(path.dirname(output), { recursive: true });
+  const staging = mkdtempSync(`${output}.partial-`);
+  try {
+    writeFileSync(path.join(staging, "digest.json"), `${JSON.stringify(digest, null, 2)}\n`);
+    writeFileSync(path.join(staging, "digest.md"), renderDigestMarkdown(digest));
+    renameSync(staging, output);
+  } catch (error) {
+    rmSync(staging, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+/**
+ * Records delivery of exactly the digest's notifications against the delivering
+ * executor's own receipt (for example the issue-comment URL it created). Only
+ * still-pending notifications change; a replay with the same receipt is a no-op.
+ */
+export function acknowledgeDigest(
+  environment: NodeJS.ProcessEnv,
+  digest: ReturnType<typeof buildDigest>,
+  receipt: string,
+) {
+  if (!/^\S{1,500}$/u.test(receipt))
+    throw new MaintenanceStoreError("Delivery receipt must be one reference");
+  const keys = digest.entries.map(({ notification_key }) => notification_key);
+  if (!keys.length) return { delivered: 0 };
+  const delivered = runSql(
+    environment,
+    `SET LOCAL standard_conforming_strings = on;
+     WITH updated AS (
+       UPDATE portcove_maintenance.notifications SET status = 'delivered', delivered_at = clock_timestamp(),
+         delivery_receipt = ${literal(receipt)}
+        WHERE status = 'pending' AND notification_key IN (${keys.map(literal).join(", ")})
+        RETURNING 1)
+     SELECT count(*) FROM updated;`,
+  ).trim();
+  return { delivered: Number(delivered) };
+}
+
 function option(args: string[], name: string) {
   const index = args.indexOf(name);
   if (index < 0) return undefined;
@@ -591,16 +1082,24 @@ function option(args: string[], name: string) {
 const usage = `usage: node scripts/maintenance-inventory.mts <command> [options]
 
 commands:
-  collect --cli PATH [--sample FILE]   read the declared sample at the checkout's HEAD and the
-                                       Core port-capabilities assessment into the store
+  collect --cli PATH [--sample FILE | --all] [--concurrency N]
+                                       read the declared sample (or, with --all, every authored
+                                       port) at the checkout's HEAD and the Core port-capabilities
+                                       assessment into the store; --all stores changes only;
+                                       --issues (with --all) adds the verified issue and Project
+                                       inventory through the maintained read-only roadmap collector
   report --output DIR                  write inventory.json and index.html to a new DIR
+  digest --output DIR                  write the pending changes-only digest (digest.json, digest.md)
+  acknowledge --digest FILE --receipt REF
+                                       record delivery of that digest's notifications against the
+                                       delivering executor's receipt (executor role)
 
 options:
   --database-env NAME   environment variable holding the database URL (default ${defaultDatabaseEnvironment})
 
 PORTCOVE_MAINTENANCE_RUNNER optionally names the runner recorded with each collection run.`;
 
-export function main(argv = process.argv.slice(2)) {
+export async function main(argv = process.argv.slice(2)) {
   const args = [...argv];
   const command = args.shift();
   if (!command || command === "--help" || command === "-h") {
@@ -613,11 +1112,36 @@ export function main(argv = process.argv.slice(2)) {
   const cli = option(args, "--cli");
   const sample = option(args, "--sample");
   const output = option(args, "--output");
+  const digestFile = option(args, "--digest");
+  const receipt = option(args, "--receipt");
+  const concurrency = option(args, "--concurrency");
+  const allIndex = args.indexOf("--all");
+  const all = allIndex >= 0;
+  if (all) args.splice(allIndex, 1);
+  const issuesIndex = args.indexOf("--issues");
+  const issues = issuesIndex >= 0;
+  if (issues) args.splice(issuesIndex, 1);
+  if (all && sample) throw new MaintenanceStoreError("--all and --sample are exclusive");
+  if (concurrency !== undefined && !/^[1-9][0-9]?$/u.test(concurrency))
+    throw new MaintenanceStoreError("--concurrency must be 1-99");
   if (args.length)
     throw new MaintenanceStoreError(`Unexpected arguments: ${args.join(" ")}\n${usage}`);
   if (command === "collect") {
     if (!cli) throw new MaintenanceStoreError("collect requires --cli PATH");
-    console.log(JSON.stringify(collect({ cli: path.resolve(cli), sample, environment }), null, 2));
+    console.log(
+      JSON.stringify(
+        await collect({
+          cli: path.resolve(cli),
+          sample,
+          all,
+          concurrency: concurrency === undefined ? undefined : Number(concurrency),
+          issues: issues ? readIssueInventory : undefined,
+          environment,
+        }),
+        null,
+        2,
+      ),
+    );
   } else if (command === "report") {
     if (!output) throw new MaintenanceStoreError("report requires --output DIR");
     const report = buildReport(environment);
@@ -625,15 +1149,35 @@ export function main(argv = process.argv.slice(2)) {
     console.log(
       JSON.stringify({ output: path.resolve(output), subjects: report.subjects.length }, null, 2),
     );
+  } else if (command === "digest") {
+    if (!output) throw new MaintenanceStoreError("digest requires --output DIR");
+    const digest = buildDigest(environment);
+    writeDigest(digest, path.resolve(output));
+    console.log(
+      JSON.stringify({ output: path.resolve(output), changes: digest.entries.length }, null, 2),
+    );
+  } else if (command === "acknowledge") {
+    if (!digestFile || !receipt)
+      throw new MaintenanceStoreError("acknowledge requires --digest FILE and --receipt REF");
+    const digest = parseJson(
+      readFileSync(path.resolve(digestFile), "utf8"),
+      "digest",
+    ) as ReturnType<typeof buildDigest>;
+    if (digest.format !== "portcove-maintenance-digest" || !Array.isArray(digest.entries))
+      throw new MaintenanceStoreError("Unsupported digest file");
+    console.log(JSON.stringify(acknowledgeDigest(environment, digest, receipt), null, 2));
   } else throw new MaintenanceStoreError(`Unknown command: ${command}\n${usage}`);
   return 0;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  try {
-    process.exitCode = main();
-  } catch (error) {
-    console.error(error instanceof MaintenanceStoreError ? error.message : error);
-    process.exitCode = 1;
-  }
+  main().then(
+    (code) => {
+      process.exitCode = code;
+    },
+    (error: unknown) => {
+      console.error(error instanceof MaintenanceStoreError ? error.message : error);
+      process.exitCode = 1;
+    },
+  );
 }

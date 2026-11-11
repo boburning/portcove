@@ -168,8 +168,9 @@ PORTCOVE_MAINTENANCE_DATABASE_URL="$RESTORE_TARGET_URL" node scripts/maintenance
   target that already has maintenance schemas. It then applies the dump, the
   role contract and an in-database comparison of every table's count and digest
   with the manifest in one transaction, so any difference rolls the whole restore
-  back and the target stays empty for a retry. Run `migrate` afterwards if the
-  checkout carries newer migrations.
+  back and the target stays empty for a retry. Verification uses the backup's
+  own schema. Any newer migrations of the checkout, and the role contract, then
+  apply in that same transaction.
 - Use `psql`, `pg_dump` and `pg_restore` from one PostgreSQL client
   installation whose major version matches the server (set
   `PORTCOVE_POSTGRES_BIN` when `PATH` mixes versions). Restore renders the dump
@@ -242,6 +243,84 @@ Listing-only records are marked `listing_only`. A listing establishes neither an
 install nor a launch route, and the report adds no support, admission or
 publication claim.
 
+## Complete inventory collection
+
+```bash
+node scripts/maintenance-inventory.mts collect --cli target/release/portcove --all --issues
+```
+
+- `--all` covers every authored record committed at `HEAD`, not a sample.
+  - Core is called for each port with bounded concurrency (`--concurrency`, default 4).
+  - The Core source is per host platform, for example
+    `core-port-capabilities-linux-x86-64`, so hosts never overwrite each other.
+- `--issues` adds the `issues-project` source.
+  - It reads the maintained, completeness-verified issue inventory with
+    issue-side Project memberships (`RoadmapClient.repositoryIssues`), through a
+    read-only request scope.
+  - Each issue keeps its state, title, Project placement and field values, archive
+    state, blockers and canonical port markers. Bodies are not stored.
+  - Port assessments stay Core-only, so issue activity never creates a false port
+    transition. The report links each port to its work through the catalog's
+    canonical `issue_number` and the issue's `portcove-catalog-id` marker.
+- Migration 0002 makes these sources changes-only:
+  - A run stores an observation only for a subject whose content digest changed
+    since that subject's latest observation from the same source.
+  - Only a complete run records an explicit absence for a previously present
+    subject. A partial or failed run never does.
+  - Each run declares its member count and a digest over every present subject.
+  - When a complete run finishes, the database recomputes both from retained
+    observations and refuses any mismatch, so coverage stays verified without a
+    row per subject per run.
+  - A source can have only one run in progress.
+  - Sample-mode runs keep the every-subject semantics of migration 0001.
+- The report scope becomes `complete-authored-catalog` once a membership-verified
+  catalog run exists.
+- Each subject's report entry shows:
+  - name and original game;
+  - lineage `target_key` and lineage decisions;
+  - alternatives, meaning other records with the same target key;
+  - platforms and scoped qualification records;
+  - canonical and marker-linked work, with Project status;
+  - whether the latest Core run assessed it.
+- Search covers subject, name, game, target key and state. The page embeds only
+  the fields it renders; `inventory.json` keeps every explanation.
+
+Observed cost (2026-11-11, cloud session, debug CLI, Linux x86-64, PostgreSQL 16):
+
+- A first complete collection with issues took 5.1 minutes. It covered 1,441
+  authored records, 1,441 Core assessments with no gaps, and 2,223 issues, and the
+  store reached 28.4 MB.
+- An unchanged repeat collection without issues stored no observations or
+  transitions and added about 0.14 MB.
+- The report was 373 KB of HTML and 13 MB of JSON.
+
+Upstream observations, release health, hosted intake receipts and definition
+publication remain explicit unknown sources.
+
+## Changes-only digest
+
+```bash
+node scripts/maintenance-inventory.mts digest --output work/maintenance-digest/2026-11-11
+```
+
+```bash
+node scripts/maintenance-inventory.mts acknowledge --digest work/maintenance-digest/2026-11-11/digest.json --receipt URL
+```
+
+- Each assessment transition after a subject's baseline creates one pending
+  notification in the collection transaction. A first assessment is a baseline,
+  not a change, and an unchanged observation creates nothing.
+- `digest` reads only pending notifications and writes `digest.json` and
+  `digest.md` (format 1). It marks nothing delivered.
+  - Each entry names the subject and its previous and new state, and flags a
+    return to an earlier result.
+- Posting the digest belongs to an existing authorized executor and is not
+  automated here; that dispatch stays disabled.
+- `acknowledge` runs with the executor role. It records the delivering
+  executor's own receipt reference against exactly that digest's still-pending
+  notifications, and a replay changes nothing. The collector and report roles
+  cannot acknowledge.
+
 ## Validation
 
 `scripts/maintenance-store.test.mts` creates two disposable PostgreSQL clusters,
@@ -256,6 +335,10 @@ stub Core CLI, using the collector and report roles. It checks:
 
 - repeated-pass convergence and A to B to A history;
 - host-failure gaps (`partial` and `failed` runs with no transition);
+- changes-only storage, verified membership and forged-membership refusal;
+- absence recorded only by complete runs, and a single in-progress run per source;
+- issue and Project joins;
+- full-versus-incremental parity;
 - per-call isolation and its removal, including under a symlinked `TMPDIR`;
 - coverage, listing and absence facts;
 - report output and HTML escaping. The

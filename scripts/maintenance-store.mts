@@ -601,9 +601,25 @@ export function restore(
     );
     writeFileSync(roles, roleContract());
     writeFileSync(verification, restoreVerification(manifest.tables));
+    // Verify against the backup's own schema, then bring it to this checkout's schema.
+    const migrations = plan.pending.map((migration) => {
+      const file = path.join(work, `migration-${migration.version}.sql`);
+      writeFileSync(file, migrationTransaction(migration));
+      return ["-f", file];
+    });
     runTool(
       "psql",
-      [...psqlBase, "--single-transaction", "-f", script, "-f", roles, "-f", verification],
+      [
+        ...psqlBase,
+        "--single-transaction",
+        "-f",
+        script,
+        "-f",
+        verification,
+        ...migrations.flat(),
+        "-f",
+        roles,
+      ],
       environment,
       { timeoutMs: dumpTimeoutMs },
     );
@@ -613,7 +629,7 @@ export function restore(
   return {
     verified: true,
     schema_version: manifest.schema_version,
-    pending: plan.pending.length,
+    migrated: plan.pending.map(({ version }) => version),
     tables: storeDigest(environment),
   };
 }

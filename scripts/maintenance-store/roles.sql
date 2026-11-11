@@ -47,7 +47,8 @@ GRANT INSERT ON
   portcove_maintenance.reconsiderations,
   portcove_maintenance.notifications
   TO portcove_maintenance_collector;
-GRANT UPDATE (completed_at, coverage, source_revision, expected_count, observed_count, gaps)
+GRANT UPDATE (completed_at, coverage, source_revision, expected_count, observed_count, gaps,
+  member_count, member_digest)
   ON portcove_maintenance.collection_runs TO portcove_maintenance_collector;
 GRANT UPDATE (status, resolved_at, resolution)
   ON portcove_maintenance.reconsiderations TO portcove_maintenance_collector;
@@ -62,3 +63,7 @@ GRANT UPDATE (status, delivered_at, delivery_receipt)
   ON portcove_maintenance.notifications TO portcove_maintenance_executor;
 
 -- Report: read-only (granted SELECT above).
+
+-- Report membership questions run through the verified membership function.
+GRANT EXECUTE ON FUNCTION portcove_maintenance.run_members(text), portcove_maintenance.absent_payload()
+  TO portcove_maintenance_collector, portcove_maintenance_report, portcove_maintenance_executor;

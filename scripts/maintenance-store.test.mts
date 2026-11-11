@@ -121,7 +121,10 @@ void test(
     const target = fixture.start("target");
 
     assert.equal(migrationStatus(source.owner).schema_version, 0);
-    assert.deepEqual(migrate(source.owner).newly_applied, [1]);
+    assert.deepEqual(
+      migrate(source.owner).newly_applied,
+      readMigrations().map(({ version }) => version),
+    );
     assert.deepEqual(migrate(source.owner).newly_applied, [], "a second migrate is a no-op");
     runSql(
       source.owner,
@@ -262,7 +265,7 @@ void test(
     const archive = path.join(root, "backup");
     const manifest = await backup(source.owner, archive);
     assert.deepEqual(manifest.tables, before);
-    assert.equal(manifest.schema_version, 1);
+    assert.equal(manifest.schema_version, readMigrations().length);
     await assert.rejects(backup(source.owner, archive), /already exists/u);
     const altered = path.join(root, "altered");
     mkdirSync(altered);
@@ -342,35 +345,38 @@ void test(
     const store = fixture.start("store");
     const migrations = path.join(root, "migrations");
     mkdirSync(migrations);
-    copyFileSync(
-      path.join(defaultMigrationDirectory, "0001_maintenance_history.sql"),
-      path.join(migrations, "0001_maintenance_history.sql"),
-    );
+    // The role contract follows the repository schema, so the fixture carries every real migration.
+    const real = readMigrations();
+    for (const { version, name } of real) {
+      const file = `${String(version).padStart(4, "0")}_${name}.sql`;
+      copyFileSync(path.join(defaultMigrationDirectory, file), path.join(migrations, file));
+    }
+    const interrupted = `${String(real.length + 1).padStart(4, "0")}_interrupted.sql`;
     writeFileSync(
-      path.join(migrations, "0002_interrupted.sql"),
+      path.join(migrations, interrupted),
       "CREATE TABLE portcove_maintenance.partial (id integer);\nSELECT 1 / 0;\n",
     );
     assert.throws(() => migrate(store.owner, migrations), /division by zero/u);
     const status = migrationStatus(store.owner, migrations);
-    assert.equal(status.schema_version, 1);
-    assert.deepEqual(status.pending, [{ version: 2, name: "interrupted" }]);
+    assert.equal(status.schema_version, real.length);
+    assert.deepEqual(status.pending, [{ version: real.length + 1, name: "interrupted" }]);
     assert.match(
       runSql(store.owner, "SELECT to_regclass('portcove_maintenance.partial') IS NULL;"),
       /t/u,
     );
 
     writeFileSync(
-      path.join(migrations, "0002_interrupted.sql"),
+      path.join(migrations, interrupted),
       "CREATE TABLE portcove_maintenance.partial (id integer);\n",
     );
-    assert.deepEqual(migrate(store.owner, migrations).newly_applied, [2]);
+    assert.deepEqual(migrate(store.owner, migrations).newly_applied, [real.length + 1]);
     writeFileSync(
-      path.join(migrations, "0002_interrupted.sql"),
+      path.join(migrations, interrupted),
       "CREATE TABLE portcove_maintenance.changed (id integer);\n",
     );
     assert.throws(() => migrate(store.owner, migrations), /differs from the applied migration/u);
     assert.deepEqual(migrationStatus(store.owner, migrations).problems, [
-      "migration 2 (interrupted) differs from the applied migration",
+      `migration ${real.length + 1} (interrupted) differs from the applied migration`,
     ]);
   },
 );

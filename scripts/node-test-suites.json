@@ -1393,7 +1393,10 @@
           "prerequisite": "Non-root PostgreSQL 16+ server binaries (initdb, pg_ctl) for disposable clusters",
           "reason": "The read-only inventory proof needs a real PostgreSQL cluster; a skipped observation is not execution.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full on ubuntu-latest",
-          "cases": ["declared records flow through Core assessment, the store and a static report"],
+          "cases": [
+            "declared records flow through Core assessment, the store and a static report",
+            "complete collection stores changes only, verifies membership and records absence"
+          ],
           "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
         }
       ]
