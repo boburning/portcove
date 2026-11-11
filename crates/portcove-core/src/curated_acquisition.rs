@@ -400,6 +400,23 @@ pub struct CuratedAcquisitionRecord {
     pub preserved_locations: Vec<String>,
 }
 
+/// The request URL for an accepted location. Production uses it unchanged;
+/// qualification fixtures serve the same path from their bound local origin.
+pub(crate) fn transport_url(
+    scope: &crate::DefinitionAcquisitionScope,
+    location: &str,
+) -> Result<String> {
+    #[cfg(any(test, feature = "qualification-fixtures"))]
+    if let Some(origin) = &scope.fixture_origin {
+        let url = reqwest::Url::parse(location)
+            .map_err(|_| PortcoveError::verification("invalid curated location"))?;
+        return Ok(format!("{origin}{}", url.path()));
+    }
+    #[cfg(not(any(test, feature = "qualification-fixtures")))]
+    let _ = scope;
+    Ok(location.to_owned())
+}
+
 /// The only release-asset path shape accepted for a preserved location:
 /// `/<owner>/<repo>/releases/download/<tag>/<file>`.
 fn preserved_location_valid(record: &CuratedAcquisitionRecord, value: &str) -> bool {

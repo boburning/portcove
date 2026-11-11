@@ -1295,6 +1295,29 @@ impl GithubReleaseProvider {
                 crate::definition_repository::publisher_policy::CuratedArtifactOperation::Acquisition,
             )?;
         }
+        match self.resolve_observed(port, channel, platform, scope).await {
+            Ok(resolved) => Ok(resolved),
+            Err(error) => match (port.release.curated.get(&platform), scope) {
+                (Some(record), Some(scope))
+                    if !record.preserved_locations.is_empty()
+                        && error.upstream_failure()
+                            == crate::failure::UpstreamFailure::Unavailable =>
+                {
+                    preserved_resolution(port, channel, record, scope)
+                }
+                _ => Err(error),
+            },
+        }
+    }
+
+    /// Fresh upstream observation. Every guard above has already passed.
+    async fn resolve_observed(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+    ) -> Result<ResolvedGithub> {
         let repository_url = format!("{}/repos/{}", self.api_root, port.release.repository);
         let repository: GithubRepository = match scope {
             Some(scope) => self.scoped_json(&repository_url, scope).await?,
@@ -1343,6 +1366,26 @@ impl GithubReleaseProvider {
             Some(scope) => self.releases_scoped(&repository_url, Some(scope)).await?,
             None => self.releases(&repository_url).await?,
         };
+        if let Some(record) = curated {
+            // The accepted release or asset is gone: unavailable, not a disagreement.
+            // A different release or asset under the same coordinates stays a
+            // verification failure through `verify_metadata` below.
+            let accepted = releases.iter().find(|release| {
+                release.id == Some(record.release_id) || release.tag_name == record.tag
+            });
+            let asset_present = accepted.is_some_and(|release| {
+                release
+                    .assets
+                    .iter()
+                    .any(|asset| asset.id == Some(record.asset_id) || asset.name == record.filename)
+            });
+            if !asset_present {
+                return Err(PortcoveError::network(
+                    "the accepted curated release or asset is no longer published",
+                )
+                .with_upstream(Some(crate::failure::UpstreamObservation::Status(404))));
+            }
+        }
         let release = select_channel_candidate(
             &releases,
             channel,
@@ -1465,6 +1508,51 @@ impl GithubReleaseProvider {
             identity,
         })
     }
+}
+
+/// Selects an accepted curated artifact from the authenticated, fresh policy
+/// record alone after upstream was classified unavailable (#1306). No network
+/// request is made; bytes are still verified against the accepted size and
+/// SHA-256, trying upstream first and then each preserved location.
+fn preserved_resolution(
+    port: &PortDefinition,
+    channel: ReleaseChannel,
+    record: &crate::curated_acquisition::CuratedAcquisitionRecord,
+    scope: &crate::DefinitionAcquisitionScope,
+) -> Result<ResolvedGithub> {
+    scope.require_current()?;
+    scope.require_port(port)?;
+    crate::definition_repository::publisher_policy::require_curated_artifact_operation(
+        &scope.library.connection()?,
+        scope.repository_id,
+        record,
+        crate::definition_repository::publisher_policy::CuratedArtifactOperation::Acquisition,
+    )?;
+    for location in &record.preserved_locations {
+        scope.require_asset_url(&crate::curated_acquisition::transport_url(scope, location)?)?;
+    }
+    let identity = crate::definition_acquisition::GithubArtifactIdentity {
+        repository: port.release.repository.clone(),
+        repository_id: scope.repository_id,
+        release_id: record.release_id,
+        asset_id: record.asset_id,
+        tag: record.tag.clone(),
+    };
+    identity.validate()?;
+    Ok(ResolvedGithub {
+        release: ResolvedRelease {
+            version: release_version(&record.tag),
+            channel,
+            published_at: None,
+            asset: ReleaseAsset {
+                name: record.filename.clone(),
+                url: crate::curated_acquisition::transport_url(scope, &record.acquisition_url)?,
+                size: record.size,
+                sha256: record.sha256.clone(),
+            },
+        },
+        identity: Some(identity),
+    })
 }
 
 fn native_release_applies_to_platform(
