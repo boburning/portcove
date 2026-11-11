@@ -223,8 +223,8 @@ it("distinguishes catalog saved-data declarations, retained installation rules a
   expect(external).not.toContain("<code>save</code>");
 });
 
-it("does not promise further updates when the catalog no longer offers them", () => {
-  const render = (reason: "available" | "route_not_offered") =>
+it("does not promise further updates only when the catalog withdrew them", () => {
+  const render = (assessment: NonNullable<PortStatus["port_actions"]>[number]) =>
     renderToStaticMarkup(
       <DetailPanel
         port={port}
@@ -235,20 +235,27 @@ it("does not promise further updates when the catalog no longer offers them", ()
           ...portStatus(),
           port_id: port.id,
           active: installRecord(),
-          port_actions: [
-            {
-              action: "update",
-              availability: reason === "available" ? "allowed" : "not_offered",
-              reason,
-            },
-          ],
+          port_actions: [assessment],
         }}
       />,
     );
-  expect(render("available")).toContain("Portcove handles updates for this installation.");
-  const retired = render("route_not_offered");
-  expect(retired).toContain("Portcove manages this installation; no further updates are offered.");
-  expect(retired).not.toContain("Portcove handles updates for this installation.");
+  const handles = "Portcove handles updates for this installation.";
+  const withdrawn = "Portcove manages this installation; no further updates are offered.";
+  expect(render({ action: "update", availability: "allowed", reason: "available" })).toContain(
+    handles,
+  );
+  // A pending setup or acquisition hold is temporary, not a withdrawal.
+  expect(
+    render({ action: "update", availability: "not_offered", reason: "route_not_offered" }),
+  ).toContain(handles);
+  const revoked = render({
+    action: "update",
+    availability: "held",
+    reason: "definition_ineligible",
+    definition: { outcome: "hold", reason: "curated_artifact_revoked" },
+  });
+  expect(revoked).toContain(withdrawn);
+  expect(revoked).not.toContain(handles);
 });
 
 it.each([

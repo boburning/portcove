@@ -1296,11 +1296,17 @@ export function InstallationVersionSummary({
       {status?.active && portcoveUpdates && (
         <p className="detail-version-context">
           {/* Ownership stays with Portcove even when the catalog no longer offers updates. */}
+          {/* Only lasting withdrawals; temporary holds (stale metadata, pending setup)
+              keep the ordinary ownership line and their own update explanation. */}
           {status.port_actions?.some(
             (assessment) =>
               assessment?.action === "update" &&
-              (assessment.reason === "route_not_offered" ||
-                assessment.reason === "definition_ineligible"),
+              assessment.reason === "definition_ineligible" &&
+              [
+                "publisher_revoked",
+                "curated_artifact_revoked",
+                "curated_distribution_withdrawn",
+              ].includes(assessment.definition?.reason ?? ""),
           )
             ? "Portcove manages this installation; no further updates are offered."
             : "Portcove handles updates for this installation."}

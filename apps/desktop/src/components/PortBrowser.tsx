@@ -2320,7 +2320,7 @@ function SuggestedOrderHint({
     <p className="mb-4 text-xs text-pc-muted-foreground">
       {model.queryContext?.devicePlatform
         ? "Your library and setup options for this device appear first. All ports remain searchable."
-        : "Games appear in the catalog’s published order. Choose Title A–Z to sort by name."}
+        : "Games appear in catalog order. Choose Title A–Z to sort by name."}
     </p>
   );
 }

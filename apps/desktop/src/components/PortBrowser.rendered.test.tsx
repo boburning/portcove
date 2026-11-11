@@ -299,7 +299,7 @@ describe("desktop components", () => {
     expect(cards).toContain("Sample Port");
     expect(cards).toContain("Catalog order");
     // Without a device target, the default order is explained rather than left implicit.
-    expect(cards).toContain("Games appear in the catalog’s published order.");
+    expect(cards).toContain("Games appear in catalog order.");
     expect(cards).toContain("Sort");
     expect(cards).toContain("Setup status unknown");
     expect(cards).toContain("Installation status unknown");
