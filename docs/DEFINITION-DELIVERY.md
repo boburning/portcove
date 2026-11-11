@@ -147,6 +147,18 @@ stay in the player-owned profile. The Windows routes keep their existing
 creating layouts and persistent paths. Fresh and retained indexed entries
 declaring this policy require version 24.
 
+Native portable version 25 consumes `linux_portable_data_directory` for an
+official Linux x86-64 TAR.GZ player that selects portable storage when a real
+directory exists beside its executable. The single basename is a declared
+persistent path. Fresh package staging requires an absent or empty directory
+and checks the direct ELF player. Launch prepares the directory and rechecks it
+at spawn. OpenSC2K's Godot log and temporary autosave locations must resolve
+outside the managed library. Launch can reserve an absent user-owned autosave
+directory under the system's sticky temporary root. Updates and rollback must
+retain the same effective Linux directory contract. Other platforms keep their
+creating launch and persistence rules.
+Fresh and retained indexed entries declaring this field require version 25.
+
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
 entry that relies on the package-layout gate. Previously admitted

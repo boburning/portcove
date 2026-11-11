@@ -1,0 +1,10 @@
+{
+  "format_version": 1,
+  "ports": [
+    "2ship2harkinian",
+    "f-zero-snes-recomp",
+    "007frwl-xberecomp-tgp482-007-from-russia-with-love",
+    "chameleon-twist-recompiled",
+    "not-a-catalog-port"
+  ]
+}

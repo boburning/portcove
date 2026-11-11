@@ -5218,6 +5218,18 @@ impl PortcoveService {
                     crate::native_temp::recheck(retained_port, platform, &spec, &|| {
                         operation.checkpoint()
                     })?;
+                    if let Some(name) =
+                        crate::native_portable_data::directory_name(retained_port, platform)
+                    {
+                        crate::native_portable_data::require_launch(
+                            retained_port,
+                            &self.library,
+                            &spec,
+                            &command,
+                            name,
+                            &|| operation.checkpoint(),
+                        )?;
+                    }
                     self.require_installed_shared_preferences(install)?;
                     if retained_port.managed_shared_preferences.is_some()
                         && (spec.arguments != retained_port.launch_arguments

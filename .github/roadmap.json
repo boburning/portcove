@@ -125,7 +125,7 @@
       "filter": "status:Ready,\"In progress\",Validating,Blocked horizon:Now,Next -port-stage:Watchlist -work-type:Workstream",
       "fields": ["Title", "Priority", "Horizon", "Status", "Release commitment", "Target release"],
       "manual_group_by": null,
-      "manual_sort_by": "manual",
+      "manual_sort_by": "Horizon,Priority,manual",
       "previous_name": "Priority Stack"
     },
     {

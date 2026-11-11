@@ -80,6 +80,13 @@ pub struct SteamArtworkPlanRequest {
     pub operation: SteamArtworkOperation,
     /// One entry per role for Update; ignored by RemoveOwned.
     pub roles: Vec<(DestinationArtworkRole, SteamArtworkRoleContent)>,
+    /// For Update reviewed together with a shortcut Add: the AppID that the
+    /// reviewed shortcut plan gives this game's owned entry. The shortcut file
+    /// itself is then bound by that plan, not by this one.
+    pub planned_app_id: Option<u32>,
+    /// Set after the reviewed shortcut was written: the planned AppID must now
+    /// belong to an existing owned shortcut.
+    pub require_written_shortcut: bool,
 }
 
 /// A byte-free reviewed plan. Apply re-derives it from fresh inputs and
@@ -98,8 +105,13 @@ pub struct SteamArtworkPlan {
     pub ownership_sha256: Option<String>,
     pub roles: Vec<SteamArtworkRoleChange>,
     pub plan_sha256: String,
+    /// This entry's records after the change; records for other games and
+    /// AppIDs are neither bound nor rewritten, so selected games can be
+    /// updated one after another from separately reviewed plans.
     #[serde(skip)]
     ownership_after: Vec<OwnershipRecord>,
+    #[serde(skip)]
+    ownership_scope: Vec<u32>,
     /// Every observed destination variant and digest, including roles whose
     /// reported state is a preserved ambiguity; equality binds them all.
     #[serde(skip)]
@@ -184,19 +196,35 @@ pub fn plan_steam_artwork(request: &SteamArtworkPlanRequest) -> Result<SteamArtw
     let grid_path = config.join(GRID_DIRECTORY);
     require_grid_directory(&grid_path)?;
     let marker = ownership_marker(&request.library_id, &request.port_id)?;
-    let (ownership_sha256, ownership_before) = read_ownership(&config)?;
+    let (_, ownership_before) = read_ownership(&config)?;
     let mut ownership_after = ownership_before.clone();
     let mut roles = Vec::new();
     let mut observed_variants = Vec::new();
     let (shortcuts_sha256, app_id) = match request.operation {
         SteamArtworkOperation::Update { replace_existing } => {
-            let (shortcuts_sha256, app_id) =
+            let (shortcuts_sha256, current_app_id) =
                 owned_shortcut_app_id(&config, &request.library_id, &request.port_id)?;
-            let app_id = app_id.ok_or_else(|| {
-                SteamEntryError::InvalidInput(
-                    "this game has no Portcove shortcut in the selected Steam profile; add the shortcut before updating its artwork".into(),
-                )
-            })?;
+            let app_id = match (request.planned_app_id, current_app_id) {
+                (Some(planned), None) if !request.require_written_shortcut => planned,
+                (Some(_), None) => {
+                    return Err(SteamEntryError::Conflict(
+                        "this game's new Steam shortcut is no longer present".into(),
+                    ));
+                }
+                (Some(planned), Some(current)) if planned == current => current,
+                (Some(_), Some(_)) => {
+                    return Err(SteamEntryError::Conflict(
+                        "this game's Steam shortcut changed after review".into(),
+                    ));
+                }
+                (None, Some(current)) => current,
+                (None, None) => {
+                    return Err(SteamEntryError::InvalidInput(
+                        "this game has no Portcove shortcut in the selected Steam profile; add the shortcut before updating its artwork".into(),
+                    ));
+                }
+            };
+            let shortcuts_sha256 = shortcuts_sha256.filter(|_| request.planned_app_id.is_none());
             require_complete_roles(&request.roles)?;
             for (role, content) in &request.roles {
                 let (change, observed) = plan_update_role(
@@ -229,6 +257,26 @@ pub fn plan_steam_artwork(request: &SteamArtworkPlanRequest) -> Result<SteamArtw
             (None, app_id)
         }
     };
+    let mut ownership_scope = ownership_before
+        .iter()
+        .filter(|record| record.marker == marker)
+        .map(|record| record.app_id)
+        .chain(app_id)
+        .collect::<Vec<_>>();
+    ownership_scope.sort_unstable();
+    ownership_scope.dedup();
+    let in_scope = |record: &OwnershipRecord| in_ownership_scope(record, &marker, &ownership_scope);
+    let relevant_before = ownership_before
+        .iter()
+        .filter(|record| in_scope(record))
+        .collect::<Vec<_>>();
+    let ownership_sha256 = (!relevant_before.is_empty())
+        .then(|| serde_json::to_vec(&relevant_before).map(|bytes| sha256(&bytes)))
+        .transpose()?;
+    let ownership_after = ownership_after
+        .into_iter()
+        .filter(|record| in_scope(record))
+        .collect::<Vec<_>>();
     let mut plan = SteamArtworkPlan {
         schema_version: ARTWORK_PLAN_SCHEMA_VERSION,
         steam_root: request.steam_root.clone(),
@@ -243,6 +291,7 @@ pub fn plan_steam_artwork(request: &SteamArtworkPlanRequest) -> Result<SteamArtw
         roles,
         plan_sha256: String::new(),
         ownership_after,
+        ownership_scope,
         observed_variants,
     };
     // The reviewed hash also binds the internal ownership result and every
@@ -253,6 +302,10 @@ pub fn plan_steam_artwork(request: &SteamArtworkPlanRequest) -> Result<SteamArtw
         &plan.observed_variants,
     ))?);
     Ok(plan)
+}
+
+fn in_ownership_scope(record: &OwnershipRecord, marker: &str, app_ids: &[u32]) -> bool {
+    record.marker == marker || app_ids.contains(&record.app_id)
 }
 
 pub fn apply_steam_artwork_plan(
@@ -331,6 +384,12 @@ pub fn recover_steam_artwork(
     steam_user_id: &str,
 ) -> Result<Option<SteamArtworkRecovery>> {
     let config = steam_profile_config(steam_root, steam_user_id)?;
+    if [JOURNAL_FILE, JOURNAL_TEMPORARY_FILE]
+        .iter()
+        .all(|name| fs::symlink_metadata(config.join(name)).is_err())
+    {
+        return Ok(None);
+    }
     let _lock = lock_profile(&config)?;
     // An unpublished journal temporary precedes every staged or destination
     // write, so discarding it changes no artwork.
@@ -842,6 +901,14 @@ fn prepare_publication(
             after_sha256,
         });
     }
+    // Merge this entry's reviewed records into the record as it is now; the
+    // re-plan under the lock already proved the in-scope part is unchanged.
+    let ownership_after = ownership_before
+        .iter()
+        .filter(|record| !in_ownership_scope(record, &marker, &plan.ownership_scope))
+        .cloned()
+        .chain(plan.ownership_after.iter().cloned())
+        .collect();
     let journal = ArtworkJournal {
         schema_version: JOURNAL_SCHEMA_VERSION,
         plan_sha256: plan.plan_sha256.clone(),
@@ -849,7 +916,7 @@ fn prepare_publication(
         grid_path: grid.clone(),
         steps,
         ownership_before,
-        ownership_after: plan.ownership_after.clone(),
+        ownership_after,
     };
     crate::application_update_storage::write_bytes_atomically(
         config,

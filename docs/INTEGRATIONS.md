@@ -584,8 +584,23 @@ file or the bytes the player already confirmed, and says so; anything else is
 preserved with recovery required. Identical bytes another program placed are
 kept but never claimed. A role's art recorded for an earlier shortcut AppID must
 be removed before new art is added. Only lower-case `png`, `jpg` and `jpeg`
-names are inspected. Shortcut Repair still never writes artwork,
-and Add does not yet offer Include artwork.
+names are inspected. Shortcut Repair still never writes artwork.
+
+Single and selected-batch shortcut setup offer **Include artwork when adding a
+shortcut**, on by default. For each game the shortcut plan newly adds, the same
+review shows the fill-missing artwork plan for the AppID that plan assigns; it
+never replaces existing art and is omitted for Repair. Consent covers both, and
+both are rebound after consent. The shortcut is written first, then each game's
+artwork is re-planned and written only if it still matches the review. An
+unavailable role, a changed destination or an artwork failure is reported per
+game beside the successfully added shortcut, with **Review artwork update** as
+the retry.
+
+Every shortcut or artwork review first settles an interrupted shortcut or
+artwork publication in the selected profile, keeping either the committed
+reviewed bytes or the exact earlier file, and says so in the review. It writes
+nothing when no operation is pending; anything that matches neither side is
+preserved and the review refuses with recovery required.
 
 Controlled
 host and renderer tests prove the

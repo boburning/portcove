@@ -38797,8 +38797,8 @@
             "instruction": "For an existing upstream installation, select OpenSC2K.exe and its folder. Portable copies use the data folder beside the player; standard Windows copies use the OpenSC2K Godot user profile. Keep the profile used by that copy when updating it."
           },
           {
-            "title": "Open the upstream Linux archive",
-            "instruction": "Choose the x64 or ARM64 archive for your Linux system. Extract it completely and run OpenSC2K.x86_64 or OpenSC2K.arm64 from its folder. Keep the PCK, shared libraries and bundled SoundFont beside the player."
+            "title": "Install the Linux x64 player",
+            "instruction": "Install the official x64 archive through Portcove. On first Play, use the same original SimCity 2000 import. Portcove prepares the portable data folder beside OpenSC2K.x86_64. Keep existing standard Linux profiles with their existing copies. For an external x64 or ARM64 copy, extract the complete archive and keep the PCK, shared libraries and bundled SoundFont beside the player."
           },
           {
             "title": "Copy the upstream Mac app to Applications",
@@ -38817,7 +38817,7 @@
         "references": [
           {
             "title": "Check the inspected desktop packages",
-            "instruction": "The v0.3.0 Linux archives require glibc 2.34 or later. The universal Mac app requires macOS 11 on Intel or macOS 13 on Apple Silicon. Linux standard copies use the Godot profile by default. The Mac app always uses that profile. You and upstream maintain these Linux, Mac and Windows on Arm copies."
+            "instruction": "The inspected v0.3.0 Linux x64 and ARM64 archives include runtime modules that need glibc 2.35 and a bundled MIDI library that needs glibc 2.38. Use glibc 2.38 or later for the complete bundled package. The universal Mac app requires macOS 11 on Intel or macOS 13 on Apple Silicon. Linux standard copies use the Godot profile by default. The Mac app always uses that profile. You and upstream maintain external Linux, Mac and Windows on Arm copies."
           }
         ]
       },

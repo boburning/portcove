@@ -669,8 +669,7 @@ row counts must not count integrated parent/child scope as independent value or
 replace complete readiness. In Progress does not infer assignment from
 Now, and neither a status nor a recommended assignment creates a reservation.
 `next` orders the common queue by Horizon, Priority and Project order. The
-saved Next Queue uses manual Project order. Use `next` for the ranked result.
-A matching saved sort needs Horizon ascending, then Priority ascending, with
+saved Next Queue sorts by Horizon ascending, then Priority ascending, with
 manual Project order as the tie-breaker.
 
 Configuration owns names, layouts, filters and visible fields. Supported API

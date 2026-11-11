@@ -577,6 +577,28 @@ fn native_portable_marker_files_require_version_19_in_fresh_and_retained_readers
 }
 
 #[test]
+fn linux_portable_data_requires_version_25_in_fresh_and_retained_readers() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("nicholas-ochoa-opensc2k").unwrap();
+    let mut entry = entry_for_port(port);
+    entry["required_capabilities"][0]["maximum_version"] = json!(25);
+    for minimum in [24, 25] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ] {
+            if minimum == 24 {
+                assert!(result.unwrap_err().message.contains("version 25"));
+            } else {
+                assert!(result.unwrap().capabilities().compatible);
+            }
+        }
+    }
+}
+
+#[test]
 fn libultraship_windows_paths_require_the_owning_v2_template() {
     let catalog = crate::Catalog::embedded().unwrap();
     let mut port = catalog.port("2ship2harkinian").unwrap().clone();
@@ -1199,7 +1221,9 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if !port.release.tar_xz_platforms.is_empty() {
+        let version = if port.linux_portable_data_directory.is_some() {
+            crate::native_portable_data::NATIVE_CAPABILITY
+        } else if !port.release.tar_xz_platforms.is_empty() {
             3
         } else if port.release.grant_declared_executable {
             crate::test_fixture::grant_declared_executable_capability(port)

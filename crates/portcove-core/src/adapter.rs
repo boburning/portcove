@@ -416,6 +416,7 @@ impl Adapter for StandardAdapter {
             fixed_arguments_only: port.managed_initialization.is_some()
                 || port.managed_shared_preferences.is_some()
                 || port.runtime_data_policy.is_some()
+                || crate::native_portable_data::directory_name(port, platform).is_some()
                 || port.external_profile_policy.is_some_and(|policy| {
                     crate::native_external_profile::applies_to(policy, platform)
                 })
@@ -466,6 +467,9 @@ impl Adapter for StandardAdapter {
         }
         let executable = selected_executable.to_path_buf();
         let working_directory = launch_working_directory(self.0, port, install_root, &executable)?;
+        if let Some(name) = crate::native_portable_data::directory_name(port, platform) {
+            crate::native_portable_data::prepare(install_root, &executable, name, checkpoint)?;
+        }
         let retained_setup_is_current = self.0 == AdapterKind::UpstreamManagedSetup
             && !crate::preparation::managed(port)
             && retain_completed_upstream_setup(request, &working_directory, checkpoint)?;
