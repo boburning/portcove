@@ -6,17 +6,17 @@
 
 pub use crate::desktop_contract::{
     SteamArtworkApplyResult, SteamArtworkOperation, SteamArtworkReview, SteamArtworkSelection,
-    SteamBatchReview, SteamBatchSelection, SteamEntryOperation, SteamEntryReview,
-    SteamEntrySelection,
+    SteamBatchReview, SteamBatchSelection, SteamEntryArtworkOutcome, SteamEntryArtworkPreview,
+    SteamEntryOperation, SteamEntryReview, SteamEntrySelection,
 };
 use crate::steam_artwork::{
     ROLES, SteamArtworkPlan, SteamArtworkPlanRequest, SteamArtworkRecovery,
     SteamArtworkRoleContent, apply_steam_artwork_plan, plan_steam_artwork, recover_steam_artwork,
 };
 use crate::steam_entries::{
-    SteamCliIdentity, SteamClientState, SteamEntryApplyResult, SteamEntryError, SteamEntryPlan,
-    SteamEntryPlanRequest, SteamGameEntryTarget, apply_steam_entry_plan, local_steam_profiles,
-    plan_steam_entries,
+    SteamCliIdentity, SteamClientState, SteamEntryApplyResult, SteamEntryChangeKind,
+    SteamEntryError, SteamEntryPlan, SteamEntryPlanRequest, SteamGameEntryTarget,
+    apply_steam_entry_plan, local_steam_profiles, plan_steam_entries,
 };
 use crate::{
     DesktopError, DesktopResult, DesktopState, blocking_worker, cli_context, confirm_destructive,
@@ -60,14 +60,22 @@ pub(crate) async fn preview_steam_entry(
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
         let context = entry_context(&service, &request.port_id, request.operation)?;
-        review_entry(
-            context,
-            request.steam_root,
-            request.steam_user_id,
+        let plan = plan_entry(
+            &context,
+            request.steam_root.clone(),
+            request.steam_user_id.clone(),
             request.operation,
-            observe_steam_client(),
         )
-        .map_err(steam_error)
+        .map_err(steam_error)?;
+        let artwork = included_artwork(&service, &plan, request.include_artwork);
+        let mut review =
+            review_from_plan(&context, request.operation, &plan, observe_steam_client());
+        attach_artwork(
+            &mut review.artwork,
+            &mut review.artwork_review_sha256,
+            &artwork,
+        );
+        Ok(review)
     })
     .await
 }
@@ -78,12 +86,13 @@ pub(crate) async fn apply_steam_entry(
     state: tauri::State<'_, DesktopState>,
     request: SteamEntrySelection,
     expected_plan_sha256: String,
+    expected_artwork_review_sha256: Option<String>,
     generation: u64,
 ) -> DesktopResult<Option<SteamEntryApplyResult>> {
     let state_for_apply = state.inner().clone();
     let state_for_review = state_for_apply.clone();
     let request_for_review = request.clone();
-    let (review, plan) = blocking_worker(move || {
+    let (review, plan, reviewed_artwork) = blocking_worker(move || {
         let service = service_at_generation(&state_for_review, generation)?;
         let context = entry_context(
             &service,
@@ -102,8 +111,14 @@ pub(crate) async fn apply_steam_entry(
                 "Steam entry state changed after preview; review the current plan again",
             )));
         }
+        let artwork = included_artwork(&service, &plan, request_for_review.include_artwork);
+        if artwork_review_sha256(&artwork) != expected_artwork_review_sha256 {
+            return Err(DesktopError::from(PortcoveError::conflict(
+                "Steam artwork changed after preview; review the current plan again",
+            )));
+        }
         let review = review_from_plan(&context, request.operation, &plan, observe_steam_client());
-        Ok((review, plan))
+        Ok((review, plan, artwork))
     })
     .await?;
     let action = match review.operation {
@@ -124,10 +139,12 @@ pub(crate) async fn apply_steam_entry(
         let service = service_at_generation(&state_for_apply, generation)?;
         let context = entry_context(&service, &request.port_id, request.operation)?;
         let current = revalidate_reviewed_plan(&context, &request, &plan).map_err(steam_error)?;
+        let artwork = included_artwork(&service, &current, request.include_artwork);
+        require_same_artwork(&artwork, &reviewed_artwork)?;
         let client_state = observe_steam_client();
-        apply_steam_entry_plan(&current, client_state)
-            .map(Some)
-            .map_err(steam_error)
+        let mut result = apply_steam_entry_plan(&current, client_state).map_err(steam_error)?;
+        result.artwork = apply_included_artwork(artwork);
+        Ok(Some(result))
     })
     .await
 }
@@ -143,7 +160,14 @@ pub(crate) async fn preview_steam_batch_add(
         let service = service_at_generation(&state, generation)?;
         let contexts = batch_contexts(&service, &request.port_ids)?;
         let plan = plan_batch(&contexts, &request).map_err(steam_error)?;
-        Ok(batch_review(&contexts, &plan, observe_steam_client()))
+        let artwork = included_artwork(&service, &plan, request.include_artwork);
+        let mut review = batch_review(&contexts, &plan, observe_steam_client());
+        attach_artwork(
+            &mut review.artwork,
+            &mut review.artwork_review_sha256,
+            &artwork,
+        );
+        Ok(review)
     })
     .await
 }
@@ -154,31 +178,40 @@ pub(crate) async fn apply_steam_batch_add(
     state: tauri::State<'_, DesktopState>,
     request: SteamBatchSelection,
     expected_review_sha256: String,
+    expected_artwork_review_sha256: Option<String>,
     generation: u64,
 ) -> DesktopResult<Option<SteamEntryApplyResult>> {
     let state_for_review = state.inner().clone();
     let state_for_apply = state_for_review.clone();
     let review_request = request.clone();
-    let (review, reviewed_plan, reviewed_install_ids) = blocking_worker(move || {
-        let service = service_at_generation(&state_for_review, generation)?;
-        let contexts = batch_contexts(&service, &review_request.port_ids)?;
-        let plan = plan_batch(&contexts, &review_request).map_err(steam_error)?;
-        if batch_review_hash(&plan, &contexts) != expected_review_sha256 {
-            return Err(DesktopError::from(PortcoveError::conflict(
-                "Steam batch state changed after preview; review the current plan again",
-            )));
-        }
-        let install_ids = contexts
-            .iter()
-            .map(|context| context.active_install_id.clone())
-            .collect::<Vec<_>>();
-        Ok((
-            batch_review(&contexts, &plan, observe_steam_client()),
-            plan,
-            install_ids,
-        ))
-    })
-    .await?;
+    let (review, reviewed_plan, reviewed_install_ids, reviewed_artwork) =
+        blocking_worker(move || {
+            let service = service_at_generation(&state_for_review, generation)?;
+            let contexts = batch_contexts(&service, &review_request.port_ids)?;
+            let plan = plan_batch(&contexts, &review_request).map_err(steam_error)?;
+            if batch_review_hash(&plan, &contexts) != expected_review_sha256 {
+                return Err(DesktopError::from(PortcoveError::conflict(
+                    "Steam batch state changed after preview; review the current plan again",
+                )));
+            }
+            let install_ids = contexts
+                .iter()
+                .map(|context| context.active_install_id.clone())
+                .collect::<Vec<_>>();
+            let artwork = included_artwork(&service, &plan, review_request.include_artwork);
+            if artwork_review_sha256(&artwork) != expected_artwork_review_sha256 {
+                return Err(DesktopError::from(PortcoveError::conflict(
+                    "Steam artwork changed after preview; review the current plan again",
+                )));
+            }
+            Ok((
+                batch_review(&contexts, &plan, observe_steam_client()),
+                plan,
+                install_ids,
+                artwork,
+            ))
+        })
+        .await?;
     let action = "Add or repair selected shortcuts";
     let games = review
         .selected_games
@@ -208,9 +241,12 @@ pub(crate) async fn apply_steam_batch_add(
                 "a selected install, Portcove library, standalone CLI, Steam profile, or reviewed batch plan changed while consent was open",
             )));
         }
-        apply_steam_entry_plan(&current, observe_steam_client())
-            .map(Some)
-            .map_err(steam_error)
+        let artwork = included_artwork(&service, &current, request.include_artwork);
+        require_same_artwork(&artwork, &reviewed_artwork)?;
+        let mut result =
+            apply_steam_entry_plan(&current, observe_steam_client()).map_err(steam_error)?;
+        result.artwork = apply_included_artwork(artwork);
+        Ok(Some(result))
     })
     .await
 }
@@ -229,7 +265,7 @@ pub(crate) async fn preview_steam_artwork(
         // runs before the Core handoff so a catalog change cannot prevent it.
         let recovered = recover_steam_artwork(&request.steam_root, &request.steam_user_id)
             .map_err(steam_error)?;
-        let (display_name, plan_request) = artwork_request(&service, &request)?;
+        let (display_name, plan_request) = artwork_request(&service, &request, None)?;
         let plan = plan_steam_artwork(&plan_request).map_err(steam_error)?;
         Ok(artwork_review(
             display_name,
@@ -254,7 +290,7 @@ pub(crate) async fn apply_steam_artwork(
     let request_for_review = request.clone();
     let (display_name, reviewed) = blocking_worker(move || {
         let service = service_at_generation(&state_for_review, generation)?;
-        let (display_name, plan_request) = artwork_request(&service, &request_for_review)?;
+        let (display_name, plan_request) = artwork_request(&service, &request_for_review, None)?;
         let plan = plan_steam_artwork(&plan_request).map_err(steam_error)?;
         if plan.plan_sha256 != expected_plan_sha256 {
             return Err(DesktopError::from(PortcoveError::conflict(
@@ -285,7 +321,7 @@ pub(crate) async fn apply_steam_artwork(
     }
     blocking_worker(move || {
         let service = service_at_generation(&state_for_apply, generation)?;
-        let (_, plan_request) = artwork_request(&service, &request)?;
+        let (_, plan_request) = artwork_request(&service, &request, None)?;
         let current = revalidate_artwork_plan(&plan_request, &reviewed).map_err(steam_error)?;
         apply_steam_artwork_plan(&current, &plan_request, observe_steam_client())
             .map(Some)
@@ -296,9 +332,154 @@ pub(crate) async fn apply_steam_artwork(
 
 /// Derives artwork inputs from Core's destination handoff; the renderer never
 /// supplies bytes, paths or provider data.
+/// One game's artwork reviewed with a shortcut Add, or why it is unavailable.
+type IncludedArtwork = (
+    String,
+    Result<(SteamArtworkPlanRequest, SteamArtworkPlan), String>,
+);
+
+/// Plans fill-missing artwork only for games this shortcut plan newly adds.
+/// Repair never writes artwork, and an artwork failure never blocks the Add.
+fn included_artwork(
+    service: &PortcoveService,
+    plan: &SteamEntryPlan,
+    include: bool,
+) -> Vec<IncludedArtwork> {
+    if !include {
+        return Vec::new();
+    }
+    plan.changes
+        .iter()
+        .filter(|change| change.kind == SteamEntryChangeKind::Add)
+        .map(|change| {
+            let planned = plan
+                .owned_app_ids
+                .iter()
+                .find(|(port_id, _)| *port_id == change.port_id)
+                .map(|(_, app_id)| *app_id);
+            let selection = SteamArtworkSelection {
+                port_id: change.port_id.clone(),
+                steam_root: plan.request.steam_root().to_path_buf(),
+                steam_user_id: plan.request.steam_user_id().to_owned(),
+                operation: SteamArtworkOperation::Update {
+                    replace_existing: false,
+                },
+            };
+            let planned_artwork = planned
+                .ok_or_else(|| "the new shortcut has no AppID".to_owned())
+                .and_then(|app_id| {
+                    let (_, request) = artwork_request(service, &selection, Some(app_id))
+                        .map_err(|error| error.message)?;
+                    let plan =
+                        plan_steam_artwork(&request).map_err(|error| steam_error(error).message)?;
+                    Ok((request, plan))
+                });
+            (change.port_id.clone(), planned_artwork)
+        })
+        .collect()
+}
+
+fn artwork_review_sha256(artwork: &[IncludedArtwork]) -> Option<String> {
+    if artwork.is_empty() {
+        return None;
+    }
+    let identity = artwork
+        .iter()
+        .map(|(port_id, planned)| match planned {
+            Ok((_, plan)) => (port_id.as_str(), plan.plan_sha256.as_str()),
+            Err(reason) => (port_id.as_str(), reason.as_str()),
+        })
+        .collect::<Vec<_>>();
+    Some(hex::encode(Sha256::digest(
+        serde_json::to_vec(&identity).expect("string-only artwork identity is serializable"),
+    )))
+}
+
+fn attach_artwork(
+    previews: &mut Vec<SteamEntryArtworkPreview>,
+    review_sha256: &mut Option<String>,
+    artwork: &[IncludedArtwork],
+) {
+    *review_sha256 = artwork_review_sha256(artwork);
+    *previews = artwork
+        .iter()
+        .map(|(port_id, planned)| SteamEntryArtworkPreview {
+            port_id: port_id.clone(),
+            roles: planned
+                .as_ref()
+                .map(|(_, plan)| plan.roles.clone())
+                .unwrap_or_default(),
+            unavailable: planned.as_ref().err().cloned(),
+        })
+        .collect();
+}
+
+fn require_same_artwork(
+    current: &[IncludedArtwork],
+    reviewed: &[IncludedArtwork],
+) -> DesktopResult<()> {
+    let same = current.len() == reviewed.len()
+        && current
+            .iter()
+            .zip(reviewed)
+            .all(|((left_id, left), (right_id, right))| {
+                left_id == right_id
+                    && match (left, right) {
+                        (Ok((_, left)), Ok((_, right))) => left == right,
+                        (Err(left), Err(right)) => left == right,
+                        _ => false,
+                    }
+            });
+    if same {
+        Ok(())
+    } else {
+        Err(DesktopError::from(PortcoveError::conflict(
+            "the selected Portcove artwork or existing Steam artwork changed while consent was open",
+        )))
+    }
+}
+
+/// Runs after the shortcut write; each game's artwork is re-planned against
+/// the reviewed plan and reported separately so one failure stays local.
+fn apply_included_artwork(artwork: Vec<IncludedArtwork>) -> Vec<SteamEntryArtworkOutcome> {
+    artwork
+        .into_iter()
+        .map(|(port_id, planned)| {
+            let outcome = planned.and_then(|(request, reviewed)| {
+                let current =
+                    plan_steam_artwork(&request).map_err(|error| steam_error(error).message)?;
+                if current != reviewed {
+                    return Err(
+                        "Steam artwork changed after review; use Review artwork update".to_owned(),
+                    );
+                }
+                apply_steam_artwork_plan(&current, &request, observe_steam_client())
+                    .map_err(|error| steam_error(error).message)
+            });
+            match outcome {
+                Ok(result) => SteamEntryArtworkOutcome {
+                    port_id,
+                    roles: result.roles,
+                    backup_paths: result.backup_paths,
+                    wrote: result.wrote,
+                    error: None,
+                },
+                Err(error) => SteamEntryArtworkOutcome {
+                    port_id,
+                    roles: Vec::new(),
+                    backup_paths: Vec::new(),
+                    wrote: false,
+                    error: Some(error),
+                },
+            }
+        })
+        .collect()
+}
+
 fn artwork_request(
     service: &PortcoveService,
     selection: &SteamArtworkSelection,
+    planned_app_id: Option<u32>,
 ) -> DesktopResult<(String, SteamArtworkPlanRequest)> {
     let port = service.catalog().port(&selection.port_id)?;
     let library = service.library().identity_record()?;
@@ -346,6 +527,7 @@ fn artwork_request(
             port_id: port.id.clone(),
             operation: selection.operation,
             roles,
+            planned_app_id,
         },
     ))
 }
@@ -481,6 +663,8 @@ fn batch_review(
         changes: plan.changes.clone(),
         steam_client_state,
         writes_required: plan.changes_required(),
+        artwork: Vec::new(),
+        artwork_review_sha256: None,
     }
 }
 
@@ -533,6 +717,7 @@ fn entry_context(
     })
 }
 
+#[cfg(test)]
 fn review_entry(
     context: SteamEntryContext,
     steam_root: PathBuf,
@@ -630,6 +815,8 @@ fn review_from_plan(
         changes: plan.changes.clone(),
         steam_client_state: client_state,
         writes_required: plan.changes_required(),
+        artwork: Vec::new(),
+        artwork_review_sha256: None,
     }
 }
 
@@ -866,6 +1053,7 @@ mod tests {
             steam_root,
             steam_user_id: "42".into(),
             operation: SteamEntryOperation::AddOrRepair,
+            include_artwork: false,
         };
         let reviewed = plan_entry(
             &original,
@@ -896,6 +1084,7 @@ mod tests {
             port_ids: vec![first.port_id.clone(), second.port_id.clone()],
             steam_root,
             steam_user_id: "42".into(),
+            include_artwork: false,
         };
         let contexts = vec![first, second];
         let plan = plan_batch(&contexts, &selection).unwrap();

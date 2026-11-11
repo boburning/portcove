@@ -294,12 +294,20 @@ export interface InputDesktopSteamArtworkSelection {
   [k: string]: unknown;
 }
 export interface InputDesktopSteamBatchSelection {
+  /**
+   * Also fill missing Steam artwork for each newly added shortcut.
+   */
+  includeArtwork?: boolean;
   portIds: string[];
   steamRoot: string;
   steamUserId: string;
   [k: string]: unknown;
 }
 export interface InputDesktopSteamEntrySelection {
+  /**
+   * Also fill missing Steam artwork for a newly added shortcut.
+   */
+  includeArtwork?: boolean;
   operation: SteamEntryOperation;
   portId: string;
   steamRoot: string;

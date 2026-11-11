@@ -54,6 +54,7 @@ impl Fixture {
                 (DestinationArtworkRole::LandscapeCover, unprovided()),
                 (DestinationArtworkRole::HeroBanner, unprovided()),
             ],
+            planned_app_id: None,
         }
     }
 
@@ -456,4 +457,27 @@ fn update_refuses_while_art_for_an_earlier_shortcut_is_still_recorded() {
         portrait(&plan_steam_artwork(&update).unwrap()).action,
         SteamArtworkRoleAction::Write
     );
+}
+
+#[test]
+fn artwork_reviewed_with_a_shortcut_add_uses_the_planned_app_id() {
+    let fixture = Fixture::new();
+    let mut request = fixture.update(false, b"portcove art");
+    request.planned_app_id = Some(APP_ID);
+    let before = plan_steam_artwork(&request).unwrap();
+    assert_eq!(before.app_id, Some(APP_ID));
+    assert_eq!(before.shortcuts_sha256, None);
+    assert_eq!(portrait(&before).action, SteamArtworkRoleAction::Write);
+    // Writing the reviewed shortcut leaves the artwork plan unchanged.
+    let fixture = fixture.with_owned_shortcut();
+    let after = plan_steam_artwork(&request).unwrap();
+    assert_eq!(after, before);
+    apply(&after, &request);
+    assert!(fixture.grid().join(format!("{APP_ID}p.png")).exists());
+    // A different owned AppID than the reviewed one is refused.
+    request.planned_app_id = Some(APP_ID + 1);
+    assert!(matches!(
+        plan_steam_artwork(&request),
+        Err(SteamEntryError::Conflict(_))
+    ));
 }

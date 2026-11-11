@@ -80,6 +80,10 @@ pub struct SteamArtworkPlanRequest {
     pub operation: SteamArtworkOperation,
     /// One entry per role for Update; ignored by RemoveOwned.
     pub roles: Vec<(DestinationArtworkRole, SteamArtworkRoleContent)>,
+    /// For Update reviewed together with a shortcut Add: the AppID that the
+    /// reviewed shortcut plan gives this game's owned entry. The shortcut file
+    /// itself is then bound by that plan, not by this one.
+    pub planned_app_id: Option<u32>,
 }
 
 /// A byte-free reviewed plan. Apply re-derives it from fresh inputs and
@@ -190,13 +194,24 @@ pub fn plan_steam_artwork(request: &SteamArtworkPlanRequest) -> Result<SteamArtw
     let mut observed_variants = Vec::new();
     let (shortcuts_sha256, app_id) = match request.operation {
         SteamArtworkOperation::Update { replace_existing } => {
-            let (shortcuts_sha256, app_id) =
+            let (shortcuts_sha256, current_app_id) =
                 owned_shortcut_app_id(&config, &request.library_id, &request.port_id)?;
-            let app_id = app_id.ok_or_else(|| {
-                SteamEntryError::InvalidInput(
-                    "this game has no Portcove shortcut in the selected Steam profile; add the shortcut before updating its artwork".into(),
-                )
-            })?;
+            let app_id = match (request.planned_app_id, current_app_id) {
+                (Some(planned), None) => planned,
+                (Some(planned), Some(current)) if planned == current => current,
+                (Some(_), Some(_)) => {
+                    return Err(SteamEntryError::Conflict(
+                        "this game's Steam shortcut changed after review".into(),
+                    ));
+                }
+                (None, Some(current)) => current,
+                (None, None) => {
+                    return Err(SteamEntryError::InvalidInput(
+                        "this game has no Portcove shortcut in the selected Steam profile; add the shortcut before updating its artwork".into(),
+                    ));
+                }
+            };
+            let shortcuts_sha256 = shortcuts_sha256.filter(|_| request.planned_app_id.is_none());
             require_complete_roles(&request.roles)?;
             for (role, content) in &request.roles {
                 let (change, observed) = plan_update_role(

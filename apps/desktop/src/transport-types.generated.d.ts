@@ -4888,6 +4888,8 @@ export interface SteamArtworkRecovery {
   [k: string]: unknown;
 }
 export interface OutputDesktopSteamBatchReview {
+  artwork: SteamEntryArtworkPreview[];
+  artwork_review_sha256: string | null;
   changes: SteamEntryChange[];
   cli_path: string;
   cli_product_version: string;
@@ -4906,6 +4908,18 @@ export interface OutputDesktopSteamBatchReview {
   writes_required: boolean;
   [k: string]: unknown;
 }
+/**
+ * Artwork reviewed together with a shortcut Add for one game.
+ */
+export interface SteamEntryArtworkPreview {
+  port_id: string;
+  roles: SteamArtworkRoleChange[];
+  /**
+   * Why this game's artwork cannot be reviewed now; the shortcut is unaffected.
+   */
+  unavailable: string | null;
+  [k: string]: unknown;
+}
 export interface SteamEntryChange {
   display_name: string | null;
   kind: SteamEntryChangeKind;
@@ -4918,6 +4932,11 @@ export interface SteamGameEntryTarget {
   [k: string]: unknown;
 }
 export interface OutputDesktopSteamEntryApplyResult {
+  /**
+   * Per-game outcome of artwork included with a shortcut Add. A failed or
+   * unavailable role never undoes a successfully written shortcut.
+   */
+  artwork: SteamEntryArtworkOutcome[];
   backup_path: string | null;
   changes: SteamEntryChange[];
   plan_sha256: string;
@@ -4925,7 +4944,20 @@ export interface OutputDesktopSteamEntryApplyResult {
   wrote: boolean;
   [k: string]: unknown;
 }
+export interface SteamEntryArtworkOutcome {
+  backup_paths: string[];
+  /**
+   * Why no artwork was written for this game; retry with Review artwork update.
+   */
+  error: string | null;
+  port_id: string;
+  roles: SteamArtworkRoleChange[];
+  wrote: boolean;
+  [k: string]: unknown;
+}
 export interface OutputDesktopSteamEntryReview {
+  artwork: SteamEntryArtworkPreview[];
+  artwork_review_sha256: string | null;
   changes: SteamEntryChange[];
   cli_path: string | null;
   cli_product_version: string | null;
