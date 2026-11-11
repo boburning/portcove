@@ -326,15 +326,18 @@ not what is required, and it adds runner jobs per full run, so queue time still
 counts toward latency.
 
 A draft pull request defers the eight Windows Rust test partitions. When a fast plan
-selects Rust that the run would execute itself, the classifier sets
-`windows_tests_deferred` from the pull request's draft state. The draft run still
-builds the Windows workspace and runs the live transport comparison, and the
-required `rust` result then fails with an explicit deferral message, so a draft head
-never carries a passing `rust` result without its partitions. Marking the pull
-request ready (`ready_for_review`) or any later push to a ready pull request starts a
-full run on that head, and the supersede workflow cancels the draft run. Push,
-qualification, release and reused plans never defer. In practice, expect red `rust`
-on drafts that change Rust; that is the deferral, not a test failure.
+selects Rust that the run would execute itself, the classifier reads the pull
+request's current draft state from the API and sets `windows_tests_deferred`; an
+unreadable state keeps the partitions. The draft run still builds the Windows
+workspace and runs the live transport comparison, and the required `rust` result
+then fails with "Deferred by draft policy, not a test failure", so a head never
+carries a passing `rust` result without its partitions. Marking the pull request
+ready does not start a second CI run on the same head, which would duplicate every
+required context: the supersede workflow instead re-runs that head's run (cancelling
+it first if it is still active) when it deferred, and the new attempt reads the
+ready state and executes the partitions. That step is best effort; if it does not
+happen, re-run the head's CI run. Push, qualification, release and reused plans
+never defer.
 
 Retain failures, diagnose the smallest useful reproduction, and repeat only
 invalidated obligations. Preserve assertions, coverage, cleanup and finite

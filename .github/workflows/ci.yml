@@ -2,8 +2,6 @@ name: CI
 
 on:
   pull_request:
-    # ready_for_review runs the Windows test partitions that a draft run deferred.
-    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   workflow_call:
@@ -130,7 +128,6 @@ jobs:
           PORTCOVE_RELEASE_PROFILE: ${{ inputs.release_profile || 'full' }}
           PORTCOVE_QUALIFICATION_CALLER: ${{ inputs.qualification_caller || '' }}
           PORTCOVE_CALLER_WORKFLOW: ${{ inputs.caller_workflow || '' }}
-          PORTCOVE_PULL_REQUEST_DRAFT: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft || false }}
         run: node scripts/select-ci-plan.mts
       - name: Retain the exact validation plan
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

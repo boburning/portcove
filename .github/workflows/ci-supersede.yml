@@ -33,6 +33,7 @@ jobs:
           node-version-file: .node-version
       - name: Install trusted locked dependencies
         run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      # ready_for_review instead re-runs this head's run when it deferred its Windows partitions.
       - name: Cancel CI runs of this pull request older than this head's run
         # Best effort: fork tokens are read-only, and a failed cancel only costs runner time.
         continue-on-error: true
@@ -42,4 +43,5 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          EVENT_ACTION: ${{ github.event.action }}
         run: node scripts/ci-supersede.mts

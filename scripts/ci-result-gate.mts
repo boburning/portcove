@@ -15,7 +15,7 @@ interface FailedProducer {
   name: string;
   result: string;
 }
-type ResultGateError = Error & { failedProducer?: FailedProducer };
+type ResultGateError = Error & { failedProducer?: FailedProducer; deferral?: true };
 export interface CiResultInputs {
   classifier?: string | undefined;
   plan: unknown;
@@ -64,6 +64,8 @@ function resultFailure(
 }
 
 export function formatResultGateFailure(error: unknown) {
+  if (isRecord(error) && error.deferral === true)
+    return `Deferred by draft policy, not a test failure: ${errorMessage(error)}`;
   const producer = isRecord(error) ? error.failedProducer : undefined;
   return isRecord(producer) &&
     typeof producer.name === "string" &&
@@ -217,12 +219,11 @@ export function evaluateCiResults({
         throw new Error(
           `fast_rust_tests was ${fast?.fast_rust_tests || "missing"}, expected skipped for a draft`,
         );
-      throw resultFailure(
+      const deferral: ResultGateError = new Error(
         "Windows test partitions are deferred while this pull request is a draft; mark it ready for review to run them",
-        "fast_rust_tests",
-        "skipped",
-        "success",
       );
+      deferral.deferral = true;
+      throw deferral;
     }
     requireResults(fast, selected && !reused ? "success" : "skipped", "fast");
     if (Object.keys(targeted ?? {}).length)

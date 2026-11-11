@@ -60,6 +60,57 @@ export function windowsTestsDeferred(
   );
 }
 
+/**
+ * The pull request's current draft state, read live so a re-run attempt started after the pull
+ * request became ready sees "false" even though its event payload still says draft. Any failure
+ * returns "false", which keeps the Windows partitions.
+ */
+export async function liveDraftState({
+  eventName,
+  eventPath,
+  read,
+}: {
+  eventName: string | undefined;
+  eventPath: string | undefined;
+  read: (route: string) => Promise<unknown>;
+}): Promise<"true" | "false"> {
+  if (eventName !== "pull_request" || !eventPath) return "false";
+  try {
+    const { readFile } = await import("node:fs/promises");
+    const event: unknown = JSON.parse(await readFile(eventPath, "utf8"));
+    const number =
+      isRecord(event) && isRecord(event.pull_request) ? event.pull_request.number : undefined;
+    if (typeof number !== "number" || !Number.isSafeInteger(number) || number < 1) return "false";
+    const pull = await read(`pulls/${number}`);
+    return isRecord(pull) && pull.number === number && pull.draft === true ? "true" : "false";
+  } catch (error) {
+    console.error(
+      `Draft state unavailable; running the Windows partitions: ${errorMessage(error)}`,
+    );
+    return "false";
+  }
+}
+
+async function readRepositoryRoute(route: string): Promise<unknown> {
+  const deadline = performance.now() + 20000;
+  const { localDeveloperCredential } = await import("./github-cli.mts");
+  const { createGitHubClient } = await import("./github-client.mts");
+  const prefix = "repos/boburning/portcove";
+  const client = await createGitHubClient({
+    credential: localDeveloperCredential({ deadline }),
+    deadline,
+    maxBytes: 1024 * 1024,
+    allowRequest: (method, url) => method === "GET" && url.pathname.startsWith(`/${prefix}/`),
+  });
+  return (
+    await client.request({
+      method: "GET",
+      url: new URL(`${prefix}/${route}`, "https://api.github.com/").href,
+      request: { portcove: { replay: "safe-read", attempts: 0 } },
+    })
+  ).data as unknown;
+}
+
 export function parseRawDiff(buffer: unknown): (ValidationChange & { score: string | null })[] {
   if (!Buffer.isBuffer(buffer)) throw new Error("raw diff must be a Buffer");
   const fields = buffer.toString("utf8").split("\0");
@@ -301,7 +352,11 @@ export async function writeGithubOutputs(
     windows_tests_deferred: String(
       windowsTestsDeferred(plan, {
         eventName: process.env.GITHUB_EVENT_NAME,
-        draft: process.env.PORTCOVE_PULL_REQUEST_DRAFT,
+        draft: await liveDraftState({
+          eventName: process.env.GITHUB_EVENT_NAME,
+          eventPath: process.env.GITHUB_EVENT_PATH,
+          read: readRepositoryRoute,
+        }),
         reused: Boolean(reuse?.groups.includes("rust")),
       }),
     ),

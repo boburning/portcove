@@ -360,7 +360,16 @@ void test("a draft defers the Windows partitions and the rust result fails until
       ...overrides,
     });
   // Even with every executed lane green, the deferred draft result is a failure, never a pass.
-  assert.throws(() => rust(), /deferred while this pull request is a draft/u);
+  assert.throws(
+    () => rust(),
+    (error: unknown) => {
+      assert.match(
+        formatResultGateFailure(error),
+        /^Deferred by draft policy, not a test failure: Windows test partitions are deferred/u,
+      );
+      return true;
+    },
+  );
   // The draft run still requires the build and transport it did execute.
   for (const lane of ["fast_rust", "fast_rust_transport"])
     for (const result of ["failure", "cancelled", "skipped"])

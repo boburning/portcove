@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import { ownRunId, supersededRunIds } from "./ci-supersede.mts";
+import { deferredWindowsRun, ownRunId, supersededRunIds } from "./ci-supersede.mts";
 
 const run = (id: number, ...pulls: number[]) => ({
   id,
@@ -69,4 +69,39 @@ void test("runs GitHub left without pull_requests match by head branch and repos
     workflow_runs: [{ ...bare(4, "feature/x", "owner/repo"), pull_requests: [{ number: 99 }] }],
   };
   assert.deepEqual(supersededRunIds([named], 9, pull), []);
+});
+
+void test("only a run that deferred its Windows partitions for a draft is re-run", () => {
+  const job = (name: string, conclusion: string, status = "completed") => ({
+    name,
+    status,
+    conclusion,
+  });
+  const partition = (conclusion: string) =>
+    job("fast-rust-test (windows-x86_64, ${{ matrix.partition }})", conclusion);
+  const deferred = [
+    job("rust", "failure"),
+    job("fast-rust-build (windows-x86_64)", "success"),
+    partition("skipped"),
+  ];
+  assert.equal(deferredWindowsRun({ jobs: deferred }), true);
+  // A real test failure, a failed build, a passing gate or partitions that ran are not deferrals.
+  assert.equal(
+    deferredWindowsRun({ jobs: [...deferred.slice(0, 2), partition("failure")] }),
+    false,
+  );
+  assert.equal(
+    deferredWindowsRun({
+      jobs: [deferred[0], job("fast-rust-build (windows-x86_64)", "failure"), deferred[2]],
+    }),
+    false,
+  );
+  assert.equal(deferredWindowsRun({ jobs: [job("rust", "success"), ...deferred.slice(1)] }), false);
+  assert.equal(
+    deferredWindowsRun({ jobs: [job("rust", "failure", "in_progress"), ...deferred.slice(1)] }),
+    false,
+  );
+  assert.equal(deferredWindowsRun({ jobs: deferred.slice(0, 2) }), false);
+  assert.equal(deferredWindowsRun({ jobs: [...deferred, job("rust", "failure")] }), false);
+  assert.throws(() => deferredWindowsRun({}), /malformed/u);
 });
