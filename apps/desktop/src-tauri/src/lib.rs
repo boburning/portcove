@@ -1158,19 +1158,6 @@ async fn discover_sources(
 }
 
 #[tauri::command]
-async fn get_source_inbox_paths(
-    state: tauri::State<'_, DesktopState>,
-    profile_id: String,
-) -> DesktopResult<SourceInboxPaths> {
-    blocking_service(state.inner().clone(), move |service| {
-        service
-            .source_inbox_paths(Some(&profile_id))
-            .map_err(Into::into)
-    })
-    .await
-}
-
-#[tauri::command]
 async fn open_source_inbox(
     state: tauri::State<'_, DesktopState>,
     profile_id: String,
@@ -2167,18 +2154,6 @@ async fn get_doctor_report(
 }
 
 #[tauri::command]
-async fn get_host_tools(
-    state: tauri::State<'_, DesktopState>,
-) -> DesktopResult<Vec<HostToolStatus>> {
-    let state = state.inner().clone();
-    blocking_worker(move || {
-        let preferences = state.preferences.as_ref().map_err(Clone::clone)?;
-        host_tools_for(preferences)
-    })
-    .await
-}
-
-#[tauri::command]
 async fn set_host_tool_path(
     state: tauri::State<'_, DesktopState>,
     tool_id: String,
@@ -2911,7 +2886,6 @@ pub fn run() -> std::process::ExitCode {
             get_game_file_scan_snapshot,
             refresh_game_file_query,
             discover_sources,
-            get_source_inbox_paths,
             open_source_inbox,
             scan_source_inbox,
             plan_source_import,
@@ -2955,7 +2929,6 @@ pub fn run() -> std::process::ExitCode {
             bug_report::open_bug_report,
             get_launch_failure,
             get_doctor_report,
-            get_host_tools,
             set_host_tool_path,
             clear_host_tool_path,
             recheck_host_tool,

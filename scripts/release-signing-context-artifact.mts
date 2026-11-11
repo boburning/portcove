@@ -17,6 +17,7 @@ import {
 } from "./release-signing-context.mts";
 import {
   requireCoordinatorSigningContext,
+  readPreparedCoordinatorSigningContext,
   readCoordinatorSigningContextFiles,
 } from "./release-metadata-signing-context.mts";
 import { inspectMetadataSigningBinding } from "./release-metadata-signing-contract.mts";
@@ -429,7 +430,10 @@ const requireProducerContext = async (kind: ContextKind, receipt: object) => {
     : requireCoordinatorSigningContext(receipt);
 };
 async function prepareContextArtifact(kind: ContextKind, contextReceipt: object, parent: string) {
-  const context = await requireProducerContext(kind, contextReceipt);
+  const context =
+    kind === "metadata-signing-context"
+      ? await readPreparedCoordinatorSigningContext(contextReceipt)
+      : await requireProducerContext(kind, contextReceipt);
   const bootstrap =
     kind === "metadata-signing-context" && "mode" in context && context.mode === "bootstrap";
   if (!context.previous_site && !bootstrap && kind !== "catalog-signing-context")
@@ -484,7 +488,9 @@ async function prepareContextArtifact(kind: ContextKind, contextReceipt: object,
       flag: "wx",
       mode: 0o600,
     });
-    await requireProducerContext(kind, contextReceipt);
+    if (kind === "metadata-signing-context")
+      await readPreparedCoordinatorSigningContext(contextReceipt);
+    else await requireProducerContext(kind, contextReceipt);
     const receipt = Object.freeze({
       kind: "actual-signing-context-upload",
       name: `${signingContextArtifactRoute(kind).prefix}-${tools.run_id}-${tools.run_attempt}`,

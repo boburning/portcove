@@ -133,6 +133,7 @@ mock.module(new URL("../release-metadata-signing-context.mts", import.meta.url).
   namedExports: {
     ...metadataContextFiles,
     requireCoordinatorSigningContext: async (receipt: object) => producerContext(receipt),
+    readPreparedCoordinatorSigningContext: async (receipt: object) => producerContext(receipt),
     readCoordinatorSigningContextFiles: async (receipt: object) => producerFiles(receipt),
   },
 });

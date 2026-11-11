@@ -82,7 +82,7 @@ export const slice4CapacityResources = Object.freeze({
 export const slice4CapacityResourceDigest = capacityDigest(slice4CapacityResources);
 
 export const retainedRenewalCapacityRebind = Object.freeze({
-  execution_ref: "refs/tags/portcove-production-controller-20261110r75",
+  execution_ref: "refs/tags/portcove-production-controller-20261110r76",
   checkpoint: "ef9b0664069a9c2dff4a9cf18ce86b3d964a4ac8",
   original_policy_sha256: "b553063de9c8d9c6c6412fbed7b607bdc5a1bb509a06b38e4f25e2c68c0f7b38",
 });
