@@ -1611,8 +1611,8 @@ sanitized errors. Project mutations remain quota-aware and readback-gated;
 ambiguous writes produce recovery evidence rather than automatic replay. The
 migration grants no publication or activation authority.
 
-Core sends GitHub metadata and device requests through Octocrab over its
-configured reqwest clients. The separate device client is anonymous. Core
+Core sends GitHub metadata and device requests through its configured Reqwest
+clients. The separate device client is anonymous. Core
 enforces the metadata body limit and operation deadlines, owns credential and
 cache transitions, and applies its existing separate download policy.
 
