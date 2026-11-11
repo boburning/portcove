@@ -453,6 +453,8 @@ pub(crate) struct HttpCacheEntry {
     pub etag: Option<String>,
     pub last_modified: Option<String>,
     pub body: String,
+    /// Unix seconds when the provider last confirmed this response.
+    pub updated_at: i64,
 }
 
 // Account for the actual response and its key/index/validator metadata instead
@@ -1782,13 +1784,14 @@ impl Library {
         prune_http_cache(&transaction)?;
         let cached = transaction
             .query_row(
-                "SELECT etag, last_modified, body FROM github_http_cache WHERE url=?1",
+                "SELECT etag, last_modified, body, updated_at FROM github_http_cache WHERE url=?1",
                 [url],
                 |row| {
                     Ok(HttpCacheEntry {
                         etag: row.get(0)?,
                         last_modified: row.get(1)?,
                         body: row.get(2)?,
+                        updated_at: row.get(3)?,
                     })
                 },
             )
