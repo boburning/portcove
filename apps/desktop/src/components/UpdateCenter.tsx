@@ -1193,9 +1193,26 @@ function ActivityRow({
         {presentation.label}
       </span>
       {presentation.state === "unfinished" && (
-        <p className={activityDetailsClass}>
-          This task has not reported completion. Review its details before retrying.
-        </p>
+        <div className={activityDetailsClass}>
+          <p>
+            This task didn’t report whether it finished.{" "}
+            {target.portId
+              ? "Check the game’s current state before trying again."
+              : "Review its details before trying again."}
+          </p>
+          {/* A read-only look at current state; it never repeats the task. */}
+          {target.portId && !activity.failure && (
+            <Button
+              data-focusable
+              variant="link"
+              size="sm"
+              data-detail-origin={`updates:activity:${activity.id}:check`}
+              onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:check`)}
+            >
+              Check game
+            </Button>
+          )}
+        </div>
       )}
       {activity.status === "running" && operation && operation.type !== "finished" && (
         <div className={activityDetailsClass}>
