@@ -456,7 +456,7 @@ it("retains Library narrowing and readiness counts for membership without relaxi
   await closeFilters();
   await expectReadinessOption("Ready (0)");
   await expect
-    .element(page.getByText("No matching library entries", { exact: true }))
+    .element(page.getByText("Nothing in your library matches", { exact: true }))
     .toBeInTheDocument();
   await openAdvancedFilters("Filters (1)");
   await userEvent.click(await filterChoice("In my library (3)"));
@@ -489,7 +489,7 @@ it("retains specific attention with independent Library readiness, zero counts a
   await expectReadinessOption("Needs attention (1)");
   await chooseReadiness("Ready (0)");
   await expect
-    .element(page.getByText("No matching library entries", { exact: true }))
+    .element(page.getByText("Nothing in your library matches", { exact: true }))
     .toBeInTheDocument();
   await openAdvancedFilters("Filters (1)");
   await expect
@@ -543,7 +543,7 @@ it("keeps playable plus matching staged updates independent from attention with 
   await expect.element(quickView("Updates")).toHaveAttribute("aria-checked", "true");
   await expectReadinessLabel("Readiness Ready (0)");
   await expect
-    .element(page.getByText("No matching library entries", { exact: true }))
+    .element(page.getByText("Nothing in your library matches", { exact: true }))
     .toBeInTheDocument();
   await userEvent.click(button("Remove Installation attention: Missing game files filter"));
   await expectReadinessLabel("Readiness Ready (2)");

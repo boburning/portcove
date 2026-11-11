@@ -952,7 +952,7 @@ function BrowserEmptyState({
     <div className={view === "library" ? "library-empty-result" : undefined}>
       <EmptyState
         icon={Settings2}
-        title={view === "library" ? "No matching library entries" : "No matching games"}
+        title={view === "library" ? "Nothing in your library matches" : "No matching games"}
         description={
           view === "library"
             ? "Reset search, filters, quick views and collection selection to browse again."
@@ -1260,7 +1260,13 @@ function LibraryEntry({
             port={{
               ...port,
               platforms: [],
-              channels: status?.active ? [status.active.channel] : [],
+              // Routine Stable repeats on every card; keep it when it differs
+              // from the selected channel or the channel is not Stable.
+              channels:
+                status?.active &&
+                (status.active.channel !== "stable" || status.channel !== status.active.channel)
+                  ? [status.active.channel]
+                  : [],
             }}
           />
         </div>
@@ -1343,6 +1349,11 @@ function PortCardStatus({
   const reviewSetup = Boolean(
     port.pendingSetup || hasPendingSetupAction(status) || installedCardInputPresentation(status),
   );
+  const playLabel = status?.readiness?.pending_setup
+    ? "Start setup"
+    : hasUnconfirmedLaunchInput(status, port)
+      ? "Try launch"
+      : "Play";
   const reviewLabel =
     port.pendingSetup?.state === "attention-required"
       ? "Review download"
@@ -1365,6 +1376,7 @@ function PortCardStatus({
             size="xs"
             className="library-card-action"
             data-detail-origin={`${detailOrigin}:task`}
+            aria-label={`View task: ${gameIdentityLabel(port)}`}
             onClick={() =>
               onTask
                 ? onTask(action.pending?.context.activityId)
@@ -1396,21 +1408,18 @@ function PortCardStatus({
           <Button
             key="play"
             data-focusable
-            variant="outline"
+            variant="primary"
             size="xs"
             className="library-card-action library-card-play"
             disabled={Boolean(action.busy)}
             focusableWhenDisabled={Boolean(action.busy)}
             aria-busy={Boolean(action.busy)}
+            aria-label={`${playLabel}: ${gameIdentityLabel(port)}`}
             title={action.assessment.reason}
             onClick={() => onLaunch?.(port.id)}
           >
             <Play aria-hidden="true" fill="currentColor" />
-            {status?.readiness?.pending_setup
-              ? "Start setup"
-              : hasUnconfirmedLaunchInput(status, port)
-                ? "Try launch"
-                : "Play"}
+            {playLabel}
           </Button>
         )}
       </span>
@@ -1897,7 +1906,7 @@ function CollectionResultSummary({
 }
 
 function libraryResultCount(visible: number, installed: number) {
-  return `${visible} of ${installed} library ${installed === 1 ? "entry" : "entries"}`;
+  return `${visible} of ${installed} in your library`;
 }
 
 function CollectionLayoutToggle({
@@ -2272,7 +2281,7 @@ function BrowserLastPlayed({
 
 function browserResultCount(view: View, count: number) {
   return view === "library"
-    ? `${count} library ${count === 1 ? "entry" : "entries"}`
+    ? `${count} in your library`
     : `${count} ${count === 1 ? "port" : "ports"}`;
 }
 

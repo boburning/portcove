@@ -318,7 +318,7 @@ describe("desktop components", () => {
     expect(emptyLibrary).toContain("copy a supported installation");
     expect(emptyLibrary.toLowerCase()).not.toContain("adopt");
     expect(emptyLibrary).not.toContain("Reset view");
-    expect(filteredEmptyLibrary).toContain("No matching library entries");
+    expect(filteredEmptyLibrary).toContain("Nothing in your library matches");
     expect(filteredEmptyLibrary).toContain('aria-label="Library filters"');
     expect(filteredEmptyLibrary).toContain("Reset view");
     expect(filteredEmptyLibrary).toContain(

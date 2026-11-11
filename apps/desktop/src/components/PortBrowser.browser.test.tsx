@@ -263,9 +263,9 @@ describe("Library empty browsing context", () => {
 
     await render("all", "unmatched title");
     const resultStatus = host.querySelector('[role="status"]');
-    expect(resultStatus?.textContent).toBe("0 library entries");
+    expect(resultStatus?.textContent).toBe("0 in your library");
     expect(host.querySelector('[aria-label="Library readiness"]')).toBeNull();
-    expect(host.textContent).toContain("No matching library entries");
+    expect(host.textContent).toContain("Nothing in your library matches");
     expect(host.textContent).toContain(
       "Reset search, filters, quick views and collection selection to browse again.",
     );
@@ -278,7 +278,7 @@ describe("Library empty browsing context", () => {
     expect(clearFilters).toHaveBeenCalledOnce();
 
     await render("ready", "");
-    expect(host.textContent).toContain("No matching library entries");
+    expect(host.textContent).toContain("Nothing in your library matches");
 
     await render("all", "   ");
     expect(host.querySelector('[role="status"]')).toBe(resultStatus);

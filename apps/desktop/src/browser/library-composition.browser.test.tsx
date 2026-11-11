@@ -162,21 +162,25 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   const launch = vi.spyOn(desktopApi, "launch");
   expect(document.querySelector(".library-query-tools #port-search")).not.toBeNull();
   expect(document.querySelector(".header-tools #port-search")).toBeNull();
-  expect(document.body.textContent).toContain("12 library entries");
+  expect(document.body.textContent).toContain("12 in your library");
   const portCard = (id: string) =>
     page.elementLocator(
       document
         .querySelector(`[data-detail-game-id="${id}"]`)!
         .closest<HTMLElement>(".collection-entry")!,
     );
-  await portCard("collection-0").getByRole("button", { name: "Play", exact: true }).click();
+  await portCard("collection-0")
+    .getByRole("button", { name: /^Play: / })
+    .click();
   await expect.poll(() => launch.mock.calls[0]).toEqual(["collection-0", "", 1]);
-  await portCard("collection-1").getByRole("button", { name: "Play", exact: true }).click();
+  await portCard("collection-1")
+    .getByRole("button", { name: /^Play: / })
+    .click();
   await expect.poll(() => launch.mock.calls[1]).toEqual(["collection-1", "", 1]);
   await page.getByRole("textbox", { name: "Search your library" }).fill("Super Mario 64");
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
   const summary = document.querySelector(".collection-result-summary")!;
-  expect(summary.textContent).toContain("2 of 12 library entries");
+  expect(summary.textContent).toContain("2 of 12 in your library");
   expect(document.querySelectorAll('[role="status"][aria-label="Search results"]')).toHaveLength(1);
   expect(document.querySelectorAll(".collection-result-summary")).toHaveLength(1);
   expect(document.querySelectorAll(".collection-result-summary button")).toHaveLength(1);
@@ -598,7 +602,7 @@ it("keeps an unknown external record distinct from managed readiness and reviews
   expect(document.querySelector(".collection-state")?.textContent).toContain(
     "Readiness unavailable",
   );
-  expect(page.getByRole("button", { name: "Play", exact: true }).query()).toBeNull();
+  expect(page.getByRole("button", { name: /^Play/ }).query()).toBeNull();
   await page.getByRole("button", { name: /^View details:/ }).click();
   expect(select).toHaveBeenCalledWith(port.id, `library:card:${port.id}:review`);
   expect(status.external_runtime).toBe(record);
@@ -929,7 +933,7 @@ it("opens Hidden games and restores Favorites focus when its last entry is shown
   await expect.element(hidden).not.toBeInTheDocument();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(0);
   await expect
-    .element(page.getByRole("heading", { name: "No matching library entries", exact: true }))
+    .element(page.getByRole("heading", { name: "Nothing in your library matches", exact: true }))
     .toBeVisible();
   await expect.element(page.getByRole("radio", { name: "Favorites 0", exact: true })).toHaveFocus();
   await captureParityState("library-hidden-final-entry-restored");
