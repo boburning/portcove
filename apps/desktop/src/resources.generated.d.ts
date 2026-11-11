@@ -562,6 +562,16 @@ export default interface Resources {
       "unrecognized": "This saved channel is not recognized in this version. Your saved choice has not changed."
     }
   },
+  "launch": {
+    "failure": {
+      "copied": "Copied",
+      "copyExitCode": "Copy exit code",
+      "exitCode": "Exit code <code/>",
+      "label": "Last launch",
+      "openActivity": "Open Activity",
+      "restorePrevious": "Restore previous version"
+    }
+  },
   "removal": {
     "apply": "Uninstall all versions",
     "applying": "Uninstalling…",

@@ -23,6 +23,7 @@ export default defineConfig({
       "src/components/ProtectionSummary.tsx",
       "src/components/AutomaticSnapshotsSetting.tsx",
       "src/components/ReleaseChannel.tsx",
+      "src/components/LaunchFailureNotice.tsx",
     ],
     ignore: ["src/**/*.test.{ts,tsx}", "src/**/*.generated.d.ts", "src/design-compatibility/**"],
     output: "src/locales/{{language}}/{{namespace}}.json",

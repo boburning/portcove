@@ -21,6 +21,7 @@ import englishCatalogUpdates from "./locales/en/catalogUpdates.json";
 import englishRemoval from "./locales/en/removal.json";
 import englishBackups from "./locales/en/backups.json";
 import englishGameUpdates from "./locales/en/gameUpdates.json";
+import englishLaunch from "./locales/en/launch.json";
 import englishCounts from "./locales/en/counts.json";
 import englishSettings from "./locales/en/settings.json";
 import englishShell from "./locales/en/shell.json";
@@ -29,6 +30,7 @@ import engineeringCatalogUpdates from "./locales/ar-XB/catalogUpdates.json";
 import engineeringRemoval from "./locales/ar-XB/removal.json";
 import engineeringBackups from "./locales/ar-XB/backups.json";
 import engineeringGameUpdates from "./locales/ar-XB/gameUpdates.json";
+import engineeringLaunch from "./locales/ar-XB/launch.json";
 import engineeringSettings from "./locales/ar-XB/settings.json";
 import engineeringShell from "./locales/ar-XB/shell.json";
 import type { LocalePreferenceSnapshot } from "./types";
@@ -40,6 +42,7 @@ import draftSpanishCatalogUpdates from "./locales/es/catalogUpdates.json";
 import draftSpanishRemoval from "./locales/es/removal.json";
 import draftSpanishBackups from "./locales/es/backups.json";
 import draftSpanishGameUpdates from "./locales/es/gameUpdates.json";
+import draftSpanishLaunch from "./locales/es/launch.json";
 
 const supportedLocales = ["en", "ar-XB"] as const;
 export type SupportedLocale = (typeof supportedLocales)[number];
@@ -111,6 +114,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(englishRemoval, "removal");
   assertCatalog(englishBackups, "backups");
   assertCatalog(englishGameUpdates, "gameUpdates");
+  assertCatalog(englishLaunch, "launch");
   assertCatalog(engineeringSettings);
   assertCatalog(engineeringShell, "shell");
   assertCatalog(engineeringApplicationUpdate, "applicationUpdate");
@@ -118,6 +122,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(engineeringRemoval, "removal");
   assertCatalog(engineeringBackups, "backups");
   assertCatalog(engineeringGameUpdates, "gameUpdates");
+  assertCatalog(engineeringLaunch, "launch");
   assertCatalog(draftSpanishSettings, "es.settings");
   assertCatalog(draftSpanishCounts, "es.counts");
   assertCatalog(draftSpanishShell, "es.shell");
@@ -126,6 +131,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(draftSpanishRemoval, "es.removal");
   assertCatalog(draftSpanishBackups, "es.backups");
   assertCatalog(draftSpanishGameUpdates, "es.gameUpdates");
+  assertCatalog(draftSpanishLaunch, "es.launch");
   if (!i18next.isInitialized) {
     void i18next.use(initReactI18next).init({
       lng: resolveLocale(null, initialLocales),
@@ -140,6 +146,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
         "removal",
         "backups",
         "gameUpdates",
+        "launch",
       ],
       defaultNS: "settings",
       resources: {
@@ -152,6 +159,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           removal: englishRemoval,
           backups: englishBackups,
           gameUpdates: englishGameUpdates,
+          launch: englishLaunch,
         },
         "ar-XB": {
           settings: engineeringSettings,
@@ -161,6 +169,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           removal: engineeringRemoval,
           backups: engineeringBackups,
           gameUpdates: engineeringGameUpdates,
+          launch: engineeringLaunch,
         },
         // Unreviewed draft pilot (#1028): bundled for review and engineering
         // fixtures only. resolveLocale never selects it and the picker omits it.
@@ -173,6 +182,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           removal: draftSpanishRemoval,
           backups: draftSpanishBackups,
           gameUpdates: draftSpanishGameUpdates,
+          launch: draftSpanishLaunch,
         },
       },
       initAsync: false,

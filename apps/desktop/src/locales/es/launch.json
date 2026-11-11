@@ -1,0 +1,10 @@
+{
+  "failure": {
+    "copied": "Copiado",
+    "copyExitCode": "Copiar código de salida",
+    "exitCode": "Código de salida <code/>",
+    "label": "Último inicio",
+    "openActivity": "Abrir Actividad",
+    "restorePrevious": "Restaurar la versión anterior"
+  }
+}
