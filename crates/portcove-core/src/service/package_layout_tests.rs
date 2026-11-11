@@ -1,4 +1,5 @@
-//! Production install/update-path fixtures for reviewed package-layout holds.
+//! Production install/update-path fixtures over served packages: reviewed
+//! package-layout holds, player-file preservation and automatic snapshots.
 //! The archives are inert fixtures, not upstream artifacts or gameplay evidence.
 use std::{
     fs,
@@ -392,4 +393,164 @@ async fn nhl94_linux_update_and_rollback_preserve_default_player_files() {
             path
         );
     }
+}
+
+// #4879: an update that downloads a new version and activates it in place (an
+// adapter without staged activation) takes its own automatic snapshot. The
+// rollback, staged-activation, reuse and staged-update routes are covered in
+// `service/tests/backups.rs`.
+
+const NHL_IN_PLACE: &str = "nhl-94-genesis-ninety-four";
+
+struct InPlaceUpdate {
+    service: PortcoveService,
+    provider: Arc<Provider>,
+    installed: InstallRecord,
+    saves: std::path::PathBuf,
+    _temporary: tempfile::TempDir,
+}
+
+fn ninety_four(version: &str) -> (ResolvedRelease, crate::test_http::HttpServer) {
+    archive_release(
+        version,
+        format!("ninety-four-{version}-linux-x86_64.tar.gz"),
+        &[("nhl94", 0o755), ("licenses/ninety-four-MIT.txt", 0o644)],
+    )
+}
+
+/// Installs 0.3.5 from a served package, then plays it: the game has written a
+/// save and left the launch marker that collection trusts.
+async fn played_in_place_install(
+    faults: Arc<dyn crate::operation::LifecycleFaultInjector>,
+) -> InPlaceUpdate {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let (first, first_server) = ninety_four("0.3.5");
+    let provider = Arc::new(Provider(Mutex::new(first)));
+    let mut service =
+        PortcoveService::with_provider_and_faults(library, provider.clone(), faults).unwrap();
+    // The same inert package under an adapter that activates in place, so the
+    // update takes the direct install branch rather than staged activation.
+    let mut port = service.catalog.port(NHL_IN_PLACE).unwrap().clone();
+    port.adapter = crate::AdapterKind::N64RecompPortable;
+    assert!(!crate::persistence::requires_restore_receipt(&port));
+    service.replace_catalog_for_test(
+        Catalog::from_json(
+            &serde_json::json!({
+                "schema_version": 3,
+                "source_catalog": {
+                    "evidence": [], "identities": [], "contracts": [], "validators": []
+                },
+                "ports": [port.clone()]
+            })
+            .to_string(),
+        )
+        .unwrap(),
+    );
+    let installed = install(&service, NHL_IN_PLACE).await;
+    first_server.join().unwrap();
+    let launch = service
+        .prepare_launch_for_install(&port, &installed, None, None)
+        .unwrap();
+    let saves = launch.working_directory.join("states/autosave.state");
+    fs::create_dir_all(saves.parent().unwrap()).unwrap();
+    fs::write(&saves, "progress before the update").unwrap();
+    // A real launch leaves this marker; collection only trusts a played version.
+    fs::write(installed.path.join(LAUNCH_MARKER), b"1").unwrap();
+    InPlaceUpdate {
+        service,
+        provider,
+        installed,
+        saves,
+        _temporary: temporary,
+    }
+}
+
+fn automatic_snapshots(service: &PortcoveService) -> Vec<crate::BackupRecord> {
+    service
+        .list_backups(NHL_IN_PLACE)
+        .unwrap()
+        .backups
+        .into_iter()
+        .filter(|backup| backup.automatic.is_some())
+        .collect()
+}
+
+#[tokio::test]
+async fn an_in_place_update_snapshots_the_saves_once_before_replacing_the_version() {
+    let game = played_in_place_install(Arc::new(crate::operation::NoLifecycleFaults)).await;
+    let (second, second_server) = ninety_four("0.3.6");
+    *game.provider.0.lock().unwrap() = second;
+
+    let updated = game
+        .service
+        .update(NHL_IN_PLACE, None, None, true, |_| {})
+        .await
+        .unwrap();
+    second_server.join().unwrap();
+
+    assert_eq!(updated.version, "0.3.6");
+    assert!(!updated.staged, "the in-place route activates directly");
+    let status = game.service.status(NHL_IN_PLACE).unwrap();
+    assert_eq!(status.active.unwrap().id, updated.id);
+    let snapshots = automatic_snapshots(&game.service);
+    assert_eq!(snapshots.len(), 1, "one version change, one snapshot");
+    let label = snapshots[0].automatic.as_ref().unwrap();
+    assert_eq!(label.operation, crate::VersionChangeKind::Update);
+    assert_eq!(label.from_version.as_deref(), Some("0.3.5"));
+    assert_eq!(label.to_version, "0.3.6");
+    assert_eq!(
+        fs::read_to_string(snapshots[0].path.join("data/states/autosave.state")).unwrap(),
+        "progress before the update"
+    );
+}
+
+struct FailSnapshotCopy;
+
+impl crate::operation::LifecycleFaultInjector for FailSnapshotCopy {
+    fn check(&self, point: crate::operation::LifecycleFaultPoint) -> Result<()> {
+        if point == crate::operation::LifecycleFaultPoint::BackupDataCopied {
+            return Err(PortcoveError::state("injected snapshot failure"));
+        }
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn a_failed_snapshot_stops_an_in_place_update_before_anything_is_installed() {
+    let game = played_in_place_install(Arc::new(FailSnapshotCopy)).await;
+    let (second, _second_server) = ninety_four("0.3.6");
+    *game.provider.0.lock().unwrap() = second;
+
+    let error = game
+        .service
+        .update(NHL_IN_PLACE, None, None, true, |_| {})
+        .await
+        .unwrap_err();
+
+    assert!(
+        error.message.contains("injected snapshot failure"),
+        "the cause is kept: {error:?}"
+    );
+    assert!(
+        error.message.contains("the version was not changed")
+            && error.message.contains("turn off automatic snapshots"),
+        "the player is told the version did not change and how to continue: {error:?}"
+    );
+    assert_eq!(
+        error.details.get("recovery_action").map(String::as_str),
+        Some("retry_or_disable_snapshots")
+    );
+    let status = game.service.status(NHL_IN_PLACE).unwrap();
+    assert_eq!(status.active.unwrap().id, game.installed.id);
+    // The staged route would already have registered 0.3.6 as staged here, so
+    // this also proves the update took the in-place branch.
+    assert!(status.staged.is_none(), "no new version was installed");
+    assert!(status.previous.is_none(), "no new version was installed");
+    assert!(automatic_snapshots(&game.service).is_empty());
+    assert_eq!(
+        fs::read_to_string(&game.saves).unwrap(),
+        "progress before the update",
+        "the played version's saves are untouched"
+    );
 }
