@@ -166,6 +166,57 @@ export function LauncherLibraryImport({
         <Icon glyph={ListChecks} />
         {listing ? "Listing apps…" : "List apps"}
       </Button>
+      {needsAppsRoot && (
+        <div className="mb-3">
+          <label htmlFor={`${id}-apps-root`}>Apps folder, if it moved</label>
+          <p
+            id={`${id}-apps-root-hint`}
+            className="text-[length:var(--text-xs)] text-[var(--color-text-secondary)]"
+          >
+            Choose where the launcher&apos;s apps are now, then list the apps again.
+          </p>
+          <div className="flex items-stretch gap-2 [&_input]:min-w-0">
+            <Input
+              data-focusable
+              id={`${id}-apps-root`}
+              aria-describedby={`${id}-apps-root-hint`}
+              value={appsRoot}
+              disabled={disabled || listing}
+              onChange={(event) => setAppsRoot(event.target.value)}
+              placeholder="Choose or paste the full folder path"
+            />
+            {pickFolder && (
+              <Button
+                data-focusable
+                type="button"
+                variant="outline"
+                disabled={disabled || listing}
+                onClick={() => {
+                  void pickFolder(appsRoot).then((path) => {
+                    if (path) setAppsRoot(path);
+                  });
+                }}
+              >
+                <Icon glyph={FolderOpen} />
+                Browse
+              </Button>
+            )}
+          </div>
+          <Button
+            data-focusable
+            type="button"
+            variant="outline"
+            className="mt-2"
+            disabled={disabled || listing || !appsRoot.trim()}
+            onClick={() => {
+              void list();
+            }}
+          >
+            <Icon glyph={ListChecks} />
+            List apps again
+          </Button>
+        </div>
+      )}
       <p aria-live="polite" className="mt-3 text-[var(--color-text-secondary)]">
         {status}
       </p>
@@ -176,57 +227,6 @@ export function LauncherLibraryImport({
               The launcher&apos;s apps folder could not be read from its settings, so apps listed by
               folder name were not checked.
             </p>
-          )}
-          {needsAppsRoot && (
-            <div className="mb-3">
-              <label htmlFor={`${id}-apps-root`}>Apps folder, if it moved</label>
-              <p
-                id={`${id}-apps-root-hint`}
-                className="text-[length:var(--text-xs)] text-[var(--color-text-secondary)]"
-              >
-                Choose where the launcher&apos;s apps are now, then list the apps again.
-              </p>
-              <div className="flex items-stretch gap-2 [&_input]:min-w-0">
-                <Input
-                  data-focusable
-                  id={`${id}-apps-root`}
-                  aria-describedby={`${id}-apps-root-hint`}
-                  value={appsRoot}
-                  disabled={disabled || listing}
-                  onChange={(event) => setAppsRoot(event.target.value)}
-                  placeholder="Choose or paste the full folder path"
-                />
-                {pickFolder && (
-                  <Button
-                    data-focusable
-                    type="button"
-                    variant="outline"
-                    disabled={disabled || listing}
-                    onClick={() => {
-                      void pickFolder(appsRoot).then((path) => {
-                        if (path) setAppsRoot(path);
-                      });
-                    }}
-                  >
-                    <Icon glyph={FolderOpen} />
-                    Browse
-                  </Button>
-                )}
-              </div>
-              <Button
-                data-focusable
-                type="button"
-                variant="outline"
-                className="mt-2"
-                disabled={disabled || listing || !appsRoot.trim()}
-                onClick={() => {
-                  void list();
-                }}
-              >
-                <Icon glyph={ListChecks} />
-                List apps again
-              </Button>
-            </div>
           )}
           <ul className="grid gap-2 ps-0" aria-label="Launcher apps">
             {inventory.entries.map((entry) => (

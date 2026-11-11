@@ -155,6 +155,11 @@ it("offers a moved apps folder and lists again with it when apps were not found"
     await userEvent.fill(page.getByLabelText("Apps folder, if it moved"), "D:\\Apps");
     await page.getByRole("button", { name: "List apps again" }).click();
     expect(inspect).toHaveBeenLastCalledWith("github-launcher", "C:\\GHL", "D:\\Apps");
+    // A failed listing clears the results but keeps the override visible and editable.
+    inspect.mockResolvedValueOnce(undefined as unknown as LauncherLibraryInventory);
+    await page.getByRole("button", { name: "List apps again" }).click();
+    await expect.poll(() => page.getByText(/app listed/).elements().length).toBe(0);
+    await expect.element(page.getByLabelText("Apps folder, if it moved")).toHaveValue("D:\\Apps");
     // A different data folder never inherits the previous apps-folder override.
     await userEvent.fill(page.getByLabelText("GitHub Launcher data folder"), "C:\\Other");
     await page.getByRole("button", { name: "List apps", exact: true }).click();
