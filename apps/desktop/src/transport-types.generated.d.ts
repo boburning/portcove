@@ -775,6 +775,13 @@ export type OutputDestinationOwnership =
   | "invalid"
   | "unknown";
 export type OutputPendingSetups = PendingSetupRecord[];
+export type RetainedBuildAvailability = "verified" | "missing" | "changed" | "held" | "unavailable";
+export type OriginalAvailability = "verified" | "missing" | "changed";
+/**
+ * How a profile follows newer eligible releases. Stored as intent; unattended
+ * application is owned by the provider/standing-policy work, not this module.
+ */
+export type ProfileUpdatePolicy = "keep_current" | "review_updates" | "automatic_eligible";
 /**
  * One documented outcome in the assessed scope, not a universal judgment about a project.
  */
@@ -854,7 +861,6 @@ export type MaintenanceOutcome =
   | "demonstrated-regression-handling"
   | "demonstrated-continuity-and-succession";
 export type ReconcileAction = "up_to_date" | "notify" | "staged" | "activated";
-export type RetainedBuildAvailability = "verified" | "missing" | "changed" | "held" | "unavailable";
 export type SourceImportMode = "copy" | "move" | "use_current_location";
 export type SourceImportOutcome =
   "copied" | "moved" | "reused_existing" | "registered_current_location" | "copied_original_retained";
@@ -1015,6 +1021,8 @@ export interface TransportOutputs {
   preparation_cleanup_preview: OutputPreparationCleanupPreview;
   preparation_options: PreparationOptions;
   preparation_plan: OutputPreparationPlan;
+  profile_inventory: OutputProfileInventory;
+  profile_revision: ProfileRevision;
   recommendation_metadata: OutputRecommendationMetadata;
   reconcile_batch_outcome: OutputReconcileBatchOutcome;
   reconcile_result: ReconcileResult;
@@ -4066,6 +4074,123 @@ export interface SourceInspectionProblem {
    */
   tool_id?: string | null;
   [k: string]: unknown;
+}
+export interface OutputProfileInventory {
+  port_id: string;
+  profiles: ProfileView[];
+  [k: string]: unknown;
+}
+export interface ProfileView {
+  build_availability: RetainedBuildAvailability;
+  originals: OriginalStatus[];
+  profile: Profile;
+  revision: ProfileRevision;
+  [k: string]: unknown;
+}
+export interface OriginalStatus {
+  availability: OriginalAvailability;
+  binding: OriginalBinding;
+  [k: string]: unknown;
+}
+/**
+ * One required original, bound by observed content and storage identity rather
+ * than by path, so relocation and rescans cannot silently change which original
+ * a profile means.
+ */
+export interface OriginalBinding {
+  observed_identity_sha256?: string | null;
+  /**
+   * The catalog source requirement this original satisfies.
+   */
+  requirement_id: string;
+  sha256: string;
+  size: number;
+  storage_sha256: string;
+  storage_size: number;
+}
+export interface Profile {
+  created_at: number;
+  current_revision: number;
+  display_name: string;
+  id: string;
+  intent: ProfileIntent;
+  is_default: boolean;
+  port_id: string;
+  updated_at: number;
+}
+export interface ProfileIntent {
+  requested_packages?: RequestedPackage[];
+  update_policy: ProfileUpdatePolicy;
+}
+export interface RequestedPackage {
+  native_id: string;
+  provider?: ProviderPackageRef | null;
+  version_constraint?: string | null;
+}
+/**
+ * A provider's own coordinates. Provider IDs never double as native loader IDs.
+ */
+export interface ProviderPackageRef {
+  file?: string | null;
+  project: string;
+  provider: string;
+  version?: string | null;
+}
+export interface ProfileRevision {
+  build: RetainedBuildIdentity;
+  created_at: number;
+  /**
+   * SHA-256 of this revision's canonical content (with this field empty).
+   */
+  digest: string;
+  /**
+   * Explicit uncaptured or external inputs this revision cannot reproduce.
+   */
+  limits?: string[];
+  loader?: LoaderContractRef | null;
+  orderings?: TypedOrdering[];
+  originals: OriginalBinding[];
+  packages?: ResolvedPackage[];
+  parent_revision: number | null;
+  profile_id: string;
+  revision: number;
+  /**
+   * Revisions sharing a group share progress; a copy gets its own group.
+   */
+  save_group: string;
+  /**
+   * Consequential native settings only; ordinary preferences stay mutable state.
+   */
+  settings?: {
+    [k: string]: string;
+  };
+}
+export interface LoaderContractRef {
+  id: string;
+  version: string;
+}
+/**
+ * One precedence domain. A loader may need several; no universal number exists.
+ */
+export interface TypedOrdering {
+  domain: string;
+  native_ids: string[];
+}
+/**
+ * Exact package bytes plus its separate identities. A local import carries no
+ * provider coordinates but still has its own native ID and digest.
+ */
+export interface ResolvedPackage {
+  enabled: boolean;
+  native_id: string;
+  native_version?: string | null;
+  provider?: ProviderPackageRef | null;
+  /**
+   * Native IDs this package requires, from native metadata (not provider claims).
+   */
+  requires?: string[];
+  sha256: string;
+  size: number;
 }
 export interface OutputRecommendationMetadata {
   capabilities: RecommendationCapabilityObservation[];
