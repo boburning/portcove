@@ -104,6 +104,15 @@ fn inspection_accepts_exported_bytes_and_rejects_malformed_or_forged_recipes() {
     let mut extra = serde_json::to_value(&recipe).unwrap();
     extra["script"] = serde_json::json!("rm -rf /");
     assert!(ProfileRecipe::inspect(extra.to_string().as_bytes()).is_err());
+    // A field unknown to a nested identity type is not silently dropped: the
+    // digest would still match, so inspection must refuse it explicitly.
+    let mut nested = serde_json::to_value(&recipe).unwrap();
+    nested["runtime"]["artifact"]["url"] = serde_json::json!("https://evil.example/x.exe");
+    assert!(ProfileRecipe::inspect(nested.to_string().as_bytes()).is_err());
+    // A duplicate key would let different readers see different recipes.
+    let text = String::from_utf8(bytes(&recipe)).unwrap();
+    let duplicated = text.replacen('{', r#"{"port_id":"bogus","#, 1);
+    assert!(ProfileRecipe::inspect(duplicated.as_bytes()).is_err());
     assert!(ProfileRecipe::inspect(b"{not json").is_err());
     assert!(
         ProfileRecipe::inspect(&vec![b' '; 300 * 1024]).is_err(),
@@ -247,6 +256,20 @@ fn missing_changed_or_foreign_inputs_hold_the_plan_and_change_nothing() {
     let plan = w.service.plan_recipe_import(&sealed(platform)).unwrap();
     assert!(plan.holds.iter().any(|hold| hold.contains("platform")));
     // An original that is not registered.
+    // An original requirement another game uses is not trusted as this game's.
+    let mut foreign = recipe.clone();
+    foreign.originals.push(RecipeOriginal {
+        requirement_id: "ocarina-of-time".into(),
+        sha256: "c".repeat(64),
+        size: 5,
+    });
+    let plan = w.service.plan_recipe_import(&sealed(foreign)).unwrap();
+    assert!(!plan.can_apply);
+    assert!(
+        plan.holds
+            .iter()
+            .any(|hold| hold.contains("not an input this game uses"))
+    );
     let mut original = recipe;
     original.originals.push(RecipeOriginal {
         requirement_id: "star-fox-64".into(),

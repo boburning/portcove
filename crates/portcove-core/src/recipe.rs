@@ -120,6 +120,23 @@ fn hash_ok(value: &str) -> bool {
     value.len() == 64 && value.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
+/// Absent optional fields and explicit nulls mean the same thing.
+fn without_nulls(value: serde_json::Value) -> serde_json::Value {
+    match value {
+        serde_json::Value::Object(object) => serde_json::Value::Object(
+            object
+                .into_iter()
+                .filter(|(_, value)| !value.is_null())
+                .map(|(key, value)| (key, without_nulls(value)))
+                .collect(),
+        ),
+        serde_json::Value::Array(items) => {
+            serde_json::Value::Array(items.into_iter().map(without_nulls).collect())
+        }
+        other => other,
+    }
+}
+
 fn identity(recipe: &ProfileRecipe) -> Result<String> {
     let mut copy = recipe.clone();
     copy.identity_sha256.clear();
@@ -132,8 +149,10 @@ impl ProfileRecipe {
         if bytes.len() > MAX_RECIPE_BYTES {
             return Err(invalid("it exceeds 256 KiB"));
         }
-        let value: serde_json::Value = serde_json::from_slice(bytes)
-            .map_err(|error| invalid(&format!("it is not valid JSON ({error})")))?;
+        // Duplicate keys are refused, so no reader can see a different value.
+        let crate::definition_entry::strict_json::UniqueValue(value) =
+            serde_json::from_slice(bytes)
+                .map_err(|error| invalid(&format!("it is not JSON with unique keys ({error})")))?;
         match value.get("format").and_then(serde_json::Value::as_u64) {
             Some(1) => {}
             Some(_) => {
@@ -143,8 +162,14 @@ impl ProfileRecipe {
             }
             None => return Err(invalid("it has no format version")),
         }
-        let recipe: ProfileRecipe = serde_json::from_value(value)
+        let recipe: ProfileRecipe = serde_json::from_value(value.clone())
             .map_err(|error| invalid(&format!("it has unexpected content ({error})")))?;
+        // Nested identity types are shared with other surfaces and ignore fields
+        // they do not know. Require that nothing was dropped at any depth, so a
+        // recipe cannot carry content that inspection would not show.
+        if without_nulls(serde_json::to_value(&recipe)?) != without_nulls(value) {
+            return Err(invalid("it has fields this format does not define"));
+        }
         recipe.validate()?;
         Ok(recipe)
     }
@@ -359,7 +384,14 @@ impl PortcoveService {
             identity_sha256: String::new(),
         };
         recipe.identity_sha256 = identity(&recipe)?;
-        recipe.validate()?;
+        // Recipes are stricter than local revisions (for example, an enabled
+        // package whose requirement is disabled). Say why the export stopped.
+        recipe.validate().map_err(|error| {
+            PortcoveError::conflict(
+                "this profile cannot be shared as a recipe until the problem below is fixed in the profile",
+            )
+            .detail("reason", error.message)
+        })?;
         Ok(recipe)
     }
 
@@ -415,10 +447,29 @@ impl PortcoveService {
             }
         };
         let sources = self.library.sources()?;
+        let port = self.catalog().port(&recipe.port_id)?;
+        let requirements = [
+            port.source_profile.as_deref(),
+            port.bios_source_profile.as_deref(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
         let originals = recipe
             .originals
             .iter()
             .map(|original| {
+                if !requirements.contains(&original.requirement_id.as_str()) {
+                    holds.push(format!(
+                        "original {} is not an input this game uses",
+                        original.requirement_id
+                    ));
+                    return RecipeInputPlan {
+                        name: original.requirement_id.clone(),
+                        status: RecipeInputStatus::Unavailable,
+                        detail: "this game does not use this original".into(),
+                    };
+                }
                 let registered = sources
                     .iter()
                     .filter(|source| source.profile_id == original.requirement_id)

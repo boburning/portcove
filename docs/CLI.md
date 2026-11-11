@@ -1604,11 +1604,15 @@ cannot reproduce. A recipe is untrusted data and grants no URL, path, script,
 acquisition or execution authority.
 
 `recipe-inspect` is local: no provider account, no network, bounded to 256 KiB. It
-refuses unknown fields, an unsupported future format, a forged identity digest,
-unsafe package names, missing dependencies and dependency cycles.
+refuses unknown fields at any depth, duplicate keys, an unsupported future format, a
+forged identity digest, unsafe package names, missing dependencies and dependency
+cycles. Export applies the same rules, so a profile with, for example, an enabled
+package whose requirement is disabled must be fixed before it can be shared; the
+refusal names the reason.
 `recipe-plan` reports each input as `available`, `acquirable` (through the ordinary
 provider plan) or `unavailable`, and holds for a different platform, a missing
-runtime, an unregistered or different original, or package bytes not in the store.
+runtime, an original requirement the game does not use, an
+unregistered or different original, or package bytes not in the store.
 `recipe-apply` works only when every input is already present, requires the reviewed
 `plan_sha256`, asks for confirmation, recomputes the plan under the port lock and
 creates a new profile with its own save group. A round trip reproduces the recipe's

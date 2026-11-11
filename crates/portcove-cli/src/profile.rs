@@ -196,10 +196,16 @@ fn read_recipe(path: &PathBuf) -> Result<portcove_core::ProfileRecipe> {
     std::fs::File::open(path)?
         .take(MAX_REQUEST_BYTES + 1)
         .read_to_end(&mut bytes)?;
+    // A recipe exported with the JSON envelope keeps the recipe under `data`;
+    // inspect the exact original bytes when there is no envelope.
     let value: serde_json::Value = serde_json::from_slice(&bytes)
         .map_err(|error| PortcoveError::usage(format!("invalid recipe file: {error}")))?;
-    let inner = value.get("data").cloned().unwrap_or(value);
-    portcove_core::ProfileRecipe::inspect(inner.to_string().as_bytes())
+    match value.get("data") {
+        Some(inner) if value.get("format").is_none() => {
+            portcove_core::ProfileRecipe::inspect(inner.to_string().as_bytes())
+        }
+        _ => portcove_core::ProfileRecipe::inspect(&bytes),
+    }
 }
 
 fn recipe_text(title: &str, recipe: &portcove_core::ProfileRecipe) -> String {
