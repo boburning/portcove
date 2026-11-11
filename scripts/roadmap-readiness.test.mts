@@ -2,6 +2,7 @@ import { reviewedCargoDenyVersion } from "./dependency-security.mts";
 import { catalogQualificationSummary } from "./roadmap-qualification.mts";
 import { validateApproval706 } from "./linux-beta-risk-706.mts";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
@@ -525,7 +526,16 @@ void test("snapshot output is confined to docs/releases", () => {
     );
   });
   function evidence() {
-    const policy = { ...canonicalApproval, firstPublicationTag: "v0.1.0-beta.1" };
+    const scannerPolicy = readFileSync(new URL("../deny.toml", import.meta.url), "utf8");
+    // This synthetic release evidence binds the configuration exercised by the
+    // test. The committed approval retains its historical policy digest.
+    const policy = {
+      ...canonicalApproval,
+      firstPublicationTag: "v0.1.0-beta.1",
+      policySha256: createHash("sha256")
+        .update(scannerPolicy.replaceAll("\r\n", "\n"))
+        .digest("hex"),
+    };
     const candidate = {
       head: "a".repeat(40),
       lockSha256: "b".repeat(64),
@@ -566,8 +576,8 @@ void test("snapshot output is confined to docs/releases", () => {
           unsoundAll: true,
           configSha256: policy.policySha256,
           sourceConfigSha256: policy.policySha256,
-          sourceConfig: readFileSync(new URL("../deny.toml", import.meta.url), "utf8"),
-          executionConfig: readFileSync(new URL("../deny.toml", import.meta.url), "utf8"),
+          sourceConfig: scannerPolicy,
+          executionConfig: scannerPolicy,
           toolVersion: `cargo-deny ${reviewedCargoDenyVersion}`,
           scope: "workspace-default-all-targets-all-checks",
           stdout: "",
