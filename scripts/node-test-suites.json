@@ -1397,7 +1397,8 @@
             "declared records flow through Core assessment, the store and a static report",
             "complete collection stores changes only, verifies membership and records absence",
             "each host platform keeps its own assessment history, gaps and latest run",
-            "release health records coverage, quiet recurrence and needs-attention conditions"
+            "release health records coverage, quiet recurrence and needs-attention conditions",
+            "upstream observations record coverage, quiet recurrence, attention and failed reads"
           ],
           "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
         }
@@ -1408,6 +1409,13 @@
       "memberships": [
         ["catalog-full", 1272],
         ["repository-tools", 407]
+      ]
+    },
+    {
+      "file": "scripts/maintenance-upstream.test.mts",
+      "memberships": [
+        ["catalog-full", 1273],
+        ["repository-tools", 408]
       ]
     },
     {

@@ -26,7 +26,16 @@ import {
   writeReport,
   type InventoryReport,
 } from "./maintenance-inventory.mts";
+import type { UpstreamInput } from "./maintenance-upstream.mts";
 import { migrate, runSql } from "./maintenance-store.mts";
+import {
+  catalog as catalogFixture,
+  checkpoint,
+  exception,
+  keyOf,
+  progress,
+  scope,
+} from "./fixtures/upstream-checkpoint-fixture.mts";
 
 const report = (setup: string) => ({
   format_version: 1,
@@ -767,5 +776,115 @@ void test(
       /failed:http-503/u,
     );
     assert.match(renderHtml(inventory), /provider-redirect \(observe-availability\)/u);
+  },
+);
+
+void test(
+  "upstream observations record coverage, quiet recurrence, attention and failed reads",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("upstream");
+    migrate(store.owner);
+    const { cli, responses } = stubCli(fixture.root);
+    writeFileSync(responses, JSON.stringify({ "2ship2harkinian": report("automatic") }));
+    // The observer maps its own catalog: the assessed port shares a source key with "alpha".
+    const observerCatalog = {
+      ports: [
+        { id: "2ship2harkinian", channels: ["stable"], release: { repository: "owner/alpha" } },
+        catalogFixture.ports[2]!,
+      ],
+    };
+    const observed = (sources: Record<string, unknown>, run: number) => () =>
+      Promise.resolve({
+        revision: `upstream-observer-run:${run}`,
+        config_sha256: scope,
+        checkpoint: checkpoint(sources, 9),
+        catalog: observerCatalog,
+      });
+    const collectWith = (upstream: () => Promise<UpstreamInput>) =>
+      collect({
+        cli,
+        all: true,
+        ports: ["2ship2harkinian"],
+        upstream,
+        environment: store.owner,
+        runner: "fixture",
+      });
+    const complete = (overrides = {}) => ({
+      [keyOf("owner/alpha")]: progress("owner/alpha", ["2ship2harkinian"], overrides),
+      [keyOf("owner/gamma")]: progress("owner/gamma", ["gamma"]),
+    });
+    await collectWith(observed(complete(), 1));
+    // Only per-observation clocks and progress moved: nothing is stored.
+    await collectWith(
+      observed(
+        complete({
+          attempted_sequence: 9,
+          freshness_observed_at: "2026-11-10T16:00:00.000Z",
+          next_due_at: "2026-11-10T22:00:00.000Z",
+        }),
+        2,
+      ),
+    );
+    // An exception is a changed fact; a never-completed source is a gap.
+    await collectWith(
+      observed(
+        {
+          [keyOf("owner/alpha")]: progress("owner/alpha", ["2ship2harkinian"], {
+            exception_key: exception,
+            exception_rule: "repository-unavailable",
+          }),
+          [keyOf("owner/gamma")]: progress("owner/gamma", [], {
+            completed_scope_sha256: null,
+            last_complete_facts_sha256: null,
+          }),
+        },
+        3,
+      ),
+    );
+    // A failed read observes nothing; the prior facts stay current.
+    await collectWith(() => Promise.reject(new Error("artifact download refused")));
+    const runs = JSON.parse(
+      runSql(
+        store.owner,
+        `SELECT json_agg(json_build_object('coverage', coverage, 'expected', expected_count, 'observed', observed_count,
+           'rows', (SELECT count(*) FROM portcove_maintenance.observations o WHERE o.run_id = r.run_id),
+           'gaps', (SELECT coalesce(json_agg(g ->> 'code'), '[]') FROM jsonb_array_elements(gaps) g)) ORDER BY started_at)
+           FROM portcove_maintenance.collection_runs r WHERE source = 'upstream-observations';`,
+      ),
+    ) as {
+      coverage: string;
+      expected: number | null;
+      observed: number;
+      rows: number;
+      gaps: string[];
+    }[];
+    assert.deepEqual(
+      runs.map(({ coverage, expected, observed: count, rows, gaps }) => [
+        coverage,
+        expected,
+        count,
+        rows,
+        gaps,
+      ]),
+      [
+        ["complete", 2, 2, 2, []],
+        ["complete", 2, 2, 0, []],
+        ["partial", 2, 1, 1, ["unobserved"]],
+        ["failed", null, 0, 0, ["unavailable"]],
+      ],
+    );
+    const inventory = buildReport(store.owner);
+    assert.ok(
+      !inventory.unsupported_sources.some(({ source }) => source === "upstream-observations"),
+    );
+    const subject = inventory.subjects[0] as {
+      upstream: { sources: { exception_rule: string }[] } | null;
+    };
+    assert.equal(subject.upstream?.sources[0]?.exception_rule, "repository-unavailable");
+    const page = renderHtml(inventory);
+    assert.match(page, /upstream observer exception: repository-unavailable \(owner\/alpha\)/u);
+    assert.match(page, /owner\/alpha: facts ffffffffffff/u);
   },
 );

@@ -86,6 +86,12 @@ export interface SourceProgress {
   last_complete_config: ObserverConfig | null;
   retired_configs: ObserverConfig[];
 }
+/**
+ * Budget, cancellation and quota stops are partial progress, not failures: a
+ * large managed source keeps its priority while it advances across turns, and
+ * such a stop never notifies.
+ */
+export const partialProgressRules: readonly string[] = ["budget", "cancelled", "provider-quota"];
 export interface CatalogObserverCheckpoint {
   format: 1;
   authority: "catalog-upstream-observation-only";
@@ -599,9 +605,6 @@ export async function advanceCatalogObservations(
     options.prioritizeConfigured === true &&
     (isScheduledPriority(source) ||
       (isConfigured(source) && state.sources[source.key]?.attempted_sequence !== state.sequence));
-  // Budget, cancellation and quota stops are partial progress, not failures, so
-  // a large managed source keeps its priority while it advances across turns.
-  const partialProgressRules = ["budget", "cancelled", "provider-quota"];
   const healthy = (progress: SourceProgress | undefined) =>
     !progress?.exception_key ||
     progress.exception_rule === undefined ||
@@ -951,7 +954,7 @@ export async function advanceCatalogObservations(
         const key = exceptionKey(source, rule);
         if (
           progress.exception_key !== key &&
-          !["budget", "cancelled", "provider-quota"].includes(rule) &&
+          !partialProgressRules.includes(rule) &&
           notifiesOnException(source)
         )
           notifyException = true;
