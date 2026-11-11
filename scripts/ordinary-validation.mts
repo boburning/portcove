@@ -3177,6 +3177,8 @@ function classifyOnePath(
       "apps/desktop/src/browser/failure-probe-contract.ts",
       "scripts/viteplus-cli.mts",
       "scripts/frontend-tests.ts",
+      "scripts/browser-shard-balance.mts",
+      ".config/browser-test-weights.json",
       "scripts/run-ui-tests.mts",
       "scripts/test-coverage-config.mts",
       "scripts/coverage-maps.mts",
