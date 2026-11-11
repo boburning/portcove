@@ -4848,4 +4848,168 @@ mod tests {
         server.join().unwrap();
         assert_eq!(resolved.asset.sha256, "a".repeat(64));
     }
+
+    /// Counts what one check of a library actually asks of `api.github.com`, using the real
+    /// provider and its persisted ETag cache against a fake API that answers 304 when the
+    /// conditional header matches. GitHub does not count a 304 against the primary limit,
+    /// so only the 200 responses are "counted" requests. Results are recorded in
+    /// `docs/ARCHITECTURE.md` (anonymous update-check request cost).
+    #[tokio::test]
+    async fn measure_the_request_cost_of_checking_a_library() {
+        use std::sync::{Arc, Mutex};
+        #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+        struct Cost {
+            requests: usize,
+            releases_pages: usize,
+            counted: usize,
+            not_modified: usize,
+        }
+        // Cost is exactly linear (a 50-game library was measured once at 100 requests), so two
+        // sizes pin the pattern without approaching the hosted harness budget.
+        for ports in [10_usize, 25] {
+            let releases = github_selector_releases();
+            let log: Arc<Mutex<Vec<(String, u16)>>> = Arc::default();
+            let changed: Arc<Mutex<Option<String>>> = Arc::default();
+            let handler_log = Arc::clone(&log);
+            let handler_changed = Arc::clone(&changed);
+            // 150 sequential requests with SQLite writes can outlast the 30s default accept
+            // budget on a slow hosted runner, so allow the finite maximum-friendly 180s.
+            let (api_root, _requests, server) = crate::test_http::serve_routed_http_with_budget(
+                100_000,
+                std::time::Duration::from_secs(180),
+                move |request| {
+                    let path = request
+                        .lines()
+                        .next()
+                        .and_then(|line| line.split_whitespace().nth(1))
+                        .unwrap_or("")
+                        .to_owned();
+                    // The ETag is derived from the resource, plus a revision once a repository changes.
+                    let revision = handler_changed
+                        .lock()
+                        .unwrap()
+                        .as_ref()
+                        .filter(|repository| {
+                            // Exact repository match: `repo-1` must not also match `repo-10`.
+                            path == format!("/repos/{repository}")
+                                || path.starts_with(&format!("/repos/{repository}/"))
+                        })
+                        .map_or(0, |_| 1);
+                    let etag = format!(
+                        "\"etag-{revision}-{}\"",
+                        path.replace(['/', '?', '=', '&'], "_")
+                    );
+                    let lowered = request.to_ascii_lowercase();
+                    let conditional =
+                        lowered.contains(&format!("if-none-match: {}", etag.to_ascii_lowercase()));
+                    let status = if conditional { 304 } else { 200 };
+                    handler_log.lock().unwrap().push((path.clone(), status));
+                    if conditional {
+                        return format!(
+                            "HTTP/1.1 304 Not Modified\r\nETag: {etag}\r\nConnection: close\r\n\r\n"
+                        );
+                    }
+                    let body = if path.contains("/releases?") {
+                        releases.clone()
+                    } else {
+                        r#"{"archived":false}"#.to_owned()
+                    };
+                    ok_json(&body, &format!("ETag: {etag}\r\n"))
+                },
+            );
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path()).unwrap();
+            let catalog = crate::Catalog::embedded().unwrap();
+            let template = catalog.port("re-blue").unwrap().clone();
+            let library_ports = (0..ports)
+                .map(|index| {
+                    let mut port = template.clone();
+                    port.id = format!("measured-{index}");
+                    port.release.repository = format!("owner/repo-{index}");
+                    port.release.asset_hints.insert(
+                        Platform::WindowsX86_64,
+                        vec!["first".into(), "windows".into()],
+                    );
+                    port
+                })
+                .collect::<Vec<_>>();
+            let measure = |before: usize| {
+                let entries = log.lock().unwrap();
+                let slice = &entries[before..];
+                Cost {
+                    requests: slice.len(),
+                    releases_pages: slice
+                        .iter()
+                        .filter(|(path, _)| path.contains("/releases?"))
+                        .count(),
+                    counted: slice.iter().filter(|(_, status)| *status == 200).count(),
+                    not_modified: slice.iter().filter(|(_, status)| *status == 304).count(),
+                }
+            };
+            // A fresh provider per pass is a Portcove restart: only the persisted cache survives.
+            let check_all = || async {
+                let provider = GithubReleaseProvider::with_api_root_and_library(
+                    api_root.clone(),
+                    library.clone(),
+                )
+                .unwrap();
+                for port in &library_ports {
+                    provider
+                        .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+                        .await
+                        .unwrap();
+                }
+            };
+            let cold = {
+                let before = log.lock().unwrap().len();
+                check_all().await;
+                measure(before)
+            };
+            let warm = {
+                let before = log.lock().unwrap().len();
+                check_all().await;
+                measure(before)
+            };
+            let one_changed = {
+                *changed.lock().unwrap() = Some("owner/repo-0".into());
+                let before = log.lock().unwrap().len();
+                check_all().await;
+                measure(before)
+            };
+            server.join().unwrap();
+            // Each game costs two requests: one `releases` page and one repository-metadata call.
+            assert_eq!(
+                cold,
+                Cost {
+                    requests: 2 * ports,
+                    releases_pages: ports,
+                    counted: 2 * ports,
+                    not_modified: 0
+                },
+                "a cold check counts every request against the provider limit ({ports} games)"
+            );
+            // After a restart the persisted ETags answer everything with 304, which is not counted.
+            assert_eq!(
+                warm,
+                Cost {
+                    requests: 2 * ports,
+                    releases_pages: ports,
+                    counted: 0,
+                    not_modified: 2 * ports
+                },
+                "a warm check counts nothing ({ports} games)"
+            );
+            // A changed repository is re-fetched in full: its two requests count, the rest stay free.
+            assert_eq!(
+                one_changed,
+                Cost {
+                    requests: 2 * ports,
+                    releases_pages: ports,
+                    counted: 2,
+                    not_modified: 2 * ports - 2
+                },
+                "one changed repository counts two requests ({ports} games)"
+            );
+        }
+    }
 }

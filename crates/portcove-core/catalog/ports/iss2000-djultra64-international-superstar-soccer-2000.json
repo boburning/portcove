@@ -36,6 +36,7 @@
       ]
     },
     "issue_number": 3584,
+    "listed_at": "2026-10-25",
     "release_url": "https://github.com/djultra64/ISS2000/releases",
     "download_asset_hints": {
       "windows-x86-64": ["ISS2000-Windows-", ".zip"],

@@ -6,6 +6,7 @@
     "summary": "Attach an independently permitted complete LCSNative Windows copy prepared for your own Liberty City Stories USA v1.05 data. Upstream owns decrypted-input preparation, native runtime replacement and PSP save/settings files; no Core-managed build or maintenance is offered.",
     "project_url": "https://github.com/elmasas/lcs-recomp",
     "issue_number": 1836,
+    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/elmasas/lcs-recomp",

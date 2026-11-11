@@ -6,6 +6,7 @@
     "summary": "Explore Bloodborne (Supermedo / bloodborne_pc) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/Supermedo/bloodborne_pc",
     "issue_number": 1653,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Supermedo/bloodborne_pc",

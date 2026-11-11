@@ -50,6 +50,8 @@ export interface AuthoredListing extends NamedRecord {
   };
   variant_label?: string;
   issue_number?: number;
+  /** First-listed UTC date, YYYY-MM-DD. Descriptive only; requires listing format 9. */
+  listed_at?: string;
   release_url?: string;
   setup_url?: string;
   manual_setup?: unknown;
@@ -102,10 +104,23 @@ const listingFields = new Set([
   "download_asset_hints",
   "recommended_download_channel",
   "issue_number",
+  "listed_at",
   "release_url",
   "setup_url",
 ]);
 const stableId = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
+
+/** A real calendar date in exactly YYYY-MM-DD form, with no time or offset. */
+export function isCalendarDate(value: unknown): value is string {
+  if (typeof value !== "string" || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/u.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number) as [number, number, number];
+  // Date.UTC maps years 0-99 to 19xx, so set the year explicitly.
+  const date = new Date(Date.UTC(2000, month - 1, day));
+  date.setUTCFullYear(year);
+  return (
+    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+  );
+}
 
 function boundedText(value: unknown, maximum: number): value is string {
   if (
@@ -325,6 +340,8 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     (!Number.isSafeInteger(listing.issue_number) || Number(listing.issue_number) < 1)
   )
     throw new Error("Listing issue_number must be a positive integer.");
+  if (listing.listed_at !== undefined && !isCalendarDate(listing.listed_at))
+    throw new Error("Listing listed_at must be a real calendar date written YYYY-MM-DD.");
   if (listing.original_game !== undefined) {
     const game = listing.original_game;
     const identity = (value: unknown) =>
@@ -547,30 +564,33 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
     (listing) =>
       isRecord(listing.upstream_observation) && listing.upstream_observation.provider === "gitlab",
   );
-  const format_version = gitlabObservations
-    ? 8
-    : listings.some((listing) => listing.compatibility !== undefined)
-      ? 7
-      : guideReferences
-        ? 6
-        : extendedMedia
-          ? 5
-          : listings.some(
-                (listing) =>
-                  listing.upstream_observation !== undefined ||
-                  listing.availability_override_reason !== undefined ||
-                  "release_maintenance" in listing,
-              )
-            ? 4
+  const listedDates = listings.some((listing) => listing.listed_at !== undefined);
+  const format_version = listedDates
+    ? 9
+    : gitlabObservations
+      ? 8
+      : listings.some((listing) => listing.compatibility !== undefined)
+        ? 7
+        : guideReferences
+          ? 6
+          : extendedMedia
+            ? 5
             : listings.some(
                   (listing) =>
-                    listing.original_game !== undefined ||
-                    (Array.isArray(listing.media) && listing.media.length > 0),
+                    listing.upstream_observation !== undefined ||
+                    listing.availability_override_reason !== undefined ||
+                    "release_maintenance" in listing,
                 )
-              ? 3
-              : listings.some((listing) => listing.download_block_reason !== undefined)
-                ? 2
-                : 1;
+              ? 4
+              : listings.some(
+                    (listing) =>
+                      listing.original_game !== undefined ||
+                      (Array.isArray(listing.media) && listing.media.length > 0),
+                  )
+                ? 3
+                : listings.some((listing) => listing.download_block_reason !== undefined)
+                  ? 2
+                  : 1;
   return { records, catalog, directory: { format_version, listings } };
 }
 

@@ -718,11 +718,13 @@ mod tests {
             .map(|port| serde_json::to_value(port).unwrap());
         // Strict retained catalogs project their listing from the creating
         // definition, without directory-only metadata such as issue_number.
-        let expected_retained_listing = service
+        let mut expected_retained_listing = service
             .current_user_selected_definition(id)
             .unwrap()
             .map(crate::PortListing::from)
             .unwrap_or_else(|| expected_listing.clone());
+        // The first-listed date is directory recency; a retained selection does not keep it.
+        expected_retained_listing.listed_at = None;
         let initial = service.listing_status(id).unwrap();
         assert!(
             initial.actions.iter().any(|action| action.action

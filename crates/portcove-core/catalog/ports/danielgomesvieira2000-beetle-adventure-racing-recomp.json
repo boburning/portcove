@@ -6,6 +6,7 @@
     "summary": "Use a permitted Beetle Adventure Racing player and choose your own supported USA cartridge dump.",
     "project_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp",
     "issue_number": 1800,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md",

@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2758,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/kevinfoley/Herculan/blob/e65c0634c741f252fa7a32064698a13caaa45530/README.MD",
       "steps": [

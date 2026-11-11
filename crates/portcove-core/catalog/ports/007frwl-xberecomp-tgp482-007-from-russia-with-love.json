@@ -6,6 +6,7 @@
     "original_game_title": "007: From Russia with Love",
     "summary": "An experimental port of 007: From Russia with Love. Set it up with your own original Xbox game files. The first start builds game code locally.",
     "project_url": "https://github.com/TGP482/007FRWL-XBERecomp",
+    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/TGP482/007FRWL-XBERecomp",

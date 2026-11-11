@@ -6,6 +6,7 @@
     "original_game_title": "Devil May Cry",
     "summary": "The project reports startup through Mission 1 on the dmc-port branch, natively and in a browser at 60 FPS. Gran Turismo 4 and God of War II reports do not establish Devil May Cry coverage. Full-game completion and stability remain unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/awest813/DMC-Recomp",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/awest813/DMC-Recomp",

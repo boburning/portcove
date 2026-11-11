@@ -16,6 +16,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 723,
+    "listed_at": "2026-10-23",
     "platforms": ["macos-aarch64"],
     "availability": "packages",
     "release_url": "https://github.com/elliotttate/DKC3Recomp/releases",

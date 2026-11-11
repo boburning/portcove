@@ -6,6 +6,7 @@
     "original_game_title": "God of War: Ghost of Sparta",
     "summary": "The v1.2.1 launcher builds locally with pinned portable tools. Upstream reports automated tours loading every level, but neither game has a complete playthrough confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/DrummingBird1/gow-psp-recomp",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/DrummingBird1/gow-psp-recomp",

@@ -1,0 +1,55 @@
+name: Refresh Rust timing hints
+
+# Rebuilds .config/rust-test-timing-hints.json from the retained JUnit reports of one hosted run.
+# The result is an artifact only: this workflow has no write permission, so a maintainer reviews the
+# file and commits it through the ordinary pull request route.
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "CI run ID whose Windows Rust partitions retained runtime-diagnostics artifacts"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Require a numeric run ID
+        env:
+          RUN_ID: ${{ inputs.run_id }}
+        run: |
+          case "$RUN_ID" in ''|*[!0-9]*) echo "run_id must be numeric" >&2; exit 1 ;; esac
+      - name: Download the run's Windows partition reports
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: runtime-diagnostics-windows-${{ inputs.run_id }}-*
+          path: work/timing-reports
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.run_id }}
+      - name: Generate the hints
+        env:
+          RUN_ID: ${{ inputs.run_id }}
+        run: |
+          node scripts/rust-timing-hints.mts generate \
+            --source "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" \
+            --out work/rust-test-timing-hints.json \
+            $(find work/timing-reports -name junit.xml | sort)
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rust-test-timing-hints
+          path: work/rust-test-timing-hints.json
+          if-no-files-found: error
+          retention-days: 14

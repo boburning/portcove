@@ -6,6 +6,7 @@
     "summary": "GemRB has experimental support for Baldur’s Gate II: Enhanced Edition, separate from its original-edition support. Use your own installed Enhanced Edition data; exact compatible EE revisions and builds remain unconfirmed. The project offers SourceForge Windows, Linux and macOS archives, Flatpak and source-build instructions. Configure GamePath or the positional game directory for your chosen supported build. Historical/source Linux targets include x86, x86-64, PPC and MIPS, but this guide has not selected or confirmed a package architecture. Portcove offers no setup or launch integration and has not confirmed setup or gameplay.",
     "original_game_title": "Baldur's Gate II: Enhanced Edition",
     "project_url": "https://github.com/gemrb/gemrb",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/gemrb/gemrb",

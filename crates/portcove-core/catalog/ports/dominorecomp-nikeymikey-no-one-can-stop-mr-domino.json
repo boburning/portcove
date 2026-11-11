@@ -6,6 +6,7 @@
     "original_game_title": "No One Can Stop Mr. Domino",
     "summary": "Experimental MrDomino source project. Upstream reports correct-speed startup and native overlay caching across six stages, but the game remains incomplete. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/nikeymikey/DominoRecomp",
+    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/nikeymikey/DominoRecomp",

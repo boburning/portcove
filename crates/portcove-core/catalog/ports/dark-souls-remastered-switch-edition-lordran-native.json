@@ -6,6 +6,7 @@
     "summary": "An experimental Dark Souls: Remastered Switch-edition compatibility project for Apple devices, running rewritten ARM64 game code with Horizon/NVN services on Metal. Mac graphics and device compatibility remain unconfirmed. The release ZIP is unsigned, game-free iOS shell build input, rather than an installable app or completed IPA. Build locally with the matching source/shell and your own game files using Apple Silicon Mac/Xcode; the iOS route targets 26+. Windows 10/11 x64 tools only package Apple output and do not provide Windows gameplay. Use your own base NSP and 1.0.3 update v196608 for title 01004AB00A260000, plus prod.keys. Both NSPs are needed for shaders even when packing the base game. No separate firmware input is specified. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "Dark Souls: Remastered — Switch edition",
     "project_url": "https://github.com/Nishikori-Yui/lordran-native",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/Nishikori-Yui/lordran-native",

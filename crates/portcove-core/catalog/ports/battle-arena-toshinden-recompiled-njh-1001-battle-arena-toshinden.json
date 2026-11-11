@@ -6,6 +6,7 @@
     "original_game_title": "Battle Arena Toshinden",
     "summary": "The project offers playable setup packages. Coverage of every fighter and mode is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/NJH-1001/BATRecomp",
+    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/NJH-1001/BATRecomp",

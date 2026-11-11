@@ -6,6 +6,7 @@
     "summary": "Register an upstream-prepared EXIT Windows player for your own Xbox 360 game. Keep its original data and player folder separate from EXIT 2; upstream owns preparation and replacement.",
     "project_url": "https://github.com/FluffyQuack/ReXGlue-EXIT",
     "issue_number": 362,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/FluffyQuack/ReXGlue-EXIT",

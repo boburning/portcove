@@ -6,6 +6,7 @@
     "summary": "Experimental Advance Wars source-build route using your own USA Rev 1 GBA original. The documented Windows alpha needs local setup/build and has no audio. Register the finished native player, retaining the prepared project and its game input.",
     "project_url": "https://github.com/sp00nznet/advancewars",
     "issue_number": 166,
+    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "source-only",
     "setup_url": "https://github.com/sp00nznet/advancewars#readme",

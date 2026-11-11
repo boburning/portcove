@@ -6,6 +6,7 @@
     "summary": "Conditional Windows prepared-copy route for Deadly Premonition using your own supported PAL or USA Xbox 360 disc. Fresh acquisition still needs applicable permission for bundled disc-derived shaders or an asset-clean/owned-input route. Complete upstream import first and keep upstream shader sharing off.",
     "project_url": "https://github.com/LittleBitUA/DPRecomp",
     "issue_number": 812,
+    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/LittleBitUA/DPRecomp",

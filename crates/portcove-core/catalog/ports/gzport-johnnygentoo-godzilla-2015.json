@@ -6,6 +6,7 @@
     "original_game_title": "GODZILLA (2015)",
     "summary": "Upstream reports the full solo story, other modes and three-PC LAN play on Linux at 60 FPS. A higher-frame-rate patch is not written, and upscalers are experimental. Portcove has not confirmed completion, network play or performance. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/johnnygentoo/gzport",
+    "listed_at": "2026-10-25",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/johnnygentoo/gzport",

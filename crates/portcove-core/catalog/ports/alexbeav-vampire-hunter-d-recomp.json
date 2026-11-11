@@ -6,6 +6,7 @@
     "summary": "Play Vampire Hunter D with a native player built from your matching original disc.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp",
     "issue_number": 494,
+    "listed_at": "2026-10-23",
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp#readme",

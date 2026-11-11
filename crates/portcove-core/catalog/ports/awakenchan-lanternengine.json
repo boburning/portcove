@@ -6,6 +6,7 @@
     "summary": "Bloodborne PC uses LanternEngine, derived from bbport/shadPS4 with a launcher and a documented direct PS4 CPU path. It is a performance-focused fork maintained more slowly by one author; full-game and GPU coverage are unconfirmed. The launcher name or version alone does not establish a separate implementation from its parent. Windows and Linux use Vulkan; other hosts are unconfirmed. Use your own PS4 Bloodborne CUSA03173 dump with update 1.09. Exact accepted revision, hashes and BIOS/firmware requirements are unconfirmed. You and the project manage installation and version changes; published files have not been qualified for Portcove. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Bloodborne",
     "project_url": "https://github.com/Awakenchan/LanternEngine",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/Awakenchan/LanternEngine",

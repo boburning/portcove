@@ -6,6 +6,7 @@
     "original_game_title": "Felix the Cat (Unl)",
     "summary": "Upstream reports 145 translated functions and comparisons covering 20,000 frames. Random-number behavior, music and audio alignment differ; completion is unconfirmed. Portcove has not confirmed runtime behavior or gameplay. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/minusthreenottree/felix-the-cat-bootleg-recomp",
+    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/minusthreenottree/felix-the-cat-bootleg-recomp",

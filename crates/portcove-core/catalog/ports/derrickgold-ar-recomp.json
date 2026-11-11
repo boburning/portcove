@@ -6,6 +6,7 @@
     "summary": "Use the upstream Builder to turn your own USA ActRaiser ROM into a player, then keep updates and saves with that workflow.",
     "project_url": "https://github.com/DerrickGold/ar-recomp",
     "issue_number": 1791,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/DerrickGold/ar-recomp/blob/93c2786af6012325cc00c414c7bff07aa22ce672/README.md",

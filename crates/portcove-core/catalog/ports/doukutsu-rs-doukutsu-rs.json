@@ -6,6 +6,7 @@
     "summary": "Prepare a separate Cave Story player with your own supported data and preserve the chosen edition’s saves.",
     "project_url": "https://github.com/doukutsu-rs/doukutsu-rs",
     "issue_number": 1813,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/doukutsu-rs/doukutsu-rs/blob/8d85b0f69fd5a293a32f5d632f83ce6a0759cf7c/README.md",

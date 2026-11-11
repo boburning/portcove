@@ -6,6 +6,7 @@
     "summary": "Explore OpenTTD / OpenTTD-patches (JGRennison) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/JGRennison/OpenTTD-patches",
     "issue_number": 1859,
+    "listed_at": "2026-10-23",
     "availability": "packages",
     "setup_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp/installation.md",
     "artwork": {

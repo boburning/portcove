@@ -18,12 +18,20 @@ import type {
 // Source-bound proposed metadata exercises retained presentation independently
 // of live catalog adoption. See #2926 for the remaining production rollout.
 import proposals from "../../../../crates/portcove-core/tests/fixtures/installation-rollout-proposals-20261025.json";
-import listings from "../../../../crates/portcove-core/catalog/listings.json";
+import listingsDirectory from "../../../../crates/portcove-core/catalog/listings.json";
 import {
   AuthoredPreparationGuidance,
   ExternalRuntimeControl,
   UserSelectedRuntimeControl,
 } from "./ExternalRuntime";
+
+// The real directory is a 1,441-entry JSON literal. Inferring its shape yields a union
+// that becomes unusably large as optional listing fields vary (the first-listed date is
+// present on some listings and absent on others), so name only what this test reads.
+type ListingGuide = NonNullable<NonNullable<PortDefinition["presentation"]>["manual_setup"]>;
+const listings = listingsDirectory as unknown as {
+  listings: { id: string; manual_setup?: ListingGuide }[];
+};
 import { catalogEntries } from "../features/browsing/catalog-entry";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { DetailLayout } from "./DetailLayout";

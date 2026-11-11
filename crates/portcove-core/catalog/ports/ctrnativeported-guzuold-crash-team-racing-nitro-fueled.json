@@ -6,6 +6,7 @@
     "original_game_title": "Crash Team Racing: Nitro-Fueled",
     "summary": "For experimental 0.5.9, the project reports completing the game and races between two PCs. Network R8 remains incomplete for more than two players and other cases. Portcove has not confirmed campaign or online play. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/guzuold/CTRNativePorted",
+    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/guzuold/CTRNativePorted",

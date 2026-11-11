@@ -6772,6 +6772,13 @@
               "null"
             ]
           },
+          "listed_at": {
+            "description": "The UTC date (`YYYY-MM-DD`) this listing was first added to the directory.\nDescriptive only: it orders a \"Recently added\" view and grants nothing.\nRequires listing format 9.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "manual_setup": {
             "anyOf": [
               {
@@ -16447,6 +16454,13 @@
             "minimum": 0,
             "type": [
               "integer",
+              "null"
+            ]
+          },
+          "listed_at": {
+            "description": "The UTC date (`YYYY-MM-DD`) this listing was first added to the directory.\nDescriptive only: it orders a \"Recently added\" view and grants nothing.\nRequires listing format 9.",
+            "type": [
+              "string",
               "null"
             ]
           },

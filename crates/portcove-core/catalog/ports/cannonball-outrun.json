@@ -6,6 +6,7 @@
     "summary": "Use your permitted noncommercial Cannonball Windows player with your own matching OutRun ROM data.",
     "project_url": "https://github.com/djyt/cannonball",
     "issue_number": 120,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/djyt/cannonball#readme",

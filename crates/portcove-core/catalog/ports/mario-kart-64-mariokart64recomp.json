@@ -6,6 +6,7 @@
     "summary": "Conditional existing-copy route for Mario Kart 64 / MarioKart64Recomp. Keep the complete permitted Windows runtime and its existing profile; downloads remain paused until the bundled Chiaro font grant is established. Registration does not grant acquisition or managed replacement.",
     "project_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp",
     "issue_number": 332,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/3885e86a4b2088188ddb3914aa26ad4f147bb5df/README.md",

@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2573,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/alexbatalov/fallout1-ce/tree/a8c37ea47f3dd1c60bd1fa56b82e688ab4643856",
       "steps": [

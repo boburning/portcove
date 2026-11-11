@@ -6,6 +6,7 @@
     "original_game_title": "Sonic Adventure 2 (Dreamcast)",
     "summary": "Experimental Sonic Adventure 2 Dreamcast source project. Upstream reports title and file-selection screens with sound; the first stage and GPU renderer are planned. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/st44rplatinum/dreamcastRecomp",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/st44rplatinum/dreamcastRecomp",

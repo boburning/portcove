@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2824,
+    "listed_at": "2026-10-25",
     "release_url": "https://github.com/james2doyle/ffta-recomp/releases",
     "download_asset_hints": {
       "windows-x86-64": ["FFTARecomp-", "windows-x64.zip"]

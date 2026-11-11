@@ -6,6 +6,7 @@
     "summary": "Use an upstream-prepared Final Fantasy Tactics Windows player for your own supported USA disc. Upstream owns local generation and runtime replacement; Portcove can register the completed player.",
     "project_url": "https://github.com/NJH-1001/FinFanTacRecomp",
     "issue_number": 327,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/NJH-1001/FinFanTacRecomp",

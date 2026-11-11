@@ -6,6 +6,7 @@
     "summary": "An experimental Apple ARM64 Doraemon compatibility project with a shared Horizon/NVN-to-Metal host and game-specific code. The project reports the title, terms, saves, opening and Nobita leaving the house; terrain, shadows, transparency and postprocessing are unconfirmed. There is no complete player release. Follow the Apple Silicon macOS source route with Xcode Command Line Tools, Python and make prepare/runtime/boot GAME=dora. Hash manifests check modules and resources. Use your own title 0100F5E0177AC000 game, keys, rewritten modules, extracted ExeFS/RomFS, fonts and per-game expected-hash manifest; the exact version is unconfirmed. You and the project manage builds and updates. Windows, Linux and iOS players are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "Doraemon Story of Seasons: Friends of the Great Kingdom",
     "project_url": "https://github.com/colonnellotong/MacNativePorts",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/colonnellotong/MacNativePorts",

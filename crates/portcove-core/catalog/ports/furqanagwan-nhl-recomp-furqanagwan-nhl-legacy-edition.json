@@ -6,6 +6,7 @@
     "original_game_title": "NHL Legacy Edition",
     "summary": "Upstream reports part of a Montreal-at-Toronto match at 60 FPS and 4K on an RTX 5080 laptop in a GDK build. A full match, save/load, title updates, AMD/Intel graphics and the standard non-GDK build remain unconfirmed. Use the ROV renderer; the RTV path produces black 3D output. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/furqanagwan/nhl",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/furqanagwan/nhl",

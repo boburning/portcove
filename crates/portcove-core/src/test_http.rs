@@ -1,7 +1,6 @@
 use crate::Result;
 mod requests;
 pub(crate) use requests::HttpServer;
-#[cfg(target_os = "windows")]
 pub(crate) use requests::serve_routed_http_with_budget;
 pub(crate) use requests::{serve_http, serve_http_bytes, serve_routed_http};
 use std::{
