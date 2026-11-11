@@ -245,7 +245,13 @@ pub fn plan_steam_artwork(request: &SteamArtworkPlanRequest) -> Result<SteamArtw
         ownership_after,
         observed_variants,
     };
-    plan.plan_sha256 = sha256(&serde_json::to_vec(&plan)?);
+    // The reviewed hash also binds the internal ownership result and every
+    // observed destination variant, not only the reported role changes.
+    plan.plan_sha256 = sha256(&serde_json::to_vec(&(
+        &plan,
+        &plan.ownership_after,
+        &plan.observed_variants,
+    ))?);
     Ok(plan)
 }
 

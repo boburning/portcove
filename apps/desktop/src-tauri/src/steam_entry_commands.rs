@@ -224,11 +224,12 @@ pub(crate) async fn preview_steam_artwork(
     let state = state.inner().clone();
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
-        let (display_name, plan_request) = artwork_request(&service, &request)?;
         // Settling only returns each role to its exact prior file or to bytes
-        // the player already confirmed, so a review never stays blocked.
+        // the player already confirmed, so a review never stays blocked. It
+        // runs before the Core handoff so a catalog change cannot prevent it.
         let recovered = recover_steam_artwork(&request.steam_root, &request.steam_user_id)
             .map_err(steam_error)?;
+        let (display_name, plan_request) = artwork_request(&service, &request)?;
         let plan = plan_steam_artwork(&plan_request).map_err(steam_error)?;
         Ok(artwork_review(
             display_name,
