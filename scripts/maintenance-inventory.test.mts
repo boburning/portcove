@@ -108,16 +108,23 @@ void test(
       cli,
       `#!${process.execPath}
 import { readFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
 const args = process.argv.slice(2);
 const responses = JSON.parse(readFileSync(${JSON.stringify(responses)}, "utf8"));
+const preferences = process.env.PORTCOVE_PREFERENCES;
+appendFileSync(${JSON.stringify(path.join(fixture.root, "isolation.log"))}, JSON.stringify([preferences, process.env.PORTCOVE_APPLICATION_RUNTIME_LOCK, args[1]]) + "\\n");
+mkdirSync(path.join(path.dirname(preferences), "diagnostics"), { recursive: true });
+writeFileSync(path.join(path.dirname(preferences), "diagnostics", "session-01"), "simulated");
+const reply = (envelope) => { console.log(JSON.stringify({ schema_version: 88, ...envelope })); process.exitCode = envelope.ok ? 0 : 1; };
 if (args.includes("capabilities")) {
-  console.log(JSON.stringify({ schema_version: 88, ok: true, data: { schema_version: 88, port_capability_schema: 1 }, error: null }));
+  reply({ ok: true, data: { schema_version: 88, port_capability_schema: 1 }, error: null });
 } else {
   const id = args.at(-1);
   const data = responses[id];
-  console.log(JSON.stringify(data
-    ? { schema_version: 88, ok: true, data, error: null }
-    : { schema_version: 88, ok: false, data: null, error: { code: "not_found", message: "unknown port id: " + id } }));
+  if (typeof data === "string") reply({ ok: false, data: null, error: { code: data, message: "host failure" } });
+  else if (data) reply({ ok: true, data, error: null });
+  else reply({ ok: false, data: null, error: { code: "not_found", message: "unknown port id: " + id } });
 }
 `,
     );
@@ -127,8 +134,14 @@ if (args.includes("capabilities")) {
       sample,
       JSON.stringify({ format_version: 1, ports: ["2ship2harkinian", "not-a-catalog-port"] }),
     );
-    const respond = (setup: string) =>
-      writeFileSync(responses, JSON.stringify({ "2ship2harkinian": report(setup) }));
+    const respond = (ship: string, other?: string) =>
+      writeFileSync(
+        responses,
+        JSON.stringify({
+          "2ship2harkinian": ship === "automatic" || ship === "manual" ? report(ship) : ship,
+          ...(other ? { "not-a-catalog-port": other } : {}),
+        }),
+      );
     const collector = store.as("collector_login");
     const history = () =>
       JSON.parse(
@@ -164,6 +177,67 @@ if (args.includes("capabilities")) {
         ["managed-setup.automatic", true],
       ],
     );
+
+    // Host failures are coverage gaps, never subject state.
+    const runs = () =>
+      JSON.parse(
+        runSql(
+          store.owner,
+          `SELECT json_agg(json_build_object('source', source, 'coverage', coverage, 'observed', observed_count, 'gaps', gaps)
+             ORDER BY started_at, source) FROM portcove_maintenance.collection_runs;`,
+        ),
+      ) as {
+        source: string;
+        coverage: string;
+        observed: number;
+        gaps: { subject_key: string; code: string }[];
+      }[];
+    const before = history().length;
+    respond("network");
+    collect({ cli, sample, environment: collector, runner: "fixture" });
+    respond("conflict", "conflict");
+    collect({ cli, sample, environment: collector, runner: "fixture" });
+    respond("automatic");
+    collect({ cli, sample, environment: collector, runner: "fixture" });
+    assert.equal(history().length, before, "failures and recovery create no transitions");
+    assert.deepEqual(
+      runs()
+        .slice(-6)
+        .map(({ source, coverage, observed, gaps }) => [
+          source,
+          coverage,
+          observed,
+          gaps.map(({ subject_key, code }) => `${subject_key}:${code}`),
+        ]),
+      [
+        ["catalog-records", "complete", 2, []],
+        ["core-port-capabilities", "partial", 1, ["port:2ship2harkinian:network"]],
+        ["catalog-records", "complete", 2, []],
+        [
+          "core-port-capabilities",
+          "failed",
+          0,
+          ["port:2ship2harkinian:conflict", "port:not-a-catalog-port:conflict"],
+        ],
+        ["catalog-records", "complete", 2, []],
+        ["core-port-capabilities", "complete", 2, []],
+      ],
+    );
+    // Every CLI call ran with its own preferences, diagnostics and lock, all removed afterwards.
+    const isolation = readFileSync(path.join(fixture.root, "isolation.log"), "utf8")
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as [string, string, string]);
+    assert.equal(isolation.length, 7 * 3);
+    assert.equal(new Set(isolation.map(([preferences]) => preferences)).size, isolation.length);
+    for (const [preferences, lock] of isolation) {
+      assert.ok(path.isAbsolute(preferences) && path.dirname(lock) === path.dirname(preferences));
+      assert.equal(
+        existsSync(path.dirname(path.dirname(preferences))),
+        false,
+        "isolated state is removed",
+      );
+    }
 
     const reader = store.as("report_login");
     const inventory = buildReport(reader, new Date("2026-11-11T00:00:00Z"));

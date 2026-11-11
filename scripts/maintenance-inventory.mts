@@ -99,19 +99,19 @@ function git(args: string[]) {
   return result.stdout;
 }
 
-/** An authored record exactly as committed at the pinned revision, or null when absent. */
+/** An authored record exactly as committed at the pinned revision; null only when the path is absent. */
 function committedRecord(revision: string, id: string): unknown {
-  const result = spawnSync(
-    "git",
-    ["show", `${revision}:crates/portcove-core/catalog/ports/${id}.json`],
-    {
-      cwd: repositoryRoot,
-      encoding: "utf8",
-      timeout: 60_000,
-    },
-  );
-  if (result.status !== 0) return null;
-  return JSON.parse(result.stdout);
+  const file = `crates/portcove-core/catalog/ports/${id}.json`;
+  if (!git(["ls-tree", "--name-only", revision, "--", file]).trim()) return null;
+  return parseJson(git(["show", `${revision}:${file}`]), `authored record ${id}`);
+}
+
+function parseJson(text: string, what: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new MaintenanceStoreError(`${what} is not valid JSON`);
+  }
 }
 
 function committedOperationalDefinition(revision: string) {
@@ -133,35 +133,66 @@ export interface CapabilityObservation {
   error?: { code: string; message: string };
 }
 
-/** The maintained Core assessment, read from a fresh empty library. */
-export function coreCapabilities(cli: string, id: string): CapabilityObservation {
-  const library = mkdtempSync(path.join(os.tmpdir(), "portcove-inventory-library-"));
+/** Core refusals that describe the port itself; any other failure is a collection gap. */
+export const subjectScopedRefusals: ReadonlySet<string> = new Set(["not_found"]);
+
+export const isolationScope = "fresh-empty-library-preferences-diagnostics-lock";
+
+/**
+ * Run the CLI with its own empty library, preferences, diagnostics and runtime
+ * lock (the CLI's maintained isolation overrides), so a collection never
+ * touches or rotates the maintainer's real Portcove state.
+ */
+function isolatedCli(cli: string, args: string[]) {
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-inventory-"));
   try {
-    const result = spawnSync(cli, ["--library", library, "--json", "port-capabilities", id], {
+    const library = path.join(root, "library");
+    const result = spawnSync(cli, ["--library", library, "--json", ...args], {
       encoding: "utf8",
       timeout: 120_000,
       maxBuffer: 16 * 1024 * 1024,
       windowsHide: true,
+      env: {
+        ...process.env,
+        PORTCOVE_PREFERENCES: path.join(root, "config", "preferences.json"),
+        PORTCOVE_APPLICATION_RUNTIME_LOCK: path.join(root, "config", "runtime.lock"),
+      },
     });
     if (result.error || result.signal)
-      throw new MaintenanceStoreError(`portcove did not finish for ${id}`);
-    const envelope = JSON.parse(result.stdout) as {
-      ok: boolean;
-      data: unknown;
-      error: { code: string; message: string } | null;
+      throw new MaintenanceStoreError(`portcove ${args[0]} did not finish`);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(result.stdout);
+    } catch {
+      throw new MaintenanceStoreError(
+        `portcove ${args[0]} output is not valid JSON (exit ${result.status}): ${result.stderr.trim().slice(0, 2000)}`,
+      );
+    }
+    const envelope = parsed as {
+      ok?: unknown;
+      data?: unknown;
+      error?: { code?: unknown; message?: unknown } | null;
     };
-    return envelope.ok
-      ? { ok: true, report: envelope.data }
-      : {
-          ok: false,
-          error: {
-            code: envelope.error?.code ?? "unknown",
-            message: envelope.error?.message ?? "",
-          },
-        };
+    if (typeof envelope.ok !== "boolean" || envelope.ok !== (result.status === 0))
+      throw new MaintenanceStoreError(`portcove ${args[0]} returned an inconsistent envelope`);
+    return envelope;
   } finally {
-    rmSync(library, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true });
   }
+}
+
+/** The maintained Core assessment, read with fully isolated host state. */
+export function coreCapabilities(cli: string, id: string): CapabilityObservation {
+  const envelope = isolatedCli(cli, ["port-capabilities", id]);
+  return envelope.ok
+    ? { ok: true, report: envelope.data }
+    : {
+        ok: false,
+        error: {
+          code: typeof envelope.error?.code === "string" ? envelope.error.code : "unknown",
+          message: typeof envelope.error?.message === "string" ? envelope.error.message : "",
+        },
+      };
 }
 
 interface Feature {
@@ -241,10 +272,13 @@ export function collectionSql(input: {
   const coreRun = `core-port-capabilities:${input.cliSha256.slice(0, 12)}:${token}`;
   const policy = `port-capabilities;api=${input.apiSchema};cli-sha256=${input.cliSha256}`;
   const lines = [
+    // Quoting below must never depend on server or role settings.
+    "SET LOCAL standard_conforming_strings = on;",
     `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at) VALUES
       (${literal(catalogRun)}, 'catalog-records', ${literal(input.runner)}, ${literal(input.revision)}, ${literal(input.startedAt)}),
       (${literal(coreRun)}, 'core-port-capabilities', ${literal(input.runner)}, ${literal(`cli-sha256:${input.cliSha256}`)}, ${literal(input.startedAt)});`,
   ];
+  const gaps: { subject_key: string; code: string; message: string }[] = [];
   for (const subject of input.subjects) {
     const key = `port:${subject.id}`;
     const catalogFact = {
@@ -257,8 +291,21 @@ export function collectionSql(input: {
     const capabilityDigest = sha256(canonicalJson(capabilityFact));
     lines.push(
       `INSERT INTO portcove_maintenance.observations (run_id, subject_key, scope, input_revision, content_sha256, observed_at, payload) VALUES
-        (${literal(catalogRun)}, ${literal(key)}, ${jsonLiteral({ source: "catalog-records" })}, ${literal(input.revision)}, ${literal(catalogDigest)}, statement_timestamp(), ${jsonLiteral(catalogFact)}),
-        (${literal(coreRun)}, ${literal(key)}, ${jsonLiteral({ source: "core-port-capabilities", host_platform: input.platform, library: "fresh-empty", cli_source_binding: "unverified" })}, ${literal(`cli-sha256:${input.cliSha256}`)}, ${literal(capabilityDigest)}, statement_timestamp(), ${jsonLiteral(capabilityFact)});`,
+        (${literal(catalogRun)}, ${literal(key)}, ${jsonLiteral({ source: "catalog-records" })}, ${literal(input.revision)}, ${literal(catalogDigest)}, statement_timestamp(), ${jsonLiteral(catalogFact)});`,
+    );
+    if (!capabilityFact.ok && !subjectScopedRefusals.has(capabilityFact.error?.code ?? "")) {
+      // A host, network or lock failure says nothing about the port: no observation,
+      // assessment or transition, and the Core run reports the gap.
+      gaps.push({
+        subject_key: key,
+        code: capabilityFact.error?.code ?? "unknown",
+        message: capabilityFact.error?.message ?? "",
+      });
+      continue;
+    }
+    lines.push(
+      `INSERT INTO portcove_maintenance.observations (run_id, subject_key, scope, input_revision, content_sha256, observed_at, payload) VALUES
+        (${literal(coreRun)}, ${literal(key)}, ${jsonLiteral({ source: "core-port-capabilities", host_platform: input.platform, isolation: isolationScope, cli_source_binding: "unverified" })}, ${literal(`cli-sha256:${input.cliSha256}`)}, ${literal(capabilityDigest)}, statement_timestamp(), ${jsonLiteral(capabilityFact)});`,
     );
     const result = capabilityResult(subject.capabilities);
     const explanation = {
@@ -283,14 +330,15 @@ export function collectionSql(input: {
             AND c.result_digest IS DISTINCT FROM a.result_digest;`,
     );
   }
-  const observed = input.subjects.length;
-  for (const [run, revision] of [
-    [catalogRun, input.revision],
-    [coreRun, `cli-sha256:${input.cliSha256}`],
+  const expected = input.subjects.length;
+  const coreCoverage = !gaps.length ? "complete" : gaps.length === expected ? "failed" : "partial";
+  for (const [run, revision, coverage, runGaps] of [
+    [catalogRun, input.revision, "complete", []],
+    [coreRun, `cli-sha256:${input.cliSha256}`, coreCoverage, gaps],
   ] as const)
     lines.push(
-      `UPDATE portcove_maintenance.collection_runs SET coverage = 'complete', completed_at = clock_timestamp(),
-         source_revision = ${literal(revision)}, expected_count = ${observed}, observed_count = ${observed}
+      `UPDATE portcove_maintenance.collection_runs SET coverage = ${literal(coverage)}, completed_at = clock_timestamp(),
+         source_revision = ${literal(revision)}, expected_count = ${expected}, gaps = ${jsonLiteral(runGaps)}
          WHERE run_id = ${literal(run)};`,
     );
   return lines.join("\n");
@@ -306,12 +354,18 @@ export function collect(options: {
   const revision = git(["rev-parse", "HEAD"]).trim();
   const definitions = committedOperationalDefinition(revision);
   const cliSha256 = sha256(readFileSync(options.cli));
-  const capabilities = JSON.parse(
-    spawnSync(options.cli, ["--json", "capabilities"], { encoding: "utf8", timeout: 60_000 })
-      .stdout,
-  ) as { data: { schema_version: number; port_capability_schema: number } };
-  if (capabilities.data.port_capability_schema !== 1)
-    throw new MaintenanceStoreError("Unsupported port capability schema");
+  const envelope = isolatedCli(options.cli, ["capabilities"]);
+  const capabilities = envelope.data as
+    | { schema_version?: unknown; port_capability_schema?: unknown }
+    | undefined;
+  if (
+    !envelope.ok ||
+    capabilities?.port_capability_schema !== 1 ||
+    typeof capabilities.schema_version !== "number"
+  )
+    throw new MaintenanceStoreError(
+      "portcove capabilities are unavailable or use an unsupported port capability schema",
+    );
   const startedAt = new Date().toISOString();
   const subjects = sample.ports.map((id) => ({
     id,
@@ -325,14 +379,21 @@ export function collect(options: {
     collectionSql({
       revision,
       cliSha256,
-      apiSchema: capabilities.data.schema_version,
+      apiSchema: capabilities.schema_version,
       runner: options.runner ?? process.env.PORTCOVE_MAINTENANCE_RUNNER?.trim() ?? "generic",
       startedAt,
       platform: hostPlatform(),
       subjects,
     }),
   );
-  return { revision, cli_sha256: cliSha256, subjects: subjects.length };
+  return {
+    revision,
+    cli_sha256: cliSha256,
+    subjects: subjects.length,
+    core_gaps: subjects.filter(
+      ({ capabilities: fact }) => !fact.ok && !subjectScopedRefusals.has(fact.error?.code ?? ""),
+    ).length,
+  };
 }
 
 const reportQuery = `SELECT json_build_object(
@@ -409,12 +470,13 @@ input { width: 100%; padding: .5rem; font: inherit; }
 <h1>Portcove maintenance inventory</h1>
 <p>Generated ${escapeHtml(report.generated_at)}. Scope: ${escapeHtml(report.scope)} (not the complete inventory).
 Published delivery: <span class="unknown">${escapeHtml(report.publication.status)}</span> — ${escapeHtml(report.publication.reason)}</p>
+<p>Core assessments come from a fully isolated CLI run on the collecting host; the CLI binary is bound by digest and its build source is <span class="unknown">unverified</span>.</p>
 <h2>Sources</h2>
 <table><thead><tr><th>Source</th><th>Coverage</th><th>Revision</th><th>Observed</th><th>Completed</th></tr></thead><tbody>
 ${(report.runs as Record<string, unknown>[])
   .map(
     (run) =>
-      `<tr><td>${escapeHtml(run.source)}</td><td>${escapeHtml(run.coverage)}</td><td><code>${escapeHtml(run.source_revision)}</code></td><td>${escapeHtml(run.observed_count)} of ${escapeHtml(run.expected_count ?? "unknown")}</td><td>${escapeHtml(run.completed_at)}</td></tr>`,
+      `<tr><td>${escapeHtml(run.source)}</td><td>${escapeHtml(run.coverage)}</td><td><code>${escapeHtml(run.source_revision)}</code></td><td>${escapeHtml(run.observed_count)} of ${escapeHtml(run.expected_count ?? "unknown")} declared</td><td>${escapeHtml(run.completed_at)}</td></tr>`,
   )
   .join("\n")}
 ${report.unsupported_sources

@@ -204,19 +204,28 @@ node scripts/maintenance-inventory.mts report --output work/maintenance-report/2
 - `collect` pins the checkout's `HEAD`. It reads each declared port's authored
   record, whether `catalog.json` carries an operational definition and the
   port's scoped qualification records, exactly as committed at that revision. It
-  then runs `portcove --library <fresh empty library> --json port-capabilities`
-  for each port. Core's report is projected unchanged: routes, features, modes
+  then runs `portcove --json port-capabilities` for each port. Every CLI call
+  gets its own temporary library, preferences, diagnostics and runtime lock,
+  through the CLI's `--library`, `PORTCOVE_PREFERENCES` and
+  `PORTCOVE_APPLICATION_RUNTIME_LOCK` overrides. Collection therefore never
+  reads, writes or rotates the maintainer's real Portcove state. Core's report is projected unchanged: routes, features, modes
   and Core's own explanations. The recorded state names Core's managed-route
-  setup mode. A Core refusal, such as an unknown port, is recorded as
-  `unassessed.<code>`, never as absence.
-- Both sources record a complete collection run and one observation per port.
+  setup mode. A refusal about the port itself (`not_found`) is recorded as
+  `unassessed.not_found`, never as absence. Any other failure, such as network,
+  lock or I/O, says nothing about the port. It records no Core observation,
+  assessment or transition. The Core run becomes `partial`, or `failed` when no
+  port succeeded, and lists each affected port and error code in `gaps`.
+- Each source records a collection run. Its coverage is relative to the
+  declared sample.
   The catalog observation is bound to the commit. The Core observation is bound
-  to the CLI binary SHA-256, the host platform and the empty library. The
+  to the CLI binary SHA-256, the host platform and the isolation scope. The
   binary's build source is not proven, so its binding is labelled `unverified`.
   The assessment's policy version is the CLI API schema plus binary digest. Its
   input digest covers both observations and the host platform. Everything is
-  written in one transaction with the collector role, and a repeated pass with
-  identical inputs adds no transition.
+  written in one transaction with the collector role, with
+  `standard_conforming_strings` pinned for quoting. A repeated pass with
+  identical inputs adds no transition. A Git failure stops the collection; only
+  a path missing at the pinned revision is recorded as an absent record.
 - `report` needs only the report role. It writes `inventory.json`
   (`portcove-maintenance-inventory` format 1) and a self-contained searchable
   `index.html` to a new directory, renamed into place when complete. The report
@@ -238,10 +247,14 @@ verifies identical digests and confirms that guards, identity sequences and role
 work on the restored store. A separate case interrupts a migration and proves
 that no partial schema remains and that resume and drift detection work.
 `scripts/maintenance-inventory.test.mts` drives the read-only path through a
-stub Core CLI, using the collector and report roles. It checks repeated-pass
-convergence, A to B to A history, coverage, listing and absence facts, report
-output and HTML escaping. The
-cases need non-root PostgreSQL 16+ server binaries and are a declared
-prerequisite skip elsewhere. These are fixture results. Hosted provider, backup
-destination and unattended operation evidence belong to the later #4129
-checkpoints.
+stub Core CLI, using the collector and report roles. It checks:
+
+- repeated-pass convergence and A to B to A history;
+- host-failure gaps (`partial` and `failed` runs with no transition);
+- per-call isolation and its removal;
+- coverage, listing and absence facts;
+- report output and HTML escaping. The
+  cases need non-root PostgreSQL 16+ server binaries and are a declared
+  prerequisite skip elsewhere. These are fixture results. Hosted provider, backup
+  destination and unattended operation evidence belong to the later #4129
+  checkpoints.
