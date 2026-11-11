@@ -959,9 +959,12 @@ Ordinary Windows CI compiles the workspace targets once, inventories the selecte
 tests, and transfers a pinned nextest archive to one through eight workers.
 `scripts/windows-rust-tests.mts` balances the current test identities using bounded
 historical timing hints from `.config/rust-test-timing-hints.json`; hints affect
-scheduling only. Refresh them with `node scripts/rust-timing-hints.mts generate
-<junit.xml>...` from the hosted partitions' `runtime-diagnostics-windows-*` artifacts;
-`summary --timeout SECONDS` lists tests near a timeout. The independently discovered current inventory owns coverage,
+scheduling only. Refresh them by dispatching the `Refresh Rust timing hints` workflow with a recent
+hosted CI run ID: it downloads that run's `runtime-diagnostics-windows-*` artifacts and
+uploads the regenerated file as the `rust-test-timing-hints` artifact (read-only; commit
+it through the ordinary pull request route). The same generator runs locally with
+`node scripts/rust-timing-hints.mts generate <junit.xml>...`; `summary --timeout SECONDS`
+lists tests near a timeout, and CI prints that list for each Windows partition. The independently discovered current inventory owns coverage,
 including new tests without a timing hint. Each selected test belongs to exactly
 one nonempty partition. Workers verify the source, run and attempt, validation
 plan, compiler, nextest version, input digests and archive digest, then check the
