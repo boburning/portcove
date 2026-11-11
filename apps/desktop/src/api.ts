@@ -641,8 +641,6 @@ export const desktopApi = {
       onEvent: channel,
     });
   },
-  sourceInboxPaths: (profileId: string) =>
-    invoke<SourceInboxPaths>("get_source_inbox_paths", { profileId }),
   openSourceInbox: (profileId: string) =>
     invoke<SourceInboxPaths>("open_source_inbox", { profileId }),
   scanSourceInbox: (
@@ -727,7 +725,6 @@ export const desktopApi = {
       expectedPreview,
       generation,
     }),
-  hostTools: () => invoke<HostToolStatus[]>("get_host_tools"),
   setHostToolPath: (toolId: string, path: string) =>
     invoke<HostToolProbeResult>("set_host_tool_path", { toolId, path }),
   clearHostToolPath: (toolId: string) => invoke<HostToolStatus>("clear_host_tool_path", { toolId }),
