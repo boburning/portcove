@@ -1586,6 +1586,34 @@ the installed build) has restored the new live data, collection is suspended so 
 stale build copy can never overwrite the selected profile or resurrect a disabled
 mod.
 
+### Recipes
+
+```text
+portcove --library PATH --json profile recipe-export PORT_ID PROFILE_ID [--revision N] > recipe.json
+portcove --library PATH --json profile recipe-inspect recipe.json
+portcove --library PATH --json profile recipe-plan recipe.json
+portcove --library PATH --json profile recipe-apply recipe.json --name NAME --expected-plan SHA256 --yes
+```
+
+A recipe (`format` 1) records a profile revision's identity: runtime artifact,
+runtime and definition identities, original inputs by content digest, packages with
+their provider coordinates, enabled state, dependency requirements and typed
+orderings. It never contains original game files, credentials, private machine
+paths, local profile or install IDs, saves or settings, and always lists what it
+cannot reproduce. A recipe is untrusted data and grants no URL, path, script,
+acquisition or execution authority.
+
+`recipe-inspect` is local: no provider account, no network, bounded to 256 KiB. It
+refuses unknown fields, an unsupported future format, a forged identity digest,
+unsafe package names, missing dependencies and dependency cycles.
+`recipe-plan` reports each input as `available`, `acquirable` (through the ordinary
+provider plan) or `unavailable`, and holds for a different platform, a missing
+runtime, an unregistered or different original, or package bytes not in the store.
+`recipe-apply` works only when every input is already present, requires the reviewed
+`plan_sha256`, asks for confirmation, recomputes the plan under the port lock and
+creates a new profile with its own save group. A round trip reproduces the recipe's
+identity exactly; that is not evidence of gameplay or save compatibility.
+
 Library metadata schema 6 carries profiles, revisions and the selected profile; it is
 emitted only when profiles exist and import validates each profile against its
 retained reference before writing. Precedence between packages that provide the same
