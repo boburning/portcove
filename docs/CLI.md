@@ -1456,7 +1456,8 @@ device; those are not moved.
 `export-preview` lists exactly what moves and what stays. `export` takes the
 per-game lock (a running game blocks it), collects the game's latest writes, and
 refuses if the content no longer matches the reviewed `content_sha256`. It
-creates a new file and never replaces one. The file is a bounded JSON document
+creates a new file outside the library folder and never replaces one; it also
+waits for any unfinished restore or backup deletion to be recovered first. The file is a bounded JSON document
 that names its game, contract, version and platform and carries each save with
 its size and SHA-256; import rejects unknown fields, other contracts, any path
 outside the contract's exact files, and any checksum mismatch. It contains no
@@ -1467,9 +1468,13 @@ private.
 each file's effect (`add`, `replace`, `unchanged`, `remove` or `keep-local`), what
 stays local and any blockers. Progress is related by content, never by
 timestamps. `continues` means the file's progress was made from exactly this
-device's current saves; `diverged` means both devices changed (or history is
-unknown) and requires `--replace-diverged-progress`. Save slots present only on
-this device are kept unless `--remove-local-only-saves` is chosen. The review's
+device's current saves; `diverged` means Portcove cannot confirm that (both
+devices changed, or history is unknown). A diverged import that would replace
+any save on this device requires `--replace-diverged-progress`; one that only
+adds slots does not. Save slots present only on this device are kept unless
+`--remove-local-only-saves` is chosen. The file's platform and version must both
+be in the contract, and a save name that differs from the expected name only by
+capital letters is refused rather than reviewed as a different file. The review's
 `preview_sha256` binds the file, the choices and current player data.
 
 `import` repeats the review under the per-game lock, consumes one-use consent
@@ -1482,8 +1487,13 @@ be restored later. If restore fails after the imported-state backup exists, the
 error's `imported_progress_snapshot` detail names it. Each player-data folder
 keeps `portcove-portable-saves.json`, the last synchronized content digest; it
 travels with that data through backups and restores. Editing save files outside
-Portcove cannot be detected, so such edits may be treated as continuing progress;
-the safety backup still keeps the previous saves.
+Portcove cannot be detected, and a hand-edited file can claim to continue from
+this device's saves; either may be treated as continuing progress, but the review,
+confirmation and safety backup still apply. Known limitations: after an import
+that keeps local-only slots, the next import from the other device is reported as
+diverged even if it continued from the imported saves; and if the final restore
+step refuses because data changed, the imported-state backup it already made stays
+in the backup list as an ordinary backup.
 
 Automated tests cover classification, file integrity, version and game
 blockers, conflicts, deletion choices, changed input, a running game and

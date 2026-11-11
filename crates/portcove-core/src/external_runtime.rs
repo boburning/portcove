@@ -591,7 +591,7 @@ pub(crate) fn hash_stable_regular(
     Ok((inspected.sha256, size))
 }
 
-fn open_object(path: &Path, directory: bool) -> Result<fs::File> {
+pub(crate) fn open_object(path: &Path, directory: bool) -> Result<fs::File> {
     crate::path::refuse_symlink_ancestors(path)?;
     let metadata = fs::symlink_metadata(path)?;
     if (directory && !metadata.is_dir())

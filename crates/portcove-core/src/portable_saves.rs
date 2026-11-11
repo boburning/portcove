@@ -113,10 +113,6 @@ pub(crate) fn contract_for(port_id: &str) -> Option<&'static PortableSaveContrac
 }
 
 impl PortableSaveContract {
-    pub(crate) fn supports(&self, version: &str, platform: Platform) -> bool {
-        self.versions.contains(&version) && self.platforms.contains(&platform)
-    }
-
     fn portable_path(&self, relative: &str) -> bool {
         let mut parts = relative.split('/');
         let (Some(first), second, None) = (parts.next(), parts.next(), parts.next()) else {
@@ -205,16 +201,19 @@ fn regular_file(path: &Path) -> Result<Option<fs::Metadata>> {
 }
 
 fn read_portable(root: &Path, relative: &str) -> Result<(PortableSaveFile, Vec<u8>)> {
-    let path = root.join(relative);
-    let metadata = regular_file(&path)?
-        .ok_or_else(|| PortcoveError::conflict("a portable save disappeared while reading"))?;
-    if !metadata.is_file() {
-        return Err(PortcoveError::conflict(format!(
-            "a portable save is not a regular file: {}",
-            path.display()
+    use std::io::Read;
+    // Open through the identity-checked, no-follow path: a link swapped in
+    // after classification is refused instead of read.
+    let path = fs::canonicalize(root)?.join(relative);
+    let file = crate::external_runtime::open_object(&path, false).map_err(|_| changed())?;
+    let mut bytes = Vec::new();
+    file.take(MAX_FILE_BYTES + 1).read_to_end(&mut bytes)?;
+    if bytes.len() as u64 > MAX_FILE_BYTES {
+        return Err(PortcoveError::unsupported(format!(
+            "A save is larger than Portcove can move ({} MiB): {relative}",
+            MAX_FILE_BYTES / (1024 * 1024)
         )));
     }
-    let bytes = crate::path::read_bounded_regular(&path, MAX_FILE_BYTES)?;
     Ok((
         PortableSaveFile {
             path: relative.into(),
@@ -223,6 +222,27 @@ fn read_portable(root: &Path, relative: &str) -> Result<(PortableSaveFile, Vec<u
         },
         bytes,
     ))
+}
+
+fn changed() -> PortcoveError {
+    PortcoveError::conflict(
+        "The game's saves changed while Portcove was reading them. Close the game and review again.",
+    )
+}
+
+/// On case-insensitive file systems a differently spelled name is the same
+/// file the game reads, so it can be neither left as unknown nor overwritten.
+fn refuse_case_variant(name: &str, declared: &[&str], directory: &Path) -> Result<()> {
+    if declared
+        .iter()
+        .any(|expected| *expected != name && expected.eq_ignore_ascii_case(name))
+    {
+        return Err(PortcoveError::conflict(format!(
+            "A save file or folder uses different capital letters than the game expects ({name}). Rename or remove it, then review again.",
+        ))
+        .detail("directory", directory.display().to_string()));
+    }
+    Ok(())
 }
 
 /// Classify the root's direct entries and the contract's named directories.
@@ -248,7 +268,9 @@ pub(crate) fn classify(
     names.sort();
     for name in names {
         let path = root.join(&name);
-        let metadata = regular_file(&path)?.expect("listed entry");
+        let top: Vec<&str> = contract.entries.iter().map(|(name, _)| *name).collect();
+        refuse_case_variant(&name, &top, root)?;
+        let metadata = regular_file(&path)?.ok_or_else(changed)?;
         let rule = contract
             .entries
             .iter()
@@ -258,7 +280,9 @@ pub(crate) fn classify(
             Some(Rule::Directory(children)) if metadata.is_dir() => {
                 for child in sorted_names(&path)? {
                     let relative = format!("{name}/{child}");
-                    let child_metadata = regular_file(&path.join(&child))?.expect("listed entry");
+                    let names: Vec<&str> = children.iter().map(|(name, _)| *name).collect();
+                    refuse_case_variant(&child, &names, &path)?;
+                    let child_metadata = regular_file(&path.join(&child))?.ok_or_else(changed)?;
                     let role = children
                         .iter()
                         .find(|(declared, _)| *declared == child)
@@ -764,7 +788,6 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path();
         fs::create_dir_all(root.join("Save/file2.sav")).unwrap();
-        fs::write(root.join("Save/FILE1.SAV"), b"other spelling").unwrap();
         let (classification, _) = classify(shipwright(), root).unwrap();
         assert!(classification.portable.is_empty());
         assert!(
@@ -772,6 +795,12 @@ mod tests {
                 .local
                 .iter()
                 .all(|entry| entry.role == R::Unknown)
+        );
+        // A differently capitalized name is the same file on Windows: refuse.
+        fs::write(root.join("Save/FILE1.SAV"), b"other spelling").unwrap();
+        assert_eq!(
+            classify(shipwright(), root).unwrap_err().code,
+            crate::ErrorCode::Conflict
         );
     }
 

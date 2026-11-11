@@ -126,23 +126,35 @@ impl PortcoveService {
     ) -> Result<PortableSaveExportResult> {
         super::validate_reviewed_fingerprint("portable save export", expected_content_sha256)?;
         self.catalog.port(port_id)?;
+        let destination = self.export_destination(destination)?;
+        let destination = destination.as_path();
         let _operation = self
             .library
             .try_lock_port(port_id, "export-portable-saves")?;
+        // Export records its synchronization point in canonical data; never do
+        // that while a restore or backup deletion still needs recovery.
+        self.require_completed_restore(port_id)?;
+        self.require_completed_backup_deletion(port_id)?;
         self.collect_active_user_data_if_launched(port_id)?;
         let local = self.portable_local_state(port_id, false)?;
         let preview = Self::export_preview_from(port_id, &local);
         if let Some(blocker) = preview.blockers.first() {
             return Err(blocked("export", *blocker));
         }
-        let content_sha256 = preview.content_sha256.clone().expect("unblocked export");
+        let (Some(content_sha256), Some(identity), Some(contract)) = (
+            preview.content_sha256.clone(),
+            preview.identity.clone(),
+            local.contract,
+        ) else {
+            return Err(PortcoveError::state(
+                "an unblocked export lost its identity",
+            ));
+        };
         if content_sha256 != expected_content_sha256 {
             return Err(PortcoveError::conflict(
                 "The saves changed after review. Review the export again.",
             ));
         }
-        let identity = preview.identity.clone().expect("unblocked export");
-        let contract = local.contract.expect("unblocked export");
         let encoded = portable_saves::encode_bundle(
             &identity,
             &preview.files,
@@ -172,6 +184,28 @@ impl PortcoveService {
         })
     }
 
+    /// Exports go outside the library: an absolute path whose parent exists,
+    /// never inside Portcove's own data, installs or backups.
+    fn export_destination(&self, destination: &Path) -> Result<std::path::PathBuf> {
+        let absolute = std::path::absolute(destination)?;
+        let (Some(parent), Some(name)) = (absolute.parent(), absolute.file_name()) else {
+            return Err(PortcoveError::usage(
+                "choose a file name for the exported saves",
+            ));
+        };
+        crate::path::refuse_symlink_ancestors(&absolute)?;
+        let parent = std::fs::canonicalize(parent).map_err(|_| {
+            PortcoveError::not_found("The folder for the exported saves does not exist.")
+        })?;
+        let library = std::fs::canonicalize(self.library.root())?;
+        if parent.starts_with(&library) {
+            return Err(PortcoveError::usage(
+                "Save the exported saves outside the Portcove library folder.",
+            ));
+        }
+        Ok(parent.join(name))
+    }
+
     fn portable_import_review(
         &self,
         port_id: &str,
@@ -184,10 +218,16 @@ impl PortcoveService {
         if bundle.identity.port_id != port_id {
             blockers.push(PortableSaveBlocker::DifferentGame);
         }
-        if let Some(contract) = local.contract
-            && !contract.supports(&bundle.identity.version, bundle.identity.platform)
-        {
-            blockers.push(PortableSaveBlocker::UnsupportedVersion);
+        if let Some(contract) = local.contract {
+            if !contract
+                .versions
+                .contains(&bundle.identity.version.as_str())
+            {
+                blockers.push(PortableSaveBlocker::UnsupportedVersion);
+            }
+            if !contract.platforms.contains(&bundle.identity.platform) {
+                blockers.push(PortableSaveBlocker::UnsupportedPlatform);
+            }
         }
         if let Some(destination) = &local.identity
             && destination.version != bundle.identity.version
@@ -205,17 +245,6 @@ impl PortcoveService {
             }
             Some(_) => PortableSaveRelation::Diverged,
         };
-        match relation {
-            PortableSaveRelation::AlreadyCurrent => {
-                blockers.push(PortableSaveBlocker::AlreadyCurrent)
-            }
-            PortableSaveRelation::Diverged if !options.replace_diverged_progress => {
-                blockers.push(PortableSaveBlocker::ConflictNeedsChoice);
-            }
-            _ => {}
-        }
-        blockers.sort_by_key(|blocker| *blocker as u8);
-        blockers.dedup();
 
         let mut changes = Vec::new();
         for incoming in &bundle.files {
@@ -253,9 +282,24 @@ impl PortcoveService {
             });
         }
         changes.sort_by(|a, b| a.path.cmp(&b.path));
+        // Without known history, a choice is needed only when a save on this
+        // device would be replaced; adding new slots never loses progress.
+        let replaces = changes
+            .iter()
+            .any(|change| change.effect == PortableSaveFileEffect::Replace);
+        match relation {
+            PortableSaveRelation::AlreadyCurrent => {
+                blockers.push(PortableSaveBlocker::AlreadyCurrent)
+            }
+            PortableSaveRelation::Diverged if replaces && !options.replace_diverged_progress => {
+                blockers.push(PortableSaveBlocker::ConflictNeedsChoice);
+            }
+            _ => {}
+        }
+        blockers.sort_by_key(|blocker| *blocker as u8);
+        blockers.dedup();
         let user_root = self.library.user_dir(port_id);
-        let safety_backup_will_be_created =
-            !local.classification.portable.is_empty() || !local.classification.local.is_empty();
+        let safety_backup_will_be_created = self.safety_backup_would_be_created(port_id)?;
         let installed = self.status_without_rollback_assessment(port_id)?.active;
         let preview_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
             &bundle.document_sha256,
@@ -366,7 +410,8 @@ impl PortcoveService {
                     "The game's latest saves changed what this import would do. Review the import again.",
                 ));
             }
-            let contract = portable_saves::contract_for(port_id).expect("reviewed contract exists");
+            let contract = portable_saves::contract_for(port_id)
+                .ok_or_else(|| PortcoveError::state("the reviewed save contract is missing"))?;
             let removals = reviewed
                 .changes
                 .iter()
@@ -437,7 +482,7 @@ fn blocked(action: &str, blocker: PortableSaveBlocker) -> PortcoveError {
         }
         PortableSaveBlocker::NoPortableProgress => "There are no saves to export yet.".to_owned(),
         PortableSaveBlocker::ConflictNeedsChoice => {
-            "Both devices have new progress. Choose whether to replace this device's progress; it stays in a backup."
+            "Portcove can't confirm these saves continue from this device's saves. Choose whether to replace this device's saves; they stay in a backup."
                 .to_owned()
         }
         PortableSaveBlocker::AlreadyCurrent => "This device already has these saves.".to_owned(),

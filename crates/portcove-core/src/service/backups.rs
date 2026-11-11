@@ -608,6 +608,13 @@ impl PortcoveService {
         ))?))
     }
 
+    /// Whether restore would find files to protect in a safety backup.
+    pub(super) fn safety_backup_would_be_created(&self, port_id: &str) -> Result<bool> {
+        Ok(self
+            .collectible_data_review(port_id)?
+            .files_after_collection)
+    }
+
     fn canonical_data_review(&self, port_id: &str) -> Result<String> {
         let tree = crate::runtime_data_policy::DataReview::default()
             .canonical(&self.library.user_dir(port_id))?;

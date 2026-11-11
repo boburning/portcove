@@ -135,7 +135,7 @@ fn blocker(blocker: PortableSaveBlocker) -> &'static str {
         }
         PortableSaveBlocker::NoPortableProgress => "There are no saves to export yet.",
         PortableSaveBlocker::ConflictNeedsChoice => {
-            "Both devices have new progress. Add --replace-diverged-progress to use the file's progress; this device's progress stays in a backup."
+            "Portcove can't confirm these saves continue from this device's saves. Add --replace-diverged-progress to use the file's saves; this device's saves stay in a backup."
         }
         PortableSaveBlocker::AlreadyCurrent => "This device already has these saves.",
     }
@@ -217,7 +217,7 @@ fn import_preview(preview: &PortableSaveImportPreview) -> String {
         PortableSaveRelation::AlreadyCurrent => "This device already has these saves.",
         PortableSaveRelation::Continues => "The file continues from this device's saves.",
         PortableSaveRelation::Diverged => {
-            "Both devices have progress the other does not have. Choose which to use; nothing is lost."
+            "Portcove can't confirm these saves continue from this device's saves. Choose which to use; nothing is lost."
         }
     };
     let changes = preview

@@ -618,3 +618,84 @@ fn interrupted_publication_recovers_through_the_restore_journal() {
         "the destination's previous progress stays in a safety backup"
     );
 }
+
+#[test]
+fn case_variants_of_save_names_are_refused_not_overwritten() {
+    let pc = seeded_source();
+    let (bundle, _) = pc.export("progress.json");
+    let deck = Device::new(VERSION);
+    deck.write("Save/File1.sav", b"{\"other spelling\":true}");
+    let error = deck
+        .service
+        .preview_portable_save_import(PORT, &bundle, Default::default())
+        .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Conflict);
+    assert_eq!(
+        deck.read("Save/File1.sav").unwrap(),
+        b"{\"other spelling\":true}"
+    );
+}
+
+#[test]
+fn adding_new_slots_needs_no_conflict_choice() {
+    let pc = seeded_source();
+    let (bundle, _) = pc.export("slot-one.json");
+    let deck = Device::new(VERSION);
+    deck.write("Save/file2.sav", b"{\"slot\":2}");
+    let preview = deck
+        .service
+        .preview_portable_save_import(PORT, &bundle, Default::default())
+        .unwrap();
+    assert_eq!(preview.relation, PortableSaveRelation::Diverged);
+    assert!(preview.blockers.is_empty(), "{:?}", preview.blockers);
+    deck.import(&bundle, Default::default()).unwrap();
+    assert_eq!(deck.read("Save/file2.sav").unwrap(), b"{\"slot\":2}");
+    assert!(deck.read("Save/file1.sav").is_some());
+}
+
+#[test]
+fn export_refuses_destinations_inside_the_library() {
+    let pc = seeded_source();
+    let preview = pc.service.preview_portable_save_export(PORT).unwrap();
+    for destination in [
+        pc.user().join("exported.json"),
+        pc.library.backups_dir().join("exported.json"),
+    ] {
+        fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        let error = pc
+            .service
+            .export_portable_saves(
+                PORT,
+                &destination,
+                preview.content_sha256.as_deref().unwrap(),
+            )
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Usage);
+        assert!(!destination.exists());
+    }
+}
+
+#[test]
+fn files_from_unqualified_platforms_are_reported_as_such() {
+    let pc = seeded_source();
+    let (bundle, _) = pc.export("progress.json");
+    let text = fs::read_to_string(&bundle).unwrap();
+    let current = serde_json::to_value(Platform::current().unwrap()).unwrap();
+    let edited = text.replacen(
+        &format!("\"platform\": {current}"),
+        "\"platform\": \"macos-aarch64\"",
+        1,
+    );
+    assert_ne!(edited, text);
+    fs::write(&bundle, edited).unwrap();
+    let deck = Device::new(VERSION);
+    let preview = deck
+        .service
+        .preview_portable_save_import(PORT, &bundle, Default::default())
+        .unwrap();
+    assert!(
+        preview
+            .blockers
+            .contains(&PortableSaveBlocker::UnsupportedPlatform)
+    );
+}
