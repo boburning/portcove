@@ -253,7 +253,7 @@ it("routes active work to its owned Activity identity instead of launching", asy
       />
     </OperationPresentationProvider>,
   );
-  await page.getByRole("button", { name: "View task", exact: true }).click();
+  await page.getByRole("button", { name: /^View task: / }).click();
   expect(task).toHaveBeenCalledExactlyOnceWith("owned-task");
   expect(launch).not.toHaveBeenCalled();
   await expect

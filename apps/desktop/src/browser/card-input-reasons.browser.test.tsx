@@ -153,7 +153,7 @@ it("keeps a legacy required-input card unconfirmed when health and assessment ar
   const card = page.getByRole("article");
   await expect.element(card).toMatchTextContent("Compatibility unconfirmed");
   await expect.element(card).not.toMatchTextContent("Ready to play");
-  await userEvent.click(card.getByRole("button", { name: "Try launch", exact: true }));
+  await userEvent.click(card.getByRole("button", { name: /^Try launch: / }));
   expect(launch).toHaveBeenCalledWith(port.id);
 });
 // CI40745384613/a1 macOS producer123018113028 reached the15s case
