@@ -80,15 +80,18 @@ export function readSample(file = defaultSamplePath): InventorySample {
 
 /** Stable JSON: object keys sorted, so equal facts hash equally on every host. */
 export function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  // JSON.stringify semantics: undefined object members are omitted, undefined items become null.
+  if (Array.isArray(value))
+    return `[${value.map((item) => (item === undefined ? "null" : canonicalJson(item))).join(",")}]`;
   if (value && typeof value === "object")
     return `{${Object.keys(value)
+      .filter((key) => (value as Record<string, unknown>)[key] !== undefined)
       .sort()
       .map(
         (key) => `${JSON.stringify(key)}:${canonicalJson((value as Record<string, unknown>)[key])}`,
       )
       .join(",")}}`;
-  return JSON.stringify(value);
+  return JSON.stringify(value) ?? "null";
 }
 
 export const sha256 = (text: string | Buffer) => createHash("sha256").update(text).digest("hex");
@@ -386,6 +389,135 @@ export async function readIssueInventory(): Promise<IssueInventory> {
   };
 }
 
+/** The appointed official metadata location (docs/DEFINITION-DELIVERY.md). */
+export const officialMetadataLocation = "https://boburning.github.io/portcove/catalog/metadata/";
+
+export interface PublicationObservation {
+  /** Core's inspection of the publication bundle exported from the pinned revision. */
+  inspection: { index_sha256?: unknown; definitions?: unknown };
+  /** HTTP status of the appointed timestamp metadata, or null when unreachable. */
+  published_status: number | null;
+}
+
+const definitionIdentity = /^[a-z0-9][a-z0-9-]{0,63}$/u;
+
+/**
+ * Main versus published facts per definition identity. One site probe says
+ * nothing about an individual definition: an absent site (HTTP 404) means no
+ * definition is published, and a present site leaves each definition unknown
+ * until its published index is read and verified. Any other probe result is a
+ * collection gap, never a fact.
+ */
+export function publicationFacts(observation: PublicationObservation) {
+  const definitions = observation.inspection.definitions;
+  if (!Array.isArray(definitions) || typeof observation.inspection.index_sha256 !== "string")
+    throw new MaintenanceStoreError("Unsupported definition publication inspection");
+  const site =
+    observation.published_status === 404
+      ? "absent"
+      : observation.published_status === 200
+        ? "metadata-present-unverified"
+        : null;
+  if (site === null)
+    return {
+      facts: new Map<string, unknown>(),
+      gaps: [
+        {
+          subject_key: "site:official-metadata",
+          code:
+            observation.published_status === null
+              ? "unreachable"
+              : `http-${observation.published_status}`,
+          message:
+            "The appointed metadata location could not be classified; the last known facts stay current.",
+        },
+      ],
+      expected: definitions.length,
+    };
+  const facts = new Map<string, unknown>();
+  for (const definition of definitions as Record<string, unknown>[]) {
+    const namespace = definition.namespace;
+    const id = definition.stable_id;
+    if (
+      typeof namespace !== "string" ||
+      typeof id !== "string" ||
+      !definitionIdentity.test(namespace) ||
+      !definitionIdentity.test(id)
+    )
+      throw new MaintenanceStoreError(
+        "Unsupported definition identity in the publication inspection",
+      );
+    facts.set(`definition:${namespace}/${id}`, {
+      main: {
+        index_sha256: observation.inspection.index_sha256,
+        revision: definition.revision ?? null,
+        definition_target: definition.definition_target ?? null,
+        policy_target: definition.policy_target ?? null,
+        policy_revision: definition.policy_revision ?? null,
+        launch_revision: definition.launch_revision ?? null,
+      },
+      site: { status: site, timestamp_http_status: observation.published_status },
+      published: site === "absent" ? "not-published" : "unknown",
+    });
+  }
+  return { facts, gaps: [], expected: definitions.length };
+}
+
+/** Inspect the bundle exactly as committed at the revision, and probe the appointed location. */
+export async function readPublication(
+  cli: string,
+  revision: string,
+): Promise<PublicationObservation> {
+  const root = mkdtempSync(path.join(realpathSync(os.tmpdir()), "portcove-publication-"));
+  try {
+    const bundle = "release/catalog-publication/bundle";
+    const archive = spawnSync("git", ["archive", "--format=tar", revision, bundle], {
+      cwd: repositoryRoot,
+      timeout: 60_000,
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    if (archive.status !== 0)
+      throw new MaintenanceStoreError(
+        `The publication bundle could not be exported from ${revision}: ${String(
+          archive.stderr ?? archive.error?.message ?? "",
+        )
+          .trim()
+          .slice(0, 2000)}`,
+      );
+    const extract = spawnSync("tar", ["-x", "-C", root], {
+      input: archive.stdout,
+      timeout: 60_000,
+    });
+    if (extract.status !== 0)
+      throw new MaintenanceStoreError("The committed publication bundle could not be exported");
+    const envelope = await isolatedCli(cli, [
+      "catalog",
+      "inspect-definition-publication",
+      path.join(root, bundle),
+    ]);
+    if (!envelope.ok)
+      throw new MaintenanceStoreError("Core could not inspect the publication bundle");
+    let status: number | null = null;
+    try {
+      // Node's fetch does not use HTTPS_PROXY; on proxy-only runners this probe is a gap.
+      const response = await fetch(`${officialMetadataLocation}timestamp.json`, {
+        method: "HEAD",
+        redirect: "manual",
+        signal: AbortSignal.timeout(20_000),
+      });
+      status = response.status;
+    } catch {
+      status = null;
+    }
+    return {
+      inspection: envelope.data as PublicationObservation["inspection"],
+      published_status: status,
+    };
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 const absentPayload = { absent: true };
 type Fact = { digest: string; scope: unknown; revision: string; payload: unknown };
 
@@ -439,6 +571,13 @@ export function collectionSql(input: {
     core: ReadonlyMap<string, string>;
     issues?: ReadonlyMap<string, string>;
     releaseHealth?: ReadonlyMap<string, string>;
+    publication?: ReadonlyMap<string, string>;
+  };
+  publication?: {
+    revision: string;
+    facts: ReadonlyMap<string, unknown>;
+    gaps: { subject_key: string; code: string; message: string }[];
+    expected: number;
   };
   releaseHealth?: {
     revision: string;
@@ -465,6 +604,7 @@ export function collectionSql(input: {
            coreSource,
            ...(input.issues ? ["issues-project"] : []),
            ...(input.releaseHealth ? ["release-health"] : []),
+           ...(input.publication ? ["definition-publication"] : []),
          ]),
        ]
          .sort()
@@ -624,7 +764,32 @@ export function collectionSql(input: {
       input.latest?.releaseHealth,
       input.releaseHealth.expected,
     ]);
+  const publicationRun = `definition-publication:${token}`;
+  if (input.publication) {
+    const publicationFactsByKey = new Map<string, Fact>();
+    lines.push(
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at) VALUES
+        (${literal(publicationRun)}, 'definition-publication', ${literal(input.runner)}, ${literal(input.publication.revision)}, ${literal(input.startedAt)});`,
+    );
+    for (const [key, payload] of input.publication.facts)
+      publicationFactsByKey.set(key, {
+        digest: sha256(canonicalJson(payload)),
+        scope: { source: "definition-publication", location: officialMetadataLocation },
+        revision: input.publication.revision,
+        payload,
+      });
+    runs.push([
+      publicationRun,
+      input.publication.revision,
+      input.publication.gaps.length ? "failed" : "complete",
+      input.publication.gaps,
+      publicationFactsByKey,
+      input.latest?.publication,
+      input.publication.expected,
+    ]);
+  }
   const sourceOf = new Map([
+    [publicationRun, "definition-publication"],
     [catalogRun, "catalog-records"],
     [coreRun, coreSource],
     [issueRun, "issues-project"],
@@ -706,6 +871,11 @@ export async function collect(options: {
   concurrency?: number | undefined;
   /** With `all`, also collect the verified issue and Project inventory. */
   issues?: (() => Promise<IssueInventory>) | undefined;
+  /** With `all`, also compare committed definitions with the appointed published location. */
+  publication?:
+    | boolean
+    | ((cli: string, revision: string) => Promise<PublicationObservation>)
+    | undefined;
   /** With `all`, also collect the latest scheduled release-health report. */
   releaseHealth?: (() => Promise<ReleaseHealthInput>) | undefined;
   /** Host platform label; defaults to this host. Fixtures use it to model other hosts. */
@@ -750,6 +920,14 @@ export async function collect(options: {
     throw new MaintenanceStoreError("Release-health collection requires --all");
   const health = options.releaseHealth ? await options.releaseHealth() : undefined;
   const healthFacts = health ? releaseHealthFacts(health.report) : undefined;
+  if (options.publication && !options.all)
+    throw new MaintenanceStoreError("Publication collection requires --all");
+  const publicationObserved = options.publication
+    ? await (typeof options.publication === "function" ? options.publication : readPublication)(
+        options.cli,
+        revision,
+      )
+    : undefined;
   runSql(
     options.environment,
     collectionSql({
@@ -773,6 +951,14 @@ export async function collect(options: {
       ...(health && healthFacts
         ? { releaseHealth: { revision: health.revision, ...healthFacts } }
         : {}),
+      ...(publicationObserved
+        ? {
+            publication: {
+              revision: `${revision}+published-status:${publicationObserved.published_status ?? "unreachable"}`,
+              ...publicationFacts(publicationObserved),
+            },
+          }
+        : {}),
       ...(mode === "all"
         ? {
             latest: {
@@ -783,6 +969,15 @@ export async function collect(options: {
                 : {}),
               ...(health
                 ? { releaseHealth: latestMembers(options.environment, "release-health", startedAt) }
+                : {}),
+              ...(publicationObserved
+                ? {
+                    publication: latestMembers(
+                      options.environment,
+                      "definition-publication",
+                      startedAt,
+                    ),
+                  }
                 : {}),
             },
           }
@@ -846,6 +1041,14 @@ const reportQuery = `WITH latest_issue AS (
       FROM portcove_maintenance.subject_current c
   )
 SELECT json_build_object(
+  'publication', (SELECT coalesce(json_agg(json_build_object('definition', p.subject_key, 'facts', p.payload)
+        ORDER BY p.subject_key), '[]')
+      FROM (SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
+              FROM portcove_maintenance.observations o
+              JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
+              WHERE r.source = 'definition-publication' AND r.coverage <> 'in_progress'
+              ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC) p
+      WHERE p.payload <> portcove_maintenance.absent_payload()),
   'runs', (SELECT coalesce(json_agg(r ORDER BY r.source, r.started_at DESC), '[]') FROM (
       SELECT DISTINCT ON (source) source, run_id, runner, source_revision, started_at, completed_at, coverage,
              expected_count, observed_count, gaps, member_count, member_digest
@@ -915,7 +1118,11 @@ export interface InventoryReport {
   format_version: typeof inventoryFormatVersion;
   generated_at: string;
   scope: "declared-sample" | "complete-authored-catalog";
-  publication: { status: "unknown"; reason: string };
+  publication: {
+    status: "unknown" | "observed";
+    reason: string;
+    definitions?: { definition: string; facts: unknown }[];
+  };
   unsupported_sources: { source: string; reason: string }[];
   runs: unknown[];
   subjects: unknown[];
@@ -927,6 +1134,7 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     runs: unknown[];
     subjects: unknown[];
     unassessed_gaps: { subject_key: string; code: string; message: string }[];
+    publication: { definition: string; facts: unknown }[];
   };
   // Membership-verified catalog runs cover every authored record at their revision.
   const catalogScope = (data.runs as { source: string; member_digest: string | null }[]).some(
@@ -952,6 +1160,19 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
   const issuesObserved = (data.runs as { source: string; coverage: string }[]).some(
     ({ source, coverage }) => source === "issues-project" && coverage === "complete",
   );
+  // The last known facts stay current through a failed probe; the reason names that probe.
+  const latestPublicationRun = (
+    data.runs as { source: string; coverage: string; gaps?: { code: string }[] }[]
+  ).find(({ source }) => source === "definition-publication");
+  // A complete run that found no committed definitions is an observation, not an unknown.
+  const publicationRun =
+    data.publication.length || latestPublicationRun?.coverage === "complete"
+      ? latestPublicationRun
+      : undefined;
+  const probeNote =
+    latestPublicationRun && latestPublicationRun.coverage !== "complete"
+      ? ` (latest probe not classified: ${latestPublicationRun.gaps?.map(({ code }) => code).join(", ") ?? "unknown"})`
+      : "";
   const healthObserved = (data.runs as { source: string }[]).some(
     ({ source }) => source === "release-health",
   );
@@ -960,13 +1181,32 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     format_version: inventoryFormatVersion,
     generated_at: now.toISOString(),
     scope: catalogScope,
-    publication: {
-      status: "unknown",
-      reason: unsupportedSources.find(([source]) => source === "definition-publication")![1],
-    },
+    publication: publicationRun
+      ? {
+          status: "observed",
+          reason:
+            (data.publication.length
+              ? data.publication
+                  .map(({ definition, facts }) => {
+                    const value = facts as {
+                      main?: { revision?: unknown };
+                      site?: { status?: unknown };
+                      published?: unknown;
+                    };
+                    return `${definition} revision ${String(value.main?.revision)} on main; published: ${String(value.published)} (appointed site ${String(value.site?.status)})`;
+                  })
+                  .join("; ")
+              : "observed: no committed definitions") + probeNote,
+          definitions: data.publication,
+        }
+      : {
+          status: "unknown",
+          reason: unsupportedSources.find(([source]) => source === "definition-publication")![1],
+        },
     unsupported_sources: unsupportedSources
       .filter(([source]) => !(issuesObserved && (source === "issues" || source === "project")))
       .filter(([source]) => !(healthObserved && source === "release-health"))
+      .filter(([source]) => !(publicationRun && source === "definition-publication"))
       .map(([source, reason]) => ({ source, reason })),
     runs: data.runs,
     subjects: subjects.map((subject) => {
@@ -1256,6 +1496,9 @@ export async function main(argv = process.argv.slice(2)) {
   const allIndex = args.indexOf("--all");
   const all = allIndex >= 0;
   if (all) args.splice(allIndex, 1);
+  const publicationIndex = args.indexOf("--publication");
+  const publication = publicationIndex >= 0;
+  if (publication) args.splice(publicationIndex, 1);
   const healthIndex = args.indexOf("--release-health");
   const releaseHealth = healthIndex >= 0;
   if (releaseHealth) args.splice(healthIndex, 1);
@@ -1278,6 +1521,7 @@ export async function main(argv = process.argv.slice(2)) {
           concurrency: concurrency === undefined ? undefined : Number(concurrency),
           issues: issues ? readIssueInventory : undefined,
           releaseHealth: releaseHealth ? readReleaseHealth : undefined,
+          publication: publication || undefined,
           environment,
         }),
         null,

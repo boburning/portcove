@@ -11,6 +11,7 @@ import path from "node:path";
 import test from "node:test";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import {
+  publicationFacts,
   assessmentSubject,
   hostPlatform,
   acknowledgeDigest,
@@ -55,6 +56,10 @@ void test("inventory facts hash canonically and Core reports are projected witho
     canonicalJson({ b: 1, a: [{ d: 2, c: 3 }] }),
     canonicalJson({ a: [{ c: 3, d: 2 }], b: 1 }),
   );
+  assert.equal(
+    canonicalJson({ a: undefined, b: [undefined, 1] }),
+    JSON.stringify({ b: [null, 1] }),
+  );
   assert.deepEqual(capabilityResult({ ok: true, report: report("automatic") }), {
     state: "managed-setup.automatic",
     explanation: {
@@ -73,6 +78,45 @@ void test("inventory facts hash canonically and Core reports are projected witho
     "unassessed.not_found",
   );
   assert.equal(readSample().format_version, 1);
+});
+
+void test("definition publication compares main with the appointed location without claiming verification", () => {
+  const inspection = {
+    index_sha256: "f".repeat(64),
+    definitions: [
+      {
+        namespace: "official",
+        stable_id: "example",
+        revision: 1,
+        definition_target: "sha256/x.json",
+      },
+    ],
+  };
+  const fact = (published_status: number | null) =>
+    publicationFacts({ inspection, published_status }).facts.get("definition:official/example") as
+      | { published: string; site: { status: string } }
+      | undefined;
+  assert.deepEqual([fact(404)?.published, fact(404)?.site.status], ["not-published", "absent"]);
+  // A present site says nothing about an individual definition.
+  assert.deepEqual(
+    [fact(200)?.published, fact(200)?.site.status],
+    ["unknown", "metadata-present-unverified"],
+  );
+  // Anything else is a gap, never a fact.
+  assert.equal(fact(503), undefined);
+  assert.deepEqual(
+    publicationFacts({ inspection, published_status: null }).gaps.map(({ code }) => code),
+    ["unreachable"],
+  );
+  assert.throws(() => publicationFacts({ inspection: {}, published_status: 404 }), /Unsupported/u);
+  assert.throws(
+    () =>
+      publicationFacts({
+        inspection: { index_sha256: "f", definitions: [{ namespace: "../x", stable_id: "y" }] },
+        published_status: 404,
+      }),
+    /Unsupported definition identity/u,
+  );
 });
 
 void test("the static report escapes untrusted text and states unknown publication", () => {
@@ -672,8 +716,56 @@ void test(
         ["partial", 2, 1, 0, 1],
       ],
     );
+    await collect({
+      cli,
+      all: true,
+      ports: ["2ship2harkinian"],
+      publication: () =>
+        Promise.resolve({
+          inspection: {
+            index_sha256: "f".repeat(64),
+            definitions: [{ namespace: "official", stable_id: "example", revision: 1 }],
+          },
+          published_status: 404,
+        }),
+      environment: store.owner,
+      runner: "fixture",
+    });
     const inventory = buildReport(store.owner);
     assert.ok(!inventory.unsupported_sources.some(({ source }) => source === "release-health"));
+    assert.ok(
+      !inventory.unsupported_sources.some(({ source }) => source === "definition-publication"),
+    );
+    assert.equal(inventory.publication.status, "observed");
+    assert.match(
+      inventory.publication.reason,
+      /definition:official\/example revision 1 on main; published: not-published \(appointed site absent\)/u,
+    );
+    // An unclassifiable probe keeps the last known facts and records a failed run with a gap.
+    await collect({
+      cli,
+      all: true,
+      ports: ["2ship2harkinian"],
+      publication: () =>
+        Promise.resolve({
+          inspection: {
+            index_sha256: "f".repeat(64),
+            definitions: [{ namespace: "official", stable_id: "example", revision: 1 }],
+          },
+          published_status: 503,
+        }),
+      environment: store.owner,
+      runner: "fixture",
+    });
+    const afterOutage = buildReport(store.owner);
+    assert.match(afterOutage.publication.reason, /published: not-published/u);
+    assert.match(
+      runSql(
+        store.owner,
+        "SELECT coverage || ':' || (gaps -> 0 ->> 'code') FROM portcove_maintenance.collection_runs WHERE source = 'definition-publication' ORDER BY started_at DESC LIMIT 1;",
+      ),
+      /failed:http-503/u,
+    );
     assert.match(renderHtml(inventory), /provider-redirect \(observe-availability\)/u);
   },
 );

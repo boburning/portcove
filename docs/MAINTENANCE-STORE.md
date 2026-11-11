@@ -337,8 +337,41 @@ A digest-verified report from scheduled run 43066038874 (2026-11-11) covered
 - 3 ports have reviewed, accounted endpoint conditions that the triage keeps
   visible.
 
-Upstream observations, hosted intake receipts and definition publication
-remain explicit unknown sources.
+### Definition publication
+
+`--publication` (with `--all`) adds the `definition-publication` source. It
+compares what `main` holds with what is published.
+
+- **Main side:** the bundle is exported from the pinned revision with
+  `git archive`, so working-tree edits are never recorded. Core's maintained
+  `catalog inspect-definition-publication` then inspects that copy.
+  - It reports the index digest and, for each validated
+    `definition:<namespace>/<stable_id>`, the revision, content-addressed
+    definition target, policy revision and launch revision.
+- **Published side:** one bounded HTTPS `HEAD` of `timestamp.json` at the
+  appointed official metadata location.
+  - The result is recorded as a site-level fact: `absent` for HTTP 404, or
+    `metadata-present-unverified` for HTTP 200.
+  - Per definition, the source records `not-published` only when the site is
+    absent. When the site is present, each definition is `unknown` until its
+    published index is read and verified.
+  - Any other result, such as another status or an unreachable host, makes the
+    run `failed` with a gap. The last known facts stay current, and the report
+    names the failed probe.
+  - Node's `fetch` does not use `HTTPS_PROXY`, so on proxy-only runners the probe
+    is always a gap.
+  - During a probe gap the main-side inspection is not recorded either, so a
+    bundle change made during an outage appears once the site can be classified
+    again. A complete run over an empty bundle is reported as observed, with no
+    committed definitions.
+- **Authority:** this source grants no publication authority.
+
+On 2026-11-11, `main` held `official/chameleon-twist-jp-recompiled` revision 1
+(index `fd4e8154…`). The appointed site returned HTTP 404, so the definition was
+not published.
+
+Upstream observations and hosted intake receipts remain explicit unknown
+sources.
 
 ## Changes-only digest
 
