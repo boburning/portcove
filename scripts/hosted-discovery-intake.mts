@@ -564,6 +564,8 @@ export class HostedIntakeBridge {
   inventoryRecollections = 0;
   /** #177 identity and revision bracketing the last complete, unchanged comment read. */
   queue: { node_id: string; comments: number; updated_at: string } | undefined;
+  /** The read-only status route's queue-derived request budget, when it applies. */
+  statusBudget: HostedStatusBudget | undefined;
   readonly client: HostedRoadmapOperations;
   readonly github: { project: Octokit; repository: Octokit };
   readonly head: string;
@@ -1520,35 +1522,31 @@ export interface HostedStatusAll {
 }
 
 /**
- * Read-only status of every owner-authored #177 comment that carries the
- * request marker, from one complete drift-checked comment read. A withdrawn
+ * Read-only status of every owner-authored #177 request the executor selects
+ * (`hostedRequestSelection`), from one complete drift-checked comment read. A withdrawn
  * request keeps its exact original proposal after a prepended explanation and
  * is classified from that retained proposal. A request whose own proposal,
  * receipt or reconciliation cannot be validated is reported with its error;
  * provider and budget failures fail the whole read.
  */
 export async function hostedStatusAll(
-  bridge: Pick<HostedIntakeBridge, "comments" | "status" | "queue" | "client">,
+  bridge: Pick<HostedIntakeBridge, "comments" | "status" | "queue" | "client" | "statusBudget">,
 ): Promise<HostedStatusAll> {
   const all = await bridge.comments();
   const queue = bridge.queue;
   if (!queue) throw new Error("Hosted request queue identity is unavailable");
   const owner = bridge.client.config.owner;
+  const selected = all.flatMap((comment) => {
+    const selection = hostedRequestSelection(comment, owner);
+    return selection ? [{ comment, ...selection }] : [];
+  });
+  bridge.statusBudget?.admitReconciliations(
+    selected.filter(({ request }) => reconciles(request.body)).length,
+  );
   const rows: HostedRequestStatus[] = [];
-  for (const comment of all) {
-    if (
-      comment.user?.login !== owner ||
-      typeof comment.body !== "string" ||
-      !comment.body.includes(hostedRequestMarker)
-    )
-      continue;
-    const offset = comment.body.indexOf(hostedRequestMarker);
-    const withdrawn = offset > 0;
+  for (const { comment, withdrawn, request } of selected) {
     try {
-      const status = await bridge.status(
-        withdrawn ? { ...comment, body: comment.body.slice(offset) } : comment,
-        all,
-      );
+      const status = await bridge.status(request, all);
       rows.push({ ...status, withdrawn, superseded_by: [] });
     } catch (error) {
       if (error instanceof GitHubApiError) throw error;
@@ -1581,27 +1579,98 @@ export async function hostedStatusAll(
   };
 }
 
+/**
+ * The marker-bearing owner request a #177 comment carries, by the executor's own
+ * selection: an active request starts with the marker; a withdrawn request keeps
+ * exactly one marker after its prepended explanation, followed by its complete
+ * original proposal. Anything else, including prose that quotes the marker, is
+ * not a request.
+ */
+export function hostedRequestSelection(comment: Comment, owner: string) {
+  if (comment.user?.login !== owner || typeof comment.body !== "string") return null;
+  if (comment.body.startsWith(hostedRequestMarker)) return { withdrawn: false, request: comment };
+  const offset = comment.body.indexOf(hostedRequestMarker);
+  if (
+    offset <= 0 ||
+    comment.body.indexOf(hostedRequestMarker, offset + hostedRequestMarker.length) !== -1
+  )
+    return null;
+  const original = { ...comment, body: comment.body.slice(offset) };
+  try {
+    parseHostedRequest(original.body);
+  } catch {
+    return null;
+  }
+  return { withdrawn: true, request: original };
+}
+/** Whether a request's proposal names a reconciliation, which costs two exact reads. */
+function reconciles(body: string) {
+  try {
+    return parseHostedRequest(body).reconcile !== undefined;
+  } catch {
+    return false;
+  }
+}
+
 /** The repository's stable numeric identity, which GitHub list pagination links use. */
 const hostedRepositoryId = 1354613114;
+/** Bounded transport retries admitted on top of the planned reads. */
+export const hostedStatusRetryAllowance = 4;
+/** Absolute ceiling for one status read, whatever the #177 queue size. */
+export const hostedStatusRequestCeiling = 200;
 /**
- * Two #177 revision reads, the 20-comment pages and two exact-comment reads per
- * reconciling request: 18 at 110 comments with five reconciliations.
+ * A status read's request budget, derived from the observed queue: the first
+ * #177 revision read is admitted; its comment count then admits one read per
+ * 20-comment page plus one, and the closing revision read; each reconciling
+ * request admits its two exact-comment reads. A small retry allowance is added,
+ * and a plan beyond the absolute ceiling fails before its next request.
  */
-export const hostedStatusRequestLimit = 24;
+export class HostedStatusBudget {
+  used = 0;
+  planned = 1;
+  private sized = false;
+  readonly ceiling: number;
+  readonly retries: number;
+  constructor(ceiling = hostedStatusRequestCeiling, retries = hostedStatusRetryAllowance) {
+    this.ceiling = ceiling;
+    this.retries = retries;
+  }
+  get limit() {
+    return this.planned + this.retries;
+  }
+  /** Sizes the comment pages from the first revision read's comment count. */
+  observeQueue(comments: unknown) {
+    if (this.sized || !Number.isSafeInteger(comments) || (comments as number) < 0) return;
+    this.sized = true;
+    this.planned += Math.ceil((comments as number) / 20) + 1 + 1;
+  }
+  /** Admits the exact-comment reads of the requests that reconcile. */
+  admitReconciliations(count: number) {
+    this.planned += 2 * count;
+  }
+  reserve() {
+    if (this.limit > this.ceiling || ++this.used > this.limit)
+      throw new GitHubApiError(
+        "budget_exhausted",
+        `Hosted status read exceeded its budget (${this.used} of ${Math.min(this.limit, this.ceiling)} requests)`,
+      );
+  }
+}
 /**
  * A status-only bridge: GET-only to #177, its comment list and exact comments,
- * with a finite request budget. It needs no RoadmapClient connection, Project
- * scope or write credential, and refuses research, saving and every write.
+ * with a request budget derived from the observed queue. It needs no
+ * RoadmapClient connection, Project scope or write credential, and refuses
+ * research, saving and every write.
  */
 export async function readOnlyHostedBridge(
   config: { owner: string; repository: string },
   options: Pick<GitHubClientOptions, "credential" | "deadline" | "fetch" | "environmentProxy"> & {
-    requestLimit?: number;
+    budget?: HostedStatusBudget;
   },
 ) {
   const named = `/repos/${config.repository}/issues`;
   const numeric = `/repositories/${hostedRepositoryId}/issues`;
-  let requests = 0;
+  const budget = options.budget ?? new HostedStatusBudget();
   const sdk = await createGitHubClient({
     ...options,
     maxBytes: 4 * 1024 * 1024,
@@ -1614,21 +1683,26 @@ export async function readOnlyHostedBridge(
         url.pathname === `${numeric}/177/comments` ||
         new RegExp(`^${named}/comments/[1-9]\\d*$`, "u").test(url.pathname)),
     reserve() {
-      if (++requests > (options.requestLimit ?? hostedStatusRequestLimit))
-        throw new GitHubApiError("budget_exhausted", "Hosted status read exceeded its budget");
+      budget.reserve();
       return { consumeBytes() {}, settle() {} };
     },
+  });
+  sdk.hook.after("request", (response, request) => {
+    if (new URL(String(request.url), "https://api.github.com/").pathname === `${named}/177`)
+      budget.observeQueue((response.data as { comments?: unknown } | null)?.comments);
   });
   const refuse = () => {
     throw new Error("Status cannot research, save or write");
   };
-  return new HostedIntakeBridge(
+  const bridge = new HostedIntakeBridge(
     { config } as unknown as HostedRoadmapOperations,
     { project: sdk, repository: sdk },
     "status",
     refuse,
     refuse,
   );
+  bridge.statusBudget = budget;
+  return bridge;
 }
 export async function connectHostedGitHub(
   config: ConstructorParameters<typeof RoadmapClient>[0],
@@ -1683,6 +1757,7 @@ async function main() {
     const comments = await bridge.comments();
     const request = comments.find((c) => c.id === id);
     if (!request) throw new Error("Requested proposal is unavailable");
+    bridge.statusBudget?.admitReconciliations(reconciles(request.body) ? 1 : 0);
     console.log(JSON.stringify(await bridge.status(request, comments)));
     return;
   }

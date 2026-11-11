@@ -445,8 +445,10 @@ collection records a `failed` run until the producer retains a snapshot again.
 
 `--hosted-intake` (with `--all`) adds the `hosted-intake` source.
 
-- **Input:** every owner-authored #177 comment that carries the hosted request
-  marker, read through the executor's own read-only
+- **Input:** every owner-authored #177 request the executor selects: a comment
+  that starts with the hosted request marker, or a withdrawn request that keeps
+  exactly one marker followed by its complete original proposal. Prose that only
+  quotes the marker is not a request. They are read through the executor's own read-only
   `node scripts/hosted-discovery-intake.mts status --all --json` route
   ([contract](DAILY-PORT-DISCOVERY.md#hosted-investigation-and-actions-intake)).
   - One complete comment read is bracketed by unchanged #177 node, comment count
@@ -457,9 +459,14 @@ collection records a `failed` run until the producer retains a snapshot again.
   - A withdrawn request keeps its exact original proposal after a prepended
     explanation and is classified from that retained proposal.
   - The read is GET-only to #177, its comment pages and exact comments. It needs
-    no Roadmap connection, Project scope or write credential, and has a budget
-    of 24 requests: two revision reads, one per 20-comment page and two per
-    reconciling request.
+    no Roadmap connection, Project scope or write credential.
+  - Its request budget comes from the observed queue. The first #177 revision
+    read is admitted. Its comment count then admits one read per 20-comment page
+    plus one, and the closing revision read. Each selected request whose proposal
+    reconciles admits two exact-comment reads. Four retries are added on top. A
+    plan over the absolute ceiling of 200 requests fails before its next request.
+    The existing per-response byte cap still applies. `status --request` uses the
+    same budget.
   - The run revision is
     `hosted-intake:<node_id>:<comments>@<updated_at>#sha256:<digest>`, where the
     digest covers every sorted (comment ID, body SHA-256) pair. A revision over
@@ -493,7 +500,7 @@ collection records a `failed` run until the producer retains a snapshot again.
 - **Authority:** this projection grants no intake, admission, Priority or support
   authority, and writes, dispatches and runs nothing.
 
-On 2026-11-11 one live read used 18 GETs. #177 had 110 comments and 29
+On 2026-11-11 one live read used 18 GETs of a 23-request budget. #177 had 110 comments and 29
 marker-bearing owner requests (19 active and 10 withdrawn). The run was
 `complete` with no gaps, and an immediate repeat stored no observations. One
 active request was `blocked` and is the only attention item. One active request

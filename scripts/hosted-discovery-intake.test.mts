@@ -13,6 +13,9 @@ import {
   collectHostedRequests,
   hostedStatusAll,
   readOnlyHostedBridge,
+  HostedStatusBudget,
+  hostedStatusRequestCeiling,
+  hostedStatusRetryAllowance,
 } from "./hosted-discovery-intake.mts";
 import { portFieldInitialization, validateConfig } from "./roadmap.mts";
 import { DiscoveryRepositoryUnavailable } from "./daily-discovery-sources.mts";
@@ -1856,7 +1859,11 @@ void test("the read-only status bridge needs no Roadmap connection, follows nume
   const issue = { node_id: "I177", comments: 3, updated_at: "2026-11-11T00:00:00Z" };
   const comment = (id: number, login = "boburning") => ({
     id,
-    body: id === 1 ? encode(proposal) : `note ${id}`,
+    body:
+      id === 1
+        ? encode(proposal)
+        : // Owner prose quoting the marker is not a request.
+          `Requests start with ${hostedRequestMarker} and a JSON fence.`,
     user: { login },
     issue_url: "https://api.github.com/repos/boburning/portcove/issues/177",
   });
@@ -1907,9 +1914,107 @@ void test("the read-only status bridge needs no Roadmap connection, follows nume
     );
   assert.equal(seen.length, 4, "refused requests are never sent");
   await assert.rejects(bridge.process(comment(1), []), /cannot research, save or write/u);
-  const limited = await readOnlyHostedBridge(config, { ...options, requestLimit: 2 });
+});
+
+/** A paginated #177 fixture served through the real client, as GitHub links its pages. */
+function queueFetch(rows: Record<string, unknown>[], count = rows.length) {
+  const seen: string[] = [];
+  const json = (value: unknown, headers: Record<string, string> = {}) =>
+    new Response(JSON.stringify(value), {
+      headers: { "content-type": "application/json", ...headers },
+    });
+  const fetch = async (input: string | URL | Request) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    seen.push(`${url.pathname}${url.search}`);
+    if (url.pathname === "/repos/boburning/portcove/issues/177")
+      return json({ node_id: "I177", comments: count, updated_at: "2026-11-11T00:00:00Z" });
+    if (url.pathname.endsWith("/issues/177/comments")) {
+      const page = Number(url.searchParams.get("page") ?? "1");
+      const last = Math.ceil(rows.length / 20);
+      return json(
+        rows.slice((page - 1) * 20, page * 20),
+        page < last
+          ? {
+              link: `<https://api.github.com/repositories/1354613114/issues/177/comments?per_page=20&page=${page + 1}>; rel="next"`,
+            }
+          : {},
+      );
+    }
+    const exact = /^\/repos\/boburning\/portcove\/issues\/comments\/(\d+)$/u.exec(url.pathname);
+    const row = exact && rows.find(({ id }) => id === Number(exact[1]));
+    if (row) return json(row);
+    throw new Error(`Unexpected fixture request ${url.pathname}`);
+  };
+  return {
+    seen,
+    options: {
+      credential: { kind: "explicit" as const, token: "fixture-token" },
+      deadline: performance.now() + 30_000,
+      fetch,
+    },
+  };
+}
+
+void test("the status budget scales with a larger queue and its reconciliations", async () => {
+  const issueUrl = "https://api.github.com/repos/boburning/portcove/issues/177";
+  const rows: Record<string, unknown>[] = [];
+  for (let k = 0; k < 10; k++) {
+    rows.push(
+      { id: 1000 + k, body: `source ${k}`, user: { login: "boburning" }, issue_url: issueUrl },
+      {
+        id: 2000 + k,
+        body: `<!-- portcove-hosted-intake-receipt:${1000 + k} -->\nreceipt`,
+        user: { login: "github-actions[bot]" },
+        issue_url: issueUrl,
+      },
+      {
+        id: 3000 + k,
+        body: encode({
+          ...proposal,
+          reconcile: {
+            request_comment: 1000 + k,
+            request_sha256: "a".repeat(64),
+            receipt_comment: 2000 + k,
+            receipt_sha256: "b".repeat(64),
+            plan_sha256: "c".repeat(64),
+          },
+        }),
+        user: { login: "boburning" },
+        issue_url: issueUrl,
+      },
+    );
+  }
+  while (rows.length < 600)
+    rows.push({
+      id: 5000 + rows.length,
+      body: "note",
+      user: { login: "someone-else" },
+      issue_url: issueUrl,
+    });
+  const queue = queueFetch(rows);
+  const budget = new HostedStatusBudget();
+  const read = await hostedStatusAll(
+    await readOnlyHostedBridge(config, { ...queue.options, budget }),
+  );
+  // Each reconciliation reads its source and receipt, then refuses the forged hashes.
+  assert.equal(read.requests.length, 10);
+  assert(read.requests.every((row) => "error" in row));
+  assert.equal(queue.seen.length, 1 + 30 + 1 + 20);
+  assert.equal(budget.used, queue.seen.length);
+  assert.equal(budget.limit, 1 + 30 + 1 + 1 + 20 + hostedStatusRetryAllowance);
+});
+
+void test("a queue beyond the absolute ceiling fails before reading its pages", async () => {
+  const queue = queueFetch([], 20 * hostedStatusRequestCeiling);
   await assert.rejects(
-    hostedStatusAll(limited),
+    hostedStatusAll(await readOnlyHostedBridge(config, queue.options)),
     (error: unknown) => error instanceof GitHubApiError && error.code === "budget_exhausted",
   );
+  assert.deepEqual(queue.seen, ["/repos/boburning/portcove/issues/177"]);
+  const budget = new HostedStatusBudget(10);
+  await assert.rejects(
+    hostedStatusAll(await readOnlyHostedBridge(config, { ...queueFetch([], 200).options, budget })),
+    /exceeded its budget/u,
+  );
+  assert.equal(budget.used, 1);
 });

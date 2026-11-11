@@ -228,14 +228,17 @@ candidate slot reports its port key, repository ID, upstream, delivery status,
 linked issue (the created issue or verified existing owner) and any hold's HTTP
 status and resume condition. It refuses a forged/stale proposal binding or a
 complete claim without the candidate-bound scoped doctors and applicable full
-doctor. `--all` covers every owner-authored #177 comment that carries the request
-marker in one complete comment read bracketed by #177's unchanged revision. It
-classifies a withdrawn request from its retained original proposal and links each
+doctor. `--all` covers every owner-authored #177 request in one complete comment
+read bracketed by #177's unchanged revision. A request is a comment that starts
+with the request marker, or a withdrawn request that keeps exactly one marker
+followed by its complete original proposal; prose that quotes the marker is not
+a request. It classifies a withdrawn request from its retained original proposal and links each
 reconciliation to the request it supersedes. It reports a request it cannot
 validate with that error instead of failing the whole read. The status route
 needs ordinary GitHub read access: it is GET-only to #177 and its comments, with
-a finite request budget, and needs no Roadmap connection, Actions event or Project
-or write credential. It never runs intake. The
+a request budget derived from the observed queue under an absolute ceiling
+([details](MAINTENANCE-STORE.md#hosted-intake)), and needs no Roadmap connection,
+Actions event or Project or write credential. It never runs intake. The
 [maintenance inventory](MAINTENANCE-STORE.md#hosted-intake) stores this read. Without CLI access, read the same bound bot
 receipt on #177 and preserve these distinctions. The scheduled investigator must
 use its final receipt counts, retain pending work and precise blockers, and
