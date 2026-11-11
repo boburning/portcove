@@ -169,6 +169,90 @@ pub fn inspect_asset_archive(path: &Path) -> Result<ModPackageInspection> {
     })
 }
 
+/// Package files taken from a provider's wrapper archive.
+#[derive(Debug)]
+pub(crate) struct ExtractedPackages {
+    pub files: Vec<std::path::PathBuf>,
+    /// Entries that were not packages and were neither read nor written.
+    pub ignored: usize,
+}
+
+const MAX_MEMBER_BYTES: u64 = 4 * 1024 * 1024 * 1024;
+const MAX_MEMBERS: usize = 64;
+
+/// Extracts only members whose file extension the loader contract accepts,
+/// flattened to their plain file names. Everything else in the wrapper is left
+/// unread. A matching member with an unsafe path, a duplicate name or a size that
+/// disagrees with its header refuses the whole archive; nothing is deployed.
+pub(crate) fn extract_packages(
+    archive: &Path,
+    destination: &Path,
+    extensions: &[&str],
+) -> Result<ExtractedPackages> {
+    let mut zip = zip_read::open(File::open(archive)?, LIMITS, &mut |_| Ok(()))
+        .map_err(|error| invalid(&error.message))?;
+    let mut names = BTreeSet::new();
+    let mut files = Vec::new();
+    let mut ignored = 0usize;
+    for index in 0..zip.len() {
+        let (name, size, is_file) = {
+            let entry = zip
+                .by_index_raw(index)
+                .map_err(|error| invalid(&format!("invalid entry: {error}")))?;
+            if entry.encrypted() {
+                return Err(invalid("encrypted entries cannot be reviewed"));
+            }
+            if let Some(mode) = entry.unix_mode() {
+                let kind = mode & 0o170000;
+                if kind != 0 && kind != 0o100000 && kind != 0o040000 {
+                    return Err(invalid("links and special files are not allowed"));
+                }
+            }
+            let name = entry
+                .name()
+                .map_err(|_| invalid("entry names must be valid text"))?
+                .into_owned();
+            (name, entry.size(), entry.is_file())
+        };
+        let lower = name.to_ascii_lowercase();
+        let matches = is_file
+            && lower
+                .rsplit_once('.')
+                .is_some_and(|(_, extension)| extensions.contains(&extension));
+        if !matches {
+            ignored += 1;
+            continue;
+        }
+        crate::archive::validate_relative_path(&name, false)
+            .map_err(|error| invalid(&error.message))?;
+        let file_name = name.rsplit('/').next().unwrap_or_default().to_owned();
+        if !crate::profile::valid_native_id(&file_name) {
+            return Err(invalid("a package member has an unsafe file name"));
+        }
+        if size == 0 || size > MAX_MEMBER_BYTES {
+            return Err(invalid("a package member has an unsupported size"));
+        }
+        if files.len() >= MAX_MEMBERS || !names.insert(file_name.to_ascii_lowercase()) {
+            return Err(invalid(
+                "too many package members or a repeated package name",
+            ));
+        }
+        let path = destination.join(&file_name);
+        let mut entry = zip
+            .by_index(index)
+            .map_err(|error| invalid(&format!("invalid entry: {error}")))?;
+        let mut output = File::create(&path)?;
+        let copied = std::io::copy(&mut (&mut entry).take(size + 1), &mut output)?;
+        output.sync_all()?;
+        if copied != size {
+            let _ = std::fs::remove_file(&path);
+            return Err(invalid("a package member's size disagrees with its header"));
+        }
+        files.push(path);
+    }
+    Ok(ExtractedPackages { files, ignored })
+}
+
 /// Finds asset paths several enabled packages provide. `ordered` lists
 /// `(native ID, asset paths)` in precedence order, lowest first; the last provider
 /// of a path wins. That precedence is the contract this function applies, and the

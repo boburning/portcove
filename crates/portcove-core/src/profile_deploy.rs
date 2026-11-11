@@ -111,6 +111,13 @@ fn mark_restore_pending(layout: &Layout) -> Result<()> {
     crate::durability::write_bytes_atomically(&layout.pending(), b"1", true)
 }
 
+/// A private, already-inspected copy ready to enter the package store.
+pub(crate) struct StagedPackage {
+    pub private: PathBuf,
+    pub inspection: crate::ModPackageInspection,
+    pub provider: Option<crate::ProviderPackageRef>,
+}
+
 /// What the live mods root holds relative to the revision that should own it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct ModsObservation {
@@ -340,7 +347,6 @@ impl PortcoveService {
         expected_revision: u64,
     ) -> Result<ProfileRevision> {
         let layout = self.deploy_layout(port_id)?;
-        let extensions = adapter_extensions(port_id).unwrap_or(&[]);
         let _guard = self.library.try_lock_port(port_id, "install-mod-package")?;
         self.recover_switch_locked(port_id, &layout)?;
         // Copy first, then inspect and store the private copy only, so the bytes that
@@ -353,24 +359,55 @@ impl PortcoveService {
         let private = staging.path().join(file_name);
         fs::copy(source, &private)?;
         let inspection = inspect_asset_archive(&private)?;
-        let extension = inspection
-            .file_name
-            .rsplit_once('.')
-            .map(|(_, extension)| extension.to_ascii_lowercase());
-        if !extension.is_some_and(|extension| extensions.contains(&extension.as_str())) {
-            return Err(PortcoveError::unsupported(
-                "this game loads only the package types its reviewed contract lists",
-            )
-            .detail("accepted", extensions.join(", ")));
+        self.install_staged_locked(
+            port_id,
+            profile_id,
+            expected_revision,
+            vec![StagedPackage {
+                private,
+                inspection,
+                provider: None,
+            }],
+        )
+    }
+
+    /// Installs already-inspected private package copies as one new revision. The
+    /// caller holds the port lock and has recovered any interrupted switch. Each
+    /// copy is moved into the content-addressed store, so the reviewed bytes are the
+    /// kept bytes.
+    pub(crate) fn install_staged_locked(
+        &self,
+        port_id: &str,
+        profile_id: &str,
+        expected_revision: u64,
+        staged: Vec<StagedPackage>,
+    ) -> Result<ProfileRevision> {
+        let layout = self.deploy_layout(port_id)?;
+        let extensions = adapter_extensions(port_id).unwrap_or(&[]);
+        if staged.is_empty() {
+            return Err(PortcoveError::usage("there are no packages to install"));
         }
-        if let Some(hold) = inspection.holds.first() {
-            return Err(match hold {
-                ModPackageHold::ContainsExecutableContent => PortcoveError::unsupported(
-                    "the package contains executable files; asset-only support cannot install it",
+        for item in &staged {
+            let inspection = &item.inspection;
+            let extension = inspection
+                .file_name
+                .rsplit_once('.')
+                .map(|(_, extension)| extension.to_ascii_lowercase());
+            if !extension.is_some_and(|extension| extensions.contains(&extension.as_str())) {
+                return Err(PortcoveError::unsupported(
+                    "this game loads only the package types its reviewed contract lists",
                 )
-                .detail("entries", inspection.executable_entries.join(", ")),
-                ModPackageHold::Empty => PortcoveError::usage("the package contains no files"),
-            });
+                .detail("accepted", extensions.join(", ")));
+            }
+            if let Some(hold) = inspection.holds.first() {
+                return Err(match hold {
+                    ModPackageHold::ContainsExecutableContent => PortcoveError::unsupported(
+                        "the package contains executable files; asset-only support cannot install it",
+                    )
+                    .detail("entries", inspection.executable_entries.join(", ")),
+                    ModPackageHold::Empty => PortcoveError::usage("the package contains no files"),
+                });
+            }
         }
         let connection = self.library.connection()?;
         let current = profile_current(&connection, port_id, profile_id)?;
@@ -385,34 +422,37 @@ impl PortcoveService {
             self.reconcile_selected(port_id, &layout, &connection, &current)?;
             require_clean(&observe(&layout, &[&current])?, "installing a package")?;
         }
-        let stored = layout.package(&inspection.sha256, &inspection.file_name);
-        if !stored.try_exists()? || sha256_file(&stored)? != inspection.sha256 {
-            if let Some(parent) = stored.parent() {
-                fs::create_dir_all(parent)?;
-            }
-            if stored.try_exists()? {
-                fs::remove_file(&stored)?;
-            }
-            fs::rename(&private, &stored)?;
-            if sha256_file(&stored)? != inspection.sha256 {
-                let _ = fs::remove_file(&stored);
-                return Err(PortcoveError::verification(
-                    "package bytes changed while being stored; nothing was installed",
-                ));
-            }
-        }
-        let package = ResolvedPackage {
-            native_id: inspection.file_name.clone(),
-            native_version: None,
-            provider: None,
-            sha256: inspection.sha256.clone(),
-            size: inspection.size,
-            enabled: true,
-            requires: Vec::new(),
-        };
         let mut packages = current.packages.clone();
-        packages.retain(|existing| existing.native_id != package.native_id);
-        packages.push(package);
+        for item in staged {
+            let inspection = &item.inspection;
+            let stored = layout.package(&inspection.sha256, &inspection.file_name);
+            if !stored.try_exists()? || sha256_file(&stored)? != inspection.sha256 {
+                if let Some(parent) = stored.parent() {
+                    fs::create_dir_all(parent)?;
+                }
+                if stored.try_exists()? {
+                    fs::remove_file(&stored)?;
+                }
+                fs::rename(&item.private, &stored)?;
+                if sha256_file(&stored)? != inspection.sha256 {
+                    let _ = fs::remove_file(&stored);
+                    return Err(PortcoveError::verification(
+                        "package bytes changed while being stored; nothing was installed",
+                    ));
+                }
+            }
+            let package = ResolvedPackage {
+                native_id: inspection.file_name.clone(),
+                native_version: None,
+                provider: item.provider.clone(),
+                sha256: inspection.sha256.clone(),
+                size: inspection.size,
+                enabled: true,
+                requires: Vec::new(),
+            };
+            packages.retain(|existing| existing.native_id != package.native_id);
+            packages.push(package);
+        }
         packages.sort_by(|a, b| a.native_id.cmp(&b.native_id));
         let orderings = with_override_order(&current.orderings, &packages);
         let request = ProfileRevisionRequest {
