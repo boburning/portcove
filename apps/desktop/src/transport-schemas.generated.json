@@ -5302,6 +5302,13 @@
             "default": false,
             "type": "boolean"
           },
+          "linux_portable_data_directory": {
+            "description": "Native25: keep the Linux player's portable profile in this declared\ndirectory beside the executable, creating it when absent before Play.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "managed_acquisition_hold": {
             "anyOf": [
               {
@@ -30443,6 +30450,13 @@
         "default": false,
         "type": "boolean"
       },
+      "linux_portable_data_directory": {
+        "description": "Native25: keep the Linux player's portable profile in this declared\ndirectory beside the executable, creating it when absent before Play.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "managed_acquisition_hold": {
         "anyOf": [
           {
@@ -41419,6 +41433,13 @@
           "launch_from_install_root": {
             "default": false,
             "type": "boolean"
+          },
+          "linux_portable_data_directory": {
+            "description": "Native25: keep the Linux player's portable profile in this declared\ndirectory beside the executable, creating it when absent before Play.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "managed_acquisition_hold": {
             "anyOf": [

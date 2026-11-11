@@ -47609,7 +47609,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -47618,12 +47619,19 @@
           "windows-x86-64": [
             "OpenSC2K-",
             "windows-x64-portable.zip"
+          ],
+          "linux-x86-64": [
+            "OpenSC2K-",
+            "-linux-x64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "OpenSC2K.exe"
+        ],
+        "linux-x86-64": [
+          "OpenSC2K.x86_64"
         ]
       },
       "persistent_paths": [
@@ -47633,7 +47641,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "On first Play, select SIMCITY.EXE from your SimCity 2000 Special Edition for Windows 95 (1996), with its companion files. Keep those originals for later pack re-import prompts. Portcove updates this portable runtime and preserves only its data folder: imported packs, settings and ordinary saved cities, scenarios, scripts and SCURK files. Temporary autosaves in the system temporary folder, custom save/export/pack/SoundFont locations, Godot logs and the original installation remain external and outside these backups. Save cities normally before backup. Runtime rollback keeps current declared data; it does not rewind cities or guarantee older-version compatibility. Existing external copies keep their own ownership and profiles.",
+        "manual_preparation": "On first Play, select SIMCITY.EXE from your SimCity 2000 Special Edition for Windows 95 (1996), with its companion files. Keep those originals for later pack re-import prompts. Portcove updates this portable runtime and preserves its data folder on Windows and Linux: imported packs, settings and ordinary saved cities, scenarios, scripts and SCURK files. Temporary autosaves in the system temporary folder, custom save/export/pack/SoundFont locations, Godot logs and the original installation remain external and outside these backups. Save cities normally before backup. Runtime rollback keeps current declared data; it does not rewind cities or guarantee older-version compatibility. On Linux, Portcove prepares that directory beside the managed player before Play. Existing external copies keep their own ownership and profiles.",
         "original_game_title": "SimCity 2000",
         "manual_setup": {
           "steps": [
@@ -47646,8 +47654,8 @@
               "instruction": "For an existing upstream installation, select OpenSC2K.exe and its folder. Portable copies use the data folder beside the player; standard Windows copies use the OpenSC2K Godot user profile. Keep the profile used by that copy when updating it."
             },
             {
-              "title": "Open the upstream Linux archive",
-              "instruction": "Choose the x64 or ARM64 archive for your Linux system. Extract it completely and run OpenSC2K.x86_64 or OpenSC2K.arm64 from its folder. Keep the PCK, shared libraries and bundled SoundFont beside the player."
+              "title": "Install the Linux x64 player",
+              "instruction": "Install the official x64 archive through Portcove. On first Play, use the same original SimCity 2000 import. Portcove prepares the portable data folder beside OpenSC2K.x86_64. Keep existing standard Linux profiles with their existing copies. For an external x64 or ARM64 copy, extract the complete archive and keep the PCK, shared libraries and bundled SoundFont beside the player."
             },
             {
               "title": "Copy the upstream Mac app to Applications",
@@ -47666,7 +47674,7 @@
           "references": [
             {
               "title": "Check the inspected desktop packages",
-              "instruction": "The v0.3.0 Linux archives require glibc 2.34 or later. The universal Mac app requires macOS 11 on Intel or macOS 13 on Apple Silicon. Linux standard copies use the Godot profile by default. The Mac app always uses that profile. You and upstream maintain these Linux, Mac and Windows on Arm copies."
+              "instruction": "The inspected v0.3.0 Linux x64 and ARM64 archives include runtime modules that need glibc 2.35 and a bundled MIDI library that needs glibc 2.38. Use glibc 2.38 or later for the complete bundled package. The universal Mac app requires macOS 11 on Intel or macOS 13 on Apple Silicon. Linux standard copies use the Godot profile by default. The Mac app always uses that profile. You and upstream maintain external Linux, Mac and Windows on Arm copies."
             }
           ]
         },
@@ -47678,7 +47686,8 @@
           "game_slug": "simcity-2000",
           "match_kind": "underlying-game"
         }
-      }
+      },
+      "linux_portable_data_directory": "data"
     },
     {
       "id": "noahvl-birdman64",

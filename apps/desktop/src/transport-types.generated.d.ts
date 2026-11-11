@@ -1872,6 +1872,11 @@ export interface PortDefinition {
   };
   launch_from_install_root: boolean;
   /**
+   * Native25: keep the Linux player's portable profile in this declared
+   * directory beside the executable, creating it when absent before Play.
+   */
+  linux_portable_data_directory?: string | null;
+  /**
    * Catalog-owned containment for a managed route whose current upstream
    * release still matches its selector but changed reviewed behavior.
    */
