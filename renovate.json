@@ -139,14 +139,6 @@
       "enabled": false
     },
     {
-      "description": "Do not replace the reviewed SQLite upstream revision automatically",
-      "matchManagers": ["cargo"],
-      "matchDatasources": ["git-refs"],
-      "matchDepNames": ["rusqlite"],
-      "matchPackageNames": ["https://github.com/rusqlite/rusqlite"],
-      "enabled": false
-    },
-    {
       "description": "Select major migrations before they consume ordinary queue slots",
       "matchUpdateTypes": ["major"],
       "dependencyDashboardApproval": true,
