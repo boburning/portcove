@@ -18427,6 +18427,15 @@
               "$ref": "#/$defs/ProfileRevision"
             },
             "type": "array"
+          },
+          "selected_revision": {
+            "description": "Set when this profile's revision currently owns the port's live player data.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -19755,6 +19764,15 @@
               "$ref": "#/$defs/ProfileRevision"
             },
             "type": "array"
+          },
+          "selected_revision": {
+            "description": "Set when this profile's revision currently owns the port's live player data.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -21263,6 +21281,15 @@
               "$ref": "#/$defs/ProfileRevision"
             },
             "type": "array"
+          },
+          "selected_revision": {
+            "description": "Set when this profile's revision currently owns the port's live player data.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -25040,6 +25067,47 @@
     },
     "title": "Array_of_PortListingStatus",
     "type": "array"
+  },
+  "live_mods": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "changed_owned": {
+        "description": "Installed files whose bytes changed outside Portcove; never overwritten.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "profile_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "revision": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "unmanaged": {
+        "description": "Files in the mods folder this profile did not install; never touched.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "profile_id",
+      "revision",
+      "unmanaged",
+      "changed_owned"
+    ],
+    "title": "LiveMods",
+    "type": "object"
   },
   "managed_route_change_preview": {
     "$defs": {

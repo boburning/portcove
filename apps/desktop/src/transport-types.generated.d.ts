@@ -1003,6 +1003,7 @@ export interface TransportOutputs {
   library_selection: LibrarySelection;
   listing_delivery_status: OutputListingDeliveryStatus;
   listing_statuses: OutputListingStatuses;
+  live_mods: OutputLiveMods;
   managed_route_change_preview: OutputManagedRouteChangePreview;
   managed_route_change_result: OutputManagedRouteChangeResult;
   official_catalog_review: OfficialCatalogReview;
@@ -3616,6 +3617,10 @@ export interface PortabilityAdmission {
 export interface LibraryProfile {
   profile: Profile;
   revisions: ProfileRevision[];
+  /**
+   * Set when this profile's revision currently owns the port's live player data.
+   */
+  selected_revision?: number | null;
 }
 export interface Profile {
   created_at: number;
@@ -3888,6 +3893,19 @@ export interface PortCapabilityFeature {
    */
   mode: "automatic" | "manual" | "unavailable" | "unknown";
   next_step: string;
+  [k: string]: unknown;
+}
+export interface OutputLiveMods {
+  /**
+   * Installed files whose bytes changed outside Portcove; never overwritten.
+   */
+  changed_owned: string[];
+  profile_id: string | null;
+  revision: number | null;
+  /**
+   * Files in the mods folder this profile did not install; never touched.
+   */
+  unmanaged: string[];
   [k: string]: unknown;
 }
 export interface OutputManagedRouteChangePreview {
