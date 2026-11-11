@@ -2861,8 +2861,15 @@ async fn exec_game(service: &PortcoveService, args: ExecArgs) -> Result<ExitCode
         let service = PortcoveService::new(library)?;
         // Preparation progress (for example unpacking a disc image) goes to
         // stderr before the game starts; the game's own streams stay untouched.
-        let progress =
-            std::cell::RefCell::new(progress_renderer(OutputMode::Human, service.catalog()));
+        // It is best-effort: a closed or failing stderr never aborts the launch.
+        let progress = std::cell::RefCell::new(HumanProgress::with_catalog(
+            io::stderr().is_terminal(),
+            service.catalog(),
+        ));
+        let write_progress = |text: String| {
+            use std::io::Write as _;
+            let _ = io::stderr().write_all(text.as_bytes());
+        };
         service.supervise_launch_observed(
             IdentifiedLaunchRequest {
                 request_id: &worker_request_id,
@@ -2871,11 +2878,14 @@ async fn exec_game(service: &PortcoveService, args: ExecArgs) -> Result<ExitCode
                 arguments: &args.game_args,
                 stdio: LaunchStdio::Inherit,
             },
-            &|event| (progress.borrow_mut())(event),
+            &|event| write_progress(progress.borrow_mut().render(&event)),
             |session| {
                 let _ = accepted_sender.send(session.id.clone());
             },
             |session| {
+                // Preparation is over: end any open progress line before the game
+                // writes to the same terminal.
+                write_progress(progress.borrow_mut().finish());
                 let _ = started_sender.send(session.child_pid.expect("started session has a PID"));
             },
         )
