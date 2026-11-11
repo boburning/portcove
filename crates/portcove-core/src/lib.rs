@@ -295,7 +295,7 @@ pub use profile::{
     ProfileUpdatePolicy, ProfileView, ProviderPackageRef, RequestedPackage, ResolvedPackage,
     TypedOrdering,
 };
-pub use profile_deploy::{LiveMods, NativeModListStatus};
+pub use profile_deploy::{LiveMods, ModSetupsView, NativeModListStatus};
 pub use provider_install::{PlanMember, ProviderInstallPlan};
 pub use provider_update::{ProviderUpdateObservation, ProviderUpdateState};
 pub use providers::CompositeReleaseProvider;

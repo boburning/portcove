@@ -92,6 +92,7 @@ import {
 import { BackupHistory } from "./BackupHistory";
 import { ProtectionSummary } from "./ProtectionSummary";
 import { GameSettingsControl } from "./GameSettingsControl";
+import { ModSetupsControl } from "./ModSetupsControl";
 import type { BackupReadState } from "../features/backups/use-port-backups";
 import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
 import type { Perform } from "../features/operations/use-operation-state";
@@ -3965,6 +3966,14 @@ function DetailSavesSection({
           key={`${model.libraryGeneration}:${model.port.id}:${model.status.active.id}:${Boolean(model.busy)}`}
           portId={model.port.id}
           installId={model.status.active.id}
+          generation={model.libraryGeneration}
+          busy={Boolean(model.busy)}
+        />
+      )}
+      {!external && model.status?.active && (
+        <ModSetupsControl
+          key={`${model.libraryGeneration}:${model.port.id}:${Boolean(model.busy)}`}
+          portId={model.port.id}
           generation={model.libraryGeneration}
           busy={Boolean(model.busy)}
         />

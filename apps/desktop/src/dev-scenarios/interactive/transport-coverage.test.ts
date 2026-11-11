@@ -17,11 +17,12 @@ const transportPath = fileURLToPath(new URL("./transport.ts", import.meta.url));
 // must NOT be listed here: give it a handler in transport.ts.
 const unsupportedByReason: Record<string, string[]> = {
   "mutation or native action the fixtures do not model; they never change the host": `
-    acquire_game_update activate_port add_game_file_root add_source adopt_port
+    acquire_game_update activate_port add_game_file_root add_mod_package add_source adopt_port
     apply_catalog_update apply_game_setting apply_game_update apply_steam_batch_add
     apply_steam_entry begin_github_device_login cancel_application_update_check
     change_to_managed_runtime clear_host_tool_path
-    complete_application_update_production_transition create_backup
+    complete_application_update_production_transition copy_mod_setup create_backup
+    create_default_mod_setup
     create_support_bundle delete_backup discard_game_update_acquisition
     dismiss_application_update_notice download_application_update
     download_catalog_package export_library_metadata forget_pending_setup
@@ -40,8 +41,9 @@ const unsupportedByReason: Record<string, string[]> = {
     restart_to_apply_application_update restore_backup revoke_catalog_key
     rollback_catalog rollback_port set_application_update_preferences set_channel
     set_default_library set_github_token set_host_tool_path set_locale_preference
+    set_mod_package_enabled
     set_output_location set_policy trust_catalog_key use_cached_catalog
-    use_embedded_catalog verify_port verify_sources
+    use_embedded_catalog use_mod_setup verify_port verify_sources
   `.split(/\s+/),
   "review, plan or inspection step of a user-started flow the fixtures do not mount": `
     catalog_download_candidates check_definition_capabilities check_installed

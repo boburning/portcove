@@ -733,3 +733,19 @@ fn an_unreadable_game_configuration_is_reported_and_never_rewritten() {
     install(&w, &w.default, "more.o2r", 2).unwrap();
     assert_eq!(fs::read(&config).unwrap(), b"{broken");
 }
+
+#[test]
+fn the_setups_view_offers_mods_only_where_a_reviewed_contract_exists() {
+    let w = world();
+    let unsupported = w.service.mod_setups("opengoal-jak1").unwrap();
+    assert!(!unsupported.supported && unsupported.inventory.is_none());
+    install(&w, &w.default, "hd.o2r", 1).unwrap();
+    let view = w.service.mod_setups("starship").unwrap();
+    assert!(view.supported);
+    assert_eq!(view.package_types, ["o2r", "otr"]);
+    let inventory = view.inventory.unwrap();
+    assert_eq!(inventory.profiles.len(), 1);
+    let live = view.live.unwrap();
+    assert_eq!(live.profile_id.as_deref(), Some(w.default.as_str()));
+    assert_eq!(live.native_list, NativeModListStatus::InSync);
+}

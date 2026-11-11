@@ -1035,6 +1035,53 @@ impl PortcoveService {
     }
 }
 
+/// Everything a game-level mods view needs in one read: whether the game has a
+/// reviewed mod contract, its setups and what is live now. Read-only.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub struct ModSetupsView {
+    pub port_id: String,
+    /// False when the game has no reviewed mod package contract; nothing else is
+    /// offered then.
+    pub supported: bool,
+    /// Package file types the game loads, such as `o2r`.
+    pub package_types: Vec<String>,
+    /// None until the installed game has its default setup.
+    pub inventory: Option<crate::ProfileInventory>,
+    pub live: Option<LiveMods>,
+}
+
+impl PortcoveService {
+    pub fn mod_setups(&self, port_id: &str) -> Result<ModSetupsView> {
+        self.catalog().port(port_id)?;
+        let Ok(_) = self.deploy_layout(port_id) else {
+            return Ok(ModSetupsView {
+                port_id: port_id.into(),
+                supported: false,
+                package_types: Vec::new(),
+                inventory: None,
+                live: None,
+            });
+        };
+        let inventory = self.profile_inventory(port_id)?;
+        let has_profiles = !inventory.profiles.is_empty();
+        Ok(ModSetupsView {
+            port_id: port_id.into(),
+            supported: true,
+            package_types: adapter_extensions(port_id)
+                .unwrap_or(&[])
+                .iter()
+                .map(|extension| (*extension).to_owned())
+                .collect(),
+            live: if has_profiles {
+                Some(self.observe_live_mods(port_id)?)
+            } else {
+                None
+            },
+            inventory: has_profiles.then_some(inventory),
+        })
+    }
+}
+
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct LiveMods {
     pub profile_id: Option<String>,

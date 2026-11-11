@@ -8,7 +8,7 @@ use portcove_core::{
     ReleaseProvider,
 };
 
-fn at_generation<T>(
+pub(crate) fn at_generation<T>(
     state: &DesktopState,
     generation: u64,
     operation: impl FnOnce(PortcoveService) -> portcove_core::Result<T>,

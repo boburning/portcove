@@ -48,6 +48,7 @@ mod external_runtime_commands;
 mod favorite_commands;
 mod frontend_diagnostics;
 mod game_settings_commands;
+mod mod_setup_commands;
 mod game_updates;
 mod ghostship_recovery;
 mod host_startup;
@@ -2781,6 +2782,12 @@ pub fn run() -> std::process::ExitCode {
             game_settings_commands::get_port_capabilities,
             game_settings_commands::review_game_setting,
             game_settings_commands::apply_game_setting,
+            mod_setup_commands::get_mod_setups,
+            mod_setup_commands::create_default_mod_setup,
+            mod_setup_commands::copy_mod_setup,
+            mod_setup_commands::use_mod_setup,
+            mod_setup_commands::set_mod_package_enabled,
+            mod_setup_commands::add_mod_package,
             favorite_commands::get_favorite_ports,
             favorite_commands::set_port_favorite,
             organization_commands::get_library_organization,

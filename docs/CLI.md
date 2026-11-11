@@ -1559,8 +1559,13 @@ portcove --library PATH --json profile install-package PORT_ID PROFILE_ID FILE -
 portcove --library PATH --json profile set-package PORT_ID PROFILE_ID NATIVE_ID on|off --expected-revision N
 portcove --library PATH --json profile activate PORT_ID PROFILE_ID
 portcove --library PATH --json profile live PORT_ID
+portcove --library PATH --json profile setups PORT_ID
 portcove --library PATH --json profile revise PORT_ID PROFILE_ID REQUEST.json
 ```
+
+`setups` is read-only and reports in one result whether the game has reviewed mod
+support (`supported`), the package types it loads, its profiles and what is live
+now; Desktop's Setups and mods view reads the same result.
 
 `ensure-default` gives an installed port its equivalent default profile and is safe
 to repeat; a player with one setup needs nothing else. `copy` starts a new profile
