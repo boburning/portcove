@@ -87,6 +87,7 @@ unless the copy change is intended and reviewed.
 | Application-update notices  | `features/application-update/ApplicationUpdateNotices.tsx` | `applicationUpdate` |
 | Application-update settings | `features/application-update/ApplicationUpdates.tsx`       | `applicationUpdate` |
 | Official setup information  | `components/OfficialDefinitionUpdates.tsx`                 | `catalogUpdates`    |
+| Official catalog updates    | `components/OfficialCatalogUpdates.tsx`                    | `catalogUpdates`    |
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-11 it

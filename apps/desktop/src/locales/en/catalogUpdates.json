@@ -1,4 +1,24 @@
 {
+  "catalog": {
+    "cancel": "Cancel catalog refresh",
+    "cancelled": "Catalog refresh cancelled.",
+    "confirmCancel": "Cancel",
+    "confirmDescription": "Use the official catalog publisher included in this version of Portcove, then check for new listings. Game installations continue through their usual review and permission checks.",
+    "confirmEnable": "Enable updates",
+    "confirmTitle": "Enable official catalog updates?",
+    "description": "Get new game listings, artwork and setup information from Portcove’s official publisher.",
+    "enable": "Enable official catalog updates",
+    "enabling": "Enabling official catalog updates…",
+    "loading": "Loading catalog settings…",
+    "refresh": "Refresh official catalog",
+    "refreshed": "Official catalog refreshed.",
+    "refreshing": "Refreshing official catalog…",
+    "reload": "Reload catalog settings",
+    "reviewAgain": "Review official catalog settings again before enabling updates.",
+    "setupIncomplete": "Official catalog setup did not complete. Reload settings to review it.",
+    "title": "Official catalog updates",
+    "unavailable": "Official catalog updates are unavailable in this release."
+  },
   "definition": {
     "cancel": "Cancel setup check",
     "cancelled": "Setup check cancelled. Review current setup information before continuing.",

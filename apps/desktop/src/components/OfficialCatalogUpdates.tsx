@@ -8,6 +8,24 @@ import { OperationCancellation } from "./OperationCancellation";
 import { SettingsRow } from "./ui/patterns";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
+import { useAppTranslation } from "../localization";
+
+/** App-owned setup failures keep a stable code; messages serve diagnostics only. */
+class CatalogSetupError extends Error {
+  readonly code: "reviewAgain" | "setupIncomplete";
+  constructor(code: "reviewAgain" | "setupIncomplete", message: string) {
+    super(message);
+    this.code = code;
+  }
+}
+type CatalogError =
+  | { kind: "text"; text: string }
+  | { kind: "reviewAgain" }
+  | { kind: "setupIncomplete" };
+const catalogError = (value: unknown): CatalogError =>
+  value instanceof CatalogSetupError
+    ? { kind: value.code }
+    : { kind: "text", text: errorText(value) };
 
 const noChange = async () => {};
 
@@ -23,11 +41,12 @@ export function OfficialCatalogUpdates(props: OfficialCatalogUpdatesProps) {
 }
 
 function OfficialCatalogControls({ generation, disabled, onChanged }: OfficialCatalogUpdatesProps) {
+  const { t } = useAppTranslation("catalogUpdates");
   const [review, setReview] = useState<OfficialCatalogReview>();
   const [loading, setLoading] = useState(true);
   const [confirmation, setConfirmation] = useState<OfficialCatalogReview>();
-  const [error, setError] = useState<string>();
-  const [notice, setNotice] = useState<string>();
+  const [error, setError] = useState<CatalogError>();
+  const [notice, setNotice] = useState<"refreshed" | "cancelled">();
   const [operationId, setOperationId] = useState<string>();
   const actionButton = useRef<HTMLButtonElement>(null);
   const owner = useRef({ generation, active: true, pending: false });
@@ -52,7 +71,7 @@ function OfficialCatalogControls({ generation, disabled, onChanged }: OfficialCa
       const next = await desktopApi.officialCatalogReview(generation);
       if (current.active && owner.current === current) setReview(next);
     } catch (value) {
-      if (current.active && owner.current === current) setError(errorText(value));
+      if (current.active && owner.current === current) setError(catalogError(value));
     } finally {
       if (current.active && owner.current === current) setLoading(false);
     }
@@ -69,7 +88,7 @@ function OfficialCatalogControls({ generation, disabled, onChanged }: OfficialCa
       },
       (value: unknown) => {
         if (current.active && owner.current === current) {
-          setError(errorText(value));
+          setError(catalogError(value));
           setLoading(false);
         }
       },
@@ -85,12 +104,15 @@ function OfficialCatalogControls({ generation, disabled, onChanged }: OfficialCa
     setNotice(undefined);
     try {
       const result = await perform(
-        confirmed ? "Enabling official catalog updates…" : "Refreshing official catalog…",
+        confirmed ? t("catalog.enabling") : t("catalog.refreshing"),
         async (reportEvent) => {
           try {
             if (confirmed) {
               if (!confirmed.configured || !confirmed.expected_plan)
-                throw new Error("Review official catalog settings again before enabling updates.");
+                throw new CatalogSetupError(
+                  "reviewAgain",
+                  "Review official catalog settings again before enabling updates.",
+                );
               const enabled = await desktopApi.enableOfficialCatalog(
                 confirmed.expected_plan,
                 generation,
@@ -98,7 +120,8 @@ function OfficialCatalogControls({ generation, disabled, onChanged }: OfficialCa
               if (!isCurrent()) return;
               setReview(enabled.review);
               if (!enabled.review.enabled)
-                throw new Error(
+                throw new CatalogSetupError(
+                  "setupIncomplete",
                   "Official catalog setup did not complete. Reload settings to review it.",
                 );
             }
@@ -131,11 +154,11 @@ function OfficialCatalogControls({ generation, disabled, onChanged }: OfficialCa
           ),
         },
       );
-      if (isCurrent() && result) setNotice("Official catalog refreshed.");
+      if (isCurrent() && result) setNotice("refreshed");
     } catch (value) {
       if (isCurrent()) {
-        if (isCancellation(value)) setNotice("Catalog refresh cancelled.");
-        else setError(errorText(value));
+        if (isCancellation(value)) setNotice("cancelled");
+        else setError(catalogError(value));
       }
     } finally {
       current.pending = false;
@@ -154,13 +177,11 @@ function OfficialCatalogControls({ generation, disabled, onChanged }: OfficialCa
       record.context.target.id === "official-catalog",
   );
   return (
-    <SettingsRow aria-label="Official catalog updates">
-      <h2>Official catalog updates</h2>
-      <p>
-        Get new game listings, artwork and setup information from Portcove’s official publisher.
-      </p>
+    <SettingsRow aria-label={t("catalog.title")}>
+      <h2>{t("catalog.title")}</h2>
+      <p>{t("catalog.description")}</p>
       {loading ? (
-        <p role="status">Loading catalog settings…</p>
+        <p role="status">{t("catalog.loading")}</p>
       ) : review?.configured ? (
         <Button
           ref={actionButton}
@@ -171,18 +192,28 @@ function OfficialCatalogControls({ generation, disabled, onChanged }: OfficialCa
             else setConfirmation(review);
           }}
         >
-          {review.enabled ? "Refresh official catalog" : "Enable official catalog updates"}
+          {review.enabled ? t("catalog.refresh") : t("catalog.enable")}
         </Button>
       ) : review ? (
-        <p>Official catalog updates are unavailable in this release.</p>
+        <p>{t("catalog.unavailable")}</p>
       ) : null}
       {!confirmation && (
         <CatalogRefreshProgress busy={busy} working={working} operationId={operationId} />
       )}
-      {notice && <p role="status">{notice}</p>}
+      {notice && (
+        <p role="status">
+          {notice === "refreshed" ? t("catalog.refreshed") : t("catalog.cancelled")}
+        </p>
+      )}
       {error && (
         <>
-          <p role="alert">{error}</p>
+          <p role="alert">
+            {error.kind === "text"
+              ? error.text
+              : error.kind === "reviewAgain"
+                ? t("catalog.reviewAgain")
+                : t("catalog.setupIncomplete")}
+          </p>
           <Button
             variant="outline"
             disabled={blocked}
@@ -190,7 +221,7 @@ function OfficialCatalogControls({ generation, disabled, onChanged }: OfficialCa
               void load();
             }}
           >
-            Reload catalog settings
+            {t("catalog.reload")}
           </Button>
         </>
       )}
@@ -202,12 +233,8 @@ function OfficialCatalogControls({ generation, disabled, onChanged }: OfficialCa
         }}
       >
         <DialogContent showCloseButton={!working} finalFocus={actionButton}>
-          <DialogTitle>Enable official catalog updates?</DialogTitle>
-          <DialogDescription>
-            Use the official catalog publisher included in this version of Portcove, then check for
-            new listings. Game installations continue through their usual review and permission
-            checks.
-          </DialogDescription>
+          <DialogTitle>{t("catalog.confirmTitle")}</DialogTitle>
+          <DialogDescription>{t("catalog.confirmDescription")}</DialogDescription>
           <CatalogRefreshProgress busy={busy} working={working} operationId={operationId} />
           <DialogFooter>
             <Button
@@ -217,7 +244,7 @@ function OfficialCatalogControls({ generation, disabled, onChanged }: OfficialCa
                 if (!owner.current.pending) setConfirmation(undefined);
               }}
             >
-              Cancel
+              {t("catalog.confirmCancel")}
             </Button>
             <Button
               disabled={blocked}
@@ -225,7 +252,7 @@ function OfficialCatalogControls({ generation, disabled, onChanged }: OfficialCa
                 if (confirmation) void update(confirmation);
               }}
             >
-              Enable updates
+              {t("catalog.confirmEnable")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -243,6 +270,7 @@ function CatalogRefreshProgress({
   working: boolean;
   operationId: string | undefined;
 }) {
+  const { t } = useAppTranslation("catalogUpdates");
   return (
     <>
       {working && busy && <p role="status">{busy}</p>}
@@ -250,7 +278,7 @@ function CatalogRefreshProgress({
         <OperationCancellation
           key={operationId}
           operationId={operationId}
-          label="Cancel catalog refresh"
+          label={t("catalog.cancel")}
         />
       )}
     </>

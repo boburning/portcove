@@ -13,6 +13,7 @@ export default defineConfig({
       "src/features/application-update/ApplicationUpdateNotices.tsx",
       "src/features/application-update/ApplicationUpdates.tsx",
       "src/components/OfficialDefinitionUpdates.tsx",
+      "src/components/OfficialCatalogUpdates.tsx",
     ],
     ignore: ["src/**/*.test.{ts,tsx}", "src/**/*.generated.d.ts", "src/design-compatibility/**"],
     output: "src/locales/{{language}}/{{namespace}}.json",
