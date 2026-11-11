@@ -15,6 +15,7 @@ const ROOT_COMMAND_GROUPS: &[(&str, &[&str])] = &[
             "setup",
             "install",
             "update",
+            "profile",
             "exec",
             "verify",
             "remove",
