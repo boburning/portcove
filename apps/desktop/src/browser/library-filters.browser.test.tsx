@@ -354,13 +354,10 @@ it.each(["dark", "light"])(
     await expectReadinessLabel("Readiness All (3)");
     await userEvent.click(button("Switch library"));
     await expectReadinessLabel("Readiness Ready (1)");
-    // Favorites counts the shared base, not the Ready result, and replaces Ready.
-    const favoritesView = page
-      .getByRole("radiogroup", { name: "Library quick views", exact: true })
-      .getByRole("radio", { name: /^Favorites \d+$/ });
-    await userEvent.click(favoritesView);
-    await expect.element(favoritesView).toHaveAttribute("aria-checked", "true");
-    await expectReadinessLabel(/^Readiness All \(\d+\)$/);
+    // Ready remains an ordinary filter beneath the Favorites view.
+    await userEvent.click(quickView("Favorites 1"));
+    await expect.element(quickView("Favorites 1")).toHaveAttribute("aria-checked", "true");
+    await expectReadinessLabel(/^Readiness Ready \(\d+\)$/);
     await expectReadinessOption("Needs attention (1)");
     await userEvent.fill(
       page.getByRole("textbox", { name: "Search library" }),
@@ -529,6 +526,11 @@ it("keeps playable plus matching staged updates independent from attention with 
   await userEvent.click(await filterChoice("Matching update staged (1)"));
   await expect.element(await filterChoice("Available at last check (1)")).toBeEnabled();
   await closeFilters();
+  // A custom Observed updates filter is never overwritten by the Updates view.
+  await expect.element(quickView("Updates")).toBeDisabled();
+  await expect
+    .element(button("Remove Observed updates: Matching update staged filter"))
+    .toBeVisible();
   await expectReadinessLabel("Readiness Ready (1)");
   await expectReadinessOption("Needs attention (0)");
   await userEvent.click(button("View details for Windows game"));
@@ -537,6 +539,8 @@ it("keeps playable plus matching staged updates independent from attention with 
   await userEvent.click(await filterChoice("Available at last check (1)"));
   await userEvent.click(await filterChoice("Missing game files (0)"));
   await closeFilters();
+  // Both update states are exactly the Updates view, with Ready still applied.
+  await expect.element(quickView("Updates")).toHaveAttribute("aria-checked", "true");
   await expectReadinessLabel("Readiness Ready (0)");
   await expect
     .element(page.getByText("No matching library entries", { exact: true }))
@@ -545,8 +549,8 @@ it("keeps playable plus matching staged updates independent from attention with 
   await expectReadinessLabel("Readiness Ready (2)");
   await userEvent.click(button("Toggle snapshot"));
   await expectReadinessOption("Ready (unavailable)");
-  await userEvent.click(button("Remove Observed updates: Matching update staged filter"));
-  await userEvent.click(button("Remove Observed updates: Available at last check filter"));
+  await userEvent.click(quickView("All"));
+  await expect.element(quickView("All")).toHaveAttribute("aria-checked", "true");
   await userEvent.click(button("Toggle snapshot"));
   await expectReadinessLabel("Readiness Ready (2)");
   expect(invoke).not.toHaveBeenCalled();
@@ -590,6 +594,11 @@ it("selects one quick view at a time with counts from the shared search and filt
   await userEvent.keyboard("{Home}");
   await expect.element(all).toHaveFocus();
   await expect.element(all).toHaveAttribute("aria-checked", "true");
+  await userEvent.keyboard("{ArrowRight}");
+  await expect.element(quickView("Favorites 1")).toHaveFocus();
+  await expect.element(quickView("Favorites 1")).toHaveAttribute("aria-checked", "true");
+  await userEvent.keyboard("{ArrowLeft}");
+  await expect.element(all).toHaveFocus();
   await expect.element(search).toHaveValue("game");
   await expect.element(button("Remove Target OS: Windows filter")).toBeVisible();
   expect(

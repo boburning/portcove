@@ -23,12 +23,30 @@ export function withoutUpdatesQuickView(filter: Filter | CatalogQuery): Filter |
   return { ...queryFromFilter(filter), updates: [] };
 }
 
-export function withUpdatesQuickView(filter: Filter | CatalogQuery): Filter | CatalogQuery {
-  const query = queryFromFilter(filter);
-  return query.version === 1 ? { ...query, updates: [...quickViewUpdates] } : filter;
+/** A player-chosen Observed updates filter that is not the Updates view itself. */
+export function hasCustomUpdateFilter(filter: Filter | CatalogQuery) {
+  const updates = queryFromFilter(filter).updates ?? [];
+  return updates.length > 0 && !isUpdatesQuickView(filter);
 }
 
-/** Returns the selected view, or undefined when other constraints combine views. */
+/** Never overwrites a custom update filter; the Updates view is unavailable then. */
+export function withUpdatesQuickView(filter: Filter | CatalogQuery): Filter | CatalogQuery {
+  const query = queryFromFilter(filter);
+  return query.version === 1 && !hasCustomUpdateFilter(filter)
+    ? { ...query, updates: [...quickViewUpdates] }
+    : filter;
+}
+
+/** The readiness value a view selection leaves behind. Ready stays a filter. */
+export function readinessForQuickView(view: LibraryQuickView, current: string) {
+  if (view === "attention") return "setup";
+  return current === "setup" ? "all" : current;
+}
+
+/**
+ * Returns the selected view, or undefined when constraints combine views or a
+ * readiness value cannot be interpreted. Ready is an ordinary filter.
+ */
 export function activeLibraryQuickView({
   favoritesOnly,
   readiness,
@@ -38,14 +56,12 @@ export function activeLibraryQuickView({
   readiness: string;
   filter: Filter | CatalogQuery;
 }): LibraryQuickView | undefined {
-  const updates = isUpdatesQuickView(filter);
+  if (!["all", "ready", "setup"].includes(readiness)) return undefined;
   const active = [
     favoritesOnly && ("favorites" as const),
     readiness === "setup" && ("attention" as const),
-    updates && ("updates" as const),
+    isUpdatesQuickView(filter) && ("updates" as const),
   ].filter((view): view is Exclude<LibraryQuickView, "all"> => Boolean(view));
-  // Readiness values other than the attention view (such as Ready) are filters.
-  if (readiness !== "all" && readiness !== "setup") return undefined;
   if (active.length > 1) return undefined;
   return active[0] ?? "all";
 }
@@ -55,6 +71,7 @@ export type QuickViewCount = number | "unavailable";
 export function libraryQuickViewCounts({
   base,
   filter,
+  readiness,
   favoriteIds,
   statuses,
   context,
@@ -63,6 +80,8 @@ export function libraryQuickViewCounts({
   /** Library membership after search, before readiness, favorites and filters. */
   base: CatalogEntry[] | undefined;
   filter: Filter | CatalogQuery;
+  /** Ready narrows every view except Needs attention, which replaces it. */
+  readiness: string;
   favoriteIds: ReadonlySet<string> | undefined;
   statuses: Map<string, PortStatus>;
   context: CatalogQueryContext | undefined;
@@ -75,18 +94,22 @@ export function libraryQuickViewCounts({
     attention: "unavailable",
     updates: "unavailable",
   } as const;
-  if (!base) return unavailable;
+  if (!base || !["all", "ready", "setup"].includes(readiness)) return unavailable;
   const baseFilter = queryFromFilter(withoutUpdatesQuickView(filter));
   const declared = evaluateCatalogQuery(base, baseFilter, context);
   if (declared.state !== "matched") return unavailable;
   const scoped = scope(declared.ports);
-  const updates = evaluateCatalogQuery(scoped, withUpdatesQuickView(baseFilter), context);
+  const narrowed =
+    readiness === "ready" ? filterPorts(scoped, statuses, "library", "ready", "") : scoped;
+  const updates = hasCustomUpdateFilter(baseFilter)
+    ? undefined
+    : evaluateCatalogQuery(narrowed, withUpdatesQuickView(baseFilter), context);
   return {
-    all: scoped.length,
+    all: narrowed.length,
     favorites: favoriteIds
-      ? scoped.filter((port) => favoriteIds.has(port.id)).length
+      ? narrowed.filter((port) => favoriteIds.has(port.id)).length
       : "unavailable",
     attention: filterPorts(scoped, statuses, "library", "setup", "").length,
-    updates: updates.state === "matched" ? updates.ports.length : "unavailable",
+    updates: updates?.state === "matched" ? updates.ports.length : "unavailable",
   };
 }

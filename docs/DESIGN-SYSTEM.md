@@ -584,13 +584,18 @@ retains Suggested order. Everyday
 Library quick views (All, Favorites, Needs attention, Updates) are one exclusive
 choice exposed as a radio group with a single tab stop; arrow, Home and End keys move
 and select. Selecting a view clears the other views' state, never search, the
-selected collection or declared filters. Every count uses the same base: library
-membership, search, the selected collection and declared filters other than the
-Updates view's own selection; a count never derives from another view's narrowed
-result, and unknown counts stay unavailable rather than zero. Updates includes
-available and downloaded (staged) updates and adds no filter chips; a custom
-Observed updates filter remains an ordinary filter. When Readiness or combined
-legacy state narrows results, no single view is selected. Collection editing
+selected collection or declared filters; Readiness Ready stays an ordinary filter,
+and only Needs attention replaces it. Every count uses the same base: library
+membership, search, the selected collection, Ready when chosen, and declared
+filters other than the Updates view's own selection. Needs attention counts without
+Ready because selecting it replaces Ready. A count never derives from another
+view's narrowed result; unknown inputs, including an unread collection, stay
+unavailable rather than zero. Updates includes available and downloaded (staged)
+updates and adds no filter chips. A custom Observed updates filter remains an
+ordinary filter with its chips, and the Updates view is unavailable until it is
+cleared, so no view overwrites it. Combined legacy state or an uninterpretable
+Readiness value selects no view. The Filters panel's Readiness counts keep their
+self-excluding filter semantics. Collection editing
 and Hidden stay in the collection menu. (Supersedes the earlier composed-toggle
 quick views; see #5058.) Clear filters retains search; Reset view
 states that it also clears search, quick views and collection selection. At compact

@@ -3,7 +3,9 @@ import { portDefinition } from "../../test-fixtures";
 import type { PortDefinition } from "../../types";
 import {
   activeLibraryQuickView,
+  hasCustomUpdateFilter,
   libraryQuickViewCounts,
+  readinessForQuickView,
   withUpdatesQuickView,
   withoutUpdatesQuickView,
 } from "./library-quick-views";
@@ -32,24 +34,39 @@ describe("Library quick views", () => {
     expect(
       activeLibraryQuickView({ favoritesOnly: true, readiness: "all", filter: updates }),
     ).toBeUndefined();
+    // Ready is an ordinary filter beneath the views; unknown readiness selects nothing.
     expect(
       activeLibraryQuickView({ favoritesOnly: false, readiness: "ready", filter: "all" }),
-    ).toBeUndefined();
+    ).toBe("all");
+    expect(activeLibraryQuickView({ favoritesOnly: true, readiness: "ready", filter: "all" })).toBe(
+      "favorites",
+    );
     expect(
-      activeLibraryQuickView({ favoritesOnly: false, readiness: "ready", filter: updates }),
+      activeLibraryQuickView({ favoritesOnly: false, readiness: "migrated", filter: "all" }),
     ).toBeUndefined();
+    expect(readinessForQuickView("favorites", "ready")).toBe("ready");
+    expect(readinessForQuickView("attention", "ready")).toBe("setup");
+    expect(readinessForQuickView("all", "setup")).toBe("all");
   });
 
-  it("keeps custom update filters while switching away from the Updates view", () => {
-    const custom = { version: 1, updates: ["available"] };
+  it("never overwrites a custom Observed updates filter", () => {
+    const custom = { version: 1, updates: ["staged"] };
+    expect(hasCustomUpdateFilter(custom)).toBe(true);
+    expect(withUpdatesQuickView(custom)).toBe(custom);
     expect(withoutUpdatesQuickView(custom)).toBe(custom);
     expect(activeLibraryQuickView({ favoritesOnly: false, readiness: "all", filter: custom })).toBe(
       "all",
     );
-    expect(withoutUpdatesQuickView(withUpdatesQuickView(custom))).toEqual({
-      version: 1,
-      updates: [],
+    const counts = libraryQuickViewCounts({
+      base: [port("a")],
+      filter: custom,
+      readiness: "all",
+      favoriteIds: new Set(),
+      statuses: new Map(),
+      context: {},
+      scope: (ports) => ports,
     });
+    expect(counts.updates).toBe("unavailable");
   });
 
   it("counts every view from the same base instead of the active view's result", () => {
@@ -62,6 +79,7 @@ describe("Library quick views", () => {
       libraryQuickViewCounts({
         base,
         filter,
+        readiness: "all",
         favoriteIds: new Set(["windows-a", "linux"]),
         statuses: new Map(),
         context: {},
@@ -83,6 +101,7 @@ describe("Library quick views", () => {
     const result = libraryQuickViewCounts({
       base,
       filter: "all",
+      readiness: "all",
       favoriteIds: undefined,
       statuses: new Map(),
       context: {},
@@ -97,6 +116,7 @@ describe("Library quick views", () => {
       libraryQuickViewCounts({
         base: undefined,
         filter: "all",
+        readiness: "all",
         favoriteIds: new Set(),
         statuses: new Map(),
         context: {},

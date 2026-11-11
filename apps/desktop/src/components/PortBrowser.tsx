@@ -99,6 +99,8 @@ import { CatalogFilters, queryFromFilter } from "../features/browsing/CatalogFil
 import {
   activeLibraryQuickView,
   libraryQuickViewCounts,
+  hasCustomUpdateFilter,
+  readinessForQuickView,
   withoutUpdatesQuickView,
   withUpdatesQuickView,
   type LibraryQuickView,
@@ -361,15 +363,26 @@ function usePortBrowser({
     readiness: libraryReadiness,
     filter,
   });
+  const favoriteIds = favorites?.ids;
   const quickViewCounts = libraryQuickViewCounts({
-    base: composedLibrary ? candidates : undefined,
+    // An unread collection snapshot makes a selected collection's counts unknown.
+    base:
+      composedLibrary && (organizationView === "all" || organization?.snapshot)
+        ? candidates
+        : undefined,
     filter,
-    favoriteIds: favorites?.ids ?? undefined,
+    readiness: libraryReadiness,
+    favoriteIds,
     statuses,
-    context: queryContext,
+    // Match filterPorts: group facts use the full catalog, not the searched base.
+    context: {
+      ...queryContext,
+      catalogUniverse: queryContext?.catalogUniverse ?? catalogUniverse ?? candidates ?? [],
+    },
     scope: (scoped) =>
       organizedPorts(scoped, organization, organizationView, false, catalogUniverse ?? ports),
   });
+
   const resultCount = browserResultCountLabel({
     view,
     visiblePorts,
@@ -1669,7 +1682,7 @@ function BrowserQuickViews({
   const active = model.activeQuickView;
   const counts = model.quickViewCounts;
   const select = (view: LibraryQuickView) => {
-    model.setLibraryReadiness?.(view === "attention" ? "setup" : "all");
+    model.setLibraryReadiness?.(readinessForQuickView(view, model.libraryReadiness));
     if (view === "favorites") favorites?.setOnly(true);
     else if (favorites?.only) favorites.setOnly(false);
     model.setFilter((current) =>
@@ -1702,7 +1715,7 @@ function BrowserQuickViews({
     view === "favorites"
       ? Boolean(favorites?.ids)
       : view === "updates"
-        ? !model.unresolvedFilter
+        ? !model.unresolvedFilter && !hasCustomUpdateFilter(model.filter)
         : true;
   // One tab stop: the selected view, or the first view when constraints combine.
   const tabStop = active && enabled(active) ? active : "all";
@@ -1770,10 +1783,12 @@ function BrowserQuickViews({
         const count = counts[view];
         return (
           <span key={view} id={`${countId}-${view}`} className="sr-only">
-            {description}.{" "}
-            {typeof count === "number"
-              ? `${count} ${count === 1 ? "game" : "games"}`
-              : "Count unavailable"}
+            {view === "updates" && hasCustomUpdateFilter(model.filter)
+              ? "Unavailable while an Observed updates filter is set. Clear that filter to use this view."
+              : `${description}.`}
+            {/* Favorites already names its count. */}
+            {view !== "favorites" &&
+              ` ${typeof count === "number" ? `${count} ${count === 1 ? "game" : "games"}` : "Count unavailable"}`}
           </span>
         );
       })}
