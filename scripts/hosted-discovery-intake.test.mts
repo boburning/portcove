@@ -11,6 +11,8 @@ import {
   probeHostedProjectWrite,
   assertHostedCatalogIdentity,
   collectHostedRequests,
+  hostedStatusAll,
+  readOnlyHostedBridge,
 } from "./hosted-discovery-intake.mts";
 import { portFieldInitialization, validateConfig } from "./roadmap.mts";
 import { DiscoveryRepositoryUnavailable } from "./daily-discovery-sources.mts";
@@ -1760,4 +1762,154 @@ void test("an owner appearing between preflight passes receives an observation",
   const receipt = await f.bridge.process(f.request, f.all());
   assert.equal(receipt.delivery[0]!.status, "existing");
   assert.equal(f.creations, 0);
+});
+
+void test("the complete status read projects slots, withdrawals, reconciliation links and invalid requests", async () => {
+  const f = await reconciliationFixture(3, 2);
+  const issueUrl = "https://api.github.com/repos/boburning/portcove/issues/177";
+  f.comments.set(102, {
+    id: 102,
+    body: `${hostedRequestMarker}\n\`\`\`json\n{"schema_version": 1\n\`\`\``,
+    user: { login: "boburning" },
+    issue_url: issueUrl,
+  });
+  f.comments.set(103, {
+    id: 103,
+    body: encode(proposal),
+    user: { login: "someone-else" },
+    issue_url: issueUrl,
+  });
+  const before = f.all();
+  const read = await hostedStatusAll(f.bridge);
+  assert.equal(read.queue.node_id, "I177");
+  assert.equal(read.queue.comments, before.length);
+  assert.match(read.queue.comments_sha256, /^[a-f0-9]{64}$/u);
+  assert.deepEqual(
+    read.requests.map((row) => row.request_comment),
+    [100, 101, 102],
+    "only owner-authored marker-bearing requests are read",
+  );
+  const [withdrawn, successor, invalid] = read.requests;
+  assert(withdrawn && !("error" in withdrawn));
+  assert.equal(withdrawn.withdrawn, true);
+  assert.deepEqual(withdrawn.superseded_by, [101]);
+  assert.deepEqual(
+    withdrawn.slots.map(({ candidate_index, linked_issue, existing, hold }) => [
+      candidate_index,
+      linked_issue,
+      existing,
+      hold,
+    ]),
+    [
+      [0, 200, false, null],
+      [1, 201, false, null],
+      [2, null, false, null],
+    ],
+  );
+  assert.equal(withdrawn.slots[0]!.delivery_status, "delivered");
+  assert(successor && !("error" in successor));
+  assert.equal(successor.withdrawn, false);
+  assert.equal(successor.status, "submitted");
+  assert.equal(successor.reconciles, 100);
+  assert.equal(successor.body_request_comment, 100);
+  assert.deepEqual(
+    successor.slots.map(({ port_key, delivery_status }) => [port_key, delivery_status]),
+    f.proposal.candidates.map(({ port_key }) => [port_key, null]),
+  );
+  assert(invalid && "error" in invalid);
+  assert.equal(invalid.withdrawn, false);
+  assert.deepEqual(f.all(), before, "status changes no comment");
+  assert.equal(f.creations, 2);
+});
+
+void test("a held slot projects its hold status and owner resume without its observation time", async () => {
+  const f = await fixture();
+  f.bridge.primary = (c) => {
+    throw new DiscoveryRepositoryUnavailable(
+      new URL(c.upstream).pathname.slice(1),
+      new GitHubApiError("http", "Not Found", { status: 404 }),
+    );
+  };
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete_with_holds");
+  const [row] = (await hostedStatusAll(f.bridge)).requests;
+  assert(row && !("error" in row));
+  assert.equal(row.status, "complete_with_holds");
+  assert.deepEqual(row.slots, [
+    {
+      candidate_index: 0,
+      port_key: candidate.port_key,
+      repository_id: candidate.repository_id,
+      upstream: candidate.upstream,
+      delivery_status: "prepared",
+      linked_issue: null,
+      existing: false,
+      hold: {
+        http_status: 404,
+        resume:
+          "Use owner process dispatch when the exact repository ID and primary evidence are accessible.",
+      },
+    },
+  ]);
+});
+
+void test("the read-only status bridge needs no Roadmap connection, follows numeric pages and refuses writes", async () => {
+  const issue = { node_id: "I177", comments: 3, updated_at: "2026-11-11T00:00:00Z" };
+  const comment = (id: number, login = "boburning") => ({
+    id,
+    body: id === 1 ? encode(proposal) : `note ${id}`,
+    user: { login },
+    issue_url: "https://api.github.com/repos/boburning/portcove/issues/177",
+  });
+  const seen: string[] = [];
+  const json = (value: unknown, headers: Record<string, string> = {}) =>
+    new Response(JSON.stringify(value), {
+      headers: { "content-type": "application/json", ...headers },
+    });
+  const fetch = async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    seen.push(`${init?.method ?? "GET"} ${url.pathname}${url.search}`);
+    if (url.pathname === "/repos/boburning/portcove/issues/177") return json(issue);
+    if (url.pathname === "/repos/boburning/portcove/issues/177/comments")
+      return json([comment(1), comment(2, "someone-else")], {
+        link: '<https://api.github.com/repositories/1354613114/issues/177/comments?per_page=20&page=2>; rel="next"',
+      });
+    if (url.pathname === "/repositories/1354613114/issues/177/comments") return json([comment(3)]);
+    const exact = /^\/repos\/boburning\/portcove\/issues\/comments\/(\d+)$/u.exec(url.pathname);
+    if (exact) return json(comment(Number(exact[1])));
+    throw new Error(`Unexpected fixture request ${url.pathname}`);
+  };
+  const options = {
+    credential: { kind: "explicit" as const, token: "fixture-token" },
+    deadline: performance.now() + 10_000,
+    fetch,
+  };
+  const bridge = await readOnlyHostedBridge(config, options);
+  const read = await hostedStatusAll(bridge);
+  assert.deepEqual(
+    read.requests.map((row) => [row.request_comment, "error" in row ? "error" : row.status]),
+    [[1, "submitted"]],
+  );
+  assert.deepEqual(read.queue, { ...issue, comments_sha256: read.queue.comments_sha256 });
+  assert.deepEqual(seen, [
+    "GET /repos/boburning/portcove/issues/177",
+    "GET /repos/boburning/portcove/issues/177/comments?per_page=20",
+    "GET /repositories/1354613114/issues/177/comments?per_page=20&page=2",
+    "GET /repos/boburning/portcove/issues/177",
+  ]);
+  for (const [method, url] of [
+    ["POST", "https://api.github.com/repos/boburning/portcove/issues/177/comments"],
+    ["PATCH", "https://api.github.com/repos/boburning/portcove/issues/comments/1"],
+    ["GET", "https://api.github.com/repos/boburning/portcove/issues/178"],
+  ] as const)
+    await assert.rejects(
+      bridge.github.repository.request({ method, url, data: { body: "x" } }),
+      (error: unknown) => error instanceof GitHubApiError && error.code === "request_refused",
+    );
+  assert.equal(seen.length, 4, "refused requests are never sent");
+  await assert.rejects(bridge.process(comment(1), []), /cannot research, save or write/u);
+  const limited = await readOnlyHostedBridge(config, { ...options, requestLimit: 2 });
+  await assert.rejects(
+    hostedStatusAll(limited),
+    (error: unknown) => error instanceof GitHubApiError && error.code === "budget_exhausted",
+  );
 });

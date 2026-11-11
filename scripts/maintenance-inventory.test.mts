@@ -27,6 +27,8 @@ import {
   type InventoryReport,
 } from "./maintenance-inventory.mts";
 import type { UpstreamInput } from "./maintenance-upstream.mts";
+import type { HostedRequestStatus, HostedStatusAll } from "./hosted-discovery-intake.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import { migrate, runSql } from "./maintenance-store.mts";
 import {
   catalog as catalogFixture,
@@ -886,5 +888,198 @@ void test(
     const page = renderHtml(inventory);
     assert.match(page, /upstream observer exception: repository-unavailable \(owner\/alpha\)/u);
     assert.match(page, /owner\/alpha: facts ffffffffffff/u);
+  },
+);
+
+void test(
+  "hosted intake records requests, quiet recurrence, attention, gaps and failed reads",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("hosted");
+    migrate(store.owner);
+    const { cli, responses } = stubCli(fixture.root);
+    writeFileSync(responses, JSON.stringify({ "2ship2harkinian": report("automatic") }));
+    const hold = {
+      http_status: 404,
+      resume:
+        "Use owner process dispatch when the exact repository ID and primary evidence are accessible.",
+    };
+    const slot = (issue: number | null, overrides = {}) => ({
+      candidate_index: 0,
+      port_key: "example-game",
+      repository_id: 7,
+      upstream: "https://github.com/owner/example-game",
+      delivery_status: issue ? "delivered" : "prepared",
+      linked_issue: issue,
+      existing: false,
+      hold: null,
+      ...overrides,
+    });
+    // Each request exactly as the executor's status() reports it, clocks included.
+    const request = (id: number, observed: string, overrides = {}): HostedRequestStatus => ({
+      request_comment: id,
+      receipt_comment: id + 1,
+      reconciles: null,
+      body_request_comment: id,
+      status: "complete",
+      candidates: 1,
+      delivered: 1,
+      existing: 0,
+      held: 0,
+      pending: 0,
+      full_doctor_required: false,
+      doctor: null,
+      last_error: null,
+      observed_at: observed,
+      slots: [slot(id === 10 ? 1 : null)],
+      withdrawn: false,
+      superseded_by: [],
+      ...overrides,
+    });
+    const requests = (observed: string) => [
+      request(10, observed),
+      request(20, observed, {
+        status: "blocked",
+        delivered: 0,
+        pending: 1,
+        reconciles: 5,
+        last_error: { code: "operation_failed", message: `stopped at ${observed}` },
+      }),
+      request(30, observed, {
+        status: "blocked",
+        withdrawn: true,
+        delivered: 0,
+        pending: 1,
+        last_error: { code: "operation_failed", message: "withdrawn by the owner" },
+      }),
+      request(40, observed, {
+        status: "complete_with_holds",
+        delivered: 0,
+        held: 1,
+        pending: 1,
+        slots: [slot(null, { hold })],
+      }),
+    ];
+    const queue = (comments: number) => ({
+      node_id: "I177",
+      comments,
+      updated_at: `2026-11-11T0${comments}:00:00Z`,
+      comments_sha256: String(comments).repeat(64).slice(0, 64),
+    });
+    const issues = () =>
+      Promise.resolve({
+        repository: "boburning/portcove",
+        observed_at: "2026-11-11T00:00:00Z",
+        total: 1,
+        issues: [{ id: "I1", number: 1, title: "Example", state: "OPEN", body: "" }],
+        memberships: [
+          {
+            project_id: "P1",
+            issue_id: "I1",
+            isArchived: false,
+            fieldValues: { nodes: [{ name: "Ready", field: { name: "Status" } }] },
+          },
+        ],
+      });
+    const collectWith = (hostedIntake: () => Promise<HostedStatusAll>) =>
+      collect({
+        cli,
+        all: true,
+        ports: ["2ship2harkinian"],
+        issues,
+        hostedIntake,
+        environment: store.owner,
+        runner: "fixture",
+      });
+    await collectWith(() =>
+      Promise.resolve({ queue: queue(1), requests: requests("2026-11-10T00:00:00Z") }),
+    );
+    // Only receipt clocks, messages and the queue revision moved: nothing is stored.
+    await collectWith(() =>
+      Promise.resolve({ queue: queue(2), requests: requests("2026-11-11T00:00:00Z") }),
+    );
+    // A new request is a fact; a request the executor cannot validate is a gap.
+    await collectWith(() =>
+      Promise.resolve({
+        queue: queue(3),
+        requests: [
+          ...requests("2026-11-11T00:00:00Z").filter(
+            ({ request_comment }) => request_comment !== 20,
+          ),
+          {
+            request_comment: 20,
+            withdrawn: false,
+            superseded_by: [],
+            error: { code: "operation_failed", message: "Retained delivery state is incomplete" },
+          },
+          request(50, "2026-11-11T00:00:00Z", { status: "submitted", receipt_comment: null }),
+        ],
+      }),
+    );
+    // Drift and unavailable reads observe nothing; the prior facts stay current.
+    await collectWith(() =>
+      Promise.reject(new GitHubApiError("inventory_changed", "Hosted request queue changed")),
+    );
+    await collectWith(() => Promise.reject(new Error("credential unavailable")));
+    const runs = JSON.parse(
+      runSql(
+        store.owner,
+        `SELECT json_agg(json_build_object('coverage', coverage, 'expected', expected_count, 'observed', observed_count,
+           'revision', source_revision,
+           'rows', (SELECT count(*) FROM portcove_maintenance.observations o WHERE o.run_id = r.run_id),
+           'gaps', (SELECT coalesce(json_agg(g ->> 'subject_key' || ':' || (g ->> 'code')), '[]') FROM jsonb_array_elements(gaps) g)) ORDER BY started_at)
+           FROM portcove_maintenance.collection_runs r WHERE source = 'hosted-intake';`,
+      ),
+    ) as {
+      coverage: string;
+      expected: number | null;
+      observed: number;
+      revision: string;
+      rows: number;
+      gaps: string[];
+    }[];
+    assert.deepEqual(
+      runs.map(({ coverage, expected, observed, rows, gaps }) => [
+        coverage,
+        expected,
+        observed,
+        rows,
+        gaps,
+      ]),
+      [
+        ["complete", 4, 4, 4, []],
+        ["complete", 4, 4, 0, []],
+        ["partial", 5, 4, 1, ["intake:20:invalid-receipt"]],
+        ["failed", null, 0, 0, ["source:hosted-intake-queue:inventory-changed"]],
+        ["failed", null, 0, 0, ["source:hosted-intake-queue:unavailable"]],
+      ],
+    );
+    assert.equal(
+      runs[0]!.revision,
+      `hosted-intake:I177:1@2026-11-11T01:00:00Z#sha256:${"1".repeat(64)}`,
+    );
+    const inventory = buildReport(store.owner);
+    assert.ok(!inventory.unsupported_sources.some(({ source }) => source === "hosted-intake"));
+    assert.deepEqual(
+      inventory.hosted_intake?.map(({ subject_key, issues: work }) => [subject_key, work]),
+      [
+        ["intake:10", [{ number: 1, state: "OPEN", status: "Ready" }]],
+        ["intake:20", []],
+        ["intake:30", []],
+        ["intake:40", []],
+        ["intake:50", []],
+      ],
+      "a failed read and an invalid request keep the last known facts",
+    );
+    const page = renderHtml(inventory);
+    assert.match(
+      page,
+      /hosted intake blocked: operation_failed \(receipt comment 21; reconciles request 5\)/u,
+    );
+    assert.match(page, /hosted intake held candidates \(receipt comment 41\): Use owner process/u);
+    assert.doesNotMatch(page, /receipt comment 31/u, "a withdrawn request is never attention");
+    assert.match(page, /#1 OPEN · Ready/u);
+    assert.match(page, /source:hosted-intake-queue: unavailable/u);
   },
 );

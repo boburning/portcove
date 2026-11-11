@@ -43,6 +43,14 @@ import {
   type UpstreamInput,
   type UpstreamObservation,
 } from "./maintenance-upstream.mts";
+import {
+  hostedIntakeAttention,
+  hostedIntakeObservation,
+  hostedIntakeSummary,
+  readHostedIntake,
+  type HostedIntakeObservation,
+} from "./maintenance-hosted-intake.mts";
+import type { HostedStatusAll } from "./hosted-discovery-intake.mts";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 export const defaultSamplePath = path.join(
@@ -60,7 +68,10 @@ export const unsupportedSources = [
   ["project", "No maintained export of Project item field values."],
   ["upstream-observations", "Observer checkpoints are cache-only and not yet joined."],
   ["release-health", "Monitor history is cache-only and not yet joined."],
-  ["hosted-intake", "Receipts exist only as issue comments; no aggregated export."],
+  [
+    "hosted-intake",
+    "Not collected; collect --all --hosted-intake reads #177 through the executor's read-only status.",
+  ],
   [
     "definition-publication",
     "No maintained comparison of main with the published definition site.",
@@ -599,6 +610,7 @@ export function collectionSql(input: {
     issues?: ReadonlyMap<string, string>;
     releaseHealth?: ReadonlyMap<string, string>;
     upstream?: ReadonlyMap<string, string>;
+    hostedIntake?: ReadonlyMap<string, string>;
     publication?: ReadonlyMap<string, string>;
   };
   publication?: {
@@ -614,6 +626,7 @@ export function collectionSql(input: {
     gaps: { subject_key: string; code: string; message: string }[];
   };
   upstream?: UpstreamObservation;
+  hostedIntake?: HostedIntakeObservation;
   issues?: { repository: string; observedAt: string; facts: ReadonlyMap<string, unknown> };
 }) {
   const token = randomUUID();
@@ -634,6 +647,7 @@ export function collectionSql(input: {
            ...(input.issues ? ["issues-project"] : []),
            ...(input.releaseHealth ? ["release-health"] : []),
            ...(input.upstream ? ["upstream-observations"] : []),
+           ...(input.hostedIntake ? ["hosted-intake"] : []),
            ...(input.publication ? ["definition-publication"] : []),
          ]),
        ]
@@ -777,6 +791,23 @@ export function collectionSql(input: {
         payload,
       });
   }
+  const hostedFacts = new Map<string, Fact>();
+  const hostedRun = `hosted-intake:${token}`;
+  if (input.hostedIntake) {
+    if (input.mode !== "all")
+      throw new MaintenanceStoreError("Hosted-intake collection requires --all");
+    lines.push(
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at) VALUES
+        (${literal(hostedRun)}, 'hosted-intake', ${literal(input.runner)}, ${literal(input.hostedIntake.revision)}, ${literal(input.startedAt)});`,
+    );
+    for (const [key, payload] of input.hostedIntake.facts)
+      hostedFacts.set(key, {
+        digest: sha256(canonicalJson(payload)),
+        scope: { source: "hosted-intake", issue: 177 },
+        revision: input.hostedIntake.revision,
+        payload,
+      });
+  }
   const expected = input.subjects.length;
   const coreCoverage = !gaps.length ? "complete" : gaps.length === expected ? "failed" : "partial";
   const runs: [
@@ -821,6 +852,20 @@ export function collectionSql(input: {
       input.latest?.upstream,
       input.upstream.expected,
     ]);
+  if (input.hostedIntake)
+    runs.push([
+      hostedRun,
+      input.hostedIntake.revision,
+      input.hostedIntake.failed
+        ? "failed"
+        : input.hostedIntake.gaps.length
+          ? "partial"
+          : "complete",
+      input.hostedIntake.gaps,
+      hostedFacts,
+      input.latest?.hostedIntake,
+      input.hostedIntake.expected,
+    ]);
   const publicationRun = `definition-publication:${token}`;
   if (input.publication) {
     const publicationFactsByKey = new Map<string, Fact>();
@@ -852,6 +897,7 @@ export function collectionSql(input: {
     [issueRun, "issues-project"],
     [healthRun, "release-health"],
     [upstreamRun, "upstream-observations"],
+    [hostedRun, "hosted-intake"],
   ]);
   for (const [run, revision, coverage, runGaps, facts, latest, runExpected] of runs) {
     let membership = "";
@@ -938,6 +984,8 @@ export async function collect(options: {
   releaseHealth?: (() => Promise<ReleaseHealthInput>) | undefined;
   /** With `all`, also collect the newest retained upstream observer checkpoint. */
   upstream?: (() => Promise<UpstreamInput>) | undefined;
+  /** With `all`, also collect every #177 hosted-intake request through the executor's status. */
+  hostedIntake?: (() => Promise<HostedStatusAll>) | undefined;
   /** Host platform label; defaults to this host. Fixtures use it to model other hosts. */
   platform?: string | undefined;
   environment: NodeJS.ProcessEnv;
@@ -983,6 +1031,11 @@ export async function collect(options: {
   if (options.upstream && !options.all)
     throw new MaintenanceStoreError("Upstream-observation collection requires --all");
   const upstream = options.upstream ? await upstreamObservation(options.upstream) : undefined;
+  if (options.hostedIntake && !options.all)
+    throw new MaintenanceStoreError("Hosted-intake collection requires --all");
+  const hostedIntake = options.hostedIntake
+    ? await hostedIntakeObservation(options.hostedIntake)
+    : undefined;
   if (options.publication && !options.all)
     throw new MaintenanceStoreError("Publication collection requires --all");
   const publicationObserved = options.publication
@@ -1015,6 +1068,7 @@ export async function collect(options: {
         ? { releaseHealth: { revision: health.revision, ...healthFacts } }
         : {}),
       ...(upstream ? { upstream } : {}),
+      ...(hostedIntake ? { hostedIntake } : {}),
       ...(publicationObserved
         ? {
             publication: {
@@ -1043,6 +1097,9 @@ export async function collect(options: {
                     ),
                   }
                 : {}),
+              ...(hostedIntake
+                ? { hostedIntake: latestMembers(options.environment, "hosted-intake", startedAt) }
+                : {}),
               ...(publicationObserved
                 ? {
                     publication: latestMembers(
@@ -1069,6 +1126,19 @@ export async function collect(options: {
           coverage: upstream.failed ? "failed" : upstream.gaps.length ? "partial" : "complete",
           facts: upstream.facts.size,
           gaps: upstream.gaps.length,
+        }
+      : null,
+    hosted_intake: hostedIntake
+      ? {
+          revision: hostedIntake.revision,
+          coverage: hostedIntake.failed
+            ? "failed"
+            : hostedIntake.gaps.length
+              ? "partial"
+              : "complete",
+          requests: hostedIntake.expected,
+          facts: hostedIntake.facts.size,
+          gaps: hostedIntake.gaps.length,
         }
       : null,
     core_gaps: subjects.filter(
@@ -1099,6 +1169,12 @@ const reportQuery = `WITH latest_issue AS (
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
       WHERE r.source = 'upstream-observations' AND r.coverage <> 'in_progress'
       ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC
+  ), latest_hosted AS (
+    SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
+      FROM portcove_maintenance.observations o
+      JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
+      WHERE r.source = 'hosted-intake' AND r.coverage <> 'in_progress'
+      ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC
   ), latest_catalog AS (
     SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
       FROM portcove_maintenance.observations o
@@ -1128,6 +1204,16 @@ const reportQuery = `WITH latest_issue AS (
       FROM portcove_maintenance.subject_current c
   )
 SELECT json_build_object(
+  'hosted_intake', (SELECT coalesce(json_agg(json_build_object('subject_key', h.subject_key, 'facts', h.payload,
+        'issues', (SELECT coalesce(json_agg(json_build_object('number', (i.payload ->> 'number')::integer,
+                     'state', i.payload ->> 'state', 'status', i.payload -> 'project' -> 0 -> 'fields' ->> 'Status')
+                     ORDER BY (i.payload ->> 'number')::integer), '[]')
+                     FROM present_issue i
+                     WHERE (i.payload ->> 'number')::bigint IN (
+                       SELECT (s ->> 'linked_issue')::bigint FROM jsonb_array_elements(h.payload -> 'slots') s
+                        WHERE jsonb_typeof(s -> 'linked_issue') = 'number')))
+        ORDER BY (h.payload ->> 'request_comment')::bigint), '[]')
+      FROM latest_hosted h WHERE h.payload <> portcove_maintenance.absent_payload()),
   'publication', (SELECT coalesce(json_agg(json_build_object('definition', p.subject_key, 'facts', p.payload)
         ORDER BY p.subject_key), '[]')
       FROM (SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
@@ -1222,6 +1308,14 @@ export interface InventoryReport {
   runs: unknown[];
   subjects: unknown[];
   unassessed_gaps?: { subject_key: string; code: string; message: string }[];
+  /** Latest facts per `intake:<request>`, with linked issues joined to issue facts. */
+  hosted_intake?: HostedIntakeEntry[];
+}
+
+export interface HostedIntakeEntry {
+  subject_key: string;
+  facts: unknown;
+  issues: { number: number; state: string | null; status: string | null }[];
 }
 
 export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): InventoryReport {
@@ -1230,6 +1324,7 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     subjects: unknown[];
     unassessed_gaps: { subject_key: string; code: string; message: string }[];
     publication: { definition: string; facts: unknown }[];
+    hosted_intake: HostedIntakeEntry[];
   };
   // Membership-verified catalog runs cover every authored record at their revision.
   const catalogScope = (data.runs as { source: string; member_digest: string | null }[]).some(
@@ -1274,6 +1369,9 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
   const upstreamObserved = (data.runs as { source: string }[]).some(
     ({ source }) => source === "upstream-observations",
   );
+  const hostedObserved = (data.runs as { source: string }[]).some(
+    ({ source }) => source === "hosted-intake",
+  );
   return {
     format: "portcove-maintenance-inventory",
     format_version: inventoryFormatVersion,
@@ -1305,6 +1403,7 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
       .filter(([source]) => !(issuesObserved && (source === "issues" || source === "project")))
       .filter(([source]) => !(healthObserved && source === "release-health"))
       .filter(([source]) => !(upstreamObserved && source === "upstream-observations"))
+      .filter(([source]) => !(hostedObserved && source === "hosted-intake"))
       .filter(([source]) => !(publicationRun && source === "definition-publication"))
       .map(([source, reason]) => ({ source, reason })),
     runs: data.runs,
@@ -1327,11 +1426,42 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
       };
     }),
     unassessed_gaps: data.unassessed_gaps,
+    ...(hostedObserved ? { hosted_intake: data.hosted_intake } : {}),
   };
 }
 
 const escapeHtml = (value: unknown) =>
   String(value).replace(/[&<>"']/gu, (character) => `&#${character.charCodeAt(0)};`);
+
+/** Hosted-intake requests with their linked work and the executor's own attention conditions. */
+function hostedIntakeSection(report: InventoryReport) {
+  if (!report.hosted_intake) return "";
+  const run = (report.runs as { source: string; gaps?: { subject_key: string; code: string }[] }[])
+    .filter(({ source }) => source === "hosted-intake")
+    .at(0);
+  const latestGap = new Map(
+    (run?.gaps ?? []).map(({ subject_key, code }) => [subject_key, code] as const),
+  );
+  return `<h2>Hosted intake</h2>
+<table><thead><tr><th>Request</th><th>State</th><th>Linked work</th><th>Needs attention</th></tr></thead><tbody>
+${report.hosted_intake
+  .map(({ subject_key, facts, issues }) => {
+    const gap = latestGap.get(subject_key);
+    const work = issues
+      .map(
+        ({ number, state, status }) =>
+          `#${number} ${state ?? "unknown"}${status ? ` · ${status}` : ""}`,
+      )
+      .join("; ");
+    return `<tr><td>${escapeHtml(subject_key)}</td><td>${escapeHtml(
+      [hostedIntakeSummary(facts), gap ? `latest read: ${gap}` : ""].filter(Boolean).join("; "),
+    )}</td><td>${escapeHtml(work || "no linked issue observed")}</td><td>${escapeHtml(
+      hostedIntakeAttention(facts).join("; "),
+    )}</td></tr>`;
+  })
+  .join("\n")}
+</tbody></table>`;
+}
 
 /** A self-contained, searchable page; data is embedded as escaped JSON, never as markup. */
 export function renderHtml(report: InventoryReport) {
@@ -1424,6 +1554,7 @@ ${report.unsupported_sources
   )
   .join("\n")}
 </tbody></table>
+${hostedIntakeSection(report)}
 <h2>Subjects</h2>
 <label for="search">Search</label>
 <input id="search" type="search" placeholder="Port ID or state">
@@ -1573,7 +1704,10 @@ commands:
                                        main upstream-health report, bound by run and digest;
                                        --upstream (with --all) adds the newest retained upstream
                                        observer checkpoint snapshot from a completed schedule or
-                                       push main run, bound by run, source and artifact digest
+                                       push main run, bound by run, source and artifact digest;
+                                       --hosted-intake (with --all) adds every #177 hosted-intake
+                                       request through the executor's read-only status, bound by
+                                       the #177 revision and a digest of every comment
   report --output DIR                  write inventory.json and index.html to a new DIR
   digest --output DIR                  write the pending changes-only digest (digest.json, digest.md)
   acknowledge --digest FILE --receipt REF
@@ -1613,6 +1747,9 @@ export async function main(argv = process.argv.slice(2)) {
   const upstreamIndex = args.indexOf("--upstream");
   const upstreamSource = upstreamIndex >= 0;
   if (upstreamSource) args.splice(upstreamIndex, 1);
+  const hostedIndex = args.indexOf("--hosted-intake");
+  const hostedSource = hostedIndex >= 0;
+  if (hostedSource) args.splice(hostedIndex, 1);
   const issuesIndex = args.indexOf("--issues");
   const issues = issuesIndex >= 0;
   if (issues) args.splice(issuesIndex, 1);
@@ -1633,6 +1770,7 @@ export async function main(argv = process.argv.slice(2)) {
           issues: issues ? readIssueInventory : undefined,
           releaseHealth: releaseHealth ? readReleaseHealth : undefined,
           upstream: upstreamSource ? () => readUpstreamObservations(committedBytes) : undefined,
+          hostedIntake: hostedSource ? readHostedIntake : undefined,
           publication: publication || undefined,
           environment,
         }),
