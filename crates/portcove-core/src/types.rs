@@ -2066,6 +2066,34 @@ pub struct ResolvedRelease {
     pub asset: ReleaseAsset,
 }
 
+/// What one check of one game is expected to ask of its release provider, computed
+/// locally from the persisted conditional-request cache without any network call.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct RequestCostForecast {
+    /// Requests the provider will count against its primary rate limit.
+    pub counted_requests: u32,
+    /// The part of `counted_requests` that signing in would move to a higher limit.
+    /// A managed-definition port deliberately sends no credential, so it never counts here.
+    pub sign_in_relief_requests: u32,
+}
+
+/// The expected provider cost of checking a set of games at once.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct UpdateCheckForecast {
+    pub games: u32,
+    pub counted_requests: u32,
+    pub sign_in_relief_requests: u32,
+}
+
+impl UpdateCheckForecast {
+    /// Whether the anonymous allowance still available cannot cover this check, and
+    /// signing in would actually relieve some of it.
+    pub fn sign_in_would_help(&self, remaining_anonymous_requests: u64) -> bool {
+        self.sign_in_relief_requests > 0
+            && u64::from(self.counted_requests) > remaining_anonymous_requests
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct UpdateCheck {
     pub port_id: String,

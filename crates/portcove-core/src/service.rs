@@ -2845,6 +2845,42 @@ impl PortcoveService {
             .await)
     }
 
+    /// The expected provider cost of checking these games, from local state only (no
+    /// network). A caller can compare it with the allowance it knows is left and offer
+    /// sign-in before a check that would not fit; see `UpdateCheckForecast`.
+    pub async fn forecast_update_checks(
+        &self,
+        port_ids: impl IntoIterator<Item = String>,
+    ) -> Result<crate::UpdateCheckForecast> {
+        let platform = Platform::current()?;
+        let mut forecast = crate::UpdateCheckForecast::default();
+        for port_id in port_ids {
+            let port = self.catalog.port(&port_id)?;
+            // An admitted publisher scope sends no credential; a scope that cannot be
+            // established here fails the real check, so it is treated as ordinary.
+            let scoped = crate::definition_repository::publisher_policy::acquisition_scope(
+                &self.library,
+                &self.catalog,
+                &port.id,
+            )
+            .ok()
+            .flatten()
+            .is_some();
+            let cost = self
+                .releases
+                .forecast_request_cost(port, platform, scoped)
+                .await?;
+            forecast.games = forecast.games.saturating_add(1);
+            forecast.counted_requests = forecast
+                .counted_requests
+                .saturating_add(cost.counted_requests);
+            forecast.sign_in_relief_requests = forecast
+                .sign_in_relief_requests
+                .saturating_add(cost.sign_in_relief_requests);
+        }
+        Ok(forecast)
+    }
+
     fn record_update_check(
         &self,
         port_id: &str,

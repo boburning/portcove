@@ -63,6 +63,44 @@ pub trait ReleaseProvider: Send + Sync {
                 crate::ScopedResolvedRelease::legacy(release).for_selection(port, platform, channel)
             })
     }
+
+    /// The expected provider cost of one check, read from local state only. A provider
+    /// with no per-request limit to protect reports none.
+    async fn forecast_request_cost(
+        &self,
+        _port: &PortDefinition,
+        _platform: Platform,
+        _scoped: bool,
+    ) -> Result<crate::RequestCostForecast> {
+        Ok(crate::RequestCostForecast::default())
+    }
+}
+
+/// The request cost of one GitHub check from what is already cached. An ordinary request
+/// is conditional, so a cached resource answers 304 and is not counted. A managed-scope
+/// request is unconditional and unauthenticated: it always counts, and signing in never
+/// raises its limit. The forecast is a floor for managed-scope curated ports (an
+/// annotated tag adds peel requests), ignores pages beyond the first of a long release
+/// list and the five-minute in-memory selection cache, and reads the persisted cache
+/// without extending it. A provider that cannot forecast reports the default, which
+/// means unknown, not free.
+fn github_cost_forecast(
+    scoped: bool,
+    curated: bool,
+    repository_cached: bool,
+    first_releases_page_cached: bool,
+) -> crate::RequestCostForecast {
+    if scoped {
+        return crate::RequestCostForecast {
+            counted_requests: 2 + u32::from(curated),
+            sign_in_relief_requests: 0,
+        };
+    }
+    let uncached = u32::from(!repository_cached) + u32::from(!first_releases_page_cached);
+    crate::RequestCostForecast {
+        counted_requests: uncached,
+        sign_in_relief_requests: uncached,
+    }
 }
 
 #[derive(Clone)]
@@ -596,6 +634,12 @@ impl GithubReleaseProvider {
             ..commit()?
         };
         Ok(())
+    }
+
+    /// A cached response saves a counted request only when it carries a validator.
+    fn has_conditional_cache(&self, url: &str) -> bool {
+        self.cached_http_response(url)
+            .is_some_and(|entry| entry.etag.is_some() || entry.last_modified.is_some())
     }
 
     fn cached_http_response(&self, url: &str) -> Option<HttpCacheEntry> {
@@ -1187,6 +1231,25 @@ impl ReleaseProvider for GithubReleaseProvider {
         .for_selection(port, platform, channel)?;
         resolved.github_identity = selected.identity;
         Ok(resolved)
+    }
+
+    async fn forecast_request_cost(
+        &self,
+        port: &PortDefinition,
+        platform: Platform,
+        scoped: bool,
+    ) -> Result<crate::RequestCostForecast> {
+        if port.release.provider != crate::ReleaseSource::Github {
+            return Ok(crate::RequestCostForecast::default());
+        }
+        let repository_url = format!("{}/repos/{}", self.api_root, port.release.repository);
+        let releases_url = paginated_url(&repository_url, "releases", 1, PROVIDER_PAGE_SIZE)?;
+        Ok(github_cost_forecast(
+            scoped,
+            port.release.curated.contains_key(&platform),
+            self.has_conditional_cache(&repository_url),
+            self.has_conditional_cache(&releases_url),
+        ))
     }
 }
 
@@ -5011,5 +5074,152 @@ mod tests {
                 "one changed repository counts two requests ({ports} games)"
             );
         }
+    }
+
+    #[test]
+    fn cost_forecast_counts_only_what_is_uncached_and_never_relieves_a_managed_scope() {
+        let forecast = |scoped, curated, repository, releases| {
+            let value = github_cost_forecast(scoped, curated, repository, releases);
+            (value.counted_requests, value.sign_in_relief_requests)
+        };
+        // Ordinary path: a cached resource answers 304, which is not counted, and a token helps.
+        assert_eq!(forecast(false, false, false, false), (2, 2));
+        assert_eq!(forecast(false, false, true, false), (1, 1));
+        assert_eq!(forecast(false, false, false, true), (1, 1));
+        assert_eq!(forecast(false, false, true, true), (0, 0));
+        // A managed scope is unconditional and unauthenticated: it always counts, a cache
+        // changes nothing, and signing in never raises its limit. Curated adds a tag lookup.
+        assert_eq!(forecast(true, false, true, true), (2, 0));
+        assert_eq!(forecast(true, false, false, false), (2, 0));
+        assert_eq!(forecast(true, true, true, true), (3, 0));
+    }
+
+    #[tokio::test]
+    async fn the_provider_forecast_reads_the_persisted_cache_without_any_network_call() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        // An unreachable origin proves the forecast never touches the network.
+        let provider = GithubReleaseProvider::with_api_root_and_library(
+            "https://example.invalid",
+            library.clone(),
+        )
+        .unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut port = catalog.port("re-blue").unwrap().clone();
+        port.release.repository = "owner/forecast".into();
+        let platform = Platform::WindowsX86_64;
+        let cost = |provider: &GithubReleaseProvider, port: &PortDefinition, scoped| {
+            let provider = provider.clone();
+            let port = port.clone();
+            async move {
+                provider
+                    .forecast_request_cost(&port, platform, scoped)
+                    .await
+                    .unwrap()
+            }
+        };
+        assert_eq!(cost(&provider, &port, false).await.counted_requests, 2);
+        let repository = "https://example.invalid/repos/owner/forecast";
+        let releases = paginated_url(repository, "releases", 1, PROVIDER_PAGE_SIZE).unwrap();
+        library
+            .store_http_cache(repository, Some("\"r\""), None, "{}")
+            .unwrap();
+        assert_eq!(cost(&provider, &port, false).await.counted_requests, 1);
+        library
+            .store_http_cache(&releases, Some("\"p\""), None, "[]")
+            .unwrap();
+        assert_eq!(
+            cost(&provider, &port, false).await,
+            crate::RequestCostForecast::default()
+        );
+        // A cached body with no validator is sent unconditionally, so it saves nothing.
+        library
+            .store_http_cache(repository, None, None, "{}")
+            .unwrap();
+        assert_eq!(cost(&provider, &port, false).await.counted_requests, 1);
+        library
+            .store_http_cache(repository, Some("\"r\""), None, "{}")
+            .unwrap();
+        // The same warm cache does not help a managed-scope port.
+        assert_eq!(
+            cost(&provider, &port, true).await,
+            crate::RequestCostForecast {
+                counted_requests: 2,
+                sign_in_relief_requests: 0
+            }
+        );
+        // A provider other than GitHub has no GitHub allowance to protect.
+        port.release.provider = crate::ReleaseSource::Gitlab;
+        assert_eq!(
+            cost(&provider, &port, false).await,
+            crate::RequestCostForecast::default()
+        );
+    }
+
+    #[tokio::test]
+    async fn the_service_forecast_adds_up_a_cold_library_and_a_warm_one() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let provider = GithubReleaseProvider::with_api_root_and_library(
+            "https://example.invalid",
+            library.clone(),
+        )
+        .unwrap();
+        let service =
+            crate::PortcoveService::with_provider(library.clone(), Arc::new(provider)).unwrap();
+        let platform = Platform::current().unwrap();
+        let ports = crate::Catalog::embedded()
+            .unwrap()
+            .ports()
+            .iter()
+            .filter(|port| {
+                port.release.provider == crate::ReleaseSource::Github
+                    && !port.release.repository.is_empty()
+                    && port.platforms.contains(&platform)
+            })
+            .take(6)
+            .map(|port| (port.id.clone(), port.release.repository.clone()))
+            .collect::<Vec<_>>();
+        assert_eq!(ports.len(), 6, "the embedded catalog has GitHub ports");
+        let ids = || ports.iter().map(|(id, _)| id.clone());
+        let cold = service.forecast_update_checks(ids()).await.unwrap();
+        assert_eq!(cold.games, 6);
+        assert_eq!(cold.counted_requests, 12);
+        assert_eq!(cold.sign_in_relief_requests, 12);
+        for (_, repository) in &ports {
+            let url = format!("https://example.invalid/repos/{repository}");
+            let releases = paginated_url(&url, "releases", 1, PROVIDER_PAGE_SIZE).unwrap();
+            library
+                .store_http_cache(&url, Some("\"r\""), None, "{}")
+                .unwrap();
+            library
+                .store_http_cache(&releases, Some("\"p\""), None, "[]")
+                .unwrap();
+        }
+        let warm = service.forecast_update_checks(ids()).await.unwrap();
+        assert_eq!(warm.games, 6);
+        assert_eq!(warm.counted_requests, 0);
+        assert!(
+            !warm.sign_in_would_help(0),
+            "nothing counted, nothing to relieve"
+        );
+    }
+
+    #[test]
+    fn sign_in_is_offered_only_when_the_allowance_falls_short_and_it_would_help() {
+        let forecast = |counted, relief| crate::UpdateCheckForecast {
+            games: 10,
+            counted_requests: counted,
+            sign_in_relief_requests: relief,
+        };
+        // 40 counted against 60 left fits; 40 against 30 left does not.
+        assert!(!forecast(40, 40).sign_in_would_help(60));
+        assert!(forecast(40, 40).sign_in_would_help(30));
+        // Exactly the allowance still fits.
+        assert!(!forecast(60, 60).sign_in_would_help(60));
+        // Managed-scope ports are counted but signing in cannot relieve them.
+        assert!(!forecast(60, 0).sign_in_would_help(5));
+        // A mix offers sign-in because part of the cost can be relieved.
+        assert!(forecast(60, 20).sign_in_would_help(30));
     }
 }
