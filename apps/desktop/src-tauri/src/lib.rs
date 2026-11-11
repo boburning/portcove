@@ -1016,6 +1016,44 @@ async fn get_game_file_roots(
 }
 
 #[tauri::command]
+async fn get_library_memberships(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<Vec<portcove_core::LibraryMembership>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.library_memberships().map_err(Into::into)
+    })
+    .await
+}
+
+/// Saves reviewed games to the Library. Acquires, registers, installs and launches nothing.
+#[tauri::command]
+async fn add_games_to_library(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    requests: Vec<portcove_core::LibraryMembershipRequest>,
+) -> DesktopResult<Vec<portcove_core::LibraryMembershipOutcome>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.add_games_to_library(&requests).map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn remove_library_membership(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+) -> DesktopResult<bool> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .remove_library_membership(&port_id)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 async fn add_game_file_root(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
@@ -2858,6 +2896,9 @@ pub fn run() -> std::process::ExitCode {
             check_installed,
             add_source,
             get_game_file_roots,
+            get_library_memberships,
+            add_games_to_library,
+            remove_library_membership,
             add_game_file_root,
             relink_game_file_root,
             remove_game_file_root,

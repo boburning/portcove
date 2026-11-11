@@ -1548,6 +1548,45 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 },
             )?;
         }
+        Commands::Games { command } => match command {
+            GamesCommand::List => render_read_success(
+                mode,
+                "games.list",
+                service.library_memberships()?,
+                |entries| human::library_memberships(entries),
+            )?,
+            GamesCommand::Add { port_ids } => {
+                let requests = port_ids
+                    .iter()
+                    .map(|port_id| portcove_core::LibraryMembershipRequest {
+                        port_id: port_id.clone(),
+                        origin: portcove_core::LibraryMembershipOrigin::Manual,
+                        sources: Vec::new(),
+                    })
+                    .collect::<Vec<_>>();
+                render_read_success(
+                    mode,
+                    "games.add",
+                    service.add_games_to_library(&requests)?,
+                    |outcomes| human::library_membership_outcomes(outcomes),
+                )?;
+            }
+            GamesCommand::Remove { port_id } => {
+                let removed = service.remove_library_membership(&port_id)?;
+                render_read_success(
+                    mode,
+                    "games.remove",
+                    serde_json::json!({"port_id": port_id, "removed": removed}),
+                    |_| {
+                        format!(
+                            "Saved Library entry {}: {}\nInstallations, registrations and game files are unchanged.",
+                            if removed { "removed" } else { "not found" },
+                            human::clean(&port_id)
+                        )
+                    },
+                )?;
+            }
+        },
         Commands::Launch {
             command: LaunchCommand::Show { .. },
         } => unreachable!("launch observation is handled before service initialization"),
@@ -3299,6 +3338,11 @@ fn command_name(command: &Commands) -> &'static str {
         } => "activity.log",
         Commands::Activity { .. } => "activity",
         Commands::Cancel { .. } => "cancel",
+        Commands::Games { command } => match command {
+            GamesCommand::List => "games.list",
+            GamesCommand::Add { .. } => "games.add",
+            GamesCommand::Remove { .. } => "games.remove",
+        },
         Commands::Launch { command } => match command {
             LaunchCommand::Show { .. } => "launch.show",
             LaunchCommand::Recover { .. } => "launch.recover",

@@ -238,6 +238,11 @@ pub(crate) enum Commands {
         /// Operation ID from `portcove activity`; inspect its current state before recovery or cancellation.
         operation_id: String,
     },
+    /// Save games to the Library without installing, registering files or launching.
+    Games {
+        #[command(subcommand)]
+        command: GamesCommand,
+    },
     /// Read a caller-known durable launch request without starting or recovering a game.
     Launch {
         #[command(subcommand)]
@@ -598,6 +603,23 @@ impl ArtworkCommand {
             Self::RemoveUnused { .. } => "artwork.remove-unused",
         }
     }
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum GamesCommand {
+    /// List explicitly saved Library entries, independent of installation state.
+    List,
+    /// Save catalog games to the Library; nothing is downloaded, installed or registered.
+    Add {
+        /// Catalog port IDs to save; repeating an ID is idempotent. At most 512 per command.
+        #[arg(required = true, num_args = 1..)]
+        port_ids: Vec<String>,
+    },
+    /// Forget one saved entry without changing installations, registrations or game files.
+    Remove {
+        /// Catalog port ID of the saved entry.
+        port_id: String,
+    },
 }
 
 #[derive(Debug, Subcommand)]

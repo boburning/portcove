@@ -658,6 +658,10 @@ export type GameFileQueryState =
   "files_available" | "files_missing" | "needs_checking" | "no_files_required" | "unavailable_context";
 export type GameFileRootAvailability = "available" | "unavailable";
 export type OutputGameFileRoots = GameFileRoot[];
+export type OutputLibraryMemberships = LibraryMembership[];
+export type OutputLibraryMembershipOutcomes = LibraryMembershipOutcome[];
+export type LibraryMembershipOrigin = "game_file_discovery" | "manual";
+export type LibraryMembershipOutcomeKind = "added" | "already_saved" | "already_in_library";
 export type OutputGameFileScanSnapshot = GameFileScanSnapshot | null;
 export type GameFileScanFreshness = "inputs_match" | "inputs_changed";
 export type SourceDigestAlgorithm = "sha1" | "sha256" | "crc32";
@@ -970,6 +974,8 @@ export interface TransportOutputs {
   game_file_query_request: OutputGameFileQueryRequest;
   game_file_query_snapshot: OutputGameFileQuerySnapshot;
   game_file_roots: OutputGameFileRoots;
+  library_memberships: OutputLibraryMemberships;
+  library_membership_outcomes: OutputLibraryMembershipOutcomes;
   game_file_scan_snapshot: OutputGameFileScanSnapshot;
   game_install_plan: OutputGameInstallPlan;
   game_setting_change: GameSettingChange;
@@ -3143,6 +3149,22 @@ export interface GameFileRouteProjection {
   state: GameFileQueryState;
   [k: string]: unknown;
 }
+export interface LibraryMembership {
+  added_at: number;
+  format_version: number;
+  origin: LibraryMembershipOrigin;
+  port_id: string;
+  sources?: LibraryMembershipSource[];
+}
+export interface LibraryMembershipSource {
+  profile_id: string;
+  sha256: string;
+}
+export interface LibraryMembershipOutcome {
+  outcome: LibraryMembershipOutcomeKind;
+  port_id: string;
+  [k: string]: unknown;
+}
 export interface GameFileRoot {
   availability: GameFileRootAvailability;
   created_at: number;
@@ -3700,6 +3722,10 @@ export interface PortListingStatus {
    * Optional inert read model; absence cannot suppress an independently allowed action.
    */
   capabilities?: PortCapabilityReport | null;
+  /**
+   * Explicit saved Library entry, independent of any installation or registration.
+   */
+  library_membership?: LibraryMembership | null;
   port_id: string;
   status: PortStatus;
   [k: string]: unknown;

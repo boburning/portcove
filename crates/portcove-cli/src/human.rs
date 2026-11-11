@@ -844,6 +844,38 @@ pub(crate) fn source_discovery(
     lines.join("\n")
 }
 
+pub(crate) fn library_memberships(entries: &[portcove_core::LibraryMembership]) -> String {
+    if entries.is_empty() {
+        return "No games are saved to the Library without an installation.".to_owned();
+    }
+    entries
+        .iter()
+        .map(|entry| format!("{}  saved {}", clean(&entry.port_id), entry.added_at))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+pub(crate) fn library_membership_outcomes(
+    outcomes: &[portcove_core::LibraryMembershipOutcome],
+) -> String {
+    use portcove_core::LibraryMembershipOutcomeKind as Kind;
+    let mut lines = outcomes
+        .iter()
+        .map(|item| {
+            let label = match item.outcome {
+                Kind::Added => "saved",
+                Kind::AlreadySaved => "already saved",
+                Kind::AlreadyInLibrary => {
+                    "already in the Library (installed, registered or pending setup)"
+                }
+            };
+            format!("{}: {label}", clean(&item.port_id))
+        })
+        .collect::<Vec<_>>();
+    lines.push("Nothing was downloaded, installed, registered or launched.".to_owned());
+    lines.join("\n")
+}
+
 pub(crate) fn game_file_roots(roots: &[GameFileRoot]) -> String {
     if roots.is_empty() {
         return "No game-file folders are connected.".into();

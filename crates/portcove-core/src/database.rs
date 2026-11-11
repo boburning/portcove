@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 45;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 46;
 
 struct Migration {
     version: i64,
@@ -294,7 +294,34 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_45,
         verify: verify_migration_45,
     },
+    Migration {
+        version: 46,
+        name: "explicit add-only library membership",
+        apply: migration_46,
+        verify: verify_migration_46,
+    },
 ];
+
+fn migration_46(transaction: &Transaction<'_>) -> Result<()> {
+    // Membership is a saved selection, not an installation, registration or
+    // acquisition record. Retained provenance is display/explanation data only.
+    transaction.execute_batch(
+        "CREATE TABLE library_memberships (
+            port_id TEXT PRIMARY KEY CHECK(length(port_id) BETWEEN 1 AND 128),
+            added_at INTEGER NOT NULL,
+            record_json TEXT NOT NULL CHECK(length(record_json)<=16384)
+        );",
+    )?;
+    verify_migration_46(transaction)
+}
+
+fn verify_migration_46(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "library_memberships",
+        &["port_id", "added_at", "record_json"],
+    )
+}
 
 fn migration_45(transaction: &Transaction<'_>) -> Result<()> {
     // On by default: existing libraries gain the protection without a decision.
@@ -2803,6 +2830,30 @@ mod tests {
         assert_eq!(after.len(), before.len() + 1);
         assert!(connection.execute("UPDATE lifecycle_operations SET game_settings_json=?1 WHERE id='retained-settings-migration-failure'", ["x".repeat(16385)]).is_err());
         assert_eq!(snapshot(&connection), after);
+    }
+
+    #[test]
+    fn membership_migration_adds_an_empty_table_and_keeps_existing_state() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 45).unwrap();
+        let connection = connect(root).unwrap();
+        let identity: String = connection
+            .query_row("SELECT id FROM library_identity", [], |row| row.get(0))
+            .unwrap();
+        drop(connection);
+        migrate_to(root, 46).unwrap();
+        let connection = connect(root).unwrap();
+        let count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM library_memberships", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        let after: String = connection
+            .query_row("SELECT id FROM library_identity", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!((count, after), (0, identity));
     }
 
     #[test]

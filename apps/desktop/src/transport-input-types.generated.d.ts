@@ -117,6 +117,7 @@ export interface TransportInputs {
   catalog_update_source: InputCatalogUpdateSource;
   definition_capability_request: InputDefinitionCapabilityRequest;
   game_file_query_request: InputGameFileQueryRequest;
+  library_membership_requests: InputLibraryMembershipRequests;
   game_setting_change: InputGameSettingChange;
   source_discovery_limits: SourceDiscoveryLimits;
   source_discovery_request: InputSourceDiscoveryRequest;
@@ -146,6 +147,17 @@ export interface DefinitionCapabilityRequirement {
 /**
  * Explicit refresh inputs. Inspection reports are never accepted from a client.
  */
+export type InputLibraryMembershipRequests = LibraryMembershipRequest[];
+export type LibraryMembershipOrigin = "game_file_discovery" | "manual";
+export interface LibraryMembershipRequest {
+  origin: LibraryMembershipOrigin;
+  port_id: string;
+  sources?: LibraryMembershipSource[];
+}
+export interface LibraryMembershipSource {
+  profile_id: string;
+  sha256: string;
+}
 export interface InputGameFileQueryRequest {
   limits: RegisteredSourceInspectionLimits;
   maximum_age_seconds: number;

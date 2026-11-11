@@ -87,6 +87,9 @@ import type {
   GithubDeviceLogin,
   GithubDeviceLoginResult,
   GameFileRoot,
+  LibraryMembership,
+  LibraryMembershipOutcome,
+  LibraryMembershipRequest,
   GameFileQueryRefreshRequest,
   GameFileQuerySnapshot,
   GameFileScanSnapshot,
@@ -599,6 +602,12 @@ export const desktopApi = {
     invoke<import("./types").SourceReuseReview>("review_source_reuse", { profileId, generation }),
   gameFileRoots: (generation: number) =>
     invoke<GameFileRoot[]>("get_game_file_roots", { generation }),
+  libraryMemberships: (generation: number) =>
+    invoke<LibraryMembership[]>("get_library_memberships", { generation }),
+  addGamesToLibrary: (requests: LibraryMembershipRequest[], generation: number) =>
+    invoke<LibraryMembershipOutcome[]>("add_games_to_library", { requests, generation }),
+  removeLibraryMembership: (portId: string, generation: number) =>
+    invoke<boolean>("remove_library_membership", { portId, generation }),
   addGameFileRoot: (path: string, generation: number) =>
     invoke<GameFileRoot>("add_game_file_root", { path, generation }),
   relinkGameFileRoot: (rootId: string, path: string, generation: number) =>

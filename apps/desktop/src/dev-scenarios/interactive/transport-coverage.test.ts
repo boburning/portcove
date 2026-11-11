@@ -17,7 +17,7 @@ const transportPath = fileURLToPath(new URL("./transport.ts", import.meta.url));
 // must NOT be listed here: give it a handler in transport.ts.
 const unsupportedByReason: Record<string, string[]> = {
   "mutation or native action the fixtures do not model; they never change the host": `
-    acquire_game_update activate_port add_game_file_root add_source adopt_port
+    acquire_game_update activate_port add_game_file_root add_games_to_library add_source adopt_port
     apply_catalog_update apply_game_setting apply_game_update apply_steam_batch_add
     apply_steam_entry begin_github_device_login cancel_application_update_check
     change_to_managed_runtime clear_host_tool_path
@@ -35,7 +35,7 @@ const unsupportedByReason: Record<string, string[]> = {
     refresh_official_definition register_external_runtime
     register_user_selected_runtime relink_external_runtime relink_game_file_root
     relink_source relink_user_selected_runtime relocate_output
-    remove_external_runtime remove_game_file_root remove_port remove_source
+    remove_external_runtime remove_game_file_root remove_library_membership remove_port remove_source
     reset_application_update_preferences reset_artwork reset_output_location
     restart_to_apply_application_update restore_backup revoke_catalog_key
     rollback_catalog rollback_port set_application_update_preferences set_channel
@@ -60,7 +60,7 @@ const unsupportedByReason: Record<string, string[]> = {
     `
     get_catalog get_catalog_media_thumbnail get_default_library_root
     get_engine_capabilities get_game_settings get_library_identity
-    get_runtime_diagnostic_health get_sources get_statuses
+    get_library_memberships get_runtime_diagnostic_health get_sources get_statuses
     list_steam_profiles
   `.split(/\s+/),
 };

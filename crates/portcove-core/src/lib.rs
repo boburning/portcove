@@ -60,6 +60,7 @@ mod library;
 mod library_access;
 mod library_authority;
 mod library_import;
+mod library_membership;
 mod library_move;
 mod library_transfer;
 mod managed_runtime_policy;
@@ -245,6 +246,11 @@ pub use library::{
     ApplicationUpdateQuiescenceGuard, Library, LibraryChangeObserver, PortOperationGuard,
 };
 pub use library_import::LibraryImportPlan;
+pub use library_membership::{
+    LIBRARY_MEMBERSHIP_FORMAT_VERSION, LibraryMembership, LibraryMembershipOrigin,
+    LibraryMembershipOutcome, LibraryMembershipOutcomeKind, LibraryMembershipRequest,
+    LibraryMembershipSource, MAX_LIBRARY_MEMBERSHIP_BATCH,
+};
 pub use library_move::LibraryMoveResult;
 pub use library_transfer::{LibraryMovePlan, LibraryTreePlan};
 pub use operation::{OPERATION_EVENT_SCHEMA_VERSION, OperationCoordinator};
