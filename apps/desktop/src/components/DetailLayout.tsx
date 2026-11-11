@@ -68,7 +68,7 @@ export function DetailLayout({
 }: {
   backLabel?: string | undefined;
   favoriteControl?: ReactNode;
-  /** Secondary hero content that must not share the primary action row. */
+  /** Maintenance content (catalog checks) shown at the top of the management section. */
   managementSupplement?: ReactNode;
   port: Identity;
   projectUrl?: string | undefined;
