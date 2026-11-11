@@ -205,7 +205,8 @@ block and a 96 MiB decoder budget. It applies the compression ratio to the
 entire indexed output before decoding, including headers and padding. The
 existing archive size and TAR metadata limits also apply. It verifies every
 indexed block and consumes the TAR terminator and up to one 10 KiB record of
-zero padding through the end of the stream before extraction writes. Input
+zero padding through the end of the stream before extraction writes. A
+malformed stream keeps returning its decode failure on subsequent reads. Input
 seeks and reads, TAR scanning and output writes honor the existing
 cancellation checkpoint. NativePortable Linux x86-64 managed release admission
 uses the same TAR.XZ reader when the retained GitHub declaration and exact
@@ -220,8 +221,9 @@ then applies the existing portable-path, collision, size and destination checks.
 Each block's actual decode chain is constructed and dropped before extraction,
 without extracting entries or retaining multiple dictionaries. This catches
 unsupported stream shapes and decoder properties that a codec-name check alone
-cannot reject; final decoding still verifies the available payload checksums.
-Callbacks consume every planned entry exactly once by identity, including
+cannot reject. Final decoding verifies the available payload checksums and
+rejects block output beyond its declared size. Callbacks consume every planned
+entry exactly once by identity, including
 streamless entries that the decoder visits out of header order. Raw reads,
 seeks and output writes retain cooperative cancellation; the awaited worker
 owns its private tree until it stops. This format capability does not broaden
