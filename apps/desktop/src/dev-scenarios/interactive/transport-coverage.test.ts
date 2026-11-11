@@ -45,7 +45,7 @@ const unsupportedByReason: Record<string, string[]> = {
   `.split(/\s+/),
   "review, plan or inspection step of a user-started flow the fixtures do not mount": `
     catalog_download_candidates check_definition_capabilities check_installed
-    check_port discover_setup_launch_targets forecast_installed_update_checks discover_sources inspect_source
+    check_port discover_setup_launch_targets discover_sources inspect_source
     inspect_source_intake plan_catalog_update plan_game_update
     plan_game_update_acquisition plan_ghostship_legacy_recovery plan_library_import
     plan_library_move plan_output_relocation plan_port plan_source_import
@@ -58,7 +58,8 @@ const unsupportedByReason: Record<string, string[]> = {
   `.split(/\s+/),
   "read-only getter that the mounted fixture surfaces do not request, or a user-started flow they do not mount (get_catalog and get_statuses are replaced by get_workspace_snapshot)":
     `
-    get_catalog get_catalog_media_thumbnail get_default_library_root
+    forecast_installed_update_checks get_catalog get_catalog_media_thumbnail
+    get_default_library_root
     get_engine_capabilities get_game_settings get_host_tools get_library_identity
     get_runtime_diagnostic_health get_source_inbox_paths get_sources get_statuses
     list_steam_profiles
