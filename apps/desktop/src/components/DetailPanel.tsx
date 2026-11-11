@@ -1294,7 +1294,17 @@ export function InstallationVersionSummary({
         {action && <div className="detail-version-action">{action}</div>}
       </div>
       {status?.active && portcoveUpdates && (
-        <p className="detail-version-context">Portcove handles updates for this installation.</p>
+        <p className="detail-version-context">
+          {/* Ownership stays with Portcove even when the catalog no longer offers updates. */}
+          {status.port_actions?.some(
+            (assessment) =>
+              assessment?.action === "update" &&
+              (assessment.reason === "route_not_offered" ||
+                assessment.reason === "definition_ineligible"),
+          )
+            ? "Portcove manages this installation; no further updates are offered."
+            : "Portcove handles updates for this installation."}
+        </p>
       )}
       {status?.staged && (
         <p className="detail-version-context">

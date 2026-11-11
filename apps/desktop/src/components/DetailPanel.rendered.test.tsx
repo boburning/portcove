@@ -223,6 +223,34 @@ it("distinguishes catalog saved-data declarations, retained installation rules a
   expect(external).not.toContain("<code>save</code>");
 });
 
+it("does not promise further updates when the catalog no longer offers them", () => {
+  const render = (reason: "available" | "route_not_offered") =>
+    renderToStaticMarkup(
+      <DetailPanel
+        port={port}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={{
+          ...portStatus(),
+          port_id: port.id,
+          active: installRecord(),
+          port_actions: [
+            {
+              action: "update",
+              availability: reason === "available" ? "allowed" : "not_offered",
+              reason,
+            },
+          ],
+        }}
+      />,
+    );
+  expect(render("available")).toContain("Portcove handles updates for this installation.");
+  const retired = render("route_not_offered");
+  expect(retired).toContain("Portcove manages this installation; no further updates are offered.");
+  expect(retired).not.toContain("Portcove handles updates for this installation.");
+});
+
 it.each([
   ["allowed", "available", false, null],
   [
