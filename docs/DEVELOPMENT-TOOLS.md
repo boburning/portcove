@@ -3326,6 +3326,13 @@ no special risk flag is required. The known GLib error stays visible and remains
 a raw failed scan. Release expiry, tags, inventories and native source review
 belong exclusively to Linux release authorization; see [QUALITY](QUALITY.md).
 
+Portcove builds SQLite from the `libsqlite3-sys` source selected by `Cargo.lock`
+through rusqlite's `bundled` feature. Review the effective amalgamation when
+updating either crate. Keep the Windows canonical-path WAL fix and the
+[RUSTSEC-2026-0459](https://rustsec.org/advisories/RUSTSEC-2026-0459.html) fix
+in SQLite 3.54.0 or later, along with checked unsigned conversions and the
+connection limits used by Core.
+
 ## Cloud agent sessions
 
 Disposable Linux x86_64 cloud containers, such as Claude Code cloud sessions,
