@@ -1586,6 +1586,32 @@ the installed build) has restored the new live data, collection is suspended so 
 stale build copy can never overwrite the selected profile or resurrect a disabled
 mod.
 
+### The game's own mod list
+
+Ship of Harkinian keeps its enabled mods and their order in the
+`gSettings.EnabledMods` entry of `shipofharkinian.json`, naming each mod by its file
+name without the extension. At startup it enables every `.o2r`/`.otr` in `mods` that
+the list does not name, so a disabled package must be absent from the folder (which
+Portcove ensures) and the profile's order takes effect only when written into the
+list. Portcove writes that entry from the selected revision after every change,
+switch and before each launch, keeping every other key in the file. The
+`asset-override` order is the list order; the game adds archives in that order and
+the last one providing an asset wins. Two package files the game would load as one
+mod (the same name without extension, ignoring case) and names containing
+`|<>"?*` are refused at install.
+
+`profile live` reports `native_list`: `in-sync`, `not-written`, `reordered`,
+`differs` (with `missing` and `unexpected` names) or `unreadable`. A reorder made in
+the game's mod menu (the same mods in another order) is kept as the profile's next
+revision when supervised play ends, or at the next profile change or launch. Any
+other difference, such as a mod disabled in the game's menu (which the game would
+re-enable at its next start), is reported and rewritten from the revision before the
+next launch. An unreadable configuration is never rewritten: the game itself
+discards a configuration it cannot parse.
+
+These behaviors come from Shipwright 9.2.3 (`cb71e22a`) and its libultraship
+(`fdcaf633`) source; they have not yet been observed in a running game.
+
 ### Installing from GameBanana
 
 ```text
@@ -1620,8 +1646,8 @@ changing anything. Reviewed-but-unapplied staging is removed after a day.
 Library metadata schema 6 carries profiles, revisions and the selected profile; it is
 emitted only when profiles exist and import validates each profile against its
 retained reference before writing. Precedence between packages that provide the same
-asset path (`asset-override` ordering) follows the supplied order, last wins; this
-is an unverified loader assumption until confirmed against the real loader.
+asset path (`asset-override` ordering) follows the supplied order, last wins (see
+[the game's own mod list](#the-games-own-mod-list)).
 
 ## Retained builds and setup references
 

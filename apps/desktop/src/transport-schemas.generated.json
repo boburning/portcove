@@ -25133,6 +25133,116 @@
     "type": "array"
   },
   "live_mods": {
+    "$defs": {
+      "NativeModListStatus": {
+        "description": "How the game's own mod list relates to the selected revision.",
+        "oneOf": [
+          {
+            "description": "This game has no reviewed native mod list.",
+            "properties": {
+              "state": {
+                "const": "not-applicable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The game's list names exactly the enabled packages in the revision's order.",
+            "properties": {
+              "state": {
+                "const": "in-sync",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "No list yet; Portcove writes it before the next launch.",
+            "properties": {
+              "state": {
+                "const": "not-written",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The same mods in a different order, set in the game's menu. Portcove keeps\nit as the profile's next revision at the next profile change or launch.",
+            "properties": {
+              "native_order": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "state": {
+                "const": "reordered",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "native_order"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The list differs in which mods it names (for example a mod disabled in the\ngame's menu, which the game re-enables at its next start). Portcove\nrewrites the list from the revision before the next launch.",
+            "properties": {
+              "missing": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "state": {
+                "const": "differs",
+                "type": "string"
+              },
+              "unexpected": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "state",
+              "missing",
+              "unexpected"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The configuration could not be read; Portcove leaves it untouched.",
+            "properties": {
+              "reason": {
+                "type": "string"
+              },
+              "state": {
+                "const": "unreadable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
       "changed_owned": {
@@ -25141,6 +25251,10 @@
           "type": "string"
         },
         "type": "array"
+      },
+      "native_list": {
+        "$ref": "#/$defs/NativeModListStatus",
+        "description": "The game's own enabled-mods list compared with the selected revision."
       },
       "profile_id": {
         "type": [
@@ -25168,7 +25282,8 @@
       "profile_id",
       "revision",
       "unmanaged",
-      "changed_owned"
+      "changed_owned",
+      "native_list"
     ],
     "title": "LiveMods",
     "type": "object"

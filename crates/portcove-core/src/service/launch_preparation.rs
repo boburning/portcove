@@ -185,6 +185,9 @@ impl PortcoveService {
         }
         self.prepare_ghostship_legacy_archive(active)?;
         checkpoint()?;
+        // Adopt a menu reorder from the collected data, then write the selected
+        // revision's mod list so the build loads exactly that order.
+        self.prepare_native_mod_list_locked(&port.id)?;
         self.restore_user_data_to(port, &active.path)?;
         crate::profile_deploy::clear_restore_pending(&self.library.user_dir(&port.id))?;
         checkpoint()?;

@@ -3943,6 +3943,38 @@ export interface OutputLiveMods {
    * Installed files whose bytes changed outside Portcove; never overwritten.
    */
   changed_owned: string[];
+  /**
+   * The game's own enabled-mods list compared with the selected revision.
+   */
+  native_list:
+    | {
+        state: "not-applicable";
+        [k: string]: unknown;
+      }
+    | {
+        state: "in-sync";
+        [k: string]: unknown;
+      }
+    | {
+        state: "not-written";
+        [k: string]: unknown;
+      }
+    | {
+        native_order: string[];
+        state: "reordered";
+        [k: string]: unknown;
+      }
+    | {
+        missing: string[];
+        state: "differs";
+        unexpected: string[];
+        [k: string]: unknown;
+      }
+    | {
+        reason: string;
+        state: "unreadable";
+        [k: string]: unknown;
+      };
   profile_id: string | null;
   revision: number | null;
   /**

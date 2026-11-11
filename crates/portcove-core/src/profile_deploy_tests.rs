@@ -453,3 +453,173 @@ fn recovery_holds_instead_of_deleting_a_player_edited_owned_file() {
     );
     assert!(layout.journal().exists(), "the switch stays resumable");
 }
+
+fn native_list(world: &World) -> Option<String> {
+    let bytes = fs::read(user(world).join("starship.cfg.json")).ok()?;
+    let value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    value["CVars"]["gSettings"]["EnabledMods"]
+        .as_str()
+        .map(str::to_owned)
+}
+
+fn install(world: &World, profile: &str, name: &str, expected: u64) -> Result<ProfileRevision> {
+    let package = archive(&world.scratch, name, &[(name, name.as_bytes())]);
+    world
+        .service
+        .install_mod_package("starship", profile, &package, expected)
+}
+
+fn native_status(world: &World) -> NativeModListStatus {
+    world
+        .service
+        .observe_live_mods("starship")
+        .unwrap()
+        .native_list
+}
+
+#[test]
+fn the_game_list_names_exactly_the_enabled_packages_in_override_order() {
+    let w = world();
+    install(&w, &w.default, "b-models.o2r", 1).unwrap();
+    install(&w, &w.default, "a-sounds.otr", 2).unwrap();
+    // Installation order is the override order; the last listed mod wins.
+    assert_eq!(native_list(&w).as_deref(), Some("b-models|a-sounds"));
+    assert_eq!(native_status(&w), NativeModListStatus::InSync);
+    w.service
+        .set_mod_package_enabled("starship", &w.default, "b-models.o2r", false, 3)
+        .unwrap();
+    assert_eq!(native_list(&w).as_deref(), Some("a-sounds"));
+    assert_eq!(live_mods(&w), ["a-sounds.otr"]);
+    w.service
+        .set_mod_package_enabled("starship", &w.default, "a-sounds.otr", false, 4)
+        .unwrap();
+    assert_eq!(
+        native_list(&w).as_deref(),
+        Some(""),
+        "clean play lists nothing"
+    );
+}
+
+#[test]
+fn files_the_game_would_load_as_one_mod_or_cannot_list_are_refused() {
+    let w = world();
+    install(&w, &w.default, "Link.o2r", 1).unwrap();
+    let collision = install(&w, &w.default, "link.otr", 2).unwrap_err();
+    assert_eq!(collision.code, crate::ErrorCode::Conflict);
+    assert_eq!(revision(&w, &w.default), 2, "nothing was recorded");
+    assert_eq!(live_mods(&w), ["Link.o2r"]);
+    // A list separator in a name would split it into two native entries.
+    #[cfg(unix)]
+    {
+        assert!(install(&w, &w.default, "a|b.o2r", 2).is_err());
+        assert_eq!(revision(&w, &w.default), 2, "nothing was recorded");
+    }
+}
+
+#[test]
+fn a_reorder_in_the_game_menu_becomes_the_next_revision() {
+    let w = world();
+    install(&w, &w.default, "b.o2r", 1).unwrap();
+    install(&w, &w.default, "a.o2r", 2).unwrap();
+    let config = user(&w).join("starship.cfg.json");
+    // The player drags `a` above `b` and changes an unrelated setting.
+    fs::write(
+        &config,
+        br#"{"CVars":{"gSettings":{"EnabledMods":"a|b","Volume":{"Master":20}}}}"#,
+    )
+    .unwrap();
+    assert_eq!(
+        native_status(&w),
+        NativeModListStatus::Reordered {
+            native_order: vec!["a".into(), "b".into()]
+        }
+    );
+    w.service.adopt_native_mod_order_locked("starship").unwrap();
+    let inventory = w.service.profile_inventory("starship").unwrap();
+    let current = inventory
+        .profiles
+        .iter()
+        .find(|view| view.profile.id == w.default)
+        .unwrap();
+    assert_eq!(current.profile.current_revision, 4);
+    let connection = w.service.library().connection().unwrap();
+    let adopted = profile::current_revision(&connection, "starship", &w.default).unwrap();
+    assert_eq!(adopted.orderings[0].native_ids, ["a.o2r", "b.o2r"]);
+    assert_eq!(native_status(&w), NativeModListStatus::InSync);
+    // Adopting again is a no-op; the unrelated setting is untouched.
+    w.service.adopt_native_mod_order_locked("starship").unwrap();
+    assert_eq!(revision(&w, &w.default), 4);
+    let value: serde_json::Value = serde_json::from_slice(&fs::read(&config).unwrap()).unwrap();
+    assert_eq!(value["CVars"]["gSettings"]["Volume"]["Master"], 20);
+}
+
+#[test]
+fn other_differences_are_reported_and_rewritten_before_launch_without_a_revision() {
+    let w = world();
+    install(&w, &w.default, "b.o2r", 1).unwrap();
+    install(&w, &w.default, "a.o2r", 2).unwrap();
+    // A disable in the game's menu would not survive its next start anyway.
+    fs::write(
+        user(&w).join("starship.cfg.json"),
+        br#"{"CVars":{"gSettings":{"EnabledMods":"b|ghost"}}}"#,
+    )
+    .unwrap();
+    assert_eq!(
+        native_status(&w),
+        NativeModListStatus::Differs {
+            missing: vec!["a".into()],
+            unexpected: vec!["ghost".into()],
+        }
+    );
+    w.service
+        .prepare_native_mod_list_locked("starship")
+        .unwrap();
+    assert_eq!(native_list(&w).as_deref(), Some("b|a"));
+    assert_eq!(revision(&w, &w.default), 3, "no revision was created");
+    assert!(
+        restore_pending(&user(&w)),
+        "the build copy is refreshed at launch"
+    );
+}
+
+#[test]
+fn each_profile_keeps_its_own_list_and_settings_across_switches() {
+    let w = world();
+    install(&w, &w.default, "hd.o2r", 1).unwrap();
+    fs::write(
+        user(&w).join("starship.cfg.json"),
+        br#"{"CVars":{"gSettings":{"EnabledMods":"hd","Volume":{"Master":70}}}}"#,
+    )
+    .unwrap();
+    let clean = w
+        .service
+        .copy_profile("starship", &w.default, "Clean")
+        .unwrap();
+    w.service
+        .set_mod_package_enabled("starship", &clean.id, "hd.o2r", false, 1)
+        .unwrap();
+    w.service.activate_profile("starship", &clean.id).unwrap();
+    assert_eq!(native_list(&w).as_deref(), Some(""));
+    w.service.activate_profile("starship", &w.default).unwrap();
+    assert_eq!(native_list(&w).as_deref(), Some("hd"));
+    let value: serde_json::Value =
+        serde_json::from_slice(&fs::read(user(&w).join("starship.cfg.json")).unwrap()).unwrap();
+    assert_eq!(value["CVars"]["gSettings"]["Volume"]["Master"], 70);
+}
+
+#[test]
+fn an_unreadable_game_configuration_is_reported_and_never_rewritten() {
+    let w = world();
+    install(&w, &w.default, "hd.o2r", 1).unwrap();
+    let config = user(&w).join("starship.cfg.json");
+    fs::write(&config, b"{broken").unwrap();
+    assert!(matches!(
+        native_status(&w),
+        NativeModListStatus::Unreadable { .. }
+    ));
+    w.service
+        .prepare_native_mod_list_locked("starship")
+        .unwrap();
+    install(&w, &w.default, "more.o2r", 2).unwrap();
+    assert_eq!(fs::read(&config).unwrap(), b"{broken");
+}

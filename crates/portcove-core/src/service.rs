@@ -6008,7 +6008,10 @@ impl PortcoveService {
         let install_root = self.managed_install_root(port_id, install_root)?;
         let catalog = self.catalog_for_installed_fallback(port_id)?;
         let port = catalog.port(port_id)?;
-        self.collect_user_data_from(port, &install_root)
+        let collected = self.collect_user_data_from(port, &install_root)?;
+        // A reorder made in the game's mod menu becomes the profile's next revision.
+        self.adopt_native_mod_order_locked(port_id)?;
+        Ok(collected)
     }
 
     fn managed_install_root(&self, port_id: &str, install_root: &Path) -> Result<PathBuf> {
