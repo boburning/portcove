@@ -274,8 +274,9 @@ describe("port update read owner", () => {
     await act(async () => root.render(<Fixture statuses={[alpha]} />));
 
     let run!: Promise<void>;
-    act(() => {
+    await act(async () => {
       run = state.checkAll();
+      await vi.waitFor(() => expect(desktopApi.checkInstalled).toHaveBeenCalledTimes(1));
     });
     await act(async () => root.render(<Fixture statuses={[beta]} />));
     await act(async () => {
@@ -307,8 +308,9 @@ describe("port update read owner", () => {
     await act(async () => root.render(<Fixture statuses={[earlier]} />));
 
     let run!: Promise<void>;
-    act(() => {
+    await act(async () => {
       run = state.checkAll();
+      await vi.waitFor(() => expect(desktopApi.checkInstalled).toHaveBeenCalledTimes(1));
     });
     await act(async () => root.render(<Fixture statuses={[changed]} />));
     await act(async () => {
@@ -322,12 +324,15 @@ describe("port update read owner", () => {
     const alpha = status("alpha", "a".repeat(64));
     const beta = status("beta", "b".repeat(64));
     const pending = deferred<UpdateCheckOutcome[]>();
-    vi.spyOn(desktopApi, "checkInstalled").mockImplementation(() => pending.promise);
+    const checkInstalled = vi
+      .spyOn(desktopApi, "checkInstalled")
+      .mockImplementation(() => pending.promise);
     await act(async () => root.render(<Fixture statuses={[alpha]} />));
 
     let run!: Promise<void>;
-    act(() => {
+    await act(async () => {
       run = state.checkAll();
+      await vi.waitFor(() => expect(checkInstalled).toHaveBeenCalledTimes(1));
     });
     await act(async () => root.render(<Fixture statuses={[beta]} />));
     await act(async () => {
