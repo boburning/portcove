@@ -41,6 +41,8 @@ interface Progress {
 }
 const maximumBytes = discoveryCheckpointBytes;
 const freshnessMs = 12 * 3600000;
+const canRecordAbsentFile = (endpoint: string) =>
+  /\/(?:readme\?ref=[a-f0-9]{40}$|contents\/\.recomp\.json\?ref=)/u.test(endpoint);
 const digest = (read: Pick<Read, "endpoint" | "body" | "link" | "status">) =>
   observationHash({
     endpoint: read.endpoint,
@@ -89,7 +91,7 @@ export class DiscoveryPrimaryReads {
           !isRecord(item) ||
           typeof item.endpoint !== "string" ||
           ![200, 404].includes(Number(item.status)) ||
-          (item.status === 404 && !/\/contents\/\.recomp\.json\?ref=/u.test(item.endpoint)) ||
+          (item.status === 404 && !canRecordAbsentFile(item.endpoint)) ||
           !item.endpoint.startsWith(`repos/${repository}/`) ||
           !(item.link === null || typeof item.link === "string") ||
           !(
@@ -139,11 +141,7 @@ export class DiscoveryPrimaryReads {
         },
       });
     } catch (error) {
-      if (
-        error instanceof GitHubApiError &&
-        error.status === 404 &&
-        /\/contents\/\.recomp\.json\?ref=/u.test(endpoint)
-      )
+      if (error instanceof GitHubApiError && error.status === 404 && canRecordAbsentFile(endpoint))
         return { status: 404, data: null, headers: {} };
       throw error;
     }
@@ -186,9 +184,13 @@ export class DiscoveryPrimaryReads {
     }
     this.cursor += 1;
     if (read.status === 404)
-      throw new GitHubApiError("http_error", "Optional primary manifest is absent", {
-        status: 404,
-      });
+      throw new GitHubApiError(
+        "http_error",
+        endpoint.includes("/readme?")
+          ? "README is absent at the requested revision"
+          : "Optional primary manifest is absent",
+        { status: 404 },
+      );
     const headers: Record<string, string> = {};
     if (read.link) headers.link = read.link;
     if (read.etag) headers.etag = read.etag;
