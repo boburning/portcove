@@ -17,6 +17,7 @@ pub const LIBRARY_MEMBERSHIP_FORMAT_VERSION: u8 = 1;
 pub const MAX_LIBRARY_MEMBERSHIP_BATCH: usize = 512;
 const MAX_PROVENANCE_SOURCES: usize = 32;
 const MAX_RECORD_BYTES: usize = 16 * 1024;
+const MAX_EXPORTED_MEMBERSHIPS: usize = 100_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -119,6 +120,65 @@ fn decode(port_id: &str, json: &str) -> Result<LibraryMembership> {
         );
     }
     Ok(record)
+}
+
+/// Reviewed export contract: bounded, unique, and structurally valid. Retained
+/// provenance never grants execution trust, so import checks shape only.
+pub(crate) fn validate_export(entries: &[LibraryMembership]) -> Result<()> {
+    if entries.len() > MAX_EXPORTED_MEMBERSHIPS {
+        return Err(PortcoveError::verification(
+            "library metadata exceeds the saved Library entry limit",
+        ));
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    for entry in entries {
+        let request = LibraryMembershipRequest {
+            port_id: entry.port_id.clone(),
+            origin: entry.origin,
+            sources: entry.sources.clone(),
+        };
+        request
+            .validate()
+            .map_err(|_| PortcoveError::verification("saved Library entry is invalid"))?;
+        if entry.format_version != LIBRARY_MEMBERSHIP_FORMAT_VERSION
+            || !seen.insert(entry.port_id.as_str())
+        {
+            return Err(PortcoveError::verification(
+                "saved Library entries are duplicated or use an unsupported format",
+            ));
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn restore(
+    connection: &rusqlite::Connection,
+    entries: &[LibraryMembership],
+) -> Result<()> {
+    for entry in entries {
+        let json = serde_json::to_string(entry)?;
+        connection.execute(
+            "INSERT INTO library_memberships(port_id,added_at,record_json) VALUES (?1,?2,?3)",
+            params![entry.port_id, entry.added_at, json],
+        )?;
+    }
+    Ok(())
+}
+
+pub(crate) fn any_memberships(connection: &rusqlite::Connection) -> Result<bool> {
+    let table: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='library_memberships')",
+        [],
+        |row| row.get(0),
+    )?;
+    if !table {
+        return Ok(false);
+    }
+    Ok(connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM library_memberships)",
+        [],
+        |row| row.get(0),
+    )?)
 }
 
 impl Library {
