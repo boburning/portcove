@@ -1345,6 +1345,25 @@ impl Installer {
                 )?;
                 crate::native_temp::require_canonical_data(port, &self.library)?;
             }
+            if let Some(name) =
+                crate::native_portable_data::directory_name(port, request.qualification.platform)
+            {
+                if !crate::native_portable_data::matches_archive(
+                    port,
+                    request.qualification.platform,
+                    &artifact.asset_name,
+                ) {
+                    return Err(PortcoveError::verification(
+                        "portable Linux archive differs from its retained package selector",
+                    ));
+                }
+                let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
+                crate::native_portable_data::require_pristine_package(
+                    &payload_root,
+                    &selected,
+                    name,
+                )?;
+            }
         }
         if let Some(runtime) = &request.qualification.runtime {
             let unpacked = lifecycle.operation_root.join("runtime");
@@ -2433,6 +2452,11 @@ impl Installer {
             if port.archive_data_compatibility_v1.is_some() {
                 return Err(PortcoveError::unsupported(
                     "external-tree adoption cannot establish a managed archive's provider or player-data contract",
+                ));
+            }
+            if crate::native_portable_data::directory_name(port, qualification.platform).is_some() {
+                return Err(PortcoveError::unsupported(
+                    "external-tree adoption cannot establish the managed Linux portable profile; keep the existing profile with its current player",
                 ));
             }
             crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;

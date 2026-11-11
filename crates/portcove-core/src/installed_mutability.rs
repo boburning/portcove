@@ -235,6 +235,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         windows_temp_directory,
         portable_marker,
         portable_marker_file,
+        linux_portable_data_directory,
         n64_windows_initial_d3d12,
         n64_runtime_at_executable_parent,
         managed_initialization,
@@ -310,6 +311,9 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
     // Only a declared marker joins the identity, so existing retained contracts keep theirs.
     if let Some(marker) = portable_marker_file {
         compatibility["portable_marker_file"] = serde_json::json!(marker);
+    }
+    if let Some(directory) = linux_portable_data_directory {
+        compatibility["linux_portable_data_directory"] = serde_json::json!(directory);
     }
     // Likewise, disc-image unpacking limits and game identifiers join only when declared.
     if let Some(image) = runtime_disc_image {

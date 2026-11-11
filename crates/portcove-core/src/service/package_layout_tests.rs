@@ -242,6 +242,143 @@ async fn rsdkv4_nested_linux_packages_keep_each_titles_originals_and_progress() 
     }
 }
 
+fn opensc2k_release(
+    version: &str,
+    include_empty_data: bool,
+    include_packaged_settings: bool,
+) -> (ResolvedRelease, crate::test_http::HttpServer) {
+    let gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+    let mut tar = tar::Builder::new(gzip);
+    let wrapper = format!("OpenSC2K-{version}-linux-x64");
+    let mut elf = [0_u8; 48];
+    elf[..6].copy_from_slice(b"\x7fELF\x02\x01");
+    elf[16..20].copy_from_slice(&[3, 0, 0x3e, 0]);
+    for (name, mode, bytes) in [
+        ("OpenSC2K.x86_64", 0o755, elf.as_slice()),
+        ("OpenSC2K.pck", 0o644, version.as_bytes()),
+    ] {
+        let mut header = tar::Header::new_ustar();
+        header.set_mode(mode);
+        header.set_size(bytes.len() as u64);
+        tar.append_data(&mut header, format!("{wrapper}/{name}"), bytes)
+            .unwrap();
+    }
+    if include_empty_data {
+        let mut header = tar::Header::new_ustar();
+        header.set_entry_type(tar::EntryType::Directory);
+        header.set_mode(0o755);
+        header.set_size(0);
+        tar.append_data(&mut header, format!("{wrapper}/data"), std::io::empty())
+            .unwrap();
+    }
+    if include_packaged_settings {
+        let bytes = b"packaged settings";
+        let mut header = tar::Header::new_ustar();
+        header.set_mode(0o644);
+        header.set_size(bytes.len() as u64);
+        tar.append_data(
+            &mut header,
+            format!("{wrapper}/data/settings.cfg"),
+            bytes.as_slice(),
+        )
+        .unwrap();
+    }
+    serve_archive(
+        version,
+        format!("{wrapper}.tar.gz"),
+        tar.into_inner().unwrap().finish().unwrap(),
+    )
+}
+
+#[tokio::test]
+async fn opensc2k_linux_portable_directory_keeps_player_data_across_releases() {
+    const ID: &str = "nicholas-ochoa-opensc2k";
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let (initial, initial_server) = opensc2k_release("0.3.0", false, false);
+    let provider = Arc::new(Provider(Mutex::new(initial)));
+    let service = PortcoveService::with_provider(library, provider.clone()).unwrap();
+    let first = install(&service, ID).await;
+    initial_server.join().unwrap();
+    let runtime = |record: &InstallRecord| {
+        let retained = service.installed_port(record).unwrap();
+        let launch = service
+            .prepare_launch_for_install(&retained, record, None, None)
+            .unwrap();
+        assert_eq!(
+            launch.executable,
+            launch.working_directory.join("OpenSC2K.x86_64")
+        );
+        assert!(launch.fixed_arguments_only);
+        assert!(launch.working_directory.join("data").is_dir());
+        launch.working_directory
+    };
+    let first_root = runtime(&first);
+    fs::write(first_root.join("data/settings.cfg"), b"player settings").unwrap();
+    fs::create_dir(first_root.join("data/cities")).unwrap();
+    fs::write(first_root.join("data/cities/saved.sc2x"), b"city progress").unwrap();
+
+    let (next, next_server) = opensc2k_release("0.3.1", true, false);
+    *provider.0.lock().unwrap() = next;
+    acquire(&service, ID).await;
+    next_server.join().unwrap();
+    let updated = apply_update(&service, ID).await.unwrap();
+    let updated_root = runtime(&updated);
+    assert_eq!(
+        fs::read(updated_root.join("OpenSC2K.pck")).unwrap(),
+        b"0.3.1"
+    );
+    assert_eq!(
+        fs::read(updated_root.join("data/settings.cfg")).unwrap(),
+        b"player settings"
+    );
+    assert_eq!(
+        fs::read(updated_root.join("data/cities/saved.sc2x")).unwrap(),
+        b"city progress"
+    );
+    fs::write(
+        updated_root.join("data/cities/saved.sc2x"),
+        b"later progress",
+    )
+    .unwrap();
+    let rolled = service.rollback(ID).unwrap();
+    assert_eq!(rolled.id, first.id);
+    let rolled_root = runtime(&rolled);
+    assert_eq!(
+        fs::read(rolled_root.join("OpenSC2K.pck")).unwrap(),
+        b"0.3.0"
+    );
+    assert_eq!(
+        fs::read(rolled_root.join("data/cities/saved.sc2x")).unwrap(),
+        b"later progress"
+    );
+
+    let mut drifted = service.installed_port(&rolled).unwrap();
+    drifted.linux_portable_data_directory = None;
+    assert!(
+        service
+            .require_portable_transition_to(&rolled, &drifted, None, None)
+            .is_err()
+    );
+
+    let (drifted, drifted_server) = opensc2k_release("0.3.2", false, true);
+    *provider.0.lock().unwrap() = drifted;
+    acquire(&service, ID).await;
+    drifted_server.join().unwrap();
+    assert!(
+        apply_update(&service, ID)
+            .await
+            .unwrap_err()
+            .message
+            .contains("player-owned portable data directory")
+    );
+    assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
+    assert_eq!(
+        fs::read(rolled_root.join("data/settings.cfg")).unwrap(),
+        b"player settings"
+    );
+}
+
 #[tokio::test]
 async fn a_reviewed_layout_admits_compatible_releases_and_holds_drifted_ones() {
     let temporary = tempfile::tempdir().unwrap();

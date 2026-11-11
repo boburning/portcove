@@ -42,6 +42,54 @@ fn observed_rollout_releases(id: &str) -> Vec<serde_json::Value> {
 }
 
 #[tokio::test]
+async fn opensc2k_selects_linux_tarballs_with_an_unchanged_definition() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("nicholas-ochoa-opensc2k").unwrap();
+    let mut previous = port.clone();
+    previous.linux_portable_data_directory = None;
+    let key =
+        |port| ReleaseSelectionCacheKey::new(port, ReleaseChannel::Stable, Platform::LinuxX86_64);
+    assert_ne!(key(port), key(&previous));
+    let current = "OpenSC2K-0.3.0-linux-x64.tar.gz";
+    let successor = "OpenSC2K-0.3.1-linux-x64.tar.gz";
+    let digest = "ae590f1972bab10de02334219426c9916de6e2c528fa65709d2b22bdf1bd952c";
+    let mut published = asset(current, None);
+    published["digest"] = serde_json::json!(format!("sha256:{digest}"));
+    published["size"] = serde_json::json!(57_273_526);
+    let (root, requests, server) = serve_http(vec![
+        metadata(),
+        releases(&[release("v0.3.0", vec![published])]),
+        metadata(),
+        releases(&[release(
+            "v0.3.1",
+            vec![
+                asset("OpenSC2K-0.3.1-linux-arm64.tar.gz", Some('b')),
+                asset("OpenSC2K-0.3.1-windows-x64-portable.zip", Some('c')),
+                asset("OpenSC2K-0.3.1-macos-universal.dmg", Some('d')),
+                asset("OpenSC2K-0.3.1-linux-x64.tar.gz.zip", Some('e')),
+                asset("mirror-OpenSC2K-0.3.1-linux-x64.tar.gz", Some('f')),
+                asset("OpenSC2K-experimental-linux-x64.tar.gz", Some('e')),
+                asset(successor, Some('a')),
+            ],
+        )]),
+    ]);
+    for (name, expected, root) in [
+        (current, digest.to_string(), root.clone()),
+        (successor, "a".repeat(64), root),
+    ] {
+        let resolved = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::LinuxX86_64)
+            .await
+            .unwrap();
+        assert_eq!(resolved.asset.name, name);
+        assert_eq!(resolved.asset.sha256, expected);
+    }
+    server.join().unwrap();
+    assert_eq!(requests.try_iter().count(), 4);
+}
+
+#[tokio::test]
 async fn openmohaa_unix_selects_official_zip_and_compatible_successor() {
     let id = "medal-of-honor-allied-assault-openmohaa";
     let catalog = crate::Catalog::embedded().unwrap();

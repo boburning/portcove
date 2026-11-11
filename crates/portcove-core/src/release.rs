@@ -181,7 +181,8 @@ impl ReleaseSelectionCacheKey {
                 || crate::native_external_profile::archive_siblings::requires_archive(
                     port, platform,
                 )
-                || crate::native_external_profile::openjk::requires_archive(port, platform),
+                || crate::native_external_profile::openjk::requires_archive(port, platform)
+                || crate::native_portable_data::directory_name(port, platform).is_some(),
             scope_binding: None,
             repository: port.release.repository.clone(),
             channel,
@@ -1875,6 +1876,7 @@ fn choose_asset<'a>(
                 || !crate::native_external_profile::archive_siblings::matches_asset(
                     port, platform, &name,
                 )
+                || !crate::native_portable_data::matches_archive(port, platform, &name)
             {
                 return None;
             }
