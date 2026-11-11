@@ -2858,7 +2858,12 @@ async fn exec_game(service: &PortcoveService, args: ExecArgs) -> Result<ExitCode
     let (accepted_sender, accepted_receiver) = tokio::sync::oneshot::channel();
     let (started_sender, started_receiver) = tokio::sync::oneshot::channel();
     let mut supervision = tokio::task::spawn_blocking(move || {
-        PortcoveService::new(library)?.supervise_launch_identified(
+        let service = PortcoveService::new(library)?;
+        // Preparation progress (for example unpacking a disc image) goes to
+        // stderr before the game starts; the game's own streams stay untouched.
+        let progress =
+            std::cell::RefCell::new(progress_renderer(OutputMode::Human, service.catalog()));
+        service.supervise_launch_observed(
             IdentifiedLaunchRequest {
                 request_id: &worker_request_id,
                 port_id: &args.port_id,
@@ -2866,6 +2871,7 @@ async fn exec_game(service: &PortcoveService, args: ExecArgs) -> Result<ExitCode
                 arguments: &args.game_args,
                 stdio: LaunchStdio::Inherit,
             },
+            &|event| (progress.borrow_mut())(event),
             |session| {
                 let _ = accepted_sender.send(session.id.clone());
             },

@@ -119,6 +119,13 @@ fn unpacks_once_reports_phases_and_reuses_only_an_unchanged_source() {
         .next_back()
         .unwrap();
     assert_eq!(bytes.0, bytes.1);
+    let extracted: Vec<u64> = events
+        .borrow()
+        .iter()
+        .filter(|(phase, _, _)| *phase == DiscUnpackPhase::Extract)
+        .map(|(_, done, _)| *done)
+        .collect();
+    assert!(extracted.windows(2).all(|pair| pair[0] <= pair[1]));
 
     // Unchanged source and marker: nothing is unpacked again.
     events.borrow_mut().clear();
