@@ -113,6 +113,13 @@ pub(crate) enum ProfileCommand {
         /// Catalog port ID.
         port_id: String,
     },
+    /// Check installed GameBanana packages for newer files, same-version changes or removals.
+    ProviderUpdates {
+        /// Catalog port ID owning the profile.
+        port_id: String,
+        /// Profile ID from `profile list`.
+        profile_id: String,
+    },
     /// Review one GameBanana file for a profile: downloads privately, inspects, prints the plan.
     ProviderPlan {
         /// Catalog port ID owning the profile.
@@ -163,6 +170,7 @@ impl ProfileCommand {
             Self::SetPackage { .. } => "profile.set-package",
             Self::Activate { .. } => "profile.activate",
             Self::Live { .. } => "profile.live",
+            Self::ProviderUpdates { .. } => "profile.provider-updates",
             Self::ProviderPlan { .. } => "profile.provider-plan",
             Self::ProviderApply { .. } => "profile.provider-apply",
         }
@@ -171,7 +179,10 @@ impl ProfileCommand {
     pub(crate) fn mutates(&self) -> bool {
         !matches!(
             self,
-            Self::List { .. } | Self::Revisions { .. } | Self::Live { .. }
+            Self::List { .. }
+                | Self::Revisions { .. }
+                | Self::Live { .. }
+                | Self::ProviderUpdates { .. }
         )
     }
 }
@@ -258,6 +269,46 @@ pub(crate) async fn execute(
 ) -> Result<()> {
     let name = command.name();
     match command {
+        ProfileCommand::ProviderUpdates {
+            port_id,
+            profile_id,
+        } => {
+            let updates = service
+                .check_provider_updates(&port_id, &profile_id)
+                .await?;
+            render_read_success(mode, name, updates, |updates| {
+                if updates.is_empty() {
+                    return "No installed package came from a provider.".into();
+                }
+                updates
+                    .iter()
+                    .map(|update| {
+                        let candidates = update
+                            .newer_files
+                            .iter()
+                            .map(|file| clean(&file.file_id))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        format!(
+                            "{}: {:?}{}{}",
+                            clean(&update.native_id),
+                            update.state,
+                            if candidates.is_empty() {
+                                String::new()
+                            } else {
+                                format!(" (candidate files: {candidates})")
+                            },
+                            update
+                                .reason
+                                .as_deref()
+                                .map(|reason| format!(" — {}", clean(reason)))
+                                .unwrap_or_default()
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            })
+        }
         ProfileCommand::ProviderPlan {
             port_id,
             profile_id,

@@ -1605,6 +1605,13 @@ computed SHA-256 of the actual bytes. The provider's MD5 and scan results are sh
 as unverified claims. A displayed version label does not identify bytes; the file ID
 and computed digest do.
 
+`portcove --library PATH --json profile provider-updates PORT_ID PROFILE_ID` is
+read-only. For each installed provider package it reports `current`, `newer_files`
+(with candidate file IDs in ascending order), `installed_file_removed` or
+`unavailable`. `version_changed: false` with `newer_files` means files changed under
+an unchanged version label. Several candidates are an ambiguous choice and are never
+resolved by name; an outage reports `unavailable`, never "no update".
+
 `provider-apply` takes the saved plan and its `plan_sha256`, asks for confirmation
 (or `--yes`), and installs exactly the reviewed bytes under a one-use authorization.
 Altered staged bytes, a tampered plan or a newer profile revision refuse without
