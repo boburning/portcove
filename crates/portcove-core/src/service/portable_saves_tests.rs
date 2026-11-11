@@ -118,7 +118,8 @@ fn register_install(library: &Library, service: &PortcoveService, version: &str)
     let platform = Platform::current().unwrap();
     let bytes = format!("{PORT}:{version}:fixture");
     let artifact = crate::ArtifactIdentity {
-        asset_name: format!("shipwright-fixture-{version}.zip"),
+        // Matches the reviewed Windows package-name shape; bytes stay inert.
+        asset_name: format!("SoH-Fixture{}-Win64.zip", version.replace('.', "")),
         sha256: hex::encode(Sha256::digest(bytes.as_bytes())),
         size: bytes.len() as u64,
     };
