@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 48;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 49;
 
 struct Migration {
     version: i64,
@@ -312,7 +312,35 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_48,
         verify: verify_migration_48,
     },
+    Migration {
+        version: 49,
+        name: "confirmed first-install batches",
+        apply: migration_49,
+        verify: verify_migration_49,
+    },
 ];
+
+fn migration_49(transaction: &Transaction<'_>) -> Result<()> {
+    // A batch associates reviewed plan digests with their outcomes. It stores no
+    // authorization and is never an installation or consent record.
+    transaction.execute_batch(
+        "CREATE TABLE install_batches (
+            id TEXT PRIMARY KEY CHECK(length(id)=36),
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            record_json TEXT NOT NULL CHECK(length(record_json)<=524288)
+        );",
+    )?;
+    verify_migration_49(transaction)
+}
+
+fn verify_migration_49(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "install_batches",
+        &["id", "created_at", "updated_at", "record_json"],
+    )
+}
 
 fn migration_48(transaction: &Transaction<'_>) -> Result<()> {
     // Membership is a saved selection, not an installation, registration or
