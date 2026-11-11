@@ -2318,11 +2318,16 @@ mod assessment_tests {
 /// Tells the player that a failed automatic snapshot stopped the version change
 /// before anything changed, and how to continue. The cause stays in the message and
 /// the error keeps its code and details. It is applied only to the backup copy itself;
-/// conflicts and holds that carry their own guidance pass through unchanged.
+/// every other kind carries its own guidance and passes through unchanged.
 pub(super) fn explain_snapshot_failure(mut error: PortcoveError) -> PortcoveError {
-    // Conflicts (a changed producer or generated cache, a recovery hold) carry their
-    // own remedy; turning snapshots off would point away from it.
-    if error.code == crate::ErrorCode::Conflict {
+    // Only a copy that failed (file-system errors are `State`; a credential-scan limit
+    // is `Unsupported`) is reworded. Conflicts and verification refusals, such as a
+    // changed producer, a modified retained runtime or a recovery hold, carry their
+    // own remedy, and turning snapshots off would point away from it.
+    if !matches!(
+        error.code,
+        crate::ErrorCode::State | crate::ErrorCode::Unsupported
+    ) {
         return error;
     }
     error.message = format!(

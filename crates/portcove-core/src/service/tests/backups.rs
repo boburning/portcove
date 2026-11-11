@@ -3505,13 +3505,18 @@ fn a_pending_retention_deletion_does_not_block_a_manual_backup() {
 }
 
 #[test]
-fn snapshot_failure_wording_leaves_conflicts_with_their_own_remedy_untouched() {
+fn snapshot_failure_wording_leaves_errors_with_their_own_remedy_untouched() {
     let hold = PortcoveError::conflict("unfinished backup restore; complete recovery first");
     let explained = super::super::backups::explain_snapshot_failure(hold);
     assert_eq!(
         explained.message,
         "unfinished backup restore; complete recovery first"
     );
+    assert!(!explained.details.contains_key("recovery_action"));
+
+    let retained = PortcoveError::verification("preserve this runtime and review it");
+    let explained = super::super::backups::explain_snapshot_failure(retained);
+    assert_eq!(explained.message, "preserve this runtime and review it");
     assert!(!explained.details.contains_key("recovery_action"));
 
     let copy = super::super::backups::explain_snapshot_failure(PortcoveError::state("disk full"));
