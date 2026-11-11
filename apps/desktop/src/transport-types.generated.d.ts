@@ -3608,6 +3608,11 @@ export interface OutputLauncherLibraryInventory {
 }
 export interface LauncherLibraryEntry {
   /**
+   * Port to pass to the existing reviewed `adopt --port` for `install_path`.
+   * Absent unless exactly one copyable catalog port was detected.
+   */
+  adopt_port_id: string | null;
+  /**
    * Catalog ports whose reviewed upstream repository matches this entry.
    */
   candidate_port_ids: string[];
@@ -3633,14 +3638,18 @@ export interface LauncherLibraryEntry {
   mods: LauncherModInventory | null;
   name: string;
   /**
-   * The existing reviewed adoption command for this entry, when one applies.
+   * Launcher settings for this app that Portcove does not carry over.
    */
-  next_step: string | null;
+  not_carried_over: string[];
   repository: string;
   /**
    * `github`, `gitlab`, `codeberg` or `manual`, as the launcher interprets the entry.
    */
   repository_source: string;
+  /**
+   * Earlier entry naming the same installation folder for a different app.
+   */
+  shares_folder_with: number | null;
   status: LauncherEntryStatus;
   /**
    * Declared saves/configuration present in the installation for a single match.

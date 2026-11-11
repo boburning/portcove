@@ -90,12 +90,11 @@ fn launcher_inventory_reads_only_and_hands_matched_entries_to_adopt() {
             .unwrap()
             .contains(&serde_json::json!(PORT))
     );
-    assert!(
-        jak["next_step"]
-            .as_str()
-            .unwrap()
-            .starts_with("portcove adopt")
-    );
+    if jak["status"] == "ready-to-review" {
+        assert_eq!(jak["adopt_port_id"], PORT);
+    } else {
+        assert!(jak["adopt_port_id"].is_null());
+    }
     assert_eq!(inventory["entries"][1]["status"], "not-in-catalog");
     assert_eq!(tree(&data), before);
 

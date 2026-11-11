@@ -110,8 +110,13 @@ pub struct LauncherLibraryEntry {
     pub hints: LauncherEntryHints,
     pub mods: Option<LauncherModInventory>,
     pub explanation: String,
-    /// The existing reviewed adoption command for this entry, when one applies.
-    pub next_step: Option<String>,
+    /// Port to pass to the existing reviewed `adopt --port` for `install_path`.
+    /// Absent unless exactly one copyable catalog port was detected.
+    pub adopt_port_id: Option<String>,
+    /// Earlier entry naming the same installation folder for a different app.
+    pub shares_folder_with: Option<usize>,
+    /// Launcher settings for this app that Portcove does not carry over.
+    pub not_carried_over: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -166,6 +171,7 @@ struct RawEntry {
     folder_name: String,
     install_path: Option<String>,
     preferred_version: Option<String>,
+    not_carried_over: Vec<String>,
 }
 
 impl PortcoveService {
@@ -222,26 +228,32 @@ impl PortcoveService {
             let instance = format!(
                 "{}:{}:{}",
                 raw.source,
-                raw.repository.trim().to_ascii_lowercase(),
+                normalized_repository(&raw.repository)
+                    .unwrap_or_else(|| raw.repository.trim().to_ascii_lowercase()),
                 raw.folder_name.trim().to_ascii_lowercase()
             );
             let mut entry =
                 self.inspect_launcher_entry(launcher, raw, apps_root.as_deref(), platform);
-            let earlier = seen_instances.get(&instance).copied().or_else(|| {
-                entry
-                    .install_path
-                    .as_ref()
-                    .and_then(|path| seen_paths.get(&normalized_key(path)).copied())
-            });
-            if let Some(earlier) = earlier {
+            let path_key = entry.install_path.as_deref().map(normalized_key);
+            if let Some(earlier) = seen_instances.get(&instance).copied() {
+                // The same app listed again: the launcher itself keeps only one.
                 entry.status = LauncherEntryStatus::Duplicate;
                 entry.explanation =
-                    format!("Entry {earlier} already names this installation; review that entry.");
-                entry.next_step = None;
+                    format!("Entry {earlier} already lists this app; review that entry.");
+                entry.adopt_port_id = None;
             } else {
                 seen_instances.insert(instance, entry.index);
-                if let Some(path) = &entry.install_path {
-                    seen_paths.insert(normalized_key(path), entry.index);
+                // A different app naming the same folder keeps its own result, so a
+                // match is never hidden behind an earlier unmatched entry.
+                if let Some(key) = path_key {
+                    if let Some(earlier) = seen_paths.get(&key).copied() {
+                        entry.shares_folder_with = Some(earlier);
+                        entry.explanation.push_str(&format!(
+                            " Entry {earlier} also names this folder; only one copy is needed."
+                        ));
+                    } else {
+                        seen_paths.insert(key, entry.index);
+                    }
                 }
             }
             entries.push(entry);
@@ -274,8 +286,8 @@ impl PortcoveService {
             index: raw.index,
             name: raw.name,
             repository_source: raw.source,
-            repository: raw.repository,
-            folder_name: raw.folder_name,
+            repository: bounded_hint(&raw.repository),
+            folder_name: bounded_hint(&raw.folder_name),
             install_path: None,
             explicit_install_path: false,
             status: LauncherEntryStatus::UnsafePath,
@@ -289,27 +301,27 @@ impl PortcoveService {
             },
             mods: None,
             explanation: String::new(),
-            next_step: None,
+            adopt_port_id: None,
+            shares_folder_with: None,
+            not_carried_over: raw.not_carried_over,
         };
         entry.candidate_port_ids =
-            self.repository_candidates(&entry.repository_source, &entry.repository);
-        let path = match resolve_install_path(
-            raw.install_path.as_deref(),
-            &entry.folder_name,
-            apps_root,
-        ) {
-            Ok((path, explicit)) => {
-                entry.explicit_install_path = explicit;
-                path
-            }
-            Err(reason) => {
-                entry.explanation = reason;
-                return entry;
-            }
-        };
+            self.repository_candidates(&entry.repository_source, &raw.repository);
+        let path =
+            match resolve_install_path(raw.install_path.as_deref(), &raw.folder_name, apps_root) {
+                Ok((path, explicit)) => {
+                    entry.explicit_install_path = explicit;
+                    path
+                }
+                Err(reason) => {
+                    entry.explanation = reason;
+                    return entry;
+                }
+            };
         entry.install_path = Some(path.clone());
-        if let Err(error) = crate::path::refuse_symlink_ancestors(&path) {
-            entry.explanation = error.message;
+        if crate::path::refuse_symlink_ancestors(&path).is_err() {
+            entry.explanation =
+                "The installation folder is reached through a symbolic link, so it was not inspected.".into();
             return entry;
         }
         match fs::symlink_metadata(&path) {
@@ -413,12 +425,11 @@ impl PortcoveService {
                 entry.user_data_paths = present_user_data(port, path, platform);
                 entry.status = LauncherEntryStatus::ReadyToReview;
                 entry.explanation = "Review the copy plan before Portcove copies this installation. The launcher's copy stays untouched.".into();
-                entry.next_step = Some(adopt_command(path, &id));
+                entry.adopt_port_id = Some(id);
             }
             _ => {
                 entry.status = LauncherEntryStatus::Ambiguous;
                 entry.explanation = "Several catalog ports match these files. Choose the one this installation is for.".into();
-                entry.next_step = Some(adopt_command(path, "PORT_ID"));
             }
         }
     }
@@ -453,12 +464,12 @@ fn settings_apps_root(data_root: &Path) -> (Option<PathBuf>, LauncherAppsRootOri
     let Ok(bytes) = crate::path::read_bounded_regular(&settings, SETTINGS_FILE_LIMIT) else {
         return (None, LauncherAppsRootOrigin::Unresolved);
     };
-    match serde_json::from_slice::<LauncherSettings>(&bytes) {
+    match serde_json::from_slice::<LauncherSettings>(without_bom(&bytes)) {
         Ok(LauncherSettings {
             apps_path: Some(path),
         }) if !path.trim().is_empty() => {
             let path = PathBuf::from(path.trim());
-            if path.is_absolute() {
+            if local_absolute(&path) {
                 (Some(path), LauncherAppsRootOrigin::Settings)
             } else {
                 (None, LauncherAppsRootOrigin::Unresolved)
@@ -473,7 +484,7 @@ fn parse_library(
     launcher: LauncherKind,
     bytes: &[u8],
 ) -> Result<(Vec<RawEntry>, Vec<LauncherLibrarySkippedEntry>)> {
-    let root: serde_json::Value = serde_json::from_slice(bytes).map_err(|error| {
+    let root: serde_json::Value = serde_json::from_slice(without_bom(bytes)).map_err(|error| {
         PortcoveError::source(format!("the launcher library is not valid JSON: {error}"))
     })?;
     let mut arrays = Vec::new();
@@ -564,6 +575,21 @@ fn raw_entry(
         folder_name: text("folderName")?.unwrap_or_default(),
         install_path: text("installPath")?.filter(|path| !path.trim().is_empty()),
         preferred_version: text("preferredVersion")?.filter(|value| !value.trim().is_empty()),
+        not_carried_over: [
+            ("linuxCustomLaunchCommand", "custom launch command"),
+            ("linuxRunner", "Linux runner"),
+            ("linuxPrefixPath", "Wine prefix"),
+            ("linuxProtonPath", "Proton path"),
+        ]
+        .into_iter()
+        .filter(|(key, _)| {
+            object
+                .get(*key)
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|value| !value.trim().is_empty())
+        })
+        .map(|(_, label)| label.to_owned())
+        .collect(),
     })
 }
 
@@ -574,9 +600,9 @@ fn resolve_install_path(
 ) -> std::result::Result<(PathBuf, bool), String> {
     if let Some(explicit) = explicit {
         let path = PathBuf::from(explicit.trim());
-        if !path.is_absolute() {
+        if !local_absolute(&path) {
             return Err(
-                "The launcher's installPath is not an absolute folder, so Portcove did not guess where it points.".into(),
+                "The launcher's installPath is not an absolute folder on a local drive, so Portcove did not inspect it.".into(),
             );
         }
         if path
@@ -606,6 +632,25 @@ fn resolve_install_path(
         );
     };
     Ok((apps_root.join(folder), false))
+}
+
+/// Metadata paths must name a local drive: network shares and device paths are
+/// never contacted on the launcher's say-so.
+fn local_absolute(path: &Path) -> bool {
+    if !path.is_absolute() {
+        return false;
+    }
+    match path.components().next() {
+        Some(Component::Prefix(prefix)) => {
+            matches!(prefix.kind(), std::path::Prefix::Disk(_))
+        }
+        Some(Component::RootDir) => !cfg!(windows),
+        _ => false,
+    }
+}
+
+fn without_bom(bytes: &[u8]) -> &[u8] {
+    bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(bytes)
 }
 
 fn normalized_repository(repository: &str) -> Option<String> {
@@ -659,7 +704,7 @@ fn read_quiver_mods(install: &Path) -> Option<LauncherModInventory> {
     let Ok(bytes) = crate::path::read_bounded_regular(&sidecar, MOD_SIDECAR_LIMIT) else {
         return Some(unreadable);
     };
-    let Ok(document) = serde_json::from_slice::<QuiverModsDocument>(&bytes) else {
+    let Ok(document) = serde_json::from_slice::<QuiverModsDocument>(without_bom(&bytes)) else {
         return Some(unreadable);
     };
     let providers = document
@@ -697,10 +742,6 @@ fn present_user_data(port: &PortDefinition, install: &Path, platform: Platform) 
         .filter(|relative| persistent_root.join(relative).exists())
         .map(|relative| prefix.join(relative))
         .collect()
-}
-
-fn adopt_command(path: &Path, port_id: &str) -> String {
-    format!("portcove adopt \"{}\" --port {port_id}", path.display())
 }
 
 #[cfg(test)]

@@ -239,8 +239,23 @@ pub(crate) fn launcher_library_inventory(
             });
         }
         text.push_str(&format!("\n{}", clean(&entry.explanation)));
-        if let Some(step) = &entry.next_step {
-            text.push_str(&format!("\nNext: {}", clean(step)));
+        if !entry.not_carried_over.is_empty() {
+            text.push_str(&format!(
+                "\nLauncher settings not carried over: {}",
+                clean(&entry.not_carried_over.join(", "))
+            ));
+        }
+        match (&entry.install_path, &entry.adopt_port_id, entry.status) {
+            (Some(path), Some(port_id), _) => text.push_str(&format!(
+                "\nNext: portcove adopt {} --port {}",
+                shell_quoted(&path.display().to_string()),
+                clean(port_id)
+            )),
+            (Some(path), None, LauncherEntryStatus::Ambiguous) => text.push_str(&format!(
+                "\nNext: portcove adopt {} --port <one of the ports above>",
+                shell_quoted(&path.display().to_string())
+            )),
+            _ => {}
         }
     }
     for skipped in &inventory.skipped_entries {
@@ -251,6 +266,17 @@ pub(crate) fn launcher_library_inventory(
         ));
     }
     text
+}
+
+/// Quote a path so pasting the suggested command passes it literally: single
+/// quotes are literal in both PowerShell and POSIX shells.
+fn shell_quoted(value: &str) -> String {
+    let value = clean(value);
+    if cfg!(windows) {
+        format!("'{}'", value.replace('\'', "''"))
+    } else {
+        format!("'{}'", value.replace('\'', "'\\''"))
+    }
 }
 
 pub(crate) fn adoption_preview(preview: &AdoptionPreview, catalog: &Catalog) -> String {

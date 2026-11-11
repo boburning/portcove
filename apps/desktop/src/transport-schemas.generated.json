@@ -18020,6 +18020,13 @@
       },
       "LauncherLibraryEntry": {
         "properties": {
+          "adopt_port_id": {
+            "description": "Port to pass to the existing reviewed `adopt --port` for `install_path`.\nAbsent unless exactly one copyable catalog port was detected.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "candidate_port_ids": {
             "description": "Catalog ports whose reviewed upstream repository matches this entry.",
             "items": {
@@ -18073,12 +18080,12 @@
           "name": {
             "type": "string"
           },
-          "next_step": {
-            "description": "The existing reviewed adoption command for this entry, when one applies.",
-            "type": [
-              "string",
-              "null"
-            ]
+          "not_carried_over": {
+            "description": "Launcher settings for this app that Portcove does not carry over.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "repository": {
             "type": "string"
@@ -18086,6 +18093,15 @@
           "repository_source": {
             "description": "`github`, `gitlab`, `codeberg` or `manual`, as the launcher interprets the entry.",
             "type": "string"
+          },
+          "shares_folder_with": {
+            "description": "Earlier entry naming the same installation folder for a different app.",
+            "format": "uint",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "status": {
             "$ref": "#/$defs/LauncherEntryStatus"
@@ -18113,7 +18129,9 @@
           "hints",
           "mods",
           "explanation",
-          "next_step"
+          "adopt_port_id",
+          "shares_folder_with",
+          "not_carried_over"
         ],
         "type": "object"
       },

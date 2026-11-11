@@ -1730,23 +1730,33 @@ folder and where it came from (`settings`, `default`, `override` or
 `unresolved`), each entry, skipped entries and an `inventory_sha256`
 fingerprint. Each entry has one `status`:
 
-| Status                 | Meaning                                                                             |
-| ---------------------- | ----------------------------------------------------------------------------------- |
-| `ready-to-review`      | One catalog port's declared executable is in the folder. `next_step` names `adopt`. |
-| `ambiguous`            | Several catalog ports match the files; choose one with `adopt --port`.              |
-| `not-in-catalog`       | No catalog port uses the entry's upstream repository, or it has none.               |
-| `unrecognized-files`   | The repository matches, but the declared executable is missing or different.        |
-| `adoption-unsupported` | The port matches, but its route forbids copying an existing installation.           |
-| `not-installed`        | The launcher lists the app, but its folder is missing.                              |
-| `unsafe-path`          | A relative, traversing, symlinked or unresolvable location was not inspected.       |
-| `duplicate`            | An earlier entry already names the same installation.                               |
+| Status                 | Meaning                                                                                                          |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `ready-to-review`      | One catalog port's declared executable is present; `adopt_port_id` names it.                                     |
+| `ambiguous`            | Several catalog ports match the files; choose one with `adopt --port`.                                           |
+| `not-in-catalog`       | No catalog port uses the entry's upstream repository, or it has none.                                            |
+| `unrecognized-files`   | The repository matches, but the declared executable is not present.                                              |
+| `adoption-unsupported` | The port matches, but its route forbids copying an existing installation.                                        |
+| `not-installed`        | The launcher lists the app, but its folder is missing.                                                           |
+| `unsafe-path`          | A relative, traversing, symlinked, non-local, non-folder, unreadable or unresolvable location was not inspected. |
+| `duplicate`            | An earlier entry already lists the same app and folder.                                                          |
 
-Matching uses the catalog's reviewed upstream repository and Portcove's own
-declared executable. Launcher names, `preferredVersion`, `version.txt`,
+Matching uses the catalog's reviewed upstream repository and the presence of
+Portcove's declared executable; it does not compare file contents, so a modified
+installation can still be ready to review. `adopt` then reviews the exact copy
+plan. A different app naming an earlier entry's folder keeps its own status and
+reports `shares_folder_with`. The human summary prints the `adopt` command with
+the folder single-quoted for pasting; JSON consumers combine `install_path` and
+`adopt_port_id` themselves. Launcher names, `preferredVersion`, `version.txt`,
 `selected_executable.txt` and Quiver `.quiver-mods.json` records are reported as
 untrusted hints; they never establish authenticity, a version, save
 compatibility or mod ownership. Mods are listed, not activated. Only `AppsPath`
 is read from `settings.json`; tokens and other launcher settings are ignored.
+Paths taken from launcher metadata (`AppsPath`, `installPath`) must be absolute
+paths on a local drive: network shares and device paths are not contacted, and
+`--apps-root` remains the player's explicit choice. Per-app Linux runner, Wine
+prefix, Proton path and custom launch commands are listed in
+`not_carried_over`; they never become Portcove launch arguments.
 `user_data_paths` lists declared saves and settings found in a ready folder; the
 `adopt` review still decides what is copied.
 
@@ -1757,8 +1767,10 @@ unexpected value types or unsupported Quiver repository sources are listed in
 `6e62a967cb37a2106b0420dc47375ee83cac41d3` and Quiver v3.5.1
 `66c45cbe2779818791948c7bd769d388e3a47b44`, including root-array, `apps` and
 legacy `standard`/`experimental`/`custom` shapes. These are source-format
-observations, not tests against every launcher release. The command is CLI-only
-for now.
+observations, not tests against every launcher release. A UTF-8 byte-order mark
+is accepted; other encodings are refused. GitHub Launcher itself keeps only the
+first entry per repository, while Portcove lists each distinct folder. The
+command is CLI-only for now.
 
 ## Reviewed first installation
 

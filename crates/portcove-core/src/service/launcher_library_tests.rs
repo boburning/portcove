@@ -111,7 +111,7 @@ fn quiver_inventory_classifies_entries_and_reads_only() {
     );
     let library = serde_json::json!({
         "apps": [
-            {"name": "Ready", "repository": repository, "folderName": "Ready Game ✓", "preferredVersion": "v9"},
+            {"name": "Ready", "repository": repository, "folderName": "Ready Game ✓", "preferredVersion": "v9", "linuxCustomLaunchCommand": "wine %command%"},
             {"name": "Modified", "repository": repository.to_uppercase(), "folderName": "Modified"},
             {"name": "Unknown", "repository": "someone/not-a-port", "folderName": "Unknown"},
             {"name": "Missing", "repository": "someone/missing", "folderName": "Missing"},
@@ -168,20 +168,15 @@ fn quiver_inventory_classifies_entries_and_reads_only() {
     assert!(mods.readable);
     assert_eq!(mods.records, 3);
     assert_eq!(mods.providers, ["gamebanana", "thunderstore"]);
-    assert!(
-        entry
-            .next_step
-            .as_deref()
-            .unwrap()
-            .ends_with(&format!("--port {port_id}"))
-    );
+    assert_eq!(entry.adopt_port_id.as_deref(), Some(port_id.as_str()));
+    assert_eq!(entry.not_carried_over, ["custom launch command"]);
     // The named route is the existing reviewed adoption, which still binds its own plan.
     service.preview_adoption(&ready, Some(&port_id)).unwrap();
 
     let modified = by_folder(&inventory, "Modified");
     assert_eq!(modified.status, LauncherEntryStatus::UnrecognizedFiles);
     assert_eq!(modified.candidate_port_ids, std::slice::from_ref(&port_id));
-    assert!(modified.next_step.is_none());
+    assert!(modified.adopt_port_id.is_none());
 
     let statuses = inventory
         .entries
@@ -196,7 +191,17 @@ fn quiver_inventory_classifies_entries_and_reads_only() {
     assert_eq!(statuses["Relative"], LauncherEntryStatus::UnsafePath);
     assert_eq!(statuses["Codeberg"], LauncherEntryStatus::NotInCatalog);
     assert_eq!(statuses["Manual"], LauncherEntryStatus::NotInCatalog);
-    assert_eq!(statuses["Same folder"], LauncherEntryStatus::Duplicate);
+    // A different app naming an earlier folder keeps its own result.
+    assert_eq!(statuses["Same folder"], LauncherEntryStatus::NotInCatalog);
+    let same = inventory
+        .entries
+        .iter()
+        .find(|e| e.name == "Same folder")
+        .unwrap();
+    assert_eq!(
+        same.shares_folder_with,
+        Some(by_folder(&inventory, "Unknown").index)
+    );
     let explicit_entry = by_folder(&inventory, "Explicit");
     assert!(explicit_entry.explicit_install_path);
     assert_eq!(by_folder(&inventory, "Rel").install_path, None);
@@ -350,13 +355,7 @@ fn shared_upstream_repository_is_ambiguous_until_the_player_chooses() {
         if entry.detected_port_ids.len() > 1 {
             assert_eq!(entry.status, LauncherEntryStatus::Ambiguous);
             assert!(entry.detected_port_ids.iter().all(|id| ids.contains(id)));
-            assert!(
-                entry
-                    .next_step
-                    .as_deref()
-                    .unwrap()
-                    .ends_with("--port PORT_ID")
-            );
+            assert!(entry.adopt_port_id.is_none());
             return;
         }
     }
@@ -433,4 +432,126 @@ fn symlinked_installations_and_library_files_are_not_followed() {
             .inspect_launcher_library(LauncherKind::Quiver, &linked_data, None)
             .is_err()
     );
+}
+
+#[test]
+fn a_match_is_not_hidden_behind_an_earlier_unmatched_entry_for_the_same_folder() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path();
+    let service = service(root);
+    let (port_id, repository, hint) = adoptable_port(&service, root);
+    let data = root.join("data");
+    write_executable(&data.join("Apps/Game").join(&hint));
+    write(
+        &data.join("apps.json"),
+        serde_json::to_vec(&serde_json::json!([
+            {"name": "Fork", "repository": "someone/fork", "folderName": "Game"},
+            {"name": "Game", "repository": repository, "folderName": "Game"}
+        ]))
+        .unwrap()
+        .as_slice(),
+    );
+    let inventory = service
+        .inspect_launcher_library(LauncherKind::Quiver, &data, None)
+        .unwrap();
+    assert_eq!(
+        inventory.entries[0].status,
+        LauncherEntryStatus::NotInCatalog
+    );
+    let game = &inventory.entries[1];
+    assert_eq!(game.status, LauncherEntryStatus::ReadyToReview);
+    assert_eq!(game.adopt_port_id.as_deref(), Some(port_id.as_str()));
+    assert_eq!(game.shares_folder_with, Some(0));
+}
+
+#[test]
+fn byte_order_marks_and_unreadable_mod_records_are_handled() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path();
+    let service = service(root);
+    let (_, repository, hint) = adoptable_port(&service, root);
+    let data = root.join("data");
+    let apps = root.join("apps");
+    write_executable(&apps.join("Game").join(&hint));
+    write(&apps.join("Game/.quiver-mods.json"), b"{\"mods\": 3");
+    let mut settings = b"\xEF\xBB\xBF".to_vec();
+    settings.extend(serde_json::to_vec(&serde_json::json!({"AppsPath": apps})).unwrap());
+    write(&data.join("settings.json"), &settings);
+    let mut library = b"\xEF\xBB\xBF".to_vec();
+    library.extend(
+        serde_json::to_vec(&serde_json::json!([
+            {"name": "Game", "repository": repository, "folderName": "Game"}
+        ]))
+        .unwrap(),
+    );
+    write(&data.join("apps.json"), &library);
+    let inventory = service
+        .inspect_launcher_library(LauncherKind::Quiver, &data, None)
+        .unwrap();
+    assert_eq!(inventory.apps_root_origin, LauncherAppsRootOrigin::Settings);
+    let game = by_folder(&inventory, "Game");
+    assert_eq!(game.status, LauncherEntryStatus::ReadyToReview);
+    let mods = game.mods.as_ref().unwrap();
+    assert!(!mods.readable);
+    assert_eq!(mods.records, 0);
+}
+
+#[test]
+fn oversized_library_files_are_refused() {
+    let temporary = tempfile::tempdir().unwrap();
+    let data = temporary.path().join("data");
+    let service = service(temporary.path());
+    write(
+        &data.join("apps.json"),
+        &vec![b' '; usize::try_from(LIBRARY_FILE_LIMIT).unwrap() + 1],
+    );
+    assert!(
+        service
+            .inspect_launcher_library(LauncherKind::Quiver, &data, None)
+            .is_err()
+    );
+}
+
+#[test]
+fn metadata_paths_must_name_a_local_drive() {
+    assert!(!local_absolute(Path::new("relative/path")));
+    #[cfg(windows)]
+    {
+        assert!(local_absolute(Path::new(r"C:\Games\Apps")));
+        for remote in [
+            r"\\host\share\Game",
+            r"\\?\UNC\host\share\Game",
+            r"\\.\pipe\x",
+            r"\\?\C:\Games",
+            r"\Games",
+            r"C:Games",
+        ] {
+            assert!(!local_absolute(Path::new(remote)), "{remote}");
+        }
+    }
+    #[cfg(unix)]
+    assert!(local_absolute(Path::new("/games/apps")));
+
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path();
+    let service = service(root);
+    let data = root.join("data");
+    write(
+        &data.join("settings.json"),
+        br#"{"AppsPath": "\\\\host\\share\\Apps"}"#,
+    );
+    write(
+        &data.join("apps.json"),
+        br#"[{"name": "Remote", "repository": "a/b", "installPath": "\\\\host\\share\\Game"}]"#,
+    );
+    let inventory = service
+        .inspect_launcher_library(LauncherKind::Quiver, &data, None)
+        .unwrap();
+    assert_eq!(
+        inventory.apps_root_origin,
+        LauncherAppsRootOrigin::Unresolved
+    );
+    let remote = &inventory.entries[0];
+    assert_eq!(remote.status, LauncherEntryStatus::UnsafePath);
+    assert_eq!(remote.install_path, None);
 }
