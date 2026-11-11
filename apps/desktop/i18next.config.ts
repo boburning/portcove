@@ -20,6 +20,7 @@ export default defineConfig({
       "src/components/SourceRemoval.tsx",
       "src/components/BackupReview.tsx",
       "src/components/BackupHistory.tsx",
+      "src/components/ProtectionSummary.tsx",
     ],
     ignore: ["src/**/*.test.{ts,tsx}", "src/**/*.generated.d.ts", "src/design-compatibility/**"],
     output: "src/locales/{{language}}/{{namespace}}.json",
