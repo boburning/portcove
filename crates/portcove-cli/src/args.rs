@@ -57,6 +57,7 @@ const ROOT_COMMAND_GROUPS: &[(&str, &[&str])] = &[
             "installation",
             "external",
             "adopt",
+            "launcher-library",
             "ensure",
             "reconcile",
             "channel",
@@ -289,6 +290,11 @@ pub(crate) enum Commands {
     Install(InstallArgs),
     /// Review and register an existing managed port installation.
     Adopt(AdoptArgs),
+    /// Inventory another launcher's library before copying its games with `adopt`.
+    LauncherLibrary {
+        #[command(subcommand)]
+        command: LauncherLibraryCommand,
+    },
     /// Reuse the current installation when its required runtime is present, or install a selected release.
     Ensure(EnsureArgs),
     /// Install or stage available game updates for installed ports.
@@ -1428,6 +1434,38 @@ pub(crate) struct AdoptArgs {
     /// Confirm the reviewed copy and registration without prompting; skipped entries remain outside the copy.
     #[arg(long)]
     pub(crate) yes: bool,
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum LauncherLibraryCommand {
+    /// List each app, its matching catalog port and its `adopt` command without changing anything.
+    Inspect {
+        /// Launcher whose library format to read.
+        #[arg(long, value_enum)]
+        launcher: LauncherLibraryKind,
+        /// Launcher data folder holding apps.json (or legacy games.json) and settings.json.
+        data_root: PathBuf,
+        /// Use this apps folder instead of the one in settings.json, for example after a move.
+        #[arg(long)]
+        apps_root: Option<PathBuf>,
+    },
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub(crate) enum LauncherLibraryKind {
+    /// GitHub Launcher (SirDiabo/GithubLauncher).
+    GithubLauncher,
+    /// Quiver (tgeorgiadis/quiver-launcher).
+    Quiver,
+}
+
+impl From<LauncherLibraryKind> for portcove_core::LauncherKind {
+    fn from(kind: LauncherLibraryKind) -> Self {
+        match kind {
+            LauncherLibraryKind::GithubLauncher => Self::GithubLauncher,
+            LauncherLibraryKind::Quiver => Self::Quiver,
+        }
+    }
 }
 
 #[derive(Debug, Args)]

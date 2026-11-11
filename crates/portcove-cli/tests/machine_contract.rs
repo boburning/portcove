@@ -34,6 +34,9 @@ mod game_comparison;
 #[path = "machine_contract/update_inventory.rs"]
 mod update_inventory;
 
+#[path = "machine_contract/launcher_library.rs"]
+mod launcher_library;
+
 #[cfg(all(windows, feature = "qualification-fixtures"))]
 #[path = "machine_contract/source_discovery.rs"]
 mod source_discovery_contract;

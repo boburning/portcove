@@ -558,6 +558,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 serde_json::json!(schema_for_contract::<AdoptionPreview>(contract)),
             ),
             (
+                "launcher_library_inventory",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::LauncherLibraryInventory>(contract)
+                ),
+            ),
+            (
                 "port_removal_preview",
                 serde_json::json!(schema_for_contract::<PortRemovalPreview>(contract)),
             ),

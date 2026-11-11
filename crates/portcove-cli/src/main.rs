@@ -2489,6 +2489,27 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 },
             )?;
         }
+        Commands::LauncherLibrary {
+            command:
+                LauncherLibraryCommand::Inspect {
+                    launcher,
+                    data_root,
+                    apps_root,
+                },
+        } => {
+            let data_root = std::path::absolute(&data_root)?;
+            let apps_root = apps_root.map(std::path::absolute).transpose()?;
+            render_read_success(
+                mode,
+                "launcher-library.inspect",
+                service.inspect_launcher_library(
+                    launcher.into(),
+                    &data_root,
+                    apps_root.as_deref(),
+                )?,
+                |inventory| human::launcher_library_inventory(inventory, service.catalog()),
+            )?;
+        }
         Commands::Channel {
             command: ChannelCommand::Set { port_id, channel },
         } => {
@@ -3390,6 +3411,7 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::Reconcile(_) => "reconcile",
         Commands::Install(_) => "install",
         Commands::Adopt(_) => "adopt",
+        Commands::LauncherLibrary { .. } => "launcher-library.inspect",
         Commands::Ensure(_) => "ensure",
         Commands::Update(_) => "update",
         Commands::Verify { .. } => "verify",
