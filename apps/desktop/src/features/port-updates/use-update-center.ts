@@ -1,8 +1,31 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { desktopApi } from "../../api";
 import { LatestRequestGeneration } from "../../shared/concurrency-state";
-import type { PortStatus, UpdateCheckOutcome } from "../../types";
+import type {
+  GithubAuthStatus,
+  PortStatus,
+  UpdateCheckForecast,
+  UpdateCheckOutcome,
+} from "../../types";
 import { failurePresentation, isCancellation, type FailureDisplay } from "../../view-model";
+
+/** Offered before a check that would likely outrun the anonymous GitHub allowance. */
+export type SignInOffer = {
+  countedRequests: number;
+  remainingRequests: number;
+};
+
+/** True only when the check is forecast to exceed what is left and sign-in would relieve it. */
+export function signInOfferFor(
+  forecast: UpdateCheckForecast,
+  auth: GithubAuthStatus,
+): SignInOffer | undefined {
+  const remaining = auth.rate_limit?.remaining;
+  if (auth.authenticated || remaining === undefined) return undefined;
+  if (forecast.sign_in_relief_requests > 0 && forecast.counted_requests > remaining)
+    return { countedRequests: forecast.counted_requests, remainingRequests: remaining };
+  return undefined;
+}
 
 export type UpdateBatchRead = {
   status: "idle" | "pending" | "current" | "failed" | "cancelled";
@@ -53,7 +76,8 @@ export function useUpdateCenter(perform: UpdateCheckOperation, statuses: PortSta
   }, [selection]);
   const current = checked?.selection === selection ? checked : undefined;
   const outcomes = current?.outcomes ?? [];
-  const checkAll = useCallback(async () => {
+  const [signInOffer, setSignInOffer] = useState<SignInOffer>();
+  const runCheck = useCallback(async () => {
     if (currentSelection.current !== selection) return;
     const request = requests.current.begin();
     const isCurrent = () =>
@@ -99,10 +123,32 @@ export function useUpdateCenter(perform: UpdateCheckOperation, statuses: PortSta
         );
     }
   }, [perform, selection]);
+  const checkAll = useCallback(async () => {
+    // The forecast and allowance are advisory: any failure to read them falls through to
+    // the ordinary check rather than blocking it.
+    const offer = await (async () => {
+      const [forecast, auth] = await Promise.all([
+        desktopApi.forecastInstalledUpdateChecks(),
+        desktopApi.githubAuthStatus(),
+      ]);
+      return signInOfferFor(forecast, auth);
+    })().catch(() => undefined);
+    if (offer) {
+      setSignInOffer(offer);
+      return;
+    }
+    setSignInOffer(undefined);
+    await runCheck();
+  }, [runCheck]);
+  const checkAnyway = useCallback(async () => {
+    setSignInOffer(undefined);
+    await runCheck();
+  }, [runCheck]);
+  const dismissSignInOffer = useCallback(() => setSignInOffer(undefined), []);
   const batchRead: UpdateBatchRead = {
     status: current?.status ?? "idle",
     hasResults: current?.outcomes !== undefined,
     ...(current?.failure ? { failure: current.failure } : {}),
   };
-  return { outcomes, batchRead, checkAll };
+  return { outcomes, batchRead, checkAll, signInOffer, checkAnyway, dismissSignInOffer };
 }

@@ -1418,6 +1418,9 @@ function CurrentView({
           Promise.allSettled([data.refresh(), data.refreshDiagnosticsAfterMutation()])
         }
         checkAll={updates.checkAll}
+        signInOffer={updates.signInOffer}
+        onCheckAnyway={updates.checkAnyway}
+        onDismissSignInOffer={updates.dismissSignInOffer}
         perform={operations.perform}
         onLaunch={(portId) =>
           launchKnownPort(
