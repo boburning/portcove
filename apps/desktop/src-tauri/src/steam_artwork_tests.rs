@@ -23,8 +23,9 @@ impl Fixture {
         }
     }
 
+    /// The canonical folder the writer reports (a verbatim path on Windows).
     fn grid(&self) -> PathBuf {
-        self.config.join(GRID_DIRECTORY)
+        fs::canonicalize(&self.config).unwrap().join(GRID_DIRECTORY)
     }
 
     fn with_owned_shortcut(self) -> Self {
