@@ -30,7 +30,7 @@
         },
         {
           "title": "Prepare the macOS app",
-          "instruction": "Unpack v3-mac.zip and its RSDKv3.zip, keeping the complete RSDKv3.app with its bundled frameworks. The reviewed build requires macOS 10.15 on Intel or 11 on Apple Silicon. Place your original Data.rsdk beside the app in a writable folder to use that folder for data. The app otherwise uses ~/Library/Application Support/RSDKv3 when there is no Data.rsdk, Data folder or settings.ini beside it. Use the upstream app directly after setup."
+          "instruction": "Unpack v3-mac.zip and its RSDKv3.zip, keeping the complete RSDKv3.app with its bundled frameworks. The complete app requires macOS 11 or later on Intel and Apple Silicon because of its bundled media frameworks. Use a short writable folder path for the app and its files. Place your original Data.rsdk beside the app in a writable folder to use that folder for data. The app otherwise uses ~/Library/Application Support/RSDKv3 when there is no Data.rsdk, Data folder or settings.ini beside it. Use the upstream app directly after setup."
         },
         {
           "title": "Use Android only where legacy shared storage works",
@@ -39,7 +39,8 @@
       ],
       "warnings": [
         "Preserve the actual settings, SData.bin, SGame.bin, UData.bin and mods or redirected save paths for the player you use. UseSteamDir is Windows-only. Optional FMVs come from the original Steam release; use the upstream instructions for the Videos folder.",
-        "Linux registration leaves replacement and backups with you. If Android prevents legacy storage access, the inspected APK has no verified alternate import path. Follow the upstream noncommercial-use and attribution terms."
+        "Linux registration leaves replacement and backups with you. If Android prevents legacy storage access, the inspected APK has no verified alternate import path. Follow the upstream noncommercial-use and attribution terms.",
+        "The current Linux player looks for Udata.bin at startup and writes UData.bin. On a case-sensitive filesystem this can overwrite stored achievements and leaderboards. Preserve your UData.bin separately and wait for a build with a consistent filename before using it with existing progress."
       ],
       "help_url": "https://github.com/RSDKModding/RSDKv3-Decompilation/blob/1.3.3/README.md"
     },
