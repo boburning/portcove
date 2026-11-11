@@ -205,7 +205,22 @@ fn read_portable(root: &Path, relative: &str) -> Result<(PortableSaveFile, Vec<u
     // Open through the identity-checked, no-follow path: a link swapped in
     // after classification is refused instead of read.
     let path = fs::canonicalize(root)?.join(relative);
-    let file = crate::external_runtime::open_object(&path, false).map_err(|_| changed())?;
+    let file = crate::external_runtime::open_object(&path, false).map_err(|error| {
+        if matches!(
+            error.code,
+            crate::ErrorCode::Conflict | crate::ErrorCode::Verification
+        ) {
+            changed()
+        } else {
+            error
+        }
+    })?;
+    // A hard link would let a file outside the save folder be exported.
+    if crate::external_runtime::link_count(&file)? != 1 {
+        return Err(PortcoveError::conflict(format!(
+            "A save file is also linked from somewhere else, so Portcove will not move it: {relative}"
+        )));
+    }
     let mut bytes = Vec::new();
     file.take(MAX_FILE_BYTES + 1).read_to_end(&mut bytes)?;
     if bytes.len() as u64 > MAX_FILE_BYTES {
@@ -800,6 +815,24 @@ mod tests {
         fs::write(root.join("Save/FILE1.SAV"), b"other spelling").unwrap();
         assert_eq!(
             classify(shipwright(), root).unwrap_err().code,
+            crate::ErrorCode::Conflict
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn hard_linked_saves_are_refused() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("user");
+        fs::create_dir_all(root.join("Save")).unwrap();
+        fs::write(temporary.path().join("elsewhere"), b"outside").unwrap();
+        fs::hard_link(
+            temporary.path().join("elsewhere"),
+            root.join("Save/file1.sav"),
+        )
+        .unwrap();
+        assert_eq!(
+            classify(shipwright(), &root).unwrap_err().code,
             crate::ErrorCode::Conflict
         );
     }
