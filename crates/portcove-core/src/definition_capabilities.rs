@@ -35,6 +35,14 @@ impl EngineTemplateCapability {
             contract_version: 3,
         });
         supported.push(Self {
+            template: AdapterKind::LibultrashipPortable,
+            contract_version: 4,
+        });
+        supported.push(Self {
+            template: AdapterKind::GeneratedCache,
+            contract_version: 2,
+        });
+        supported.push(Self {
             template: AdapterKind::NativePortable,
             contract_version: 2,
         });
@@ -462,6 +470,38 @@ mod tests {
                 .unwrap()
                 .compatible
         );
+    }
+
+    #[test]
+    fn libultraship4_and_generated_cache2_grants_exclude_older_readers() {
+        for (template, adapter, version) in [
+            (
+                "libultraship-portable",
+                AdapterKind::LibultrashipPortable,
+                4,
+            ),
+            ("generated-cache", AdapterKind::GeneratedCache, 2),
+        ] {
+            let previous: Vec<_> = EngineTemplateCapability::current()
+                .into_iter()
+                .filter(|entry| entry.template != adapter || entry.contract_version < version)
+                .collect();
+            assert!(
+                !check_with_inventory(&request(template, version, version), &previous)
+                    .unwrap()
+                    .compatible
+            );
+            assert!(
+                check_definition_capabilities(&request(template, version, version))
+                    .unwrap()
+                    .compatible
+            );
+            assert!(
+                check_definition_capabilities(&request(template, 1, 1))
+                    .unwrap()
+                    .compatible
+            );
+        }
     }
 
     #[test]
@@ -1248,7 +1288,7 @@ mod tests {
         let mut input = request("n64-recomp-portable", 1, 2);
         input
             .required_capabilities
-            .extend(request("generated-cache", 2, 2).required_capabilities);
+            .extend(request("generated-cache", 99, 99).required_capabilities);
         input
             .required_capabilities
             .extend(request("future-template", 1, 1).required_capabilities);
@@ -1266,7 +1306,7 @@ mod tests {
                 DefinitionCapabilityOutcome::UnsupportedTemplate
             ]
         );
-        assert_eq!(report.checks[1].installed_version, Some(1));
+        assert_eq!(report.checks[1].installed_version, Some(2));
         assert_eq!(report.checks[2].installed_version, None);
     }
 

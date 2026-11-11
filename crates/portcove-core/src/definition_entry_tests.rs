@@ -1046,7 +1046,7 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
         let version = if port.release.grant_declared_executable {
-            22
+            crate::test_fixture::grant_declared_executable_capability(port)
         } else if port.portable_marker_file.is_some() {
             19
         } else if !port.reviewed_package_layouts.is_empty() {
@@ -1278,8 +1278,8 @@ fn entry_schema_and_exact_index_identity_are_independent_checks() {
 fn unsupported_capabilities_remain_reportable_and_the_adapter_is_required() {
     let baseline = fixture();
     let mut value = baseline.clone();
-    value["required_capabilities"][0]["minimum_version"] = json!(4);
-    value["required_capabilities"][0]["maximum_version"] = json!(4);
+    value["required_capabilities"][0]["minimum_version"] = json!(99);
+    value["required_capabilities"][0]["maximum_version"] = json!(99);
     assert!(!inspect(&value).unwrap().capabilities().compatible);
     value["required_capabilities"]
         .as_array_mut()

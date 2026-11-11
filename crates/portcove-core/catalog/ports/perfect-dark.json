@@ -21,20 +21,23 @@
   "integration": {
     "support_tier": "rolling",
     "channels": ["rolling"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "generated-cache",
     "automated_tested_platforms": ["windows-x86-64"],
     "manually_validated_platforms": ["windows-x86-64"],
     "release": {
       "repository": "perfect-dark-pc-port/perfect_dark",
+      "grant_declared_executable": true,
       "rolling_tag": "ci-dev-build",
       "asset_hints": {
-        "windows-x86-64": ["pd-x86_64-windows"]
+        "windows-x86-64": ["pd-x86_64-windows"],
+        "linux-x86-64": ["pd-x86_64-linux"]
       }
     },
     "source_profile": "perfect-dark",
     "executable_hints": {
-      "windows-x86-64": ["pd.x86_64.exe"]
+      "windows-x86-64": ["pd.x86_64.exe"],
+      "linux-x86-64": ["pd.x86_64"]
     },
     "launch_arguments": ["--portable"],
     "persistent_paths": [
