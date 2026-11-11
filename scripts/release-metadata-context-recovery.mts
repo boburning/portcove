@@ -39,12 +39,51 @@ import {
   signingContextRemaining,
 } from "./release-signing-context-artifact.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
+import { retainedApplicationContextUpload as retainedUnattemptedUpload } from "./release-coordinator-checkpoint-authentication.mts";
 const hash = (value: Buffer) => createHash("sha256").update(value).digest("hex");
 function metadataDestination(descriptor: unknown) {
   return `github-actions:boburning/portcove:metadata-${isRecord(descriptor) && descriptor.kind === "application-tuf-initial-bootstrap" ? "bootstrap" : "renewal"}-context`;
 }
 type Context = Awaited<ReturnType<typeof requireCoordinatorSigningContext>>;
 type Operation = NonNullable<ReturnType<typeof inspectCapacityOperation>>;
+
+const retainedUnattemptedEvidence = digest(retainedUnattemptedUpload);
+
+function matchesRetainedUnattemptedUpload(operation: Operation) {
+  const pin = retainedUnattemptedUpload;
+  const executor = operation.executor_identity;
+  return (
+    operation.id === pin.operation_id &&
+    operation.before_checkpoint === pin.previous &&
+    operation.kind === "upload" &&
+    operation.destination === "github-actions:boburning/portcove:metadata-renewal-context" &&
+    operation.completed_effects.length === 0 &&
+    operation.metadata_renewal?.transient_retries === 0 &&
+    operation.metadata_renewal.substantive_repairs === 0 &&
+    executor?.role === "coordinator" &&
+    executor.actor_id === "41898282" &&
+    executor.workflow === productionControllerWorkflow &&
+    executor.check_run_id === String(pin.job_id) &&
+    executor.controller_revision === pin.revision &&
+    executor.execution_ref === pin.ref &&
+    executor.run_id === pin.run_id &&
+    executor.run_attempt === 1 &&
+    executor.job_id === pin.job_id
+  );
+}
+
+function settledRetainedUnattemptedUpload(operation: Operation) {
+  return (
+    matchesRetainedUnattemptedUpload(operation) &&
+    operation.outcome === "recovered" &&
+    operation.recovery?.resolution === "effect-not-applied" &&
+    operation.recovery.checkpoint === retainedUnattemptedUpload.checkpoint &&
+    operation.recovery.evidence_sha256 === retainedUnattemptedEvidence &&
+    isRecord(operation.recovery.executor_identity) &&
+    operation.recovery.executor_identity.role === "coordinator" &&
+    operation.recovery.executor_identity.execution_ref === retainedUnattemptedUpload.successor_ref
+  );
+}
 function originalProducer(operation: Operation) {
   const raw = operation.executor_identity;
   if (!raw) throw new Error("metadata context original executor missing");
@@ -97,15 +136,21 @@ export function inspectMetadataContextRetryOperation(raw: unknown, descriptor: u
       : operation.metadata_renewal?.descriptor_sha256) !== digest(descriptor) ||
     !operation.executor_identity ||
     operation.executor_identity.role !== "coordinator" ||
-    !["succeeded", "recovered"].includes(operation.outcome) ||
-    (operation.outcome === "recovered" && operation.recovery?.resolution !== "effect-completed") ||
-    operation.completed_effects.length !== 1 ||
-    !/^github-actions:boburning\/portcove:artifact:[1-9][0-9]{0,15}$/u.test(
-      operation.completed_effects[0]!.remote_identity,
-    )
+    (!settledRetainedUnattemptedUpload(operation) && !hasSettledContextArtifact(operation))
   )
     throw new Error("metadata context retry requires one exact settled upload");
   return operation;
+}
+
+function hasSettledContextArtifact(operation: Operation) {
+  return (
+    ["succeeded", "recovered"].includes(operation.outcome) &&
+    (operation.outcome !== "recovered" || operation.recovery?.resolution === "effect-completed") &&
+    operation.completed_effects.length === 1 &&
+    /^github-actions:boburning\/portcove:artifact:[1-9][0-9]{0,15}$/u.test(
+      operation.completed_effects[0]!.remote_identity,
+    )
+  );
 }
 
 /** Integrity only. An unresolved upload can be read back, never retried, by
@@ -236,7 +281,7 @@ function inspectMetadataContextProvider(
   rawJob: unknown,
   rawArtifacts: unknown,
   operation: Operation,
-  controller: Context["tools"]["identity"],
+  controller: Pick<Context["tools"]["identity"], "controller_revision" | "controller_ref">,
 ) {
   const producer = originalProducer(operation);
   if (
@@ -367,6 +412,98 @@ async function readMetadataProviderSnapshot(
   };
   signingContextRemaining(deadline, 15000);
   return raw;
+}
+
+/** Reobserve the original terminal attempt and exact reviewed diagnostics. The
+ * returned data has no write authority. Only the existing signed recovery CAS
+ * can settle the pending operation, and it must retain the original intent. */
+export async function readRetainedUnattemptedMetadataUpload(
+  checkpoint: string,
+  rawOperation: unknown,
+  descriptor: unknown,
+  directory: string,
+  deadline: number,
+) {
+  const pin = retainedUnattemptedUpload;
+  if (checkpoint !== pin.checkpoint) return;
+  const operation = inspectPendingMetadataContextUpload(rawOperation, descriptor);
+  if (!matchesRetainedUnattemptedUpload(operation))
+    throw new Error("retained unattempted upload identity differs");
+  const producer = originalProducer(operation);
+  const token = fixedReleaseReaderToken();
+  const provider = await metadataReadbackProvider(
+    token,
+    deadline,
+    "unattempted upload read limit exhausted",
+  );
+  const before = await readMetadataProviderSnapshot(provider, producer, deadline);
+  const selected = inspectMetadataContextProvider(
+    before.run,
+    before.attempt,
+    before.job,
+    before.artifacts,
+    operation,
+    { controller_revision: pin.revision, controller_ref: pin.ref },
+  );
+  const rows = inspectCompleteRunArtifactInventory(before.artifacts).artifacts;
+  const diagnostics = rows.filter(
+    (row) =>
+      isRecord(row) && row.name === `trusted-controller-diagnostics-coordinator-${pin.run_id}-1`,
+  );
+  const row = diagnostics[0];
+  if (
+    selected.artifact ||
+    selected.bundle ||
+    ![before.run, before.attempt].every(
+      (run) =>
+        isRecord(run) &&
+        run.conclusion === "failure" &&
+        run.head_branch === pin.ref.slice(10) &&
+        isRecord(run.actor) &&
+        run.actor.id === 41898282 &&
+        isRecord(run.triggering_actor) &&
+        run.triggering_actor.id === 41898282,
+    ) ||
+    !isRecord(before.job) ||
+    before.job.conclusion !== "failure" ||
+    diagnostics.length !== 1 ||
+    !isRecord(row) ||
+    row.id !== pin.diagnostics_id ||
+    row.expired !== false ||
+    row.size_in_bytes !== pin.diagnostics_bytes ||
+    row.digest !== `sha256:${pin.diagnostics_sha256}` ||
+    !isRecord(row.workflow_run) ||
+    String(row.workflow_run.id) !== pin.run_id ||
+    row.workflow_run.repository_id !== 1354613114 ||
+    row.workflow_run.head_repository_id !== 1354613114 ||
+    row.workflow_run.head_sha !== pin.revision ||
+    row.workflow_run.head_branch !== pin.ref.slice(10)
+  )
+    throw new Error("retained unattempted upload diagnostics differ");
+  const archive = await acquireSigningContextArchive(
+    directory,
+    {
+      id: pin.diagnostics_id,
+      bytes: pin.diagnostics_bytes,
+      sha256: pin.diagnostics_sha256,
+    },
+    { token, deadline },
+  );
+  const after = await readMetadataProviderSnapshot(provider, producer, deadline);
+  if (digest(before) !== digest(after))
+    throw new Error("retained unattempted upload provider inventory changed");
+  await writeFile(path.join(directory, "original-upload-diagnostics.zip"), archive, {
+    flag: "wx",
+    mode: 0o600,
+  });
+  await writeFile(path.join(directory, "original-upload-provider.json"), JSON.stringify(before), {
+    flag: "wx",
+    mode: 0o600,
+  });
+  return {
+    resolution: "effect-not-applied" as const,
+    evidence_sha256: retainedUnattemptedEvidence,
+  };
 }
 
 /** Public custody readback only. The fixed coordinator must independently
@@ -538,6 +675,8 @@ async function reconcileAt(actualContext: object, context: Context, parent: stri
   if (state.checkpoint !== context.checkpoint) throw new Error("metadata retry checkpoint changed");
   const operation = await priorOperation(context, state.input);
   if (!operation) return { decision: "new" as const };
+  if (settledRetainedUnattemptedUpload(operation))
+    return { decision: "transient-recovery" as const, recovery: "transient" as const };
   const directory = await mkdtemp(path.join(parent, "metadata-context-recovery-"));
   const producer = originalProducer(operation);
   const snapshot = async (provider: Awaited<ReturnType<typeof metadataReadbackProvider>>) => {

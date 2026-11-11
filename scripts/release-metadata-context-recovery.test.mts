@@ -9,6 +9,7 @@ import { createHash } from "node:crypto";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { metadataBootstrapFixture, metadataFixture } from "./fixtures/release-metadata-fixture.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
+import { retainedApplicationContextUpload } from "./release-coordinator-checkpoint-authentication.mts";
 import {
   checkpointReleaseOpportunity,
   readRetainedCapacityOperation,
@@ -25,6 +26,7 @@ import {
   inspectPendingMetadataContextUpload,
   inspectPendingMetadataContextProvider,
   readPendingMetadataContextUpload,
+  readRetainedUnattemptedMetadataUpload,
 } from "./release-metadata-context-recovery.mts";
 
 function pendingFixture(bootstrap: boolean) {
@@ -734,4 +736,192 @@ void test("initial context retry binds only its own settled bootstrap descriptor
   assert.throws(() =>
     inspectMetadataContextRetryOperation(raw, { ...descriptor, setup_plan_sha256: "f".repeat(64) }),
   );
+});
+
+async function retainedUnattemptedFixture() {
+  return JSON.parse(
+    await readFile(
+      new URL("./fixtures/release-metadata-unattempted-context.json", import.meta.url),
+      "utf8",
+    ),
+  ) as {
+    checkpoint: string;
+    descriptor: Record<string, unknown>;
+    operation: Record<string, unknown> & { executor_identity: Record<string, unknown> };
+  };
+}
+
+void test("only the exact signed zero-effect settlement can consume the retained context retry", async () => {
+  const f = await retainedUnattemptedFixture(),
+    pin = retainedApplicationContextUpload;
+  assert.equal(f.checkpoint, pin.checkpoint);
+  const operation = {
+    ...f.operation,
+    outcome: "recovered",
+    recovery: {
+      checkpoint: f.checkpoint,
+      resolution: "effect-not-applied",
+      evidence_sha256: digest(pin),
+      executor_identity: {
+        ...f.operation.executor_identity,
+        controller_revision: "a".repeat(40),
+        execution_ref: pin.successor_ref,
+        run_id: "42950000000",
+        job_id: 130300000000,
+        check_run_id: "130300000000",
+      },
+    },
+  };
+  assert.equal(inspectMetadataContextRetryOperation(operation, f.descriptor).id, pin.operation_id);
+  for (const change of [
+    { evidence_sha256: "b".repeat(64) },
+    { checkpoint: "a".repeat(40) },
+    { resolution: "partial-effects-retained" },
+    { executor_identity: f.operation.executor_identity },
+  ])
+    assert.throws(
+      () =>
+        inspectMetadataContextRetryOperation(
+          { ...operation, recovery: { ...operation.recovery, ...change } },
+          f.descriptor,
+        ),
+      /one exact settled upload/,
+    );
+  assert.throws(
+    () => inspectMetadataContextRetryOperation(f.operation, f.descriptor),
+    /one exact settled upload/,
+  );
+});
+
+void test("retained unattempted upload needs exact terminal diagnostic custody and refuses unavailable or late effects", async (t) => {
+  const f = await retainedUnattemptedFixture(),
+    pin = retainedApplicationContextUpload;
+  const parent = await mkdtemp(path.join(os.tmpdir(), "unattempted-metadata-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const token = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "inert-metadata-context-reader";
+  t.after(() => {
+    if (token === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = token;
+  });
+  const workflow_run = {
+    id: Number(pin.run_id),
+    repository_id: 1354613114,
+    head_repository_id: 1354613114,
+    head_sha: pin.revision,
+    head_branch: pin.ref.slice(10),
+  };
+  const diagnostics = {
+    id: Number(pin.diagnostics_id),
+    name: `trusted-controller-diagnostics-coordinator-${pin.run_id}-1`,
+    expired: false,
+    size_in_bytes: pin.diagnostics_bytes,
+    digest: `sha256:${pin.diagnostics_sha256}`,
+    workflow_run,
+  };
+  let requests = 0;
+  const unselected = await readRetainedUnattemptedMetadataUpload(
+    "0".repeat(40),
+    f.operation,
+    f.descriptor,
+    parent,
+    performance.now() + 15000,
+  );
+  assert.equal(unselected, undefined);
+  for (const fault of [
+    "missing",
+    "expired",
+    "wrong-digest",
+    "late-context",
+    "active",
+    "wrong-actor",
+    "changed-bytes",
+  ]) {
+    const fetchMock = t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: string | URL, init?: RequestInit) => {
+        requests++;
+        const url = new URL(input);
+        assert.equal(init?.method, "GET");
+        if (url.origin !== "https://api.github.com") {
+          assert.equal(fault, "changed-bytes");
+          assert.equal(new Headers(init?.headers).has("authorization"), false);
+          return new Response(new Uint8Array(pin.diagnostics_bytes));
+        }
+        if (url.pathname.endsWith("/zip")) {
+          assert.equal(fault, "changed-bytes");
+          assert.ok(url.pathname.endsWith(`/artifacts/${pin.diagnostics_id}/zip`));
+          return new Response(null, {
+            status: 302,
+            headers: {
+              location:
+                "https://productionresultssa10.blob.core.windows.net/actions-results/diagnostics?sig=synthetic",
+            },
+          });
+        }
+        if (url.pathname.endsWith("/artifacts")) {
+          const artifacts =
+            fault === "missing"
+              ? []
+              : [
+                  {
+                    ...diagnostics,
+                    expired: fault === "expired",
+                    digest:
+                      fault === "wrong-digest" ? `sha256:${"b".repeat(64)}` : diagnostics.digest,
+                  },
+                ];
+          if (fault === "late-context")
+            artifacts.push({
+              ...diagnostics,
+              id: 1,
+              name: `trusted-coordinator-signing-context-${pin.run_id}-1`,
+            });
+          return Response.json({ total_count: artifacts.length, artifacts });
+        }
+        if (url.pathname.includes("/jobs/"))
+          return Response.json({
+            id: pin.job_id,
+            run_id: Number(pin.run_id),
+            run_attempt: 1,
+            head_sha: pin.revision,
+            name: "Coordinate application release",
+            status: "completed",
+            conclusion: "failure",
+            check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${pin.job_id}`,
+          });
+        return Response.json({
+          id: Number(pin.run_id),
+          run_attempt: 1,
+          head_sha: pin.revision,
+          head_branch: pin.ref.slice(10),
+          path: productionControllerWorkflow,
+          event: "workflow_dispatch",
+          status: fault === "active" ? "in_progress" : "completed",
+          conclusion: "failure",
+          repository: { id: 1354613114, full_name: "boburning/portcove" },
+          head_repository: { id: 1354613114 },
+          actor: { id: fault === "wrong-actor" ? 1 : 41898282 },
+          triggering_actor: { id: 41898282 },
+        });
+      },
+    );
+    try {
+      await assert.rejects(
+        readRetainedUnattemptedMetadataUpload(
+          f.checkpoint,
+          f.operation,
+          f.descriptor,
+          parent,
+          performance.now() + 15000,
+        ),
+        /diagnostics differ|run is incomplete|archive byte identity differs/,
+      );
+      assert.deepEqual(await readdir(parent), []);
+    } finally {
+      fetchMock.mock.restore();
+    }
+  }
+  assert.ok(requests > 0);
 });

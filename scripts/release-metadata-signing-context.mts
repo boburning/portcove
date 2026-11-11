@@ -267,7 +267,7 @@ export async function prepareCoordinatorSigningContext(
       authority: "none",
     });
     contexts.set(receipt, owned);
-    const context = await requireCoordinatorSigningContext(receipt);
+    const context = await readPreparedCoordinatorSigningContext(receipt);
     return { receipt, context };
   } catch {
     await writeFile(
@@ -301,10 +301,11 @@ export async function bindCoordinatorSigningContextBoundary(
       : op.metadata_renewal?.descriptor_sha256) !== digest(owned.descriptor)
   )
     throw new Error("metadata context boundary differs from its original pending upload");
-  return bindCoordinatorSigningContextPending(receipt, executor, {
+  await bindCoordinatorSigningContextPending(receipt, executor, {
     checkpoint: selected.checkpoint,
     operation_id: op.id,
   });
+  return requireCoordinatorSigningContext(receipt);
 }
 /** Only an actual executor and its independently observed existing durable
  * metadata pending can advance this private context across its original CP. */
@@ -342,7 +343,6 @@ export async function bindCoordinatorSigningContextPending(
     throw new Error("metadata pending checkpoint changed");
   owned.pending ??= { executor, ...expected };
   await verifyState(owned, state);
-  return requireCoordinatorSigningContext(receipt);
 }
 /** Data-only assembly from the private preparation receipt. This verifies retained
  * bytes and the original deadline without renewing authority. Effect, journal
