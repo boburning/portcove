@@ -89,9 +89,7 @@ it("retains the applied size and preference after failure, then permits reset", 
   controller.request(150);
   await vi.waitFor(() => expect(controller.getSnapshot().applied).toBe(150));
   controller.request(400);
-  await vi.waitFor(() =>
-    expect(controller.getSnapshot().error).toContain("could not be confirmed"),
-  );
+  await vi.waitFor(() => expect(controller.getSnapshot().error).toBe("unconfirmed"));
   expect(controller.getSnapshot()).toMatchObject({ applied: 150, requested: 150, pending: false });
   expect(setItem.mock.calls).toEqual([[INTERFACE_SIZE_KEY, "150"]]);
   controller.request(100);
@@ -170,7 +168,7 @@ it("keeps detached error dismissal bound without retrying zoom or rewriting the 
   controller.request(400);
   await vi.waitFor(() => expect(controller.getSnapshot().pending).toBe(false));
   const failed = controller.getSnapshot();
-  expect(failed.error).toContain("could not be confirmed");
+  expect(failed.error).toBe("unconfirmed");
   expect(failed.applied).toBe(150);
   const listener = vi.fn();
   const unsubscribe = controller.subscribe(listener);

@@ -1,5 +1,5 @@
 import { DirectionProvider } from "@base-ui/react/direction-provider";
-import i18next, { type i18n } from "i18next";
+import i18next, { type i18n, type Namespace } from "i18next";
 import {
   I18nextProvider,
   initReactI18next,
@@ -16,9 +16,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import englishApplicationUpdate from "./locales/en/applicationUpdate.json";
 import englishCounts from "./locales/en/counts.json";
 import englishSettings from "./locales/en/settings.json";
+import englishShell from "./locales/en/shell.json";
+import engineeringApplicationUpdate from "./locales/ar-XB/applicationUpdate.json";
 import engineeringSettings from "./locales/ar-XB/settings.json";
+import engineeringShell from "./locales/ar-XB/shell.json";
 import type { LocalePreferenceSnapshot } from "./types";
 
 const supportedLocales = ["en", "ar-XB"] as const;
@@ -85,17 +89,30 @@ export function assertCatalog(
 export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(englishSettings);
   assertCatalog(englishCounts, "counts");
+  assertCatalog(englishShell, "shell");
+  assertCatalog(englishApplicationUpdate, "applicationUpdate");
   assertCatalog(engineeringSettings);
+  assertCatalog(engineeringShell, "shell");
+  assertCatalog(engineeringApplicationUpdate, "applicationUpdate");
   if (!i18next.isInitialized) {
     void i18next.use(initReactI18next).init({
       lng: resolveLocale(null, initialLocales),
       fallbackLng: "en",
       supportedLngs: [...supportedLocales],
-      ns: ["settings", "counts"],
+      ns: ["settings", "counts", "shell", "applicationUpdate"],
       defaultNS: "settings",
       resources: {
-        en: { settings: englishSettings, counts: englishCounts },
-        "ar-XB": { settings: engineeringSettings },
+        en: {
+          settings: englishSettings,
+          counts: englishCounts,
+          shell: englishShell,
+          applicationUpdate: englishApplicationUpdate,
+        },
+        "ar-XB": {
+          settings: engineeringSettings,
+          shell: engineeringShell,
+          applicationUpdate: engineeringApplicationUpdate,
+        },
       },
       initAsync: false,
       returnEmptyString: false,
@@ -229,6 +246,16 @@ export function LocalizationProvider({
       </LocalizationContext.Provider>
     </I18nextProvider>
   );
+}
+
+/**
+ * Feature translation bound to the module-initialized instance, so migrated
+ * surfaces (including render recovery outside the provider) never fall back to
+ * raw keys. Locale changes on the shared instance still re-render consumers.
+ * Invariant: the global instance is the only runtime i18next instance.
+ */
+export function useAppTranslation<const N extends Namespace>(ns: N) {
+  return useTranslation(ns, { i18n: i18next });
 }
 
 export function useLocalization(): LocalizationState &

@@ -1,0 +1,25 @@
+{
+  "choice": {
+    "body": "Automatic updates are recommended. During public beta, Preview receives eligible test releases. Portcove verifies updates and waits for a safe exit or an explicit restart before applying them.",
+    "notNow": "Not now",
+    "review": "Review options",
+    "title": "Choose how Portcove updates"
+  },
+  "notice": {
+    "availableBody_preview": "Preview update found ({{size}}). Review it in Settings before downloading.",
+    "availableBody_stable": "Stable update found ({{size}}). Review it in Settings before downloading.",
+    "availableTitle": "Portcove {{version}} is available",
+    "dismiss": "Dismiss application update notice",
+    "readyBody_preview": "Preview update verified ({{size}}). Review it in Settings and restart when convenient.",
+    "readyBody_stable": "Stable update verified ({{size}}). Review it in Settings and restart when convenient.",
+    "readyTitle": "Portcove {{version}} is ready to install",
+    "review": "Review update"
+  },
+  "productionTransition": {
+    "body": "Stable is recommended and waits for an eligible production release newer than this installation; it never downgrades Portcove. Keep Preview to continue receiving eligible test releases. Your update mode and pause setting stay unchanged.",
+    "keepPreview": "Keep Preview",
+    "notNow": "Not now",
+    "title": "Choose an update channel",
+    "useStable": "Use Stable"
+  }
+}
