@@ -102,7 +102,7 @@ fn declaration(port: &PortDefinition) -> Result<ProtectionDeclaration> {
             .presentation
             .as_ref()
             .map(|value| value.saves_and_settings),
-        persistent_paths: port.persistent_paths.clone(),
+        persistent_paths: crate::persistence::local_declared_paths(port)?.to_vec(),
         persistent_file_patterns: port.persistent_file_patterns.clone(),
     })
 }

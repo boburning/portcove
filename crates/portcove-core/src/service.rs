@@ -2099,7 +2099,7 @@ impl PortcoveService {
                             .presentation
                             .as_ref()
                             .map(|presentation| presentation.saves_and_settings),
-                        persistent_paths: port.persistent_paths.clone(),
+                        persistent_paths: crate::persistence::local_declared_paths(port)?.to_vec(),
                         persistent_file_patterns: port.persistent_file_patterns.clone(),
                         manual_preparation: port
                             .presentation

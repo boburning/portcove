@@ -136,6 +136,29 @@ fn openmohaa_unix_selector_cannot_reuse_a_broader_cached_release() {
     );
 }
 
+#[test]
+fn openjo_unix_selector_cannot_reuse_a_broader_cached_release() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog
+        .port("star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo")
+        .unwrap();
+    let mut broader = port.clone();
+    broader.external_profile_policy = None;
+    let key =
+        |port, platform| ReleaseSelectionCacheKey::new(port, ReleaseChannel::Rolling, platform);
+    for platform in [
+        Platform::LinuxX86_64,
+        Platform::MacosX86_64,
+        Platform::MacosAarch64,
+    ] {
+        assert_ne!(key(port, platform), key(&broader, platform));
+    }
+    assert_eq!(
+        key(port, Platform::WindowsX86_64),
+        key(&broader, Platform::WindowsX86_64)
+    );
+}
+
 #[tokio::test]
 async fn quake_linux_selects_the_official_package_and_compatible_successor() {
     let catalog = crate::Catalog::embedded().unwrap();

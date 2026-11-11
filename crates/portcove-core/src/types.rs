@@ -724,6 +724,7 @@ pub enum ExternalProfilePolicy {
     Z2rsDesktopV1,
     RecompDirectV1,
     Doom3LinuxV1,
+    OpenjkUnixV1,
 }
 
 /// Preserve complete mod package versions without replacing packaged defaults.
