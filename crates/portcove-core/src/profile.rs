@@ -451,7 +451,7 @@ impl PortcoveService {
     }
 }
 
-fn new_profile(port_id: &str, display_name: &str, is_default: bool) -> Profile {
+pub(crate) fn new_profile(port_id: &str, display_name: &str, is_default: bool) -> Profile {
     let now = Library::now();
     Profile {
         id: uuid::Uuid::new_v4().to_string(),
@@ -609,17 +609,146 @@ pub(crate) fn validate_revision(revision: &ProfileRevision) -> Result<()> {
     Ok(())
 }
 
-fn seal(revision: &mut ProfileRevision) -> Result<()> {
+/// Digest over content with the portable (slash) executable spelling, so the same
+/// revision hashes identically before and after a cross-platform library transfer.
+fn content_digest(revision: &ProfileRevision) -> Result<String> {
+    let mut copy = revision.clone();
+    copy.digest.clear();
+    copy.build.selected_executable = std::path::PathBuf::from(
+        crate::portability::portable_relative(&copy.build.selected_executable)?,
+    );
+    Ok(hex::encode(Sha256::digest(serde_json::to_vec(&copy)?)))
+}
+
+pub(crate) fn seal(revision: &mut ProfileRevision) -> Result<()> {
     validate_revision(revision)?;
-    revision.digest.clear();
-    revision.digest = hex::encode(Sha256::digest(serde_json::to_vec(&*revision)?));
+    revision.digest = content_digest(revision)?;
     Ok(())
 }
 
 fn digest_matches(revision: &ProfileRevision) -> Result<bool> {
-    let mut copy = revision.clone();
-    copy.digest.clear();
-    Ok(hex::encode(Sha256::digest(serde_json::to_vec(&copy)?)) == revision.digest)
+    Ok(content_digest(revision)? == revision.digest)
+}
+
+/// One profile with every revision, as carried by library metadata schema 6.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LibraryProfile {
+    pub profile: Profile,
+    pub revisions: Vec<ProfileRevision>,
+}
+
+pub(crate) const MAX_EXPORTED_PROFILES: usize = 1024;
+
+pub(crate) fn export(connection: &Connection) -> Result<Vec<LibraryProfile>> {
+    let mut statement =
+        connection.prepare("SELECT DISTINCT port_id FROM profiles ORDER BY port_id")?;
+    let ports = statement
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    let mut exported = Vec::new();
+    for port_id in ports {
+        for profile in profiles_from(connection, &port_id)? {
+            let mut revisions = (1..=profile.current_revision)
+                .map(|revision| revision_from(connection, &profile.id, revision))
+                .collect::<Result<Vec<_>>>()?;
+            for revision in &mut revisions {
+                revision.build.selected_executable = std::path::PathBuf::from(
+                    crate::portability::portable_relative(&revision.build.selected_executable)?,
+                );
+            }
+            exported.push(LibraryProfile { profile, revisions });
+        }
+    }
+    if exported.len() > MAX_EXPORTED_PROFILES {
+        return Err(PortcoveError::state(
+            "library has more profiles than metadata can carry",
+        ));
+    }
+    exported.sort_by(|a, b| {
+        (&a.profile.port_id, &a.profile.id).cmp(&(&b.profile.port_id, &b.profile.id))
+    });
+    Ok(exported)
+}
+
+/// Checks profiles against the exported retained references before any write: each
+/// profile needs the reference keyed by its ID, a complete append-only history, and
+/// revisions that only name builds that reference retains.
+pub(crate) fn validate_export(
+    profiles: &[LibraryProfile],
+    references: &[crate::RetainedBuildReference],
+) -> Result<()> {
+    if profiles.len() > MAX_EXPORTED_PROFILES {
+        return Err(PortcoveError::verification(
+            "library metadata exceeds the profile limit",
+        ));
+    }
+    let mut ids = BTreeSet::new();
+    let mut defaults = BTreeSet::new();
+    for entry in profiles {
+        let profile = &entry.profile;
+        if !ids.insert(profile.id.as_str())
+            || (profile.is_default && !defaults.insert(profile.port_id.as_str()))
+            || uuid::Uuid::parse_str(&profile.id).is_err()
+            || profile.current_revision == 0
+            || entry.revisions.len() as u64 != profile.current_revision
+        {
+            return Err(PortcoveError::verification(
+                "library metadata has a repeated, malformed or incomplete profile",
+            ));
+        }
+        let reference = references
+            .iter()
+            .find(|r| r.setup_id == profile.id && r.build.port_id == profile.port_id)
+            .ok_or_else(|| {
+                PortcoveError::verification("a profile has no retained build reference")
+                    .detail("profile_id", &profile.id)
+            })?;
+        let retained = reference
+            .retained_builds()
+            .map(|build| build.install_id.as_str())
+            .collect::<BTreeSet<_>>();
+        for (index, revision) in entry.revisions.iter().enumerate() {
+            validate_revision(revision)?;
+            if revision.profile_id != profile.id
+                || revision.revision != index as u64 + 1
+                || !digest_matches(revision)?
+                || !retained.contains(revision.build.install_id.as_str())
+            {
+                return Err(PortcoveError::verification(
+                    "a profile revision differs from its recorded identity or retained builds",
+                )
+                .detail("profile_id", &profile.id));
+            }
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn restore(connection: &Connection, profiles: &[LibraryProfile]) -> Result<()> {
+    for entry in profiles {
+        write_profile(connection, &entry.profile)?;
+        for revision in &entry.revisions {
+            write_revision(connection, revision)?;
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn any_profiles(connection: &Connection) -> Result<bool> {
+    let present: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='profiles')",
+        [],
+        |row| row.get(0),
+    )?;
+    if !present {
+        return Ok(false);
+    }
+    Ok(
+        connection.query_row("SELECT EXISTS(SELECT 1 FROM profiles)", [], |row| {
+            row.get(0)
+        })?,
+    )
 }
 
 pub(crate) fn migrate(transaction: &rusqlite::Transaction<'_>) -> Result<()> {
@@ -764,7 +893,7 @@ fn revision_from(
     Ok(stored)
 }
 
-fn write_profile(connection: &Connection, profile: &Profile) -> Result<()> {
+pub(crate) fn write_profile(connection: &Connection, profile: &Profile) -> Result<()> {
     text(&profile.display_name, "profile name")?;
     if profile.display_name.len() > 80 {
         return Err(PortcoveError::usage(
@@ -793,7 +922,7 @@ fn write_profile(connection: &Connection, profile: &Profile) -> Result<()> {
     Ok(())
 }
 
-fn write_revision(connection: &Connection, revision: &ProfileRevision) -> Result<()> {
+pub(crate) fn write_revision(connection: &Connection, revision: &ProfileRevision) -> Result<()> {
     validate_revision(revision)?;
     let json = serde_json::to_string(revision)?;
     if json.len() > MAX_REVISION_BYTES {

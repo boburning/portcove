@@ -274,9 +274,10 @@ pub use preparation::{
 };
 pub use process::{ChildProcessClass, ChildProcessPolicy, GameProcessSpec, LaunchKind, LaunchSpec};
 pub use profile::{
-    LoaderContractRef, OriginalAvailability, OriginalBinding, OriginalStatus, Profile,
-    ProfileIntent, ProfileInventory, ProfileRevision, ProfileRevisionRequest, ProfileUpdatePolicy,
-    ProfileView, ProviderPackageRef, RequestedPackage, ResolvedPackage, TypedOrdering,
+    LibraryProfile, LoaderContractRef, OriginalAvailability, OriginalBinding, OriginalStatus,
+    Profile, ProfileIntent, ProfileInventory, ProfileRevision, ProfileRevisionRequest,
+    ProfileUpdatePolicy, ProfileView, ProviderPackageRef, RequestedPackage, ResolvedPackage,
+    TypedOrdering,
 };
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;

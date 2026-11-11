@@ -64,26 +64,29 @@ impl PortabilityAuthority {
     }
 }
 
+/// Oldest reader contract that can carry this metadata without dropping state.
+fn exported_schema(metadata: &LibraryMetadata, base: u32) -> u32 {
+    if !metadata.profiles.is_empty() {
+        6
+    } else if !metadata.retained_build_references.is_empty() {
+        5
+    } else {
+        base
+    }
+}
+
 pub(crate) fn seal(
     metadata: &mut LibraryMetadata,
     entries: Vec<PortabilityAdmission>,
 ) -> Result<()> {
     if entries.is_empty() {
         metadata.portability_authority = None;
-        metadata.schema_version = if metadata.retained_build_references.is_empty() {
-            3
-        } else {
-            5
-        };
+        metadata.schema_version = exported_schema(metadata, 3);
         return Ok(());
     }
     let entries = canonical_entries(entries)?;
     let key = load_or_create_key()?;
-    metadata.schema_version = if metadata.retained_build_references.is_empty() {
-        4
-    } else {
-        5
-    };
+    metadata.schema_version = exported_schema(metadata, 4);
     metadata.portability_authority = Some(PortabilityAuthority {
         format: 1,
         mac_sha256: hmac_sha256(&key, &serde_json::to_vec(&entries)?),
@@ -95,8 +98,8 @@ pub(crate) fn seal(
 pub(crate) fn verify(metadata: &LibraryMetadata, entries: Vec<PortabilityAdmission>) -> Result<()> {
     let entries = canonical_entries(entries)?;
     match (&metadata.portability_authority, entries.is_empty()) {
-        (None, true) if matches!(metadata.schema_version, 1..=3 | 5) => return Ok(()),
-        (Some(authority), false) if matches!(metadata.schema_version, 4 | 5) => {
+        (None, true) if matches!(metadata.schema_version, 1..=3 | 5 | 6) => return Ok(()),
+        (Some(authority), false) if matches!(metadata.schema_version, 4..=6) => {
             if authority.format != 1 || authority.entries != entries {
                 return Err(PortcoveError::verification(
                     "portability authority does not match the retained installations",
