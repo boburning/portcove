@@ -85,6 +85,11 @@ export function validateArtifact(value: AcceptedArtifact): void {
     "protected_acceptance",
   ] as const)
     text(field, value[field]);
+  for (const field of ["port_id", "platform"] as const)
+    if (!/^[a-z0-9][a-z0-9._-]*$/u.test(value[field]))
+      throw new Error(`accepted artifact ${field} is invalid`);
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(value.repository))
+    throw new Error("accepted artifact repository is invalid");
   if (/[\\/]/u.test(value.filename) || value.filename === "." || value.filename === "..")
     throw new Error("accepted artifact filename is invalid");
   for (const field of ["release_id", "asset_id", "size"] as const)
@@ -137,8 +142,49 @@ export type CaptureInput = Readonly<{
   now: () => Date;
 }>;
 
+/** Streams bytes into private staging and publishes them only when they match
+ * the accepted size and SHA-256. Every failure removes its private staging. */
+async function publishVerified(
+  store: PreservationStore,
+  chunks: () => AsyncIterable<Uint8Array>,
+  artifact: AcceptedArtifact,
+): Promise<{ ok: true } | { ok: false; deferred: boolean; reason: string }> {
+  const key = objectKey(artifact);
+  if ((await store.availableBytes()) < artifact.size)
+    return { ok: false, deferred: true, reason: "preservation capacity is exhausted" };
+  const digest = createHash("sha256");
+  const counter = { bytes: 0 };
+  let staged: string;
+  try {
+    staged = await store.stage(bounded(chunks(), artifact.size, digest, counter));
+  } catch (error) {
+    const deferred = (error as NodeJS.ErrnoException).code === "ENOSPC";
+    return {
+      ok: false,
+      deferred,
+      reason: deferred
+        ? "preservation capacity was exhausted during transfer"
+        : `byte transfer failed: ${String(error)}`,
+    };
+  }
+  if (counter.bytes !== artifact.size || digest.digest("hex") !== artifact.sha256) {
+    await store.discard(staged);
+    return { ok: false, deferred: false, reason: "bytes differ from the accepted size or SHA-256" };
+  }
+  try {
+    await store.publish(staged, key);
+  } catch (error) {
+    await store.discard(staged);
+    // A concurrent writer may have published first; the caller verifies that object.
+    if (!(await store.exists(key)))
+      return { ok: false, deferred: false, reason: `publication failed: ${String(error)}` };
+  }
+  return { ok: true };
+}
+
 /** Idempotent, bounded capture for one accepted artifact. A failure reports a
- * gap; it never invalidates accepted bytes or affects a working upstream route. */
+ * gap; it never invalidates accepted bytes or affects a working upstream route.
+ * `pending` means deferred (for example by capacity), distinct from `failed`. */
 export async function capture(input: CaptureInput): Promise<PreservationRecord> {
   const { artifact, scope, store, now } = input;
   validateArtifact(artifact);
@@ -159,36 +205,18 @@ export async function capture(input: CaptureInput): Promise<PreservationRecord> 
   if (!scope.distribution_bases.has(artifact.distribution_basis))
     return record("ineligible", "distribution basis does not permit preservation");
 
-  if (await store.exists(key)) {
-    // Replay or backfill: verify the existing object instead of uploading again.
+  try {
+    // Replay or backfill verifies an existing object instead of uploading again.
     // A differing object is preserved for review rather than overwritten.
-    const existing = await readBack(store, key, artifact);
-    return existing.matches ? record("verified", null) : record("failed", existing.reason);
-  }
-  if ((await store.availableBytes()) < artifact.size)
-    return record("failed", "preservation capacity is exhausted; capture deferred");
-
-  const digest = createHash("sha256");
-  const counter = { bytes: 0 };
-  let staged: string;
-  try {
-    staged = await store.stage(bounded(input.fetchOriginal(), artifact.size, digest, counter));
+    if (!(await store.exists(key))) {
+      const published = await publishVerified(store, input.fetchOriginal, artifact);
+      if (!published.ok) return record(published.deferred ? "pending" : "failed", published.reason);
+    }
+    const stored = await readBack(store, key, artifact);
+    return stored.matches ? record("verified", null) : record("failed", stored.reason);
   } catch (error) {
-    return record("failed", `original transfer failed: ${String(error)}`);
+    return record("failed", `preservation storage failed: ${String(error)}`);
   }
-  if (counter.bytes !== artifact.size || digest.digest("hex") !== artifact.sha256) {
-    await store.discard(staged);
-    return record("failed", "original bytes differ from the accepted size or SHA-256");
-  }
-  try {
-    await store.publish(staged, key);
-  } catch (error) {
-    await store.discard(staged);
-    // A concurrent capture may have published first; verify that object instead.
-    if (!(await store.exists(key))) return record("failed", `publication failed: ${String(error)}`);
-  }
-  const stored = await readBack(store, key, artifact);
-  return stored.matches ? record("verified", null) : record("failed", stored.reason);
 }
 
 /** Finite backfill over an explicit list; each artifact is captured independently. */
@@ -211,22 +239,52 @@ export type Inventory = Readonly<{
   records: readonly Readonly<{ artifact: AcceptedArtifact; object_key: string }>[];
 }>;
 
-/** Exports only verified records; unverified objects are never usable alternatives. */
+const artifactFields = [
+  "port_id",
+  "platform",
+  "repository",
+  "release_id",
+  "asset_id",
+  "tag",
+  "commit_sha1",
+  "filename",
+  "size",
+  "sha256",
+  "original_url",
+  "distribution_basis",
+  "protected_acceptance",
+] as const;
+
+/** Exports only verified records, one per object, in a canonical field order so
+ * the same verified set always has the same digest. */
 export function exportInventory(records: readonly PreservationRecord[]): {
   inventory: Inventory;
   sha256: string;
 } {
-  const verified = records
-    .filter((record) => record.state === "verified")
-    .map(({ artifact, object_key }) => ({ artifact, object_key }))
-    .sort((left, right) => left.object_key.localeCompare(right.object_key));
-  const inventory: Inventory = { format: inventoryFormat, records: verified };
+  const verified = new Map<string, AcceptedArtifact>();
+  for (const record of records)
+    if (record.state === "verified") {
+      const canonical = Object.fromEntries(
+        artifactFields.map((field) => [field, record.artifact[field]]),
+      ) as AcceptedArtifact;
+      const previous = verified.get(record.object_key);
+      if (previous && JSON.stringify(previous) !== JSON.stringify(canonical))
+        throw new Error("one preserved object has conflicting accepted identities");
+      verified.set(record.object_key, canonical);
+    }
+  const inventory: Inventory = {
+    format: inventoryFormat,
+    records: [...verified.keys()]
+      .sort()
+      .map((object_key) => ({ artifact: verified.get(object_key)!, object_key })),
+  };
   const text = JSON.stringify(inventory);
   return { inventory, sha256: createHash("sha256").update(text).digest("hex") };
 }
 
-/** Restores every inventory object into another store and verifies it there.
- * Identity and authority are unchanged; the result reports each object. */
+/** Restores every inventory object into another store. Bytes are re-verified
+ * while staging and again by target read-back; identity and authority are
+ * unchanged. Each object is reported independently. */
 export async function restoreInventory(
   inventory: Inventory,
   from: PreservationStore,
@@ -235,27 +293,21 @@ export async function restoreInventory(
   if (inventory.format !== inventoryFormat) throw new Error("unknown preservation inventory");
   const results = [];
   for (const { artifact, object_key } of inventory.records) {
-    validateArtifact(artifact);
-    if (object_key !== objectKey(artifact)) throw new Error("inventory object key differs");
-    const source = await readBack(from, object_key, artifact);
-    if (!source.matches) {
-      results.push({ object_key, restored: false, reason: source.reason });
-      continue;
-    }
-    if (!(await to.exists(object_key))) {
-      const staged = await to.stage(from.read(object_key));
-      try {
-        await to.publish(staged, object_key);
-      } catch (error) {
-        await to.discard(staged);
-        if (!(await to.exists(object_key))) {
-          results.push({ object_key, restored: false, reason: String(error) });
+    try {
+      validateArtifact(artifact);
+      if (object_key !== objectKey(artifact)) throw new Error("inventory object key differs");
+      if (!(await to.exists(object_key))) {
+        const published = await publishVerified(to, () => from.read(object_key), artifact);
+        if (!published.ok) {
+          results.push({ object_key, restored: false, reason: published.reason });
           continue;
         }
       }
+      const target = await readBack(to, object_key, artifact);
+      results.push({ object_key, restored: target.matches, reason: target.reason });
+    } catch (error) {
+      results.push({ object_key, restored: false, reason: String(error) });
     }
-    const target = await readBack(to, object_key, artifact);
-    results.push({ object_key, restored: target.matches, reason: target.reason });
   }
   return results;
 }
@@ -289,14 +341,20 @@ export class FileSystemPreservationStore implements PreservationStore {
     const staged = path.join(this.root, `.partial-${randomUUID()}`);
     const file = await open(staged, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY);
     try {
-      for await (const chunk of chunks) await file.write(chunk);
-      await file.sync();
+      try {
+        for await (const chunk of chunks)
+          for (let offset = 0; offset < chunk.byteLength;) {
+            const { bytesWritten } = await file.write(chunk, offset);
+            offset += bytesWritten;
+          }
+        await file.sync();
+      } finally {
+        await file.close();
+      }
     } catch (error) {
-      await file.close();
       await rm(staged, { force: true });
       throw error;
     }
-    await file.close();
     return staged;
   }
 

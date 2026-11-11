@@ -2974,9 +2974,15 @@ hashing never qualify.
 
 A replay or backfill verifies an existing object instead of uploading it again.
 A differing stored object becomes `failed` and is preserved for review, not
-overwritten. Exhausted capacity defers capture and evicts nothing. Inventory
-export includes verified records only. Restore re-verifies each object in the
-source and target stores and never changes accepted identity.
+overwritten. Exhausted capacity, including running out of space mid-transfer,
+records a deferred `pending` state and evicts nothing. Each artifact is recorded
+independently, so a storage error on one does not stop a backfill. Inventory
+export includes verified records only, one per object, in a canonical order that
+gives a stable digest. Restore streams each object through the same bounded
+size and SHA-256 check before publishing it in the target. It then reads the
+target back and never changes accepted identity. Interrupted private
+`.partial-*` staging files are never usable objects. This tooling does not sweep
+abandoned ones automatically.
 
 This tooling grants no authority and changes no client behavior. Core
 acquisition still freshly observes upstream metadata as described in
