@@ -135,7 +135,7 @@ storage to a volume allowed by the machine policy. Cleanup never follows a link
 to repair a rejected path. Preserve custom targets, linked contents, source
 inputs, recovery material and verification evidence while correcting the layout.
 
-Any selected filesystem with less than 20 GiB free blocks execution.
+Any selected filesystem with less than 5 GiB free blocks execution. The margin only gates starting a command; a cold Cargo build from an empty `target` can use about 18 GB (see [development tools](DEVELOPMENT-TOOLS.md)), so a nearly full disk can still run out of space mid-build. Raise `PORTCOVE_MIN_FREE_GIB` where you want a stricter start condition.
 
 ### How to override intentionally
 
