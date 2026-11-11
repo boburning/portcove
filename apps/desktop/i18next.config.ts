@@ -1,7 +1,8 @@
 import { defineConfig } from "i18next-cli";
 
 export default defineConfig({
-  locales: ["en", "ar-XB"],
+  // `es` is an unreviewed draft pilot (#1028); it is not selectable in the app.
+  locales: ["en", "ar-XB", "es"],
   extract: {
     // Migrated first-party surfaces. Listing a file here makes `i18n:check` reject
     // new hardcoded copy in it; see docs/LOCALIZATION.md#migration-inventory.
@@ -24,7 +25,7 @@ export default defineConfig({
     // `useAppTranslation` binds feature namespaces to the initialized instance.
     useTranslationNames: ["useTranslation", "useAppTranslation"],
     primaryLanguage: "en",
-    secondaryLanguages: ["ar-XB"],
+    secondaryLanguages: ["ar-XB", "es"],
     removeUnusedKeys: false,
     sort: true,
     extractFromComments: false,

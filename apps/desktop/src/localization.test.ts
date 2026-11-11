@@ -78,4 +78,23 @@ describe("localization foundation", () => {
       await instance.changeLanguage("en");
     }
   });
+
+  it("bundles the unreviewed Spanish draft without ever selecting it", async () => {
+    expect(resolveLocale(null, ["es-ES", "es"])).toBe("en");
+    expect(resolveLocale("es", ["es-MX"])).toBe("en");
+    expect(localeOptions.map(({ value }) => value)).not.toContain("es");
+    const instance = initializeLocalization(["en-US"]);
+    try {
+      await instance.changeLanguage("es");
+      expect(instance.t("renderRecovery.title", { ns: "shell" })).toBe(
+        "Portcove no pudo mostrar esta pantalla",
+      );
+      expect(instance.t("updates", { ns: "counts", count: 1 })).toBe("1 actualización disponible");
+      expect(instance.t("updates", { ns: "counts", count: 3 })).toBe(
+        "3 actualizaciones disponibles",
+      );
+    } finally {
+      await instance.changeLanguage("en");
+    }
+  });
 });

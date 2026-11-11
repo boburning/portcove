@@ -69,6 +69,36 @@ Context and glossary rules:
 
 Add English first, add every engineering-locale form needed by that message, then run `pnpm --dir apps/desktop i18n:check`. The gate uses the official CLI to reject catalog drift, missing translations, hardcoded copy in the migrated component, unknown keys, and missing or extra interpolation arguments. Generated declarations are checked in so TypeScript also rejects unknown keys. The negative fixture runs against disposable catalog copies because `i18next-cli extract --ci` reports drift after writing its configured output.
 
+## Spanish pilot draft
+
+The owner selected Spanish as the [#1028](https://github.com/boburning/portcove/issues/1028)
+pilot. `apps/desktop/src/locales/es` holds an **unreviewed agent draft** for
+every migrated namespace. Its tag is region-neutral `es` until the reviewer
+confirms or narrows the region. The draft is bundled offline for review and
+engineering fixtures only. `resolveLocale` never selects it, the picker does not
+offer it, and no supported or partial Spanish language is claimed.
+
+Spanish plurals use the CLDR `one`, `many` and `other` categories. The draft
+reuses `other` text for `many`. Draft glossary for the reviewer:
+
+| English             | Draft Spanish                  | Note                                                   |
+| ------------------- | ------------------------------ | ------------------------------------------------------ |
+| port                | adaptación                     | product noun; game and project names stay untranslated |
+| library             | biblioteca                     | the Portcove-managed root                              |
+| saved file location | ubicación de archivos guardada | user-selected original files                           |
+| listing             | ficha                          | catalog listing                                        |
+| publisher           | editor                         | signed-catalog publisher                               |
+| Stable / Preview    | Estable / Vista previa         | channel display names                                  |
+| Settings / Activity | Ajustes / Actividad            | navigation names                                       |
+
+Review destructive, trust, update, credential and recovery wording first
+(`removal`, `catalogUpdates.custom`, `applicationUpdate`). Record the reviewer,
+their competence, the reviewed catalog revision and the scope on #1028.
+Changing the meaning of a reviewed message invalidates that review. The locale
+becomes selectable only after linguistic sign-off and critical-journey evidence,
+and only at the then-current migrated coverage, with visible English fallback
+for unmigrated screens.
+
 ## Migration inventory
 
 `extract.input` in `apps/desktop/i18next.config.ts` is the enforced inventory of

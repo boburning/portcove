@@ -1,0 +1,24 @@
+{
+  "language": {
+    "applyFailed": "Portcove no pudo confirmar el idioma de visualización. Vuelve a abrir Ajustes para comprobarlo.",
+    "current": "Idioma actual: {{language}}.",
+    "description": "El inglés es el idioma de visualización admitido. La opción del sistema usa el inglés cuando el idioma de tu sistema no está disponible.",
+    "engineering": "Árabe (vista previa de ingeniería)",
+    "english": "English",
+    "eyebrow": "IDIOMA",
+    "loadFailed": "No se pudo cargar tu preferencia de idioma. Se usará {{language}} por ahora.",
+    "pickerLabel": "Idioma de visualización",
+    "previewDescription": "Esta vista previa cambia la dirección del texto y las pantallas preparadas para traducción hasta ahora. Las demás pantallas siguen en inglés.",
+    "previewTitle": "Vista previa del idioma",
+    "richProof": "El foco del teclado permanece <strong>donde lo dejaste</strong> al cambiar el idioma.",
+    "sample_one": "{{count}} mensaje traducido está listo.",
+    "sample_many": "{{count}} mensajes traducidos están listos.",
+    "sample_other": "{{count}} mensajes traducidos están listos.",
+    "saved": "Idioma guardado.",
+    "saveFailed": "No se pudo guardar el idioma. Tu idioma actual no ha cambiado.",
+    "saving": "Guardando el idioma…",
+    "system": "Predeterminado del sistema",
+    "title": "Idioma",
+    "unavailable": "Traducción no disponible"
+  }
+}
