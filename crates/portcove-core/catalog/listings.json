@@ -1752,9 +1752,9 @@
     },
     {
       "id": "animal-crossing-pc-port",
-      "name": "Animal Crossing PC Port",
-      "summary": "Native Animal Crossing GameCube port.",
-      "project_url": "https://github.com/flyngmt/ACGC-PC-Port",
+      "name": "Animal Crossing — Nookery",
+      "summary": "Play your own Animal Crossing GameCube disc with the native Nookery player, formerly ACGC-PC-Port.",
+      "project_url": "https://github.com/flyngmt/Nookery",
       "listed_at": "2026-10-23",
       "original_game_title": "Animal Crossing",
       "artwork": {
@@ -1767,9 +1767,54 @@
       },
       "issue_number": 108,
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
-      "availability": "unknown"
+      "availability": "packages",
+      "release_url": "https://github.com/flyngmt/Nookery/releases",
+      "setup_url": "https://github.com/flyngmt/Nookery#running-the-port-for-players",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep your original GameCube disc image",
+            "instruction": "Use an unmodified image of your own Animal Crossing USA Rev 0 disc, game ID GAFE01. Nookery lists ISO, RVZ, CISO and GCM. Select the image in Nookery and follow its verification prompts."
+          },
+          {
+            "title": "Open the Windows package",
+            "instruction": "Choose the official ZIP for Windows x64 or Windows ARM64. Extract the complete archive into a new writable folder and open Nookery.exe. Keep the package and its companions together."
+          },
+          {
+            "title": "Open the Linux package",
+            "instruction": "Choose the official Linux AppImage for x86-64 or ARM64. Mark it executable and open it. The inspected builds require glibc 2.39 or later. The usual data location is ~/.local/share/Nookery."
+          },
+          {
+            "title": "Open the macOS app",
+            "instruction": "Choose the official ZIP for Intel or Apple Silicon, then open the complete Nookery.app. The inspected apps require macOS 12 or later. Keep your data in the app’s current data folder, normally ~/Library/Application Support/Nookery."
+          },
+          {
+            "title": "Install the Android package",
+            "instruction": "On an ARM64 Android device, install the official APK using the system installer. Choose your disc image in Nookery. Open the Nookery documents provider for saves and other data. If it is missing from your file manager, try a file manager that supports system documents providers."
+          }
+        ],
+        "warnings": [
+          "The Nookery packages in this guide are installed and updated through upstream. The existing Portcove-managed Windows playtest uses AnimalCrossing.exe and its own retained setup and data contract.",
+          "Keep a separate backup before moving from a playtest or updating. Keep the original disc image, the old player and its data until you verify the town in Nookery.",
+          "Follow your operating system’s security prompts. For Android updates, back up data before installing a compatible update over the existing app."
+        ],
+        "help_url": "https://github.com/flyngmt/Nookery#data-folder",
+        "references": [
+          {
+            "title": "Find your town and settings",
+            "instruction": "On Windows the default data folder is beside Nookery.exe. On desktop, Settings > Data shows the active folder. The main town is under save/card_a; towns to visit go under save/card_b. Keep config.json, input.json, texture_pack and nes_roms in the active profile with your saves."
+          },
+          {
+            "title": "Bring a copy of a town to Nookery",
+            "instruction": "Use a backup of your own .gci save in the active save/card_a folder. Leave the old playtest folder and settings in place until you have checked the imported town."
+          }
+        ]
+      }
     },
     {
       "id": "project-picori",
