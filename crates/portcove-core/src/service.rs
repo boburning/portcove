@@ -4954,6 +4954,8 @@ impl PortcoveService {
                     port.map_or(ReleaseChannel::Stable, default_channel),
                 )?
                 .active;
+            // A selected non-default profile launches its exact pinned build.
+            let active = self.profile_pinned_install(port_id, active)?;
             let external = self.library.external_runtime_with_port(port_id)?;
             if !arguments.is_empty()
                 && active.as_ref().is_some_and(|install| {
