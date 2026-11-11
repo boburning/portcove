@@ -320,9 +320,12 @@ async fn opensc2k_linux_portable_directory_keeps_player_data_across_releases() {
 
     let (next, next_server) = opensc2k_release("0.3.1", true, false);
     *provider.0.lock().unwrap() = next;
-    acquire(&service, ID).await;
+    let acquired = acquire(&service, ID).await;
     next_server.join().unwrap();
     let updated = apply_update(&service, ID).await.unwrap();
+    service
+        .discard_game_update_acquisition(ID, &acquired)
+        .unwrap();
     let updated_root = runtime(&updated);
     assert_eq!(
         fs::read(updated_root.join("OpenSC2K.pck")).unwrap(),
