@@ -379,6 +379,17 @@ The same run timed out `reviewed_archive_transition_sonic_populated_install` at 
 149 to 300+ seconds on hosted Windows runners, so its exact override is now the
 600 seconds its family already has; its MMX2 and Super Metroid siblings stay at 420.
 
+`service::native_portable::tests::ready_staged_archive_observed_lifecycle_cases`
+has an exact Windows override that went from 270 seconds (5s × 54) to
+420 seconds (5s × 84) with zero retries, in `6e3e7688`. Under the 270-second
+budget, hosted partition 3 terminated it on both nextest tries in seven job
+attempts between 2026-11-10T23:58Z and 2026-11-11T01:18Z (runs 42926560343
+attempts 1 and 2, 42926658303, 42926762535, 42926803942 attempts 1 and 2, and
+42936437670 attempt 1). Each try stopped at about 270.6 seconds; no assertion
+failed. Since the change it has passed in 214 to 300 seconds in runs 42956417507, 43043569577, 43044023613, 43053534370 and
+43053961839. A budget of 300 seconds or more keeps zero retries, so a hang uses
+the cutoff once. The case's phases and assertions are unchanged.
+
 The October 2026 test audit calibrated the three maintained Node suites that
 contain fixed Linux Python child wrappers from a 30-second default to
 60 seconds. Their child limits remain 30 seconds. The dynamic ordinary and
