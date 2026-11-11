@@ -72,6 +72,7 @@ import {
 } from "./release-catalog-bootstrap-adoption.mts";
 import {
   inspectPublishedMetadata,
+  isServedNativeBootstrapRenewalPreimage,
   isStandaloneBootstrapForwardPreimage,
   standaloneBootstrapAdoption,
 } from "./release-metadata-contract.mts";
@@ -481,8 +482,9 @@ export async function runFixedCatalogCoordinatorConfiguration(
         input.catalog_publication == null &&
         input.catalog_review_request == null &&
         input.catalog_review_disposition == null;
+      const adoptNative = isServedNativeBootstrapRenewalPreimage(input);
       if (
-        (input.published_metadata == null || adoptForward) &&
+        (input.published_metadata == null || adoptForward || adoptNative) &&
         input.metadata_bootstrap != null &&
         capacityDigest(input.metadata_bootstrap) ===
           standaloneBootstrapAdoption.abandoned_descriptor_sha256 &&
@@ -545,7 +547,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
           tools,
           deadline,
           (next) => (stage = next),
-          adoptForward,
+          adoptNative ? "native" : adoptForward,
         );
         stage = "standalone-application-bootstrap-observer";
         const { readMaintenance, observed, stable } = await observeControls(
@@ -596,6 +598,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
             now,
           ),
           published_metadata: metadata,
+          ...(adoptNative ? { metadata_renewal: null } : {}),
         };
         stage = "standalone-application-bootstrap-CAS";
         const readback = await publishCheckpoint(next, checkpointControls, claim?.child);
@@ -604,9 +607,11 @@ export async function runFixedCatalogCoordinatorConfiguration(
         return held(
           directory,
           readback.checkpoint,
-          adoptForward
-            ? "exact standalone application renewal adopted; next wake can review catalog"
-            : "exact standalone application bootstrap adopted; next wake can review catalog",
+          adoptNative
+            ? "authenticated native application metadata adopted"
+            : adoptForward
+              ? "exact standalone application renewal adopted; next wake can review catalog"
+              : "exact standalone application bootstrap adopted; next wake can review catalog",
         );
       }
       if (
