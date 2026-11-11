@@ -366,6 +366,8 @@ fn imported_native_ids_cannot_name_files_outside_the_mods_folder() {
         ".hidden",
         "c:evil",
         "",
+        "x.o2r.",
+        "x.o2r ",
     ] {
         assert!(!profile::valid_native_id(bad), "{bad}");
     }

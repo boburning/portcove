@@ -536,6 +536,7 @@ pub(crate) fn valid_native_id(value: &str) -> bool {
         && value.len() <= 128
         && value.is_ascii()
         && !value.starts_with('.')
+        && !value.ends_with(['.', ' '])
         && !value.chars().any(|c| c.is_control() || "/\\:".contains(c))
 }
 
