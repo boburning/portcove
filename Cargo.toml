@@ -6,6 +6,7 @@ members = [
   "crates/portcove-cli",
   "crates/portcove-diagnostics",
   "crates/portcove-release-tools",
+  "tools/rust-portability",
   "apps/desktop/src-tauri",
 ]
 default-members = ["crates/portcove-core", "crates/portcove-cli"]

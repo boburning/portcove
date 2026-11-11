@@ -283,10 +283,9 @@ deny:
 cycles:
     -{{storage}} cargo modules dependencies -p portcove-core --lib --acyclic
 
-rscheck:
-    # node-suite: rust-quality-full-3
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/run-rscheck.test.mts
-    {{storage}} node scripts/run-rscheck.mts
+rust-portability:
+    {{storage}} cargo test --locked -p portcove-rust-portability
+    {{storage}} cargo run --locked -p portcove-rust-portability
 
 audit *args:
     {{storage}} node scripts/audit.mts {{args}}

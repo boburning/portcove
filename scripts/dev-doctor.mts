@@ -293,7 +293,7 @@ export function cachedRustDefinition(
   cachePaths: Pick<ToolCachePaths, "cargoRoot">,
   platform = process.platform,
 ): ToolDefinition {
-  const binary = definition.id === "rscheck-cli" ? "rscheck" : definition.crate;
+  const binary = definition.crate;
   // Windows executable lookup can prefer an ambient .exe over a preceding .cmd shim.
   // Probe the bootstrap-owned versioned payload directly, and fail if it is absent.
   const command =
