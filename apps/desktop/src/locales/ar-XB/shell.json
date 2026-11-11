@@ -1,0 +1,26 @@
+{
+  "interfaceSize": {
+    "applied": "حجم الواجهة {{ratio, number(style: percent)}}.",
+    "appliedSessionOnly": "حجم الواجهة {{ratio, number(style: percent)}}. لهذه الجلسة فقط؛ تعذر حفظ التفضيل.",
+    "applying": "جارٍ تطبيق حجم الواجهة {{ratio, number(style: percent)}}.",
+    "description": "تكبير النص والصور الفنية وعناصر التحكم معًا.",
+    "dismiss": "إغلاق",
+    "reset": "إعادة التعيين إلى {{ratio, number(style: percent)}}",
+    "resetAction": "إعادة تعيين حجم الواجهة",
+    "resetWithShortcut": "إعادة التعيين إلى {{ratio, number(style: percent)}} · {{shortcut}}",
+    "sessionOnly": "طُبّق لهذه الجلسة. تعذر حفظ التفضيل.",
+    "shortcuts": "{{enlarge}} / {{reduce}} للتكبير أو التصغير؛ {{reset}} لإعادة التعيين.",
+    "title": "حجم الواجهة",
+    "unconfirmed": "تعذر تأكيد حجم الواجهة. حاول مرة أخرى أو أعد التعيين إلى {{ratio, number(style: percent)}}.",
+    "unconfirmedStatus": "تعذر تأكيد حجم الواجهة. استخدم إعادة التعيين إلى {{ratio, number(style: percent)}}.",
+    "value": "{{ratio, number(style: percent)}}"
+  },
+  "renderRecovery": {
+    "details": "تفاصيل الخطأ",
+    "detailsLabel": "تفاصيل خطأ الشاشة",
+    "instruction": "أعد تحميل Portcove، ثم تحقق من حالة أي مهمة نشطة.",
+    "reload": "إعادة تحميل Portcove",
+    "title": "تعذر على Portcove عرض هذه الشاشة",
+    "unknownError": "خطأ عرض غير معروف"
+  }
+}

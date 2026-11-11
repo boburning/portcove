@@ -696,6 +696,17 @@ export type HostToolProbeState =
 export type OutputLaunchRequest = LaunchSessionView | null;
 export type LaunchSessionOutcome = "succeeded" | "failed" | "cancelled";
 export type LaunchSessionPhase = "preparing" | "spawning" | "running" | "collecting" | "recovering";
+export type LauncherAppsRootOrigin = "settings" | "default" | "override" | "unresolved";
+export type LauncherEntryStatus =
+  | "ready-to-review"
+  | "ambiguous"
+  | "not-in-catalog"
+  | "unrecognized-files"
+  | "adoption-unsupported"
+  | "not-installed"
+  | "unsafe-path"
+  | "duplicate";
+export type LauncherKind = "github-launcher" | "quiver";
 export type LibraryContentKind =
   "application_versions" | "user_data" | "source_inbox" | "backups" | "toolchains" | "local_artwork";
 /**
@@ -910,8 +921,23 @@ export type InstallationContext =
       installation_id: string;
       kind: "external";
     };
-export type SteamEntryChangeKind = "add" | "repair" | "remove" | "unchanged";
+export type SteamArtworkRoleAction =
+  "write" | "replace" | "preserve" | "unchanged" | "unavailable" | "remove" | "preserve_modified" | "absent";
+/**
+ * Separate reviewed Steam artwork action for one owned shortcut.
+ */
+export type SteamArtworkOperation =
+  | {
+      kind: "update";
+      replace_existing: boolean;
+      [k: string]: unknown;
+    }
+  | {
+      kind: "remove_owned";
+      [k: string]: unknown;
+    };
 export type SteamClientState = "closed" | "running" | "unknown";
+export type SteamEntryChangeKind = "add" | "repair" | "remove" | "unchanged";
 export type SteamEntryOperation = "add_or_repair" | "remove";
 export type OutputDesktopSteamProfiles = string[];
 export type SupportBundleScope = "bounded_recent_diagnostics";
@@ -1000,6 +1026,7 @@ export interface TransportOutputs {
   host_tool_status: HostToolStatus;
   install_plan: InstallPlan;
   launch_request: OutputLaunchRequest;
+  launcher_library_inventory: OutputLauncherLibraryInventory;
   library_identity: LibraryIdentity;
   library_import_plan: OutputLibraryImportPlan;
   library_import_result: OutputLibraryImportResult;
@@ -1106,6 +1133,8 @@ export interface TransportOutputs {
   desktop_setup_launch_targets: OutputSetupLaunchTargets;
   desktop_source_reuse_review: OutputSourceReuseReview;
   desktop_source_verification_outcome: OutputSourceBatchOutcome;
+  desktop_steam_artwork_apply_result: OutputDesktopSteamArtworkApplyResult;
+  desktop_steam_artwork_review: OutputDesktopSteamArtworkReview;
   desktop_steam_batch_review: OutputDesktopSteamBatchReview;
   desktop_steam_entry_apply_result: OutputDesktopSteamEntryApplyResult;
   desktop_steam_entry_review: OutputDesktopSteamEntryReview;
@@ -1842,6 +1871,11 @@ export interface PortDefinition {
     [k: string]: string;
   };
   launch_from_install_root: boolean;
+  /**
+   * Native25: keep the Linux player's portable profile in this declared
+   * directory beside the executable, creating it when absent before Play.
+   */
+  linux_portable_data_directory?: string | null;
   /**
    * Catalog-owned containment for a managed route whose current upstream
    * release still matches its selector but changed reviewed behavior.
@@ -3568,6 +3602,115 @@ export interface ExitExplanation {
   table_version: number;
   [k: string]: unknown;
 }
+export interface OutputLauncherLibraryInventory {
+  apps_root: string | null;
+  apps_root_origin: LauncherAppsRootOrigin;
+  data_root: string;
+  entries: LauncherLibraryEntry[];
+  /**
+   * Upstream source revision whose library format this reader implements.
+   */
+  format_revision: string;
+  /**
+   * Content fingerprint of this inventory, excluding this field.
+   */
+  inventory_sha256: string;
+  launcher: LauncherKind;
+  /**
+   * True when only the launcher's legacy `games.json` was present.
+   */
+  legacy_library_file: boolean;
+  library_file: string;
+  /**
+   * Inspection reads only; launcher data and installations stay untouched.
+   */
+  original_will_be_modified: boolean;
+  skipped_entries: LauncherLibrarySkippedEntry[];
+  [k: string]: unknown;
+}
+export interface LauncherLibraryEntry {
+  /**
+   * Port to pass to the existing reviewed `adopt --port` for `install_path`.
+   * Absent unless exactly one copyable catalog port was detected.
+   */
+  adopt_port_id: string | null;
+  /**
+   * Catalog ports whose reviewed upstream repository matches this entry.
+   */
+  candidate_port_ids: string[];
+  /**
+   * Catalog ports whose declared executable was found in the installation.
+   */
+  detected_port_ids: string[];
+  explanation: string;
+  /**
+   * True when `installPath` was explicit rather than apps folder plus folder name.
+   */
+  explicit_install_path: boolean;
+  folder_name: string;
+  hints: LauncherEntryHints;
+  /**
+   * Zero-based position across the launcher library's entry arrays.
+   */
+  index: number;
+  /**
+   * Resolved installation folder, when the entry names a safe absolute location.
+   */
+  install_path: string | null;
+  mods: LauncherModInventory | null;
+  name: string;
+  /**
+   * Launcher settings for this app that Portcove does not carry over.
+   */
+  not_carried_over: string[];
+  repository: string;
+  /**
+   * `github`, `gitlab`, `codeberg` or `manual`, as the launcher interprets the entry.
+   */
+  repository_source: string;
+  /**
+   * Earlier entry naming the same installation folder for a different app.
+   */
+  shares_folder_with: number | null;
+  status: LauncherEntryStatus;
+  /**
+   * Declared saves/configuration present in the installation for a single match.
+   */
+  user_data_paths: string[];
+  [k: string]: unknown;
+}
+export interface LauncherEntryHints {
+  /**
+   * First line of `version.txt` in the installation. Untrusted label.
+   */
+  installed_version_label: string | null;
+  /**
+   * `preferredVersion` from the launcher library. Untrusted label.
+   */
+  preferred_version: string | null;
+  /**
+   * First line of `selected_executable.txt`. Portcove uses its own declared executable.
+   */
+  selected_executable: string | null;
+  [k: string]: unknown;
+}
+export interface LauncherModInventory {
+  providers: string[];
+  /**
+   * False when the sidecar exists but could not be read within limits.
+   */
+  readable: boolean;
+  /**
+   * Records in `.quiver-mods.json`; they are inventoried, never activated.
+   */
+  records: number;
+  [k: string]: unknown;
+}
+export interface LauncherLibrarySkippedEntry {
+  index: number;
+  reason: string;
+  [k: string]: unknown;
+}
 /**
  * The export carries metadata; all payload bytes remain in the explicitly chosen content root.
  */
@@ -4825,13 +4968,70 @@ export interface OutputDesktopLocalePreference {
   locale: string | null;
   [k: string]: unknown;
 }
+export interface OutputDesktopSteamArtworkApplyResult {
+  backup_paths: string[];
+  plan_sha256: string;
+  roles: SteamArtworkRoleChange[];
+  wrote: boolean;
+  [k: string]: unknown;
+}
+export interface SteamArtworkRoleChange {
+  action: SteamArtworkRoleAction;
+  destination_path: string | null;
+  existing_paths: string[];
+  existing_sha256: string | null;
+  /**
+   * The destination-local ownership record for this role is dropped.
+   */
+  forget_ownership: boolean;
+  proposed_sha256: string | null;
+  role: DestinationArtworkRole;
+  unavailable_reason: DestinationArtworkUnavailableReason | null;
+  [k: string]: unknown;
+}
+export interface OutputDesktopSteamArtworkReview {
+  app_id: number | null;
+  display_name: string;
+  grid_path: string;
+  operation: SteamArtworkOperation;
+  plan_sha256: string;
+  port_id: string;
+  recovered: SteamArtworkRecovery | null;
+  /**
+   * An interrupted shortcut (or, for shortcut reviews, artwork) change in this
+   * profile was settled before review.
+   */
+  recovered_shortcut_change: boolean;
+  roles: SteamArtworkRoleChange[];
+  schema_version: number;
+  steam_client_state: SteamClientState;
+  steam_root: string;
+  steam_user_id: string;
+  writes_required: boolean;
+  [k: string]: unknown;
+}
+/**
+ * Roles an earlier interrupted artwork change settled before this review.
+ */
+export interface SteamArtworkRecovery {
+  abandoned: DestinationArtworkRole[];
+  completed: DestinationArtworkRole[];
+  [k: string]: unknown;
+}
 export interface OutputDesktopSteamBatchReview {
+  artwork: SteamEntryArtworkPreview[];
+  artwork_review_sha256: string | null;
   changes: SteamEntryChange[];
   cli_path: string;
   cli_product_version: string;
   cli_sha256: string;
   library_root: string;
   proposed_sha256: string;
+  /**
+   * An interrupted shortcut (or, for shortcut reviews, artwork) change in this
+   * profile was settled before review.
+   */
+  recovered_shortcut_change: boolean;
   review_sha256: string;
   schema_version: number;
   selected_games: SteamGameEntryTarget[];
@@ -4842,6 +5042,18 @@ export interface OutputDesktopSteamBatchReview {
   steam_user_id: string;
   writer_plan_sha256: string;
   writes_required: boolean;
+  [k: string]: unknown;
+}
+/**
+ * Artwork reviewed together with a shortcut Add for one game.
+ */
+export interface SteamEntryArtworkPreview {
+  port_id: string;
+  roles: SteamArtworkRoleChange[];
+  /**
+   * Why this game's artwork cannot be reviewed now; the shortcut is unaffected.
+   */
+  unavailable: string | null;
   [k: string]: unknown;
 }
 export interface SteamEntryChange {
@@ -4856,6 +5068,11 @@ export interface SteamGameEntryTarget {
   [k: string]: unknown;
 }
 export interface OutputDesktopSteamEntryApplyResult {
+  /**
+   * Per-game outcome of artwork included with a shortcut Add. A failed or
+   * unavailable role never undoes a successfully written shortcut.
+   */
+  artwork: SteamEntryArtworkOutcome[];
   backup_path: string | null;
   changes: SteamEntryChange[];
   plan_sha256: string;
@@ -4863,7 +5080,20 @@ export interface OutputDesktopSteamEntryApplyResult {
   wrote: boolean;
   [k: string]: unknown;
 }
+export interface SteamEntryArtworkOutcome {
+  backup_paths: string[];
+  /**
+   * Why no artwork was written for this game; retry with Review artwork update.
+   */
+  error: string | null;
+  port_id: string;
+  roles: SteamArtworkRoleChange[];
+  wrote: boolean;
+  [k: string]: unknown;
+}
 export interface OutputDesktopSteamEntryReview {
+  artwork: SteamEntryArtworkPreview[];
+  artwork_review_sha256: string | null;
   changes: SteamEntryChange[];
   cli_path: string | null;
   cli_product_version: string | null;
@@ -4874,6 +5104,11 @@ export interface OutputDesktopSteamEntryReview {
   plan_sha256: string;
   port_id: string;
   proposed_sha256: string;
+  /**
+   * An interrupted shortcut (or, for shortcut reviews, artwork) change in this
+   * profile was settled before review.
+   */
+  recovered_shortcut_change: boolean;
   schema_version: number;
   shortcuts_path: string;
   snapshot_sha256: string | null;

@@ -132,6 +132,7 @@ scope; they do not certify later builds.
 | Source, save, backup and library recovery               | Core; [source import interpretation](#source-import-journal-interpretation), [backup service](#backup-service-ownership), [checked backup restoration](#checked-backup-restore-interpretation) and [library model](#library-model). Machine development storage is separate: [development storage](DEVELOPMENT-STORAGE.md). |
 | Artwork, credentials and Steam destinations             | [Shared artwork ownership](#local-artwork-ownership), host credential boundaries and [Steam shortcut boundary](#steam-shortcut-compatibility-boundary); [integration contract](INTEGRATIONS.md) keeps destination and physical-device obligations distinct.                                                                 |
 | Independent definitions, authentication and publication | Core admission and selection; [signed catalog authority](#signed-catalog-authority), [signed catalog contract](SIGNED-CATALOG.md) and [definition delivery](DEFINITION-DELIVERY.md). Content inspection is not publication or activation authority.                                                                         |
+| Maintainer maintenance inventory and history            | Repository tooling over existing owners; [maintenance inventory store](MAINTENANCE-STORE.md). Operational history only; Core, catalog, issues and the Project keep their authority, and players never depend on it.                                                                                                         |
 | Validation, native evidence and review                  | [Quality contract](QUALITY.md), [development tools](DEVELOPMENT-TOOLS.md) and [review/merge contract](CONTRIBUTION-CONVENTIONS.md). Browser, native, installed-package and physical-device results establish different claims.                                                                                              |
 | Proposed structural changes                             | [Evolution policy](#evolution-policy) and [planned consolidation](#planned-public-beta-consolidation); a planned interface is not an implemented capability.                                                                                                                                                                |
 
@@ -1625,8 +1626,8 @@ sanitized errors. Project mutations remain quota-aware and readback-gated;
 ambiguous writes produce recovery evidence rather than automatic replay. The
 migration grants no publication or activation authority.
 
-Core sends GitHub metadata and device requests through Octocrab over its
-configured reqwest clients. The separate device client is anonymous. Core
+Core sends GitHub metadata and device requests through its configured Reqwest
+clients. The separate device client is anonymous. Core
 enforces the metadata body limit and operation deadlines, owns credential and
 cache transitions, and applies its existing separate download policy.
 

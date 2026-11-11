@@ -51,6 +51,7 @@ pub use catalog_download_identity::{
     CatalogForeignReleaseId,
 };
 pub(crate) use catalog_download_provider::CatalogDownloadRepository;
+mod launcher_library;
 mod native_portable;
 pub(crate) mod package_selection;
 mod retained_direct_compatibility;
@@ -58,6 +59,11 @@ mod setup_discovery;
 pub use catalog_download::{
     CatalogDownloadCandidate, CatalogDownloadCandidates, CatalogDownloadCoverage,
     CatalogDownloadPreview, CatalogDownloadRequest, PendingSetupRecord, PendingSetupState,
+};
+pub use launcher_library::{
+    GITHUB_LAUNCHER_FORMAT_REVISION, LauncherAppsRootOrigin, LauncherEntryHints,
+    LauncherEntryStatus, LauncherKind, LauncherLibraryEntry, LauncherLibraryInventory,
+    LauncherLibrarySkippedEntry, LauncherModInventory, QUIVER_FORMAT_REVISION,
 };
 pub use package_selection::{CatalogDownloadRelease, CatalogPackageAssessment};
 pub use setup_discovery::{SetupLaunchTarget, SetupLaunchTargets};
@@ -5212,6 +5218,18 @@ impl PortcoveService {
                     crate::native_temp::recheck(retained_port, platform, &spec, &|| {
                         operation.checkpoint()
                     })?;
+                    if let Some(name) =
+                        crate::native_portable_data::directory_name(retained_port, platform)
+                    {
+                        crate::native_portable_data::require_launch(
+                            retained_port,
+                            &self.library,
+                            &spec,
+                            &command,
+                            name,
+                            &|| operation.checkpoint(),
+                        )?;
+                    }
                     self.require_installed_shared_preferences(install)?;
                     if retained_port.managed_shared_preferences.is_some()
                         && (spec.arguments != retained_port.launch_arguments

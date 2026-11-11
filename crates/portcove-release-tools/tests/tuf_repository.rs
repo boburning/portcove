@@ -206,7 +206,7 @@ fn write_platform_records(
 
 #[tokio::test]
 async fn builds_separately_signed_repository_and_accepts_exact_retry() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
     let offline = [
         TestKey::generate(directory.path(), "root-1.der"),
         TestKey::generate(directory.path(), "root-2.der"),
@@ -649,7 +649,7 @@ fn copy_public_fixture(source: &Path, destination: &Path) {
 
 #[tokio::test]
 async fn rejects_a_record_changed_after_reconstruction() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
     let records_root = directory.path().join("records");
     fs::create_dir(&records_root).unwrap();
     let paths = write_records(&records_root);

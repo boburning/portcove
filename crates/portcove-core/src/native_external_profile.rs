@@ -22,7 +22,7 @@ pub(crate) mod quake_linux;
 pub(crate) mod recomp_direct;
 pub(crate) mod z2rs;
 
-fn read_amd64_elf_header(executable: &Path) -> Result<[u8; 20]> {
+pub(crate) fn read_amd64_elf_header(executable: &Path) -> Result<[u8; 20]> {
     let mut file = crate::external_runtime::open_single_link_file(executable)?;
     let mut header = [0; 20];
     file.read_exact(&mut header)?;

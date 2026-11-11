@@ -40,6 +40,7 @@ import {
   readObserverSnapshotArchive,
   encodeObserverSnapshot,
   observerSnapshotLimit,
+  observerStreamingSnapshotLimit,
   collectCompactObserverSnapshot,
   encodeCompactObserverSnapshot,
   recoverObserverCheckpoint,
@@ -582,7 +583,7 @@ void test("production-shaped retained provider pages fit the fixed artifact rese
       checkpoint_files: encoded.checkpoint_files,
       decoded_bytes: encoded.decoded_bytes,
       artifact_bytes: encoded.bytes.length,
-      artifact_byte_limit: observerSnapshotLimit,
+      artifact_byte_limit: observerStreamingSnapshotLimit,
     }),
   );
 });
@@ -828,7 +829,7 @@ void test(factGrowthTest, { timeout: 60_000 }, async (t) => {
     const encoded = await encodeStreamingObserverSnapshot(value, Date.now() + 60000);
     assert.ok(
       encoded.bytes.length < observerSnapshotLimit / 2,
-      "full modeled catalog retains substantial headroom without increasing the cap",
+      "full modeled catalog retains substantial headroom within the old cap",
     );
     const restored = await readRecoverableObserverSnapshotArchive(
       createAuditZip([["checkpoint.json", encoded.bytes]]),
@@ -861,6 +862,7 @@ void test(factGrowthTest, { timeout: 60_000 }, async (t) => {
         member_bytes: encoded.bytes.length,
       }),
     );
+    return encoded.bytes.length;
   }
   function objectRecord(value: unknown): Record<string, unknown> {
     assert.ok(isRecord(value));
@@ -893,17 +895,17 @@ void test(factGrowthTest, { timeout: 60_000 }, async (t) => {
       await writeSource(historical, index);
     }
   }
-  await snapshot("1295-sources-plus-retained-configurations");
-  await assert.rejects(async () => {
-    const old = await collectCompactObserverSnapshot(
-      root,
-      "c".repeat(64),
-      { run: 121, attempt: 1, source: "b".repeat(40) },
-      Date.now(),
-      Date.now() + 60000,
-    );
-    await encodeStreamingObserverSnapshot(old, Date.now() + 60000);
-  }, /decoded snapshot exceeds checkpoint read envelope|compressed member exceeds reserved output envelope/);
+  const projectedBytes = await snapshot("1295-sources-plus-retained-configurations");
+  const unprojected = await collectCompactObserverSnapshot(
+    root,
+    "c".repeat(64),
+    { run: 121, attempt: 1, source: "b".repeat(40) },
+    Date.now(),
+    Date.now() + 60000,
+  );
+  const encoded = await encodeStreamingObserverSnapshot(unprojected, Date.now() + 60000);
+  assert.ok(encoded.bytes.length > observerSnapshotLimit);
+  assert.ok(projectedBytes < encoded.bytes.length);
 });
 
 void test("reviewed declarations share provider collection while keeping port-specific Core projections and unsupported holds", async () => {
@@ -2789,7 +2791,9 @@ void test("hosted opportunity preserves one aggregate handoff and refuses change
   // The hosted path wires its own aggregate handoff envelope into the summary.
   assert.equal(
     (result.summary as { artifact_byte_limit: number }).artifact_byte_limit,
-    hostedHandoffByteLimit + h.options.config.budget.response_bytes + observerSnapshotLimit,
+    hostedHandoffByteLimit +
+      h.options.config.budget.response_bytes +
+      observerStreamingSnapshotLimit,
   );
   h.advanceClock(7 * 3600000);
   runtime.deadline = h.options.now!() + 500000;

@@ -181,6 +181,7 @@ mod tests {
             windows_temp_directory: None,
             portable_marker: false,
             portable_marker_file: None,
+            linux_portable_data_directory: None,
             n64_windows_initial_d3d12: false,
             n64_runtime_at_executable_parent: false,
             managed_initialization: None,

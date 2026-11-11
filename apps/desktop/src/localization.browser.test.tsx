@@ -245,7 +245,7 @@ describe("LocalizationProvider", () => {
     expect(document.documentElement.lang).toBe("ar-XB");
     expect(document.documentElement.dir).toBe("rtl");
     expect(host.textContent).toContain("معاينة اللغة");
-    expect(host.textContent).toContain("باقي Portcove باللغة الإنجليزية");
+    expect(host.textContent).toContain("تبقى الشاشات الأخرى باللغة الإنجليزية");
     expect(host.textContent).not.toContain("رسائل مترجمة جاهزة");
   });
 
