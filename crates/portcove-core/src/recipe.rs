@@ -150,6 +150,25 @@ impl ProfileRecipe {
     }
 
     fn validate(&self) -> Result<()> {
+        if self.format != RECIPE_FORMAT {
+            return Err(PortcoveError::unsupported(
+                "this recipe uses a format this Portcove does not understand",
+            ));
+        }
+        if !text_ok(&self.runtime.artifact.asset_name)
+            || self
+                .loader
+                .as_ref()
+                .is_some_and(|loader| !text_ok(&loader.id) || !text_ok(&loader.version))
+            || self
+                .orderings
+                .iter()
+                .any(|ordering| !text_ok(&ordering.domain))
+        {
+            return Err(invalid(
+                "an identity field is empty, oversized or malformed",
+            ));
+        }
         if self.packages.len() > MAX_PACKAGES
             || self.originals.len() > MAX_PACKAGES
             || self.orderings.len() > MAX_PACKAGES
@@ -162,10 +181,13 @@ impl ProfileRecipe {
             return Err(invalid("a field is missing, oversized or malformed"));
         }
         let mut ids = BTreeSet::new();
+        // Names that differ only by case alias one file on Windows and macOS.
+        let mut folded = BTreeSet::new();
         for package in &self.packages {
             if !valid_native_id(&package.native_id)
                 || !hash_ok(&package.sha256)
                 || !ids.insert(package.native_id.as_str())
+                || !folded.insert(package.native_id.to_ascii_lowercase())
                 || package.requires.iter().any(|id| !valid_native_id(id))
                 || package
                     .native_version

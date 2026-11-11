@@ -298,3 +298,31 @@ fn inputs_changing_after_review_invalidate_the_plan() {
         1
     );
 }
+
+#[test]
+fn constructed_recipes_are_held_to_the_same_rules_as_inspected_ones() {
+    let w = world();
+    let recipe = w
+        .service
+        .export_profile_recipe("starship", &w.profile, None)
+        .unwrap();
+    // A directly constructed recipe cannot skip the format gate.
+    let mut future = recipe.clone();
+    future.format = 99;
+    let future = sealed(future);
+    assert_eq!(
+        w.service.plan_recipe_import(&future).unwrap_err().code,
+        ErrorCode::Unsupported
+    );
+    // Names that alias on case-insensitive filesystems are refused.
+    let mut aliased = recipe.clone();
+    let mut second = aliased.packages[0].clone();
+    second.native_id = second.native_id.to_ascii_uppercase();
+    aliased.packages.push(second);
+    aliased.orderings.clear();
+    assert!(ProfileRecipe::inspect(&bytes(&sealed(aliased))).is_err());
+    // Oversized identity text is refused.
+    let mut long = recipe;
+    long.runtime.artifact.asset_name = "x".repeat(300);
+    assert!(ProfileRecipe::inspect(&bytes(&sealed(long))).is_err());
+}
