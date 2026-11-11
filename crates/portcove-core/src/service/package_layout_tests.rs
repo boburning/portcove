@@ -529,6 +529,10 @@ async fn a_failed_snapshot_stops_an_in_place_update_before_anything_is_installed
         .unwrap_err();
 
     assert!(
+        error.message.contains("injected snapshot failure"),
+        "the cause is kept: {error:?}"
+    );
+    assert!(
         error.message.contains("the version was not changed")
             && error.message.contains("turn off automatic snapshots"),
         "the player is told the version did not change and how to continue: {error:?}"
@@ -539,6 +543,8 @@ async fn a_failed_snapshot_stops_an_in_place_update_before_anything_is_installed
     );
     let status = game.service.status(NHL_IN_PLACE).unwrap();
     assert_eq!(status.active.unwrap().id, game.installed.id);
+    // The staged route would already have registered 0.3.6 as staged here, so
+    // this also proves the update took the in-place branch.
     assert!(status.staged.is_none(), "no new version was installed");
     assert!(status.previous.is_none(), "no new version was installed");
     assert!(automatic_snapshots(&game.service).is_empty());
