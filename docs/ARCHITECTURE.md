@@ -2684,6 +2684,16 @@ journaled recovery. Relations are decided by content digests and a lineage
 record kept inside the canonical root, so backups and restores carry it with the
 data. Timestamps never select a winner.
 
+`service::portable_save_folder` is the one optional transport: a player-named
+existing folder outside the library. It stores immutable content-addressed
+bundles, derives branch heads from recorded bases, and records explicit
+resolutions as empty `superseded/<digest>` markers; it never overwrites or
+deletes folder content. Status, push and pull are explicit requests with no
+stored folder, credential or standing apply permission. Pull passes the bundle's
+recorded (unauthenticated) folder history to the same import review and apply path, so a transport
+adds no new lock, journal or recovery owner. An unavailable folder is an offline
+status, not an error for local play.
+
 ### Library transfers
 
 [Concurrency](#concurrency) describes the shared library lease that a transfer

@@ -928,6 +928,11 @@ export type MaintenanceOutcome =
   | "demonstrated-regression-handling"
   | "demonstrated-continuity-and-succession";
 export type ReconcileAction = "up_to_date" | "notify" | "staged" | "activated";
+/**
+ * What the player can usefully do next with a selected save folder.
+ */
+export type SaveFolderNextStep =
+  "up-to-date" | "unavailable" | "blocked" | "incomplete" | "push" | "pull" | "choose-progress";
 export type SourceImportMode = "copy" | "move" | "use_current_location";
 export type SourceImportOutcome =
   "copied" | "moved" | "reused_existing" | "registered_current_location" | "copied_original_retained";
@@ -1199,6 +1204,8 @@ export interface TransportOutputs {
   retained_build_removal_preview: OutputRetainedBuildRemovalPreview;
   retained_build_resolution: RetainedBuildResolution;
   retained_build_retirement_preview: OutputRetainedBuildRetirementPreview;
+  save_folder_push_result: OutputSaveFolderPushResult;
+  save_folder_status: OutputSaveFolderStatus;
   setup_launch_targets: OutputSetupLaunchTargets;
   signed_catalog_envelope: OutputSignedCatalogEnvelope;
   signed_catalog_payload: OutputSignedCatalogPayload;
@@ -5255,6 +5262,62 @@ export interface OutputRetainedBuildRetirementPreview {
   preview_sha256: string;
   revision: RetainedBuildRevision;
   setup_id: string;
+  [k: string]: unknown;
+}
+export interface OutputSaveFolderPushResult {
+  /**
+   * The same saves were already in the folder; nothing was written.
+   */
+  already_present: boolean;
+  base_sha256?: string | null;
+  content_sha256: string;
+  path: string;
+  [k: string]: unknown;
+}
+export interface OutputSaveFolderStatus {
+  available: boolean;
+  /**
+   * False when the folder exceeded review limits; history is then unknown.
+   */
+  complete: boolean;
+  entries: SaveFolderEntry[];
+  folder: string;
+  local_content_sha256?: string | null;
+  local_published: boolean;
+  /**
+   * Another device set this device's current saves aside.
+   */
+  local_set_aside: boolean;
+  next_step: SaveFolderNextStep;
+  port_id: string;
+  /**
+   * Files in the folder that were ignored, with the reason.
+   */
+  problems: string[];
+  [k: string]: unknown;
+}
+export interface SaveFolderEntry {
+  /**
+   * This device's progress already includes these saves.
+   */
+  already_included_here: boolean;
+  base_sha256?: string | null;
+  /**
+   * Same qualified game version and platform contract as this device.
+   */
+  compatible: boolean;
+  content_sha256: string;
+  files: PortableSaveFile[];
+  /**
+   * Latest on its branch: no other saves in the folder continue from it.
+   */
+  head: boolean;
+  relation: PortableSaveRelation;
+  source: PortableSaveIdentity;
+  /**
+   * Set aside by an explicit choice; still kept and importable.
+   */
+  superseded: boolean;
   [k: string]: unknown;
 }
 export interface OutputSetupLaunchTargets {

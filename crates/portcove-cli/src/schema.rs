@@ -54,6 +54,18 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 >(contract)),
             ),
             (
+                "save_folder_status",
+                serde_json::json!(schema_for_contract::<portcove_core::SaveFolderStatus>(
+                    contract
+                )),
+            ),
+            (
+                "save_folder_push_result",
+                serde_json::json!(schema_for_contract::<portcove_core::SaveFolderPushResult>(
+                    contract
+                )),
+            ),
+            (
                 "portable_save_import_result",
                 serde_json::json!(
                     schema_for_contract::<portcove_core::PortableSaveImportResult>(contract)

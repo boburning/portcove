@@ -19,7 +19,7 @@ for current integration development. A local candidate is not a public release.
 | Move games from GitHub Launcher or Quiver           | [Move from another launcher](#move-from-another-launcher)                                                                                                     |
 | Keep an exact local build for a stable setup        | [Retained builds and setup references](#retained-builds-and-setup-references)                                                                                 |
 | Export metadata and restore copied library content  | [Export and restore](#export-and-restore-a-library)                                                                                                           |
-| Continue a qualified game's saves on another device | [Portable saves](#portable-saves)                                                                                                                             |
+| Continue a qualified game's saves on another device | [Portable saves](#portable-saves) and the optional [save folder](#save-folder-transport)                                                                      |
 | Move a library or recover a transfer                | [Move](#move-a-library) and [interrupted transfers](#recover-an-interrupted-transfer)                                                                         |
 | Request cancellation and establish the outcome      | [Cancel work safely](#cancel-work-safely)                                                                                                                     |
 | Resolve disc-tool prerequisites or GitHub access    | [Disc tools](#disc-formats-and-optional-tools) and [authentication](#github-authentication)                                                                   |
@@ -1672,6 +1672,62 @@ Automated tests cover classification, file integrity, version and game
 blockers, conflicts, deletion choices, changed input, a running game and
 interruption recovery. They do not show that the game loads moved saves; that
 remains a separate qualification for the exact device pair.
+
+### Save folder transport
+
+A save folder is an optional, player-chosen location for moving the same
+classified saves between devices: a removable drive, a network share, or a
+folder another sync tool already mirrors. Portcove adds no account, service or
+background syncing, and connecting a folder grants nothing: every push and pull
+is a separate request that names the folder.
+
+```bash
+portcove --library <path> --json saves folder-status <port-id> --folder <dir>
+portcove --library <path> --json saves folder-push <port-id> --folder <dir> --expected-content <content_sha256>
+portcove --library <path> --json saves folder-pull-preview <port-id> --folder <dir> --content <sha256> [choices]
+portcove --library <path> --json saves folder-pull <port-id> --folder <dir> --content <sha256> [choices] --expected-preview <preview_sha256> --yes
+portcove --library <path> --json saves folder-set-aside <port-id> --folder <dir> --content <sha256>
+```
+
+The folder must already exist and must be outside the library; a missing or
+unreadable folder is reported as unavailable. Portcove writes only under
+`portcove-saves/v1/<port-id>/`: each push adds one immutable saves file named by
+its content digest. Pushing the same saves again, including at the same moment
+from another device, writes nothing, so retries and duplicate copies made by other
+sync tools are harmless. Portcove never overwrites or deletes files in the
+folder. Temporary files from interrupted copies are ignored; saves files that are
+damaged or do not match their name are ignored and listed under `problems`, and
+a damaged file under this device's own name is kept for inspection and the push
+is refused. Portcove reviews at most 256 saves files and 256 set-aside records per
+game and at most 256 MiB of saves files at once; beyond that `complete` is false,
+`next_step` is `incomplete`, and pulls from the folder are refused until older
+files are moved out (a saves file can still be imported directly).
+
+`folder-status` is read-only. It lists every saves file with its source version
+and platform, whether it matches this device's qualified game version
+(`compatible`), whether it is the latest on its branch (`head`), whether it was
+set aside, whether this device already includes it, and its relation to this
+device's saves. `next_step` is `unavailable` (folder not connected; local play and
+backups are unaffected), `blocked`, `incomplete`, `up-to-date`, `push`, `pull` or
+`choose-progress`. Only compatible heads are offered. Relations follow each
+file's recorded history in the folder, so progress that continued over several
+sessions on another device still reads as `continues`. That history is recorded
+by whichever device wrote each file and is not proof: the pull review still lists
+every file it would replace, with the safety backup behind it.
+
+`folder-pull-preview` and `folder-pull` are the [portable save import](#portable-saves)
+review and apply for one file in the folder, with the same consent, locking,
+safety backup and recovery; a changed or missing folder after review refuses.
+When a pull from different progress actually replaces or removes saves on this
+device, this device's own branch in the folder (its current saves or its last
+pushed saves) is set aside; a pull that only adds slots sets nothing aside.
+`folder-set-aside` sets aside another device's saves when you keep this device's
+progress. Setting aside only adds an empty marker under `superseded/`; the saves
+file stays in the folder and can still be pulled explicitly. A device whose
+current saves were set aside elsewhere reports `local_set_aside` and
+`choose-progress`, never `up-to-date`, so mutual choices cannot hide a difference.
+Deleting slots on one device never deletes them elsewhere unless
+`--remove-local-only-saves` is chosen on the pulling device.
 
 ### Concurrency and failure-isolated batches
 

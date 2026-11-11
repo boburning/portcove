@@ -44730,6 +44730,267 @@
     "title": "RetainedBuildRetirementPreview",
     "type": "object"
   },
+  "save_folder_push_result": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "already_present": {
+        "description": "The same saves were already in the folder; nothing was written.",
+        "type": "boolean"
+      },
+      "base_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "content_sha256": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "content_sha256",
+      "path",
+      "already_present"
+    ],
+    "title": "SaveFolderPushResult",
+    "type": "object"
+  },
+  "save_folder_status": {
+    "$defs": {
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "PortableSaveFile": {
+        "properties": {
+          "path": {
+            "description": "Relative path inside the game's player-data folder, `/` separated.",
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "PortableSaveIdentity": {
+        "description": "Exact identity of one side of a portable-save transfer.",
+        "properties": {
+          "contract_id": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "version": {
+            "description": "Installed game version that produced or will read the progress.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "contract_id",
+          "version",
+          "platform"
+        ],
+        "type": "object"
+      },
+      "PortableSaveRelation": {
+        "description": "How incoming progress relates to this device's progress, by content only.",
+        "oneOf": [
+          {
+            "enum": [
+              "no-local-progress",
+              "already-current"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "continues",
+            "description": "The incoming progress continued from exactly what this device has.",
+            "type": "string"
+          },
+          {
+            "const": "diverged",
+            "description": "Both sides changed, or their history is unknown. Timestamps never decide.",
+            "type": "string"
+          }
+        ]
+      },
+      "SaveFolderEntry": {
+        "properties": {
+          "already_included_here": {
+            "description": "This device's progress already includes these saves.",
+            "type": "boolean"
+          },
+          "base_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "compatible": {
+            "description": "Same qualified game version and platform contract as this device.",
+            "type": "boolean"
+          },
+          "content_sha256": {
+            "type": "string"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/$defs/PortableSaveFile"
+            },
+            "type": "array"
+          },
+          "head": {
+            "description": "Latest on its branch: no other saves in the folder continue from it.",
+            "type": "boolean"
+          },
+          "relation": {
+            "$ref": "#/$defs/PortableSaveRelation"
+          },
+          "source": {
+            "$ref": "#/$defs/PortableSaveIdentity"
+          },
+          "superseded": {
+            "description": "Set aside by an explicit choice; still kept and importable.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "content_sha256",
+          "source",
+          "files",
+          "head",
+          "superseded",
+          "already_included_here",
+          "compatible",
+          "relation"
+        ],
+        "type": "object"
+      },
+      "SaveFolderNextStep": {
+        "description": "What the player can usefully do next with a selected save folder.",
+        "oneOf": [
+          {
+            "enum": [
+              "up-to-date"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "unavailable",
+            "description": "The folder is not connected; local play and saves are unaffected.",
+            "type": "string"
+          },
+          {
+            "const": "blocked",
+            "description": "Moving saves is not available for this game here (see export blockers).",
+            "type": "string"
+          },
+          {
+            "const": "incomplete",
+            "description": "The folder holds more than Portcove reviews; its history is unknown.",
+            "type": "string"
+          },
+          {
+            "const": "push",
+            "description": "This device has progress the folder does not have yet.",
+            "type": "string"
+          },
+          {
+            "const": "pull",
+            "description": "One newer set of saves continues from this device's progress.",
+            "type": "string"
+          },
+          {
+            "const": "choose-progress",
+            "description": "Devices have different progress; the player chooses which to keep.",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "available": {
+        "type": "boolean"
+      },
+      "complete": {
+        "description": "False when the folder exceeded review limits; history is then unknown.",
+        "type": "boolean"
+      },
+      "entries": {
+        "items": {
+          "$ref": "#/$defs/SaveFolderEntry"
+        },
+        "type": "array"
+      },
+      "folder": {
+        "type": "string"
+      },
+      "local_content_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "local_published": {
+        "type": "boolean"
+      },
+      "local_set_aside": {
+        "description": "Another device set this device's current saves aside.",
+        "type": "boolean"
+      },
+      "next_step": {
+        "$ref": "#/$defs/SaveFolderNextStep"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "problems": {
+        "description": "Files in the folder that were ignored, with the reason.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "port_id",
+      "folder",
+      "available",
+      "complete",
+      "local_published",
+      "local_set_aside",
+      "entries",
+      "problems",
+      "next_step"
+    ],
+    "title": "SaveFolderStatus",
+    "type": "object"
+  },
   "setup_launch_targets": {
     "$defs": {
       "SetupLaunchTarget": {

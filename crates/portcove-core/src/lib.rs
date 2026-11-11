@@ -304,7 +304,8 @@ pub use portable_saves::{
     LocalDataEntry, PersistentDataRole, PortableSaveBlocker, PortableSaveExportPreview,
     PortableSaveExportResult, PortableSaveFile, PortableSaveFileChange, PortableSaveFileEffect,
     PortableSaveIdentity, PortableSaveImportOptions, PortableSaveImportPreview,
-    PortableSaveImportResult, PortableSaveRelation,
+    PortableSaveImportResult, PortableSaveRelation, SaveFolderEntry, SaveFolderNextStep,
+    SaveFolderPushResult, SaveFolderStatus,
 };
 pub use preparation::{
     PreparationCleanupPreview, PreparationInputs, PreparationMode, PreparationOptions,

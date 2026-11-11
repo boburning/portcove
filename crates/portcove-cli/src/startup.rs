@@ -85,8 +85,15 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             GameSettingsCommand::Apply { .. } => Recovering,
         },
         Commands::Saves { command } => match command {
-            SavesCommand::ExportPreview { .. } | SavesCommand::ImportPreview { .. } => ReadOnly,
-            SavesCommand::Export { .. } | SavesCommand::Import { .. } => Recovering,
+            SavesCommand::ExportPreview { .. }
+            | SavesCommand::ImportPreview { .. }
+            | SavesCommand::FolderStatus { .. }
+            | SavesCommand::FolderPullPreview { .. } => ReadOnly,
+            SavesCommand::Export { .. }
+            | SavesCommand::Import { .. }
+            | SavesCommand::FolderPush { .. }
+            | SavesCommand::FolderPull { .. }
+            | SavesCommand::FolderSetAside { .. } => Recovering,
         },
         Commands::Catalog { command } => match command {
             CatalogCommand::Compare { .. }

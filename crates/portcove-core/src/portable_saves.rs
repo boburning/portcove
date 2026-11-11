@@ -755,6 +755,71 @@ pub struct PortableSaveImportResult {
     pub content_sha256: String,
 }
 
+/// What the player can usefully do next with a selected save folder.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum SaveFolderNextStep {
+    /// The folder is not connected; local play and saves are unaffected.
+    Unavailable,
+    /// Moving saves is not available for this game here (see export blockers).
+    Blocked,
+    /// The folder holds more than Portcove reviews; its history is unknown.
+    Incomplete,
+    UpToDate,
+    /// This device has progress the folder does not have yet.
+    Push,
+    /// One newer set of saves continues from this device's progress.
+    Pull,
+    /// Devices have different progress; the player chooses which to keep.
+    ChooseProgress,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SaveFolderEntry {
+    pub content_sha256: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_sha256: Option<String>,
+    pub source: PortableSaveIdentity,
+    pub files: Vec<PortableSaveFile>,
+    /// Latest on its branch: no other saves in the folder continue from it.
+    pub head: bool,
+    /// Set aside by an explicit choice; still kept and importable.
+    pub superseded: bool,
+    /// This device's progress already includes these saves.
+    pub already_included_here: bool,
+    /// Same qualified game version and platform contract as this device.
+    pub compatible: bool,
+    pub relation: PortableSaveRelation,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SaveFolderStatus {
+    pub port_id: String,
+    pub folder: PathBuf,
+    pub available: bool,
+    /// False when the folder exceeded review limits; history is then unknown.
+    pub complete: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_content_sha256: Option<String>,
+    pub local_published: bool,
+    /// Another device set this device's current saves aside.
+    pub local_set_aside: bool,
+    pub entries: Vec<SaveFolderEntry>,
+    /// Files in the folder that were ignored, with the reason.
+    pub problems: Vec<String>,
+    pub next_step: SaveFolderNextStep,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SaveFolderPushResult {
+    pub content_sha256: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_sha256: Option<String>,
+    pub path: PathBuf,
+    /// The same saves were already in the folder; nothing was written.
+    pub already_present: bool,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1024,6 +1024,69 @@ pub(crate) enum SavesCommand {
         #[command(flatten)]
         choices: SaveImportChoiceArgs,
     },
+    /// Show this game's saves in a folder you chose for moving saves between devices.
+    FolderStatus {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Existing folder you chose (removable drive, share or synced folder).
+        #[arg(long)]
+        folder: PathBuf,
+    },
+    /// Copy this device's reviewed saves into the folder. Never replaces files there.
+    FolderPush {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Existing folder you chose (removable drive, share or synced folder).
+        #[arg(long)]
+        folder: PathBuf,
+        /// `content_sha256` from `saves export-preview`; changed saves refuse.
+        #[arg(long)]
+        expected_content: String,
+    },
+    /// Review using one set of saves from the folder on this device.
+    FolderPullPreview {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Existing folder you chose (removable drive, share or synced folder).
+        #[arg(long)]
+        folder: PathBuf,
+        /// `content_sha256` of the saves, from `saves folder-status`.
+        #[arg(long)]
+        content: String,
+        #[command(flatten)]
+        choices: SaveImportChoiceArgs,
+    },
+    /// Use one reviewed set of saves from the folder after confirmation.
+    FolderPull {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Existing folder you chose (removable drive, share or synced folder).
+        #[arg(long)]
+        folder: PathBuf,
+        /// `content_sha256` of the saves, from `saves folder-status`.
+        #[arg(long)]
+        content: String,
+        #[command(flatten)]
+        choices: SaveImportChoiceArgs,
+        /// `preview_sha256` from `saves folder-pull-preview`; changed inputs refuse.
+        #[arg(long)]
+        expected_preview: String,
+        /// Confirm without prompting.
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Keep this device's progress and stop offering another set of saves.
+    /// The other saves stay in the folder and can still be used later.
+    FolderSetAside {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Existing folder you chose (removable drive, share or synced folder).
+        #[arg(long)]
+        folder: PathBuf,
+        /// `content_sha256` of the saves, from `saves folder-status`.
+        #[arg(long)]
+        content: String,
+    },
     /// Import a reviewed portable save file after confirmation.
     Import {
         /// Catalog port ID; run `portcove catalog list` to find it.
