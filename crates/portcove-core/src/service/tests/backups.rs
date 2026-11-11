@@ -3300,6 +3300,15 @@ fn a_failed_snapshot_stops_the_version_change_before_any_mutation() {
         error.message.contains("injected snapshot failure"),
         "{error:?}"
     );
+    assert!(
+        error.message.contains("the version was not changed")
+            && error.message.contains("turn off automatic snapshots"),
+        "the player is told the version did not change and how to continue: {error:?}"
+    );
+    assert_eq!(
+        error.details.get("recovery_action").map(String::as_str),
+        Some("retry_or_disable_snapshots")
+    );
     let status = library.status(ZELDA, ReleaseChannel::Stable).unwrap();
     assert_eq!(
         status.active.unwrap().version,
@@ -3384,6 +3393,15 @@ fn a_failed_snapshot_also_stops_staged_activation_before_any_mutation() {
     assert!(
         error.message.contains("injected snapshot failure"),
         "{error:?}"
+    );
+    assert!(
+        error.message.contains("the version was not changed")
+            && error.message.contains("turn off automatic snapshots"),
+        "the player is told the version did not change and how to continue: {error:?}"
+    );
+    assert_eq!(
+        error.details.get("recovery_action").map(String::as_str),
+        Some("retry_or_disable_snapshots")
     );
     let status = library.status(ZELDA, ReleaseChannel::Stable).unwrap();
     assert_eq!(
@@ -3484,4 +3502,24 @@ fn a_pending_retention_deletion_does_not_block_a_manual_backup() {
             .unwrap()
             .is_none()
     );
+}
+
+#[test]
+fn snapshot_failure_wording_leaves_errors_with_their_own_remedy_untouched() {
+    let hold = PortcoveError::conflict("unfinished backup restore; complete recovery first");
+    let explained = super::super::backups::explain_snapshot_failure(hold);
+    assert_eq!(
+        explained.message,
+        "unfinished backup restore; complete recovery first"
+    );
+    assert!(!explained.details.contains_key("recovery_action"));
+
+    let retained = PortcoveError::verification("preserve this runtime and review it");
+    let explained = super::super::backups::explain_snapshot_failure(retained);
+    assert_eq!(explained.message, "preserve this runtime and review it");
+    assert!(!explained.details.contains_key("recovery_action"));
+
+    let copy = super::super::backups::explain_snapshot_failure(PortcoveError::state("disk full"));
+    assert!(copy.message.contains("disk full."));
+    assert!(copy.message.contains("the version was not changed"));
 }

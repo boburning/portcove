@@ -1746,7 +1746,7 @@ impl PortcoveService {
                 }
                 // Nothing to protect yet; this is a recorded skip, not a failure.
                 Err(error) if is_no_persistent_data(&error) => Ok(SnapshotOutcome::NoData),
-                Err(error) => Err(error),
+                Err(error) => Err(explain_snapshot_failure(error)),
             }
         })();
         match result {
@@ -1763,10 +1763,6 @@ impl PortcoveService {
         }
     }
 
-    /// Keeps the newest automatic snapshots and removes older automatic ones.
-    /// Manual snapshots are never candidates. Best effort: the version change
-    /// must not fail because an old snapshot could not be removed. Returns how
-    /// many were removed.
     /// Best-effort completion of this port's unfinished backup deletions through the
     /// existing recovery. A deletion that cannot be completed stays pending and the
     /// caller's `require_completed_backup_deletion` still refuses with its clear message.
@@ -1794,6 +1790,10 @@ impl PortcoveService {
         }
     }
 
+    /// Keeps the newest automatic snapshots and removes older automatic ones.
+    /// Manual snapshots are never candidates. Best effort: the version change
+    /// must not fail because an old snapshot could not be removed. Returns how
+    /// many were removed.
     fn prune_automatic_snapshots(&self, port_id: &str) -> usize {
         let Ok(inventory) = self.list_backups(port_id) else {
             return 0;
@@ -2312,5 +2312,40 @@ mod assessment_tests {
                 .reason,
             PortActionReason::MissingBackup
         );
+    }
+}
+
+/// Tells the player that a failed automatic snapshot stopped the version change
+/// before anything changed, and how to continue. The cause stays in the message and
+/// the error keeps its code and details. It is applied only to the backup copy itself;
+/// every other kind carries its own guidance and passes through unchanged.
+pub(super) fn explain_snapshot_failure(mut error: PortcoveError) -> PortcoveError {
+    // Only a copy that failed (file-system errors are `State`; a credential-scan limit
+    // is `Unsupported`) is reworded. Conflicts and verification refusals, such as a
+    // changed producer, a modified retained runtime or a recovery hold, carry their
+    // own remedy, and turning snapshots off would point away from it.
+    if !matches!(
+        error.code,
+        crate::ErrorCode::State | crate::ErrorCode::Unsupported
+    ) {
+        return error;
+    }
+    error.message = format!(
+        "Portcove could not back up this game's saves first, so the version was not changed. {} Try again once that is fixed, or turn off automatic snapshots in Settings > Library to continue without one.",
+        sentence(&error.message)
+    );
+    error.details.insert(
+        "recovery_action".into(),
+        "retry_or_disable_snapshots".into(),
+    );
+    error
+}
+
+fn sentence(cause: &str) -> String {
+    let cause = cause.trim();
+    if cause.ends_with(['.', '!', '?']) {
+        cause.to_owned()
+    } else {
+        format!("{cause}.")
     }
 }
