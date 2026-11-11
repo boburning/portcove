@@ -1475,7 +1475,9 @@ describe("desktop components", () => {
       uninstalled.match(/<button\b[^>]*aria-describedby="backup-create-explanation"[^>]*>/)?.[0],
     ).toContain(' disabled=""');
     expect(buttonLabels).toContain("Check installed files");
-    expect(buttonLabels).toContain("Restore previous version");
+    // No previous version is recorded, so restore is known to be inapplicable and hidden.
+    expect(buttonLabels).not.toContain("Restore previous version");
+    expect(installed).toContain("No previous version is recorded.");
     // Reachable on the page, not just rendered by its own component test.
     expect(buttonLabels).toContain("Report a problem");
     expect(installed).toContain(

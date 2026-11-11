@@ -2609,6 +2609,9 @@ function VersionRollback({
 }) {
   const rollback = portActionPresentation(status, "rollback");
   const canRollback = Boolean(status?.previous);
+  // A loaded status with no previous version makes restore known to be inapplicable;
+  // an unknown status keeps the control and its check message.
+  if (status && !status.previous) return null;
   return (
     <>
       <Button
