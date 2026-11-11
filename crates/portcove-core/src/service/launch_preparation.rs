@@ -186,6 +186,7 @@ impl PortcoveService {
         self.prepare_ghostship_legacy_archive(active)?;
         checkpoint()?;
         self.restore_user_data_to(port, &active.path)?;
+        crate::profile_deploy::clear_restore_pending(&self.library.user_dir(&port.id))?;
         checkpoint()?;
         self.recheck_launch_bios(&catalog, port, active, bios.as_ref(), &checkpoint)?;
         let selected_executable =

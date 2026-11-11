@@ -5937,6 +5937,20 @@ impl PortcoveService {
         self.collect_user_data_from(&port, &active.path)
     }
 
+    /// Brings the active build's copy up to the canonical data after a profile
+    /// change. Returns whether the build now matches; an unlaunched or unreadable
+    /// build is left for launch preparation, which restores before it plays.
+    pub(crate) fn restore_active_user_data_if_launched(&self, port_id: &str) -> bool {
+        let restore = || -> Result<()> {
+            let Some(active) = self.collectible_active_install(port_id)? else {
+                return Ok(());
+            };
+            let port = self.installed_mutability_port(&active)?;
+            self.restore_user_data_to(&port, &active.path)
+        };
+        restore().is_ok()
+    }
+
     /// Read-only selection shared by collection and destructive-action review.
     fn collectible_active_install(&self, port_id: &str) -> Result<Option<InstallRecord>> {
         let Some(active) = self.status_without_rollback_assessment(port_id)?.active else {
@@ -6406,6 +6420,11 @@ impl PortcoveService {
         install_root: &Path,
     ) -> Result<Vec<PathBuf>> {
         self.library.require_no_ghostship_recovery(&port.id)?;
+        // A profile change made the canonical data newer than this build's copy.
+        // Collecting now would copy the stale build over the selected profile.
+        if crate::profile_deploy::restore_pending(&self.library.user_dir(&port.id)) {
+            return Ok(Vec::new());
+        }
         let contract = self.persistence_contract(port, install_root)?;
         let port = &contract.port;
         self.require_completed_restore(&port.id)?;

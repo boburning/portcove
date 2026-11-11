@@ -117,6 +117,7 @@ fn restore_review_keeps_metadata_payload_destination_and_full_fingerprint_separa
         source_references: vec![source()],
         application_versions: vec![],
         retained_build_references: vec![],
+        profiles: vec![],
         port_settings: vec![],
         launch_history: vec![],
         artwork: None,

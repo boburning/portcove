@@ -1539,6 +1539,59 @@ launch-assessment changes separate from selection and eligibility.
 
 Local-file review does not write library domain state. Explicit HTTPS delivery is anonymous, bounded to 4 MiB and 20 seconds, and rejects redirects, userinfo, fragments, and non-HTTPS URLs. Catalog application supports cross-process cancellation and CLI Ctrl-C/SIGTERM until publication admission; SQLite activation, replay advancement, and the terminal activity outcome commit together. A service command uses the catalog snapshot it opened with; subsequent commands see the new selection. See [SIGNED-CATALOG.md](SIGNED-CATALOG.md) for the exact signing contract and offline publisher utility.
 
+## Local profiles and mod packages
+
+A profile is a stable local setup for one port. Its identity is an opaque ID, never
+a display name, source-profile ID, path or active installation. Each profile keeps
+requested intent (update policy) apart from immutable, digest-sealed revisions that
+bind the exact retained build, original inputs by content and storage identity,
+loader contract, package closure, typed orderings, consequential settings and save
+group. A retained-build reference keyed by the profile ID keeps every revision's
+build protected (see [earlier builds](#earlier-builds-stay-offered-for-recovery)).
+
+```text
+portcove --library PATH --json profile list PORT_ID
+portcove --library PATH --json profile ensure-default PORT_ID
+portcove --library PATH --json profile copy PORT_ID PROFILE_ID NAME
+portcove --library PATH --json profile revisions PORT_ID PROFILE_ID
+portcove --library PATH --json profile policy PORT_ID PROFILE_ID keep-current|review-updates|automatic-eligible
+portcove --library PATH --json profile install-package PORT_ID PROFILE_ID FILE --expected-revision N
+portcove --library PATH --json profile set-package PORT_ID PROFILE_ID NATIVE_ID on|off --expected-revision N
+portcove --library PATH --json profile activate PORT_ID PROFILE_ID
+portcove --library PATH --json profile live PORT_ID
+portcove --library PATH --json profile revise PORT_ID PROFILE_ID REQUEST.json
+```
+
+`ensure-default` gives an installed port its equivalent default profile and is safe
+to repeat; a player with one setup needs nothing else. `copy` starts a new profile
+from a profile's current revision with its **own save group**: progress is not
+copied. Stale `--expected-revision` values fail as `conflict`.
+
+`install-package` inspects a local archive without extracting or executing it, stores
+its bytes by SHA-256, records a new revision and, for the selected profile, deploys
+it into the port's `mods` folder. It refuses traversal, absolute or backslash paths,
+case aliases, device names, links, encrypted entries, oversized declared sizes,
+archives carrying executable files and unsupported package types. Only ports with a
+reviewed mod contract accept packages (currently Ship of Harkinian `.o2r`/`.otr`);
+others return `unsupported`. A computed digest establishes bytes, not publisher
+authenticity.
+
+Only files the selected revision installed are ever changed. Unknown files in `mods`
+and installed files edited outside Portcove hold the operation and are listed by
+`profile live`; nothing is overwritten or deleted. `activate` parks the departing
+profile's saves and settings, restores the arriving profile's, and reconciles mods
+from the exact revision. An interrupted switch resumes from its journal without
+merging or losing either profile's data. Until launch (or an immediate refresh of
+the installed build) has restored the new live data, collection is suspended so a
+stale build copy can never overwrite the selected profile or resurrect a disabled
+mod.
+
+Library metadata schema 6 carries profiles, revisions and the selected profile; it is
+emitted only when profiles exist and import validates each profile against its
+retained reference before writing. Precedence between packages that provide the same
+asset path (`asset-override` ordering) follows the supplied order, last wins; this
+is an unverified loader assumption until confirmed against the real loader.
+
 ## Retained builds and setup references
 
 A setup reference protects one already accepted local managed build from cleanup.

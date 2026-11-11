@@ -698,6 +698,11 @@ export type LaunchSessionOutcome = "succeeded" | "failed" | "cancelled";
 export type LaunchSessionPhase = "preparing" | "spawning" | "running" | "collecting" | "recovering";
 export type LibraryContentKind =
   "application_versions" | "user_data" | "source_inbox" | "backups" | "toolchains" | "local_artwork";
+/**
+ * How a profile follows newer eligible releases. Stored as intent; unattended
+ * application is owned by the provider/standing-policy work, not this module.
+ */
+export type ProfileUpdatePolicy = "keep_current" | "review_updates" | "automatic_eligible";
 export type LibrarySelectionSource = "invocation" | "saved" | "platform_default";
 export type ListingAction = "attach-existing" | "relink-existing" | "launch" | "remove-registration";
 export type AdvisoryApplicability = "current-route" | "historical" | "context-required";
@@ -782,6 +787,8 @@ export type OutputDestinationOwnership =
   | "invalid"
   | "unknown";
 export type OutputPendingSetups = PendingSetupRecord[];
+export type RetainedBuildAvailability = "verified" | "missing" | "changed" | "held" | "unavailable";
+export type OriginalAvailability = "verified" | "missing" | "changed";
 /**
  * One documented outcome in the assessed scope, not a universal judgment about a project.
  */
@@ -861,7 +868,6 @@ export type MaintenanceOutcome =
   | "demonstrated-regression-handling"
   | "demonstrated-continuity-and-succession";
 export type ReconcileAction = "up_to_date" | "notify" | "staged" | "activated";
-export type RetainedBuildAvailability = "verified" | "missing" | "changed" | "held" | "unavailable";
 export type SourceImportMode = "copy" | "move" | "use_current_location";
 export type SourceImportOutcome =
   "copied" | "moved" | "reused_existing" | "registered_current_location" | "copied_original_retained";
@@ -1004,6 +1010,7 @@ export interface TransportOutputs {
   library_selection: LibrarySelection;
   listing_delivery_status: OutputListingDeliveryStatus;
   listing_statuses: OutputListingStatuses;
+  live_mods: OutputLiveMods;
   managed_route_change_preview: OutputManagedRouteChangePreview;
   managed_route_change_result: OutputManagedRouteChangeResult;
   official_catalog_review: OfficialCatalogReview;
@@ -1022,6 +1029,8 @@ export interface TransportOutputs {
   preparation_cleanup_preview: OutputPreparationCleanupPreview;
   preparation_options: PreparationOptions;
   preparation_plan: OutputPreparationPlan;
+  profile_inventory: OutputProfileInventory;
+  profile_revision: ProfileRevision;
   recommendation_metadata: OutputRecommendationMetadata;
   reconcile_batch_outcome: OutputReconcileBatchOutcome;
   reconcile_result: ReconcileResult;
@@ -3592,6 +3601,10 @@ export interface LibraryMetadata {
   original_root: string;
   port_settings: LibraryPortSettings[];
   portability_authority?: PortabilityAuthority | null;
+  /**
+   * Local profiles and revisions; present only under metadata schema 6.
+   */
+  profiles?: LibraryProfile[];
   retained_build_references?: RetainedBuildReference[];
   schema_version: number;
   source_references: SourceRecord[];
@@ -3634,6 +3647,133 @@ export interface PortabilityAdmission {
   selection_sha256: string;
 }
 /**
+ * One profile with every revision, as carried by library metadata schema 6.
+ */
+export interface LibraryProfile {
+  profile: Profile;
+  revisions: ProfileRevision[];
+  /**
+   * Set when this profile's revision currently owns the port's live player data.
+   */
+  selected_revision?: number | null;
+}
+export interface Profile {
+  created_at: number;
+  current_revision: number;
+  display_name: string;
+  id: string;
+  intent: ProfileIntent;
+  is_default: boolean;
+  port_id: string;
+  updated_at: number;
+}
+export interface ProfileIntent {
+  requested_packages?: RequestedPackage[];
+  update_policy: ProfileUpdatePolicy;
+}
+export interface RequestedPackage {
+  native_id: string;
+  provider?: ProviderPackageRef | null;
+  version_constraint?: string | null;
+}
+/**
+ * A provider's own coordinates. Provider IDs never double as native loader IDs.
+ */
+export interface ProviderPackageRef {
+  file?: string | null;
+  project: string;
+  provider: string;
+  version?: string | null;
+}
+export interface ProfileRevision {
+  build: RetainedBuildIdentity;
+  created_at: number;
+  /**
+   * SHA-256 of this revision's canonical content (with this field empty).
+   */
+  digest: string;
+  /**
+   * Explicit uncaptured or external inputs this revision cannot reproduce.
+   */
+  limits?: string[];
+  loader?: LoaderContractRef | null;
+  orderings?: TypedOrdering[];
+  originals: OriginalBinding[];
+  packages?: ResolvedPackage[];
+  parent_revision: number | null;
+  profile_id: string;
+  revision: number;
+  /**
+   * Revisions sharing a group share progress; a copy gets its own group.
+   */
+  save_group: string;
+  /**
+   * Consequential native settings only; ordinary preferences stay mutable state.
+   */
+  settings?: {
+    [k: string]: string;
+  };
+}
+/**
+ * Immutable identity only. Paths, version labels, and active selection are not keys.
+ * `runtime: None` means no separately identified bundled loader/runtime; the
+ * selected executable and installed contract still bind an integrated loader.
+ */
+export interface RetainedBuildIdentity {
+  artifact: ArtifactIdentity1;
+  definition: DefinitionSelectionIdentity | null;
+  install_id: string;
+  installed_contract_sha256: string;
+  manifest_sha256: string;
+  platform: Platform;
+  port_id: string;
+  runtime: RuntimeIdentity | null;
+  selected_executable: string;
+}
+export interface LoaderContractRef {
+  id: string;
+  version: string;
+}
+/**
+ * One precedence domain. A loader may need several; no universal number exists.
+ */
+export interface TypedOrdering {
+  domain: string;
+  native_ids: string[];
+}
+/**
+ * One required original, bound by observed content and storage identity rather
+ * than by path, so relocation and rescans cannot silently change which original
+ * a profile means.
+ */
+export interface OriginalBinding {
+  observed_identity_sha256?: string | null;
+  /**
+   * The catalog source requirement this original satisfies.
+   */
+  requirement_id: string;
+  sha256: string;
+  size: number;
+  storage_sha256: string;
+  storage_size: number;
+}
+/**
+ * Exact package bytes plus its separate identities. A local import carries no
+ * provider coordinates but still has its own native ID and digest.
+ */
+export interface ResolvedPackage {
+  enabled: boolean;
+  native_id: string;
+  native_version?: string | null;
+  provider?: ProviderPackageRef | null;
+  /**
+   * Native IDs this package requires, from native metadata (not provider claims).
+   */
+  requires?: string[];
+  sha256: string;
+  size: number;
+}
+/**
  * One binding per (port, setup). The caller supplies a stable opaque setup ID,
  * never its display name, source-contract ID, installation path, or active slot.
  */
@@ -3653,22 +3793,6 @@ export interface RetainedBuildReference {
   revision: number;
   setup_id: string;
   updated_at: number;
-}
-/**
- * Immutable identity only. Paths, version labels, and active selection are not keys.
- * `runtime: None` means no separately identified bundled loader/runtime; the
- * selected executable and installed contract still bind an integrated loader.
- */
-export interface RetainedBuildIdentity {
-  artifact: ArtifactIdentity1;
-  definition: DefinitionSelectionIdentity | null;
-  install_id: string;
-  installed_contract_sha256: string;
-  manifest_sha256: string;
-  platform: Platform;
-  port_id: string;
-  runtime: RuntimeIdentity | null;
-  selected_executable: string;
 }
 /**
  * A superseded binding. `revision` is the binding revision it held while current.
@@ -3804,6 +3928,19 @@ export interface PortCapabilityFeature {
    */
   mode: "automatic" | "manual" | "unavailable" | "unknown";
   next_step: string;
+  [k: string]: unknown;
+}
+export interface OutputLiveMods {
+  /**
+   * Installed files whose bytes changed outside Portcove; never overwritten.
+   */
+  changed_owned: string[];
+  profile_id: string | null;
+  revision: number | null;
+  /**
+   * Files in the mods folder this profile did not install; never touched.
+   */
+  unmanaged: string[];
   [k: string]: unknown;
 }
 export interface OutputManagedRouteChangePreview {
@@ -4100,6 +4237,23 @@ export interface SourceInspectionProblem {
    * matching shared readiness controls. Other error details remain private.
    */
   tool_id?: string | null;
+  [k: string]: unknown;
+}
+export interface OutputProfileInventory {
+  port_id: string;
+  profiles: ProfileView[];
+  [k: string]: unknown;
+}
+export interface ProfileView {
+  build_availability: RetainedBuildAvailability;
+  originals: OriginalStatus[];
+  profile: Profile;
+  revision: ProfileRevision;
+  [k: string]: unknown;
+}
+export interface OriginalStatus {
+  availability: OriginalAvailability;
+  binding: OriginalBinding;
   [k: string]: unknown;
 }
 export interface OutputRecommendationMetadata {

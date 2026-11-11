@@ -15,6 +15,7 @@ const ROOT_COMMAND_GROUPS: &[(&str, &[&str])] = &[
             "setup",
             "install",
             "update",
+            "profile",
             "exec",
             "verify",
             "remove",
@@ -204,6 +205,11 @@ pub(crate) enum Commands {
     External {
         #[command(subcommand)]
         command: ExternalCommand,
+    },
+    /// Manage stable local profiles and their immutable revisions.
+    Profile {
+        #[command(subcommand)]
+        command: crate::profile::ProfileCommand,
     },
     /// Download an upstream package and continue setup in a user-owned folder.
     Setup {
