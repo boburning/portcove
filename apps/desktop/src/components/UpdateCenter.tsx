@@ -1196,6 +1196,7 @@ function ActivityRow({
         <div className={activityDetailsClass}>
           <p>
             This task didn’t report whether it finished.{" "}
+            {activity.liveness !== "interrupted" && "It may still be running in another window. "}
             {target.portId
               ? "Check the game’s current state before trying again."
               : "Review its details before trying again."}
@@ -1206,6 +1207,7 @@ function ActivityRow({
               data-focusable
               variant="link"
               size="sm"
+              aria-label={`Check game: ${target.label}`}
               data-detail-origin={`updates:activity:${activity.id}:check`}
               onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:check`)}
             >
@@ -1277,6 +1279,7 @@ function ActivityFailure({
               data-focusable
               variant="link"
               size="sm"
+              aria-label={`${reviewLabel}: ${target.label}`}
               data-detail-origin={`updates:activity:${activity.id}:review`}
               onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:review`)}
             >
