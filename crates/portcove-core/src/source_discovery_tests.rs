@@ -5428,7 +5428,14 @@ fn a_library_larger_than_one_entry_budget_resumes_to_completion_without_silent_t
     // stays within it and says the scan can continue.
     let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
     assert!(first.report.entries_examined <= limits.max_entries);
-    assert!(first.coverage.as_ref().unwrap().can_resume);
+    assert!(
+        first.coverage.as_ref().unwrap().can_resume,
+        "first batch: entries={} limits={:?} coverage={:?} issues={:?}",
+        first.report.entries_examined,
+        first.report.limits_reached,
+        first.coverage,
+        first.report.issues,
+    );
     assert!(first.report.entries_examined < (MATCHING + NOISE) as u32);
 
     // Continuing finishes the whole collection, reaching every match.
