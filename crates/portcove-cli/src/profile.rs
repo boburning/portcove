@@ -152,6 +152,21 @@ pub(crate) enum ProfileCommand {
         #[arg(long)]
         yes: bool,
     },
+    /// Browse a game's GameBanana mods, most downloaded first; reads only.
+    ProviderBrowse {
+        /// Catalog port ID with a reviewed GameBanana binding.
+        port_id: String,
+        /// Page number, from 1.
+        #[arg(long, default_value_t = 1)]
+        page: u32,
+    },
+    /// Show one GameBanana mod's files and the IDs `provider-plan` takes; reads only.
+    ProviderProject {
+        /// Catalog port ID with a reviewed GameBanana binding.
+        port_id: String,
+        /// GameBanana Mod ID from `provider-browse`.
+        project_id: u64,
+    },
     /// Check installed GameBanana packages for newer files, same-version changes or removals.
     ProviderUpdates {
         /// Catalog port ID owning the profile.
@@ -214,6 +229,8 @@ impl ProfileCommand {
             Self::RecipeInspect { .. } => "profile.recipe-inspect",
             Self::RecipePlan { .. } => "profile.recipe-plan",
             Self::RecipeApply { .. } => "profile.recipe-apply",
+            Self::ProviderBrowse { .. } => "profile.provider-browse",
+            Self::ProviderProject { .. } => "profile.provider-project",
             Self::ProviderUpdates { .. } => "profile.provider-updates",
             Self::ProviderPlan { .. } => "profile.provider-plan",
             Self::ProviderApply { .. } => "profile.provider-apply",
@@ -230,6 +247,8 @@ impl ProfileCommand {
                 | Self::RecipeExport { .. }
                 | Self::RecipeInspect { .. }
                 | Self::RecipePlan { .. }
+                | Self::ProviderBrowse { .. }
+                | Self::ProviderProject { .. }
                 | Self::ProviderUpdates { .. }
         )
     }
@@ -423,6 +442,79 @@ pub(crate) async fn execute(
 ) -> Result<()> {
     let name = command.name();
     match command {
+        ProfileCommand::ProviderBrowse { port_id, page } => {
+            let result = service.browse_provider_mods(&port_id, page).await?;
+            render_read_success(mode, name, result, |result| {
+                let mut lines = vec![format!(
+                    "GameBanana mods for {} (page {}, {} in total{})",
+                    clean(&result.port_id),
+                    result.page.page,
+                    result.page.total,
+                    if result.freshness == portcove_core::ProviderFreshness::Stale {
+                        "; GameBanana could not be reached, so this is earlier data"
+                    } else {
+                        ""
+                    }
+                )];
+                for project in &result.page.projects {
+                    lines.push(format!(
+                        "  {} — {}{}",
+                        clean(&project.project_id),
+                        clean(&project.name),
+                        project
+                            .version
+                            .as_deref()
+                            .map(|version| format!(" ({})", clean(version)))
+                            .unwrap_or_default()
+                    ));
+                }
+                if !result.page.complete {
+                    lines.push(format!("More mods: --page {}", result.page.page + 1));
+                }
+                lines.push(
+                    "Show a mod's files with `profile provider-project PORT_ID MOD_ID`.".into(),
+                );
+                lines.join("\n")
+            })
+        }
+        ProfileCommand::ProviderProject {
+            port_id,
+            project_id,
+        } => {
+            let view = service.provider_project(&port_id, project_id).await?;
+            render_read_success(mode, name, view, |view| {
+                let project = &view.project;
+                let mut lines = vec![format!(
+                    "{} (GameBanana mod {}){}",
+                    clean(&project.name),
+                    clean(&project.project_id),
+                    if project.obsolete {
+                        " — marked obsolete by its author"
+                    } else {
+                        ""
+                    }
+                )];
+                for file in &project.files {
+                    lines.push(format!(
+                        "  file {} — {} ({} bytes){}{}",
+                        clean(&file.file_id),
+                        clean(&file.file_name),
+                        file.size,
+                        if file.archived { ", archived" } else { "" },
+                        file.claimed_scan
+                            .as_deref()
+                            .map(|scan| format!(", provider scan says {}", clean(scan)))
+                            .unwrap_or_default()
+                    ));
+                }
+                lines.push(format!(
+                    "Review a file for a setup with `profile provider-plan {} PROFILE_ID {} FILE_ID`.",
+                    clean(&view.port_id),
+                    clean(&project.project_id)
+                ));
+                lines.join("\n")
+            })
+        }
         ProfileCommand::ProviderUpdates {
             port_id,
             profile_id,

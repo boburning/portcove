@@ -1139,7 +1139,9 @@ export interface TransportOutputs {
   profile_inventory: ProfileInventory;
   profile_recipe: ProfileRecipe;
   profile_revision: ProfileRevision;
+  provider_browse_page: OutputProviderBrowsePage;
   provider_install_plan: OutputProviderInstallPlan;
+  provider_project_view: OutputProviderProjectView;
   provider_update_observation: OutputProviderUpdateObservation;
   recipe_import_plan: OutputRecipeImportPlan;
   recommendation_metadata: OutputRecommendationMetadata;
@@ -4661,6 +4663,82 @@ export interface RecipeRuntime {
   platform: Platform;
   runtime: RuntimeIdentity | null;
 }
+export interface OutputProviderBrowsePage {
+  /**
+   * `stale` means GameBanana could not be reached and this is earlier data.
+   */
+  freshness: "fresh" | "revalidated" | "stale";
+  observed_at: number;
+  page: ProviderPage;
+  port_id: string;
+  provider: string;
+  [k: string]: unknown;
+}
+/**
+ * One page of mods, most downloaded first. `page.complete` is false when more
+ * pages exist.
+ */
+export interface ProviderPage {
+  /**
+   * False when more pages exist; callers must not treat a page as the whole result.
+   */
+  complete: boolean;
+  page: number;
+  projects: ProviderProject[];
+  total: number;
+  [k: string]: unknown;
+}
+export interface ProviderProject {
+  files: ProviderFileCandidate[];
+  /**
+   * The provider's game identity for this project; compared against a reviewed
+   * binding, never matched by name or popularity.
+   */
+  game_id: string | null;
+  name: string;
+  obsolete: boolean;
+  profile_url: string;
+  project_id: string;
+  provider: string;
+  submitter: string | null;
+  /**
+   * File records the adapter could not read. Non-zero means the file list is
+   * incomplete, so "no newer file" or "file removed" cannot be concluded.
+   */
+  unreadable_files: number;
+  updated_at: number;
+  /**
+   * Displayed version label; it does not identify bytes (a file can change
+   * under an unchanged label).
+   */
+  version: string | null;
+  [k: string]: unknown;
+}
+/**
+ * A provider's own claims about one downloadable file. The checksum is the
+ * provider's claim; an MD5 or any provider-supplied digest never authenticates
+ * a publisher.
+ */
+export interface ProviderFileCandidate {
+  added_at: number;
+  archived: boolean;
+  claimed_md5: string | null;
+  /**
+   * Provider scan outcomes, as claimed ("clean", "infected", ...). Not an assurance.
+   */
+  claimed_scan: string | null;
+  /**
+   * Canonical download location derived from `file_id`, never a provider-supplied URL.
+   */
+  download_url: string;
+  /**
+   * Provider file identity; distinct from the project and from any version label.
+   */
+  file_id: string;
+  file_name: string;
+  size: number;
+  [k: string]: unknown;
+}
 export interface OutputProviderInstallPlan {
   conflicts: AssetConflict[];
   conflicts_truncated: boolean;
@@ -4710,36 +4788,48 @@ export interface AssetConflict {
   winner: string;
   [k: string]: unknown;
 }
-/**
- * A provider's own claims about one downloadable file. The checksum is the
- * provider's claim; an MD5 or any provider-supplied digest never authenticates
- * a publisher.
- */
-export interface ProviderFileCandidate {
-  added_at: number;
-  archived: boolean;
-  claimed_md5: string | null;
-  /**
-   * Provider scan outcomes, as claimed ("clean", "infected", ...). Not an assurance.
-   */
-  claimed_scan: string | null;
-  /**
-   * Canonical download location derived from `file_id`, never a provider-supplied URL.
-   */
-  download_url: string;
-  /**
-   * Provider file identity; distinct from the project and from any version label.
-   */
-  file_id: string;
-  file_name: string;
-  size: number;
-  [k: string]: unknown;
-}
 export interface PlanMember {
   asset_count: number;
   file_name: string;
   sha256: string;
   size: number;
+  [k: string]: unknown;
+}
+export interface OutputProviderProjectView {
+  freshness: ProviderFreshness;
+  observed_at: number;
+  port_id: string;
+  project: ProviderProject1;
+  [k: string]: unknown;
+}
+/**
+ * The project's files; a file ID with this project ID is what `provider-plan`
+ * reviews.
+ */
+export interface ProviderProject1 {
+  files: ProviderFileCandidate[];
+  /**
+   * The provider's game identity for this project; compared against a reviewed
+   * binding, never matched by name or popularity.
+   */
+  game_id: string | null;
+  name: string;
+  obsolete: boolean;
+  profile_url: string;
+  project_id: string;
+  provider: string;
+  submitter: string | null;
+  /**
+   * File records the adapter could not read. Non-zero means the file list is
+   * incomplete, so "no newer file" or "file removed" cannot be concluded.
+   */
+  unreadable_files: number;
+  updated_at: number;
+  /**
+   * Displayed version label; it does not identify bytes (a file can change
+   * under an unchanged label).
+   */
+  version: string | null;
   [k: string]: unknown;
 }
 export interface OutputProviderUpdateObservation {
