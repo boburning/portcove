@@ -1,5 +1,8 @@
+import type { TFunction } from "i18next";
 import { useLayoutEffect, useRef, useState } from "react";
+import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
+import { useAppTranslation } from "../localization";
 import { pickSourcePath } from "../file-picker";
 import { errorText } from "../view-model";
 import type { PortStatus, SourceProfile, SourceRecord, SourceReuseReview } from "../types";
@@ -9,6 +12,31 @@ import { targetInvocationContext } from "../features/operations/invocation-state
 import { Button } from "./ui/button";
 
 // Ephemeral readback only. Core owns identity, compatibility, baseline and repair.
+
+type ReuseCode = "registration_changed" | "profile_missing" | "location_changed";
+
+/** App-owned reuse failures are codes translated at render; Core text stays verbatim. */
+class ReuseError extends Error {
+  readonly code: ReuseCode;
+  constructor(code: ReuseCode) {
+    super(code);
+    this.code = code;
+  }
+}
+
+type ReuseFailure = { code: ReuseCode } | { core: string; repair?: boolean };
+
+function reuseCodeText(t: TFunction<"gameFiles">, code: ReuseCode): string {
+  switch (code) {
+    case "registration_changed":
+      return t("reuse.error.registrationChanged");
+    case "profile_missing":
+      return t("reuse.error.profileMissing");
+    case "location_changed":
+      return t("reuse.error.locationChanged");
+  }
+}
+
 export function RegisteredSourceSetup({
   sources,
   profiles,
@@ -28,11 +56,12 @@ export function RegisteredSourceSetup({
   onChanged: () => Promise<unknown>;
   onOpenPort: (id: string, origin: string) => void;
 }) {
+  const { t } = useAppTranslation("gameFiles");
   const [selected, setSelected] = useState("");
   const [read, setRead] = useState<{ baseline: string; review: SourceReuseReview }>();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
-  const [notice, setNotice] = useState<string>();
+  const [error, setError] = useState<ReuseFailure>();
+  const [repairedPath, setRepairedPath] = useState<string>();
   const { requestReview } = useSetupReviewSelection();
   const source = sources.find((item) => item.profile_id === selected);
   const baseline = JSON.stringify([generation, source, current]);
@@ -59,11 +88,12 @@ export function RegisteredSourceSetup({
     flight.current = true;
     setBusy(true);
     setError(undefined);
-    setNotice(undefined);
+    setRepairedPath(undefined);
     try {
       await operation(accepts);
     } catch (value) {
-      if (accepts()) setError(errorText(value));
+      if (accepts())
+        setError(value instanceof ReuseError ? { code: value.code } : { core: errorText(value) });
     } finally {
       flight.current = false;
       if (owner.current !== undefined) setBusy(false);
@@ -74,16 +104,13 @@ export function RegisteredSourceSetup({
       const result = await desktopApi.reviewSourceReuse(selected, generation);
       if (!accepts()) return;
       if (JSON.stringify(result.registration) !== JSON.stringify(source))
-        throw new Error(
-          "The saved game-file location changed. Refresh the library and check it again.",
-        );
+        throw new ReuseError("registration_changed");
       setRead({ baseline, review: result });
     });
   const repair = () =>
     run(async (accepts) => {
       const profile = profiles.find((item) => item.id === selected);
-      if (!profile || !source)
-        throw new Error("Refresh the library to review this file's requirements.");
+      if (!profile || !source) throw new ReuseError("profile_missing");
       const path = await pickSourcePath(profile, source.path, "game");
       if (!path || !accepts()) return;
       const repaired = await perform(
@@ -91,7 +118,7 @@ export function RegisteredSourceSetup({
         async () => {
           const plan = await desktopApi.planSourceRelink(selected, path, generation);
           if (JSON.stringify(plan.original) !== JSON.stringify(source))
-            throw new Error("The saved file location changed. Refresh before updating it.");
+            throw new ReuseError("location_changed");
           return desktopApi.relinkSource(selected, path, plan.preview_sha256, generation);
         },
         {
@@ -107,32 +134,29 @@ export function RegisteredSourceSetup({
       ).catch((value: unknown) => {
         if (accepts())
           setError(
-            `${errorText(value)} Location repair needs the same original content. Choose the moved original; check different files separately.`,
+            value instanceof ReuseError
+              ? { code: value.code }
+              : { core: errorText(value), repair: true },
           );
         return undefined;
       });
       if (!repaired) return;
       if (accepts()) {
         setRead(undefined);
-        setNotice(
-          `Location repaired. The saved original-file identity is unchanged: ${repaired.path}`,
-        );
+        setRepairedPath(repaired.path);
       }
       await onChanged();
     });
   if (!sources.length) return null;
   return (
     <section
-      aria-label="Reuse saved game files"
+      aria-label={t("reuse.label")}
       className="my-4 grid min-w-0 grid-cols-1 gap-3 wrap-anywhere"
     >
-      <h2>Use saved original files</h2>
-      <p>
-        Choose original files you’ve already added to see which ports may use them. The files stay
-        where they are.
-      </p>
+      <h2>{t("reuse.heading")}</h2>
+      <p>{t("reuse.intro")}</p>
       <label className="min-w-0">
-        Saved game files
+        {t("reuse.select")}
         <select
           className="w-full max-w-full min-w-0"
           data-focusable
@@ -141,11 +165,11 @@ export function RegisteredSourceSetup({
           onChange={(event) => {
             setSelected(event.target.value);
             setError(undefined);
-            setNotice(undefined);
+            setRepairedPath(undefined);
             setRead(undefined);
           }}
         >
-          <option value="">Choose saved files</option>
+          <option value="">{t("reuse.choose")}</option>
           {sources.map((item) => (
             <option key={item.profile_id} value={item.profile_id}>
               {profiles.find((profile) => profile.id === item.profile_id)?.label ?? item.profile_id}{" "}
@@ -162,7 +186,7 @@ export function RegisteredSourceSetup({
           focusableWhenDisabled={Boolean(source) && current && busy}
           onClick={() => void check()}
         >
-          Check saved game files
+          {t("reuse.check")}
         </Button>
         <Button
           data-focusable
@@ -171,24 +195,38 @@ export function RegisteredSourceSetup({
           onClick={() => void repair()}
           focusableWhenDisabled={Boolean(source) && current && busy}
         >
-          Repair moved file location
+          {t("reuse.repair")}
         </Button>
       </div>
-      {!current && <p role="status">Refresh the library before using these saved files.</p>}
-      {error && <p role="alert">{error}</p>}
-      {notice && <p role="status">{notice}</p>}
+      {!current && <p role="status">{t("reuse.refreshFirst")}</p>}
+      {error && (
+        <p role="alert">
+          {"code" in error ? (
+            reuseCodeText(t, error.code)
+          ) : error.repair ? (
+            <Trans
+              t={t}
+              i18nKey="reuse.error.repairFailed"
+              components={{ core: <>{error.core}</> }}
+            />
+          ) : (
+            error.core
+          )}
+        </p>
+      )}
+      {repairedPath && (
+        <p role="status">
+          <Trans t={t} i18nKey="reuse.repaired" components={{ path: <bdi>{repairedPath}</bdi> }} />
+        </p>
+      )}
       {review && (
         <div aria-live="polite">
           <h3 ref={heading} tabIndex={-1}>
-            Choose a port for these files
+            {t("reuse.choosePort")}
           </h3>
           <p>{review.inspection.summary}</p>
           <p>{review.inspection.next_action}</p>
-          {!review.applications.length && (
-            <p>
-              No ports offer file reuse here. Open the game’s page to check its other setup options.
-            </p>
-          )}
+          {!review.applications.length && <p>{t("reuse.noPorts")}</p>}
           {review.applications.map((application) => {
             const status = statuses.get(application.port_id);
             const available =
@@ -219,7 +257,11 @@ export function RegisteredSourceSetup({
                       onOpenPort(application.port_id, "add-games:saved-source");
                     }}
                   >
-                    Review {application.port_name} setup using these files
+                    <Trans
+                      t={t}
+                      i18nKey="reuse.reviewSetup"
+                      components={{ name: <bdi>{application.port_name}</bdi> }}
+                    />
                   </Button>
                 )}
                 <Button
@@ -228,7 +270,11 @@ export function RegisteredSourceSetup({
                   disabled={busy || !current}
                   onClick={() => onOpenPort(application.port_id, "add-games:saved-source")}
                 >
-                  View {application.port_name} requirements
+                  <Trans
+                    t={t}
+                    i18nKey="reuse.viewRequirements"
+                    components={{ name: <bdi>{application.port_name}</bdi> }}
+                  />
                 </Button>
               </article>
             );

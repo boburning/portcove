@@ -104,6 +104,27 @@
     "storageAbsenceUnconfirmed": "Portcove no pudo confirmar si los archivos están presentes. No se ha confirmado que falten.",
     "variantNotSupported": "La variante de archivo observada no coincide con esta ruta."
   },
+  "reuse": {
+    "check": "Comprobar archivos del juego guardados",
+    "choose": "Elegir archivos guardados",
+    "choosePort": "Elige una adaptación para estos archivos",
+    "error": {
+      "locationChanged": "La ubicación del archivo guardado cambió. Actualiza antes de modificarla.",
+      "profileMissing": "Actualiza la biblioteca para revisar los requisitos de este archivo.",
+      "registrationChanged": "La ubicación de los archivos del juego guardados cambió. Actualiza la biblioteca y vuelve a comprobarla.",
+      "repairFailed": "<core/> La reparación de la ubicación necesita el mismo contenido original. Elige el original movido; comprueba los archivos distintos por separado."
+    },
+    "heading": "Usar archivos originales guardados",
+    "intro": "Elige archivos originales que ya agregaste para ver qué adaptaciones pueden usarlos. Los archivos permanecen donde están.",
+    "label": "Reutilizar archivos del juego guardados",
+    "noPorts": "Ninguna adaptación permite reutilizar archivos aquí. Abre la página del juego para revisar sus otras opciones de configuración.",
+    "refreshFirst": "Actualiza la biblioteca antes de usar estos archivos guardados.",
+    "repair": "Reparar ubicación de archivos movidos",
+    "repaired": "Ubicación reparada. La identidad del archivo original guardado no cambió: <path/>",
+    "reviewSetup": "Revisar la configuración de <name/> con estos archivos",
+    "select": "Archivos del juego guardados",
+    "viewRequirements": "Ver los requisitos de <name/>"
+  },
   "route": {
     "externalLaunch": "Inicio de una instalación existente",
     "externalRegistration": "Configuración de una instalación existente",

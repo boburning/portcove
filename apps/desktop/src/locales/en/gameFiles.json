@@ -103,6 +103,27 @@
     "storageAbsenceUnconfirmed": "Portcove could not confirm whether the files are present. They are not confirmed missing.",
     "variantNotSupported": "The observed file variant does not match this route."
   },
+  "reuse": {
+    "check": "Check saved game files",
+    "choose": "Choose saved files",
+    "choosePort": "Choose a port for these files",
+    "error": {
+      "locationChanged": "The saved file location changed. Refresh before updating it.",
+      "profileMissing": "Refresh the library to review this file's requirements.",
+      "registrationChanged": "The saved game-file location changed. Refresh the library and check it again.",
+      "repairFailed": "<core/> Location repair needs the same original content. Choose the moved original; check different files separately."
+    },
+    "heading": "Use saved original files",
+    "intro": "Choose original files you’ve already added to see which ports may use them. The files stay where they are.",
+    "label": "Reuse saved game files",
+    "noPorts": "No ports offer file reuse here. Open the game’s page to check its other setup options.",
+    "refreshFirst": "Refresh the library before using these saved files.",
+    "repair": "Repair moved file location",
+    "repaired": "Location repaired. The saved original-file identity is unchanged: <path/>",
+    "reviewSetup": "Review <name/> setup using these files",
+    "select": "Saved game files",
+    "viewRequirements": "View <name/> requirements"
+  },
   "route": {
     "externalLaunch": "Existing installation launch",
     "externalRegistration": "Existing installation setup",

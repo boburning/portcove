@@ -331,3 +331,33 @@ for (const label of [
     }
   });
 }
+
+it("reports repair outcomes in the current language with an exact path and verbatim Core text", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    const replacement = { ...source, path: "E:/{{path}}/moved.z64", updated_at: 2 };
+    vi.spyOn(picker, "pickSourcePath").mockResolvedValue(replacement.path);
+    const plan = vi.spyOn(desktopApi, "planSourceRelink").mockResolvedValue({
+      original: source,
+      replacement,
+      preview_sha256: "c".repeat(64),
+    });
+    vi.spyOn(desktopApi, "relinkSource").mockResolvedValue(replacement);
+    await act(async () => render());
+    expect(element.querySelector("h2")?.textContent).toBe("استخدام الملفات الأصلية المحفوظة");
+    await select();
+    await act(async () => button("إصلاح موقع الملفات المنقولة").click());
+    const repaired = element.querySelector('[role="status"] bdi');
+    expect(repaired?.textContent).toBe(replacement.path);
+    expect(element.textContent).toContain("تم إصلاح الموقع.");
+    plan.mockRejectedValueOnce(failureReport());
+    await act(async () => button("إصلاح موقع الملفات المنقولة").click());
+    const alert = element.querySelector('[role="alert"]')?.textContent ?? "";
+    expect(alert).toContain(failureReport().presentation.summary);
+    expect(alert).toContain("يحتاج إصلاح الموقع إلى المحتوى الأصلي نفسه.");
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
