@@ -367,6 +367,10 @@ export type GameSettingType =
       kind: "enum";
     };
 /**
+ * How a managed multi-disc runtime accepts a launch-time disc choice.
+ */
+export type LaunchDiscChoice = "psx-settings-selected";
+/**
  * Closed initialization recipes, never catalog-supplied scripts or file contents.
  */
 export type ManagedInitialization = "tfe-dark-forces-v1.22.420" | "tfe-dark-forces-portable-v1";
@@ -1624,6 +1628,11 @@ export interface LaunchReadiness {
    */
   required_source_extension?: string | null;
   /**
+   * Discs a player may choose at launch, from the effective contract of a
+   * Portcove-managed multi-disc installation. Absent for every other route.
+   */
+  selectable_discs?: number | null;
+  /**
    * Mechanical explanation from the effective (possibly retained) contract.
    */
   setup_contract?: SetupExplanation | null;
@@ -1998,6 +2007,11 @@ export interface PortDefinition {
   game_settings?: GameSettingsContract | null;
   id: string;
   launch_arguments: string[];
+  /**
+   * Reviewed way a managed multi-disc runtime accepts the disc to start.
+   * Without it, Portcove offers no disc choice at launch.
+   */
+  launch_disc_choice?: LaunchDiscChoice | null;
   launch_environment: {
     [k: string]: string;
   };

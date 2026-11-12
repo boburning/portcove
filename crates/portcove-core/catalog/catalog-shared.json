@@ -2101,6 +2101,86 @@
         "immutable_url": "https://redump.info/disc/5649",
         "live_url": null,
         "claim": "Redump Wipeout XL (USA), SCUS-94351, has 12 tracks. Track 1 size 86045568, SHA-1 5694008c30fa9896d17afdd6281e4bebb9f63953, MD5 bee4ab5e4835235ccf6f16bc8caea5e6 and CRC32 18ebdeb3 agree with the kit. Core binds the first data track and count."
+      },
+      {
+        "id": "alexbeav-armored-core-master-of-arena-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/armored-core-master-of-arena-recomp",
+        "authority_ref": "d39c6cbae60acb545d52f99ad0b4509cf8ea3d5c",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp/blob/d39c6cbae60acb545d52f99ad0b4509cf8ea3d5c/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.1.0 Windows (27058386 bytes, SHA-256 d99a7e67b49aa7f88a4f932d5ee487463d8fa2e476b9b7a5ca7a1469115b35d2) and Linux x64 (24984747 bytes, SHA-256 b14c8dcd2752720d42257607a25f496a012922ae5e74c07296eae82c4243ba58) setup kits match provider SHA-256 and pass Core package-layout inspection; the Linux kit has no case-colliding paths. Both carry the same game.toml: SLUS-01030, a 2-disc discs roster with disc 1 data track SHA-1 96f5fcc9513ca47b19fd44bd72ee51c65a55cd43, and the SCPH1001 BIOS configuration; README-SETUP requires a retail SCPH-1001 BIOS. The kits pin PSXRecomp 5420458ad90a81ca73d8128ebe719d8e1d3e9e2b, the reviewed Future Cop split-mods framework, ship mods/bundled and mods/preloaded and set EXE_NAME Armored_Core_Master_of_Arena. The runtime mounts the disc selected at launch and accepts --disc; swapping mid-session is not implemented. Native generation, gameplay and saves remain unobserved."
+      },
+      {
+        "id": "alexbeav-armored-core-master-of-arena-recomp-disc-1-redump-2487",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/2487",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://redump.info/disc/2487",
+        "live_url": null,
+        "claim": "Redump Armored Core: Master of Arena (USA) (Disc 1), SLUS-01030, has one data track: SHA-1 96f5fcc9513ca47b19fd44bd72ee51c65a55cd43, MD5 4d5774c4baa65d6eaf281db59ee8e945 and CRC32 446ae06c. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-armored-core-master-of-arena-recomp-disc-2-redump-2488",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/2488",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://redump.info/disc/2488",
+        "live_url": null,
+        "claim": "Redump Armored Core: Master of Arena (USA) (Disc 2), SLUS-01081, has one data track: SHA-1 c9ca14a6f25d663b0aec66df096205b9cb1bc3cc, MD5 809f240cfecf2b90ade1322cba61c013 and CRC32 9afeb2c5. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-fear-effect-2-retro-helix-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp",
+        "authority_ref": "4757d9853ab7c5f1ba4769702741bfa0c1030181",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp/blob/4757d9853ab7c5f1ba4769702741bfa0c1030181/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.1.0 Windows (27060603 bytes, SHA-256 2abab823b7954679670d5bebfa8609e9106e2b9798567641c24478af9e99690d) and Linux x64 (24986108 bytes, SHA-256 57456d4d897bfc077d51243a6bc019ed4af3b76e5d01d102ff2f02b5acc32826) setup kits match provider SHA-256 and pass Core package-layout inspection; the Linux kit has no case-colliding paths. Both carry the same game.toml: SLUS-01266, a 4-disc discs roster with disc 1 data track SHA-1 86a470f414de3f7af60c06fdc065f4f32015650c, and the SCPH1001 BIOS configuration; README-SETUP requires a retail SCPH-1001 BIOS. The kits pin PSXRecomp 5420458ad90a81ca73d8128ebe719d8e1d3e9e2b, the reviewed Future Cop split-mods framework, ship mods/bundled and mods/preloaded and set EXE_NAME Fear_Effect_2_Retro_Helix. The runtime mounts the disc selected at launch and accepts --disc; swapping mid-session is not implemented. Native generation, gameplay and saves remain unobserved."
+      },
+      {
+        "id": "alexbeav-fear-effect-2-retro-helix-recomp-disc-1-redump-31449",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/31449",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://redump.info/disc/31449",
+        "live_url": null,
+        "claim": "Redump Fear Effect 2: Retro Helix (USA) (Disc 1) (Rev 1), SLUS-01266, has one data track: SHA-1 86a470f414de3f7af60c06fdc065f4f32015650c, MD5 0258657dd944a139fdddc81345a6d9ee and CRC32 156bfdb4. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-fear-effect-2-retro-helix-recomp-disc-2-redump-31450",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/31450",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://redump.info/disc/31450",
+        "live_url": null,
+        "claim": "Redump Fear Effect 2: Retro Helix (USA) (Disc 2) (Rev 1), SLUS-01275, has one data track: SHA-1 c80cf3589ef9f05afa19db9a003eeb061ac947e8, MD5 74d55be5e2a322a0124efff6fd1f86f2 and CRC32 746ad7c9. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-fear-effect-2-retro-helix-recomp-disc-3-redump-31451",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/31451",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://redump.info/disc/31451",
+        "live_url": null,
+        "claim": "Redump Fear Effect 2: Retro Helix (USA) (Disc 3) (Rev 1), SLUS-01276, has one data track: SHA-1 2ea416bcb6692a178dfde0c36df0ac949d488a1f, MD5 5523b1309cbcca233544d9a7b4663543 and CRC32 fc16649d. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-fear-effect-2-retro-helix-recomp-disc-4-redump-31452",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/31452",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://redump.info/disc/31452",
+        "live_url": null,
+        "claim": "Redump Fear Effect 2: Retro Helix (USA) (Disc 4) (Rev 1), SLUS-01277, has one data track: SHA-1 1665f4c71e1c399f5a6f4b9c33a979ee0cad8afd, MD5 7302dbf75f570466e1453b1337fd5a79 and CRC32 8d9b31eb. A Redump search for that SHA-1 resolves only to this disc."
       }
     ],
     "identities": [
@@ -12305,6 +12385,190 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-armored-core-master-of-arena-recomp-usa-psx",
+        "label": "Armored Core: Master of Arena (USA) two-disc set",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Armored Core: Master of Arena (USA) two-disc set",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-01030",
+              "SLUS-01081"
+            ],
+            "representations": [
+              {
+                "id": "disc-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "multi-disc-set",
+                "discs": [
+                  {
+                    "id": "disc-1",
+                    "label": "Armored Core: Master of Arena Disc 1",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "96f5fcc9513ca47b19fd44bd72ee51c65a55cd43",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-2",
+                    "label": "Armored Core: Master of Arena Disc 2",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "c9ca14a6f25d663b0aec66df096205b9cb1bc3cc",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-armored-core-master-of-arena-recomp-v010-static-contract",
+                  "alexbeav-armored-core-master-of-arena-recomp-disc-1-redump-2487",
+                  "alexbeav-armored-core-master-of-arena-recomp-disc-2-redump-2488"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-armored-core-master-of-arena-recomp-v010-static-contract",
+              "alexbeav-armored-core-master-of-arena-recomp-disc-1-redump-2487",
+              "alexbeav-armored-core-master-of-arena-recomp-disc-2-redump-2488"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-fear-effect-2-retro-helix-recomp-usa-rev-1-psx",
+        "label": "Fear Effect 2: Retro Helix (USA) (Rev 1) four-disc set",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa-rev-1",
+            "title": "Fear Effect 2: Retro Helix (USA) (Rev 1) four-disc set",
+            "region": "USA",
+            "revision": "Rev 1",
+            "product_codes": [
+              "SLUS-01266",
+              "SLUS-01275",
+              "SLUS-01276",
+              "SLUS-01277"
+            ],
+            "representations": [
+              {
+                "id": "disc-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "multi-disc-set",
+                "discs": [
+                  {
+                    "id": "disc-1",
+                    "label": "Fear Effect 2: Retro Helix Disc 1",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "86a470f414de3f7af60c06fdc065f4f32015650c",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-2",
+                    "label": "Fear Effect 2: Retro Helix Disc 2",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "c80cf3589ef9f05afa19db9a003eeb061ac947e8",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-3",
+                    "label": "Fear Effect 2: Retro Helix Disc 3",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "2ea416bcb6692a178dfde0c36df0ac949d488a1f",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-4",
+                    "label": "Fear Effect 2: Retro Helix Disc 4",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "1665f4c71e1c399f5a6f4b9c33a979ee0cad8afd",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-fear-effect-2-retro-helix-recomp-v010-static-contract",
+                  "alexbeav-fear-effect-2-retro-helix-recomp-disc-1-redump-31449",
+                  "alexbeav-fear-effect-2-retro-helix-recomp-disc-2-redump-31450",
+                  "alexbeav-fear-effect-2-retro-helix-recomp-disc-3-redump-31451",
+                  "alexbeav-fear-effect-2-retro-helix-recomp-disc-4-redump-31452"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-fear-effect-2-retro-helix-recomp-v010-static-contract",
+              "alexbeav-fear-effect-2-retro-helix-recomp-disc-1-redump-31449",
+              "alexbeav-fear-effect-2-retro-helix-recomp-disc-2-redump-31450",
+              "alexbeav-fear-effect-2-retro-helix-recomp-disc-3-redump-31451",
+              "alexbeav-fear-effect-2-retro-helix-recomp-disc-4-redump-31452"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -18698,6 +18962,136 @@
           {
             "upstream_ref": "v0.2.0",
             "artifact_sha256": "ee0e2ce8fb03d4c7071c1c98b2860183a839209116a07a25ec7f55ca976b6fc7"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-armored-core-master-of-arena-recomp-game-source",
+        "port_id": "alexbeav-armored-core-master-of-arena-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-armored-core-master-of-arena-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-armored-core-master-of-arena-recomp-v010-static-contract",
+          "alexbeav-armored-core-master-of-arena-recomp-disc-1-redump-2487",
+          "alexbeav-armored-core-master-of-arena-recomp-disc-2-redump-2488"
+        ],
+        "authority_ref": "d39c6cbae60acb545d52f99ad0b4509cf8ea3d5c",
+        "reviewed_at": "2026-11-12",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp/blob/d39c6cbae60acb545d52f99ad0b4509cf8ea3d5c/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "d99a7e67b49aa7f88a4f932d5ee487463d8fa2e476b9b7a5ca7a1469115b35d2"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "b14c8dcd2752720d42257607a25f496a012922ae5e74c07296eae82c4243ba58"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-armored-core-master-of-arena-recomp-bios-source",
+        "port_id": "alexbeav-armored-core-master-of-arena-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-armored-core-master-of-arena-recomp-v010-static-contract"
+        ],
+        "authority_ref": "d39c6cbae60acb545d52f99ad0b4509cf8ea3d5c",
+        "reviewed_at": "2026-11-12",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp/blob/d39c6cbae60acb545d52f99ad0b4509cf8ea3d5c/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "d99a7e67b49aa7f88a4f932d5ee487463d8fa2e476b9b7a5ca7a1469115b35d2"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "b14c8dcd2752720d42257607a25f496a012922ae5e74c07296eae82c4243ba58"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-fear-effect-2-retro-helix-recomp-game-source",
+        "port_id": "alexbeav-fear-effect-2-retro-helix-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-fear-effect-2-retro-helix-recomp-usa-rev-1-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-rev-1"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-fear-effect-2-retro-helix-recomp-v010-static-contract",
+          "alexbeav-fear-effect-2-retro-helix-recomp-disc-1-redump-31449",
+          "alexbeav-fear-effect-2-retro-helix-recomp-disc-2-redump-31450",
+          "alexbeav-fear-effect-2-retro-helix-recomp-disc-3-redump-31451",
+          "alexbeav-fear-effect-2-retro-helix-recomp-disc-4-redump-31452"
+        ],
+        "authority_ref": "4757d9853ab7c5f1ba4769702741bfa0c1030181",
+        "reviewed_at": "2026-11-12",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp/blob/4757d9853ab7c5f1ba4769702741bfa0c1030181/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "2abab823b7954679670d5bebfa8609e9106e2b9798567641c24478af9e99690d"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "57456d4d897bfc077d51243a6bc019ed4af3b76e5d01d102ff2f02b5acc32826"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-fear-effect-2-retro-helix-recomp-bios-source",
+        "port_id": "alexbeav-fear-effect-2-retro-helix-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-fear-effect-2-retro-helix-recomp-v010-static-contract"
+        ],
+        "authority_ref": "4757d9853ab7c5f1ba4769702741bfa0c1030181",
+        "reviewed_at": "2026-11-12",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp/blob/4757d9853ab7c5f1ba4769702741bfa0c1030181/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "2abab823b7954679670d5bebfa8609e9106e2b9798567641c24478af9e99690d"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "57456d4d897bfc077d51243a6bc019ed4af3b76e5d01d102ff2f02b5acc32826"
           }
         ],
         "aliases": [],

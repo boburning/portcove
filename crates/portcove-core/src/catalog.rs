@@ -5,8 +5,8 @@ use std::{
 };
 
 use crate::{
-    AdapterKind, CatalogDocument, PortDefinition, PortcoveError, ReleaseChannel, ReleaseSource,
-    Result, RuntimeSourceMaterialization, SourceKind, SourceProfile,
+    AdapterKind, CatalogDocument, LaunchDiscChoice, PortDefinition, PortcoveError, ReleaseChannel,
+    ReleaseSource, Result, RuntimeSourceMaterialization, SourceKind, SourceProfile,
 };
 
 mod listings;
@@ -1486,6 +1486,21 @@ impl Catalog {
                         port.id
                     )));
                 }
+            }
+            if port.launch_disc_choice == Some(LaunchDiscChoice::PsxSettingsSelected)
+                && !(port.adapter == AdapterKind::PsxRecompManaged
+                    && port.runtime_source_materialization
+                        == Some(RuntimeSourceMaterialization::PsxRawSet)
+                    && port.runtime_subdirectory.is_some()
+                    && port
+                        .persistent_paths
+                        .iter()
+                        .any(|path| path == "settings.toml"))
+            {
+                return Err(PortcoveError::usage(format!(
+                    "{} declares a PS1 settings disc choice without a managed multi-disc set and persistent settings.toml",
+                    port.id
+                )));
             }
             if port.runtime_disc_image.is_some()
                 && port
@@ -7603,6 +7618,51 @@ mod tests {
             .persistent_paths
             .push("rom".into());
         catalog.validate().unwrap();
+    }
+
+    #[test]
+    fn psx_settings_disc_choice_requires_a_managed_set_with_persistent_settings() {
+        let embedded = Catalog::embedded().unwrap();
+        let declared = embedded
+            .document
+            .ports
+            .iter()
+            .filter(|port| port.launch_disc_choice.is_some())
+            .map(|port| port.id.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            declared,
+            [
+                "alexbeav-ace-combat-3-electrosphere-recomp",
+                "alexbeav-armored-core-master-of-arena-recomp",
+                "alexbeav-fear-effect-2-retro-helix-recomp",
+            ]
+        );
+        let arena = "alexbeav-armored-core-master-of-arena-recomp";
+        let broken: [(&str, fn(&mut PortDefinition)); 3] = [
+            // Any other adapter or source materialization.
+            ("dr-mario-64-recomp", |port| {
+                port.launch_disc_choice = Some(LaunchDiscChoice::PsxSettingsSelected);
+            }),
+            (arena, |port| port.runtime_subdirectory = None),
+            (arena, |port| {
+                port.persistent_paths.retain(|path| path != "settings.toml");
+            }),
+        ];
+        for (id, breakage) in broken {
+            let mut catalog = Catalog::embedded().unwrap();
+            let port = Arc::make_mut(&mut catalog.document)
+                .ports
+                .iter_mut()
+                .find(|port| port.id == id)
+                .unwrap();
+            breakage(port);
+            let error = catalog.validate().unwrap_err();
+            assert!(
+                error.to_string().contains("PS1 settings disc choice"),
+                "{id}: {error}"
+            );
+        }
     }
 
     #[test]

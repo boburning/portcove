@@ -122,10 +122,11 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching single-track CHDs in Disc 1 SLPS-02020 then Disc 2 SLPS-02021 order and legally obtained retail SCPH-1001 BIOS. This route uses Portcove’s registered Python/build toolchain and skips the upstream setup launcher when playing. Generation, runtime, disc switching, lifecycle, minimum-host compatibility and gameplay are untested on both declared platforms. Preserve GPL-3.0-only project, PolyForm Noncommercial framework and MIT UI notices; no rights to retail game data or generated retail content are inferred."
+      "manual_preparation": "Provide your own matching single-track CHDs in Disc 1 SLPS-02020 then Disc 2 SLPS-02021 order and legally obtained retail SCPH-1001 BIOS. This route uses Portcove’s registered Python/build toolchain and skips the upstream setup launcher when playing. To play Disc 2, choose it in the disc choice beside Play; the kit cannot swap discs during play, so quit and choose Play again when the game asks for the next disc. Generation, runtime, disc switching, lifecycle, minimum-host compatibility and gameplay are untested on both declared platforms. Preserve GPL-3.0-only project, PolyForm Noncommercial framework and MIT UI notices; no rights to retail game data or generated retail content are inferred."
     },
     "bios_source_profile": "psx-scph-1001-bios",
     "runtime_source_filename": "runtime-discs",
+    "launch_disc_choice": "psx-settings-selected",
     "runtime_source_materialization": "psx-raw-set"
   }
 }

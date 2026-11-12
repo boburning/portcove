@@ -1150,12 +1150,13 @@ export const desktopApi = {
       expectedPreview,
       generation,
     }),
-  launch: (portId: string, source: string, generation: number) =>
+  launch: (portId: string, source: string, generation: number, disc?: number) =>
     invoke<LaunchResult>("launch_port", {
       portId,
       generation,
       source: source || null,
       arguments: [],
+      disc: disc ?? null,
     }),
   automaticSnapshots: (generation: number) =>
     invoke<boolean>("get_automatic_snapshots", { generation }),

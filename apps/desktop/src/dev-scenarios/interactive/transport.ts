@@ -448,6 +448,7 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         generation,
         source: null,
         arguments: args.arguments,
+        disc: null,
       });
       return {
         processId: null,
