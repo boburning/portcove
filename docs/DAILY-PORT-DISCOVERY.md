@@ -74,6 +74,9 @@ than repeating the proposal text and rendered body. Reconstruct the body with
 the maintained `hostedBody` renderer from the exact hash-matching proposal;
 the recorded body hash must match before recovery or completion readback.
 Legacy full-plan receipts remain readable and completed receipts are not rewritten.
+Before delivery, Actions sizes the encoded receipt against the bounded delivery
+and hold fields and reserves room for its final doctor and diagnostics. The
+logical batch stays together when it fits the existing comment limit.
 The same invocation then applies the bound proposal automatically. Port metadata
 intake requires no separate model reviewer or review attestation. The owner
 confirmed this policy on October 28, 2026. Software changes retain the repository's
