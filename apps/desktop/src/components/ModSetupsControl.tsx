@@ -9,7 +9,7 @@ import { errorText } from "../view-model";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
-import { ModProviderBrowser } from "./ModProviderBrowser";
+import { ModProviderBrowser, providerName } from "./ModProviderBrowser";
 import { ActionRow, Notice } from "./ui/patterns";
 
 type Props = {
@@ -213,7 +213,11 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
             </Notice>
           )}
           {nativeMessage && <p className="text-sm">{nativeMessage}</p>}
-          {browserBusy && <p className="text-sm">{t("mods.browse.lockNote")}</p>}
+          {browserBusy && (
+            <p className="text-sm">
+              {t("mods.browse.lockNote", { provider: providerName(view.provider ?? "") })}
+            </p>
+          )}
           {heldUpdates.length > 0 && (
             <Notice intent="info">
               <div data-slot="notice-body">
@@ -424,10 +428,11 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                   </div>
                 </Notice>
               )}
-              {view.provider === "gamebanana" && (
+              {view.provider && (
                 <ModProviderBrowser
                   key={selected.profile.id}
                   portId={portId}
+                  provider={view.provider}
                   generation={generation}
                   profileId={selected.profile.id}
                   profileName={selected.profile.display_name}
