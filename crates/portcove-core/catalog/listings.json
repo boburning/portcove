@@ -14870,7 +14870,7 @@
         "steps": [
           {
             "title": "Select your original in the game",
-            "instruction": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows archive already contains the Godot player and its required companions."
+            "instruction": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows and Linux archives already contain the Godot player and its required companions. The Linux player and its bundled libraries need glibc 2.38 or later and GCC 13’s libstdc++."
           }
         ],
         "warnings": [],
@@ -14878,7 +14878,8 @@
       },
       "original_game_title": "Super Mario 64",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -30266,7 +30267,7 @@
         "steps": [
           {
             "title": "Prepare your original game",
-            "instruction": "Use the linked upstream guided installer/setup instructions for your own English LEGO Island 1.1 data. For this portable archive, run the included bin/isle-config.exe yourself, choose the original data and save locations, and save the configuration. Portcove’s Play target is bin/isle.exe; read-only discovery and installation do not run the configuration helper. The continuous channel follows upstream’s ongoing builds and may regress."
+            "instruction": "Use the linked upstream guided installer/setup instructions for your own English LEGO Island 1.1 data. For this portable archive, run the included bin/isle-config.exe yourself, choose the original data and save locations, and save the configuration. Portcove’s Play target is bin/isle.exe; read-only discovery and installation do not run the configuration helper. On Linux x86-64, run the included bin/isle-config yourself (it needs Qt 6 from your distribution); Portcove’s Play target is bin/isle. Keep bin/ and lib/ together. The Linux player and its bundled libraries need glibc 2.43 or later, GCC 13’s libstdc++ and OpenGL ES 2 with GLVND. The continuous channel follows upstream’s ongoing builds and may regress."
           }
         ],
         "warnings": [],
@@ -30274,7 +30275,8 @@
       },
       "original_game_title": "LEGO Island",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -34468,7 +34470,7 @@
           },
           {
             "title": "Set up MDK on an Apple silicon Mac",
-            "instruction": "Choose mdk-osx-arm64.zip from the stable releases. Keep libSDL3.dylib beside mdk_sdl and use MDK_DATA_DIR or mdk_paths.cfg to point at your complete original installation. The inspected v1.2.6 package requires macOS 12 or later with Metal. Review the publisher and your Mac’s download security prompts before opening the player."
+            "instruction": "Portcove can install and update the official mdk-osx-arm64.zip player. Create mdk_paths.cfg beside mdk_sdl and name your complete original installation in its [paths] mdk setting; Portcove does not pass MDK_DATA_DIR to the game. Keep libSDL3.dylib beside mdk_sdl. The inspected v1.2.6 package requires macOS 12 or later with Metal."
           },
           {
             "title": "Set up MDK on Android",
@@ -34476,13 +34478,13 @@
           }
         ],
         "warnings": [
-          "Optional HD texture generation downloads and starts a separate upscaling tool. Let it finish, or cancel and confirm it has stopped before updating, backing up or removing the player. You and upstream maintain the Linux ARM64, Mac and Android copies."
+          "Optional HD texture generation downloads and starts a separate upscaling tool. Let it finish, or cancel and confirm it has stopped before updating, backing up or removing the player. You and upstream maintain the Linux ARM64 and Android copies."
         ],
         "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/main/README.md",
         "references": [
           {
             "title": "Keep your desktop files",
-            "instruction": "For a Linux ARM64 or Mac copy you maintain, keep settings.cfg, saves, mods, captures and custom exports. Keep the whole MDK_USER_DIR if you set it, or the actual user-data fallback if the player folder is read-only. On first portable start, upstream can copy settings and saves from an older personal profile. Keep both copies until you know which one the player uses. Keep mdk_paths.cfg and your originals separately."
+            "instruction": "For a Linux ARM64 copy you maintain, keep settings.cfg, saves, mods, captures and custom exports. Keep the whole MDK_USER_DIR if you set it, or the actual user-data fallback if the player folder is read-only. On first portable start, upstream can copy settings and saves from an older personal profile. Keep both copies until you know which one the player uses. Keep mdk_paths.cfg and your originals separately."
           }
         ]
       },
@@ -34491,12 +34493,7 @@
         "windows-x86-64",
         "linux-x86-64",
         "macos-aarch64"
-      ],
-      "download_asset_hints": {
-        "macos-aarch64": [
-          "mdk-osx-arm64.zip"
-        ]
-      }
+      ]
     },
     {
       "id": "mdomangue26-thebigs2",
@@ -60681,7 +60678,7 @@
         "steps": [
           {
             "title": "Use the modern SDL2 player and your own Kilrathi Saga data",
-            "instruction": "Use the official modern Windows x64 SDL2 package with all companion DLLs, or an already permitted working copy of that same route. Select normal wc1-modern.exe for an attached copy. The separate win32-msvc420 reconstruction package is not this player. Use your own full Wing Commander Kilrathi Saga installation: GAMEDAT plus STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. DOS support is partial and does not inherit this offer."
+            "instruction": "Use the official modern SDL2 package for Windows x64, Linux x86-64 or an Apple silicon Mac with all companion libraries, or an already permitted working copy of that same route. Select normal wc1-modern.exe (wc1-modern on Linux or a Mac) for an attached copy. The separate win32-msvc420 reconstruction package is not this player. Use your own full Wing Commander Kilrathi Saga installation: GAMEDAT plus STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. DOS support is partial and does not inherit this offer."
           },
           {
             "title": "Choose the actual writable original directory in upstream setup",
@@ -60706,7 +60703,9 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
       ],
       "availability": "unknown"
     },
