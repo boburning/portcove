@@ -1547,12 +1547,6 @@
         "wc1-re-v0.9.8-macos-arm64-sdl2.zip",
         "wc1-re-v0.9.9-macos-arm64-sdl2.zip"
       ]
-    },
-    "moshferatu-zombies-ate-my-neighbors-pc-port": {
-      "inventory": "zamn",
-      "repository_id": 1393553073,
-      "selected_assets": ["zamn-windows-x86_64.zip", "zamn-windows-x86_64.zip"],
-      "linux_selected_assets": ["zamn-linux-x86_64.tar.gz", "zamn-linux-x86_64.tar.gz"]
     }
   },
   "inventories": {
@@ -9070,54 +9064,6 @@
             "browser_download_url": "https://downloads.example.invalid/wc1-re-v0.9.9-windows-x86_64-setup.exe",
             "size": 34372239,
             "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-          }
-        ]
-      }
-    ],
-    "zamn": [
-      {
-        "id": 427137541,
-        "tag_name": "20261028",
-        "draft": false,
-        "prerelease": false,
-        "published_at": "2026-10-28T20:07:49Z",
-        "assets": [
-          {
-            "id": 686193940,
-            "name": "zamn-linux-x86_64.tar.gz",
-            "browser_download_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port/releases/download/20261028/zamn-linux-x86_64.tar.gz",
-            "size": 2366478,
-            "digest": "sha256:c3b8b84c48925fe2c0e0347b1c835322dc0654695e21c497faa9c52fabb99938"
-          },
-          {
-            "id": 686193997,
-            "name": "zamn-windows-x86_64.zip",
-            "browser_download_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port/releases/download/20261028/zamn-windows-x86_64.zip",
-            "size": 1580223,
-            "digest": "sha256:e4fdfed4e898c939e99fdbc132bda9bcc6a12deba0b84e6e0a0eb099dbffeffb"
-          }
-        ]
-      },
-      {
-        "id": 999500000,
-        "tag_name": "20261201",
-        "draft": false,
-        "prerelease": false,
-        "published_at": "2026-12-01T00:00:00Z",
-        "assets": [
-          {
-            "id": 999500010,
-            "name": "zamn-linux-x86_64.tar.gz",
-            "browser_download_url": "https://downloads.example.invalid/20261201/zamn-linux-x86_64.tar.gz",
-            "size": 2366478,
-            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-          },
-          {
-            "id": 999500011,
-            "name": "zamn-windows-x86_64.zip",
-            "browser_download_url": "https://downloads.example.invalid/20261201/zamn-windows-x86_64.zip",
-            "size": 1580223,
-            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
           }
         ]
       }

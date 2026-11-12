@@ -34,19 +34,6 @@ Release metadata came from the hosted configured-upstream observer (run
 
 All three titles are enrolled in the shared release-selection corpus. Each uses its real inventory plus a labelled synthetic successor at `downloads.example.invalid`; isle-portable uses a rolling replacement at the same tag. For isle-portable and Infinite Mario 64 Ever, a non-empty inherited `LD_LIBRARY_PATH` is searched before RUNPATH and could shadow bundled Linux libraries.
 
-## Zombies Ate My Neighbors / moshferatu (#1914)
-
-`zamn-linux-x86_64.tar.gz` from release `20261028` (commit `410454ab`) is 2,366,478 bytes. It matched the provider SHA-256 and passed Core layout inspection.
-
-- Layout: after the lone `zamn/` wrapper is removed, the package holds `zamn_launcher`, `zamn` and a bundled `libSDL2-2.0.so.0`.
-- Libraries: both programs have `RUNPATH=$ORIGIN` and need glibc 2.38.
-- Process lifetime: at that tag, `src/launcher.c` forks the game, changes to the launcher's base folder, runs `zamn --config <ini>`, and keeps tracking the child, as the Windows launcher does with `CreateProcess`.
-- Data: `src/config.h` keeps `zamn.ini` in the working folder, otherwise beside the executable. The default `zamn.quicksave` and `zamn.hiscore` live in the working folder; only a configured high-score path resolves from the folder holding `zamn.ini`.
-- Persistence: the Windows persistence contract for `zamn.ini`, `zamn.quicksave`, `zamn.hiscore` and their `.tmp` companions therefore applies unchanged.
-- Catalog: the listing's upstream-owned Linux entry moves to the managed integration.
-- Labels and setup: upstream labels the Linux build experimental. On Linux the launcher has no file dialog, so the ROM path is typed or dropped onto the launcher.
-- Corpus: enrolled with a synthetic `20261201` successor.
-
 ## MDK / mdk-sdl (#1775) on Apple silicon
 
 `mdk-osx-arm64.zip` v1.2.6 is 4,293,984 bytes. It matched the provider SHA-256 and passed Core layout inspection for `macos-aarch64`.
