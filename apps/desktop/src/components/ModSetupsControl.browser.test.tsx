@@ -370,6 +370,7 @@ it("words held updates with the locale's plural forms", async () => {
     const host = await render();
     expect(host.textContent).toContain("أبقى Portcove الإصدارين الحاليين");
     expect(host.textContent).toContain("the newer file changes which mods it contains");
+    expect(host.querySelector("code[dir=ltr]")?.textContent).toBe("profile provider-plan");
   } finally {
     await localization.changeLanguage("en");
   }

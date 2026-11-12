@@ -210,7 +210,13 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                     </li>
                   ))}
                 </ul>
-                <p>{t("mods.held.next")}</p>
+                <p>
+                  <Trans
+                    t={t}
+                    i18nKey="mods.held.next"
+                    components={{ command: <code dir="ltr">profile provider-plan</code> }}
+                  />
+                </p>
               </div>
             </Notice>
           )}

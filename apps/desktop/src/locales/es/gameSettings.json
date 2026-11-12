@@ -40,7 +40,7 @@
       "intro_many": "Portcove mantuvo las versiones actuales de algunos mods porque sus actualizaciones necesitan tu revisión:",
       "intro_other": "Portcove mantuvo las versiones actuales de algunos mods porque sus actualizaciones necesitan tu revisión:",
       "item": "<mods />: <reason />",
-      "next": "Desktop aún no puede revisar actualizaciones de mods. Revisa una con la línea de comandos de Portcove (profile provider-plan), o déjala: Portcove vuelve a comprobar cuando este perfil cambia o el mod ofrece otro archivo."
+      "next": "La aplicación aún no puede revisar actualizaciones de mods. Revisa una con la línea de comandos de Portcove (<command />), o déjala: Portcove vuelve a comprobarlo cuando este perfil cambie o el mod ofrezca otro archivo."
     },
     "intro": "Un perfil es un conjunto de mods con sus propias partidas guardadas y ajustes. Al cambiar de perfil, se guardan aparte las partidas y los ajustes del perfil actual y se recuperan los del otro perfil. Desactivar un mod lo quita de la carpeta de mods del juego; su archivo se queda en Portcove para que puedas volver a activarlo.",
     "inUse": "En uso",
