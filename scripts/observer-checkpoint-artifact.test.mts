@@ -491,7 +491,7 @@ void test("first cutover is explicit but missing history from an earlier deploye
 async function baselineTransport(t: Parameters<typeof directory>[0], realCatalog = false) {
   const root = await directory(t),
     permit = observerBaselinePermit;
-  const clock = Date.parse("2026-11-02T19:01:00Z");
+  const clock = Date.parse(permit.after_created_at) + 60_000;
   const files = new Map<string, Buffer>([
     [
       "release/upstream-observer.json",

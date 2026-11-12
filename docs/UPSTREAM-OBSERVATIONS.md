@@ -489,10 +489,12 @@ does not erase the earlier cache or original failures. A later real scheduled
 run must demonstrate continued source/page/Core progress separately from fixture
 tests and an individual batch's `made_progress` field.
 
-The November 2 checkpoint-history loss has one explicitly approved fresh-baseline
-opportunity, pinned in source to failed scheduled run `41476042003`, its original
-attempt/source/creation identity, main ancestry anchor `c66e450e`, and the unchanged
-configuration digest. Only its first natural scheduled successor, attempt one,
+The November 2 fresh-baseline permit was pinned to run `41476042003` and remains
+historical evidence. The replacement for the November 11 checkpoint-history loss
+has one fresh-baseline opportunity pinned to [failed scheduled run
+`43116173426/1`](https://github.com/boburning/portcove/actions/runs/43116173426/attempts/1),
+its original source and creation identity, delivered recovery fix `94479eb2`,
+and the unchanged observer configuration digest. Only its first natural scheduled successor, attempt one,
 may initialize an entirely absent checkpoint tree. Every intervening scheduled
 status consumes that opportunity, including queued, failed and cancelled runs;
 reruns and manual dispatch cannot use it. The known predecessor must still be

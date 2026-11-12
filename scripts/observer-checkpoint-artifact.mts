@@ -59,11 +59,11 @@ const streamingMemberLimit = observerStreamingSnapshotLimit - 16 * 1024;
 // One owner-approved fresh baseline after the retained loss. Scheduled history,
 // not an evictable checkpoint, consumes this sole opportunity even on failure.
 export const observerBaselinePermit = {
-  id: "2026-11-02-checkpoint-history-loss",
-  after_run: 41476042003,
-  after_source: "9b48f20021789ff1dee0217ed0865b06742e68db",
-  after_created_at: "2026-11-02T15:53:33Z",
-  main_anchor: "c66e450e0c63b1e77204f45f1edf2a60fdc54208",
+  id: "2026-11-11-checkpoint-history-loss",
+  after_run: 43116173426,
+  after_source: "538ce14bc8ea000fc65354b76552c282ec9310ca",
+  after_created_at: "2026-11-11T22:58:46Z",
+  main_anchor: "94479eb2b40e5b9d98729bdefe0191b40f3a9816",
   config_sha256: "d86c2102f21e1b1ce66b8a5de52de954250aaf4a037fdf6fab7887f622e19889",
 } as const;
 const sha256 = (bytes: string | Buffer) => createHash("sha256").update(bytes).digest("hex");
