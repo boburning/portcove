@@ -251,6 +251,14 @@
       "category": "explicit-acceptance"
     },
     {
+      "source": "crates/portcove-core/src/artwork/steamgriddb_tests.rs",
+      "test": "steamgriddb_live_search_and_candidates",
+      "reason": "live SteamGridDB call; requires an authorized key",
+      "package": "portcove-core",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "explicit-acceptance"
+    },
+    {
       "source": "crates/portcove-core/src/database.rs",
       "test": "migration_lock_holder_child",
       "reason": "invoked explicitly by migration-lock subprocess tests",
