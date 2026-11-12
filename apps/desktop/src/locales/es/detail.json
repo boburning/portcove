@@ -22,10 +22,10 @@
       "restore": "Restauración",
       "saveCompatibility": "Compatibilidad de partidas guardadas",
       "settings": "Ajustes",
-      "setup": "Instalación",
+      "setup": "Configuración",
       "updates": "Actualizaciones del juego"
     },
-    "features": "Funciones y vías de instalación",
+    "features": "Funciones y rutas de configuración",
     "heading": "Qué funciona y problemas conocidos",
     "intro": "La disponibilidad y las pruebas son cosas distintas. Cada acción comprueba sus propios requisitos actuales.",
     "label": "Qué funciona y problemas conocidos",
@@ -36,19 +36,20 @@
       "unknown": "Desconocido"
     },
     "notice": {
-      "current": "Se aplica a esta vía",
-      "edition": "edición {{edition}}",
+      "artifact": "artefacto <value />",
+      "current": "Se aplica a esta ruta",
+      "edition": "edición <value />",
       "exact": "Se necesita el contexto exacto",
-      "file": "archivo {{sha256}}",
       "heading": "{{feature}} · {{evidence}} · {{applicability}}",
       "historical": "Histórico / ámbito distinto",
-      "release": "versión {{release}}",
-      "scope": "Ámbito: {{scope}}.",
+      "release": "versión <value />",
+      "scope": "Ámbito: <scope />.",
       "separator": " · ",
       "source": "Fuente",
+      "sourceLine": "<link /> · {{date}}",
       "versionSpecific": "Datos de una versión concreta: comprueba este ámbito exacto antes de aplicarlo a tu copia. Las versiones posteriores no heredan un fallo ni una corrección."
     },
-    "noticesUnavailable": "Los avisos opcionales de problemas conocidos no están disponibles. La instalación y el inicio conservan sus evaluaciones actuales.",
+    "noticesUnavailable": "Los avisos opcionales de problemas conocidos no están disponibles. La configuración y el inicio conservan sus evaluaciones actuales.",
     "observations": {
       "intro": "Estos resultados describen la edición, la versión, los archivos y el dispositivo exactos que se comprobaron. Este resumen no ha comparado esas condiciones con tu copia, así que los resultados siguen siendo históricos.",
       "source": "Fuente de la evidencia",
@@ -58,14 +59,14 @@
       "acceptedExternal": "Paquete preparado aceptado",
       "existingCopy": "Selección explícita de una copia existente",
       "installed": "Instalación actual",
-      "managed": "Instalación gestionada",
+      "managed": "Configuración administrada",
       "notInstalled": "Sin instalar · requisitos de la operación",
-      "upstreamSetup": "Instalación del proyecto original y descargas guardadas",
+      "upstreamSetup": "Configuración del proyecto original y descargas guardadas",
       "userSelected": "La instalación que elegiste"
     },
     "refresh": "Actualizar los detalles de las funciones",
     "settingsPartial": "Se admiten ajustes; algunos archivos de configuración no están inicializados o no están disponibles. Abre Ajustes para ver los motivos actuales.",
-    "unavailable": "Los detalles de las funciones no están disponibles. Usa las evaluaciones actuales de las acciones y las instrucciones de instalación.",
+    "unavailable": "Los detalles de las funciones no están disponibles. Usa las evaluaciones actuales de las acciones y las instrucciones de configuración.",
     "untested": "{{mode}} · Este informe no lo ha probado"
   },
   "identity": {

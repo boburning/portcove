@@ -813,16 +813,17 @@ export default interface Resources {
         "unknown": "Unknown"
       },
       "notice": {
+        "artifact": "artifact <value />",
         "current": "Applies to this route",
-        "edition": "edition {{edition}}",
+        "edition": "edition <value />",
         "exact": "Exact context required",
-        "file": "artifact {{sha256}}",
         "heading": "{{feature}} · {{evidence}} · {{applicability}}",
         "historical": "Historical / different scope",
-        "release": "release {{release}}",
-        "scope": "Scope: {{scope}}.",
+        "release": "release <value />",
+        "scope": "Scope: <scope />.",
         "separator": " · ",
         "source": "Source",
+        "sourceLine": "<link /> · {{date}}",
         "versionSpecific": "Version-specific evidence: check this exact scope before applying it to your copy. Later releases do not inherit a failure or a fix."
       },
       "noticesUnavailable": "Optional known-issue notices are unavailable. Setup and launch retain their current assessments.",

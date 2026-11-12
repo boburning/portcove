@@ -1,5 +1,6 @@
 import type { TFunction } from "i18next";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
 import type { CatalogEntry } from "../features/browsing/catalog-entry";
 import type { PortCapabilityReport, PortStatus } from "../types";
@@ -77,6 +78,52 @@ function pathLabel(t: TFunction<"detail">, route: string) {
     default:
       return route;
   }
+}
+
+/**
+ * Scope facets in a fixed order joined by a translatable separator; exact values
+ * stay left-to-right so RTL copy cannot reorder them.
+ */
+function noticeScope(
+  t: TFunction<"detail">,
+  notice: PortCapabilityReport["advisories"][number]["notice"],
+): ReactNode {
+  const parts: ReactNode[] = [
+    <bdi key="platform" dir="ltr">
+      {notice.platform}
+    </bdi>,
+    pathLabel(t, notice.route),
+  ];
+  if (notice.release)
+    parts.push(
+      <Trans
+        t={t}
+        i18nKey="capabilities.notice.release"
+        components={{ value: <bdi dir="ltr">{notice.release}</bdi> }}
+      />,
+    );
+  if (notice.edition)
+    parts.push(
+      <Trans
+        t={t}
+        i18nKey="capabilities.notice.edition"
+        components={{ value: <bdi dir="ltr">{notice.edition}</bdi> }}
+      />,
+    );
+  if (notice.artifact_sha256)
+    parts.push(
+      <Trans
+        t={t}
+        i18nKey="capabilities.notice.artifact"
+        components={{ value: <code dir="ltr">{notice.artifact_sha256}</code> }}
+      />,
+    );
+  return parts.map((part, index) => (
+    <Fragment key={index}>
+      {index > 0 && t("capabilities.notice.separator")}
+      {part}
+    </Fragment>
+  ));
 }
 
 /** Selected-entry read only. Cancellation and generation keys prevent stale detail publication. */
@@ -223,30 +270,28 @@ export function PortCapabilities({
           </strong>
           <p>{notice.explanation}</p>
           <p>
-            {t("capabilities.notice.scope", {
-              scope: [
-                notice.platform,
-                pathLabel(t, notice.route),
-                ...(notice.release
-                  ? [t("capabilities.notice.release", { release: notice.release })]
-                  : []),
-                ...(notice.edition
-                  ? [t("capabilities.notice.edition", { edition: notice.edition })]
-                  : []),
-                ...(notice.artifact_sha256
-                  ? [t("capabilities.notice.file", { sha256: notice.artifact_sha256 })]
-                  : []),
-              ].join(t("capabilities.notice.separator")),
-            })}
+            <Trans
+              t={t}
+              i18nKey="capabilities.notice.scope"
+              components={{ scope: <span>{noticeScope(t, notice)}</span> }}
+            />
           </p>
           {(notice.release || notice.artifact_sha256 || notice.edition) && (
             <p>{t("capabilities.notice.versionSpecific")}</p>
           )}
           {notice.workaround && <p>{notice.workaround}</p>}
-          <ExternalLink href={notice.provenance}>
-            {t("capabilities.notice.source")}
-          </ExternalLink> ·{" "}
-          {new Date(notice.observed_at * 1000).toLocaleDateString()}
+          <Trans
+            t={t}
+            i18nKey="capabilities.notice.sourceLine"
+            values={{ date: new Date(notice.observed_at * 1000).toLocaleDateString() }}
+            components={{
+              link: (
+                <ExternalLink href={notice.provenance}>
+                  {t("capabilities.notice.source")}
+                </ExternalLink>
+              ),
+            }}
+          />
         </div>
       ))}
       {report && report.observations.length > 0 && (
