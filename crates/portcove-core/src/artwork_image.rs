@@ -104,6 +104,29 @@ pub(crate) fn decode_with_thumbnail_bounds(
     })
 }
 
+/// Whether the image's embedded orientation displays it rotated by a quarter
+/// turn, so its stored width and height are swapped on screen and in Steam.
+pub(crate) fn transposes_axes(bytes: &[u8]) -> Result<bool> {
+    use image::metadata::Orientation;
+    let orientation = match image::guess_format(bytes).map_err(image_error)? {
+        ImageFormat::Png => image::codecs::png::PngDecoder::new(Cursor::new(bytes))
+            .map_err(image_error)?
+            .orientation(),
+        ImageFormat::Jpeg => image::codecs::jpeg::JpegDecoder::new(Cursor::new(bytes))
+            .map_err(image_error)?
+            .orientation(),
+        _ => return Ok(false),
+    }
+    .map_err(image_error)?;
+    Ok(matches!(
+        orientation,
+        Orientation::Rotate90
+            | Orientation::Rotate270
+            | Orientation::Rotate90FlipH
+            | Orientation::Rotate270FlipH
+    ))
+}
+
 fn decode_bounded(decoder: impl ImageDecoder) -> Result<DynamicImage> {
     let (width, height) = decoder.dimensions();
     if width == 0

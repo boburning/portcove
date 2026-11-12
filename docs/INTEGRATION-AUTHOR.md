@@ -464,7 +464,8 @@ and digest. This distinguishes an underlying-game default from a port-specific o
 The three static roles are `portrait_cover`, `landscape_cover` and `hero_banner`
 (CLI flags use hyphens). Portrait content is the accepted durable Cover original.
 Schema 2 adds the hero role: it is bound to the Detail choice and offers the
-accepted Detail original only when that image is wider than tall; a selected
+accepted Detail original only when that image is displayed wider than tall,
+including any embedded quarter-turn orientation; a selected
 Detail image that is not reports `selected_image_not_wide`, and no Detail import
 reports `no_local_original`. The landscape role explicitly reports
 `role_not_provided`. Catalog defaults report `no_local_original`, even if a

@@ -10302,7 +10302,7 @@
           },
           {
             "const": "selected_image_not_wide",
-            "description": "The selected detail import is not wider than tall, so it is not offered\nas a wide role; it is never cropped or stretched to fit.",
+            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
             "type": "string"
           }
         ]
@@ -10605,7 +10605,7 @@
           },
           {
             "const": "selected_image_not_wide",
-            "description": "The selected detail import is not wider than tall, so it is not offered\nas a wide role; it is never cropped or stretched to fit.",
+            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
             "type": "string"
           }
         ]

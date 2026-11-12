@@ -709,7 +709,7 @@ specifies request bounds, version semantics, and independent trust checks.
 The optional destination-artwork handoff (schema 2) is also Core-owned. Read-only
 CLI adapters export exact library/port/revision/asset bindings, accepted provenance
 and explicit static-role availability. Validated durable local Cover originals
-provide portrait bytes and a Detail original wider than tall provides hero-banner
+provide portrait bytes and a Detail original displayed wider than tall provides hero-banner
 bytes, both unmodified; unavailable originals retain their selection metadata.
 Catalog display caches never supply destination bytes, and no role is synthesized,
 cropped or resized from another. There is no new durable store, provider or destination writer.

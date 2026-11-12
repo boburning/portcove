@@ -83,22 +83,20 @@ fn destination_handoff_preserves_original_identity_and_separate_roles_after_cach
         .unwrap();
     assert_eq!(hero_bytes.original, fs::read(&detail).unwrap());
     assert_ne!(hero_bytes.original, bytes.original);
-    for role in [Role::LandscapeCover] {
-        let missing = reopened
-            .destination_artwork("zelda64-recomp", role)
-            .unwrap();
-        assert_eq!(
-            missing.source,
-            crate::DestinationArtworkSource::UnassignedRole
-        );
-        assert_eq!(
-            missing.content,
-            DestinationArtworkContent::Unavailable {
-                reason: crate::DestinationArtworkUnavailableReason::RoleNotProvided,
-            }
-        );
-        assert!(missing.choice.is_none());
-    }
+    let missing = reopened
+        .destination_artwork("zelda64-recomp", Role::LandscapeCover)
+        .unwrap();
+    assert_eq!(
+        missing.source,
+        crate::DestinationArtworkSource::UnassignedRole
+    );
+    assert_eq!(
+        missing.content,
+        DestinationArtworkContent::Unavailable {
+            reason: crate::DestinationArtworkUnavailableReason::RoleNotProvided,
+        }
+    );
+    assert!(missing.choice.is_none());
     assert!(image.is_file());
     assert!(detail.is_file());
 }
@@ -409,6 +407,46 @@ fn destination_hero_handoff_offers_only_a_wide_detail_import() {
     .unwrap();
     portrait["role"] = serde_json::json!("hero_banner");
     assert!(serde_json::from_value::<DestinationArtworkHandoff>(portrait).is_err());
+}
+
+#[test]
+fn destination_hero_handoff_refuses_a_wide_image_rotated_by_its_orientation() {
+    use crate::{
+        DestinationArtworkContent, DestinationArtworkRole as Role,
+        DestinationArtworkUnavailableReason as Reason,
+    };
+    use image::ImageEncoder;
+    let temporary = tempfile::tempdir().unwrap();
+    let service = open_service(&temporary.path().join("library"));
+    // Stored 40x12 but tagged Orientation=6 (rotate 90): displayed tall.
+    let exif = [
+        b'M', b'M', 0, 42, 0, 0, 0, 8, 0, 1, 0x01, 0x12, 0, 3, 0, 0, 0, 1, 0, 6, 0, 0, 0, 0, 0, 0,
+    ];
+    let pixels = image::RgbImage::from_pixel(40, 12, image::Rgb([90, 40, 20]));
+    let mut bytes = Vec::new();
+    let mut encoder = image::codecs::jpeg::JpegEncoder::new(&mut bytes);
+    encoder.set_exif_metadata(exif.to_vec()).unwrap();
+    encoder
+        .write_image(pixels.as_raw(), 40, 12, image::ExtendedColorType::Rgb8)
+        .unwrap();
+    assert!(crate::artwork_image::transposes_axes(&bytes).unwrap());
+    let rotated = temporary.path().join("rotated.jpg");
+    fs::write(&rotated, &bytes).unwrap();
+    service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Detail, &rotated, 0)
+        .unwrap();
+    let hero = service
+        .destination_artwork("zelda64-recomp", Role::HeroBanner)
+        .unwrap();
+    assert_eq!(
+        hero.content,
+        DestinationArtworkContent::Unavailable {
+            reason: Reason::SelectedImageNotWide
+        }
+    );
+    // The same refusal round-trips through the strict reader.
+    let value = serde_json::to_value(&hero).unwrap();
+    assert!(serde_json::from_value::<crate::DestinationArtworkHandoff>(value).is_ok());
 }
 
 fn image_file(root: &Path, name: &str, format: image::ImageFormat) -> std::path::PathBuf {

@@ -1069,7 +1069,7 @@ API 67 also advertises optional `artwork_handoff_schema` (currently 2),
 semantic role, exact library/port/choice revision, accepted source provenance and
 availability; the bytes route additionally requires the observed library ID,
 revision and asset digest. Validated durable local Cover originals provide
-portrait bytes, and a Detail original that is wider than tall provides hero-banner
+portrait bytes, and a Detail original displayed wider than tall provides hero-banner
 bytes. Catalog defaults, a non-wide Detail image and the unprovided landscape role
 remain explicitly unavailable, without provider requests or disposable-cache export.
 See the [destination contract](INTEGRATION-AUTHOR.md#destination-artwork-handoff)

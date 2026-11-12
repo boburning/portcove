@@ -31,8 +31,9 @@ pub enum DestinationArtworkUnavailableReason {
     RoleNotProvided,
     NoLocalOriginal,
     SelectedOriginalUnavailable,
-    /// The selected detail import is not wider than tall, so it is not offered
-    /// as a wide role; it is never cropped or stretched to fit.
+    /// The selected detail import is not displayed wider than tall (including
+    /// after its embedded rotation), so it is not offered as a wide role; it is
+    /// never cropped, rotated or stretched to fit.
     SelectedImageNotWide,
 }
 
@@ -189,8 +190,10 @@ impl DestinationArtworkHandoff {
                 crate::artwork_store::validate_asset(asset)?;
                 if choice.asset_sha256.as_deref() != Some(&asset.sha256)
                     || self.selected_asset_sha256.as_deref() != Some(&asset.sha256)
-                    || ((*reason == DestinationArtworkUnavailableReason::SelectedImageNotWide)
-                        == is_wide(asset))
+                    // A stored-wide image whose orientation rotates it is also
+                    // reported as not wide; an unavailable wide original is not.
+                    || (*reason == DestinationArtworkUnavailableReason::SelectedOriginalUnavailable
+                        && !is_wide(asset))
                 {
                     return Err(invalid());
                 }
@@ -384,6 +387,16 @@ impl PortcoveService {
                         validate_decoded(&bytes, &asset)?;
                         Ok(bytes)
                     }) {
+                        // A quarter-turn orientation displays a stored-wide image tall.
+                        Ok(bytes)
+                            if role == DestinationArtworkRole::HeroBanner
+                                && crate::artwork_image::transposes_axes(&bytes)
+                                    .unwrap_or(true) =>
+                        {
+                            DestinationArtworkContent::Unavailable {
+                                reason: DestinationArtworkUnavailableReason::SelectedImageNotWide,
+                            }
+                        }
                         Ok(bytes) => {
                             original = Some(bytes);
                             DestinationArtworkContent::Available { asset }

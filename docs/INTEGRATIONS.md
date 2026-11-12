@@ -566,7 +566,7 @@ library and game's Portcove ownership marker and reads each role through Core's
 versioned destination handoff; the renderer supplies no bytes, paths or provider
 data. It publishes the selected imported cover original as
 `config/grid/<shortcut AppID>p.png` or `.jpg` and, when the selected detail image
-is wider than tall, that original as `<shortcut AppID>_hero.png` or `.jpg`. The
+is displayed wider than tall, that original as `<shortcut AppID>_hero.png` or `.jpg`. The
 landscape role reports unavailable until #527 provides it, a detail image that is
 not wide is reported rather than cropped, and a catalog default or generated
 fallback is reported rather than copied. Existing art for a role is preserved by
