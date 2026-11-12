@@ -7,6 +7,7 @@ import { desktopApi } from "../api";
 import * as picker from "../file-picker";
 import { failureReport, portStatus, sourceProfile } from "../test-fixtures";
 import type { SourceRecord, SourceReuseReview } from "../types";
+import { errorText } from "../view-model";
 import {
   SetupReviewSelectionProvider,
   useSetupReviewSelection,
@@ -87,7 +88,16 @@ document.body.append(element);
 const root = createRoot(element);
 const open = vi.fn();
 const changed = vi.fn(async () => undefined);
-const perform: Perform = async (_name, task) => task();
+const performFailures: unknown[] = [];
+const perform: Perform = async (_name, task) => {
+  try {
+    return await task();
+  } catch (failure) {
+    // Shared invocation notices read errorText of the recorded failure.
+    performFailures.push(failure);
+    throw failure;
+  }
+};
 let selection: ReturnType<typeof useSetupReviewSelection>;
 function Fixture({
   generation = 3,
@@ -252,6 +262,14 @@ it("refuses a stale repair baseline and preserves substituted-input failure with
   await select();
   await act(async () => button("Repair moved file location").click());
   expect(element.textContent).toContain("saved file location changed");
+  // Parity with the previous output: the repair guidance follows the app-owned reason.
+  expect(element.textContent).toContain(
+    "The saved file location changed. Refresh before updating it. Location repair needs the same original content.",
+  );
+  // Shared failure notices read errorText; the recorded failure must not expose a bare code.
+  expect(errorText(performFailures.at(-1))).toBe(
+    "The saved file location changed. Refresh before updating it.",
+  );
   expect(apply).not.toHaveBeenCalled();
   plan.mockRejectedValueOnce(failureReport());
   await act(async () => button("Repair moved file location").click());

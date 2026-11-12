@@ -18,13 +18,14 @@ type ReuseCode = "registration_changed" | "profile_missing" | "location_changed"
 /** App-owned reuse failures are codes translated at render; Core text stays verbatim. */
 class ReuseError extends Error {
   readonly code: ReuseCode;
-  constructor(code: ReuseCode) {
-    super(code);
+  /** `message` carries readable text for shared failure notices that only read errorText. */
+  constructor(code: ReuseCode, message: string) {
+    super(message);
     this.code = code;
   }
 }
 
-type ReuseFailure = { code: ReuseCode } | { core: string; repair?: boolean };
+type ReuseFailure = { code: ReuseCode; repair?: boolean } | { core: string; repair?: boolean };
 
 function reuseCodeText(t: TFunction<"gameFiles">, code: ReuseCode): string {
   switch (code) {
@@ -104,13 +105,14 @@ export function RegisteredSourceSetup({
       const result = await desktopApi.reviewSourceReuse(selected, generation);
       if (!accepts()) return;
       if (JSON.stringify(result.registration) !== JSON.stringify(source))
-        throw new ReuseError("registration_changed");
+        throw new ReuseError("registration_changed", reuseCodeText(t, "registration_changed"));
       setRead({ baseline, review: result });
     });
   const repair = () =>
     run(async (accepts) => {
       const profile = profiles.find((item) => item.id === selected);
-      if (!profile || !source) throw new ReuseError("profile_missing");
+      if (!profile || !source)
+        throw new ReuseError("profile_missing", reuseCodeText(t, "profile_missing"));
       const path = await pickSourcePath(profile, source.path, "game");
       if (!path || !accepts()) return;
       const repaired = await perform(
@@ -118,7 +120,7 @@ export function RegisteredSourceSetup({
         async () => {
           const plan = await desktopApi.planSourceRelink(selected, path, generation);
           if (JSON.stringify(plan.original) !== JSON.stringify(source))
-            throw new ReuseError("location_changed");
+            throw new ReuseError("location_changed", reuseCodeText(t, "location_changed"));
           return desktopApi.relinkSource(selected, path, plan.preview_sha256, generation);
         },
         {
@@ -135,7 +137,7 @@ export function RegisteredSourceSetup({
         if (accepts())
           setError(
             value instanceof ReuseError
-              ? { code: value.code }
+              ? { code: value.code, repair: true }
               : { core: errorText(value), repair: true },
           );
         return undefined;
@@ -201,14 +203,16 @@ export function RegisteredSourceSetup({
       {!current && <p role="status">{t("reuse.refreshFirst")}</p>}
       {error && (
         <p role="alert">
-          {"code" in error ? (
-            reuseCodeText(t, error.code)
-          ) : error.repair ? (
+          {error.repair ? (
             <Trans
               t={t}
               i18nKey="reuse.error.repairFailed"
-              components={{ core: <>{error.core}</> }}
+              components={{
+                core: <>{"code" in error ? reuseCodeText(t, error.code) : error.core}</>,
+              }}
             />
+          ) : "code" in error ? (
+            reuseCodeText(t, error.code)
           ) : (
             error.core
           )}
