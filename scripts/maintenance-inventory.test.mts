@@ -846,6 +846,17 @@ void test(
         3,
       ),
     );
+    // A reset scope is a per-port gap; the stored exception facts stay current.
+    await collectWith(
+      observed(
+        complete({
+          completed_scope_sha256: null,
+          exception_key: exception,
+          exception_rule: "repository-unavailable",
+        }),
+        4,
+      ),
+    );
     // A failed read observes nothing; the prior facts stay current.
     await collectWith(() => Promise.reject(new Error("artifact download refused")));
     const runs = JSON.parse(
@@ -875,6 +886,7 @@ void test(
         ["complete", 2, 2, 2, []],
         ["complete", 2, 2, 0, []],
         ["partial", 2, 1, 1, ["unobserved"]],
+        ["partial", 2, 1, 0, ["scope-changed"]],
         ["failed", null, 0, 0, ["unavailable"]],
       ],
     );
@@ -884,11 +896,19 @@ void test(
     );
     const subject = inventory.subjects[0] as {
       upstream: { sources: { exception_rule: string }[] } | null;
+      latest_upstream_gap: { code: string } | null;
     };
     assert.equal(subject.upstream?.sources[0]?.exception_rule, "repository-unavailable");
+    // Per-port gaps come from the latest run that did not fail.
+    assert.equal(subject.latest_upstream_gap?.code, "scope-changed");
     const page = renderHtml(inventory);
     assert.match(page, /upstream observer exception: repository-unavailable \(owner\/alpha\)/u);
-    assert.match(page, /owner\/alpha: facts ffffffffffff/u);
+    assert.match(
+      page,
+      /owner\/alpha: facts ffffffffffff, last change [^;"]+; latest attempt failed: unavailable; previous checkpoint: scope-changed/u,
+    );
+    // The failed attempt stays in the source table with its own source-level gap.
+    assert.match(page, /source:upstream-observer-checkpoint: unavailable/u);
   },
 );
 
@@ -1073,7 +1093,20 @@ void test(
       ],
       "a failed read and an invalid request keep the last known facts",
     );
+    // Per-request gaps come from the latest run that did not fail.
+    assert.deepEqual(
+      inventory.hosted_intake?.map(({ subject_key, latest_gap }) => [subject_key, latest_gap]),
+      [
+        ["intake:10", null],
+        ["intake:20", "invalid-receipt"],
+        ["intake:30", null],
+        ["intake:40", null],
+        ["intake:50", null],
+      ],
+    );
     const page = renderHtml(inventory);
+    assert.match(page, /latest attempt failed: unavailable; previous read: invalid-receipt/u);
+    assert.doesNotMatch(page, /latest read: /u);
     assert.match(
       page,
       /hosted intake blocked: operation_failed \(receipt comment 21; reconciles request 5\)/u,

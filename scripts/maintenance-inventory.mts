@@ -54,6 +54,8 @@ import type { HostedStatusAll } from "./hosted-discovery-intake.mts";
 import {
   disabledCapabilities,
   handoffCollectionSql,
+  handoffEntry,
+  handoffGuidance,
   handoffRegistry,
   hostedIntakeHandoffs,
   nextAction,
@@ -1260,6 +1262,12 @@ const reportQuery = `WITH latest_issue AS (
 SELECT json_build_object(
   'handoffs', ${openHandoffsSql},
   'hosted_intake', (SELECT coalesce(json_agg(json_build_object('subject_key', h.subject_key, 'facts', h.payload,
+        'latest_gap', (SELECT g ->> 'code' FROM (
+            SELECT gaps FROM portcove_maintenance.collection_runs
+              WHERE source = 'hosted-intake' AND coverage NOT IN ('in_progress', 'failed')
+              ORDER BY started_at DESC LIMIT 1) hr
+           CROSS JOIN LATERAL jsonb_array_elements(hr.gaps) g
+           WHERE g ->> 'subject_key' = h.subject_key LIMIT 1),
         'issues', (SELECT coalesce(json_agg(json_build_object('number', (i.payload ->> 'number')::integer,
                      'state', i.payload ->> 'state', 'status', i.payload -> 'project' -> 0 -> 'fields' ->> 'Status')
                      ORDER BY (i.payload ->> 'number')::integer), '[]')
@@ -1318,7 +1326,7 @@ SELECT json_build_object(
            FROM latest_upstream u WHERE u.subject_key = c.port_key) AS upstream,
         (SELECT g FROM (
             SELECT gaps FROM portcove_maintenance.collection_runs
-              WHERE source = 'upstream-observations' AND coverage <> 'in_progress'
+              WHERE source = 'upstream-observations' AND coverage NOT IN ('in_progress', 'failed')
               ORDER BY started_at DESC LIMIT 1) ur
            CROSS JOIN LATERAL jsonb_array_elements(ur.gaps) g
            WHERE g ->> 'subject_key' = c.port_key LIMIT 1) AS latest_upstream_gap,
@@ -1372,6 +1380,8 @@ export interface InventoryReport {
 export interface HostedIntakeEntry {
   subject_key: string;
   facts: unknown;
+  /** This request's gap code in the latest run that was not `failed`, if any. */
+  latest_gap?: string | null;
   issues: { number: number; state: string | null; status: string | null }[];
 }
 
@@ -1499,20 +1509,27 @@ function nextActions(report: InventoryReport, ...sources: unknown[]) {
     .map((handoff) => `${handoff.kind}: ${nextAction(handoff)}`);
 }
 
+/**
+ * The source-level gap codes of a source's latest run when that run failed.
+ * Per-subject gaps then come from the latest run that did not fail.
+ */
+function failedAttempt(report: InventoryReport, name: string) {
+  const run = (
+    report.runs as { source: string; coverage: string; gaps?: { code: string }[] }[]
+  ).find(({ source }) => source === name);
+  return run?.coverage === "failed"
+    ? (run.gaps ?? []).map(({ code }) => code).join(", ") || "unknown"
+    : null;
+}
+
 /** Hosted-intake requests with their linked work and the executor's own attention conditions. */
 function hostedIntakeSection(report: InventoryReport) {
   if (!report.hosted_intake) return "";
-  const run = (report.runs as { source: string; gaps?: { subject_key: string; code: string }[] }[])
-    .filter(({ source }) => source === "hosted-intake")
-    .at(0);
-  const latestGap = new Map(
-    (run?.gaps ?? []).map(({ subject_key, code }) => [subject_key, code] as const),
-  );
+  const attempt = failedAttempt(report, "hosted-intake");
   return `<h2>Hosted intake</h2>
 <table><thead><tr><th>Request</th><th>State</th><th>Linked work</th><th>Needs attention</th><th>Next action</th></tr></thead><tbody>
 ${report.hosted_intake
-  .map(({ subject_key, facts, issues }) => {
-    const gap = latestGap.get(subject_key);
+  .map(({ subject_key, facts, issues, latest_gap: gap }) => {
     const work = issues
       .map(
         ({ number, state, status }) =>
@@ -1520,7 +1537,13 @@ ${report.hosted_intake
       )
       .join("; ");
     return `<tr><td>${escapeHtml(subject_key)}</td><td>${escapeHtml(
-      [hostedIntakeSummary(facts), gap ? `latest read: ${gap}` : ""].filter(Boolean).join("; "),
+      [
+        hostedIntakeSummary(facts),
+        attempt ? `latest attempt failed: ${attempt}` : "",
+        gap ? `${attempt ? "previous read" : "latest read"}: ${gap}` : "",
+      ]
+        .filter(Boolean)
+        .join("; "),
     )}</td><td>${escapeHtml(work || "no linked issue observed")}</td><td>${escapeHtml(
       hostedIntakeAttention(facts).join("; "),
     )}</td><td>${escapeHtml(nextActions(report, subject_key).join("; "))}</td></tr>`;
@@ -1532,6 +1555,7 @@ ${report.hosted_intake
 /** A self-contained, searchable page; data is embedded as escaped JSON, never as markup. */
 export function renderHtml(report: InventoryReport) {
   // The page embeds only what it renders; inventory.json keeps every explanation.
+  const upstreamAttempt = failedAttempt(report, "upstream-observations");
   const view = {
     subjects: (report.subjects as Record<string, unknown>[]).map(
       ({
@@ -1558,7 +1582,7 @@ export function renderHtml(report: InventoryReport) {
         ],
         latest_health_gap,
         next_actions: nextActions(report, port_key, subject_key),
-        upstream: upstreamSummary(upstream, latest_upstream_gap),
+        upstream: upstreamSummary(upstream, latest_upstream_gap, upstreamAttempt),
         subject_key,
         name: (identity as { name?: string } | undefined)?.name ?? null,
         game: (identity as { game?: string } | undefined)?.game ?? null,
@@ -1678,6 +1702,8 @@ export interface DigestEntry {
   state: string;
   returns_to_earlier_result: boolean;
   recorded_at: string;
+  /** The recorded handoff condition for a `handoff:` subject; null otherwise. */
+  handoff_condition?: unknown;
 }
 
 /** Pending changes-only notifications; an unchanged subject never appears here. */
@@ -1687,11 +1713,13 @@ export function buildDigest(environment: NodeJS.ProcessEnv) {
       environment,
       `SELECT coalesce(json_agg(json_build_object('notification_key', n.notification_key, 'subject_key', n.subject_key,
           'sequence', t.sequence, 'previous_state', p.state, 'state', t.state,
-          'returns_to_earlier_result', t.returns_to_earlier_result, 'recorded_at', t.recorded_at)
+          'returns_to_earlier_result', t.returns_to_earlier_result, 'recorded_at', t.recorded_at,
+          'handoff_condition', CASE WHEN starts_with(n.subject_key, 'handoff:') THEN a.explanation -> 'condition' END)
           ORDER BY t.recorded_at, n.subject_key COLLATE "C"), '[]')
          FROM portcove_maintenance.notifications n
          JOIN portcove_maintenance.subject_transitions t
            ON t.subject_key = n.subject_key AND t.sequence = n.transition_sequence
+         JOIN portcove_maintenance.assessments a ON a.assessment_id = t.assessment_id
          LEFT JOIN portcove_maintenance.subject_transitions p
            ON p.subject_key = t.subject_key AND p.sequence = t.sequence - 1
         WHERE n.status = 'pending';`,
@@ -1705,9 +1733,10 @@ export function renderDigestMarkdown(digest: ReturnType<typeof buildDigest>) {
   if (!digest.entries.length) return "No maintenance changes since the last delivered digest.\n";
   const line = (entry: DigestEntry) => {
     const handoff = parseHandoffSubject(entry.subject_key);
+    const registered = handoff && handoffEntry(handoff.kind);
     const action =
       handoff && entry.state === "needs-attention"
-        ? `; next action: ${handoffRegistry.find(({ kind }) => kind === handoff.kind)?.action ?? "unregistered handoff kind"} (dispatch disabled)`
+        ? `; next action: ${registered ? handoffGuidance(registered, entry.handoff_condition ?? null).action : "unregistered handoff kind"} (dispatch disabled)`
         : "";
     return `- \`${entry.subject_key}\`: ${entry.previous_state ?? "none"} → ${entry.state}${entry.returns_to_earlier_result ? " (returns to an earlier result)" : ""}${action}`;
   };
