@@ -3,6 +3,10 @@ import { LatestRequestGeneration } from "./shared/concurrency-state";
 
 export type ReviewOutcome = boolean | "cancelled";
 
+/** An unsuccessful apply without an error value. The caller's current
+ * `failureMessage` is resolved at render, so a language change updates it. */
+const unconfirmedApply = Symbol("unconfirmed apply");
+
 // Presentation-only lifecycle shared by detailed reviews; core still authorizes every action.
 export function useActionReview<T>({
   identity,
@@ -76,7 +80,7 @@ export function useActionReview<T>({
       else if (result === "cancelled") {
         cancelled = callbacks.current.retainOnCancel;
         if (!cancelled) callbacks.current.close();
-      } else setError(callbacks.current.failureMessage);
+      } else setError(unconfirmedApply);
     } catch (value) {
       if (requests.current.isCurrent(request)) setError(value);
     } finally {
@@ -87,5 +91,12 @@ export function useActionReview<T>({
       }
     }
   };
-  return { preview, pending, error, review, execute, dismiss };
+  return {
+    preview,
+    pending,
+    error: error === unconfirmedApply ? failureMessage : error,
+    review,
+    execute,
+    dismiss,
+  };
 }

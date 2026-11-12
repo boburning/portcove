@@ -99,8 +99,19 @@ fn entry_with_reference(document: &Value, reference: &str, port_index: usize) ->
     let port = &document["catalog"]["ports"][port_index];
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
-    let version = if !typed.release.tar_xz_platforms.is_empty() {
-        3
+    let version = if typed.optional_game_source {
+        // An optional game source needs staged-source capability version 31. Keep this
+        // branch first: a later capability chain that matched earlier would silently
+        // skip the requirement.
+        31
+    } else if typed.linux_portable_data_directory.is_some() {
+        crate::native_portable_data::NATIVE_CAPABILITY
+    } else if !typed.release.tar_xz_platforms.is_empty() {
+        if typed.adapter == crate::AdapterKind::NativePortable {
+            crate::runtime::NATIVE_MAC_BUNDLE_TAR_XZ_CAPABILITY
+        } else {
+            crate::runtime::GENERATED_CACHE_TAR_XZ_CAPABILITY
+        }
     } else if typed.release.grant_declared_executable {
         crate::test_fixture::grant_declared_executable_capability(&typed)
     } else if typed.portable_marker_file.is_some() {

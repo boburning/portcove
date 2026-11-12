@@ -1,0 +1,51 @@
+{
+  "brand": {
+    "mascot": "Portcove crab mascot"
+  },
+  "browserFailed": "Couldn’t open the browser: <detail/>",
+  "close": "Close",
+  "failure": {
+    "clipboardUnavailable": "Clipboard unavailable. Select and copy the technical details below.",
+    "code": "Error code",
+    "copied": "Copied",
+    "copiedStatus": "Technical details copied.",
+    "copy": "Copy technical details",
+    "manualCopy": "Technical details for manual copy",
+    "message": "Message",
+    "outcome": {
+      "committed": "The change was saved. Check the result before trying again.",
+      "noChanges": "No files were changed by this operation.",
+      "notStarted": "This operation did not start.",
+      "recoveryRequired": "An earlier attempt left unfinished work. Review recovery options before trying again.",
+      "unknown": "Portcove couldn't confirm whether anything changed. Check the result before trying again."
+    },
+    "outcomeLabel": "Outcome",
+    "phase": "Phase",
+    "viewDetails": "View technical details"
+  },
+  "filter": {
+    "close": "Close choices",
+    "closeLabel": "Close {{label}} choices",
+    "summary": "{{label}}: {{value}}"
+  },
+  "gameSearch": {
+    "empty": "No game or port matches this search.",
+    "placeholder": "Search games and port projects…",
+    "show": "Show games and ports"
+  },
+  "navigation": {
+    "back": "<key/>: Back",
+    "gamepadBack": "Back button: Back",
+    "gamepadMenu": "Back button: Menu",
+    "gamepadMove": "D-pad or stick: Move",
+    "gamepadSection": "Shoulder buttons: Switch section",
+    "gamepadSelect": "Confirm button: Select",
+    "help": "Navigation help",
+    "menu": "<key/>: Menu",
+    "move": "<key/>: Move",
+    "select": "<key/>: Select",
+    "shortcuts": "Navigation shortcuts"
+  },
+  "setupWarnings": "Before you begin",
+  "taskUpdates": "Task updates"
+}

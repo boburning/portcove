@@ -96,6 +96,33 @@ for identified consumers and retirement conditions. Preserve installed runtimes,
 originals, saves, settings, backups and recovery independently of whether the
 builder that created them remains an active feature.
 
+### Upstream listing and distribution requests
+
+Upstream maintainers and rights holders can open a
+[Portcove issue](https://github.com/boburning/portcove/issues/new?template=bug-report.yml)
+to request a listing correction, delisting, or a stop to future acquisition.
+Give the upstream project and Portcove listing or port ID, your relationship to
+the project, a public reference that establishes that relationship, and the
+affected releases, assets or routes. State the requested action and any
+published upstream disposition. Keep private material out of the public issue
+and use the [private security route](../SECURITY.md) for vulnerabilities.
+
+Catalog maintainers acknowledge the request and verify identity, affected scope
+and applicable distribution terms. They record the disposition and communicate
+the affected listing visibility, future acquisition and installed behavior on
+the request. Use the existing [listing and withdrawal owner #233](https://github.com/boburning/portcove/issues/233),
+[exact-byte acquisition owner #315](https://github.com/boburning/portcove/issues/315),
+[installed preservation owner #1306](https://github.com/boburning/portcove/issues/1306)
+and [player-facing withdrawal status owner #4882](https://github.com/boburning/portcove/issues/4882)
+for their respective changes.
+
+Temporary upstream unavailability and metadata expiry follow their existing
+availability and freshness rules. An authenticated revocation or confirmed
+distribution withdrawal follows the applicable trust and acquisition rules.
+Delisting addresses visibility. Previously installed use and exact-byte
+retention remain subject to the applicable permission, trust and preservation
+rules. Preserve player data through the existing lifecycle contract.
+
 ## Port-driven capability selection
 
 Port integration is the product outcome for every console family. Use this
@@ -277,6 +304,14 @@ contract. A Linux x86-64 GitHub package can instead declare `release.linux_tar_x
 and a required Linux TAR.XZ asset hint. That route accepts only matching TAR.XZ
 players and uses the same bounded reader as downloaded setup. Independent
 definitions require NativePortable capability 8 for this declaration.
+
+NativePortable capability 26 adds checked Mac TAR.XZ app bundles through
+`release.tar_xz_platforms`. Each declared Mac route needs its own mandatory
+GitHub archive hints, a single exact `.app/Contents/MacOS/` executable and a
+reviewed package layout. Core accepts the bundle directly or in one outer
+wrapper, refuses archive links, and checks the selected Mach-O architecture.
+Launch and declared player data use the installed folder beside the app.
+Windows and Linux routes keep their creating working-directory contracts.
 
 Native portable capability 10 supports official sibling packages on an
 original-bound Native6 definition with `windows_temp_directory`. Every platform
@@ -841,6 +876,45 @@ entries); it is accepted but not interpreted, so alternate names are ignored and
 symbolic links are not followed. The 16 GiB image bound applies to an explicitly
 added source; source discovery and batch import still stop at 2 GiB. A definition using these values must also gate older engines with a
 staged-source capability, as other new materializations do; none ships yet.
+
+### Optional game source
+
+A disc-image port may declare `optional_game_source: true`. The source is then offered
+but not required, so a player can use the manual routes (for example `AC6.iso` beside
+the executable, or hand-extracted files in the runtime folder) without choosing a disc
+image. It is valid only on a `staged-source-portable` port that declares a
+`source_profile` and `runtime_disc_image`; any other port is refused. Its effects:
+
+- An unregistered source never blocks. The install plan lists the requirement with
+  `optional: true` (omitted when false, so every other plan is unchanged), and install
+  review, update review and launch readiness ignore it: no `MissingSource` blocker, and
+  the update action stays allowed.
+- Nothing is unpacked or removed while no source is registered; the runtime and its
+  persistent files stay exactly as they are.
+- A registered source is unpacked as for a required source: it is verified, replaces the
+  destination folder transactionally and discards what was added to it by hand.
+- A registered source whose file has since gone (for example the image was deleted after
+  unpacking) is treated as absent: Play is not blocked and the unpacked folder stays. Only
+  "not found" counts as gone; a permission error or an unreachable location does not.
+- A registered source that later changed or became unreadable still holds Play until the
+  player registers it again or removes the registration. This is deliberate and fail-safe:
+  nothing is unpacked, replaced or removed in the meantime.
+- Choosing a valid optional source is what makes Portcove unpack at the next launch, and
+  that replaces the destination folder, which is the first time Portcove can replace a
+  hand-extracted setup. Registering the source shows no separate confirmation of that, and
+  install and update review (where `preservation_notices` appear) are not the moment it
+  happens, so the definition's player copy must say plainly that unpacking replaces the
+  folder.
+- The install, setup and update paths follow the same rule: an optional source that was
+  never registered, or whose file has gone, is simply not used; it neither fails setup nor
+  holds the Install or Update action.
+- Every other port is unchanged: a required source still blocks while unregistered or
+  missing, and the requirement serializes as before.
+
+An indexed definition that declares `optional_game_source` must require
+`staged-source-portable` capability version 31 ([definition
+delivery](DEFINITION-DELIVERY.md)); the flag is part of the installed compatibility
+identity only when set.
 
 ## Default covers
 
@@ -2342,7 +2416,8 @@ matching Linux x64 sibling when independently enrolled. Use the
 [Tony Hawk’s Pro Skater 3 record](../crates/portcove-core/catalog/ports/alexbeav-tony-hawk-s-pro-skater-3-recomp.json)
 as the example. Keep the release selector, generated executable basename,
 original-disc profile and source contract explicit. Set the value to
-`true` for a required retail SCPH-1001 BIOS with its own profile and contract.
+`true` for a required retail SCPH-1001 or SCPH-5552 BIOS with its own profile
+and contract; the kit's `game.toml` names the BIOS configuration it builds with.
 Use `"bundled-openbios"` when the reviewed kit supplies and supports OpenBIOS.
 This projects the literal `--bios bios/openbios.bin` argument and rejects a
 retail BIOS profile. Use `"split-mods"` for the reviewed dual-platform kits
@@ -2352,7 +2427,9 @@ are `mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml` and
 its other build-provided files. The existing whole-`mods` forms keep their
 original persistence scope. The split-mods form requires explicit selectors
 with the same title prefix and the platform-specific `-windows-x64.zip` and
-`-linux-x64.zip` suffixes.
+`-linux-x64.zip` suffixes. `"split-mods-openbios"` combines those split mod
+paths and selectors with the bundled OpenBIOS argument and refuses a retail
+BIOS profile, for reviewed dual-platform kits that ship and support OpenBIOS.
 
 A Linux sibling uses the same generated player basename without `.exe`, its
 own asset selector and artifact-bound source applicability.
@@ -2392,6 +2469,11 @@ unique enrollment, while selected asset coverage is deduplicated. Generated rout
 fixtures separately cover registration, managed runtime replacement and data
 ownership. Ordinary compatible successors use the unchanged authored selectors.
 [Shared release-selection fixture](../crates/portcove-core/src/testdata/windows-archive-release-selection.json).
+`node scripts/catalog-selection-enrollment.mts` transcribes the named releases
+from a configured-upstream observation into an inventory and classifies its
+remaining ZIPs. Pass the independently identified asset for each release and
+platform with `--select`; the command previews by default and writes with
+`--write`.
 
 When a managed route replaces a strict prepared-only definition, keep the exact
 previous port in a dated `*-retained-selected-YYYY-MM-DD.json` fixture and add
@@ -2931,6 +3013,38 @@ the newer Windows release's antivirus investigation remains unresolved. #139's
 policy case stays complete; #2440 owns this finite transition. #251 consumes the
 shared contract; #1306 owns preservation/failover, #315 release/distribution
 authority, #246 protected delivery and #254 proposals.
+
+### Artifact preservation capture
+
+`scripts/artifact-preservation.mts` is the maintainer-side capture contract for
+[#1306](https://github.com/boburning/portcove/issues/1306). It covers an
+explicitly declared finite scope of accepted artifacts, keyed by port, platform
+and numeric asset ID, and only for listed distribution bases. Anything outside
+that scope is recorded as `ineligible` and is never fetched. Capture streams the
+original bytes against the accepted size bound, rejects a differing SHA-256
+before publication, and publishes `<sha256>.asset` without replacing an existing
+object. A record becomes `verified` only after a separate complete read of the
+stored object matches the accepted size and SHA-256. Upload success and stream
+hashing never qualify.
+
+A replay or backfill verifies an existing object instead of uploading it again.
+A differing stored object becomes `failed` and is preserved for review, not
+overwritten. Exhausted capacity, including running out of space mid-transfer,
+records a deferred `pending` state and evicts nothing. Each artifact is recorded
+independently, so a storage error on one does not stop a backfill. Inventory
+export includes verified records only, one per accepted identity (one object
+may carry several), in a canonical order that
+gives a stable digest. Restore streams each object through the same bounded
+size and SHA-256 check before publishing it in the target. It then reads the
+target back and never changes accepted identity. Interrupted private
+`.partial-*` staging files are never usable objects. This tooling does not sweep
+abandoned ones automatically.
+
+This tooling grants no authority and changes no client behavior. Core
+acquisition still freshly observes upstream metadata as described in
+[definition delivery](DEFINITION-DELIVERY.md). No backend, credential,
+preserved location or failover path is configured. Those depend on the owner
+decision recorded on #1306.
 
 ## Read-only disappearance reporting
 

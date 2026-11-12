@@ -1157,7 +1157,8 @@
       },
       "issue_number": 143,
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "availability": "unknown"
     },
@@ -1752,9 +1753,9 @@
     },
     {
       "id": "animal-crossing-pc-port",
-      "name": "Animal Crossing PC Port",
-      "summary": "Native Animal Crossing GameCube port.",
-      "project_url": "https://github.com/flyngmt/ACGC-PC-Port",
+      "name": "Animal Crossing — Nookery",
+      "summary": "Play your own Animal Crossing GameCube disc with the native Nookery player, formerly ACGC-PC-Port.",
+      "project_url": "https://github.com/flyngmt/Nookery",
       "listed_at": "2026-10-23",
       "original_game_title": "Animal Crossing",
       "artwork": {
@@ -1767,9 +1768,54 @@
       },
       "issue_number": 108,
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
-      "availability": "unknown"
+      "availability": "packages",
+      "release_url": "https://github.com/flyngmt/Nookery/releases",
+      "setup_url": "https://github.com/flyngmt/Nookery#running-the-port-for-players",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep your original GameCube disc image",
+            "instruction": "Use an unmodified image of your own Animal Crossing USA Rev 0 disc, game ID GAFE01. Nookery lists ISO, RVZ, CISO and GCM. Select the image in Nookery and follow its verification prompts."
+          },
+          {
+            "title": "Open the Windows package",
+            "instruction": "Choose the official ZIP for Windows x64 or Windows ARM64. Extract the complete archive into a new writable folder and open Nookery.exe. Keep the package and its companions together."
+          },
+          {
+            "title": "Open the Linux package",
+            "instruction": "Choose the official Linux AppImage for x86-64 or ARM64. Mark it executable and open it. The inspected builds require glibc 2.39 or later. The usual data location is ~/.local/share/Nookery."
+          },
+          {
+            "title": "Open the macOS app",
+            "instruction": "Choose the official ZIP for Intel or Apple Silicon, then open the complete Nookery.app. The inspected apps require macOS 12 or later. Keep your data in the app’s current data folder, normally ~/Library/Application Support/Nookery."
+          },
+          {
+            "title": "Install the Android package",
+            "instruction": "On an ARM64 Android device, install the official APK using the system installer. Choose your disc image in Nookery. Open the Nookery documents provider for saves and other data. If it is missing from your file manager, try a file manager that supports system documents providers."
+          }
+        ],
+        "warnings": [
+          "The Nookery packages in this guide are installed and updated through upstream. The existing Portcove-managed Windows playtest uses AnimalCrossing.exe and its own retained setup and data contract.",
+          "Keep a separate backup before moving from a playtest or updating. Keep the original disc image, the old player and its data until you verify the town in Nookery.",
+          "Follow your operating system’s security prompts. For Android updates, back up data before installing a compatible update over the existing app."
+        ],
+        "help_url": "https://github.com/flyngmt/Nookery#data-folder",
+        "references": [
+          {
+            "title": "Find your town and settings",
+            "instruction": "On Windows the default data folder is beside Nookery.exe. On desktop, Settings > Data shows the active folder. The main town is under save/card_a; towns to visit go under save/card_b. Keep config.json, input.json, texture_pack and nes_roms in the active profile with your saves."
+          },
+          {
+            "title": "Bring a copy of a town to Nookery",
+            "instruction": "Use a backup of your own .gci save in the active save/card_a folder. Leave the old playtest folder and settings in place until you have checked the imported town."
+          }
+        ]
+      }
     },
     {
       "id": "project-picori",
@@ -3293,7 +3339,7 @@
         "steps": [
           {
             "title": "Prepare the Mac tools and setup kit",
-            "instruction": "Choose the official v0.1.4 ZIP for your Intel or Apple silicon Mac and unpack it into a writable folder. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The bundled game and BIOS generators require macOS 15 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The inspected Mac setup host requires macOS 11 or newer. The bundled game and BIOS generators require macOS 15 or newer."
           },
           {
             "title": "Supply your matching disc and BIOS",
@@ -3305,9 +3351,10 @@
           }
         ],
         "warnings": [
+          "Before replacing your kit, make a normal in-game save, close the game and keep the previous kit and memory cards. Upstream warns that save states may be incompatible across versions.",
           "Portcove has not verified Mac setup, gameplay or save compatibility for this kit."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/tag/v0.1.4",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp#readme",
         "references": [
           {
             "title": "Updates and backups",
@@ -3480,7 +3527,7 @@
         "steps": [
           {
             "title": "Prepare the Mac tools and setup kit",
-            "instruction": "Choose the official v0.1.4 ZIP for your Intel or Apple silicon Mac and unpack it into a writable folder. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The bundled game and BIOS generators require macOS 15 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The inspected Mac setup host requires macOS 11 or newer. The bundled game and BIOS generators require macOS 15 or newer."
           },
           {
             "title": "Supply your matching disc and BIOS",
@@ -3492,9 +3539,10 @@
           }
         ],
         "warnings": [
+          "Before replacing your kit, make a normal in-game save, close the game and keep the previous kit and memory cards. Upstream warns that save states may be incompatible across versions.",
           "Portcove has not verified Mac setup, gameplay or save compatibility for this kit."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/tag/v0.1.4",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp#readme",
         "references": [
           {
             "title": "Updates and backups",
@@ -5418,7 +5466,7 @@
         "steps": [
           {
             "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "instruction": "Choose the official ZIP for your system from the upstream releases and extract it to a writable folder. On Mac, use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Follow the setup instructions included in your kit."
           },
           {
             "title": "Install the build tools",
@@ -5437,7 +5485,7 @@
           "Portcove has not verified native setup, gameplay or save compatibility for this kit.",
           "The v0.1.0 kit can assign the discs during setup. Its game configuration says switching discs during play is unimplemented."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp#readme",
         "references": [
           {
             "title": "Linux and Mac compatibility",
@@ -5506,7 +5554,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -5517,7 +5565,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -5582,7 +5630,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -5593,7 +5641,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -5729,7 +5777,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -5740,7 +5788,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -5947,7 +5995,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -5958,7 +6006,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -6226,7 +6274,7 @@
         "steps": [
           {
             "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "instruction": "Choose the official ZIP for your system from the upstream releases and extract it to a writable folder. On Mac, use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Follow the setup instructions included in your kit."
           },
           {
             "title": "Install the build tools",
@@ -6245,7 +6293,7 @@
           "Use the retail European disc for this kit. A prerelease disc shares its first data track and 12-track count.",
           "Portcove has not verified native setup, gameplay or save compatibility for this kit."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp#readme",
         "references": [
           {
             "title": "Linux and Mac compatibility",
@@ -6386,7 +6434,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -6397,7 +6445,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -6462,7 +6510,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -6473,7 +6521,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -6529,7 +6577,7 @@
         "steps": [
           {
             "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "instruction": "Choose the official ZIP for your system from the upstream releases and extract it to a writable folder. On Mac, use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Follow the setup instructions included in your kit."
           },
           {
             "title": "Install the build tools",
@@ -6548,7 +6596,7 @@
           "Portcove has not verified native setup, gameplay or save compatibility for this kit.",
           "The v0.1.0 kit can assign the discs during setup. Its game configuration says switching discs during play is unimplemented."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp#readme",
         "references": [
           {
             "title": "Linux and Mac compatibility",
@@ -6897,7 +6945,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -6908,7 +6956,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -7043,7 +7091,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -7054,7 +7102,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -7110,7 +7158,7 @@
         "steps": [
           {
             "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "instruction": "Choose the official ZIP for your system from the upstream releases and extract it to a writable folder. On Mac, use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Follow the setup instructions included in your kit."
           },
           {
             "title": "Install the build tools",
@@ -7129,7 +7177,7 @@
           "Portcove has not verified native setup, gameplay or save compatibility for this kit.",
           "The v0.1.0 kit can assign the discs during setup. Its game configuration says switching discs during play is unimplemented."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/galerians-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/galerians-recomp#readme",
         "references": [
           {
             "title": "Linux and Mac compatibility",
@@ -7339,7 +7387,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -7350,7 +7398,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -7485,7 +7533,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -7496,7 +7544,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -7561,7 +7609,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -7572,7 +7620,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -7852,7 +7900,7 @@
           },
           {
             "title": "Prepare a separate Mac player",
-            "instruction": "Choose the official v0.1.4 ZIP for your Intel or Apple silicon Mac and unpack it into a writable folder. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The bundled game and BIOS generators require macOS 15 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The inspected Mac setup host requires macOS 11 or newer. The bundled game and BIOS generators require macOS 15 or newer."
           },
           {
             "title": "Build and add the player on Mac",
@@ -7860,10 +7908,11 @@
           }
         ],
         "warnings": [
+          "Before replacing your kit, make a normal in-game save, close the game and keep the previous kit and memory cards. Upstream warns that save states may be incompatible across versions.",
           "Portcove checks the first data track and the track count. Keep the entire original disc intact.",
           "Portcove has not verified Mac setup, native gameplay or populated-save compatibility for this kit."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp/releases/tag/v0.1.4",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp#readme",
         "references": [
           {
             "title": "Updates and backups",
@@ -8002,7 +8051,7 @@
           },
           {
             "title": "Prepare a separate Mac player",
-            "instruction": "Choose the official v0.1.4 ZIP for your Intel or Apple silicon Mac and unpack it into a writable folder. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The bundled game and BIOS generators require macOS 15 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The inspected Mac setup host requires macOS 11 or newer. The bundled game and BIOS generators require macOS 15 or newer."
           },
           {
             "title": "Build and add the player on Mac",
@@ -8010,10 +8059,11 @@
           }
         ],
         "warnings": [
+          "Before replacing your kit, make a normal in-game save, close the game and keep the previous kit and memory cards. Upstream warns that save states may be incompatible across versions.",
           "Portcove checks the first data track and the track count. Keep the entire original disc intact.",
           "Portcove has not verified Mac setup, native gameplay or populated-save compatibility for this kit."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp/releases/tag/v0.1.4",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp#readme",
         "references": [
           {
             "title": "Updates and backups",
@@ -8192,7 +8242,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -8203,7 +8253,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -8544,7 +8594,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -8555,7 +8605,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -8728,7 +8778,8 @@
     {
       "id": "alexbeav-mortal-kombat-trilogy-recomp",
       "name": "Mortal Kombat Trilogy / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play Mortal Kombat Trilogy on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-5552 BIOS. You can also use a separately prepared upstream copy.",
+      "original_game_title": "Mortal Kombat Trilogy",
       "project_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp",
       "issue_number": 468,
       "listed_at": "2026-10-23",
@@ -8752,7 +8803,7 @@
         "steps": [
           {
             "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
           },
           {
             "title": "Supply the matching original files",
@@ -8760,7 +8811,7 @@
           },
           {
             "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Mortal_Kombat_Trilogy_Recompiled as the program and build-release as the start folder."
           }
         ],
         "warnings": [
@@ -8831,7 +8882,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -8842,7 +8893,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -9156,7 +9207,8 @@
     {
       "id": "alexbeav-quake-ii-recomp",
       "name": "Quake II / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play Quake II on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "original_game_title": "Quake II",
       "project_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp",
       "issue_number": 474,
       "listed_at": "2026-10-23",
@@ -9180,7 +9232,7 @@
         "steps": [
           {
             "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
           },
           {
             "title": "Supply the matching original files",
@@ -9188,7 +9240,7 @@
           },
           {
             "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Quake_II_Recompiled as the program and build-release as the start folder."
           }
         ],
         "warnings": [
@@ -9399,7 +9451,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -9410,7 +9462,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -9475,7 +9527,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -9486,7 +9538,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -9551,7 +9603,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -9562,7 +9614,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -9594,7 +9646,8 @@
     {
       "id": "alexbeav-silent-bomber-recomp",
       "name": "Silent Bomber / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play Silent Bomber on Windows or Linux with your own matching Europe PlayStation disc and retail SCPH-5552 BIOS. You can also use a separately prepared upstream copy.",
+      "original_game_title": "Silent Bomber",
       "project_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp",
       "issue_number": 478,
       "listed_at": "2026-10-23",
@@ -9618,7 +9671,7 @@
         "steps": [
           {
             "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
           },
           {
             "title": "Supply the matching original files",
@@ -9626,7 +9679,7 @@
           },
           {
             "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Silent_Bomber_Recompiled as the program and build-release as the start folder."
           }
         ],
         "warnings": [
@@ -9697,7 +9750,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -9708,7 +9761,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -9834,7 +9887,7 @@
           },
           {
             "title": "Prepare a separate Mac player",
-            "instruction": "Choose the official v0.1.4 ZIP for your Intel or Apple silicon Mac and unpack it into a writable folder. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The bundled game and BIOS generators require macOS 15 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The inspected Mac setup host requires macOS 11 or newer. The bundled game and BIOS generators require macOS 15 or newer."
           },
           {
             "title": "Build and add the player on Mac",
@@ -9842,10 +9895,11 @@
           }
         ],
         "warnings": [
+          "Before replacing your kit, make a normal in-game save, close the game and keep the previous kit and memory cards. Upstream warns that save states may be incompatible across versions.",
           "Portcove checks the first data track and the track count. Keep the entire original disc intact.",
           "Portcove has not verified Mac setup, native gameplay or populated-save compatibility for this kit."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/releases/tag/v0.1.4",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp#readme",
         "references": [
           {
             "title": "Updates and backups",
@@ -9985,7 +10039,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -9996,7 +10050,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -10028,7 +10082,8 @@
     {
       "id": "alexbeav-suikoden-recomp",
       "name": "Suikoden / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play Suikoden on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-5552 BIOS. You can also use a separately prepared upstream copy.",
+      "original_game_title": "Suikoden",
       "project_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp",
       "issue_number": 481,
       "listed_at": "2026-10-23",
@@ -10052,7 +10107,7 @@
         "steps": [
           {
             "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
           },
           {
             "title": "Supply the matching original files",
@@ -10060,7 +10115,7 @@
           },
           {
             "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Suikoden_Recompiled as the program and build-release as the start folder."
           }
         ],
         "warnings": [
@@ -10202,7 +10257,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -10213,7 +10268,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -10278,7 +10333,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -10289,7 +10344,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -11175,16 +11230,16 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the v0.1.1 setup kit",
-            "instruction": "Extract the complete ZIP for your system into a writable folder. Choose the Intel or Apple silicon ZIP that matches your Mac."
+            "title": "Unpack the stable setup kit",
+            "instruction": "Extract the complete ZIP for your system into a writable folder. Choose the Intel or Apple silicon ZIP that matches your Mac. Check the release notes for that kit’s prerequisites."
           },
           {
             "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3. The upstream wizard downloads the build-tool pack on first rebuild. On Linux and Mac, put CMake, Ninja, Python 3 and a native C/C++ compiler on PATH."
+            "instruction": "On Windows, install Python 3. The upstream wizard downloads the build-tool pack on first rebuild. On Linux and Mac, put CMake, Ninja, a supported Python 3 version and a native C/C++ compiler on PATH."
           },
           {
             "title": "Supply the matching original files",
-            "instruction": "Select your own Vib-Ribbon (Europe) (En,Fr,De,Es,It).cue (SCES-02873) with all 8 referenced BIN tracks. The v0.1.1 setup wizard requires CUE and BIN files. Supply your own 524,288-byte European BIOS matching SHA-256 1faaa18fa820a0225e488d9f086296b8e6c46df739666093987ff7d8fd352c09."
+            "instruction": "Select your own Vib-Ribbon (Europe) (En,Fr,De,Es,It).cue (SCES-02873) with all 8 referenced BIN tracks. The v0.1.2 kit requires your own 524,288-byte SCPH-5552 (Europe) retail BIOS with SHA-256 1faaa18fa820a0225e488d9f086296b8e6c46df739666093987ff7d8fd352c09."
           },
           {
             "title": "Build and add the completed player",
@@ -11192,18 +11247,18 @@
           }
         ],
         "warnings": [
-          "Use the exact BIOS file for this kit. Its README labels that European profile SCPH-5502/5552. The Vib-Ribbon disc remains specific to this release.",
+          "Check the README-SETUP.txt inside your exact kit for its BIOS requirement. Older kits can require a different dump. Keep the original files and the working kit together.",
           "Portcove has not verified native setup, gameplay or save compatibility."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/releases/tag/v0.1.1",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/releases",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host needs glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26 and OpenGL. The Mac setup host and its bundled generators declare macOS 11 or newer."
+            "title": "Check Linux and Mac prerequisites",
+            "instruction": "Check the release notes for the kit’s Python version, macOS minimum and required libraries before starting setup. The v0.1.2 kits need Python 3.10 or newer on Linux and Mac. The Mac setup uses Apple clang 15 and needs Homebrew’s OpenSSL, FreeType and HarfBuzz libraries."
           },
           {
             "title": "Keep your working copy and data",
-            "instruction": "Close the player before replacing the kit. Keep the working folder, original disc and BIOS, and back up the saves, settings and mods you use. Setup, replacement and backups belong to you and the upstream kit."
+            "instruction": "Make an in-game save and close the player before updating. Back up the whole working folder, including memory cards, settings, keyboard profiles, replays and mods you use. Keep your original disc and BIOS. Save states and replays can depend on the build."
           }
         ]
       },
@@ -11336,7 +11391,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
             "title": "Build and add the completed Mac player",
@@ -11347,7 +11402,7 @@
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
           "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp/releases/tag/v0.1.0",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp#readme",
         "references": [
           {
             "title": "Keep the original files and your data",
@@ -11411,7 +11466,7 @@
           },
           {
             "title": "Prepare a separate Mac player",
-            "instruction": "Choose the official v0.1.4 ZIP for your Intel or Apple silicon Mac and unpack it into a writable folder. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The bundled game and BIOS generators require macOS 15 or newer."
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The inspected Mac setup host requires macOS 11 or newer. The bundled game and BIOS generators require macOS 15 or newer."
           },
           {
             "title": "Build and add the player on Mac",
@@ -11419,11 +11474,12 @@
           }
         ],
         "warnings": [
+          "Before replacing your kit, make a normal in-game save, close the game and keep the previous kit and memory cards. Upstream warns that save states may be incompatible across versions.",
           "The managed route checks the original European release. The European Rev 1 disc has a different identity.",
           "Portcove checks the first data track and track count. Keep the entire original disc intact.",
           "The kit records BIOS-stage audio and FMV placement defects. Portcove has not verified native setup or gameplay."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/wipeout-recomp/releases/tag/v0.1.4",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/wipeout-recomp#readme",
         "references": [
           {
             "title": "Updates and backups",
@@ -11483,16 +11539,16 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the v0.1.1 setup kit",
-            "instruction": "Extract the complete ZIP for your system into a writable folder. Choose the Intel or Apple silicon ZIP that matches your Mac."
+            "title": "Unpack the stable setup kit",
+            "instruction": "Extract the complete ZIP for your system into a writable folder. Choose the Intel or Apple silicon ZIP that matches your Mac. Check the release notes for that kit’s prerequisites."
           },
           {
             "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3. The upstream wizard downloads the build-tool pack on first rebuild. On Linux and Mac, put CMake, Ninja, Python 3 and a native C/C++ compiler on PATH."
+            "instruction": "On Windows, install Python 3. The upstream wizard downloads the build-tool pack on first rebuild. On Linux and Mac, put CMake, Ninja, a supported Python 3 version and a native C/C++ compiler on PATH."
           },
           {
             "title": "Supply the matching original files",
-            "instruction": "Select your own Wipeout XL (USA).cue (SCUS-94351) with all 12 referenced BIN tracks. The v0.1.1 setup wizard requires CUE and BIN files. Supply your own 524,288-byte European BIOS matching SHA-256 1faaa18fa820a0225e488d9f086296b8e6c46df739666093987ff7d8fd352c09."
+            "instruction": "Select your own Wipeout XL (USA).cue (SCUS-94351) with all 12 referenced BIN tracks. The v0.1.2 kit requires your own 524,288-byte SCPH-1001 (USA) retail BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3."
           },
           {
             "title": "Build and add the completed player",
@@ -11500,18 +11556,18 @@
           }
         ],
         "warnings": [
-          "Use the exact BIOS file for this kit. Its README labels that European profile SCPH-5502/5552. The Wipeout XL disc remains specific to this release.",
+          "Check the README-SETUP.txt inside your exact kit for its BIOS requirement. Older kits can require a different dump. Keep the original files and the working kit together.",
           "Portcove has not verified native setup, gameplay or save compatibility."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/releases/tag/v0.1.1",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/releases",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host needs glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26 and OpenGL. The Mac setup host and its bundled generators declare macOS 11 or newer."
+            "title": "Check Linux and Mac prerequisites",
+            "instruction": "Check the release notes for the kit’s Python version, macOS minimum and required libraries before starting setup. The v0.1.2 kits need Python 3.10 or newer on Linux and Mac. The Mac setup uses Apple clang 15 and needs Homebrew’s OpenSSL, FreeType and HarfBuzz libraries."
           },
           {
             "title": "Keep your working copy and data",
-            "instruction": "Close the player before replacing the kit. Keep the working folder, original disc and BIOS, and back up the saves, settings and mods you use. Setup, replacement and backups belong to you and the upstream kit."
+            "instruction": "Make an in-game save and close the player before updating. Back up the whole working folder, including memory cards, settings, keyboard profiles, replays and mods you use. Keep your original disc and BIOS. Save states and replays can depend on the build."
           }
         ]
       },
@@ -13421,7 +13477,7 @@
           },
           {
             "title": "Choose a fresh managed runtime or keep your external player",
-            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). On Mac, the official universal app runs with the same arguments from the folder containing reflectionhle.app. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
@@ -13429,7 +13485,7 @@
           },
           {
             "title": "Keep new private progress separate from old profiles",
-            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside the player on Windows and Linux, or beside the app bundle on Mac. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
         "warnings": [
@@ -13437,7 +13493,13 @@
           "This new installation does not import existing saves from external copies or the original DOS game. Save compatibility has not been confirmed. Keep those saves and the game versions that created them separately.",
           "Matching original game files are required to play and are not included. Existing saves are not imported, and compatibility with saves from other versions has not been confirmed."
         ],
-        "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+        "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
+        "references": [
+          {
+            "title": "Set up Android with the upstream app",
+            "instruction": "Use the official Android APK from the upstream releases. In its launcher, select this entry’s exact game version and complete matching original folder. The app may ask for broad storage access to browse shared folders. Keep your originals separately and back up the app’s appdata folder, where accessible, before replacing the app. Android installation and updates are handled by you and the upstream app."
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -13447,7 +13509,9 @@
       },
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -13870,7 +13934,7 @@
     {
       "id": "blast-corps-power-dozer",
       "name": "Blast Corps (Power Dozer)",
-      "summary": "A native Blast Corps player using your own USA revision 1 cartridge dump. Portcove manages the official Windows x64 package and preserves its default local game data; upstream owns original-game import.",
+      "summary": "A native Blast Corps player using your own USA revision 1 cartridge dump. Portcove manages the official Windows x64 and Linux x86-64 packages and preserves their default local game data; upstream owns original-game import.",
       "original_game_title": "Blast Corps",
       "project_url": "https://github.com/djultra64/Power-Dozer",
       "issue_number": 2557,
@@ -13894,12 +13958,12 @@
             "instruction": "Choose your own Blast Corps USA revision 1 dump through the upstream in-process selector. It accepts .z64, .v64, .n64 or a single-ROM ZIP and checks normalized SHA-1 483f7161aea39de8b45c9fbc70a2c3883c4dea8c. The game stores its own normalized copy under data/cache/rom.z64. Core does not acquire or authenticate your cartridge dump; keep the original separately and do not share a data backup containing it."
           },
           {
-            "title": "Use the complete Windows package",
-            "instruction": "The official v0.84 Windows ZIP is an experimental beta despite its stable release stream. Keep power-dozer.exe, its matching DLLs and notices together. Windows x64 needs SSSE3/SSE4.1, Vulkan drivers and the Microsoft Visual C++ x64 runtime linked in the packaged README. No game compiler, installer or command wrapper is required for the normal native entry. Other platforms remain upstream-owned."
+            "title": "Use the complete Windows or Linux package",
+            "instruction": "The official v0.84 Windows ZIP and Linux x86-64 archive are experimental betas despite their stable release stream. Keep power-dozer.exe, its matching DLLs and notices together. Windows x64 needs SSSE3/SSE4.1, Vulkan drivers and the Microsoft Visual C++ x64 runtime linked in the packaged README. On Linux, keep power-dozer with its lib and licenses folders; it needs SSSE3/SSE4.1, glibc 2.38 or later, libz, Vulkan drivers, X11 or XWayland and a desktop file chooser. Portcove starts power-dozer directly, so the bundled Run Power Dozer.sh script is not needed. No game compiler or installer is required. Other platforms remain upstream-owned."
           },
           {
             "title": "Preserve game data and external diagnostics",
-            "instruction": "For the managed Windows route, Portcove sets BLASTCORPS_DATA_DIR=data with the executable directory as working directory. It preserves the complete local data folder across compatible package updates and rollback, including cached original, EEPROM, committed Controller Pak data, settings, controls, backups and interrupted temporary files. A rollback does not rewind saves or guarantee that an older runtime reads newer state. In-progress Controller Pak game transactions follow upstream commit markers; this is not a guarantee of unsaved gameplay recovery. The separate %LOCALAPPDATA%/blastcorps-feasibility RT64 diagnostics and ImGui profile remain external and outside Portcove backup/removal. Keep a separate backup of actual custom --data-dir, capture or debug paths; Portcove does not import or migrate them. Close the actual player before deliberate external changes."
+            "instruction": "For the managed Windows and Linux routes, Portcove sets BLASTCORPS_DATA_DIR=data with the executable directory as working directory. It preserves the complete local data folder across compatible package updates and rollback, including cached original, EEPROM, committed Controller Pak data, settings, controls, backups and interrupted temporary files. A rollback does not rewind saves or guarantee that an older runtime reads newer state. In-progress Controller Pak game transactions follow upstream commit markers; this is not a guarantee of unsaved gameplay recovery. The separate RT64 diagnostics and ImGui profile remain external and outside Portcove backup/removal: %LOCALAPPDATA%/blastcorps-feasibility on Windows, and ~/.config/.blastcorps-feasibility on Linux, or ~/.blastcorps-feasibility when ~/.config does not exist. Keep a separate backup of actual custom --data-dir, capture or debug paths; Portcove does not import or migrate them. Close the actual player before deliberate external changes."
           },
           {
             "title": "Keep one replacement owner",
@@ -13910,7 +13974,8 @@
         "help_url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/README.md"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -14823,7 +14888,7 @@
         "steps": [
           {
             "title": "Select your original in the game",
-            "instruction": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows archive already contains the Godot player and its required companions."
+            "instruction": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows and Linux archives already contain the Godot player and its required companions. The Linux player and its bundled libraries need glibc 2.38 or later and GCC 13’s libstdc++."
           }
         ],
         "warnings": [],
@@ -14831,7 +14896,8 @@
       },
       "original_game_title": "Super Mario 64",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -16051,7 +16117,7 @@
           },
           {
             "title": "Choose a fresh managed runtime or keep your external player",
-            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). On Mac, the official universal app runs with the same arguments from the folder containing reflectionhle.app. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
@@ -16059,7 +16125,7 @@
           },
           {
             "title": "Keep new private progress separate from old profiles",
-            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside the player on Windows and Linux, or beside the app bundle on Mac. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
         "warnings": [
@@ -16067,7 +16133,13 @@
           "This new installation does not import existing saves from external copies or the original DOS game. Save compatibility has not been confirmed. Keep those saves and the game versions that created them separately.",
           "Matching original game files are required to play and are not included. Existing saves are not imported, and compatibility with saves from other versions has not been confirmed."
         ],
-        "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+        "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
+        "references": [
+          {
+            "title": "Set up Android with the upstream app",
+            "instruction": "Use the official Android APK from the upstream releases. In its launcher, select this entry’s exact game version and complete matching original folder. The app may ask for broad storage access to browse shared folders. Keep your originals separately and back up the app’s appdata folder, where accessible, before replacing the app. Android installation and updates are handled by you and the upstream app."
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -16077,7 +16149,9 @@
       },
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -16825,7 +16899,8 @@
       "original_game_title": "Colin McRae Rally 2.0",
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -30219,7 +30294,7 @@
         "steps": [
           {
             "title": "Prepare your original game",
-            "instruction": "Use the linked upstream guided installer/setup instructions for your own English LEGO Island 1.1 data. For this portable archive, run the included bin/isle-config.exe yourself, choose the original data and save locations, and save the configuration. Portcove’s Play target is bin/isle.exe; read-only discovery and installation do not run the configuration helper. The continuous channel follows upstream’s ongoing builds and may regress."
+            "instruction": "Use the linked upstream guided installer/setup instructions for your own English LEGO Island 1.1 data. For this portable archive, run the included bin/isle-config.exe yourself, choose the original data and save locations, and save the configuration. Portcove’s Play target is bin/isle.exe; read-only discovery and installation do not run the configuration helper. On Linux x86-64, run the included bin/isle-config yourself (it needs Qt 6 from your distribution); Portcove’s Play target is bin/isle. Keep bin/ and lib/ together. The Linux player and its bundled libraries need glibc 2.43 or later, GCC 13’s libstdc++ and OpenGL ES 2 with GLVND. The continuous channel follows upstream’s ongoing builds and may regress."
           }
         ],
         "warnings": [],
@@ -30227,7 +30302,8 @@
       },
       "original_game_title": "LEGO Island",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -31650,7 +31726,7 @@
           },
           {
             "title": "Choose a fresh managed runtime or keep your external player",
-            "instruction": "For a new Portcove installation, choose Install, then Play when ready. In the upstream launcher, select this entry’s exact game/version and complete original-data folder. Portcove does not choose the title or authenticate originals for you. It starts reflectionhle.exe from its parent folder with four separate arguments: `-datadir`, `.`, `-cfgdir`, `.`. The upstream launcher creates version-specific writable folders after accepting the originals. For an existing external copy, keep the normal upstream setup: extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe and its containing folder, leaving arguments empty for the game/version picker. Saving launch details does not start the game; choose Play separately, then select originals in the upstream launcher. Portcove does not run an original DOS executable or setup helper."
+            "instruction": "For a new Portcove installation, choose Install, then Play when ready. In the upstream launcher, select this entry’s exact game/version and complete original-data folder. Portcove does not choose the title or authenticate originals for you. It starts reflectionhle.exe from its parent folder with four separate arguments: `-datadir`, `.`, `-cfgdir`, `.`. On Mac, the official universal app runs with the same arguments from the folder containing reflectionhle.app. The upstream launcher creates version-specific writable folders after accepting the originals. For an existing external copy, keep the normal upstream setup: extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe and its containing folder, leaving arguments empty for the game/version picker. Saving launch details does not start the game; choose Play separately, then select originals in the upstream launcher. Portcove does not run an original DOS executable or setup helper."
           },
           {
             "title": "Preserve the shared profile and each game version",
@@ -31658,7 +31734,7 @@
           },
           {
             "title": "Keep new private progress separate from old profiles",
-            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside the player on Windows and Linux, or beside the app bundle on Mac. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
         "warnings": [
@@ -31666,7 +31742,13 @@
           "This new installation does not import existing saves from external copies or the original DOS game. Save compatibility has not been confirmed. Keep those saves and the game versions that created them separately.",
           "Matching original game files are required to play and are not included. Existing saves are not imported, and compatibility with saves from other versions has not been confirmed."
         ],
-        "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+        "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
+        "references": [
+          {
+            "title": "Set up Android with the upstream app",
+            "instruction": "Use the official Android APK from the upstream releases. In its launcher, select this entry’s exact game version and complete matching original folder. The app may ask for broad storage access to browse shared folders. Keep your originals separately and back up the app’s appdata folder, where accessible, before replacing the app. Android installation and updates are handled by you and the upstream app."
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -31676,7 +31758,9 @@
       },
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -32489,7 +32573,8 @@
       "original_game_title": "Knuckles' Chaotix",
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -34413,15 +34498,15 @@
         "steps": [
           {
             "title": "Prepare your original game on Windows",
-            "instruction": "Keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required."
+            "instruction": "On Windows, keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required."
           },
           {
             "title": "Set up MDK on Linux",
-            "instruction": "Choose mdk-linux-x64.tar.gz or mdk-linux-arm64.tar.gz from the stable releases. Use a Vulkan driver and keep libSDL3.so beside mdk_sdl. Point MDK_DATA_DIR or the [paths] mdk entry in mdk_paths.cfg at your complete original installation. The inspected v1.2.6 x86-64 player needs glibc 2.43 or later and its ARM64 sibling needs glibc 2.38 or later."
+            "instruction": "On x86-64 Linux, Portcove can install and update the official mdk-linux-x64.tar.gz player. Linux has no default game-location detection, so create mdk_paths.cfg beside mdk_sdl and name your complete original installation in its [paths] mdk setting; Portcove does not pass MDK_DATA_DIR to the game. For an ARM64 copy you maintain, choose mdk-linux-arm64.tar.gz from the stable releases, keep libSDL3.so beside mdk_sdl, and point MDK_DATA_DIR or the [paths] mdk entry in mdk_paths.cfg at your original installation. Use a Vulkan driver. The inspected v1.2.6 x86-64 player needs glibc 2.43 or later and its ARM64 sibling needs glibc 2.38 or later."
           },
           {
             "title": "Set up MDK on an Apple silicon Mac",
-            "instruction": "Choose mdk-osx-arm64.zip from the stable releases. Keep libSDL3.dylib beside mdk_sdl and use MDK_DATA_DIR or mdk_paths.cfg to point at your complete original installation. The inspected v1.2.6 package requires macOS 12 or later with Metal. Review the publisher and your Mac’s download security prompts before opening the player."
+            "instruction": "Portcove can install and update the official mdk-osx-arm64.zip player. Create mdk_paths.cfg beside mdk_sdl and name your complete original installation in its [paths] mdk setting; Portcove does not pass MDK_DATA_DIR to the game. Keep libSDL3.dylib beside mdk_sdl. The inspected v1.2.6 package requires macOS 12 or later with Metal."
           },
           {
             "title": "Set up MDK on Android",
@@ -34429,13 +34514,13 @@
           }
         ],
         "warnings": [
-          "Optional HD texture generation downloads and starts a separate upscaling tool. Let it finish, or cancel and confirm it has stopped before updating, backing up or removing the player. You and upstream maintain the Linux, Mac and Android copies."
+          "Optional HD texture generation downloads and starts a separate upscaling tool. Let it finish, or cancel and confirm it has stopped before updating, backing up or removing the player. You and upstream maintain the Linux ARM64 and Android copies."
         ],
         "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/main/README.md",
         "references": [
           {
             "title": "Keep your desktop files",
-            "instruction": "For a Linux or Mac copy you maintain, keep settings.cfg, saves, mods, captures and custom exports. Keep the whole MDK_USER_DIR if you set it, or the actual user-data fallback if the player folder is read-only. On first portable start, upstream can copy settings and saves from an older personal profile. Keep both copies until you know which one the player uses. Keep mdk_paths.cfg and your originals separately."
+            "instruction": "For a Linux ARM64 copy you maintain, keep settings.cfg, saves, mods, captures and custom exports. Keep the whole MDK_USER_DIR if you set it, or the actual user-data fallback if the player folder is read-only. On first portable start, upstream can copy settings and saves from an older personal profile. Keep both copies until you know which one the player uses. Keep mdk_paths.cfg and your originals separately."
           }
         ]
       },
@@ -34444,15 +34529,7 @@
         "windows-x86-64",
         "linux-x86-64",
         "macos-aarch64"
-      ],
-      "download_asset_hints": {
-        "linux-x86-64": [
-          "mdk-linux-x64.tar.gz"
-        ],
-        "macos-aarch64": [
-          "mdk-osx-arm64.zip"
-        ]
-      }
+      ]
     },
     {
       "id": "mdomangue26-thebigs2",
@@ -34528,11 +34605,11 @@
         "steps": [
           {
             "title": "Keep the complete portable player",
-            "instruction": "The inspected Windows ZIP contains tails-adventure.exe and its assets tree; no original ROM, BIOS, first-run extraction or compilation is required by this route. Keep matching assets/default_config and packaged resources."
+            "instruction": "The inspected Windows ZIP and Linux x86-64 TAR.XZ contain tails-adventure.exe or tails-adventure and its assets tree; no original ROM, BIOS, first-run extraction or compilation is required by this route. Keep matching assets/default_config and packaged resources."
           },
           {
             "title": "Keep your saves, options and mods",
-            "instruction": "The Windows player stores both options and saved progress in config beside the executable. Supported mods live in mods/ beside it. Keep both with their creating runtime and close the game normally before maintenance: the inspected title writes config during shutdown. Put replacement content in the supported mods tree; direct edits to shipped assets are outside the declared preserved data and can block update or removal until preserved and reconciled. Runtime rollback retains current data and does not rewind saves or guarantee cross-version mod/save compatibility."
+            "instruction": "The Windows and Linux players store both options and saved progress in config beside the executable. Supported mods live in mods/ beside it. Keep both with their creating runtime and close the game normally before maintenance: the inspected title writes config during shutdown. Put replacement content in the supported mods tree; direct edits to shipped assets are outside the declared preserved data and can block update or removal until preserved and reconciled. Runtime rollback retains current data and does not rewind saves or guarantee cross-version mod/save compatibility."
           }
         ],
         "warnings": [
@@ -34541,7 +34618,8 @@
       },
       "original_game_title": "Tails Adventure",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "availability": "unknown"
     },
@@ -36324,15 +36402,6 @@
         "match_kind": "underlying-game"
       },
       "original_game_title": "Zombies Ate My Neighbors",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
-      "download_asset_hints": {
-        "linux-x86-64": [
-          "zamn-linux-x86_64.tar.gz"
-        ]
-      },
       "release_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port/releases/latest",
       "manual_setup": {
         "steps": [
@@ -36345,8 +36414,8 @@
             "instruction": "Open the installed zamn_launcher.exe and select your original ROM in the game settings. Keep zamn.exe and SDL2 beside the launcher."
           },
           {
-            "title": "Run the upstream Linux launcher",
-            "instruction": "Extract zamn-linux-x86_64.tar.gz and run ./zamn_launcher from the extracted zamn folder. Keep the launcher, zamn and the bundled SDL2 library together. On Linux you can type the ROM path or drop the file onto the launcher."
+            "title": "Start the managed Linux player",
+            "instruction": "Open the installed zamn_launcher and select your original ROM in the launcher; you can type the ROM path or drop the file onto it. Keep the launcher, zamn and the bundled SDL2 library together."
           }
         ],
         "warnings": [
@@ -36364,6 +36433,10 @@
         ],
         "help_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port"
       },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
       "availability": "unknown"
     },
     {
@@ -38797,8 +38870,8 @@
             "instruction": "For an existing upstream installation, select OpenSC2K.exe and its folder. Portable copies use the data folder beside the player; standard Windows copies use the OpenSC2K Godot user profile. Keep the profile used by that copy when updating it."
           },
           {
-            "title": "Open the upstream Linux archive",
-            "instruction": "Choose the x64 or ARM64 archive for your Linux system. Extract it completely and run OpenSC2K.x86_64 or OpenSC2K.arm64 from its folder. Keep the PCK, shared libraries and bundled SoundFont beside the player."
+            "title": "Install the Linux x64 player",
+            "instruction": "Install the official x64 archive through Portcove. On first Play, use the same original SimCity 2000 import. Portcove prepares the portable data folder beside OpenSC2K.x86_64. Keep existing standard Linux profiles with their existing copies. For an external x64 or ARM64 copy, extract the complete archive and keep the PCK, shared libraries and bundled SoundFont beside the player."
           },
           {
             "title": "Copy the upstream Mac app to Applications",
@@ -38817,7 +38890,7 @@
         "references": [
           {
             "title": "Check the inspected desktop packages",
-            "instruction": "The v0.3.0 Linux archives require glibc 2.34 or later. The universal Mac app requires macOS 11 on Intel or macOS 13 on Apple Silicon. Linux standard copies use the Godot profile by default. The Mac app always uses that profile. You and upstream maintain these Linux, Mac and Windows on Arm copies."
+            "instruction": "The inspected v0.3.0 Linux x64 and ARM64 archives include runtime modules that need glibc 2.35 and a bundled MIDI library that needs glibc 2.38. Use glibc 2.38 or later for the complete bundled package. The universal Mac app requires macOS 11 on Intel or macOS 13 on Apple Silicon. Linux standard copies use the Godot profile by default. The Mac app always uses that profile. You and upstream maintain external Linux, Mac and Windows on Arm copies."
           }
         ]
       },
@@ -38905,12 +38978,16 @@
     {
       "id": "njh-1001-wipeout2k97xl",
       "name": "Wipeout XL / Wipeout XL Recompiled (NJH-1001)",
-      "summary": "Documented Windows Wipeout XL preparation and completed native build route from your own exact PlayStation disc. Select the finished build-release/Wipeout2K97XL.exe; upstream owns generation, rebuilding and player data.",
+      "summary": "Build and play Wipeout XL on Windows or Linux with your own matching USA PlayStation disc and the kit's bundled OpenBIOS. You can also use a separately prepared upstream copy.",
+      "original_game_title": "Wipeout XL",
       "project_url": "https://github.com/NJH-1001/Wipeout2K97XL",
       "issue_number": 1908,
       "listed_at": "2026-10-23",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/NJH-1001/Wipeout2K97XL",
       "artwork": {
         "game_id": 1538,
@@ -46662,7 +46739,7 @@
         "steps": [
           {
             "title": "Prepare your original game",
-            "instruction": "Before first Play, copy your own supported Rise of the Triad DARKWAR.RTC/RTL/WAD or supported shareware HUNTBGIN.RTC/RTL/WAD into the folder beside barrett.exe, together with upstream’s required DEMO1_3.DMO through DEMO4_3.DMO and REMOTE1.RTS. Keep the original source copy and the packaged SDL2/SDL2_mixer libraries. The native archive needs no installer or compiler; this upstream beta is offered through Preview."
+            "instruction": "Before first Play, copy your own supported Rise of the Triad DARKWAR.RTC/RTL/WAD or supported shareware HUNTBGIN.RTC/RTL/WAD into the folder beside barrett.exe on Windows or barrett on Linux and Apple silicon Macs, together with upstream’s required DEMO1_3.DMO through DEMO4_3.DMO and REMOTE1.RTS. Keep the original source copy and the packaged Windows SDL2/SDL2_mixer libraries. On Linux, install SDL2 and SDL2_mixer from your distribution, use glibc 2.38 or later, and keep the uppercase file names shown here so Portcove preserves them. On an Apple silicon Mac, use macOS 15 or later and install SDL2 and SDL2_mixer with Homebrew in /opt/homebrew. The native archive needs no installer or compiler; this upstream beta is offered through Preview."
           }
         ],
         "warnings": [],
@@ -46670,7 +46747,9 @@
       },
       "original_game_title": "Rise of the Triad",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -47844,7 +47923,7 @@
         "steps": [
           {
             "title": "Prepare your original game",
-            "instruction": "For the managed direct-player route, copy your own original PC Sheep, Dog ’n’ Wolf game data into game-data beside SheepD3D.exe, with Levels directly inside game-data. Keep the original executable and DLLs in the source copy. The maintained --game-dir=game-data argument selects that folder; the game reads its saved rendering/input options. No engine compilation is needed. For external registration, supply your actual --game-dir=PATH in Change launch details, or use upstream’s SheepLauncher.exe workflow with its own installation."
+            "instruction": "For the managed direct-player route, copy your own original PC Sheep, Dog ’n’ Wolf game data into game-data beside SheepD3D.exe on Windows or SheepD3D on Linux, with Levels directly inside game-data. Keep the original executable and DLLs in the source copy. The maintained --game-dir=game-data argument selects that folder; the game reads its saved rendering/input options. No engine compilation is needed. For external registration, supply your actual --game-dir=PATH in Change launch details, or use upstream’s SheepLauncher.exe workflow with its own installation."
           }
         ],
         "warnings": [],
@@ -47852,7 +47931,8 @@
       },
       "original_game_title": "Sheep, Dog 'n' Wolf",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -50141,7 +50221,7 @@
           },
           {
             "title": "Choose a fresh managed runtime or keep your external player",
-            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). On Mac, the official universal app runs with the same arguments from the folder containing reflectionhle.app. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
@@ -50149,7 +50229,7 @@
           },
           {
             "title": "Keep new private progress separate from old profiles",
-            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside the player on Windows and Linux, or beside the app bundle on Mac. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
         "warnings": [
@@ -50157,7 +50237,13 @@
           "This new installation does not import existing saves from external copies or the original DOS game. Save compatibility has not been confirmed. Keep those saves and the game versions that created them separately.",
           "Matching original game files are required to play and are not included. Existing saves are not imported, and compatibility with saves from other versions has not been confirmed."
         ],
-        "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+        "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
+        "references": [
+          {
+            "title": "Set up Android with the upstream app",
+            "instruction": "Use the official Android APK from the upstream releases. In its launcher, select this entry’s exact game version and complete matching original folder. The app may ask for broad storage access to browse shared folders. Keep your originals separately and back up the app’s appdata folder, where accessible, before replacing the app. Android installation and updates are handled by you and the upstream app."
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -50167,7 +50253,9 @@
       },
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -51336,7 +51424,9 @@
       "original_game_title": "Starlancer",
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -51595,7 +51685,8 @@
       },
       "original_game_title": "Street Fighter III: 3rd Strike",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "availability": "unknown"
     },
@@ -51987,7 +52078,7 @@
           },
           {
             "title": "Choose a fresh managed runtime or keep your external player",
-            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). On Mac, the official universal app runs with the same arguments from the folder containing reflectionhle.app. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
@@ -51995,7 +52086,7 @@
           },
           {
             "title": "Keep new private progress separate from old profiles",
-            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside the player on Windows and Linux, or beside the app bundle on Mac. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
         "warnings": [
@@ -52003,7 +52094,13 @@
           "This new installation does not import existing saves from external copies or the original DOS game. Save compatibility has not been confirmed. Keep those saves and the game versions that created them separately.",
           "Matching original game files are required to play and are not included. Existing saves are not imported, and compatibility with saves from other versions has not been confirmed."
         ],
-        "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+        "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
+        "references": [
+          {
+            "title": "Set up Android with the upstream app",
+            "instruction": "Use the official Android APK from the upstream releases. In its launcher, select this entry’s exact game version and complete matching original folder. The app may ask for broad storage access to browse shared folders. Keep your originals separately and back up the app’s appdata folder, where accessible, before replacing the app. Android installation and updates are handled by you and the upstream app."
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -52013,7 +52110,9 @@
       },
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -54308,7 +54407,7 @@
           },
           {
             "title": "Choose a fresh managed runtime or keep your external player",
-            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). On Mac, the official universal app runs with the same arguments from the folder containing reflectionhle.app. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
@@ -54316,7 +54415,7 @@
           },
           {
             "title": "Keep new private progress separate from old profiles",
-            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside the player on Windows and Linux, or beside the app bundle on Mac. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
         "warnings": [
@@ -54324,7 +54423,13 @@
           "This new installation does not import existing saves from external copies or the original DOS game. Save compatibility has not been confirmed. Keep those saves and the game versions that created them separately.",
           "Matching original game files are required to play and are not included. Existing saves are not imported, and compatibility with saves from other versions has not been confirmed."
         ],
-        "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+        "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
+        "references": [
+          {
+            "title": "Set up Android with the upstream app",
+            "instruction": "Use the official Android APK from the upstream releases. In its launcher, select this entry’s exact game version and complete matching original folder. The app may ask for broad storage access to browse shared folders. Keep your originals separately and back up the app’s appdata folder, where accessible, before replacing the app. Android installation and updates are handled by you and the upstream app."
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -54334,7 +54439,9 @@
       },
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -54416,7 +54523,7 @@
           },
           {
             "title": "Choose a fresh managed runtime or keep your external player",
-            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). On Mac, the official universal app runs with the same arguments from the folder containing reflectionhle.app. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
@@ -54424,7 +54531,7 @@
           },
           {
             "title": "Keep new private progress separate from old profiles",
-            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside the player on Windows and Linux, or beside the app bundle on Mac. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
         "warnings": [
@@ -54432,7 +54539,13 @@
           "This new installation does not import existing saves from external copies or the original DOS game. Save compatibility has not been confirmed. Keep those saves and the game versions that created them separately.",
           "Matching original game files are required to play and are not included. Existing saves are not imported, and compatibility with saves from other versions has not been confirmed."
         ],
-        "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+        "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
+        "references": [
+          {
+            "title": "Set up Android with the upstream app",
+            "instruction": "Use the official Android APK from the upstream releases. In its launcher, select this entry’s exact game version and complete matching original folder. The app may ask for broad storage access to browse shared folders. Keep your originals separately and back up the app’s appdata folder, where accessible, before replacing the app. Android installation and updates are handled by you and the upstream app."
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -54442,7 +54555,9 @@
       },
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -54524,7 +54639,7 @@
           },
           {
             "title": "Choose a fresh managed runtime or keep your external player",
-            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). On Mac, the official universal app runs with the same arguments from the folder containing reflectionhle.app. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
@@ -54532,7 +54647,7 @@
           },
           {
             "title": "Keep new private progress separate from old profiles",
-            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside the player on Windows and Linux, or beside the app bundle on Mac. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
         "warnings": [
@@ -54540,7 +54655,13 @@
           "This new installation does not import existing saves from external copies or the original DOS game. Save compatibility has not been confirmed. Keep those saves and the game versions that created them separately.",
           "Matching original game files are required to play and are not included. Existing saves are not imported, and compatibility with saves from other versions has not been confirmed."
         ],
-        "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+        "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
+        "references": [
+          {
+            "title": "Set up Android with the upstream app",
+            "instruction": "Use the official Android APK from the upstream releases. In its launcher, select this entry’s exact game version and complete matching original folder. The app may ask for broad storage access to browse shared folders. Keep your originals separately and back up the app’s appdata folder, where accessible, before replacing the app. Android installation and updates are handled by you and the upstream app."
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -54550,7 +54671,9 @@
       },
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -60637,7 +60760,7 @@
         "steps": [
           {
             "title": "Use the modern SDL2 player and your own Kilrathi Saga data",
-            "instruction": "Use the official modern Windows x64 SDL2 package with all companion DLLs, or an already permitted working copy of that same route. Select normal wc1-modern.exe for an attached copy. The separate win32-msvc420 reconstruction package is not this player. Use your own full Wing Commander Kilrathi Saga installation: GAMEDAT plus STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. DOS support is partial and does not inherit this offer."
+            "instruction": "Use the official modern SDL2 package for Windows x64, Linux x86-64 or an Apple silicon Mac with all companion libraries, or an already permitted working copy of that same route. Select normal wc1-modern.exe (wc1-modern on Linux or a Mac) for an attached copy. The separate win32-msvc420 reconstruction package is not this player. Use your own full Wing Commander Kilrathi Saga installation: GAMEDAT plus STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. DOS support is partial and does not inherit this offer."
           },
           {
             "title": "Choose the actual writable original directory in upstream setup",
@@ -60662,7 +60785,9 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
       ],
       "availability": "unknown"
     },
@@ -60860,7 +60985,7 @@
           },
           {
             "title": "Choose a fresh managed runtime or keep your external player",
-            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). On Mac, the official universal app runs with the same arguments from the folder containing reflectionhle.app. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
@@ -60868,7 +60993,7 @@
           },
           {
             "title": "Keep new private progress separate from old profiles",
-            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside the player on Windows and Linux, or beside the app bundle on Mac. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
         "warnings": [
@@ -60876,7 +61001,13 @@
           "This new installation does not import existing saves from external copies or the original DOS game. Save compatibility has not been confirmed. Keep those saves and the game versions that created them separately.",
           "Matching original game files are required to play and are not included. Existing saves are not imported, and compatibility with saves from other versions has not been confirmed."
         ],
-        "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+        "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
+        "references": [
+          {
+            "title": "Set up Android with the upstream app",
+            "instruction": "Use the official Android APK from the upstream releases. In its launcher, select this entry’s exact game version and complete matching original folder. The app may ask for broad storage access to browse shared folders. Keep your originals separately and back up the app’s appdata folder, where accessible, before replacing the app. Android installation and updates are handled by you and the upstream app."
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -60886,7 +61017,9 @@
       },
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {

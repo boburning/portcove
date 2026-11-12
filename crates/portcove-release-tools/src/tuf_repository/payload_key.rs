@@ -277,7 +277,9 @@ mod tests {
 
     #[test]
     fn payload_inspection_validates_public_pin_and_profile_before_private_acquisition() {
-        let root = tempfile::tempdir().unwrap();
+        // Canonical root: macOS temp directories sit behind a system link,
+        // which the offline input reader refuses before inspecting the request.
+        let root = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
         let (public_bytes, private_bytes) = fixture("");
         fs::write(root.path().join("public"), &public_bytes).unwrap();
         let mut config = serde_json::json!({

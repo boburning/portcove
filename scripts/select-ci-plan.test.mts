@@ -1,4 +1,6 @@
 import { workflow } from "./ci-workflow-fixture.mts";
+import { parse } from "yaml";
+import { isRecord } from "./runtime-values.mts";
 import { workflowJobSource } from "./ci-workflow-fixture.mts";
 import { qualificationWorkflow } from "./ci-workflow-fixture.mts";
 import { rustTests } from "./ci-workflow-fixture.mts";
@@ -26,6 +28,8 @@ import {
   parseRawDiff,
   isInformationalPath,
   writeGithubOutputs,
+  windowsTestsDeferred,
+  liveDraftState,
 } from "./select-ci-plan.mts";
 import {
   buildValidationPlan,
@@ -843,4 +847,86 @@ void test("the classifier flags sharded browser execution only for a complete fr
     );
     assert.equal(values.get("frontend_browser_shards"), expected, file);
   }
+});
+
+void test("only a fast pull-request run of a draft that executes Rust defers the Windows partitions", () => {
+  const rustPlan = { mode: "fast" as const, groups: ["rust", "rust-quality"] as never };
+  const draft = { eventName: "pull_request", draft: "true", reused: false };
+  assert.equal(windowsTestsDeferred(rustPlan, draft), true);
+  assert.equal(windowsTestsDeferred(rustPlan, { ...draft, draft: "false" }), false);
+  assert.equal(windowsTestsDeferred(rustPlan, { ...draft, draft: undefined }), false);
+  assert.equal(windowsTestsDeferred(rustPlan, { ...draft, draft: "" }), false);
+  for (const eventName of ["push", "workflow_call", "workflow_dispatch", "schedule", undefined])
+    assert.equal(windowsTestsDeferred(rustPlan, { ...draft, eventName }), false, String(eventName));
+  assert.equal(windowsTestsDeferred(rustPlan, { ...draft, reused: true }), false);
+  assert.equal(windowsTestsDeferred({ ...rustPlan, mode: "qualification" }, draft), false);
+  assert.equal(windowsTestsDeferred({ ...rustPlan, groups: ["frontend"] as never }, draft), false);
+});
+
+void test("the draft state is read live and any doubt keeps the Windows partitions", async () => {
+  const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+  const directory = mkdtempSync(path.join(tmpdir(), "draft-state-"));
+  try {
+    const eventPath = path.join(directory, "event.json");
+    writeFileSync(eventPath, JSON.stringify({ pull_request: { number: 12, draft: true } }));
+    const pull =
+      (draft: unknown, number = 12) =>
+      async (route: string) => {
+        assert.equal(route, "pulls/12");
+        return { number, draft };
+      };
+    const state = (read: (route: string) => Promise<unknown>, eventName = "pull_request") =>
+      liveDraftState({ eventName, eventPath, read });
+    assert.equal(await state(pull(true)), "true");
+    // A re-run after the pull request became ready sees the live state, not the payload.
+    assert.equal(await state(pull(false)), "false");
+    assert.equal(await state(pull(true, 13)), "false");
+    assert.equal(await state(pull("true")), "false");
+    assert.equal(
+      await state(async () => {
+        throw new Error("offline");
+      }),
+      "false",
+    );
+    assert.equal(await state(pull(true), "push"), "false");
+    assert.equal(
+      await liveDraftState({ eventName: "pull_request", eventPath: undefined, read: pull(true) }),
+      "false",
+    );
+    writeFileSync(eventPath, "{}");
+    assert.equal(await state(pull(true)), "false");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+void test("drafts re-run their own CI run instead of starting a second run on the same head", async () => {
+  const triggers = (file: string) => readFile(new URL(`../${file}`, import.meta.url), "utf8");
+  // A second CI run on one head would duplicate every required context name, so ci.yml keeps
+  // GitHub's default pull_request activity types (no ready_for_review). Read the parsed workflow
+  // so equivalent YAML is judged by meaning, not layout.
+  const ci: unknown = parse(workflow);
+  assert.ok(isRecord(ci) && isRecord(ci.on) && "pull_request" in ci.on);
+  const pullRequest = ci.on.pull_request;
+  assert.ok(pullRequest === null || (isRecord(pullRequest) && !("types" in pullRequest)));
+  const supersede: unknown = parse(await triggers(".github/workflows/ci-supersede.yml"));
+  assert.ok(isRecord(supersede) && isRecord(supersede.on) && isRecord(supersede.on.pull_request));
+  assert.deepEqual(supersede.on.pull_request.types, [
+    "opened",
+    "synchronize",
+    "reopened",
+    "ready_for_review",
+  ]);
+  const steps =
+    isRecord(supersede.jobs) && isRecord(supersede.jobs.cancel) ? supersede.jobs.cancel.steps : [];
+  assert.ok(
+    Array.isArray(steps) &&
+      steps.some(
+        (step: unknown) =>
+          isRecord(step) &&
+          step.run === "node scripts/ci-supersede.mts" &&
+          isRecord(step.env) &&
+          step.env.EVENT_ACTION === "${{ github.event.action }}",
+      ),
+  );
 });

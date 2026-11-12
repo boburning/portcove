@@ -14,6 +14,7 @@ import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { applicationReleaseTrust as trust } from "./application-release-policy.mts";
 import { sha256 } from "./application-release-io.mts";
+import { metadataProtectionConsumersReady } from "./application-release-private.mts";
 import type { ReleaseSourceAttestationExpectation } from "./release-source-attestation.mts";
 import {
   bootstrapAssetNames,
@@ -3414,4 +3415,34 @@ void test("actual draft recovery metadata retains the exact SDK preimage and ign
   routes.length = 0;
   assert.equal(await observe(), undefined);
   assert.deepEqual(routes, [release]);
+});
+
+void test("renewal protection waits for the complete exact-attempt signing cohort", () => {
+  const current = {
+    run_id: "43218696774",
+    run_attempt: 2,
+    source: "e0598d4d82e24633e20bbdaaa5652b5fbcf63a9d",
+    ref: "refs/tags/fixture",
+  };
+  const ready = ["releases", "preview", "stable"].map((role) => ({
+    name: `${role} / execute`,
+    run_id: Number(current.run_id),
+    run_attempt: current.run_attempt,
+    head_sha: current.source,
+    status: "in_progress",
+    steps: [{ name: "Execute only the attested fixed role worker", status: "in_progress" }],
+  }));
+  const check = (jobs: typeof ready, next: string | null = null) =>
+    metadataProtectionConsumersReady(current, "metadata", { total_count: jobs.length, jobs }, next);
+
+  assert.equal(check(ready.slice(0, 2)), false);
+  assert.equal(check([...ready.slice(0, 2), { ...ready[2]!, steps: [] }]), false);
+  assert.equal(check(ready), true);
+  assert.throws(() => check(ready, "next-page"));
+  assert.throws(() => check([...ready, ready[0]!]));
+  assert.throws(() => check([{ ...ready[0]!, run_attempt: 1 }, ...ready.slice(1)]));
+  assert.throws(
+    () => check([{ ...ready[0]!, status: "completed" }, ...ready.slice(1)]),
+    /settled before protection/u,
+  );
 });

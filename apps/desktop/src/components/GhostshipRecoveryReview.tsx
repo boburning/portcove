@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { desktopApi } from "../api";
+import { useAppTranslation } from "../localization";
 import { useActionReview } from "../use-action-review";
 import type { BackupRecord } from "../types";
 import { formatBytes } from "../view-model";
@@ -19,6 +20,7 @@ export function GhostshipLegacyRecovery({
   apply: ApplyBackupAction;
   disabled: boolean;
 }) {
+  const { t } = useAppTranslation("backups");
   const [open, setOpen] = useState(false);
   const opener = useRef<HTMLButtonElement>(null);
   return (
@@ -30,7 +32,7 @@ export function GhostshipLegacyRecovery({
         disabled={disabled}
         onClick={() => setOpen(true)}
       >
-        Review legacy recovery
+        {t("ghostship.open")}
       </Button>
       {open && (
         <GhostshipRecoveryReview
@@ -59,6 +61,7 @@ export function GhostshipRecoveryReview({
   close: () => void;
   finalFocus?: React.ComponentProps<typeof DialogContent>["finalFocus"];
 }) {
+  const { t } = useAppTranslation("backups");
   const cancel = useRef<HTMLButtonElement>(null);
   const {
     preview: plan,
@@ -76,13 +79,13 @@ export function GhostshipRecoveryReview({
         result.backup.port_id !== "ghostship" ||
         result.backup.id !== backup.id
       )
-        throw new Error("Recovery plan does not match this backup. Review again.");
+        // Thrown text is read by the shared failure presentation, so it is already translated.
+        throw new Error(t("ghostship.planMismatch"));
       return result;
     },
     apply: (reviewed) => apply(reviewed.backup, reviewed.plan_sha256),
     close,
-    failureMessage:
-      "Legacy recovery did not complete. Refresh the installation and backup history, then review recovery notices before trying again.",
+    failureMessage: t("ghostship.failure"),
   });
   return (
     <Dialog
@@ -98,53 +101,35 @@ export function GhostshipRecoveryReview({
         aria-describedby="ghostship-recovery-description"
         finalFocus={finalFocus}
       >
-        <DialogTitle>Review Ghostship legacy recovery</DialogTitle>
+        <DialogTitle>{t("ghostship.title")}</DialogTitle>
         <DialogDescription id="ghostship-recovery-description">
-          Recover the qualified legacy installation and its saved data together. Ordinary backup
-          restore changes saved data only.
+          {t("ghostship.description")}
         </DialogDescription>
-        {pending === "review" && (
-          <p role="status">Checking whether this snapshot qualifies for legacy recovery…</p>
-        )}
+        {pending === "review" && <p role="status">{t("ghostship.checking")}</p>}
         {plan && (
-          <section aria-label="Legacy recovery changes and preserved data">
+          <section aria-label={t("ghostship.planLabel")}>
             <dl>
-              <dt>Library</dt>
+              <dt>{t("ghostship.field.library")}</dt>
               <dd className="wrap-anywhere">{plan.library_root}</dd>
-              <dt>Selected qualified snapshot</dt>
+              <dt>{t("ghostship.field.snapshot")}</dt>
               <dd className="wrap-anywhere">{plan.backup.path}</dd>
-              <dt>Retained legacy installation</dt>
+              <dt>{t("ghostship.field.legacy")}</dt>
               <dd className="wrap-anywhere">
                 {plan.legacy_install.id} · {plan.legacy_install.path}
               </dd>
-              <dt>Current installation</dt>
+              <dt>{t("ghostship.field.current")}</dt>
               <dd className="wrap-anywhere">
                 {plan.active_install.id} · {plan.active_install.path}
               </dd>
-              <dt>Original</dt>
+              <dt>{t("ghostship.field.original")}</dt>
               <dd className="wrap-anywhere">{plan.source.path}</dd>
-              <dt>Required free space</dt>
+              <dt>{t("ghostship.field.space")}</dt>
               <dd>{formatBytes(plan.required_bytes)}</dd>
             </dl>
-            <p>
-              This activates a fresh derivative of the retained legacy installation and replaces
-              canonical saved data with the selected snapshot.
-            </p>
-            <p>
-              Both existing installations, other staged installations and the selected backup
-              remain. Independent safety copies preserve current canonical data and newer-runtime
-              saves and settings.
-            </p>
-            <p>
-              The runtime safety copy is stored alongside its canonical safety backup. Ordinary
-              restore uses only canonical data. Deleting that safety backup also deletes its runtime
-              copy.
-            </p>
-            <p>
-              The game must be stopped. Changed inputs require a new review. Interrupted work
-              retains recovery evidence; review recovery notices before another attempt. Recovery
-              does not launch the game or prove gameplay or save compatibility.
-            </p>
+            <p>{t("ghostship.activates")}</p>
+            <p>{t("ghostship.remains")}</p>
+            <p>{t("ghostship.safetyCopy")}</p>
+            <p>{t("ghostship.conditions")}</p>
           </section>
         )}
         <ActionReviewFailure error={error} />
@@ -156,7 +141,7 @@ export function GhostshipRecoveryReview({
             disabled={pending === "apply"}
             onClick={dismiss}
           >
-            Cancel
+            {t("ghostship.cancel")}
           </Button>
           {!plan && (
             <Button
@@ -166,7 +151,7 @@ export function GhostshipRecoveryReview({
                 void review();
               }}
             >
-              Review again
+              {t("ghostship.reviewAgain")}
             </Button>
           )}
           {plan && (
@@ -177,9 +162,7 @@ export function GhostshipRecoveryReview({
                 void execute();
               }}
             >
-              {pending === "apply"
-                ? "Recovering legacy installation and data…"
-                : "Recover legacy installation and data"}
+              {pending === "apply" ? t("ghostship.recovering") : t("ghostship.recover")}
             </Button>
           )}
         </DialogFooter>

@@ -582,6 +582,24 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 serde_json::json!(schema_for_contract::<AdoptionPreview>(contract)),
             ),
             (
+                "launcher_library_inventory",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::LauncherLibraryInventory>(contract)
+                ),
+            ),
+            (
+                "adoption_batch_preview",
+                serde_json::json!(schema_for_contract::<portcove_core::AdoptionBatchPreview>(
+                    contract
+                )),
+            ),
+            (
+                "adoption_batch_result",
+                serde_json::json!(schema_for_contract::<portcove_core::AdoptionBatchResult>(
+                    contract
+                )),
+            ),
+            (
                 "port_removal_preview",
                 serde_json::json!(schema_for_contract::<PortRemovalPreview>(contract)),
             ),
@@ -700,8 +718,50 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "profile_recipe",
+                serde_json::json!(schema_for_contract::<portcove_core::ProfileRecipe>(
+                    contract
+                )),
+            ),
+            (
+                "recipe_import_plan",
+                serde_json::json!(schema_for_contract::<portcove_core::RecipeImportPlan>(
+                    contract
+                )),
+            ),
+            (
+                "provider_browse_page",
+                serde_json::json!(schema_for_contract::<portcove_core::ProviderBrowsePage>(
+                    contract
+                )),
+            ),
+            (
+                "provider_project_view",
+                serde_json::json!(schema_for_contract::<portcove_core::ProviderProjectView>(
+                    contract
+                )),
+            ),
+            (
+                "provider_update_observation",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::ProviderUpdateObservation,
+                >(contract)),
+            ),
+            (
+                "provider_install_plan",
+                serde_json::json!(schema_for_contract::<portcove_core::ProviderInstallPlan>(
+                    contract
+                )),
+            ),
+            (
                 "live_mods",
                 serde_json::json!(schema_for_contract::<portcove_core::LiveMods>(contract)),
+            ),
+            (
+                "mod_setups_view",
+                serde_json::json!(schema_for_contract::<portcove_core::ModSetupsView>(
+                    contract
+                )),
             ),
             (
                 "profile_revision",

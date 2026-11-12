@@ -814,8 +814,7 @@ void test("PSX managed Windows authoring preserves the embedded contracts", () =
     duplicate.integration!.runtime_subdirectory = "setup-host";
     assert.throws(() => checkedAuthoredPort(duplicate), /already owns runtime_subdirectory/u);
     const otherBios = structuredClone(record);
-    otherBios.integration!.bios_source_profile =
-      record.psx_managed_windows_v1 === "split-mods" ? "psx-scph-5501-bios" : "psx-scph-5552-bios";
+    otherBios.integration!.bios_source_profile = "psx-scph-5501-bios";
     assert.throws(() => checkedAuthoredPort(otherBios), /retail SCPH-1001/u);
     const otherPlatform = structuredClone(record);
     delete otherPlatform.listing.platforms;
@@ -879,8 +878,24 @@ void test("PSX split mods retain player data with explicit dual-platform and ret
   assert.throws(() => checkedAuthoredPort(wholeMods), /already owns persistent_paths/u);
   assert.throws(
     () => checkedAuthoredPort({ ...record, psx_managed_windows_v1: "split-mods-openbios" }),
-    /reviewed Windows GitHub kit/u,
+    /without a retail profile/u,
   );
+  const openBios = structuredClone(record);
+  openBios.psx_managed_windows_v1 = "split-mods-openbios";
+  delete openBios.integration!.bios_source_profile;
+  const projected = projectAuthoredPort(openBios);
+  assert.ok(projected);
+  assert.deepEqual(projected.launch_arguments, ["--no-launcher", "--bios", "bios/openbios.bin"]);
+  assert.equal(Object.hasOwn(projected, "bios_source_profile"), false);
+  assert.deepEqual(
+    (projected.persistent_paths as string[]).filter(
+      (path) => path === "mods" || path.startsWith("mods/"),
+    ),
+    ["mods/installed", "mods/packages", "mods/.staging", "mods/state.toml", "mods/state.toml.tmp"],
+  );
+  const openBiosWindowsOnly = structuredClone(openBios);
+  openBiosWindowsOnly.integration!.platforms = ["windows-x86-64"];
+  assert.throws(() => checkedAuthoredPort(openBiosWindowsOnly), /exact Windows and Linux x64/u);
 });
 
 void test("a first-listed date is authored per listing, validated, and selects listing format 9", () => {

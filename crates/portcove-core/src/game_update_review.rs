@@ -39,7 +39,7 @@ impl PortcoveService {
             None
         };
         let data_transition = transition.as_ref().map(|review| {
-            let available_bytes = fs2::available_space(self.library.root()).ok();
+            let available_bytes = fs4::available_space(self.library.root()).ok();
             plan.preservation_notices.push(format!("This first update preserves the current runtime and its build-specific states while carrying conventional saves/settings through the reviewed data transition. Keep the old runtime in Versions when your progress exists only in its snapshots. No state conversion or save rewind is performed. Temporary preservation needs an additional {} MiB in this library.", review.required_bytes.div_ceil(1024 * 1024)));
             crate::ArchiveDataTransitionReview { preimage_sha256:review.preimage_sha256.clone(), producing_archive_sha256:review.active.artifact.sha256.clone(), retained_installations:review.installs.len() as u32,
                 temporary_space:crate::InstallSpaceRequirement { path:self.library.root().to_path_buf(), required_bytes:review.required_bytes, available_bytes, volume_identity:None, sufficient:available_bytes.map(|available|available>=review.required_bytes) } }
@@ -272,7 +272,7 @@ fn game_update_plan_assessment(plan: &crate::InstallPlan) -> crate::PortActionAs
         Action::Download => match plan
             .source_requirements
             .iter()
-            .find(|input| !input.registered)
+            .find(|input| input.blocks_setup())
         {
             Some(input) => (
                 Availability::Waiting,
@@ -502,6 +502,26 @@ mod tests {
             game_update_plan_assessment(&review.plan).availability,
             crate::PortActionAvailability::Allowed
         );
+    }
+
+    #[tokio::test]
+    async fn an_optional_unregistered_game_source_does_not_hold_the_update_download() {
+        let (_temporary, service) = fixture();
+        let next = service_with_release(service.library.clone(), "v3");
+        let mut review = next.plan_game_update(PORT, false).await.unwrap();
+        assert_eq!(review.plan.action, crate::InstallPlanAction::Download);
+        // The required baseline holds the download.
+        assert_eq!(
+            review.assessment.reason,
+            crate::PortActionReason::MissingSource
+        );
+        review.plan.source_requirements[0].optional = true;
+        let assessment = game_update_plan_assessment(&review.plan);
+        assert_eq!(
+            assessment.availability,
+            crate::PortActionAvailability::Allowed
+        );
+        assert_eq!(assessment.reason, crate::PortActionReason::Available);
     }
 
     #[test]

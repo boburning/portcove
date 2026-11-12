@@ -16,7 +16,7 @@ component fixtures do not complete either production outcome.
 Core advertises each installed `AdapterKind` template with contract version 1.
 The public inventory additionally advertises Libultraship portable version 2,
 native portable versions 2–9, managed PS1 version 2, N64 portable versions 2–4
-and staged-source portable versions 2–5, 8, 10–12 and 15–29. The inventory owner is
+and staged-source portable versions 2–5, 8, 10–12 and 15–31. The inventory owner is
 `EngineTemplateCapability::current()` in
 [`definition_capabilities.rs`](../crates/portcove-core/src/definition_capabilities.rs);
 the version semantics and admission limits below remain part of each contract.
@@ -146,6 +146,18 @@ alternate native modules in that profile. Original assets and Unix saves
 stay in the player-owned profile. The Windows routes keep their existing
 creating layouts and persistent paths. Fresh and retained indexed entries
 declaring this policy require version 24.
+
+Native portable version 25 consumes `linux_portable_data_directory` for an
+official Linux x86-64 TAR.GZ player that selects portable storage when a real
+directory exists beside its executable. The single basename is a declared
+persistent path. Fresh package staging requires an absent or empty directory
+and checks the direct ELF player. Launch prepares the directory and rechecks it
+at spawn. OpenSC2K's Godot log and temporary autosave locations must resolve
+outside the managed library. Launch can reserve an absent user-owned autosave
+directory under the system's sticky temporary root. Updates and rollback must
+retain the same effective Linux directory contract. Other platforms keep their
+creating launch and persistence rules.
+Fresh and retained indexed entries declaring this field require version 25.
 
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
@@ -496,6 +508,23 @@ platform needs explicit package and executable hints. Windows keeps its
 existing path checks. A reviewed Windows predecessor keeps its exact creating
 contract, archive and Windows executable hint. Sibling platform hints do not
 grant cross-platform adoption or build-specific progress compatibility.
+
+Staged-source version 30 admits the `xdvdfs-directory` and `iso9660-directory`
+source materializations with their `runtime_disc_image` declaration (see
+[Disc-image unpacking](CATALOG.md#disc-image-unpacking)). An indexed entry that
+declares `runtime_disc_image` must require staged-source minimum version 30, so
+older readers that cannot unpack a disc image refuse it instead of misreading the
+definition. The version adds no source, installation or publisher authority and
+does not change versions 2–29. A definition bundled with the application ships with
+the build that understands it and needs no separate requirement.
+
+Staged-source version 31 admits `optional_game_source` on such a disc-image port: the
+source is offered but not required, so an unregistered source never blocks installing,
+updating or launching, and nothing is unpacked or removed until one is registered (see
+[Optional game source](CATALOG.md#optional-game-source)). An indexed entry that declares
+`optional_game_source` must require staged-source minimum version 31, so an older reader,
+which would treat the source as required and hold Play, refuses it instead. The version
+adds no source, installation or publisher authority and does not change versions 2–30.
 
 ## Decision and threat model
 
@@ -1096,6 +1125,49 @@ bypasses selection and HTTP caches and refuses redirects. Installation refreshes
 these identities through the same opaque scope before acquiring artifact bytes,
 then uses the existing shared byte verifier and policy checks at publication.
 Previously returned resolutions do not confer reusable upstream freshness.
+
+#### Preserved-location failover
+
+The owner approved this narrow exception to fresh upstream observation for
+[#1306](https://github.com/boburning/portcove/issues/1306). A curated record
+with `record_version: 2` may carry one or two `preserved_locations`. Each is a
+canonical `https://<host>/<owner>/<repo>/releases/download/<tag>/<file>` URL
+whose file is the record's `<sha256>.asset` or its filename, and whose host the
+schema-4 grant's `artifact_hosts` already authorizes. Locations are transport
+only: they are excluded from the retained immutable identity, cannot widen a
+grant, and never decide acceptance. Version-1 records cannot carry them.
+Clients that predate version 2 refuse such a record through
+`deny_unknown_fields` and keep their prior admission until it expires, so
+publish version-2 records only once the supporting client is the floor.
+
+Failover happens only when the upstream failure is classified _unavailable_
+from recorded transport facts, never from message text. Unavailable means a
+connect failure, a timeout, or HTTP 404/410 on repository, release, tag or
+asset discovery or on the asset bytes. It also covers an accepted release or
+asset that is absent from the listing by both ID and tag or name.
+Authentication, authorization and rate-limit refusals (401, 403, 407, 429) and
+every identity disagreement keep their existing behavior. Mid-stream resets are
+not classified as unavailable. A partial match never counts as disappearance:
+a moved tag, a reused asset name or a changed ID is a disagreement. A connect
+failure counts as unavailable only with a concrete socket-level cause
+(refused, reset, aborted, timed out, host or network unreachable). Proxy-tunnel
+refusals, including 407, and TLS failures never fail over.
+A failover selection carries the requested channel label for the record's
+accepted release; curated records are exact per platform, so no channel
+choice happens.
+
+Order: scope freshness, retained identity and the curated artifact hold are
+checked first. Then the existing upstream observation runs. When it is
+unavailable, Core selects the artifact from the authenticated, fresh policy
+record alone and makes no upstream request. Installation then re-observes
+through the same resolver and reuses a verified cache hit first. Otherwise it
+tries the upstream asset URL, then each preserved location in record order. Before every preserved
+attempt Core removes private partial bytes and rechecks the hold. The scoped
+anonymous client, `artifact_hosts` redirect policy, bounded transfer, bounded
+SHA-256 verifier, cache retention and atomic publication are unchanged. A byte
+mismatch from a preserved location refuses the install and tries no further
+location. Stale or expired policy, revocation, distribution withdrawal and
+lost future acceptance refuse before any preserved request.
 
 Only an exactly qualified curated platform uses the shared `downloads/curated-v1`
 byte cache; another platform's publisher-digest route remains independent. Cache

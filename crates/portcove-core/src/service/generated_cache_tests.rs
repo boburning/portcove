@@ -21,17 +21,18 @@ fn executable(root: &Path, relative: &str) {
 fn fixture(active: bool) -> (tempfile::TempDir, PortcoveService, InstallRecord) {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
-    let service = PortcoveService::new(library.clone()).unwrap();
-    let qualification =
-        InstallQualification::from_catalog(&service.catalog, ID, Platform::current().unwrap())
-            .unwrap();
+    let mut service = PortcoveService::new(library.clone()).unwrap();
+    // Gen1Recomp is the generated-cache shape; declare the host so these
+    // retained-output contracts also run where the real port does not ship.
+    service.replace_catalog_for_test(crate::test_fixture::host_declared_catalog(
+        &service.catalog,
+        &[ID],
+    ));
+    let platform = Platform::current().unwrap();
+    let qualification = InstallQualification::from_catalog(&service.catalog, ID, platform).unwrap();
     let root = library.versions_dir().join(ID).join("original");
-    let executable_name = if cfg!(windows) {
-        "gen1recomp.exe"
-    } else {
-        "gen1recomp"
-    };
-    executable(&root, executable_name);
+    let executable_name = service.catalog.port(ID).unwrap().executable_hints[&platform][0].clone();
+    executable(&root, &executable_name);
     write(&root, "immutable.bin", b"immutable package data");
     let artifact = crate::ArtifactIdentity {
         asset_name: "inert-fixture.zip".into(),

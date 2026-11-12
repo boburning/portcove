@@ -267,41 +267,27 @@ void test("native observer fixture edits retain the owning Windows regression su
   }
 });
 
-void test("portability literal baseline retains its native scanner contract across lifecycle changes", async () => {
-  const { baselineContractTests } = await import("./ci-baseline.mts");
-  const input = "scripts/fixtures/rscheck-portability-baseline.json";
-  const sibling = "scripts/fixtures/rscheck-portability-baseline-sibling.json";
-  for (const file of [input, sibling])
-    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
-      const change = {
-        status: variant.startsWith("R") ? "R100" : variant,
-        oldPath: variant === "R-new" ? "docs/moved.md" : file,
-        newPath: variant === "R-old" ? "docs/moved.md" : file,
-        oldMode: variant === "A" ? "000000" : "100644",
-        newMode: variant === "D" ? "000000" : "100644",
-      };
-      const local = classifyChanges(
-        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
-        { fileExists: () => false },
-      );
-      const plan = buildValidationPlan({
-        changes: [change],
-        eventName: "pull_request",
-        base: "a".repeat(40),
-        mergeBase: "a".repeat(40),
-        head: "b".repeat(40),
-        checkout: "b".repeat(40),
-      });
-      for (const selected of [
-        local.nodeTests,
-        new Set(baselineContractTests(plan, { fileExists: () => false })),
-      ])
-        assert.equal(
-          selected.has("scripts/run-rscheck.test.mts"),
-          file === input,
-          JSON.stringify(change),
-        );
-    }
+void test("Rust portability policy changes keep Rust qualification across file lifecycle changes", () => {
+  const input = "tools/rust-portability/src/policy.rs";
+  for (const status of ["M", "A", "D", "R-old", "R-new"]) {
+    const change = {
+      status: status.startsWith("R") ? "R100" : status,
+      oldPath: status === "R-new" ? "docs/moved.md" : input,
+      newPath: status === "R-old" ? "docs/moved.md" : input,
+      oldMode: status === "A" ? "000000" : "100644",
+      newMode: status === "D" ? "000000" : "100644",
+    };
+    const plan = buildValidationPlan({
+      changes: [change],
+      eventName: "pull_request",
+      base: "a".repeat(40),
+      mergeBase: "a".repeat(40),
+      head: "b".repeat(40),
+      checkout: "b".repeat(40),
+    });
+    assert.ok(plan.groups.includes("rust"), JSON.stringify(change));
+    assert.ok(plan.groups.includes("rust-quality"), JSON.stringify(change));
+  }
 });
 
 void test("manual job timeout inputs retain direct contracts across lifecycle changes", async () => {
@@ -720,6 +706,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
     "scripts/ui-test-selection.test.mts",
     "scripts/updater-historical-inputs.test.mts",
     "scripts/installed-game-data-fixture.test.mts",
+    "scripts/maintenance-handoffs.test.mts",
     "scripts/windows-installed-game-data.test.mts",
     "scripts/windows-historical-bootstrap.test.mts",
   ];
@@ -795,6 +782,7 @@ void test("fixture module closure edits retain all independent policy and constr
     "scripts/desktop-boundary-wiring.test.mts",
     "scripts/desktop-staged-layout.test.mts",
     "scripts/fixture-module-closure.test.mts",
+    "scripts/maintenance-handoffs.test.mts",
     "scripts/precommit-check.test.mts",
     "scripts/production-aggregate-steps.test.mts",
     "scripts/release-control-inputs.test.mts",
@@ -2506,7 +2494,6 @@ const receiptRuntime = Object.freeze({
   cargo: "cargo test",
   cargoNextest: "nextest test",
   cargoShear: "shear test",
-  rscheck: "rscheck test",
   aqua: "aqua test",
   powershell: "pwsh test",
   packageManager: "pnpm@12.4.1",

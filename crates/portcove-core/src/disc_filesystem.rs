@@ -660,7 +660,7 @@ pub(crate) fn required_free_bytes(expanded_bytes: u64) -> u64 {
 /// Refuse before writing when the destination volume cannot hold the unpacked tree.
 pub(crate) fn ensure_free_space(parent: &Path, expanded_bytes: u64) -> Result<()> {
     let required = required_free_bytes(expanded_bytes);
-    let available = fs2::available_space(parent)?;
+    let available = fs4::available_space(parent)?;
     if required > available {
         let volume = parent
             .components()

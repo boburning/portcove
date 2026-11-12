@@ -18,6 +18,7 @@ import { useApplicationUpdateChoice } from "./use-application-update";
 import { focusApplicationUpdateRoute } from "./focus-application-update-route";
 import { useOperationState } from "../operations/use-operation-state";
 import { targetInvocationContext } from "../operations/invocation-state";
+import { initializeLocalization } from "../../localization";
 
 vi.mock("../../desktop-events", () => ({ listenDesktopEvent: async () => () => undefined }));
 let sharedOperations!: ReturnType<typeof useOperationState>;
@@ -163,6 +164,25 @@ describe("ApplicationUpdateSettings", () => {
       expect(document.activeElement).toBe(retainHeadingFocus ? button("Preview") : other);
     },
   );
+
+  it("enters update choices by stable identity, not translated labels", async () => {
+    const localization = initializeLocalization(["en-US"]);
+    try {
+      await localization.changeLanguage("ar-XB");
+      vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(missingChoice);
+      await root.rerender(<SettingsFixture disabled />);
+      focusApplicationUpdateRoute("choice");
+      await root.rerender(<SettingsFixture disabled={false} />);
+
+      const channelGroup = host.querySelector("#application-update-channel-group")!;
+      expect(channelGroup.getAttribute("aria-label")).toBe("قناة تحديث التطبيق");
+      expect(document.activeElement).toBe(channelGroup.querySelector("button"));
+      expect(host.textContent).toContain("تحديثات Portcove");
+      expect(host.textContent).not.toMatch(/\b(?:preferences|settings|status|check)\.[a-z]/);
+    } finally {
+      await localization.changeLanguage("en");
+    }
+  });
 
   it("stores an explicit draft without starting update work", async () => {
     vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(missingChoice);
@@ -986,8 +1006,46 @@ describe("ApplicationUpdateSettings", () => {
       expect(host.textContent).toContain("No verified application update is staged.");
       expect(host.textContent).not.toContain("Restart to update");
       expect(restart).not.toHaveBeenCalled();
+      const modes = host.querySelector('[aria-label="Application update mode"]')!;
+      const reason = document.getElementById("application-update-automatic-unavailable");
+      expect(modes.getAttribute("aria-describedby")).toBe(reason?.id);
+      expect(reason?.textContent).toBe(
+        "Automatic isn't available because this build can't install its own updates.",
+      );
+      expect(button("Automatic").disabled).toBe(true);
+      expect(modes.textContent).not.toContain("Recommended");
+      expect(button("Notify only").disabled).toBe(false);
+      expect(button("Manual").disabled).toBe(false);
+      expect(button("Check for updates").disabled).toBe(false);
     },
   );
+
+  it("shows a default Automatic draft as the disabled choice without describing it", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(missingChoice);
+    vi.mocked(desktopApi.applicationUpdateStatus).mockResolvedValue({
+      ...idleStatus,
+      install_eligibility: "not-configured",
+    });
+    await render();
+    await expect.poll(() => button("Automatic").disabled).toBe(true);
+    expect(button("Automatic").getAttribute("aria-pressed")).toBe("true");
+    expect(host.textContent).not.toContain("Allows Portcove to check and stage verified updates");
+    expect(document.getElementById("application-update-automatic-unavailable")).not.toBeNull();
+    expect(button("Notify only").disabled).toBe(false);
+  });
+
+  it("keeps Automatic available and recommended for a build that can update itself", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+    await render();
+    await expect
+      .poll(() => host.textContent)
+      .toContain("No verified application update is staged.");
+    const modes = host.querySelector('[aria-label="Application update mode"]')!;
+    expect(button("Automatic").disabled).toBe(false);
+    expect(modes.textContent).toContain("Recommended");
+    expect(modes.hasAttribute("aria-describedby")).toBe(false);
+    expect(document.getElementById("application-update-automatic-unavailable")).toBeNull();
+  });
 
   it("restarts only through the explicit staged-update action bound to the current library", async () => {
     vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);

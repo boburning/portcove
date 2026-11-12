@@ -1,6 +1,7 @@
 import { countMessage } from "../localization";
+import { FolderSetupChoice } from "./FolderSetupChoice";
 import { SettingsRow } from "./ui/patterns";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { desktopApi } from "../api";
 import { pickGameFileFolder } from "../file-picker";
 import { useSetupSource } from "../features/app-shell/use-setup-source";
@@ -32,6 +33,8 @@ import {
 } from "./SourceDiscovery";
 import { Button } from "./ui/button";
 import { GameFileSetupReviews } from "./GameFileSetupReviews";
+import { InstallBatchPanel } from "./InstallBatchPanel";
+import { ReadyGameNotices } from "./ReadyGameNotices";
 
 const setupReturnOrigin = "game-file-libraries-setup";
 
@@ -437,6 +440,12 @@ function CompletedScan({
   );
 }
 
+/** Whole path components only, so `D:/Games` does not contain `D:/Games2/x`. */
+function isInsideFolder(path: string, folder: string) {
+  const normalize = (value: string) => value.replaceAll("\\", "/").replace(/\/+$/, "");
+  return normalize(path).startsWith(`${normalize(folder)}/`);
+}
+
 function SavedRootRows({
   roots,
   busy,
@@ -445,7 +454,9 @@ function SavedRootRows({
   setRemovingId,
   relink,
   remove,
+  renderSetup,
 }: {
+  renderSetup?: ((root: GameFileRoot) => ReactNode) | undefined;
   roots?: GameFileRoot[] | undefined;
   busy: boolean;
   scanning: boolean;
@@ -473,6 +484,7 @@ function SavedRootRows({
                 ? "Available"
                 : "Unavailable — reconnect or relink this folder"}
             </span>
+            {renderSetup?.(root)}
           </div>
           <div className="actions flex flex-wrap gap-2">
             <Button
@@ -711,6 +723,7 @@ export function GameFileLibraries({
   const accepts = () => owner.current === generation;
   const viewCompletion = useCompletedScanView(scanState, view, setError);
   const [notice, setNotice] = useState<string>();
+  const [batchPorts, setBatchPorts] = useState<string[]>();
   const [removingId, setRemovingId] = useState<string>();
   const [reviewedPlan, setReviewedPlan] = useState<{
     generation: number;
@@ -891,6 +904,33 @@ export function GameFileLibraries({
       },
       "Game-file check cancelled. No location was saved.",
     );
+  // Saves reviewed selections as Library entries only. Core acquires, registers,
+  // installs and launches nothing; installed games are reported, not duplicated.
+  const addToLibrary = (portIds: string[]) =>
+    run("Adding to Library…", async () => {
+      const requests = portIds.map((portId) => {
+        const port = ports.find((candidate) => candidate.id === portId);
+        const reviewed = (snapshot?.report.candidates ?? []).filter(
+          (candidate) => port?.source_profile === candidate.profile_id,
+        );
+        return {
+          port_id: portId,
+          origin: "game_file_discovery" as const,
+          sources: reviewed.slice(0, 32).map((candidate) => ({
+            profile_id: candidate.profile_id,
+            sha256: candidate.sha256,
+          })),
+        };
+      });
+      const outcomes = await desktopApi.addGamesToLibrary(requests, generation);
+      if (!accepts()) return;
+      const added = outcomes.filter((item) => item.outcome === "added").length;
+      const existing = outcomes.length - added;
+      setNotice(
+        `${added} ${added === 1 ? "game" : "games"} added to your Library${existing ? `; ${existing} already there` : ""}. Nothing was installed or changed on disk.`,
+      );
+      await onAdded?.();
+    });
   const apply = () =>
     run(
       "Saving game-file location…",
@@ -1033,7 +1073,21 @@ export function GameFileLibraries({
       }
       busy={Boolean(busy) || Boolean(plan)}
       onOpenPort={openPort}
+      onAddToLibrary={(portIds) => void addToLibrary(portIds)}
+      onReviewInstall={(portIds) => setBatchPorts(portIds)}
       focusFallback={() => heading.current}
+    />
+  );
+  const renderInstallBatch = () => (
+    <InstallBatchPanel
+      key={batchPorts?.join("\n") ?? ""}
+      generation={generation}
+      ports={ports}
+      portIds={batchPorts}
+      onDone={() => {
+        setBatchPorts(undefined);
+        void onAdded?.();
+      }}
     />
   );
   const renderSourceReview = () => (
@@ -1093,6 +1147,17 @@ export function GameFileLibraries({
         setRemovingId={setRemovingId}
         relink={(root) => void relink(root)}
         remove={(root) => void remove(root)}
+        renderSetup={(root) => (
+          <FolderSetupChoice
+            root={root}
+            generation={generation}
+            ports={ports}
+            candidates={(snapshot?.report.candidates ?? []).filter((candidate) =>
+              isInsideFolder(candidate.path, root.path),
+            )}
+            disabled={Boolean(busy) || scanning}
+          />
+        )}
       />
       {renderScanActions()}
       {busy && <p role="status">{busy}</p>}
@@ -1104,7 +1169,9 @@ export function GameFileLibraries({
       {error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
       {renderCompletedScan()}
+      <ReadyGameNotices generation={generation} ports={ports} onOpenPort={openPort} />
       {renderSetupReviews()}
+      {renderInstallBatch()}
       {renderSourceReview()}
       {renderContinue()}
     </SettingsRow>

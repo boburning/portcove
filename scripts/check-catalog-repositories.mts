@@ -28,6 +28,7 @@ import {
 } from "./upstream-health-inputs.mts";
 import { assessUpstreamLineage, type UpstreamLineage } from "./upstream-lineage.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
+import type { OriginalLocationReason } from "./upstream-location-reasons.mts";
 
 export interface ReviewedPin extends GithubPinScope {
   port_id: string;
@@ -46,7 +47,7 @@ interface OriginalCondition {
   repository: string;
   operation: "observe-availability";
   http_status: 301 | 404;
-  reason: "provider-redirect" | "inaccessible-or-missing";
+  reason: OriginalLocationReason;
   redirect_repository_id: number | null;
   evidence: string;
   resume_condition: string;

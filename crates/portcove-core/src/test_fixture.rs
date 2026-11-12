@@ -299,8 +299,19 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = format!("sha256/{}.json", self.contract_sha256);
         let port = self.port.as_ref();
         let port_id = &port.id;
-        let capability_version = if !port.release.tar_xz_platforms.is_empty() {
-            3
+        let capability_version = if port.optional_game_source {
+            // An optional game source needs staged-source capability version 31. Keep this
+            // branch first: a later capability chain that matched earlier would silently
+            // skip the requirement.
+            31
+        } else if port.linux_portable_data_directory.is_some() {
+            crate::native_portable_data::NATIVE_CAPABILITY
+        } else if !port.release.tar_xz_platforms.is_empty() {
+            if port.adapter == crate::AdapterKind::NativePortable {
+                crate::runtime::NATIVE_MAC_BUNDLE_TAR_XZ_CAPABILITY
+            } else {
+                crate::runtime::GENERATED_CACHE_TAR_XZ_CAPABILITY
+            }
         } else if port.release.grant_declared_executable {
             crate::test_fixture::grant_declared_executable_capability(port)
         } else if port.portable_marker_file.is_some() {
@@ -645,6 +656,74 @@ pub(crate) fn admitted_indexed_catalog(catalog: &crate::Catalog, port_id: &str) 
     catalog
 }
 
+/// Make a fixture port also declare the running host, reusing the platform-keyed
+/// facts of a platform the port already declares (Linux first, for Unix naming).
+///
+/// Lifecycle fixtures borrow real catalog ports only as convenient shapes. On a
+/// host the real port does not ship for (for example macOS), they would otherwise
+/// fail before reaching the behavior under test. Hosts the port already declares
+/// are unchanged, so Windows and Linux coverage stays byte-identical. The real
+/// embedded catalog is never modified. Per-platform `release` routes and
+/// validation records are not projected; use a port without them, or extend
+/// this before relying on them.
+pub(crate) fn declare_host_platform(port: &mut crate::PortDefinition) {
+    use crate::Platform;
+
+    let host = Platform::current().unwrap();
+    if port.executable_hints.contains_key(&host) {
+        return;
+    }
+    let donor = [
+        Platform::LinuxX86_64,
+        Platform::MacosAarch64,
+        Platform::MacosX86_64,
+        Platform::WindowsX86_64,
+    ]
+    .into_iter()
+    .find(|platform| port.executable_hints.contains_key(platform))
+    .unwrap_or_else(|| panic!("{} declares no executable on any platform", port.id));
+    let hints = port.executable_hints[&donor].clone();
+    port.executable_hints.insert(host, hints);
+    if let Some(hints) = port.setup_executable_hints.get(&donor).cloned() {
+        port.setup_executable_hints.insert(host, hints);
+    }
+    if let Some(runtime) = port.bundled_runtime.get(&donor).cloned() {
+        port.bundled_runtime.insert(host, runtime);
+    }
+    if let Some(layout) = port.reviewed_package_layouts.get(&donor).cloned() {
+        port.reviewed_package_layouts.insert(host, layout);
+    }
+    if !port.platforms.contains(&host) {
+        port.platforms.push(host);
+    }
+}
+
+/// `catalog` with [`declare_host_platform`] applied to each of `port_ids`.
+pub(crate) fn host_declared_catalog(catalog: &crate::Catalog, port_ids: &[&str]) -> crate::Catalog {
+    let host = crate::Platform::current().unwrap();
+    let mut document = catalog.authoritative_document();
+    let mut changed = false;
+    for id in port_ids {
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == *id)
+            .unwrap_or_else(|| panic!("fixture port {id} is not cataloged"));
+        changed |= !port.executable_hints.contains_key(&host);
+        declare_host_platform(port);
+    }
+    if !changed {
+        // Keep declared hosts on the exact catalog instance the test supplied.
+        return catalog.clone();
+    }
+    crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+}
+
+/// The embedded catalog with [`declare_host_platform`] applied to `port_ids`.
+pub(crate) fn host_declared_embedded_catalog(port_ids: &[&str]) -> crate::Catalog {
+    host_declared_catalog(&crate::Catalog::embedded().unwrap(), port_ids)
+}
+
 /// Create a valid catalog with one source-backed port that did not exist when
 /// the embedded client catalog was built.
 pub(crate) fn post_client_catalog() -> (crate::Catalog, String) {
@@ -688,6 +767,7 @@ pub(crate) fn post_client_catalog() -> (crate::Catalog, String) {
     source.contracts.push(contract);
 
     port.id = port_id.clone();
+    declare_host_platform(&mut port);
     // The synthetic port does not inherit the official Shipwright package route.
     port.windows_shipwright_persistence = false;
     port.name = "Post-client definition fixture".to_string();

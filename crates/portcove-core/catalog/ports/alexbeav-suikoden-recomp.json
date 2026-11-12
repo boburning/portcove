@@ -3,11 +3,12 @@
   "listing": {
     "id": "alexbeav-suikoden-recomp",
     "name": "Suikoden / Alexbeav PSXRecomp",
-    "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+    "summary": "Build and play Suikoden on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-5552 BIOS. You can also use a separately prepared upstream copy.",
+    "original_game_title": "Suikoden",
     "project_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp",
     "issue_number": 481,
     "listed_at": "2026-10-23",
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp#readme",
     "artwork": {
@@ -22,7 +23,7 @@
       "steps": [
         {
           "title": "Download and unpack the setup kit",
-          "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+          "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
         },
         {
           "title": "Supply the matching original files",
@@ -30,7 +31,7 @@
         },
         {
           "title": "Build the game and add it to Portcove",
-          "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+          "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Suikoden_Recompiled as the program and build-release as the start folder."
         }
       ],
       "warnings": ["Portcove has not confirmed setup or gameplay for this package."],
@@ -50,5 +51,47 @@
       "macos-aarch64": ["suikoden-", "-macos-arm64.zip"]
     },
     "recommended_download_channel": "stable"
+  },
+  "psx_managed_windows_v1": true,
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "github",
+      "repository": "alexbeavs-ps1-ports/suikoden-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["suikoden-", "-windows-x64.zip"],
+        "linux-x86-64": ["suikoden-", "-linux-x64.zip"]
+      }
+    },
+    "source_profile": "alexbeav-suikoden-recomp-usa-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Suikoden_Recompiled.exe"],
+      "linux-x86-64": ["Suikoden_Recompiled"]
+    },
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "alexbeav-suikoden-recomp-usa-psx",
+          "label": "Suikoden (USA) (Rev 1) disc",
+          "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-5552-bios",
+          "label": "PlayStation SCPH-5552 BIOS (Europe)",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Provide your own matching one-track USA CHD (SLUS-00292) and retail SCPH-5552 BIOS. Portcove verifies the data track and track count and builds privately with the registered toolchain. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows and Linux package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved."
+    },
+    "bios_source_profile": "psx-scph-5552-bios"
   }
 }

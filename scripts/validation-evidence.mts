@@ -19,12 +19,14 @@ const allReusableDomains = [
   "roadmap",
   "development",
   "release",
-  "rscheck",
+  "rust-portability",
 ] as const;
 
-export type ValidationDomain = (typeof allReusableDomains)[number];
+// Retain the historical scanner's domain for original receipt fingerprint
+// recomputation. It is no longer assigned to source or probed on a runner.
+export type ValidationDomain = (typeof allReusableDomains)[number] | "rscheck";
 export function isValidationDomain(value: unknown): value is ValidationDomain {
-  return allReusableDomains.some((domain) => domain === value);
+  return value === "rscheck" || allReusableDomains.some((domain) => domain === value);
 }
 export interface StageIdentity {
   id: string;
@@ -137,7 +139,7 @@ const environmentWhitelist = Object.freeze([
 const oxfmtSupportedExtension =
   /\.(?:astro|cjs|css|html|js|json|json5|jsonc|jsx|less|md|mdx|mjs|mts|scss|svelte|ts|tsx|vue|ya?ml)$/iu;
 const oxfmtExcludedPath =
-  /^(?:node_modules\/|apps\/desktop\/(?:dist|node_modules|src-tauri\/gen)\/|target\/|work\/|outputs\/|release-assets\/|\.codex-remote-attachments\/|\.fallow(?:-review)?\/|\.rscheck\/|\.tmp\/|mutants\.out(?:\.old)?\/|Portcove-CI-FiveMinutes\/|integrations\/playnite\/(?:bin|obj|tests\/(?:bin|obj))\/|crates\/portcove-core\/catalog\/|crates\/[^/]+\/tests\/fixtures\/|docs\/archive\/|docs\/releases\/\d+\.md$)/u;
+  /^(?:node_modules\/|apps\/desktop\/(?:dist|node_modules|src-tauri\/gen)\/|target\/|work\/|outputs\/|release-assets\/|\.codex-remote-attachments\/|\.fallow(?:-review)?\/|\.tmp\/|mutants\.out(?:\.old)?\/|Portcove-CI-FiveMinutes\/|integrations\/playnite\/(?:bin|obj|tests\/(?:bin|obj))\/|crates\/portcove-core\/catalog\/|crates\/[^/]+\/tests\/fixtures\/|docs\/archive\/|docs\/releases\/\d+\.md$)/u;
 const oxfmtExcludedFile =
   /(?:\.generated\.[^/]+$|(?:^|\/)pnpm-lock\.yaml$|integrations\/playnite\/(?:tests\/)?packages\.lock\.json$)/u;
 
@@ -230,7 +232,7 @@ export function domainsForPath(input: string) {
     file.startsWith("crates/") ||
     file.startsWith("apps/desktop/src-tauri/")
   ) {
-    add(domains, "rust", "rscheck");
+    add(domains, "rust", "rust-portability");
     if (file === "Cargo.toml" || file === "Cargo.lock") add(domains, "release");
     if (file.startsWith("crates/portcove-release-tools/")) add(domains, "release");
     recognized = true;
@@ -303,7 +305,6 @@ export function domainsForPath(input: string) {
       add(domains, "development");
     if (/lint|oxfmt|fallow|copy|actionlint|powershell|vitest-duration/u.test(name))
       add(domains, "lint");
-    if (/rscheck/u.test(name)) add(domains, "rscheck");
     if (
       /ci-|repository-settings|pr-conventions|test-duration|quality-tools|upstream-observer|retcomm/u.test(
         name,
@@ -334,8 +335,8 @@ export function domainsForPath(input: string) {
     recognized = true;
   }
 
-  if (file === ".rscheck.toml") {
-    add(domains, "rscheck");
+  if (file.startsWith("tools/rust-portability/")) {
+    add(domains, "rust", "rust-portability");
     recognized = true;
   }
   if (/\.(?:ps1|sh|py)$/u.test(file)) {
@@ -584,7 +585,7 @@ export function validationRuntime(
       environmentWhitelist.map((name) => [name, environment[name] ?? null]),
     ),
   };
-  if (includes("rust", "rscheck")) {
+  if (includes("rust", "rust-portability")) {
     runtime.rustc = version("rustc", ["--version", "--verbose"]);
     runtime.cargo = version("cargo", ["--version"]);
   }
@@ -592,7 +593,6 @@ export function validationRuntime(
     runtime.cargoNextest = version("cargo", ["nextest", "--version"]);
     runtime.cargoShear = version("cargo", ["shear", "--version"]);
   }
-  if (includes("rscheck")) runtime.rscheck = version("rscheck", ["--version"]);
   if (includes("lint")) {
     runtime.aqua = version("aqua", ["--version"]);
     runtime.powershell = version("pwsh", ["--version"]);
@@ -685,7 +685,7 @@ export function fingerprintInputs(
     git: runtime.git,
     just: runtime.just,
     environment: runtime.environment,
-    ...(["rust", "rscheck"].includes(stage.domain)
+    ...(["rust", "rust-portability", "rscheck"].includes(stage.domain)
       ? { rustc: runtime.rustc, cargo: runtime.cargo }
       : {}),
     ...(stage.domain === "rust"

@@ -411,10 +411,10 @@ impl PortcoveService {
                 Installer::new(self.library().clone())?.verify_critical(&copied, &qualification)?;
             }
             let working = crate::adapter::launch_working_directory(
-                port.adapter,
                 &port,
                 payload,
                 &payload.join(&plan.inputs.install.selected_executable),
+                plan.inputs.host,
             )?;
             let quiesced = std::cell::Cell::new(true);
             if inputs.conversion_tool.is_some() {
@@ -810,7 +810,12 @@ pub(super) fn setup_output_root(
     if port.adapter == crate::AdapterKind::UpstreamManagedSetup
         && port.runtime_subdirectory.is_some()
     {
-        crate::adapter::launch_working_directory(port.adapter, port, payload, selected_executable)
+        crate::adapter::launch_working_directory(
+            port,
+            payload,
+            selected_executable,
+            crate::Platform::current()?,
+        )
     } else {
         Ok(payload.to_path_buf())
     }

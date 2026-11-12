@@ -178,6 +178,24 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       requireArgs("get_launch_failure", args, { portId: args.portId, generation });
       return null;
     },
+    // Fixtures never run a setup batch, so none is left unfinished.
+    get_unfinished_install_batches: (args) => {
+      requireArgs("get_unfinished_install_batches", args, { generation });
+      return [];
+    },
+    // Fixtures keep no remembered game choices, so nothing is assessed or set up.
+    get_port_intents: (args) => {
+      requireArgs("get_port_intents", args, { generation });
+      return [];
+    },
+    get_root_setup_consents: (args) => {
+      requireArgs("get_root_setup_consents", args, { generation });
+      return [];
+    },
+    assess_port_intents: (args) => {
+      requireArgs("assess_port_intents", args, { generation });
+      return { assessments: [], not_assessed: 0 };
+    },
     get_automatic_snapshots: (args) => {
       requireArgs("get_automatic_snapshots", args, { generation });
       return automaticSnapshots;
@@ -380,6 +398,21 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         can_use_cached: false,
         state_sha256: "a".repeat(64),
       } satisfies Awaited<ReturnType<typeof desktopApi.catalogStatus>>;
+    },
+    // Fixture games have no reviewed mod contract, as most real games do not;
+    // the setups view then renders nothing.
+    get_mod_setups: (args) => {
+      const portId = requirePort("get_mod_setups", args);
+      return {
+        port_id: portId,
+        supported: false,
+        package_types: [],
+        later_mods_take_priority: false,
+        held_updates: [],
+        provider: null,
+        inventory: null,
+        live: null,
+      } satisfies Awaited<ReturnType<typeof desktopApi.modSetups>>;
     },
     get_port_capabilities: (args) => {
       const snapshot = workspace(journey);

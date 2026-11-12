@@ -223,6 +223,65 @@ it("distinguishes catalog saved-data declarations, retained installation rules a
   expect(external).not.toContain("<code>save</code>");
 });
 
+it("places the catalog setup check with Game files before installation and in Manage after", () => {
+  const render = (installed: boolean) =>
+    renderToStaticMarkup(
+      <DetailPanel
+        port={port}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        managementSupplement={<p>Catalog setup check</p>}
+        status={{
+          ...portStatus(),
+          port_id: port.id,
+          ...(installed ? { active: installRecord() } : {}),
+        }}
+      />,
+    );
+  const before = render(false);
+  expect(detailSection(before, "files")).toContain("Catalog setup check");
+  expect(detailSection(before, "manage")).not.toContain("Catalog setup check");
+  const after = render(true);
+  expect(detailSection(after, "manage")).toContain("Catalog setup check");
+  expect(detailSection(after, "files")).not.toContain("Catalog setup check");
+});
+
+it("does not promise further updates only when the catalog withdrew them", () => {
+  const render = (assessment: NonNullable<PortStatus["port_actions"]>[number]) =>
+    renderToStaticMarkup(
+      <DetailPanel
+        port={port}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={{
+          ...portStatus(),
+          port_id: port.id,
+          active: installRecord(),
+          port_actions: [assessment],
+        }}
+      />,
+    );
+  const handles = "Portcove handles updates for this installation.";
+  const withdrawn = "Portcove manages this installation; no further updates are offered.";
+  expect(render({ action: "update", availability: "allowed", reason: "available" })).toContain(
+    handles,
+  );
+  // A pending setup or acquisition hold is temporary, not a withdrawal.
+  expect(
+    render({ action: "update", availability: "not_offered", reason: "route_not_offered" }),
+  ).toContain(handles);
+  const revoked = render({
+    action: "update",
+    availability: "held",
+    reason: "definition_ineligible",
+    definition: { outcome: "hold", reason: "curated_artifact_revoked" },
+  });
+  expect(revoked).toContain(withdrawn);
+  expect(revoked).not.toContain(handles);
+});
+
 it.each([
   ["allowed", "available", false, null],
   [
@@ -260,6 +319,7 @@ it.each([
         .trim() === "Restore previous version",
   )?.[0];
   expect(button).toBeDefined();
+  expect(html).toContain("Portcove first takes an automatic snapshot of its saves and settings");
   expect(button?.includes('disabled=""')).toBe(disabled);
   expect(html.includes("data-rollback-assessment")).toBe(disabled);
   const assessment = html.match(/<p\b[^>]*data-rollback-assessment[^>]*>(.*?)<\/p>/s)?.[1] ?? null;
@@ -1475,10 +1535,16 @@ describe("desktop components", () => {
       uninstalled.match(/<button\b[^>]*aria-describedby="backup-create-explanation"[^>]*>/)?.[0],
     ).toContain(' disabled=""');
     expect(buttonLabels).toContain("Check installed files");
-    expect(buttonLabels).toContain("Restore previous version");
+    // No previous version is recorded, so restore is known to be inapplicable and hidden.
+    expect(buttonLabels).not.toContain("Restore previous version");
+    expect(installed).toContain("No previous version is recorded.");
+    // Update ownership is stated for a Portcove-managed installation.
+    expect(installed).toContain("Portcove handles updates for this installation.");
     // Reachable on the page, not just rendered by its own component test.
     expect(buttonLabels).toContain("Report a problem");
-    expect(installed).toContain(
+    // The restore explanation belongs to the hidden restore control here; the retained
+    // rollback cases assert it when a previous version exists.
+    expect(installed).not.toContain(
       "Portcove first takes an automatic snapshot of its saves and settings",
     );
     expect(buttonLabels).not.toContain("Check update");

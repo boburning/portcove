@@ -77,7 +77,8 @@ describe("player-data protection summary", () => {
     const protection = snapshot();
     protection.port_id = "other-port";
     const html = render(protection);
-    expect(html).toContain("Backup information is unavailable");
+    expect(html).toContain("Protection details for this installation aren’t available");
+    expect(html).not.toContain("Backup information is unavailable");
     expect(html).not.toContain("C:/library/user/sample");
     expect(html).not.toContain(declaration.definition_sha256);
   });
@@ -90,7 +91,8 @@ describe("player-data protection summary", () => {
         readState={{ status: "current", hasInventory: true }}
       />,
     );
-    expect(html).toContain("Backup information is unavailable");
+    expect(html).toContain("Protection details for this installation aren’t available");
+    expect(html).not.toContain("Backup information is unavailable");
     expect(html).not.toContain("No completed backup");
   });
 
@@ -122,7 +124,8 @@ describe("player-data protection summary", () => {
       },
     ];
     const html = render(protection);
-    expect(html).toContain("Backup information is unavailable");
+    expect(html).toContain("Protection details for this installation aren’t available");
+    expect(html).not.toContain("Backup information is unavailable");
     expect(html).not.toContain("previous-generation");
   });
   it("does not call a fulfilled unreadable inventory empty", () => {
@@ -150,5 +153,19 @@ describe("player-data protection summary", () => {
       "We couldn’t confirm a completed backup because the history is incomplete.",
     );
     expect(html).not.toContain("No completed backup recorded.");
+  });
+
+  it("shows paths containing interpolation-like text exactly", () => {
+    const protection = snapshot();
+    protection.managed_data.path = "/home/player/{{state}}/{{path}}/saves";
+    protection.managed_data.state = "unreadable";
+    const html = render(protection);
+    expect(html).toContain('<code dir="ltr">/home/player/{{state}}/{{path}}/saves</code>');
+    expect(html).toContain("Couldn’t read");
+    // An unknown future Core state never renders a raw placeholder.
+    (protection.managed_data as { state: string }).state = "future_state";
+    const future = render(protection);
+    expect(future).toContain("Status unavailable");
+    expect(future).not.toContain("· {{state}}");
   });
 });

@@ -344,3 +344,31 @@ it("keeps a Unicode destination readable in a narrow reading flow", async () => 
     await page.viewport(1280, 800);
   }
 });
+
+it("renders the support report receipt in the current language and keeps the path exact", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    const exported = bundle();
+    exported.path = "E:/diagnostics/{{section}}/support.zip";
+    await root.rerender(<SupportBundleExport createSupportBundle={vi.fn(async () => exported)} />);
+    await click("إنشاء تقرير دعم");
+    const status = fixtureValue(host.querySelector('[role="status"]'), "receipt");
+    expect(status.textContent).toBe(
+      `حُفظ تقرير الدعم في ${exported.path}. بعض التشخيصات جزئية أو محذوفة. راجع تفاصيل الجمع أدناه.`,
+    );
+    expect(status.querySelector("code")?.textContent).toBe(exported.path);
+    await page.getByText("عرض محتويات تقرير الدعم", { exact: true }).click();
+    for (const text of [
+      "تشخيصات بدء التشغيل: مُضمّن",
+      "فحوصات النظام والمكتبة: محذوف",
+      "لم يكن مصدر التشخيص متاحًا؛ محتوياته غير معروفة.",
+    ]) {
+      await expect.element(page.getByText(text, { exact: true })).toBeVisible();
+    }
+    expect(host.textContent).not.toContain("Support report");
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});

@@ -1,0 +1,162 @@
+{
+  "alternatives": {
+    "external": "Instalación externa · <version/>",
+    "heading": "Otras adaptaciones de este juego ({{total}})",
+    "independence": "Cada proyecto conserva sus propios archivos e instalación. Elegir uno no transfiere partidas ni elige una versión.",
+    "managed": "Instalación administrada · <version/>",
+    "notInstalled": "No instalado",
+    "originalFiles": "Archivos originales: <files/>",
+    "originalFilesUnknown": "Archivos originales: consulta las instrucciones de configuración del proyecto",
+    "runsOn": "Funciona en: <platforms/>",
+    "runsOnUnknown": "Funciona en: sin registrar",
+    "sourceEditions": "Ediciones de origen: <editions/>",
+    "stateUnavailable": "Estado de la instalación no disponible",
+    "view": "Ver <name/>",
+    "viewing": "<name/> · Viendo"
+  },
+  "discover": {
+    "action": {
+      "compare": "Comparar adaptaciones",
+      "compareAll": "Comparar las {{total}}",
+      "continue": "Continuar la configuración",
+      "installation": "Ver la instalación",
+      "port": "Ver la adaptación",
+      "task": "Ver la tarea",
+      "why": "¿Por qué esta adaptación?"
+    },
+    "cardLabel": "{{game}}. {{state}}.",
+    "chip": {
+      "channel": "Canal de actualización",
+      "platform": "Funciona en",
+      "system": "Sistema original"
+    },
+    "compare": {
+      "files": "Archivos necesarios",
+      "filesUnlisted": "Los requisitos no figuran aquí. Consulta las instrucciones de configuración del proyecto.",
+      "instructions": "Instrucciones del proyecto",
+      "noChannel": "No figura ningún canal de actualización.",
+      "noPlatform": "No figura ninguna plataforma.",
+      "options": "Opciones de comparación e informes",
+      "optionsIntro": "Los detalles de las funciones no están disponibles para todos los proyectos. Consulta los informes y las instrucciones del proyecto. Es posible que tus partidas guardadas y tus mods no funcionen con otra adaptación.",
+      "outsideFilters": "Fuera de los filtros actuales.",
+      "setup": "Cómo configurarlo",
+      "several": "Compara los requisitos de configuración de {{total}} adaptaciones. Consulta las instrucciones de cada adaptación para saber si comparten la ubicación de las partidas guardadas.",
+      "single": "Revisa los requisitos de configuración y los informes de esta adaptación.",
+      "status": "Estado actual",
+      "updates": "Quién gestiona las actualizaciones"
+    },
+    "compareMatching": "Compara las adaptaciones coincidentes para ver sus propios requisitos de configuración y su estado de instalación.",
+    "drop": {
+      "hover": "Arrastra aquí para comprobar este juego",
+      "release": "Suelta para comprobar"
+    },
+    "favorite": {
+      "add": "Añadir a favoritos",
+      "label": "Marcar {{game}} como favorito",
+      "remove": "Quitar de favoritos"
+    },
+    "groupLabel_one": "{{title}}. {{count}} proyecto de adaptación independiente; {{matching}} coincidentes.",
+    "groupLabel_many": "{{title}}. {{count}} proyectos de adaptación independientes; {{matching}} coincidentes.",
+    "groupLabel_other": "{{title}}. {{count}} proyectos de adaptación independientes; {{matching}} coincidentes.",
+    "identity": {
+      "matching": "{{title}} {{project}}. Adaptación coincidente: {{port}}. {{state}}. {{action}}",
+      "single": "{{title}} {{project}}. {{state}}. {{action}}"
+    },
+    "label": "Descubrir juegos",
+    "matchingPort": "Adaptación coincidente: <port />",
+    "memberLabel": "{{action}}: {{game}}",
+    "ownership": {
+      "external": "Instalación externa. Tú o su lanzador se encargan de las actualizaciones.",
+      "managed": "Instalación administrada. Portcove gestiona las actualizaciones revisadas.",
+      "notInstalled": "Sin instalar. Sigue las instrucciones de configuración de este proyecto.",
+      "unavailable": "No se sabe quién gestiona la instalación. Consulta las instrucciones del proyecto."
+    },
+    "separateProjects_one": "{{count}} proyecto de adaptación independiente",
+    "separateProjects_many": "{{count}} proyectos de adaptación independientes",
+    "separateProjects_other": "{{count}} proyectos de adaptación independientes"
+  },
+  "hero": {
+    "continueLabel": "{{title}}, jugado recientemente",
+    "credits": "Créditos de las imágenes",
+    "detailLabel": "Detalles del juego {{title}}"
+  },
+  "implementation": {
+    "choose": "Elegir <name/>",
+    "preferred": "Preferida: <name/>",
+    "refresh": "Actualizar las opciones",
+    "unconfirmed": "Portcove no pudo confirmar que se guardó tu elección. Actualiza las opciones para comprobarlo."
+  },
+  "library": {
+    "allPorts_one": "La única adaptación ({{count, number}}) · Coincidentes: {{matching, number}}",
+    "allPorts_many": "Todas las adaptaciones ({{count, number}}) · Coincidentes: {{matching, number}}",
+    "allPorts_other": "Todas las adaptaciones ({{count, number}}) · Coincidentes: {{matching, number}}",
+    "choiceFiltered": "Tu adaptación preferida está fuera de estos filtros. Puedes ver las adaptaciones coincidentes abajo.",
+    "choiceReadFailed": "No se pudo leer tu elección de implementación. Las acciones de las instalaciones existentes siguen disponibles.",
+    "choiceStale": "La adaptación que elegiste ya no está en el grupo de este juego. Elige una adaptación de la lista.",
+    "choosePrompt": "Elige la adaptación que se mostrará para este juego. Antes de cambiar, consulta sus instrucciones de configuración sobre las ubicaciones compartidas de las partidas.",
+    "chosen": "<name/> · Tu elección",
+    "chosenOutside": "<name/> · Tu elección · Fuera de los filtros actuales",
+    "independence": "Elegir un proyecto no selecciona una versión, no transfiere partidas ni reemplaza otra instalación.",
+    "outside": "<name/> · Fuera de los filtros actuales",
+    "portCount_one": "{{count, number}} adaptación",
+    "portCount_many": "{{count, number}} adaptaciones",
+    "portCount_other": "{{count, number}} adaptaciones",
+    "portsLabel": "Adaptaciones de {{title}}"
+  },
+  "maintenance": {
+    "offer": "Oferta administrada actual",
+    "reconsider": "Reconsiderar cuando: <condition/>"
+  },
+  "match": {
+    "channelUnknown": "Canal desconocido",
+    "choose": "Elige una versión para inspeccionarla. Cada opción coincide con todos los filtros seleccionados.",
+    "heading": "Versiones que coinciden con tus filtros",
+    "installedBuild": "Compilación instalada",
+    "label": "Contextos de exploración coincidentes",
+    "lostChoice": "Tu elección anterior ya no está vigente. Elige una versión coincidente para inspeccionarla.",
+    "methodUnknown": "Método de configuración guardado desconocido",
+    "noCheck": "No hay una comprobación actual de archivos del juego para esta versión. Vuelve a comprobar.",
+    "noDetails": "Este juego coincide con tus filtros. Los detalles de la versión no están disponibles; Portcove comprueba los requisitos antes de la configuración o el inicio.",
+    "noLongerMatches": "Esta adaptación ya no coincide con tus filtros.",
+    "platformUnknown": "Plataforma desconocida",
+    "savedInstallation": "<method/>. Esta es tu instalación guardada coincidente. Portcove vuelve a comprobar los requisitos actuales antes de la configuración o el inicio.",
+    "setup": "Configuración",
+    "setupOption": "<method/>. Esta opción de configuración coincide con tus filtros. Portcove vuelve a comprobar los requisitos actuales antes de la configuración o el inicio.",
+    "unavailable": "Estos resultados de filtro no están disponibles. Vuelve a Filtros para actualizar tus elecciones o comprobar de nuevo."
+  },
+  "media": {
+    "captionUnavailable": "<caption/> · Imagen no disponible",
+    "choose": "Elige una captura",
+    "creditOriginal": "Versión original · <edition/> · <credit/>",
+    "creditPort": "Imagen de la adaptación · <credit/>",
+    "enlarge": "Ampliar la captura {{number, number}}: {{caption}}",
+    "exactPort": "Captura de esta adaptación exacta.",
+    "fromOriginal": "De la versión original; esta adaptación puede verse diferente.",
+    "igdbTerms": "Términos de IGDB",
+    "loading": "Cargando imagen…",
+    "loadingScreenshot": "Cargando captura…",
+    "next": "Siguiente",
+    "openOriginal": "Abrir la imagen original",
+    "position": "Vista previa de imagen · Captura {{number, number}} de {{total, number}}",
+    "previous": "Anterior",
+    "retry": "Reintentar imagen",
+    "retryScreenshot": "Reintentar captura {{number, number}}",
+    "screenshots": "Capturas de pantalla",
+    "show": "Mostrar la captura {{number, number}}: {{caption}}",
+    "source": "Fuente",
+    "unavailable": "Imagen no disponible"
+  },
+  "observations": {
+    "available": "Actualización disponible en la última comprobación",
+    "channel": "Canal de actualización seleccionado: <channel/>",
+    "retired": "Retirada en el origen",
+    "staged": "Actualización guardada para más tarde",
+    "updateDetails": "Detalles de la actualización"
+  },
+  "search": {
+    "clear": "Borrar la búsqueda",
+    "discover": "Buscar en Descubrir",
+    "library": "Buscar en tu biblioteca",
+    "placeholder": "Nombre del juego o de la adaptación"
+  }
+}

@@ -1,0 +1,48 @@
+# Coverage-guided fuzzing for the download archive readers (#5032).
+# This is its own workspace with its own lockfile so fuzz-only dependencies,
+# instrumentation and the nightly compiler never reach production builds.
+# See README.md for the pinned toolchain and the build and campaign commands.
+[package]
+name = "portcove-core-fuzz"
+version = "0.0.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[workspace]
+members = ["."]
+
+[dependencies]
+libfuzzer-sys = "0.4.13"
+portcove-core = { path = "..", features = ["archive-fuzzing"] }
+
+[[bin]]
+name = "archive_zip"
+path = "fuzz_targets/archive_zip.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "archive_7z"
+path = "fuzz_targets/archive_7z.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "archive_tar_gz"
+path = "fuzz_targets/archive_tar_gz.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "archive_tar_xz"
+path = "fuzz_targets/archive_tar_xz.rs"
+test = false
+doc = false
+bench = false

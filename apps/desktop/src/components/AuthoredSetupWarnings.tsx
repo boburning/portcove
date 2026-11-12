@@ -1,15 +1,21 @@
 import secondHunt from "../../../../crates/portcove-core/catalog/ports/bountyhunterkanden-secondhunt.json";
+import { useAppTranslation } from "../localization";
 import type { PortStatus } from "../types";
 
-/** Authored cautions stay visible before setup, download and route-change decisions. */
+/**
+ * Authored cautions stay visible before setup, download and route-change decisions.
+ * The warnings are catalog-authored data and render verbatim; only the heading is copy.
+ */
 export function AuthoredSetupWarnings({ warnings }: { warnings?: readonly string[] | undefined }) {
+  const { t } = useAppTranslation("common");
   if (!warnings?.length) return null;
   return (
     <aside
-      aria-label="Before you begin"
+      data-setup-warnings
+      aria-label={t("setupWarnings")}
       className="border-pc-warning rounded-pc-md border bg-pc-warning-subtle p-3 text-pc-warning-foreground"
     >
-      <h4 className="font-semibold">Before you begin</h4>
+      <h4 className="font-semibold">{t("setupWarnings")}</h4>
       <ul className="mt-2 grid list-disc gap-2 pl-5">
         {warnings.map((warning) => (
           <li key={warning}>{warning}</li>

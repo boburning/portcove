@@ -78,8 +78,8 @@ function isAssetSelector(value: unknown): value is string[] {
 export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
   const layout = record.psx_managed_windows_v1;
   if (layout === undefined) return record;
-  const bundledOpenBios = layout === "bundled-openbios";
-  const splitMods = layout === "split-mods";
+  const bundledOpenBios = layout === "bundled-openbios" || layout === "split-mods-openbios";
+  const splitMods = layout === "split-mods" || layout === "split-mods-openbios";
   const integration = record.integration;
   const executableHints = isRecord(integration?.executable_hints)
     ? integration.executable_hints
@@ -107,8 +107,7 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
     !integration.source_profile ||
     (bundledOpenBios
       ? Object.hasOwn(integration, "bios_source_profile")
-      : biosProfile !== "psx-scph-1001-bios" &&
-        !(splitMods && biosProfile === "psx-scph-5552-bios")) ||
+      : biosProfile !== "psx-scph-1001-bios" && biosProfile !== "psx-scph-5552-bios") ||
     !Array.isArray(executable) ||
     executable.length !== 1 ||
     typeof executable[0] !== "string" ||
@@ -122,7 +121,7 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
     record.settings_observation_v1 !== undefined
   )
     throw new Error(
-      "PSX managed Windows authoring requires the reviewed Windows GitHub kit, a generated player, an explicit disc profile and either retail SCPH-1001 BIOS or explicit bundled OpenBIOS without a retail profile. The split-mods layout also accepts an explicit retail SCPH-5552 BIOS. A Linux x64 sibling requires the same generated player basename and an explicit asset selector.",
+      "PSX managed Windows authoring requires the reviewed Windows GitHub kit, a generated player, an explicit disc profile and either retail SCPH-1001 BIOS, an explicit retail SCPH-5552 BIOS, or explicit bundled OpenBIOS without a retail profile. A Linux x64 sibling requires the same generated player basename and an explicit asset selector.",
     );
 
   if (

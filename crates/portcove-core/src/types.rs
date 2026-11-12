@@ -645,6 +645,8 @@ pub struct ReleaseSpec {
     /// Native8: select the checked TAR.XZ player archive on Linux x86-64.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub linux_tar_xz: bool,
+    // Native26 also uses this field for reviewed Mac app bundles. The
+    // declaration keeps its existing transport schema description.
     /// GeneratedCache3: select a checked TAR.XZ player archive on the declared Mac routes.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tar_xz_platforms: Vec<Platform>,
@@ -804,6 +806,10 @@ pub struct PortDefinition {
     /// their configuration, so it must be a declared persistent path and is never reset.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub portable_marker_file: Option<String>,
+    /// Native25: keep the Linux player's portable profile in this declared
+    /// directory beside the executable, creating it when absent before Play.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub linux_portable_data_directory: Option<String>,
     /// Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub n64_windows_initial_d3d12: bool,
@@ -852,6 +858,12 @@ pub struct PortDefinition {
     /// materializations: image kind, size bound and accepted game identifiers.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime_disc_image: Option<DiscImageProfile>,
+    /// A disc-image source that is offered but not required: with none registered the
+    /// game is not blocked and the runtime and its persistent files are left as they are;
+    /// when one is registered it is unpacked as for a required source. Only valid with a
+    /// disc-image materialization.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub optional_game_source: bool,
     #[serde(default)]
     pub runtime_source_set: Vec<RuntimeSourceTarget>,
     #[serde(default)]
@@ -1099,6 +1111,9 @@ pub struct PortListingStatus {
     /// Optional inert read model; absence cannot suppress an independently allowed action.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub capabilities: Option<crate::PortCapabilityReport>,
+    /// Explicit saved Library entry, independent of any installation or registration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub library_membership: Option<crate::LibraryMembership>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -1868,6 +1883,23 @@ pub struct InstallSourceRequirement {
     pub label: String,
     pub role: SourceRequirementRole,
     pub registered: bool,
+    /// The definition offers this source but does not require it; an unregistered
+    /// optional source never blocks installing, updating or launching.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub optional: bool,
+}
+
+/// The one rule for whether a source holds installing and updating: an unregistered
+/// required source does; an optional one never does.
+pub(crate) fn source_blocks_setup(registered: bool, optional: bool) -> bool {
+    !registered && !optional
+}
+
+impl InstallSourceRequirement {
+    /// See [`source_blocks_setup`].
+    pub(crate) fn blocks_setup(&self) -> bool {
+        source_blocks_setup(self.registered, self.optional)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -2361,6 +2393,24 @@ impl CapabilityDocument {
                 "installation.reference-removal-plan".into(),
                 "installation.reference-remove".into(),
                 "adopt".into(),
+                "launcher-library.inspect".into(),
+                "launcher-library.adopt".into(),
+                "games".into(),
+                "games.list".into(),
+                "games.add".into(),
+                "games.remove".into(),
+                "games.batch-plan".into(),
+                "games.batch-run".into(),
+                "games.batch-resume".into(),
+                "games.batch-cancel".into(),
+                "games.batch-show".into(),
+                "games.intent".into(),
+                "games.intents".into(),
+                "games.intents-acknowledge".into(),
+                "games.setup-ready".into(),
+                "games.folder-setup".into(),
+                "games.folder-setup-choose".into(),
+                "games.folder-setups".into(),
                 "ensure".into(),
                 "update".into(),
                 "verify".into(),

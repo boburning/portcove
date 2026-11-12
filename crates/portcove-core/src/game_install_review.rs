@@ -147,13 +147,13 @@ impl PortcoveService {
         result
     }
 
-    fn require_registered_install_inputs(reviewed: &GameInstallPlan) -> Result<()> {
+    pub(super) fn require_registered_install_inputs(reviewed: &GameInstallPlan) -> Result<()> {
         if reviewed.plan.action == crate::InstallPlanAction::Download
             && reviewed
                 .plan
                 .source_requirements
                 .iter()
-                .any(|source| !source.registered)
+                .any(|source| source.blocks_setup())
         {
             return Err(PortcoveError::conflict(
                 "register and review the required original files before reviewing installation",

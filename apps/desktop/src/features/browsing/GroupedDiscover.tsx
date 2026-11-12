@@ -7,7 +7,10 @@ import { presentPortAction, useOperationPresentation } from "../operations/opera
 import type { CollectionLayout } from "./use-collection-layout";
 import type { useFavorites } from "../favorites/use-favorites";
 import { SaveGameButton, type Organization } from "../organization/OrganizationControls";
+import type { TFunction } from "i18next";
 import { useId, useRef, useState, type ReactNode } from "react";
+import { Trans } from "react-i18next";
+import { useAppTranslation } from "../../localization";
 import { ArrowRight, GitCompareArrows, Heart, Star } from "lucide-react";
 import { ArtworkFrame, artworkDisplayNotice } from "../../components/Artwork";
 import { useArtwork, useArtworkVisibility } from "../../artwork";
@@ -40,24 +43,29 @@ export function IdentityChips({
   port: CatalogEntry;
   includeUnknown?: boolean;
 }) {
+  const { t } = useAppTranslation("browsing");
   return (
     <div className="flex flex-wrap gap-1.5">
       {originalSystems(port)
         .filter((system) => includeUnknown || system !== "not-specified")
         .map((system) => (
-          <Chip key={system} style={identityStyle(system)} title="Original system">
+          <Chip key={system} style={identityStyle(system)} title={t("discover.chip.system")}>
             <IdentityIcon name={system} />
             {identityLabel(system)}
           </Chip>
         ))}
       {port.platforms.map((platform) => (
-        <Chip key={platform} style={identityStyle(platform.split("-")[0]!)} title="Runs on">
+        <Chip
+          key={platform}
+          style={identityStyle(platform.split("-")[0]!)}
+          title={t("discover.chip.platform")}
+        >
           <IdentityIcon name={platform.split("-")[0]!} />
           {platformLabel(platform)}
         </Chip>
       ))}
       {port.channels?.map((channel) => (
-        <Chip key={channel} style={identityStyle(channel, true)} title="Update channel">
+        <Chip key={channel} style={identityStyle(channel, true)} title={t("discover.chip.channel")}>
           <IdentityIcon name={channel} channel />
           {releaseChannelPresentation(channel).label}
         </Chip>
@@ -89,6 +97,7 @@ export function GroupedDiscover({
   statuses: ReadonlyMap<string, PortStatus>;
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
 }) {
+  const { t } = useAppTranslation("browsing");
   const groups = groupCatalog(all, matching);
   const descriptionPrefix = useId();
   const [comparisonSelection, setComparison] = useState<GameGroup>();
@@ -132,9 +141,11 @@ export function GroupedDiscover({
         data-focusable
         size="icon-sm"
         className={card ? "collection-art-action collection-favorite" : undefined}
-        title={favorites.ids?.has(port.id) ? "Remove from favorites" : "Add to favorites"}
+        title={
+          favorites.ids?.has(port.id) ? t("discover.favorite.remove") : t("discover.favorite.add")
+        }
         variant={favorites.ids?.has(port.id) ? "selected" : "ghost"}
-        aria-label={`Favorite ${gameIdentityLabel(port)}`}
+        aria-label={t("discover.favorite.label", { game: gameIdentityLabel(port) })}
         aria-pressed={favorites.ids?.has(port.id) ?? false}
         disabled={!favorites.ids || favorites.busy}
         onClick={(event) => onFavoriteToggle(port.id, event.currentTarget)}
@@ -145,7 +156,7 @@ export function GroupedDiscover({
   return (
     <>
       <section
-        aria-label="Discover games"
+        aria-label={t("discover.label")}
         className={`port-grid discover-grid discover-${layout} collection-${layout} @container/collection grid w-full`}
         data-focus-group
       >
@@ -187,17 +198,14 @@ export function GroupedDiscover({
               </DialogTitle>
               <DialogDescription>
                 {comparison.ports.length === 1
-                  ? "Review this port’s setup requirements and reports."
-                  : `Compare setup requirements for ${comparison.ports.length} ports. Check each port’s instructions for shared save locations.`}
+                  ? t("discover.compare.single")
+                  : t("discover.compare.several", { total: comparison.ports.length })}
               </DialogDescription>
               <details className="my-4 text-xs text-pc-muted-foreground">
                 <summary data-focusable className="cursor-pointer py-2">
-                  Comparison options and reports
+                  {t("discover.compare.options")}
                 </summary>
-                <p>
-                  Feature details are not available for every project. Check the reports and project
-                  instructions. Your saves and mods may not work with another port.
-                </p>
+                <p>{t("discover.compare.optionsIntro")}</p>
                 <GameComparisonControls comparison={evidence} />
               </details>
               <div className="port-comparison-grid">
@@ -212,7 +220,10 @@ export function GroupedDiscover({
                     <article
                       key={port.id}
                       className="port-comparison-project min-w-0 wrap-anywhere"
-                      aria-label={`${gameIdentityLabel(port)}. ${observation.state.label}.`}
+                      aria-label={t("discover.cardLabel", {
+                        game: gameIdentityLabel(port),
+                        state: observation.state.label,
+                      })}
                       aria-describedby={describedBy}
                       data-source-drop-port-id={dropEligible ? port.id : undefined}
                       data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
@@ -221,20 +232,20 @@ export function GroupedDiscover({
                         <h3>{gameProjectLabel(port) || port.name}</h3>
                         <p>{port.summary}</p>
                         <IdentityChips port={port} includeUnknown />
-                        {!port.platforms.length && <p>No platform is listed.</p>}
-                        {!port.channels?.length && <p>No update channel is listed.</p>}
+                        {!port.platforms.length && <p>{t("discover.compare.noPlatform")}</p>}
+                        {!port.channels?.length && <p>{t("discover.compare.noChannel")}</p>}
                         {!matching.some((candidate) => candidate.id === port.id) && (
                           <p className="text-sm text-pc-muted-foreground">
-                            Outside the current filters.
+                            {t("discover.compare.outsideFilters")}
                           </p>
                         )}
                       </header>
                       <div>
-                        <h4>How to set it up</h4>
+                        <h4>{t("discover.compare.setup")}</h4>
                         <p>{installationMethodLabel(port)}</p>
                       </div>
                       <div>
-                        <h4>Required files</h4>
+                        <h4>{t("discover.compare.files")}</h4>
                         {port.presentation?.source_requirements?.length ? (
                           <ul>
                             {port.presentation.source_requirements.map((requirement) => (
@@ -242,15 +253,12 @@ export function GroupedDiscover({
                             ))}
                           </ul>
                         ) : (
-                          <p>
-                            Requirements are not listed here. Check the project’s setup
-                            instructions.
-                          </p>
+                          <p>{t("discover.compare.filesUnlisted")}</p>
                         )}
                       </div>
                       <div>
-                        <h4>Who handles updates</h4>
-                        {renderComparisonOwnership(status)}
+                        <h4>{t("discover.compare.updates")}</h4>
+                        {renderComparisonOwnership(t, status)}
                       </div>
                       <div className="min-w-0">
                         <GameComparisonEvidence
@@ -260,7 +268,7 @@ export function GroupedDiscover({
                         />
                       </div>
                       <div>
-                        <h4>Current status</h4>
+                        <h4>{t("discover.compare.status")}</h4>
                         <BrowsePortObservations
                           port={port}
                           status={status}
@@ -293,13 +301,18 @@ export function GroupedDiscover({
                             open(port, `catalog:card:${comparison.matchingPorts[0]!.id}`)
                           }
                           data-discover-port-id={port.id}
-                          aria-label={`${memberLabel(port, status)}: ${gameIdentityLabel(port)}`}
+                          aria-label={t("discover.memberLabel", {
+                            action: memberLabel(t, port, status),
+                            game: gameIdentityLabel(port),
+                          })}
                           aria-describedby={describedBy}
                         >
-                          {memberLabel(port, statuses.get(port.id))}
+                          {memberLabel(t, port, statuses.get(port.id))}
                         </Button>
                         {port.project_url && (
-                          <ExternalLink href={port.project_url}>Project instructions</ExternalLink>
+                          <ExternalLink href={port.project_url}>
+                            {t("discover.compare.instructions")}
+                          </ExternalLink>
                         )}
                       </div>
                     </article>
@@ -314,15 +327,15 @@ export function GroupedDiscover({
   );
 }
 
-function renderComparisonOwnership(status: PortStatus | undefined) {
+function renderComparisonOwnership(t: TFunction<"browsing">, status: PortStatus | undefined) {
   return (
     <p>
-      {status?.active ? "Managed installation. Portcove handles reviewed updates." : ""}
-      {status?.external_runtime ? "External installation. You or its launcher handle updates." : ""}
+      {status?.active ? t("discover.ownership.managed") : ""}
+      {status?.external_runtime ? t("discover.ownership.external") : ""}
       {!status
-        ? "Installation ownership is unavailable. Check the project instructions."
+        ? t("discover.ownership.unavailable")
         : !status.active && !status.external_runtime
-          ? "Not installed. Follow this project’s setup instructions."
+          ? t("discover.ownership.notInstalled")
           : ""}
     </p>
   );
@@ -349,7 +362,9 @@ function DiscoverGameCard({
   open: (port: CatalogEntry, originKey: string) => void;
   compare: (group: GameGroup, trigger: HTMLButtonElement) => void;
 }) {
+  const { t } = useAppTranslation("browsing");
   const { first, actionGroup, status, exact, firstProject, projectLabel } = discoverCardIdentity(
+    t,
     group,
     statuses,
     organization,
@@ -370,8 +385,15 @@ function DiscoverGameCard({
       className={`discover-game relative min-w-0${dropTarget ? " outline-3 outline-offset-2 outline-pc-ring" : ""}`}
       aria-label={
         exact
-          ? `${gameIdentityLabel(first)}. ${observation.state.label}.`
-          : `${gameTitle(first)}. ${group.ports.length} separate port projects; ${group.matchingPorts.length} matching.`
+          ? t("discover.cardLabel", {
+              game: gameIdentityLabel(first),
+              state: observation.state.label,
+            })
+          : t("discover.groupLabel", {
+              title: gameTitle(first),
+              count: group.ports.length,
+              matching: group.matchingPorts.length,
+            })
       }
       aria-describedby={describedBy}
       data-source-drop-port-id={dropEligible ? first.id : undefined}
@@ -388,9 +410,22 @@ function DiscoverGameCard({
         data-detail-origin={detailOrigin}
         data-detail-game-id={first.id}
         aria-label={
-          exact
-            ? `${gameTitle(first)} ${projectLabel}. ${group.ports.length > 1 ? `Matching port: ${firstProject}. ` : ""}${observation.state.label}. ${memberLabel(first, status)}`
-            : undefined
+          !exact
+            ? undefined
+            : group.ports.length > 1
+              ? t("discover.identity.matching", {
+                  title: gameTitle(first),
+                  project: projectLabel,
+                  port: firstProject,
+                  state: observation.state.label,
+                  action: memberLabel(t, first, status),
+                })
+              : t("discover.identity.single", {
+                  title: gameTitle(first),
+                  project: projectLabel,
+                  state: observation.state.label,
+                  action: memberLabel(t, first, status),
+                })
         }
         aria-describedby={describedBy}
         onClick={(event) =>
@@ -412,7 +447,19 @@ function DiscoverGameCard({
       </div>
       <div className="discover-game-metadata grid content-start gap-2">
         {artworkNotice && <p className="text-xs text-pc-muted-foreground">{artworkNotice}</p>}
-        {exact && <IdentityChips port={first} />}
+        {/* Most catalog ports offer only Stable; that chip does not help choose a game.
+            Preview, Rolling, mixed channels and a differing selected channel stay visible. */}
+        {exact && (
+          <IdentityChips
+            port={
+              first.channels?.length === 1 &&
+              first.channels[0] === "stable" &&
+              (!status?.channel || status.channel === "stable")
+                ? { ...first, channels: [] }
+                : first
+            }
+          />
+        )}
       </div>
       <DiscoverGameObservation
         group={actionGroup}
@@ -438,7 +485,7 @@ function DiscoverGameCard({
           aria-hidden="true"
           className="source-drop-target pointer-events-none absolute inset-0 grid place-items-center rounded-pc-md border-2 border-dashed border-pc-interactive bg-pc-interactive/90 p-3 text-center text-sm font-bold text-pc-action-foreground"
         >
-          {dropTarget ? "Release to check" : "Drop to check for this game"}
+          {dropTarget ? t("discover.drop.release") : t("discover.drop.hover")}
         </div>
       )}
     </article>
@@ -446,6 +493,7 @@ function DiscoverGameCard({
 }
 
 function discoverCardIdentity(
+  t: TFunction<"browsing">,
   group: GameGroup,
   statuses: ReadonlyMap<string, PortStatus>,
   organization: Organization | undefined,
@@ -464,7 +512,9 @@ function discoverCardIdentity(
     exact: Boolean(chosen) || group.matchingPorts.length === 1,
     firstProject,
     projectLabel:
-      group.ports.length === 1 ? firstProject : `${group.ports.length} separate port projects`,
+      group.ports.length === 1
+        ? firstProject
+        : t("discover.separateProjects", { count: group.ports.length }),
   };
 }
 
@@ -485,13 +535,20 @@ function DiscoverGameObservation({
   firstProject: string;
   organization: Organization | undefined;
 }) {
+  const { t } = useAppTranslation("browsing");
   const exact = group.matchingPorts.length === 1;
   return (
     <div className="discover-game-observation grid content-start gap-1">
       {exact ? (
         <>
           {group.ports.length > 1 && (
-            <p className="text-xs text-pc-muted-foreground">Matching port: {firstProject}</p>
+            <p className="text-xs text-pc-muted-foreground">
+              <Trans
+                t={t}
+                i18nKey="discover.matchingPort"
+                components={{ port: <bdi>{firstProject}</bdi> }}
+              />
+            </p>
           )}
           <BrowsePortObservations
             port={first}
@@ -502,9 +559,7 @@ function DiscoverGameObservation({
           />
         </>
       ) : (
-        <p className="text-xs text-pc-muted-foreground">
-          Compare the matching ports for their own setup requirements and installation status.
-        </p>
+        <p className="text-xs text-pc-muted-foreground">{t("discover.compareMatching")}</p>
       )}
     </div>
   );
@@ -527,6 +582,7 @@ function DiscoverGameActions({
   detailOrigin: string;
   describedBy: string | undefined;
 }) {
+  const { t } = useAppTranslation("browsing");
   const action = presentPortAction(
     useOperationPresentation(),
     first.id,
@@ -552,10 +608,10 @@ function DiscoverGameActions({
         }
       >
         {task
-          ? "View task"
+          ? t("discover.action.task")
           : group.matchingPorts.length === 1
-            ? memberLabel(first, statuses.get(first.id))
-            : "Compare ports"}
+            ? memberLabel(t, first, statuses.get(first.id))
+            : t("discover.action.compare")}
         <ArrowRight aria-hidden="true" />
       </Button>
       {group.ports.length === 1 && (
@@ -565,7 +621,7 @@ function DiscoverGameActions({
           size="sm"
           onClick={(event) => compare(group, event.currentTarget)}
         >
-          Why this port?
+          {t("discover.action.why")}
         </Button>
       )}
       {group.ports.length > 1 && group.matchingPorts.length === 1 && (
@@ -576,7 +632,7 @@ function DiscoverGameActions({
           onClick={(event) => compare(group, event.currentTarget)}
         >
           <GitCompareArrows aria-hidden="true" />
-          Compare all {group.ports.length}
+          {t("discover.action.compareAll", { total: group.ports.length })}
         </Button>
       )}
     </div>
@@ -596,10 +652,10 @@ function sourceDropEligible(
   );
 }
 
-function memberLabel(port: CatalogEntry, status: PortStatus | undefined) {
+function memberLabel(t: TFunction<"browsing">, port: CatalogEntry, status: PortStatus | undefined) {
   return port.pendingSetup
-    ? "Continue setup"
+    ? t("discover.action.continue")
     : status?.active || status?.external_runtime
-      ? "View installation"
-      : "View port";
+      ? t("discover.action.installation")
+      : t("discover.action.port");
 }

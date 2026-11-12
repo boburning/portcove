@@ -140,6 +140,9 @@ it("keeps the dialog open while a reviewed import is running", async () => {
   await click("Review restore");
   await click("Restore this library");
   expect(button("Close").disabled).toBe(true);
+  expect(document.querySelector("[role=status]")?.textContent).toBe(
+    "Copying and verifying the restored library… Keep Portcove open until this finishes.",
+  );
   await captureParityState("library-restore-pending-fixture");
   await act(async () =>
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
@@ -484,3 +487,41 @@ it("prioritizes interrupted-transfer recovery and excludes generic reload until 
 vi.mock("../file-picker", { spy: true });
 
 vi.mock("../reload-workspace", () => ({ reloadWorkspace: vi.fn() }));
+
+it("presents the restore review and its recovery in the active locale", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    await click("الاستعادة من نسخة مكتبة");
+    const dialog = () => document.body.querySelector('[role="dialog"]')?.textContent ?? "";
+    expect(dialog()).toContain("استخدم تصديرًا تثق به.");
+    expect(dialog()).toContain(`الوجهة: ${plan.destination_root}`);
+    expect(document.querySelector<HTMLInputElement>("#import-metadata")?.placeholder).toBe(
+      "اختر ملف معلومات المكتبة",
+    );
+    await click("اختيار ملف");
+    await click("اختيار مجلد");
+    await click("مراجعة الاستعادة");
+    expect(document.querySelector("[aria-label='خطة استعادة المكتبة']")).not.toBeNull();
+    await click("استعادة هذه المكتبة");
+    expect(document.body.textContent).toContain("Copied file changed");
+    const recovery = document.querySelector("[aria-label='استرداد استعادة المكتبة']");
+    expect(recovery?.querySelector("h2")?.textContent).toBe("إنهاء استعادة المكتبة المتوقفة");
+    expect(recovery?.querySelector("bdi[dir=ltr]")?.textContent).toBe(plan.destination_root);
+    expect(button("استئناف الاستعادة").disabled).toBe(false);
+    let finishRecovery!: (error: unknown) => void;
+    vi.mocked(desktopApi.recoverLibraryImport).mockReturnValue(
+      new Promise((_, reject) => {
+        finishRecovery = reject;
+      }),
+    );
+    await click("استئناف الاستعادة");
+    expect([...document.querySelectorAll("[role=status]")].map((item) => item.textContent)).toEqual(
+      ["جارٍ استرداد الاستعادة… أبقِ Portcove مفتوحًا حتى ينتهي هذا.", "جارٍ استرداد استعادة المكتبة…"],
+    );
+    await act(async () => finishRecovery({ message: "Backup disk is offline" }));
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});

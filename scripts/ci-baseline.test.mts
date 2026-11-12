@@ -604,6 +604,16 @@ void test("payload signer and held caller changes preserve release security and 
     assert.ok(local.nodeTests.has("scripts/release-payload-preparation.test.mts"), file);
   }
 });
+void test("browser shard balance inputs have known ownership and select the sharded suite", () => {
+  for (const file of ["scripts/browser-shard-balance.mts", ".config/browser-test-weights.json"]) {
+    const local = classifyChanges([{ status: "M", path: file }]);
+    assert.equal(local.unknown.size, 0, file);
+    assert.ok(local.uiFullTests, file);
+    const plan = make([file]);
+    assert.ok(plan.groups.includes("frontend"), file);
+    assert.ok(baselineBrowserShardsRequired(plan), file);
+  }
+});
 void test("shared and unknown frontend inputs use full units; sources use the related graph", () => {
   const related = baselineFrontendPlan(make(["apps/desktop/src/App.tsx"]));
   assert.ok(

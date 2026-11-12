@@ -100,6 +100,7 @@ export function inspectApplicationJobBudget(
       if (value.conclusion === "cancelled" && value.started_at === null) continue;
       assert.ok(
         Object.hasOwn(ceilings, value.name) ||
+          Object.hasOwn(remainingCeilings, value.name) ||
           (purpose !== "metadata-bootstrap" && value.name === "targets / execute"),
         `unknown executing release job: ${value.name}`,
       );

@@ -301,11 +301,6 @@ for (const [file, tests] of [
     "scripts/repository-path.mts",
     [...selectionContractTests, "scripts/validation-evidence.test.mts"],
   ],
-  ["scripts/fixtures/rscheck-portability-baseline.json", ["scripts/run-rscheck.test.mts"]],
-  [
-    "scripts/fixtures/rscheck-qualification-regression-literals.json",
-    ["scripts/run-rscheck.test.mts"],
-  ],
   ["scripts/ci-job-timeout-probe.mts", ["scripts/ci-job-timeout-probe.test.mts"]],
   [".github/workflows/job-timeout-rehearsal.yml", ["scripts/ci-job-timeout-probe.test.mts"]],
   ["scripts/workflow-job-evidence.mts", ["scripts/ci-job-timeout-probe.test.mts"]],
@@ -1633,6 +1628,7 @@ for (const [file, tests] of [
       "scripts/ui-test-selection.test.mts",
       "scripts/updater-historical-inputs.test.mts",
       "scripts/installed-game-data-fixture.test.mts",
+      "scripts/maintenance-handoffs.test.mts",
       "scripts/windows-installed-game-data.test.mts",
       "scripts/windows-historical-bootstrap.test.mts",
     ],
@@ -1642,6 +1638,7 @@ for (const [file, tests] of [
     [
       "scripts/desktop-boundary-wiring.test.mts",
       "scripts/fixture-module-closure.test.mts",
+      "scripts/maintenance-handoffs.test.mts",
       "scripts/precommit-check.test.mts",
       "scripts/daily-discovery.test.mts",
       "scripts/release-controller-wake.test.mts",
@@ -3014,14 +3011,6 @@ function classifyOnePath(
   }
   const includeFileChecks = options.includeFileChecks ?? true;
   let recognized = false;
-  // Archived rscheck crates are bytes for the qualification installer, which
-  // owns their checksums; changing one selects that installer's checks.
-  if (file.startsWith("vendor/rscheck/") && file.endsWith(".crate")) {
-    selection.scopes.add("tooling");
-    selection.pythonLint = true;
-    if (includeFileChecks) selection.pythonFiles.add("scripts/install-qualification-rscheck.py");
-    recognized = true;
-  }
   if (isVendoredRfdInput(file)) {
     selection.workspaceRust = true;
     selection.rustfmt = true;
@@ -3093,7 +3082,9 @@ function classifyOnePath(
 
   if (
     options.packagePrefixes === null &&
-    (file.startsWith("crates/") || file.startsWith("apps/desktop/src-tauri/"))
+    (file.startsWith("crates/") ||
+      file.startsWith("apps/desktop/src-tauri/") ||
+      file.startsWith("tools/rust-portability/"))
   ) {
     // Cargo is optional during selection. Do not turn unavailable metadata into
     // a narrower guess or an unbound plan: every workspace package must run.
@@ -3177,6 +3168,8 @@ function classifyOnePath(
       "apps/desktop/src/browser/failure-probe-contract.ts",
       "scripts/viteplus-cli.mts",
       "scripts/frontend-tests.ts",
+      "scripts/browser-shard-balance.mts",
+      ".config/browser-test-weights.json",
       "scripts/run-ui-tests.mts",
       "scripts/test-coverage-config.mts",
       "scripts/coverage-maps.mts",
@@ -3360,8 +3353,7 @@ function classifyOnePath(
     file === ".gitignore" ||
     file === ".gitattributes" ||
     file === ".git-blame-ignore-revs" ||
-    file === ".node-version" ||
-    file === ".rscheck.toml"
+    file === ".node-version"
   ) {
     selection.scopes.add("repository-config");
     recognized = true;

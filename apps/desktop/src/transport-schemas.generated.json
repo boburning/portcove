@@ -468,6 +468,609 @@
     "title": "Array_of_ActivityDiagnostic",
     "type": "array"
   },
+  "adoption_batch_preview": {
+    "$defs": {
+      "AdoptionCopyFile": {
+        "properties": {
+          "relative_path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "relative_path",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "AdoptionCopyPlan": {
+        "properties": {
+          "directories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/$defs/AdoptionCopyFile"
+            },
+            "type": "array"
+          },
+          "skipped_entries": {
+            "items": {
+              "$ref": "#/$defs/AdoptionSkippedEntry"
+            },
+            "type": "array"
+          },
+          "total_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "directories",
+          "files",
+          "skipped_entries",
+          "total_bytes"
+        ],
+        "type": "object"
+      },
+      "AdoptionDestinationPreview": {
+        "properties": {
+          "active_install": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstallRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "current_user_data_files": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "current_user_data_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "imported_user_data_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "output_location": {
+            "$ref": "#/$defs/PortOutputLocation"
+          }
+        },
+        "required": [
+          "output_location",
+          "active_install",
+          "imported_user_data_paths",
+          "current_user_data_files",
+          "current_user_data_sha256"
+        ],
+        "type": "object"
+      },
+      "AdoptionPreview": {
+        "properties": {
+          "application_files_will_be_copied": {
+            "type": "boolean"
+          },
+          "copy_plan": {
+            "$ref": "#/$defs/AdoptionCopyPlan"
+          },
+          "destination": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/AdoptionDestinationPreview"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "detected_port_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "original_will_be_modified": {
+            "type": "boolean"
+          },
+          "plan_sha256": {
+            "type": "string"
+          },
+          "selected_port_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "detected_port_ids",
+          "selected_port_id",
+          "application_files_will_be_copied",
+          "original_will_be_modified",
+          "copy_plan",
+          "destination",
+          "plan_sha256"
+        ],
+        "type": "object"
+      },
+      "AdoptionSkippedEntry": {
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "relative_path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "relative_path",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "ArtifactIdentity": {
+        "properties": {
+          "asset_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_name",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "InstallRecord": {
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity",
+            "default": {
+              "asset_name": "",
+              "sha256": "",
+              "size": 0
+            }
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "id": {
+            "type": "string"
+          },
+          "installed_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "manifest_sha256": {
+            "default": "",
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "selected_executable": {
+            "default": "",
+            "type": "string"
+          },
+          "staged": {
+            "type": "boolean"
+          },
+          "verified": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "version",
+          "path",
+          "channel",
+          "installed_at",
+          "verified",
+          "staged",
+          "artifact",
+          "runtime",
+          "manifest_sha256",
+          "selected_executable"
+        ],
+        "type": "object"
+      },
+      "OutputLocationSource": {
+        "enum": [
+          "request_override",
+          "port_setting",
+          "library_default"
+        ],
+        "type": "string"
+      },
+      "PortOutputLocation": {
+        "properties": {
+          "configured_output_directory": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "default_output_directory": {
+            "type": "string"
+          },
+          "effective_output_directory": {
+            "type": "string"
+          },
+          "library_root": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "selection_source": {
+            "$ref": "#/$defs/OutputLocationSource"
+          },
+          "user_data_root": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "library_root",
+          "default_output_directory",
+          "configured_output_directory",
+          "effective_output_directory",
+          "selection_source",
+          "user_data_root"
+        ],
+        "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      },
+      "RuntimeIdentity": {
+        "properties": {
+          "archive_root": {
+            "type": "string"
+          },
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/$defs/RuntimeOrigin"
+          },
+          "target_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "origin",
+          "artifact",
+          "archive_root",
+          "target_directory",
+          "executable"
+        ],
+        "type": "object"
+      },
+      "RuntimeOrigin": {
+        "enum": [
+          "verified_download",
+          "adopted_tree"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "batch_sha256": {
+        "description": "Binds the item list and every item's reviewed plan.",
+        "type": "string"
+      },
+      "items": {
+        "description": "The ordinary adoption review of each item, in batch order.",
+        "items": {
+          "$ref": "#/$defs/AdoptionPreview"
+        },
+        "type": "array"
+      },
+      "items_replacing_saved_files": {
+        "description": "Items that import saved files while Portcove already holds saved files for\nthat game, so matching files there are replaced.",
+        "format": "uint",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "original_will_be_modified": {
+        "type": "boolean"
+      },
+      "total_bytes": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "total_files": {
+        "format": "uint",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "items",
+      "total_files",
+      "total_bytes",
+      "items_replacing_saved_files",
+      "original_will_be_modified",
+      "batch_sha256"
+    ],
+    "title": "AdoptionBatchPreview",
+    "type": "object"
+  },
+  "adoption_batch_result": {
+    "$defs": {
+      "AdoptionBatchItemOutcome": {
+        "oneOf": [
+          {
+            "const": "copied",
+            "description": "Copied and registered through the ordinary adoption.",
+            "type": "string"
+          },
+          {
+            "const": "changed",
+            "description": "The folder or destination changed after review; nothing was copied for it.",
+            "type": "string"
+          },
+          {
+            "const": "failed",
+            "description": "Adoption refused or failed; the original stays unchanged.",
+            "type": "string"
+          }
+        ]
+      },
+      "AdoptionBatchItemResult": {
+        "properties": {
+          "install": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstallRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outcome": {
+            "$ref": "#/$defs/AdoptionBatchItemOutcome"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "port_id",
+          "outcome",
+          "install",
+          "message"
+        ],
+        "type": "object"
+      },
+      "ArtifactIdentity": {
+        "properties": {
+          "asset_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_name",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "InstallRecord": {
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity",
+            "default": {
+              "asset_name": "",
+              "sha256": "",
+              "size": 0
+            }
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "id": {
+            "type": "string"
+          },
+          "installed_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "manifest_sha256": {
+            "default": "",
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "selected_executable": {
+            "default": "",
+            "type": "string"
+          },
+          "staged": {
+            "type": "boolean"
+          },
+          "verified": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "version",
+          "path",
+          "channel",
+          "installed_at",
+          "verified",
+          "staged",
+          "artifact",
+          "runtime",
+          "manifest_sha256",
+          "selected_executable"
+        ],
+        "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      },
+      "RuntimeIdentity": {
+        "properties": {
+          "archive_root": {
+            "type": "string"
+          },
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/$defs/RuntimeOrigin"
+          },
+          "target_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "origin",
+          "artifact",
+          "archive_root",
+          "target_directory",
+          "executable"
+        ],
+        "type": "object"
+      },
+      "RuntimeOrigin": {
+        "enum": [
+          "verified_download",
+          "adopted_tree"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "batch_sha256": {
+        "type": "string"
+      },
+      "items": {
+        "items": {
+          "$ref": "#/$defs/AdoptionBatchItemResult"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "batch_sha256",
+      "items"
+    ],
+    "title": "AdoptionBatchResult",
+    "type": "object"
+  },
   "adoption_preview": {
     "$defs": {
       "AdoptionCopyFile": {
@@ -4345,6 +4948,13 @@
           "platform": {
             "$ref": "#/$defs/Platform"
           },
+          "preserved_locations": {
+            "description": "Record version 2 only: authorized alternate transports for the same\naccepted bytes (#1306). Locations are never identity or authority; the\naccepted size and SHA-256 above still decide every acquisition.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "protected_acceptance": {
             "$ref": "#/$defs/CuratedEvidenceReference"
           },
@@ -5302,6 +5912,13 @@
             "default": false,
             "type": "boolean"
           },
+          "linux_portable_data_directory": {
+            "description": "Native25: keep the Linux player's portable profile in this declared\ndirectory beside the executable, creating it when absent before Play.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "managed_acquisition_hold": {
             "anyOf": [
               {
@@ -5367,6 +5984,10 @@
           },
           "name": {
             "type": "string"
+          },
+          "optional_game_source": {
+            "description": "A disc-image source that is offered but not required: with none registered the\ngame is not blocked and the runtime and its persistent files are left as they are;\nwhen one is registered it is unpacked as for a required source. Only valid with a\ndisc-image materialization.",
+            "type": "boolean"
           },
           "persistent_file_patterns": {
             "default": [],
@@ -10159,7 +10780,7 @@
       },
       "DestinationArtworkHandoff": {
         "additionalProperties": false,
-        "description": "An observation, never provider permission, destination ownership or write consent.\nV1 exposes validated local portrait originals. Catalog defaults and unprovided\nwide roles remain explicit; they are never synthesized from another role/cache.",
+        "description": "An observation, never provider permission, destination ownership or write consent.\nPortrait exposes the validated local cover original; hero banner exposes the\nvalidated local detail original only when it is wider than tall. Catalog\ndefaults and the landscape role remain explicit unavailable states; nothing is\nsynthesized, cropped or resized from another role or cache.",
         "properties": {
           "choice": {
             "anyOf": [
@@ -10176,8 +10797,8 @@
           },
           "handoff_schema": {
             "format": "uint32",
-            "maximum": 1,
-            "minimum": 1,
+            "maximum": 2,
+            "minimum": 2,
             "type": "integer"
           },
           "library": {
@@ -10284,12 +10905,21 @@
         ]
       },
       "DestinationArtworkUnavailableReason": {
-        "enum": [
-          "role_not_provided",
-          "no_local_original",
-          "selected_original_unavailable"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "role_not_provided",
+              "no_local_original",
+              "selected_original_unavailable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "selected_image_not_wide",
+            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
+            "type": "string"
+          }
+        ]
       },
       "IgdbArtwork": {
         "additionalProperties": false,
@@ -10578,12 +11208,21 @@
         ]
       },
       "DestinationArtworkUnavailableReason": {
-        "enum": [
-          "role_not_provided",
-          "no_local_original",
-          "selected_original_unavailable"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "role_not_provided",
+              "no_local_original",
+              "selected_original_unavailable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "selected_image_not_wide",
+            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
+            "type": "string"
+          }
+        ]
       },
       "IgdbArtwork": {
         "additionalProperties": false,
@@ -10694,7 +11333,7 @@
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties": false,
-    "description": "An observation, never provider permission, destination ownership or write consent.\nV1 exposes validated local portrait originals. Catalog defaults and unprovided\nwide roles remain explicit; they are never synthesized from another role/cache.",
+    "description": "An observation, never provider permission, destination ownership or write consent.\nPortrait exposes the validated local cover original; hero banner exposes the\nvalidated local detail original only when it is wider than tall. Catalog\ndefaults and the landscape role remain explicit unavailable states; nothing is\nsynthesized, cropped or resized from another role or cache.",
     "properties": {
       "choice": {
         "anyOf": [
@@ -10711,8 +11350,8 @@
       },
       "handoff_schema": {
         "format": "uint32",
-        "maximum": 1,
-        "minimum": 1,
+        "maximum": 2,
+        "minimum": 2,
         "type": "integer"
       },
       "library": {
@@ -14419,6 +15058,10 @@
           "label": {
             "type": "string"
           },
+          "optional": {
+            "description": "The definition offers this source but does not require it; an unregistered\noptional source never blocks installing, updating or launching.",
+            "type": "boolean"
+          },
           "profile_id": {
             "type": "string"
           },
@@ -15735,6 +16378,10 @@
         "properties": {
           "label": {
             "type": "string"
+          },
+          "optional": {
+            "description": "The definition offers this source but does not require it; an unregistered\noptional source never blocks installing, updating or launching.",
+            "type": "boolean"
           },
           "profile_id": {
             "type": "string"
@@ -17384,6 +18031,10 @@
           "label": {
             "type": "string"
           },
+          "optional": {
+            "description": "The definition offers this source but does not require it; an unregistered\noptional source never blocks installing, updating or launching.",
+            "type": "boolean"
+          },
           "profile_id": {
             "type": "string"
           },
@@ -17910,6 +18561,340 @@
     ],
     "title": "Nullable_LaunchSessionView"
   },
+  "launcher_library_inventory": {
+    "$defs": {
+      "LauncherAppsRootOrigin": {
+        "oneOf": [
+          {
+            "const": "settings",
+            "description": "`AppsPath` from the launcher's `settings.json`.",
+            "type": "string"
+          },
+          {
+            "const": "default",
+            "description": "The launcher's default `Apps` folder beside its data.",
+            "type": "string"
+          },
+          {
+            "const": "override",
+            "description": "The folder the player supplied for this inspection.",
+            "type": "string"
+          },
+          {
+            "const": "unresolved",
+            "description": "`settings.json` could not be read, so folder-name entries stay unresolved.",
+            "type": "string"
+          }
+        ]
+      },
+      "LauncherEntryHints": {
+        "properties": {
+          "installed_version_label": {
+            "description": "First line of `version.txt` in the installation. Untrusted label.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "preferred_version": {
+            "description": "`preferredVersion` from the launcher library. Untrusted label.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "selected_executable": {
+            "description": "First line of `selected_executable.txt`. Portcove uses its own declared executable.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "preferred_version",
+          "installed_version_label",
+          "selected_executable"
+        ],
+        "type": "object"
+      },
+      "LauncherEntryStatus": {
+        "oneOf": [
+          {
+            "const": "ready-to-review",
+            "description": "Exactly one catalog port matches; review it with the existing adoption command.",
+            "type": "string"
+          },
+          {
+            "const": "ambiguous",
+            "description": "More than one catalog port matches these files; the player chooses with `--port`.",
+            "type": "string"
+          },
+          {
+            "const": "not-in-catalog",
+            "description": "No catalog port uses this upstream repository.",
+            "type": "string"
+          },
+          {
+            "const": "unrecognized-files",
+            "description": "The catalog port matches, but its declared executable is not in this folder.",
+            "type": "string"
+          },
+          {
+            "const": "adoption-unsupported",
+            "description": "The catalog port matches, but this installation cannot be copied into Portcove.",
+            "type": "string"
+          },
+          {
+            "const": "not-installed",
+            "description": "The launcher lists this entry, but no installation folder is present.",
+            "type": "string"
+          },
+          {
+            "const": "unsafe-path",
+            "description": "The entry names an unsafe or unusable location; it was not inspected.",
+            "type": "string"
+          },
+          {
+            "const": "duplicate",
+            "description": "An earlier entry already names the same installation.",
+            "type": "string"
+          }
+        ]
+      },
+      "LauncherKind": {
+        "enum": [
+          "github-launcher",
+          "quiver"
+        ],
+        "type": "string"
+      },
+      "LauncherLibraryEntry": {
+        "properties": {
+          "adopt_port_id": {
+            "description": "Port to pass to the existing reviewed `adopt --port` for `install_path`.\nAbsent unless exactly one copyable catalog port was detected.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "candidate_port_ids": {
+            "description": "Catalog ports whose reviewed upstream repository matches this entry.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "detected_port_ids": {
+            "description": "Catalog ports whose declared executable was found in the installation.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "explicit_install_path": {
+            "description": "True when `installPath` was explicit rather than apps folder plus folder name.",
+            "type": "boolean"
+          },
+          "folder_name": {
+            "type": "string"
+          },
+          "hints": {
+            "$ref": "#/$defs/LauncherEntryHints"
+          },
+          "index": {
+            "description": "Zero-based position across the launcher library's entry arrays.",
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "install_path": {
+            "description": "Resolved installation folder, when the entry names a safe absolute location.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mods": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LauncherModInventory"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "not_carried_over": {
+            "description": "Launcher settings for this app that Portcove does not carry over.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "repository_source": {
+            "description": "`github`, `gitlab`, `codeberg` or `manual`, as the launcher interprets the entry.",
+            "type": "string"
+          },
+          "shares_folder_with": {
+            "description": "Earlier entry naming the same installation folder for a different app.",
+            "format": "uint",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/$defs/LauncherEntryStatus"
+          },
+          "user_data_paths": {
+            "description": "Declared saves/configuration present in the installation for a single match.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "index",
+          "name",
+          "repository_source",
+          "repository",
+          "folder_name",
+          "install_path",
+          "explicit_install_path",
+          "status",
+          "candidate_port_ids",
+          "detected_port_ids",
+          "user_data_paths",
+          "hints",
+          "mods",
+          "explanation",
+          "adopt_port_id",
+          "shares_folder_with",
+          "not_carried_over"
+        ],
+        "type": "object"
+      },
+      "LauncherLibrarySkippedEntry": {
+        "properties": {
+          "index": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "index",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "LauncherModInventory": {
+        "properties": {
+          "providers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "readable": {
+            "description": "False when the sidecar exists but could not be read within limits.",
+            "type": "boolean"
+          },
+          "records": {
+            "description": "Records in `.quiver-mods.json`; they are inventoried, never activated.",
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "records",
+          "providers",
+          "readable"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "apps_root": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "apps_root_origin": {
+        "$ref": "#/$defs/LauncherAppsRootOrigin"
+      },
+      "data_root": {
+        "type": "string"
+      },
+      "entries": {
+        "items": {
+          "$ref": "#/$defs/LauncherLibraryEntry"
+        },
+        "type": "array"
+      },
+      "format_revision": {
+        "description": "Upstream source revision whose library format this reader implements.",
+        "type": "string"
+      },
+      "inventory_sha256": {
+        "description": "Content fingerprint of this inventory, excluding this field.",
+        "type": "string"
+      },
+      "launcher": {
+        "$ref": "#/$defs/LauncherKind"
+      },
+      "legacy_library_file": {
+        "description": "True when only the launcher's legacy `games.json` was present.",
+        "type": "boolean"
+      },
+      "library_file": {
+        "type": "string"
+      },
+      "original_will_be_modified": {
+        "description": "Inspection reads only; launcher data and installations stay untouched.",
+        "type": "boolean"
+      },
+      "skipped_entries": {
+        "items": {
+          "$ref": "#/$defs/LauncherLibrarySkippedEntry"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "launcher",
+      "format_revision",
+      "data_root",
+      "library_file",
+      "legacy_library_file",
+      "apps_root",
+      "apps_root_origin",
+      "entries",
+      "skipped_entries",
+      "original_will_be_modified",
+      "inventory_sha256"
+    ],
+    "title": "LauncherLibraryInventory",
+    "type": "object"
+  },
   "library_identity": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "description": "Durable library identity and its current effective location.",
@@ -18328,6 +19313,71 @@
         ],
         "type": "object"
       },
+      "LibraryMembership": {
+        "additionalProperties": false,
+        "properties": {
+          "added_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "format_version": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "origin": {
+            "$ref": "#/$defs/LibraryMembershipOrigin"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/$defs/LibraryMembershipSource"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format_version",
+          "port_id",
+          "added_at",
+          "origin"
+        ],
+        "type": "object"
+      },
+      "LibraryMembershipOrigin": {
+        "oneOf": [
+          {
+            "const": "game_file_discovery",
+            "description": "Selected from reviewed game-file discovery results.",
+            "type": "string"
+          },
+          {
+            "const": "manual",
+            "description": "Added directly by the player.",
+            "type": "string"
+          }
+        ]
+      },
+      "LibraryMembershipSource": {
+        "additionalProperties": false,
+        "description": "A reviewed original the player associated with the saved entry. This is a\nhint for explaining requirements; reinspection remains the authority.",
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "sha256"
+        ],
+        "type": "object"
+      },
       "LibraryMetadata": {
         "description": "Metadata only; content trees and original source files are never embedded.",
         "properties": {
@@ -18360,6 +19410,13 @@
           "launch_history": {
             "items": {
               "$ref": "#/$defs/LibraryLaunchHistory"
+            },
+            "type": "array"
+          },
+          "library_memberships": {
+            "description": "Explicit add-only Library entries; present only under metadata schema 7, so\nan older reader refuses the export instead of silently dropping them.",
+            "items": {
+              "$ref": "#/$defs/LibraryMembership"
             },
             "type": "array"
           },
@@ -19777,6 +20834,71 @@
         ],
         "type": "object"
       },
+      "LibraryMembership": {
+        "additionalProperties": false,
+        "properties": {
+          "added_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "format_version": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "origin": {
+            "$ref": "#/$defs/LibraryMembershipOrigin"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/$defs/LibraryMembershipSource"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format_version",
+          "port_id",
+          "added_at",
+          "origin"
+        ],
+        "type": "object"
+      },
+      "LibraryMembershipOrigin": {
+        "oneOf": [
+          {
+            "const": "game_file_discovery",
+            "description": "Selected from reviewed game-file discovery results.",
+            "type": "string"
+          },
+          {
+            "const": "manual",
+            "description": "Added directly by the player.",
+            "type": "string"
+          }
+        ]
+      },
+      "LibraryMembershipSource": {
+        "additionalProperties": false,
+        "description": "A reviewed original the player associated with the saved entry. This is a\nhint for explaining requirements; reinspection remains the authority.",
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "sha256"
+        ],
+        "type": "object"
+      },
       "LibraryPortSettings": {
         "properties": {
           "active_install_id": {
@@ -20725,6 +21847,13 @@
         },
         "type": "array"
       },
+      "library_memberships": {
+        "description": "Explicit add-only Library entries; present only under metadata schema 7, so\nan older reader refuses the export instead of silently dropping them.",
+        "items": {
+          "$ref": "#/$defs/LibraryMembership"
+        },
+        "type": "array"
+      },
       "original_root": {
         "type": "string"
       },
@@ -21203,6 +22332,71 @@
         ],
         "type": "object"
       },
+      "LibraryMembership": {
+        "additionalProperties": false,
+        "properties": {
+          "added_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "format_version": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "origin": {
+            "$ref": "#/$defs/LibraryMembershipOrigin"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/$defs/LibraryMembershipSource"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format_version",
+          "port_id",
+          "added_at",
+          "origin"
+        ],
+        "type": "object"
+      },
+      "LibraryMembershipOrigin": {
+        "oneOf": [
+          {
+            "const": "game_file_discovery",
+            "description": "Selected from reviewed game-file discovery results.",
+            "type": "string"
+          },
+          {
+            "const": "manual",
+            "description": "Added directly by the player.",
+            "type": "string"
+          }
+        ]
+      },
+      "LibraryMembershipSource": {
+        "additionalProperties": false,
+        "description": "A reviewed original the player associated with the saved entry. This is a\nhint for explaining requirements; reinspection remains the authority.",
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "sha256"
+        ],
+        "type": "object"
+      },
       "LibraryMetadata": {
         "description": "Metadata only; content trees and original source files are never embedded.",
         "properties": {
@@ -21235,6 +22429,13 @@
           "launch_history": {
             "items": {
               "$ref": "#/$defs/LibraryLaunchHistory"
+            },
+            "type": "array"
+          },
+          "library_memberships": {
+            "description": "Explicit add-only Library entries; present only under metadata schema 7, so\nan older reader refuses the export instead of silently dropping them.",
+            "items": {
+              "$ref": "#/$defs/LibraryMembership"
             },
             "type": "array"
           },
@@ -23446,6 +24647,71 @@
         ],
         "type": "object"
       },
+      "LibraryMembership": {
+        "additionalProperties": false,
+        "properties": {
+          "added_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "format_version": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "origin": {
+            "$ref": "#/$defs/LibraryMembershipOrigin"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/$defs/LibraryMembershipSource"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format_version",
+          "port_id",
+          "added_at",
+          "origin"
+        ],
+        "type": "object"
+      },
+      "LibraryMembershipOrigin": {
+        "oneOf": [
+          {
+            "const": "game_file_discovery",
+            "description": "Selected from reviewed game-file discovery results.",
+            "type": "string"
+          },
+          {
+            "const": "manual",
+            "description": "Added directly by the player.",
+            "type": "string"
+          }
+        ]
+      },
+      "LibraryMembershipSource": {
+        "additionalProperties": false,
+        "description": "A reviewed original the player associated with the saved entry. This is a\nhint for explaining requirements; reinspection remains the authority.",
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "sha256"
+        ],
+        "type": "object"
+      },
       "ListingAction": {
         "enum": [
           "attach-existing",
@@ -23910,6 +25176,17 @@
               }
             ],
             "description": "Optional inert read model; absence cannot suppress an independently allowed action."
+          },
+          "library_membership": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LibraryMembership"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Explicit saved Library entry, independent of any installation or registration."
           },
           "port_id": {
             "type": "string"
@@ -25133,6 +26410,116 @@
     "type": "array"
   },
   "live_mods": {
+    "$defs": {
+      "NativeModListStatus": {
+        "description": "How the game's own mod list relates to the selected revision.",
+        "oneOf": [
+          {
+            "description": "This game has no reviewed native mod list.",
+            "properties": {
+              "state": {
+                "const": "not-applicable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The list names the enabled packages in the revision's order. Entries for\nthe player's own files are not compared.",
+            "properties": {
+              "state": {
+                "const": "in-sync",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "No list yet; Portcove writes it before the next launch.",
+            "properties": {
+              "state": {
+                "const": "not-written",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The same mods in a different order, set in the game's menu. Portcove keeps\nit as the profile's next revision when supervised play ends, or at the next\nprofile change or launch.",
+            "properties": {
+              "native_order": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "state": {
+                "const": "reordered",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "native_order"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The list differs in which of the profile's mods it names (for example a\nmod disabled in the game's menu, which the game re-enables at its next\nstart). Portcove rewrites those entries before the next launch.",
+            "properties": {
+              "missing": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "state": {
+                "const": "differs",
+                "type": "string"
+              },
+              "unexpected": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "state",
+              "missing",
+              "unexpected"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The configuration could not be read; Portcove leaves it untouched.",
+            "properties": {
+              "reason": {
+                "type": "string"
+              },
+              "state": {
+                "const": "unreadable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
       "changed_owned": {
@@ -25141,6 +26528,10 @@
           "type": "string"
         },
         "type": "array"
+      },
+      "native_list": {
+        "$ref": "#/$defs/NativeModListStatus",
+        "description": "The game's own enabled-mods list compared with the selected revision."
       },
       "profile_id": {
         "type": [
@@ -25168,7 +26559,8 @@
       "profile_id",
       "revision",
       "unmanaged",
-      "changed_owned"
+      "changed_owned",
+      "native_list"
     ],
     "title": "LiveMods",
     "type": "object"
@@ -25507,6 +26899,10 @@
         "properties": {
           "label": {
             "type": "string"
+          },
+          "optional": {
+            "description": "The definition offers this source but does not require it; an unregistered\noptional source never blocks installing, updating or launching.",
+            "type": "boolean"
           },
           "profile_id": {
             "type": "string"
@@ -26224,6 +27620,927 @@
       "external_files_preserved"
     ],
     "title": "ManagedRouteChangeResult",
+    "type": "object"
+  },
+  "mod_setups_view": {
+    "$defs": {
+      "ArtifactIdentity": {
+        "properties": {
+          "asset_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_name",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "AuthenticatedDefinitionProvenance": {
+        "additionalProperties": false,
+        "description": "Authenticated metadata facts captured with a candidate. They are not a persisted replay floor.",
+        "properties": {
+          "definitions_sha256": {
+            "type": "string"
+          },
+          "definitions_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "earliest_expiration": {
+            "type": "string"
+          },
+          "index_sha256": {
+            "type": "string"
+          },
+          "root_sha256": {
+            "type": "string"
+          },
+          "root_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "snapshot_sha256": {
+            "type": "string"
+          },
+          "snapshot_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "targets_sha256": {
+            "type": "string"
+          },
+          "targets_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "timestamp_sha256": {
+            "type": "string"
+          },
+          "timestamp_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "root_version",
+          "root_sha256",
+          "timestamp_version",
+          "timestamp_sha256",
+          "snapshot_version",
+          "snapshot_sha256",
+          "targets_version",
+          "targets_sha256",
+          "definitions_version",
+          "definitions_sha256",
+          "earliest_expiration",
+          "index_sha256"
+        ],
+        "type": "object"
+      },
+      "DefinitionSelectionIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "definition_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "grant_id": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "policy_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provenance": {
+            "$ref": "#/$defs/AuthenticatedDefinitionProvenance"
+          },
+          "repository_root_sha256": {
+            "type": "string"
+          },
+          "stable_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "stable_id",
+          "definition_revision",
+          "repository_root_sha256",
+          "grant_id",
+          "policy_revision",
+          "provenance"
+        ],
+        "type": "object"
+      },
+      "HeldModUpdate": {
+        "description": "An unattended update the player has to review, remembered for a setup's\ncurrent revision.",
+        "properties": {
+          "candidate_file_id": {
+            "type": "string"
+          },
+          "native_ids": {
+            "description": "The setup's mods from the installed provider file.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "native_ids",
+          "project_id",
+          "candidate_file_id",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "LiveMods": {
+        "properties": {
+          "changed_owned": {
+            "description": "Installed files whose bytes changed outside Portcove; never overwritten.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "native_list": {
+            "$ref": "#/$defs/NativeModListStatus",
+            "description": "The game's own enabled-mods list compared with the selected revision."
+          },
+          "profile_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "unmanaged": {
+            "description": "Files in the mods folder this profile did not install; never touched.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "profile_id",
+          "revision",
+          "unmanaged",
+          "changed_owned",
+          "native_list"
+        ],
+        "type": "object"
+      },
+      "LoaderContractRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "type": "object"
+      },
+      "NativeModListStatus": {
+        "description": "How the game's own mod list relates to the selected revision.",
+        "oneOf": [
+          {
+            "description": "This game has no reviewed native mod list.",
+            "properties": {
+              "state": {
+                "const": "not-applicable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The list names the enabled packages in the revision's order. Entries for\nthe player's own files are not compared.",
+            "properties": {
+              "state": {
+                "const": "in-sync",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "No list yet; Portcove writes it before the next launch.",
+            "properties": {
+              "state": {
+                "const": "not-written",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The same mods in a different order, set in the game's menu. Portcove keeps\nit as the profile's next revision when supervised play ends, or at the next\nprofile change or launch.",
+            "properties": {
+              "native_order": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "state": {
+                "const": "reordered",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "native_order"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The list differs in which of the profile's mods it names (for example a\nmod disabled in the game's menu, which the game re-enables at its next\nstart). Portcove rewrites those entries before the next launch.",
+            "properties": {
+              "missing": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "state": {
+                "const": "differs",
+                "type": "string"
+              },
+              "unexpected": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "state",
+              "missing",
+              "unexpected"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The configuration could not be read; Portcove leaves it untouched.",
+            "properties": {
+              "reason": {
+                "type": "string"
+              },
+              "state": {
+                "const": "unreadable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "OriginalAvailability": {
+        "oneOf": [
+          {
+            "enum": [
+              "verified"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "missing",
+            "description": "No registered original currently satisfies the requirement.",
+            "type": "string"
+          },
+          {
+            "const": "changed",
+            "description": "A registered original differs from the bound identity.",
+            "type": "string"
+          }
+        ]
+      },
+      "OriginalBinding": {
+        "additionalProperties": false,
+        "description": "One required original, bound by observed content and storage identity rather\nthan by path, so relocation and rescans cannot silently change which original\na profile means.",
+        "properties": {
+          "observed_identity_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requirement_id": {
+            "description": "The catalog source requirement this original satisfies.",
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "storage_sha256": {
+            "type": "string"
+          },
+          "storage_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requirement_id",
+          "sha256",
+          "size",
+          "storage_sha256",
+          "storage_size"
+        ],
+        "type": "object"
+      },
+      "OriginalStatus": {
+        "properties": {
+          "availability": {
+            "$ref": "#/$defs/OriginalAvailability"
+          },
+          "binding": {
+            "$ref": "#/$defs/OriginalBinding"
+          }
+        },
+        "required": [
+          "binding",
+          "availability"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "Profile": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "current_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "intent": {
+            "$ref": "#/$defs/ProfileIntent"
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "display_name",
+          "is_default",
+          "intent",
+          "current_revision",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "ProfileIntent": {
+        "additionalProperties": false,
+        "properties": {
+          "requested_packages": {
+            "items": {
+              "$ref": "#/$defs/RequestedPackage"
+            },
+            "type": "array"
+          },
+          "update_policy": {
+            "$ref": "#/$defs/ProfileUpdatePolicy"
+          }
+        },
+        "required": [
+          "update_policy"
+        ],
+        "type": "object"
+      },
+      "ProfileInventory": {
+        "properties": {
+          "port_id": {
+            "type": "string"
+          },
+          "profiles": {
+            "items": {
+              "$ref": "#/$defs/ProfileView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "port_id",
+          "profiles"
+        ],
+        "type": "object"
+      },
+      "ProfileRevision": {
+        "additionalProperties": false,
+        "properties": {
+          "build": {
+            "$ref": "#/$defs/RetainedBuildIdentity"
+          },
+          "created_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "digest": {
+            "description": "SHA-256 of this revision's canonical content (with this field empty).",
+            "type": "string"
+          },
+          "limits": {
+            "description": "Explicit uncaptured or external inputs this revision cannot reproduce.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "loader": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LoaderContractRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "orderings": {
+            "items": {
+              "$ref": "#/$defs/TypedOrdering"
+            },
+            "type": "array"
+          },
+          "originals": {
+            "items": {
+              "$ref": "#/$defs/OriginalBinding"
+            },
+            "type": "array"
+          },
+          "packages": {
+            "items": {
+              "$ref": "#/$defs/ResolvedPackage"
+            },
+            "type": "array"
+          },
+          "parent_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "save_group": {
+            "description": "Revisions sharing a group share progress; a copy gets its own group.",
+            "type": "string"
+          },
+          "settings": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Consequential native settings only; ordinary preferences stay mutable state.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "profile_id",
+          "revision",
+          "parent_revision",
+          "build",
+          "originals",
+          "save_group",
+          "created_at",
+          "digest"
+        ],
+        "type": "object"
+      },
+      "ProfileUpdatePolicy": {
+        "description": "How a profile follows newer eligible releases. Stored as intent; unattended\napplication is owned by the provider/standing-policy work, not this module.",
+        "enum": [
+          "keep_current",
+          "review_updates",
+          "automatic_eligible"
+        ],
+        "type": "string"
+      },
+      "ProfileView": {
+        "properties": {
+          "build_availability": {
+            "$ref": "#/$defs/RetainedBuildAvailability"
+          },
+          "originals": {
+            "items": {
+              "$ref": "#/$defs/OriginalStatus"
+            },
+            "type": "array"
+          },
+          "profile": {
+            "$ref": "#/$defs/Profile"
+          },
+          "revision": {
+            "$ref": "#/$defs/ProfileRevision"
+          }
+        },
+        "required": [
+          "profile",
+          "revision",
+          "build_availability",
+          "originals"
+        ],
+        "type": "object"
+      },
+      "ProviderPackageRef": {
+        "additionalProperties": false,
+        "description": "A provider's own coordinates. Provider IDs never double as native loader IDs.",
+        "properties": {
+          "file": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "project"
+        ],
+        "type": "object"
+      },
+      "RequestedPackage": {
+        "additionalProperties": false,
+        "properties": {
+          "native_id": {
+            "type": "string"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderPackageRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version_constraint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "native_id"
+        ],
+        "type": "object"
+      },
+      "ResolvedPackage": {
+        "additionalProperties": false,
+        "description": "Exact package bytes plus its separate identities. A local import carries no\nprovider coordinates but still has its own native ID and digest.",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "native_id": {
+            "type": "string"
+          },
+          "native_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderPackageRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requires": {
+            "description": "Native IDs this package requires, from native metadata (not provider claims).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "native_id",
+          "sha256",
+          "size",
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "RetainedBuildAvailability": {
+        "enum": [
+          "verified",
+          "missing",
+          "changed",
+          "held",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "RetainedBuildIdentity": {
+        "additionalProperties": false,
+        "description": "Immutable identity only. Paths, version labels, and active selection are not keys.\n`runtime: None` means no separately identified bundled loader/runtime; the\nselected executable and installed contract still bind an integrated loader.",
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DefinitionSelectionIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "install_id": {
+            "type": "string"
+          },
+          "installed_contract_sha256": {
+            "type": "string"
+          },
+          "manifest_sha256": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "selected_executable": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "install_id",
+          "port_id",
+          "artifact",
+          "manifest_sha256",
+          "selected_executable",
+          "runtime",
+          "installed_contract_sha256",
+          "definition",
+          "platform"
+        ],
+        "type": "object"
+      },
+      "RuntimeIdentity": {
+        "properties": {
+          "archive_root": {
+            "type": "string"
+          },
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/$defs/RuntimeOrigin"
+          },
+          "target_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "origin",
+          "artifact",
+          "archive_root",
+          "target_directory",
+          "executable"
+        ],
+        "type": "object"
+      },
+      "RuntimeOrigin": {
+        "enum": [
+          "verified_download",
+          "adopted_tree"
+        ],
+        "type": "string"
+      },
+      "TypedOrdering": {
+        "additionalProperties": false,
+        "description": "One precedence domain. A loader may need several; no universal number exists.",
+        "properties": {
+          "domain": {
+            "type": "string"
+          },
+          "native_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "domain",
+          "native_ids"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Everything a game-level mods view needs in one read: whether the game has a\nreviewed mod contract, its setups and what is live now. Read-only.",
+    "properties": {
+      "held_updates": {
+        "default": [],
+        "description": "Unattended provider updates waiting for the player's review, for each\nsetup's current revision.",
+        "items": {
+          "$ref": "#/$defs/HeldModUpdate"
+        },
+        "type": "array"
+      },
+      "inventory": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ProfileInventory"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "None until the installed game has its default setup."
+      },
+      "later_mods_take_priority": {
+        "description": "True when reviewed loader source shows that the later of two mods changing\nthe same asset wins. False when the order is kept but which mod wins is not\nestablished.",
+        "type": "boolean"
+      },
+      "live": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/LiveMods"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "package_types": {
+        "description": "Package file types the game loads, such as `o2r`.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "provider": {
+        "default": null,
+        "description": "The mod provider this game has a reviewed binding for (`gamebanana`), if any.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "supported": {
+        "description": "False when the game has no reviewed mod package contract; nothing else is\noffered then.",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "port_id",
+      "supported",
+      "package_types",
+      "later_mods_take_priority",
+      "inventory",
+      "live",
+      "held_updates",
+      "provider"
+    ],
+    "title": "ModSetupsView",
     "type": "object"
   },
   "official_catalog_review": {
@@ -28662,6 +30979,13 @@
           "platform": {
             "$ref": "#/$defs/Platform"
           },
+          "preserved_locations": {
+            "description": "Record version 2 only: authorized alternate transports for the same\naccepted bytes (#1306). Locations are never identity or authority; the\naccepted size and SHA-256 above still decide every acquisition.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "protected_acceptance": {
             "$ref": "#/$defs/CuratedEvidenceReference"
           },
@@ -30109,6 +32433,13 @@
         "default": false,
         "type": "boolean"
       },
+      "linux_portable_data_directory": {
+        "description": "Native25: keep the Linux player's portable profile in this declared\ndirectory beside the executable, creating it when absent before Play.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "managed_acquisition_hold": {
         "anyOf": [
           {
@@ -30174,6 +32505,10 @@
       },
       "name": {
         "type": "string"
+      },
+      "optional_game_source": {
+        "description": "A disc-image source that is offered but not required: with none registered the\ngame is not blocked and the runtime and its persistent files are left as they are;\nwhen one is registered it is unpacked as for a required source. Only valid with a\ndisc-image materialization.",
+        "type": "boolean"
       },
       "persistent_file_patterns": {
         "default": [],
@@ -36308,6 +38643,429 @@
     "title": "ProfileInventory",
     "type": "object"
   },
+  "profile_recipe": {
+    "$defs": {
+      "ArtifactIdentity": {
+        "properties": {
+          "asset_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_name",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "AuthenticatedDefinitionProvenance": {
+        "additionalProperties": false,
+        "description": "Authenticated metadata facts captured with a candidate. They are not a persisted replay floor.",
+        "properties": {
+          "definitions_sha256": {
+            "type": "string"
+          },
+          "definitions_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "earliest_expiration": {
+            "type": "string"
+          },
+          "index_sha256": {
+            "type": "string"
+          },
+          "root_sha256": {
+            "type": "string"
+          },
+          "root_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "snapshot_sha256": {
+            "type": "string"
+          },
+          "snapshot_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "targets_sha256": {
+            "type": "string"
+          },
+          "targets_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "timestamp_sha256": {
+            "type": "string"
+          },
+          "timestamp_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "root_version",
+          "root_sha256",
+          "timestamp_version",
+          "timestamp_sha256",
+          "snapshot_version",
+          "snapshot_sha256",
+          "targets_version",
+          "targets_sha256",
+          "definitions_version",
+          "definitions_sha256",
+          "earliest_expiration",
+          "index_sha256"
+        ],
+        "type": "object"
+      },
+      "DefinitionSelectionIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "definition_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "grant_id": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "policy_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provenance": {
+            "$ref": "#/$defs/AuthenticatedDefinitionProvenance"
+          },
+          "repository_root_sha256": {
+            "type": "string"
+          },
+          "stable_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "stable_id",
+          "definition_revision",
+          "repository_root_sha256",
+          "grant_id",
+          "policy_revision",
+          "provenance"
+        ],
+        "type": "object"
+      },
+      "LoaderContractRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "ProviderPackageRef": {
+        "additionalProperties": false,
+        "description": "A provider's own coordinates. Provider IDs never double as native loader IDs.",
+        "properties": {
+          "file": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "project"
+        ],
+        "type": "object"
+      },
+      "RecipeOriginal": {
+        "additionalProperties": false,
+        "description": "A reference to an original, by content identity only. No path, no payload.",
+        "properties": {
+          "requirement_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requirement_id",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "RecipePackage": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "native_id": {
+            "type": "string"
+          },
+          "native_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderPackageRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requires": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "native_id",
+          "native_version",
+          "provider",
+          "sha256",
+          "size",
+          "enabled",
+          "requires"
+        ],
+        "type": "object"
+      },
+      "RecipeRuntime": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DefinitionSelectionIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "installed_contract_sha256": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "artifact",
+          "runtime",
+          "definition",
+          "installed_contract_sha256",
+          "platform"
+        ],
+        "type": "object"
+      },
+      "RuntimeIdentity": {
+        "properties": {
+          "archive_root": {
+            "type": "string"
+          },
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/$defs/RuntimeOrigin"
+          },
+          "target_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "origin",
+          "artifact",
+          "archive_root",
+          "target_directory",
+          "executable"
+        ],
+        "type": "object"
+      },
+      "RuntimeOrigin": {
+        "enum": [
+          "verified_download",
+          "adopted_tree"
+        ],
+        "type": "string"
+      },
+      "TypedOrdering": {
+        "additionalProperties": false,
+        "description": "One precedence domain. A loader may need several; no universal number exists.",
+        "properties": {
+          "domain": {
+            "type": "string"
+          },
+          "native_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "domain",
+          "native_ids"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "format": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "identity_sha256": {
+        "description": "SHA-256 of the recipe's canonical content with this field empty.",
+        "type": "string"
+      },
+      "loader": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/LoaderContractRef"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "orderings": {
+        "items": {
+          "$ref": "#/$defs/TypedOrdering"
+        },
+        "type": "array"
+      },
+      "originals": {
+        "items": {
+          "$ref": "#/$defs/RecipeOriginal"
+        },
+        "type": "array"
+      },
+      "packages": {
+        "items": {
+          "$ref": "#/$defs/RecipePackage"
+        },
+        "type": "array"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "runtime": {
+        "$ref": "#/$defs/RecipeRuntime"
+      },
+      "uncaptured": {
+        "description": "Inputs this recipe cannot reproduce; always stated, never implied.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "format",
+      "port_id",
+      "runtime",
+      "loader",
+      "originals",
+      "packages",
+      "orderings",
+      "uncaptured",
+      "identity_sha256"
+    ],
+    "title": "ProfileRecipe",
+    "type": "object"
+  },
   "profile_revision": {
     "$defs": {
       "ArtifactIdentity": {
@@ -36784,6 +39542,1345 @@
       "digest"
     ],
     "title": "ProfileRevision",
+    "type": "object"
+  },
+  "provider_browse_page": {
+    "$defs": {
+      "ProviderFileCandidate": {
+        "description": "A provider's own claims about one downloadable file. The checksum is the\nprovider's claim; an MD5 or any provider-supplied digest never authenticates\na publisher.",
+        "properties": {
+          "added_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "claimed_md5": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "claimed_scan": {
+            "description": "Provider scan outcomes, as claimed (\"clean\", \"infected\", ...). Not an assurance.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "download_url": {
+            "description": "Canonical download location derived from `file_id`, never a provider-supplied URL.",
+            "type": "string"
+          },
+          "file_id": {
+            "description": "Provider file identity; distinct from the project and from any version label.",
+            "type": "string"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "file_id",
+          "file_name",
+          "size",
+          "added_at",
+          "download_url",
+          "claimed_md5",
+          "archived",
+          "claimed_scan"
+        ],
+        "type": "object"
+      },
+      "ProviderFreshness": {
+        "description": "How current an observation is. A confirmed empty result is `Fresh`; an outage\nthat falls back to earlier data is `Stale`, never an empty list.",
+        "oneOf": [
+          {
+            "enum": [
+              "fresh"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "revalidated",
+            "description": "The provider confirmed its cached copy is unchanged (HTTP 304).",
+            "type": "string"
+          },
+          {
+            "const": "stale",
+            "description": "The provider could not be reached or is backing off; this is earlier data.",
+            "type": "string"
+          }
+        ]
+      },
+      "ProviderPage": {
+        "properties": {
+          "complete": {
+            "description": "False when more pages exist; callers must not treat a page as the whole result.",
+            "type": "boolean"
+          },
+          "page": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "projects": {
+            "items": {
+              "$ref": "#/$defs/ProviderProject"
+            },
+            "type": "array"
+          },
+          "total": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "projects",
+          "total",
+          "page",
+          "complete"
+        ],
+        "type": "object"
+      },
+      "ProviderProject": {
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/$defs/ProviderFileCandidate"
+            },
+            "type": "array"
+          },
+          "game_id": {
+            "description": "The provider's game identity for this project; compared against a reviewed\nbinding, never matched by name or popularity.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "obsolete": {
+            "type": "boolean"
+          },
+          "profile_url": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "submitter": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unreadable_files": {
+            "default": 0,
+            "description": "File records the adapter could not read. Non-zero means the file list is\nincomplete, so \"no newer file\" or \"file removed\" cannot be concluded.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "version": {
+            "description": "Displayed version label; it does not identify bytes (a file can change\nunder an unchanged label).",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "project_id",
+          "name",
+          "version",
+          "game_id",
+          "updated_at",
+          "obsolete",
+          "profile_url",
+          "submitter",
+          "files",
+          "unreadable_files"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "freshness": {
+        "$ref": "#/$defs/ProviderFreshness",
+        "description": "`stale` means GameBanana could not be reached and this is earlier data."
+      },
+      "game_name": {
+        "description": "The game's catalog name, for presentation.",
+        "type": "string"
+      },
+      "last_page": {
+        "description": "Highest page browsing offers.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "observed_at": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "other_game_records": {
+        "description": "Records on this page the provider labels as another game; not listed.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "page": {
+        "$ref": "#/$defs/ProviderPage",
+        "description": "One page of mods, most downloaded first. `page.complete` is false when more\npages exist."
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "provider": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "port_id",
+      "game_name",
+      "last_page",
+      "other_game_records",
+      "provider",
+      "page",
+      "observed_at",
+      "freshness"
+    ],
+    "title": "ProviderBrowsePage",
+    "type": "object"
+  },
+  "provider_install_plan": {
+    "$defs": {
+      "AssetConflict": {
+        "description": "Several packages claim the same asset path.",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "providers": {
+            "description": "Packages providing the path, in the supplied precedence order.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "winner": {
+            "description": "The provider that takes effect under that order.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "providers",
+          "winner"
+        ],
+        "type": "object"
+      },
+      "PlanMember": {
+        "properties": {
+          "asset_count": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "file_name",
+          "sha256",
+          "size",
+          "asset_count"
+        ],
+        "type": "object"
+      },
+      "ProviderFileCandidate": {
+        "description": "A provider's own claims about one downloadable file. The checksum is the\nprovider's claim; an MD5 or any provider-supplied digest never authenticates\na publisher.",
+        "properties": {
+          "added_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "claimed_md5": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "claimed_scan": {
+            "description": "Provider scan outcomes, as claimed (\"clean\", \"infected\", ...). Not an assurance.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "download_url": {
+            "description": "Canonical download location derived from `file_id`, never a provider-supplied URL.",
+            "type": "string"
+          },
+          "file_id": {
+            "description": "Provider file identity; distinct from the project and from any version label.",
+            "type": "string"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "file_id",
+          "file_name",
+          "size",
+          "added_at",
+          "download_url",
+          "claimed_md5",
+          "archived",
+          "claimed_scan"
+        ],
+        "type": "object"
+      },
+      "ProviderPackageRef": {
+        "additionalProperties": false,
+        "description": "A provider's own coordinates. Provider IDs never double as native loader IDs.",
+        "properties": {
+          "file": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "project"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "conflicts": {
+        "items": {
+          "$ref": "#/$defs/AssetConflict"
+        },
+        "type": "array"
+      },
+      "conflicts_truncated": {
+        "type": "boolean"
+      },
+      "download_sha256": {
+        "description": "Computed from the actual downloaded bytes.",
+        "type": "string"
+      },
+      "download_size": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "expected_revision": {
+        "description": "Profile revision this plan was reviewed against.",
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "file": {
+        "$ref": "#/$defs/ProviderFileCandidate"
+      },
+      "ignored_entries": {
+        "description": "Entries of the provider's wrapper that are not packages and were not read.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "members": {
+        "items": {
+          "$ref": "#/$defs/PlanMember"
+        },
+        "type": "array"
+      },
+      "plan_sha256": {
+        "type": "string"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "profile_id": {
+        "type": "string"
+      },
+      "project_name": {
+        "type": "string"
+      },
+      "provider": {
+        "$ref": "#/$defs/ProviderPackageRef"
+      },
+      "replaces": {
+        "description": "Installed packages this plan replaces: the same native ID with different\nbytes, or a package the game loads as the same mod under another extension.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "unverified_claims": {
+        "description": "What this plan relies on without verifying.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "port_id",
+      "profile_id",
+      "expected_revision",
+      "provider",
+      "project_name",
+      "file",
+      "download_sha256",
+      "download_size",
+      "members",
+      "ignored_entries",
+      "replaces",
+      "conflicts",
+      "conflicts_truncated",
+      "unverified_claims",
+      "plan_sha256"
+    ],
+    "title": "ProviderInstallPlan",
+    "type": "object"
+  },
+  "provider_project_view": {
+    "$defs": {
+      "ProviderFileCandidate": {
+        "description": "A provider's own claims about one downloadable file. The checksum is the\nprovider's claim; an MD5 or any provider-supplied digest never authenticates\na publisher.",
+        "properties": {
+          "added_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "claimed_md5": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "claimed_scan": {
+            "description": "Provider scan outcomes, as claimed (\"clean\", \"infected\", ...). Not an assurance.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "download_url": {
+            "description": "Canonical download location derived from `file_id`, never a provider-supplied URL.",
+            "type": "string"
+          },
+          "file_id": {
+            "description": "Provider file identity; distinct from the project and from any version label.",
+            "type": "string"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "file_id",
+          "file_name",
+          "size",
+          "added_at",
+          "download_url",
+          "claimed_md5",
+          "archived",
+          "claimed_scan"
+        ],
+        "type": "object"
+      },
+      "ProviderFreshness": {
+        "description": "How current an observation is. A confirmed empty result is `Fresh`; an outage\nthat falls back to earlier data is `Stale`, never an empty list.",
+        "oneOf": [
+          {
+            "enum": [
+              "fresh"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "revalidated",
+            "description": "The provider confirmed its cached copy is unchanged (HTTP 304).",
+            "type": "string"
+          },
+          {
+            "const": "stale",
+            "description": "The provider could not be reached or is backing off; this is earlier data.",
+            "type": "string"
+          }
+        ]
+      },
+      "ProviderProject": {
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/$defs/ProviderFileCandidate"
+            },
+            "type": "array"
+          },
+          "game_id": {
+            "description": "The provider's game identity for this project; compared against a reviewed\nbinding, never matched by name or popularity.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "obsolete": {
+            "type": "boolean"
+          },
+          "profile_url": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "submitter": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unreadable_files": {
+            "default": 0,
+            "description": "File records the adapter could not read. Non-zero means the file list is\nincomplete, so \"no newer file\" or \"file removed\" cannot be concluded.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "version": {
+            "description": "Displayed version label; it does not identify bytes (a file can change\nunder an unchanged label).",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "project_id",
+          "name",
+          "version",
+          "game_id",
+          "updated_at",
+          "obsolete",
+          "profile_url",
+          "submitter",
+          "files",
+          "unreadable_files"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "freshness": {
+        "$ref": "#/$defs/ProviderFreshness"
+      },
+      "game_name": {
+        "description": "The game's catalog name, for presentation.",
+        "type": "string"
+      },
+      "observed_at": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "project": {
+        "$ref": "#/$defs/ProviderProject",
+        "description": "The project's files; a file ID with this project ID is what `provider-plan`\nreviews."
+      }
+    },
+    "required": [
+      "port_id",
+      "game_name",
+      "project",
+      "observed_at",
+      "freshness"
+    ],
+    "title": "ProviderProjectView",
+    "type": "object"
+  },
+  "provider_update_observation": {
+    "$defs": {
+      "ProviderFileCandidate": {
+        "description": "A provider's own claims about one downloadable file. The checksum is the\nprovider's claim; an MD5 or any provider-supplied digest never authenticates\na publisher.",
+        "properties": {
+          "added_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "claimed_md5": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "claimed_scan": {
+            "description": "Provider scan outcomes, as claimed (\"clean\", \"infected\", ...). Not an assurance.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "download_url": {
+            "description": "Canonical download location derived from `file_id`, never a provider-supplied URL.",
+            "type": "string"
+          },
+          "file_id": {
+            "description": "Provider file identity; distinct from the project and from any version label.",
+            "type": "string"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "file_id",
+          "file_name",
+          "size",
+          "added_at",
+          "download_url",
+          "claimed_md5",
+          "archived",
+          "claimed_scan"
+        ],
+        "type": "object"
+      },
+      "ProviderFreshness": {
+        "description": "How current an observation is. A confirmed empty result is `Fresh`; an outage\nthat falls back to earlier data is `Stale`, never an empty list.",
+        "oneOf": [
+          {
+            "enum": [
+              "fresh"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "revalidated",
+            "description": "The provider confirmed its cached copy is unchanged (HTTP 304).",
+            "type": "string"
+          },
+          {
+            "const": "stale",
+            "description": "The provider could not be reached or is backing off; this is earlier data.",
+            "type": "string"
+          }
+        ]
+      },
+      "ProviderPackageRef": {
+        "additionalProperties": false,
+        "description": "A provider's own coordinates. Provider IDs never double as native loader IDs.",
+        "properties": {
+          "file": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "project"
+        ],
+        "type": "object"
+      },
+      "ProviderUpdateState": {
+        "oneOf": [
+          {
+            "const": "current",
+            "description": "The installed file is still offered and nothing newer exists.",
+            "type": "string"
+          },
+          {
+            "const": "newer_files",
+            "description": "One or more files were added after the installed one.",
+            "type": "string"
+          },
+          {
+            "const": "installed_file_removed",
+            "description": "The provider no longer offers the installed file.",
+            "type": "string"
+          },
+          {
+            "const": "unavailable",
+            "description": "No current observation: an outage, backoff or stale data. Not \"no update\".",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "freshness": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ProviderFreshness"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "installed_version": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "native_id": {
+        "type": "string"
+      },
+      "newer_files": {
+        "description": "Candidates in ascending file-ID order; more than one is ambiguous.",
+        "items": {
+          "$ref": "#/$defs/ProviderFileCandidate"
+        },
+        "type": "array"
+      },
+      "observed_version": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "provider": {
+        "$ref": "#/$defs/ProviderPackageRef"
+      },
+      "reason": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "state": {
+        "$ref": "#/$defs/ProviderUpdateState"
+      },
+      "version_changed": {
+        "description": "False with `NewerFiles` means files changed under an unchanged version label.",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "native_id",
+      "provider",
+      "state",
+      "installed_version",
+      "observed_version",
+      "version_changed",
+      "newer_files",
+      "freshness",
+      "reason"
+    ],
+    "title": "ProviderUpdateObservation",
+    "type": "object"
+  },
+  "recipe_import_plan": {
+    "$defs": {
+      "ArtifactIdentity": {
+        "properties": {
+          "asset_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_name",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "AuthenticatedDefinitionProvenance": {
+        "additionalProperties": false,
+        "description": "Authenticated metadata facts captured with a candidate. They are not a persisted replay floor.",
+        "properties": {
+          "definitions_sha256": {
+            "type": "string"
+          },
+          "definitions_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "earliest_expiration": {
+            "type": "string"
+          },
+          "index_sha256": {
+            "type": "string"
+          },
+          "root_sha256": {
+            "type": "string"
+          },
+          "root_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "snapshot_sha256": {
+            "type": "string"
+          },
+          "snapshot_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "targets_sha256": {
+            "type": "string"
+          },
+          "targets_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "timestamp_sha256": {
+            "type": "string"
+          },
+          "timestamp_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "root_version",
+          "root_sha256",
+          "timestamp_version",
+          "timestamp_sha256",
+          "snapshot_version",
+          "snapshot_sha256",
+          "targets_version",
+          "targets_sha256",
+          "definitions_version",
+          "definitions_sha256",
+          "earliest_expiration",
+          "index_sha256"
+        ],
+        "type": "object"
+      },
+      "DefinitionSelectionIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "definition_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "grant_id": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "policy_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provenance": {
+            "$ref": "#/$defs/AuthenticatedDefinitionProvenance"
+          },
+          "repository_root_sha256": {
+            "type": "string"
+          },
+          "stable_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "stable_id",
+          "definition_revision",
+          "repository_root_sha256",
+          "grant_id",
+          "policy_revision",
+          "provenance"
+        ],
+        "type": "object"
+      },
+      "LoaderContractRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "ProfileRecipe": {
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "identity_sha256": {
+            "description": "SHA-256 of the recipe's canonical content with this field empty.",
+            "type": "string"
+          },
+          "loader": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LoaderContractRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "orderings": {
+            "items": {
+              "$ref": "#/$defs/TypedOrdering"
+            },
+            "type": "array"
+          },
+          "originals": {
+            "items": {
+              "$ref": "#/$defs/RecipeOriginal"
+            },
+            "type": "array"
+          },
+          "packages": {
+            "items": {
+              "$ref": "#/$defs/RecipePackage"
+            },
+            "type": "array"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "runtime": {
+            "$ref": "#/$defs/RecipeRuntime"
+          },
+          "uncaptured": {
+            "description": "Inputs this recipe cannot reproduce; always stated, never implied.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format",
+          "port_id",
+          "runtime",
+          "loader",
+          "originals",
+          "packages",
+          "orderings",
+          "uncaptured",
+          "identity_sha256"
+        ],
+        "type": "object"
+      },
+      "ProviderPackageRef": {
+        "additionalProperties": false,
+        "description": "A provider's own coordinates. Provider IDs never double as native loader IDs.",
+        "properties": {
+          "file": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "project"
+        ],
+        "type": "object"
+      },
+      "RecipeInputPlan": {
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/$defs/RecipeInputStatus"
+          }
+        },
+        "required": [
+          "name",
+          "status",
+          "detail"
+        ],
+        "type": "object"
+      },
+      "RecipeInputStatus": {
+        "oneOf": [
+          {
+            "const": "available",
+            "description": "Present locally with the exact identity the recipe names.",
+            "type": "string"
+          },
+          {
+            "const": "acquirable",
+            "description": "Not present; ordinary acquisition could supply it.",
+            "type": "string"
+          },
+          {
+            "const": "unavailable",
+            "description": "Present but different, or absent with no way to acquire it from the recipe.",
+            "type": "string"
+          }
+        ]
+      },
+      "RecipeOriginal": {
+        "additionalProperties": false,
+        "description": "A reference to an original, by content identity only. No path, no payload.",
+        "properties": {
+          "requirement_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requirement_id",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "RecipePackage": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "native_id": {
+            "type": "string"
+          },
+          "native_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderPackageRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requires": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "native_id",
+          "native_version",
+          "provider",
+          "sha256",
+          "size",
+          "enabled",
+          "requires"
+        ],
+        "type": "object"
+      },
+      "RecipeRuntime": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DefinitionSelectionIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "installed_contract_sha256": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "artifact",
+          "runtime",
+          "definition",
+          "installed_contract_sha256",
+          "platform"
+        ],
+        "type": "object"
+      },
+      "RuntimeIdentity": {
+        "properties": {
+          "archive_root": {
+            "type": "string"
+          },
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/$defs/RuntimeOrigin"
+          },
+          "target_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "origin",
+          "artifact",
+          "archive_root",
+          "target_directory",
+          "executable"
+        ],
+        "type": "object"
+      },
+      "RuntimeOrigin": {
+        "enum": [
+          "verified_download",
+          "adopted_tree"
+        ],
+        "type": "string"
+      },
+      "TypedOrdering": {
+        "additionalProperties": false,
+        "description": "One precedence domain. A loader may need several; no universal number exists.",
+        "properties": {
+          "domain": {
+            "type": "string"
+          },
+          "native_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "domain",
+          "native_ids"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "can_apply": {
+        "type": "boolean"
+      },
+      "holds": {
+        "description": "Why applying is not possible yet; empty when every input is present.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "install_id": {
+        "description": "The exact installation the new profile would bind, when one matches.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "originals": {
+        "items": {
+          "$ref": "#/$defs/RecipeInputPlan"
+        },
+        "type": "array"
+      },
+      "packages": {
+        "items": {
+          "$ref": "#/$defs/RecipeInputPlan"
+        },
+        "type": "array"
+      },
+      "plan_sha256": {
+        "type": "string"
+      },
+      "recipe": {
+        "$ref": "#/$defs/ProfileRecipe"
+      },
+      "runtime": {
+        "$ref": "#/$defs/RecipeInputPlan"
+      }
+    },
+    "required": [
+      "recipe",
+      "runtime",
+      "install_id",
+      "originals",
+      "packages",
+      "holds",
+      "can_apply",
+      "plan_sha256"
+    ],
+    "title": "RecipeImportPlan",
     "type": "object"
   },
   "recommendation_metadata": {
@@ -40925,6 +45022,13 @@
           "platform": {
             "$ref": "#/$defs/Platform"
           },
+          "preserved_locations": {
+            "description": "Record version 2 only: authorized alternate transports for the same\naccepted bytes (#1306). Locations are never identity or authority; the\naccepted size and SHA-256 above still decide every acquisition.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "protected_acceptance": {
             "$ref": "#/$defs/CuratedEvidenceReference"
           },
@@ -41882,6 +45986,13 @@
             "default": false,
             "type": "boolean"
           },
+          "linux_portable_data_directory": {
+            "description": "Native25: keep the Linux player's portable profile in this declared\ndirectory beside the executable, creating it when absent before Play.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "managed_acquisition_hold": {
             "anyOf": [
               {
@@ -41947,6 +46058,10 @@
           },
           "name": {
             "type": "string"
+          },
+          "optional_game_source": {
+            "description": "A disc-image source that is offered but not required: with none registered the\ngame is not blocked and the runtime and its persistent files are left as they are;\nwhen one is registered it is unpacked as for a required source. Only valid with a\ndisc-image materialization.",
+            "type": "boolean"
           },
           "persistent_file_patterns": {
             "default": [],

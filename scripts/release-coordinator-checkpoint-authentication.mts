@@ -67,6 +67,21 @@ export const retainedCatalogForwardAdoptionClaim = {
   successor_ref: "refs/tags/portcove-production-controller-20261110r66",
 } as const;
 
+/** The native metadata adoption already claimed this child. Only its
+ * separately appointed successor may finish this one signed transition. */
+export const retainedCatalogNativeAdoptionClaim = {
+  previous: "006439a83c66cc3c1fa3fa142d7e4a6ed27f8553",
+  child: "d23b4f108b03ecd81c1696a407c740ca24e5d705",
+  tree: "925f93173c6ab2b5572068e99e96722c8986a0cf",
+  state_sha256: "85bba0bb4540ddee8c287dfeee2a62261c09542aa00c823f01cb50f9113e31f8",
+  clock: "2026-11-11T17:44:17.587Z",
+  original_source: "a2814fe75262c10bfe7f9511d98df79e8ae0c001",
+  original_ref: "portcove-production-controller-catalog-adoption-20261111",
+  original_run: "43069742240",
+  original_job: 130697078365,
+  successor_ref: "refs/tags/portcove-production-controller-catalog-adoption-settle-20261111",
+} as const;
+
 /** The r52 application claim already exists, so r53 may only settle these bytes. */
 export const retainedApplicationReviewClaim = {
   previous: "565eb5b3ccf58d6f0654e99b8d3e0214987cd003",

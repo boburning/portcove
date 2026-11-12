@@ -956,16 +956,14 @@ it("counts a pending listing under Needs attention beside a ready registration w
   await openAdvancedFilters();
   const readiness = page.getByRole("combobox", { name: /^Readiness / });
   await expect.element(readiness).toHaveAccessibleName("Readiness All (2)");
-  await expect.element(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
+  await expect.element(page.getByRole("button", { name: /^Play: / })).toBeVisible();
   await readiness.click();
   await expect.element(page.getByRole("option", { name: "Ready (1)", exact: true })).toBeVisible();
   await page.getByRole("option", { name: "Needs attention (1)", exact: true }).click();
   await expect.element(readiness).toHaveAccessibleName("Readiness Needs attention (1)");
   expect(document.body.textContent).toContain("Downloaded · setup needed");
   expect(document.body.textContent).not.toContain(readyListing.name);
-  await expect
-    .element(page.getByRole("button", { name: "Play", exact: true }))
-    .not.toBeInTheDocument();
+  await expect.element(page.getByRole("button", { name: /^Play: / })).not.toBeInTheDocument();
   await click("Continue setup");
   expect(select.mock.calls[0]?.[0]).toBe(listing.id);
   expect(launch).not.toHaveBeenCalled();
@@ -1511,4 +1509,29 @@ it("renders accepted GitLab listing observations through the shared descriptive 
     .toHaveAttribute("href", "https://gitlab.com/example/subgroup/game/-/releases/v1");
   await expect.element(evidence.getByText("game-windows-x64.zip", { exact: false })).toBeVisible();
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+});
+
+it("shows the saved-download setup state in the current language with an exact path", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    await root.rerender(
+      <SelfServiceSetup
+        entry={{ ...entry, pendingSetup: saved }}
+        status={status}
+        generation={9}
+        perform={perform}
+        onChanged={changed}
+      />,
+    );
+    await expect.element(page.getByRole("region", { name: "الإعداد والتشغيل" })).toBeInTheDocument();
+    expect(document.body.textContent).toContain("تم التنزيل · أكمل الإعداد");
+    expect(document.body.textContent).toContain("تنزيلك جاهز للإعداد.");
+    const paths = [...document.querySelectorAll("code")].map((node) => node.textContent);
+    expect(paths).toContain(saved.path);
+    expect(document.body.textContent).not.toContain("Downloaded · finish setup");
+  } finally {
+    await localization.changeLanguage("en");
+  }
 });

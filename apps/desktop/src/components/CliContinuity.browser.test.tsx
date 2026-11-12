@@ -123,3 +123,49 @@ it.each([false, true])(
 );
 
 vi.mock("../clipboard", { spy: true });
+it("explains commands in the current language while commands and tokens stay literal", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    vi.mocked(desktopApi.cliCommandContext).mockResolvedValue({
+      ...context,
+      library_root: "E:/{{path}} library",
+      executable: null,
+    });
+    await root.rerender(<CliContinuity {...props} />);
+    await expect
+      .poll(() => document.querySelector("strong")?.textContent)
+      .toBe("الإعداد من سطر الأوامر");
+    expect(document.querySelector("span code")?.textContent).toBe("E:/{{path}} library");
+    expect(document.body.textContent).toContain("قالب — استبدل:");
+    expect(document.body.textContent).toContain("Portcove");
+    const copy = document.querySelector<HTMLButtonElement>('[aria-label="نسخ قالب الأمر"]');
+    expect(copy).not.toBeNull();
+    await act(async () =>
+      document.querySelector<HTMLButtonElement>('[aria-label="نسخ مصفوفة الوسائط"]')!.click(),
+    );
+    expect(clipboard.copyText).toHaveBeenLastCalledWith(
+      expect.stringContaining("E:/{{path}} library"),
+    );
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
+
+it("keeps placeholder tokens literal inside translated use-in-place guidance", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    const port = portDefinition();
+    port.release = { ...port.release, provider: "user-prepared" };
+    await root.rerender(<CliContinuity {...props} port={port} />);
+    await expect
+      .poll(() => [...document.querySelectorAll("p code")].map((node) => node.textContent))
+      .toContain("game-folder");
+    expect(document.body.textContent).toContain("حضّر الإصدار المطلوب بنفسك");
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});

@@ -1,6 +1,17 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", ":dependencyDashboard"],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/bower_components/**",
+    "**/vendor/**",
+    "**/examples/**",
+    "**/__tests__/**",
+    "**/test/**",
+    "**/tests/**",
+    "**/__fixtures__/**",
+    "crates/portcove-core/fuzz/**"
+  ],
   "enabledManagers": [
     "cargo",
     "npm",
@@ -64,7 +75,6 @@
         "cargo-shear",
         "cargo-deny",
         "cargo-modules",
-        "rscheck-cli",
         "cargo-mutants",
         "cargo-nextest",
         "rust",
@@ -136,14 +146,6 @@
       "matchDatasources": ["github-tags"],
       "matchDepNames": ["aquaproj/aqua-registry"],
       "matchPackageNames": ["aquaproj/aqua-registry"],
-      "enabled": false
-    },
-    {
-      "description": "Do not replace the reviewed SQLite upstream revision automatically",
-      "matchManagers": ["cargo"],
-      "matchDatasources": ["git-refs"],
-      "matchDepNames": ["rusqlite"],
-      "matchPackageNames": ["https://github.com/rusqlite/rusqlite"],
       "enabled": false
     },
     {

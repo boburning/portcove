@@ -65,6 +65,11 @@ impl PortcoveService {
             .any(|session| session.port_id == port_id && session.outcome.is_none());
         let hold = crate::managed_runtime_policy::acquisition_hold_reason(&self.catalog, port_id);
         let mut projected = Self::assess_listing_status(status, owned, launching, hold);
+        projected.library_membership = self
+            .library
+            .library_memberships()?
+            .into_iter()
+            .find(|member| member.port_id == port_id);
         let pending = self.pending_setups()?;
         if let Some(report) = projected.capabilities.as_mut() {
             report.add_setup_context(listing, pending.iter().find(|p| p.port_id == port_id));
@@ -142,6 +147,12 @@ impl PortcoveService {
             .filter(|session| session.outcome.is_none())
             .map(|session| session.port_id)
             .collect::<HashSet<_>>();
+        let members = self
+            .library
+            .library_memberships()?
+            .into_iter()
+            .map(|member| (member.port_id.clone(), member))
+            .collect::<HashMap<_, _>>();
         raw.into_iter()
             .map(|status| {
                 let listing = catalog.listing(&status.port_id)?;
@@ -163,6 +174,7 @@ impl PortcoveService {
                     &status.port_id,
                 );
                 let mut projected = Self::assess_listing_status(status, has_owner, launching, hold);
+                projected.library_membership = members.get(&projected.port_id).cloned();
                 if let Some(report) = projected.capabilities.as_mut() {
                     report.add_setup_context(
                         listing,
@@ -234,7 +246,51 @@ impl PortcoveService {
             )),
             status,
             actions,
+            library_membership: None,
         }
+    }
+
+    /// Saves reviewed games to the Library without registering, acquiring,
+    /// preparing, installing or launching anything. Games already installed,
+    /// externally registered or pending setup are reported, not duplicated.
+    pub fn add_games_to_library(
+        &self,
+        requests: &[crate::LibraryMembershipRequest],
+    ) -> Result<Vec<crate::LibraryMembershipOutcome>> {
+        for request in requests {
+            request.validate()?;
+            self.catalog.listing(&request.port_id)?;
+        }
+        let connection = self.library.connection()?;
+        let mut present = std::collections::HashSet::new();
+        for request in requests {
+            let (occupied, _) = Library::port_state_footprints(
+                &connection,
+                std::slice::from_ref(&request.port_id),
+            )?;
+            let status = self
+                .library
+                .status(&request.port_id, ReleaseChannel::Stable)?;
+            if status.active.is_some()
+                || status.external_runtime.is_some()
+                || (occupied.contains(&request.port_id)
+                    && Self::pending_setups_from(&connection)?
+                        .iter()
+                        .any(|pending| pending.port_id == request.port_id))
+            {
+                present.insert(request.port_id.clone());
+            }
+        }
+        drop(connection);
+        self.library.add_library_memberships(requests, &present)
+    }
+
+    pub fn library_memberships(&self) -> Result<Vec<crate::LibraryMembership>> {
+        self.library.library_memberships()
+    }
+
+    pub fn remove_library_membership(&self, port_id: &str) -> Result<bool> {
+        self.library.remove_library_membership(port_id)
     }
 }
 

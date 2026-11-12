@@ -431,6 +431,7 @@ export const rustPackagePrefixes = new Map([
   ["crates/portcove-cli/", "portcove-cli"],
   ["crates/portcove-diagnostics/", "portcove-diagnostics"],
   ["crates/portcove-release-tools/", "portcove-release-tools"],
+  ["tools/rust-portability/", "portcove-rust-portability"],
   ["apps/desktop/src-tauri/", "portcove-desktop"],
 ]);
 

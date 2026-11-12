@@ -23,6 +23,7 @@ export type InputGameSettingChange =
   | {
       action: "reset";
     };
+export type InputDesktopAdoptionBatchItems = AdoptionBatchItem[];
 export type ApplicationChannel = "preview" | "stable";
 export type ApplicationUpdateMode = "automatic" | "notify-only" | "manual";
 export type InputDesktopApplicationUpdateProductionDecision = "use-stable" | "keep-preview";
@@ -41,6 +42,9 @@ export type CatalogForeignReleaseId = {
   provider: "gitlab";
   tag: string;
 };
+export type InputDesktopInstallBatchRequestItems = InstallBatchRequestItem[];
+export type LibraryMembershipOrigin = "game_file_discovery" | "manual";
+export type InputDesktopLibraryMembershipRequests = LibraryMembershipRequest[];
 export type InputDesktopOrganizationChange =
   | {
       game_id: string;
@@ -111,6 +115,23 @@ export type InstallationContext =
       installation_id: string;
       kind: "external";
     };
+export type InputDesktopPortIntentMode = "discover_only" | "notify" | "set_up_when_ready" | "ignored";
+export type InputDesktopPortReadinessAcknowledgements = PortReadinessAcknowledgement[];
+export type InputDesktopRootSetupEnrollment = RootSetupEnrollment | null;
+export type RootSetupEnrollment = "existing_and_future" | "future_only";
+/**
+ * Separate reviewed Steam artwork action for one owned shortcut.
+ */
+export type SteamArtworkOperation =
+  | {
+      kind: "update";
+      replace_existing: boolean;
+      [k: string]: unknown;
+    }
+  | {
+      kind: "remove_owned";
+      [k: string]: unknown;
+    };
 export type SteamEntryOperation = "add_or_repair" | "remove";
 
 export interface TransportInputs {
@@ -120,6 +141,7 @@ export interface TransportInputs {
   game_setting_change: InputGameSettingChange;
   source_discovery_limits: SourceDiscoveryLimits;
   source_discovery_request: InputSourceDiscoveryRequest;
+  desktop_adoption_batch_items: InputDesktopAdoptionBatchItems;
   desktop_application_update_choice: InputDesktopApplicationUpdateChoice;
   desktop_application_update_download_request: InputDesktopApplicationUpdateDownloadRequest;
   desktop_application_update_manual_check_request: InputDesktopApplicationUpdateManualCheckRequest;
@@ -129,8 +151,14 @@ export interface TransportInputs {
   desktop_catalog_download_request: InputDesktopCatalogDownloadRequest;
   desktop_game_comparison_request: InputDesktopGameComparisonRequest;
   desktop_game_file_query_request: InputGameFileQueryRequest;
+  desktop_install_batch_request_items: InputDesktopInstallBatchRequestItems;
   desktop_install_input: InputDesktopInstallInput;
+  desktop_library_membership_requests: InputDesktopLibraryMembershipRequests;
   desktop_organization_change: InputDesktopOrganizationChange;
+  desktop_port_intent_mode: InputDesktopPortIntentMode;
+  desktop_port_readiness_acknowledgements: InputDesktopPortReadinessAcknowledgements;
+  desktop_root_setup_enrollment: InputDesktopRootSetupEnrollment;
+  desktop_steam_artwork_selection: InputDesktopSteamArtworkSelection;
   desktop_steam_batch_selection: InputDesktopSteamBatchSelection;
   desktop_steam_entry_selection: InputDesktopSteamEntrySelection;
 }
@@ -185,6 +213,17 @@ export interface SourceDiscoveryLimits1 {
   max_entries: number;
   max_file_bytes: number;
   max_hash_bytes: number;
+  [k: string]: unknown;
+}
+export interface AdoptionBatchItem {
+  /**
+   * Catalog port this folder is reviewed for.
+   */
+  port_id: string;
+  /**
+   * Existing installation folder to copy; it is never modified.
+   */
+  source: string;
   [k: string]: unknown;
 }
 export interface InputDesktopApplicationUpdateChoice {
@@ -244,6 +283,13 @@ export interface InputDesktopGameComparisonRequest {
    */
   source_profile_ids?: string[] | null;
 }
+export interface InstallBatchRequestItem {
+  /**
+   * Digest of the plan the player reviewed for this game.
+   */
+  expected_plan_sha256: string;
+  port_id: string;
+}
 export interface InputDesktopInstallInput {
   bios?: string | null;
   channel?: ReleaseChannel | null;
@@ -255,6 +301,19 @@ export interface InputDesktopInstallInput {
 export interface SourceRegistrationReference {
   profile_id: string;
   reference_sha256: string;
+}
+export interface LibraryMembershipRequest {
+  origin: LibraryMembershipOrigin;
+  port_id: string;
+  sources?: LibraryMembershipSource[];
+}
+/**
+ * A reviewed original the player associated with the saved entry. This is a
+ * hint for explaining requirements; reinspection remains the authority.
+ */
+export interface LibraryMembershipSource {
+  profile_id: string;
+  sha256: string;
 }
 export interface UpdateNoticeChoice {
   paused: boolean;
@@ -272,13 +331,32 @@ export interface SetupConfirmation {
   context: InstallationContext;
   port_id: string;
 }
+export interface PortReadinessAcknowledgement {
+  plan_sha256: string;
+  port_id: string;
+}
+export interface InputDesktopSteamArtworkSelection {
+  operation: SteamArtworkOperation;
+  portId: string;
+  steamRoot: string;
+  steamUserId: string;
+  [k: string]: unknown;
+}
 export interface InputDesktopSteamBatchSelection {
+  /**
+   * Also fill missing Steam artwork for each newly added shortcut.
+   */
+  includeArtwork?: boolean;
   portIds: string[];
   steamRoot: string;
   steamUserId: string;
   [k: string]: unknown;
 }
 export interface InputDesktopSteamEntrySelection {
+  /**
+   * Also fill missing Steam artwork for a newly added shortcut.
+   */
+  includeArtwork?: boolean;
   operation: SteamEntryOperation;
   portId: string;
   steamRoot: string;

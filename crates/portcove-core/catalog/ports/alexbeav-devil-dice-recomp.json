@@ -22,7 +22,7 @@
       "steps": [
         {
           "title": "Unpack the setup kit",
-          "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+          "instruction": "Choose the official ZIP for your system from the upstream releases and extract it to a writable folder. On Mac, use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Follow the setup instructions included in your kit."
         },
         {
           "title": "Install the build tools",
@@ -41,7 +41,7 @@
         "Use the retail European disc for this kit. A prerelease disc shares its first data track and 12-track count.",
         "Portcove has not verified native setup, gameplay or save compatibility for this kit."
       ],
-      "help_url": "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp/releases/tag/v0.1.0",
+      "help_url": "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp#readme",
       "references": [
         {
           "title": "Linux and Mac compatibility",

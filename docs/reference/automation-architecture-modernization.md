@@ -1024,3 +1024,27 @@ evidence-bounded: preserve the original failures and conditional obligations;
 #1104 closure requires its owning acceptance decision after delivery, and #2420
 remains open at its independent scope. This report establishes no installed,
 gameplay, signing, publication, release or global-health acceptance.
+
+## External dependency audit tooling follow-up
+
+The Rust path-portability gate takes over the one blocking policy formerly
+run by the archived rscheck engine. It retires three archived crates,
+the mirror installer and setup action, the dedicated audit binary cache,
+cloud and native bootstrap branches, and the JSON report adapter. The source,
+exceptions, regressions and executable now share the ordinary Cargo graph.
+The retained development checks and retired heuristics are described in
+[quality operations](quality-operations.md#rust-path-portability).
+
+The November 11 Linux comparison used the installed rscheck 0.1.0 binary
+and an already-built development-profile checker over the reviewed source
+roots. The old full-policy invocation took 100.82 s and emitted 18,338,006
+JSON bytes. The replacement scanned 454 Rust files in 5.57 s. The old run
+included advisory and informational rules; these are single-run observations
+with no cold-cache or whole-CI timing inference.
+
+The local and hosted selectors still cover different execution obligations:
+the local planner routes affected checks while the hosted workflow aggregates
+the required contexts and retains qualification results. Audit receipt
+validation and process admission also carry independent source and resource
+boundaries. This pass retains those consumers. Vite+ or Just command aliases
+cannot replace their authorization, inventory or evidence handling.

@@ -130,3 +130,24 @@ it("offers Open Activity only when the host can open it, and calls it", async ()
   await act(async () => open?.click());
   expect(openActivity).toHaveBeenCalledOnce();
 });
+
+it("renders the notice chrome in the current language and keeps the exit code verbatim", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  await show(() => Promise.resolve(failure(true)), withRollback("available", ""));
+  const notice = () => container.querySelector('[role="status"]');
+  expect(notice()?.textContent).toContain("Exit code 0xC0000135");
+  try {
+    await act(async () => {
+      await localization.changeLanguage("ar-XB");
+    });
+    await expect.poll(() => notice()?.getAttribute("aria-label")).toBe("آخر تشغيل");
+    expect(notice()?.textContent).toContain("رمز الخروج 0xC0000135");
+    expect(notice()?.querySelector("code")?.getAttribute("dir")).toBe("ltr");
+  } finally {
+    await act(async () => {
+      await localization.changeLanguage("en");
+    });
+  }
+  await expect.poll(() => notice()?.getAttribute("aria-label")).toBe("Last launch");
+});

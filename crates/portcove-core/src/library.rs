@@ -7,7 +7,6 @@ use std::{
 };
 
 use directories::ProjectDirs;
-use fs2::FileExt;
 use rusqlite::{
     Connection, OptionalExtension, TransactionBehavior, limits::Limit, params, params_from_iter,
 };
@@ -334,7 +333,7 @@ fn status_ports_per_query(connection: &Connection) -> Result<usize> {
 
 impl Drop for PortOperationGuard {
     fn drop(&mut self) {
-        let _ = FileExt::unlock(&self.file);
+        let _ = self.file.unlock();
     }
 }
 
@@ -453,6 +452,8 @@ pub(crate) struct HttpCacheEntry {
     pub etag: Option<String>,
     pub last_modified: Option<String>,
     pub body: String,
+    /// Unix seconds when the provider last confirmed this response.
+    pub updated_at: i64,
 }
 
 // Account for the actual response and its key/index/validator metadata instead
@@ -725,8 +726,8 @@ impl Library {
     pub fn storage_summary(&self) -> Result<StorageSummary> {
         Ok(StorageSummary {
             library_root: self.root.clone(),
-            volume_total_bytes: fs2::total_space(&self.root)?,
-            volume_available_bytes: fs2::available_space(&self.root)?,
+            volume_total_bytes: fs4::total_space(&self.root)?,
+            volume_available_bytes: fs4::available_space(&self.root)?,
         })
     }
     pub fn versions_dir(&self) -> PathBuf {
@@ -1082,8 +1083,8 @@ impl Library {
             .read(true)
             .write(true)
             .open(self.locks_dir().join(format!("{key}.lock")))?;
-        if let Err(error) = file.try_lock_exclusive() {
-            if error.kind() == fs2::lock_contended_error().kind() {
+        if let Err(error) = file.try_lock() {
+            if matches!(error, std::fs::TryLockError::WouldBlock) {
                 return Err(PortcoveError::conflict(format!(
                     "{target} is busy in another Portcove process"
                 ))
@@ -1091,7 +1092,7 @@ impl Library {
                 .detail("resource_id", target)
                 .detail("operation", operation));
             }
-            return Err(error.into());
+            return Err(std::io::Error::from(error).into());
         }
         Ok(file)
     }
@@ -1341,15 +1342,13 @@ impl Library {
         let path = self.locks_dir().join(format!("{key}.lock"));
         crate::path::refuse_symlink_ancestors(&path)?;
         let file = OpenOptions::new().read(true).write(true).open(&path)?;
-        match file.try_lock_exclusive() {
+        match file.try_lock() {
             Ok(()) => {
-                FileExt::unlock(&file)?;
+                file.unlock()?;
                 Ok(crate::ActivityLiveness::Interrupted)
             }
-            Err(error) if error.kind() == fs2::lock_contended_error().kind() => {
-                Ok(crate::ActivityLiveness::Active)
-            }
-            Err(error) => Err(error.into()),
+            Err(std::fs::TryLockError::WouldBlock) => Ok(crate::ActivityLiveness::Active),
+            Err(std::fs::TryLockError::Error(error)) => Err(error.into()),
         }
     }
 
@@ -1761,7 +1760,10 @@ impl Library {
             .filter(|session| session.outcome.is_none()))
     }
 
-    fn launch_session_for_port(&self, port_id: &str) -> Result<Option<LaunchSessionRecord>> {
+    pub(crate) fn launch_session_for_port(
+        &self,
+        port_id: &str,
+    ) -> Result<Option<LaunchSessionRecord>> {
         let row = self
             .connection()?
             .query_row(
@@ -1782,13 +1784,14 @@ impl Library {
         prune_http_cache(&transaction)?;
         let cached = transaction
             .query_row(
-                "SELECT etag, last_modified, body FROM github_http_cache WHERE url=?1",
+                "SELECT etag, last_modified, body, updated_at FROM github_http_cache WHERE url=?1",
                 [url],
                 |row| {
                     Ok(HttpCacheEntry {
                         etag: row.get(0)?,
                         last_modified: row.get(1)?,
                         body: row.get(2)?,
+                        updated_at: row.get(3)?,
                     })
                 },
             )

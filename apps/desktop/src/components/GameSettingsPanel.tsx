@@ -1,4 +1,6 @@
+import type { TFunction } from "i18next";
 import { useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useAppTranslation } from "../localization";
 import type {
   GameSettingReview,
   GameSettingsView,
@@ -31,6 +33,7 @@ export function GameSettingsPanel({
   actions: GameSettingsActions;
   changed: (view: GameSettingsView) => void;
 }) {
+  const { t } = useAppTranslation("gameSettings");
   const [selection, setSelection] = useState<{ identity: string; intent: Intent }>();
   const returnFocus = useRef<HTMLHeadingElement>(null);
   const identity = JSON.stringify([
@@ -43,24 +46,18 @@ export function GameSettingsPanel({
   if (selection && selection.identity !== identity) setSelection(undefined);
   const intent = selection?.identity === identity ? selection.intent : undefined;
   return (
-    <section aria-label="Game settings" className="grid gap-4">
+    <section aria-label={t("panel.label")} className="grid gap-4">
       <header>
         <h3 ref={returnFocus} tabIndex={-1} className="m-0 text-sm font-semibold">
-          Game settings
+          {t("panel.heading")}
         </h3>
-        <p className="mt-1 text-xs text-pc-muted-foreground">
-          Review each change before saving. Other preferences stay as they are.
-        </p>
+        <p className="mt-1 text-xs text-pc-muted-foreground">{t("panel.intro")}</p>
       </header>
-      {!view.available && (
-        <p role="status">{view.reason ?? "Settings are unavailable for this installation."}</p>
-      )}
+      {!view.available && <p role="status">{view.reason ?? t("panel.unavailable")}</p>}
       {view.available &&
         view.files.map((file) => (
           <div key={file.id} className="grid gap-3">
-            {!file.available && (
-              <p role="status">{file.reason ?? "This settings file is unavailable."}</p>
-            )}
+            {!file.available && <p role="status">{file.reason ?? t("panel.fileUnavailable")}</p>}
             {file.available &&
               file.settings.map((setting) => (
                 <SettingEditor
@@ -99,6 +96,7 @@ function SettingEditor({
   setting: GameSettingView;
   review: (change: Change) => void;
 }) {
+  const { t } = useAppTranslation("gameSettings");
   const id = useId();
   const type = setting.value_type;
   const initial = setting.value ?? type.default;
@@ -111,7 +109,8 @@ function SettingEditor({
         )
       : "-1",
   );
-  const [error, setError] = useState<string>();
+  // App-owned validation codes are translated at render.
+  const [error, setError] = useState<"tooLarge" | "whole" | "number" | "choose">();
   const submit = () => {
     let value: unknown;
     if (type.kind === "boolean") value = checked;
@@ -125,20 +124,20 @@ function SettingEditor({
       ) {
         setError(
           typeof value === "number" && Number.isInteger(value) && !Number.isSafeInteger(value)
-            ? "This number is too large to save accurately."
+            ? "tooLarge"
             : type.kind === "integer"
-              ? "Enter a whole number."
-              : "Enter a number.",
+              ? "whole"
+              : "number",
         );
         return;
       }
     }
     if (value === undefined) {
-      setError("Choose one of the listed options.");
+      setError("choose");
       return;
     }
     if (typeof value === "number" && Number.isInteger(value) && !Number.isSafeInteger(value)) {
-      setError("This number is too large to save accurately.");
+      setError("tooLarge");
       return;
     }
     setError(undefined);
@@ -159,7 +158,7 @@ function SettingEditor({
       ) : type.kind === "enum" ? (
         <select id={id} value={choice} onChange={(event) => setChoice(event.target.value)}>
           <option value="-1" disabled>
-            Choose a value
+            {t("editor.chooseValue")}
           </option>
           {type.choices.map((item, index) => (
             <option key={index} value={index}>
@@ -184,22 +183,31 @@ function SettingEditor({
         />
       )}
       {setting.value == null && (
-        <p className="m-0 text-xs text-pc-muted-foreground">Not saved yet; showing the default.</p>
+        <p className="m-0 text-xs text-pc-muted-foreground">{t("editor.defaultShown")}</p>
       )}
       {(type.kind === "number" || type.kind === "integer") && (
         <p className="m-0 text-xs text-pc-muted-foreground">
-          {type.kind === "integer" ? "Whole numbers" : "Numbers"} from {type.minimum} to{" "}
-          {type.maximum}, in steps of {type.step}.
+          {t(type.kind === "integer" ? "editor.rangeWhole" : "editor.rangeNumber", {
+            minimum: type.minimum,
+            maximum: type.maximum,
+            step: type.step,
+          })}
         </p>
       )}
       {error && (
         <p id={`${id}-error`} role="alert">
-          {error}
+          {error === "tooLarge"
+            ? t("editor.error.tooLarge")
+            : error === "whole"
+              ? t("editor.error.whole")
+              : error === "number"
+                ? t("editor.error.number")
+                : t("editor.error.choose")}
         </p>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button onClick={submit}>Review change</Button>
-        <Button onClick={() => review({ action: "reset" })}>Reset to default…</Button>
+        <Button onClick={submit}>{t("editor.review")}</Button>
+        <Button onClick={() => review({ action: "reset" })}>{t("editor.reset")}</Button>
       </div>
     </div>
   );
@@ -222,6 +230,7 @@ function SettingReview({
   close: () => void;
   returnFocus: RefObject<HTMLHeadingElement | null>;
 }) {
+  const { t } = useAppTranslation("gameSettings");
   const title = useRef<HTMLHeadingElement>(null);
   const active = useRef(true);
   const restoreFocus = useRef(false);
@@ -245,7 +254,8 @@ function SettingReview({
         result.file_id !== intent.fileId ||
         result.setting_id !== intent.settingId
       ) {
-        throw new Error("The installation changed. Refresh settings and review again.");
+        // Thrown text is read by the shared failure presentation, so it is already translated.
+        throw new Error(t("review.installationChanged"));
       }
       return result;
     },
@@ -261,7 +271,7 @@ function SettingReview({
       restoreFocus.current = true;
       close();
     },
-    failureMessage: "The change was not accepted. Refresh settings and review again.",
+    failureMessage: t("review.failure"),
   });
   return (
     <Dialog
@@ -277,31 +287,29 @@ function SettingReview({
         aria-describedby={description}
       >
         <DialogTitle ref={title} tabIndex={-1}>
-          Review game setting
+          {t("review.title")}
         </DialogTitle>
-        <DialogDescription id={description}>
-          Save this one preference for the installed game. The game may need to restart to use it.
-        </DialogDescription>
-        {pending === "review" && <p role="status">Reading the current setting…</p>}
+        <DialogDescription id={description}>{t("review.description")}</DialogDescription>
+        {pending === "review" && <p role="status">{t("review.reading")}</p>}
         {preview && (
           <dl className="grid gap-2">
-            <dt>Setting</dt>
+            <dt>{t("review.setting")}</dt>
             <dd>{preview.label}</dd>
-            <dt>Current saved value</dt>
-            <dd>{settingValueLabel(preview.previous_value, setting)}</dd>
-            <dt>{intent.change.action === "reset" ? "Default" : "New value"}</dt>
-            <dd>{settingValueLabel(preview.proposed_value, setting)}</dd>
+            <dt>{t("review.current")}</dt>
+            <dd>{settingValueLabel(t, preview.previous_value, setting)}</dd>
+            <dt>{intent.change.action === "reset" ? t("review.default") : t("review.new")}</dt>
+            <dd>{settingValueLabel(t, preview.proposed_value, setting)}</dd>
           </dl>
         )}
         {preview && (
           <details>
-            <summary data-focusable>Technical details</summary>
+            <summary data-focusable>{t("review.technical")}</summary>
             <dl className="grid gap-2 wrap-anywhere">
-              <dt>Current saved value</dt>
+              <dt>{t("review.current")}</dt>
               <dd>
                 <code>{JSON.stringify(preview.previous_value ?? null)}</code>
               </dd>
-              <dt>New value</dt>
+              <dt>{t("review.new")}</dt>
               <dd>
                 <code>{JSON.stringify(preview.proposed_value)}</code>
               </dd>
@@ -311,16 +319,18 @@ function SettingReview({
         <ActionReviewFailure error={error} />
         <DialogFooter>
           <Button disabled={pending === "apply"} onClick={dismiss}>
-            Cancel
+            {t("review.cancel")}
           </Button>
-          {!preview && !pending && <Button onClick={() => void review()}>Review again</Button>}
+          {!preview && !pending && (
+            <Button onClick={() => void review()}>{t("review.again")}</Button>
+          )}
           <Button
             variant="primary"
             disabled={!preview || Boolean(pending)}
             aria-busy={pending === "apply"}
             onClick={() => void execute()}
           >
-            Save setting
+            {t("review.save")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -328,17 +338,21 @@ function SettingReview({
   );
 }
 
-function settingValueLabel(value: unknown, setting: GameSettingView | undefined) {
-  if (value == null) return "Not saved";
+function settingValueLabel(
+  t: TFunction<"gameSettings">,
+  value: unknown,
+  setting: GameSettingView | undefined,
+) {
+  if (value == null) return t("value.notSaved");
   const type = setting?.value_type;
   if (type?.kind === "enum") {
     const choice = type.choices.find(
       (item) => JSON.stringify(item.value) === JSON.stringify(value),
     );
     if (choice) return choice.label;
-    return "Unrecognized option";
+    return t("value.unrecognized");
   }
-  if (typeof value === "boolean") return value ? "On" : "Off";
+  if (typeof value === "boolean") return value ? t("value.on") : t("value.off");
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
-  return typeof value === "string" ? value : "Value unavailable";
+  return typeof value === "string" ? value : t("value.unavailable");
 }

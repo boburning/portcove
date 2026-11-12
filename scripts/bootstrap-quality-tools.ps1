@@ -272,7 +272,6 @@ function Install-PinnedAqua {
 }
 
 function Tool-BinaryName([object]$Definition) {
-    if ($Definition.id -eq "rscheck-cli") { return "rscheck" }
     return [string]$Definition.crate
 }
 

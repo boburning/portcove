@@ -39,6 +39,25 @@ pub struct InstallRequest {
 struct AssetAcquisition<'a> {
     scope: &'a crate::DefinitionAcquisitionScope,
     curated: bool,
+    /// The accepted curated record when `curated`; its preserved locations are
+    /// tried only after the upstream is classified unavailable (#1306).
+    record: Option<crate::curated_acquisition::CuratedAcquisitionRecord>,
+}
+
+fn curated_record(
+    scope: &crate::DefinitionAcquisitionScope,
+    catalog: &crate::Catalog,
+    request: &InstallRequest,
+) -> Result<Option<crate::curated_acquisition::CuratedAcquisitionRecord>> {
+    if scope.curated_checks != Some(1) {
+        return Ok(None);
+    }
+    Ok(catalog
+        .port(&request.port_id)?
+        .release
+        .curated
+        .get(&request.qualification.platform)
+        .cloned())
 }
 
 /// Inputs for one asset's acquisition and extraction within the owned operation.
@@ -49,6 +68,7 @@ struct AssetPreparation<'a> {
     acquisition: Option<AssetAcquisition<'a>>,
     acquired: Option<&'a Path>,
     requires_tar_xz: bool,
+    tar_xz_allow_file_links: bool,
     unwrap_inner_archive: bool,
 }
 
@@ -68,6 +88,7 @@ pub struct InstallQualification {
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     platform: Platform,
     requires_tar_xz: bool,
+    native_mac_bundle_tar_xz: bool,
     executable_hints: Vec<String>,
     runtime_subdirectory: Option<String>,
     external_profile_policy: Option<crate::ExternalProfilePolicy>,
@@ -225,6 +246,7 @@ impl InstallQualification {
             retained_contract: None,
             platform,
             requires_tar_xz: port.release.requires_tar_xz(platform),
+            native_mac_bundle_tar_xz: crate::runtime::native_mac_bundle_tar_xz(port, platform),
             executable_hints,
             runtime_subdirectory: port.runtime_subdirectory.clone(),
             external_profile_policy: port.external_profile_policy,
@@ -232,7 +254,9 @@ impl InstallQualification {
             persistent_file_patterns: port.persistent_file_patterns.clone(),
             runtime_mutable_paths: port.runtime_mutable_paths.clone(),
             runtime_mutable_file_patterns: port.runtime_mutable_file_patterns.clone(),
-            persistence_at_install_root: crate::runtime::persistence_at_install_root(port),
+            persistence_at_install_root: crate::runtime::persistence_at_install_root(
+                port, platform,
+            ),
             runtime: port.bundled_runtime.get(&platform).cloned(),
             runtime_origin: RuntimeOrigin::VerifiedDownload,
             generated_metadata: crate::adapter::generated_metadata(port)?,
@@ -955,6 +979,8 @@ impl Installer {
             .to_ascii_lowercase()
             .ends_with(".tar.xz");
         if requires_tar_xz != request.qualification.requires_tar_xz
+            || request.qualification.native_mac_bundle_tar_xz
+                != crate::runtime::native_mac_bundle_tar_xz(port, request.qualification.platform)
             || is_tar_xz != requires_tar_xz
             || (requires_tar_xz && request.qualification.retained_contract.is_none())
         {
@@ -1108,23 +1134,20 @@ impl Installer {
                     .as_ref()
                     .ok_or_else(|| PortcoveError::state("acquisition lost retained definition"))?;
                 let catalog = contract.catalog(&request.port_id)?;
-                scope.curated_checks == Some(1)
-                    && catalog
-                        .port(&request.port_id)?
-                        .release
-                        .curated
-                        .contains_key(&request.qualification.platform)
+                curated_record(scope, &catalog, request)?
             }
-            None => false,
+            None => None,
         };
         self.acquire_asset_bytes(
             &request.release.asset,
             &private.join("0.archive"),
             operation,
             emit,
-            scope
-                .as_ref()
-                .map(|scope| AssetAcquisition { scope, curated }),
+            scope.as_ref().map(|scope| AssetAcquisition {
+                scope,
+                curated: curated.is_some(),
+                record: curated,
+            }),
             None,
         )
         .await?;
@@ -1171,13 +1194,12 @@ impl Installer {
                         PortcoveError::state("scoped acquisition lost its retained definition")
                     })?;
                 let catalog = contract.catalog(&request.port_id)?;
-                let curated = scope.curated_checks == Some(1)
-                    && catalog
-                        .port(&request.port_id)?
-                        .release
-                        .curated
-                        .contains_key(&request.qualification.platform);
-                Some(AssetAcquisition { scope, curated })
+                let record = curated_record(scope, &catalog, &request)?;
+                Some(AssetAcquisition {
+                    scope,
+                    curated: record.is_some(),
+                    record,
+                })
             }
             None => None,
         };
@@ -1195,6 +1217,7 @@ impl Installer {
                         .map(|inputs| inputs.path(&request.release.asset))
                         .transpose()?,
                     requires_tar_xz: request.qualification.requires_tar_xz,
+                    tar_xz_allow_file_links: !request.qualification.native_mac_bundle_tar_xz,
                     // Only macOS and Linux routes with a declared executable unwrap a
                     // package that publishes one inner archive; other payload shapes
                     // stay as extracted.
@@ -1207,6 +1230,23 @@ impl Installer {
                 emit,
             )
             .await?;
+        let payload_root = if request.qualification.native_mac_bundle_tar_xz {
+            let contract = request
+                .qualification
+                .retained_contract
+                .as_ref()
+                .ok_or_else(|| {
+                    PortcoveError::verification("native Mac bundle lost its retained catalog")
+                })?;
+            let catalog = contract.catalog(&request.port_id)?;
+            crate::package_layout::native_mac_bundle_root(
+                &payload_root,
+                catalog.port(&request.port_id)?,
+                request.qualification.platform,
+            )?
+        } else {
+            payload_root
+        };
         if request.qualification.managed_shared_preferences.is_some() {
             let catalog = request
                 .qualification
@@ -1345,6 +1385,25 @@ impl Installer {
                 )?;
                 crate::native_temp::require_canonical_data(port, &self.library)?;
             }
+            if let Some(name) =
+                crate::native_portable_data::directory_name(port, request.qualification.platform)
+            {
+                if !crate::native_portable_data::matches_archive(
+                    port,
+                    request.qualification.platform,
+                    &artifact.asset_name,
+                ) {
+                    return Err(PortcoveError::verification(
+                        "portable Linux archive differs from its retained package selector",
+                    ));
+                }
+                let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
+                crate::native_portable_data::require_pristine_package(
+                    &payload_root,
+                    &selected,
+                    name,
+                )?;
+            }
         }
         if let Some(runtime) = &request.qualification.runtime {
             let unpacked = lifecycle.operation_root.join("runtime");
@@ -1359,6 +1418,7 @@ impl Installer {
                         .map(|inputs| inputs.path(&runtime.asset))
                         .transpose()?,
                     requires_tar_xz: false,
+                    tar_xz_allow_file_links: true,
                     unwrap_inner_archive: false,
                 },
                 operation,
@@ -1393,10 +1453,10 @@ impl Installer {
             let port = catalog.port(&request.port_id)?.clone();
             let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
             let working = crate::adapter::launch_working_directory(
-                port.adapter,
                 &port,
                 &payload_root,
                 &selected,
+                request.qualification.platform,
             )?;
             emit(operation.message("info", "Sealing the reviewed runtime originals"));
             run_managed_install_worker(lifecycle, operation, move |operation| {
@@ -1587,8 +1647,32 @@ impl Installer {
         } else if !restored {
             match scope {
                 Some(scope) => {
-                    self.download_scoped(asset, download_path, operation, emit, Some(scope))
-                        .await?
+                    let upstream = self
+                        .download_scoped(asset, download_path, operation, emit, Some(scope))
+                        .await;
+                    let record = acquisition
+                        .as_ref()
+                        .and_then(|acquisition| acquisition.record.as_ref())
+                        .filter(|record| !record.preserved_locations.is_empty());
+                    match (upstream, record) {
+                        (Ok(()), _) => {}
+                        (Err(error), Some(record))
+                            if error.upstream_failure()
+                                == crate::failure::UpstreamFailure::Unavailable =>
+                        {
+                            self.download_preserved(
+                                asset,
+                                record,
+                                download_path,
+                                operation,
+                                emit,
+                                scope,
+                                error,
+                            )
+                            .await?;
+                        }
+                        (Err(error), _) => return Err(error),
+                    }
                 }
                 None => self.download(asset, download_path, operation, emit).await?,
             }
@@ -1623,6 +1707,65 @@ impl Installer {
         ))
     }
 
+    /// Tries each preserved location in record order after the upstream was
+    /// classified unavailable. Holds and scope are rechecked before every
+    /// attempt; the caller's bounded SHA-256 verifier still decides acceptance,
+    /// so a location can never supply different accepted bytes.
+    #[allow(clippy::too_many_arguments)]
+    async fn download_preserved<F>(
+        &self,
+        asset: &ReleaseAsset,
+        record: &crate::curated_acquisition::CuratedAcquisitionRecord,
+        download_path: &Path,
+        operation: &OperationCoordinator,
+        emit: &mut F,
+        scope: &crate::DefinitionAcquisitionScope,
+        upstream: PortcoveError,
+    ) -> Result<()>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let mut attempts = 0_usize;
+        for location in &record.preserved_locations {
+            operation.checkpoint()?;
+            match std::fs::remove_file(download_path) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(error.into()),
+            }
+            crate::definition_repository::publisher_policy::require_curated_artifact_operation(
+                &scope.library.connection()?,
+                scope.repository_id,
+                record,
+                crate::definition_repository::publisher_policy::CuratedArtifactOperation::Acquisition,
+            )?;
+            let alternate = ReleaseAsset {
+                url: crate::curated_acquisition::transport_url(scope, location)?,
+                ..asset.clone()
+            };
+            attempts += 1;
+            emit(operation.message(
+                "info",
+                format!(
+                    "The original download is unavailable. Trying preserved location {attempts} of {} for {}.",
+                    record.preserved_locations.len(),
+                    asset.name
+                ),
+            ));
+            match self
+                .download_scoped(&alternate, download_path, operation, emit, Some(scope))
+                .await
+            {
+                Ok(()) => return Ok(()),
+                Err(error)
+                    if error.upstream_failure() == crate::failure::UpstreamFailure::Unavailable => {
+                }
+                Err(error) => return Err(error),
+            }
+        }
+        Err(upstream.detail("preserved_attempts", attempts.to_string()))
+    }
+
     async fn prepare_asset<F>(
         &self,
         input: AssetPreparation<'_>,
@@ -1639,6 +1782,7 @@ impl Installer {
             acquisition,
             acquired,
             requires_tar_xz,
+            tar_xz_allow_file_links,
             unwrap_inner_archive,
         } = input;
         let (artifact, cache_worker) = self
@@ -1664,6 +1808,7 @@ impl Installer {
                     &extraction_path,
                     &extraction_root,
                     expected_size,
+                    tar_xz_allow_file_links,
                     &checkpoint,
                 )
             } else {
@@ -1779,13 +1924,16 @@ impl Installer {
         validate_download_progress(0, asset.size)?;
         let response = operation
             .interruptible(async {
-                client
-                    .get(&asset.url)
-                    .send()
-                    .await
-                    .map_err(|error| PortcoveError::network(error.to_string()))?
-                    .error_for_status()
-                    .map_err(|error| PortcoveError::network(error.to_string()))
+                let response = client.get(&asset.url).send().await.map_err(|error| {
+                    PortcoveError::network(error.to_string())
+                        .with_upstream(crate::failure::UpstreamObservation::from_reqwest(&error))
+                })?;
+                let status = response.status();
+                response.error_for_status().map_err(|error| {
+                    PortcoveError::network(error.to_string()).with_upstream(Some(
+                        crate::failure::UpstreamObservation::Status(status.as_u16()),
+                    ))
+                })
             })
             .await?;
         let total = response
@@ -1806,7 +1954,10 @@ impl Installer {
                 .interruptible(async { Ok(stream.next().await) })
                 .await?
             {
-                let chunk = chunk.map_err(|error| PortcoveError::network(error.to_string()))?;
+                let chunk = chunk.map_err(|error| {
+                    PortcoveError::network(error.to_string())
+                        .with_upstream(crate::failure::UpstreamObservation::from_reqwest(&error))
+                })?;
                 let next = completed
                     .checked_add(chunk.len() as u64)
                     .ok_or_else(|| PortcoveError::verification("download byte count overflowed"))?;
@@ -2433,6 +2584,11 @@ impl Installer {
             if port.archive_data_compatibility_v1.is_some() {
                 return Err(PortcoveError::unsupported(
                     "external-tree adoption cannot establish a managed archive's provider or player-data contract",
+                ));
+            }
+            if crate::native_portable_data::directory_name(port, qualification.platform).is_some() {
+                return Err(PortcoveError::unsupported(
+                    "external-tree adoption cannot establish the managed Linux portable profile; keep the existing profile with its current player",
                 ));
             }
             crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
@@ -3612,10 +3768,10 @@ pub(crate) fn check_retained_runtime_paths(install: &InstallRecord, target: &Pat
     crate::runtime_path_policy::check_executable(port, platform, &executable)?;
     let observed_executable = install.path.join(&manifest.selected_executable);
     let observed_working = crate::adapter::launch_working_directory(
-        port.adapter,
         port,
         &install.path,
         &observed_executable,
+        platform,
     )?;
     let relative = observed_working.strip_prefix(&install.path).map_err(|_| {
         PortcoveError::verification("runtime working directory escaped its installation")
@@ -3810,16 +3966,14 @@ fn verified_manifest_with_budget(
                     "sealed runtime originals have no authenticated input receipt",
                 ));
             }
-            if manifest.platform.is_none() {
-                return Err(PortcoveError::verification(
-                    "sealed originals have no recorded host",
-                ));
-            }
+            let platform = manifest.platform.ok_or_else(|| {
+                PortcoveError::verification("sealed originals have no recorded host")
+            })?;
             let working = crate::adapter::launch_working_directory(
-                port.adapter,
                 port,
                 &install.path,
                 &install.path.join(&manifest.selected_executable),
+                platform,
             )?;
             for output in crate::preparation::source::outputs(port) {
                 let relative = manifest_relative(&install.path, &working.join(output))?;
@@ -4037,6 +4191,15 @@ pub(crate) fn resolve_declared_executable(
         "declared executable",
         allow_one_wrapper,
     )?;
+    if qualification.native_mac_bundle_tar_xz {
+        let relative = manifest_relative(root, &executable)?;
+        let owned_executable = fs::canonicalize(root)?.join(relative);
+        if !crate::permissions::is_platform_binary(&owned_executable, platform)? {
+            return Err(PortcoveError::verification(
+                "the Mac bundle executable has no matching Mach-O architecture",
+            ));
+        }
+    }
     match qualification.external_profile_policy {
         Some(crate::ExternalProfilePolicy::Z2rsDesktopV1) => {
             crate::native_external_profile::z2rs::require_unix_player(&executable, platform)?;
@@ -4756,7 +4919,7 @@ mod tests {
             fs::write(&package, &payload).unwrap();
             let root = temporary.path().join("payload");
             fs::create_dir(&root).unwrap();
-            extract_tar_xz_with_checkpoint(&package, &root, payload.len() as u64, &|| Ok(()))
+            extract_tar_xz_with_checkpoint(&package, &root, payload.len() as u64, true, &|| Ok(()))
                 .unwrap();
             let program = root.join("publisher").join(player);
             assert!(resolve_declared_executable(&root, &qualification).is_err());

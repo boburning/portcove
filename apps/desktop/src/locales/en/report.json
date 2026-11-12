@@ -1,0 +1,13 @@
+{
+  "problem": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "copied": "This report is too long for a link, so it was copied instead. Open a new bug report on GitHub and paste it in.",
+    "copyFailed": "This report is too long for a link and could not be copied automatically. Select and copy the text below, then paste it into a new bug report on GitHub.",
+    "description": "This is everything that will be filled into a GitHub bug report. Portcove sends nothing itself: you review it here, then submit it on GitHub. Folder paths and your user name are replaced.",
+    "open": "Report a problem",
+    "prepareFailed": "The report could not be prepared. Try again.",
+    "submit": "Open on GitHub",
+    "title": "Report a problem"
+  }
+}

@@ -166,21 +166,63 @@ fn persona_owned_input_selection_preserves_complete_versioned_inventory() -> Res
     for release in facts["releases"].as_array().unwrap() {
         let mut assets: Vec<GithubAsset> = serde_json::from_value(release["assets"].clone())?;
         assert_eq!(assets.len(), 9);
-        let expected = format!(
-            "revp-{}-windows-x86_64-owned-input.zip",
-            &release["tag_name"].as_str().unwrap()[1..]
-        );
+        let version = &release["tag_name"].as_str().unwrap()[1..];
+        let expected = [
+            (
+                Platform::WindowsX86_64,
+                format!("revp-{version}-windows-x86_64-owned-input.zip"),
+            ),
+            (
+                Platform::LinuxX86_64,
+                format!("revp-{version}-linux-x64.zip"),
+            ),
+        ];
         for _ in 0..assets.len() {
-            assert_eq!(
-                choose_asset(&port, Platform::WindowsX86_64, &assets)?.name,
-                expected
-            );
+            for (platform, name) in &expected {
+                assert_eq!(&choose_asset(&port, *platform, &assets)?.name, name);
+            }
             assets.rotate_left(1);
         }
         assets.reverse();
+        for (platform, name) in &expected {
+            assert_eq!(&choose_asset(&port, *platform, &assets)?.name, name);
+        }
+    }
+    // Each exact kit needs its own source binding; the older Linux kit stays unbound.
+    let catalog = crate::Catalog::embedded()?;
+    let contract = catalog
+        .source_catalog()
+        .unwrap()
+        .contracts
+        .iter()
+        .find(|contract| contract.id == "revelations-persona-recompiled-game-source")
+        .unwrap();
+    for (version, sha256, applies) in [
+        (
+            "v0.1.1",
+            "f4336030ba9c0e032061ad6892aa5ce9ff01c4cedcbaf3a5355428e6d728158a",
+            true,
+        ),
+        (
+            "v0.1.1",
+            "b4cb5d74027689465ac4778fd5d71e7f6244f39e2a43b8fe4d7a89dd959b5f70",
+            true,
+        ),
+        (
+            "v0.1.1",
+            "882a0cd1b8c5f038ebdf622665c0624be393a6eecddcbb15d75eb28eee86a588",
+            false,
+        ),
+        (
+            "v0.1.0",
+            "ab777700dd784bbd2feeb528a1c95cb7ca4c0f209e7a5d25a57ce0129daa8532",
+            false,
+        ),
+    ] {
         assert_eq!(
-            choose_asset(&port, Platform::WindowsX86_64, &assets)?.name,
-            expected
+            contract.applies_to_release(version, sha256),
+            applies,
+            "{version} {sha256}"
         );
     }
     let report = inspect_persona(facts)?;

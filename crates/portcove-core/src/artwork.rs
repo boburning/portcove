@@ -1,5 +1,5 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     fs,
     io::Read,
     path::{Path, PathBuf},
@@ -179,6 +179,74 @@ impl PortcoveService {
             return Ok(std::borrow::Cow::Owned(pending.listing));
         }
         Err(unknown)
+    }
+
+    /// Content identities of remote originals that a currently resolvable port
+    /// still references: the current catalog plus the retained installed,
+    /// registered and unfinished-setup identities that `artwork_port` serves.
+    fn referenced_remote_originals(&self) -> Result<BTreeSet<String>> {
+        fn add(referenced: &mut BTreeSet<String>, listing: &crate::PortListing) {
+            referenced.extend(listing.artwork.iter().map(|art| art.image_sha256.clone()));
+            referenced.extend(listing.media.iter().map(|asset| asset.sha256.clone()));
+        }
+        let mut referenced = BTreeSet::new();
+        for listing in self.catalog().listings() {
+            add(&mut referenced, listing);
+        }
+        let connection = self.library().connection()?;
+        let mut retained: BTreeSet<String> = Library::installs_from(&connection)?
+            .into_iter()
+            .map(|install| install.port_id)
+            .collect();
+        retained.extend(Library::external_runtime_port_ids_from(&connection)?);
+        retained.extend(
+            Self::pending_setups_from(&connection)?
+                .into_iter()
+                .map(|record| record.port_id),
+        );
+        drop(connection);
+        for port_id in retained {
+            if self.catalog().listing(&port_id).is_ok() {
+                continue;
+            }
+            match self.artwork_port(&port_id) {
+                Ok(listing) => add(&mut referenced, &listing),
+                // An identity with no resolvable listing presents no remote image.
+                Err(error) if error.code == crate::ErrorCode::NotFound => {}
+                Err(error) => return Err(error),
+            }
+        }
+        Ok(referenced)
+    }
+
+    /// Publishes a verified remote original under the artwork lock and retires
+    /// cached remote originals that no resolvable port references any more,
+    /// such as a cover replaced or withdrawn by a signed catalog correction.
+    /// When references cannot be established, every existing entry is retained.
+    pub(crate) fn publish_remote_original(
+        &self,
+        path: &Path,
+        pending_name: &str,
+        bytes: &[u8],
+    ) -> Result<()> {
+        let referenced = match self.referenced_remote_originals() {
+            Ok(referenced) => Some(referenced),
+            Err(error) => {
+                tracing::warn!(
+                    code = ?error.code,
+                    "artwork cache retained every remote original: references unavailable"
+                );
+                None
+            }
+        };
+        publish_cache_file(
+            self.library(),
+            path,
+            pending_name,
+            crate::artwork_image::MAX_ORIGINAL_BYTES,
+            bytes,
+            referenced.as_ref(),
+        )
     }
 
     pub fn artwork(&self, port_id: &str, slot: ArtworkSlot) -> Result<ArtworkState> {
@@ -372,7 +440,7 @@ impl PortcoveService {
                                 "the artwork choice changed during cover retrieval",
                             ));
                         }
-                        publish_igdb_original(self.library(), artwork, original)
+                        self.publish_igdb_original(artwork, original)
                     })?;
                 let connection = self.library().connection()?;
                 let current = crate::artwork_store::require_revision(
@@ -558,6 +626,7 @@ fn publish_thumbnail_file(library: &Library, id: &str, bytes: &[u8]) -> Result<(
         "pending-thumbnail",
         crate::artwork_image::MAX_THUMBNAIL_BYTES,
         bytes,
+        None,
     )
 }
 
@@ -567,13 +636,39 @@ pub(crate) fn publish_cache_file(
     pending_name: &str,
     maximum_bytes: u64,
     bytes: &[u8],
+    referenced_remote: Option<&BTreeSet<String>>,
 ) -> Result<()> {
     if bytes.len() as u64 > maximum_bytes {
         return Err(PortcoveError::verification(
             "artwork cache entry exceeds its byte limit",
         ));
     }
-    let files = cache_files(library)?;
+    let mut files = cache_files(library)?;
+    if let Some(referenced) = referenced_remote {
+        // Remote originals are digest-named. Local-import thumbnails and
+        // interrupted staging keep their own repair paths.
+        let mut kept = Vec::with_capacity(files.len());
+        for (existing, size) in files {
+            let remote = matches!(
+                existing
+                    .extension()
+                    .and_then(|extension| extension.to_str()),
+                Some("jpg" | "image")
+            );
+            let unreferenced = existing
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .is_some_and(|stem| !referenced.contains(stem));
+            // A stale entry that cannot be removed now (for example, held open
+            // by another process) stays for a later publication or the size
+            // bound; it never fails this verified publication.
+            if !(remote && unreferenced && existing != path) || fs::remove_file(&existing).is_err()
+            {
+                kept.push((existing, size));
+            }
+        }
+        files = kept;
+    }
     let mut total = files
         .iter()
         .filter(|(existing, _)| existing != path)
@@ -941,18 +1036,18 @@ fn igdb_original_path(library: &Library, artwork: &crate::IgdbArtwork) -> Result
     Ok(path)
 }
 
-fn publish_igdb_original(
-    library: &Library,
-    artwork: &crate::IgdbArtwork,
-    original: &[u8],
-) -> Result<()> {
-    publish_cache_file(
-        library,
-        &igdb_original_path(library, artwork)?,
-        "pending-igdb-original",
-        crate::artwork_image::MAX_ORIGINAL_BYTES,
-        original,
-    )
+impl PortcoveService {
+    pub(crate) fn publish_igdb_original(
+        &self,
+        artwork: &crate::IgdbArtwork,
+        original: &[u8],
+    ) -> Result<()> {
+        self.publish_remote_original(
+            &igdb_original_path(self.library(), artwork)?,
+            "pending-igdb-original",
+            original,
+        )
+    }
 }
 
 fn igdb_cache_id(artwork: &crate::IgdbArtwork) -> String {

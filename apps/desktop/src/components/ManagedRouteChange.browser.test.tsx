@@ -5,6 +5,7 @@ import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import { failureReport, portDefinition } from "../test-fixtures";
 import type { InstallRecord, ManagedRouteChangePreview } from "../types";
+import { gameIdentityLabel } from "../port-identity";
 import { ManagedRouteChangeControl } from "./ManagedRouteChange";
 
 const port = { ...portDefinition(), adapter: "native-portable" as const };
@@ -216,4 +217,27 @@ it("keeps authored save consequences visible before creating a managed copy", as
       Node.DOCUMENT_POSITION_FOLLOWING,
     ),
   ).toBe(true);
+});
+
+it("reviews the managed copy in the current language with exact paths", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    vi.mocked(desktopApi.previewManagedRouteChange).mockResolvedValue({
+      ...preview,
+      current_registration: { ...preview.current_registration, path: "C:/{{path}}/Sample" },
+    });
+    await root.rerender(<ManagedRouteChangeControl port={port} generation={7} busy={false} />);
+    await page.getByRole("button", { name: "مراجعة نسخة يديرها Portcove…" }).click();
+    await expect.element(page.getByRole("dialog")).toBeVisible();
+    await expect.element(page.getByRole("button", { name: "إنشاء نسخة مُدارة" })).toBeVisible();
+    expect(document.body.textContent).toContain("مجلد التثبيت الجديد: E:/Portcove/versions/sample");
+    expect(document.querySelector("[role=dialog] bdi")?.textContent).toBe(gameIdentityLabel(port));
+    const codes = [...document.querySelectorAll("[role=dialog] code")].map((n) => n.textContent);
+    expect(codes).toContain("C:/{{path}}/Sample");
+    expect(document.body.textContent).not.toContain("Create managed copy");
+  } finally {
+    await localization.changeLanguage("en");
+  }
 });

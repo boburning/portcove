@@ -211,6 +211,14 @@ impl EngineTemplateCapability {
             contract_version: 29,
         });
         supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 30,
+        });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 31,
+        });
+        supported.push(Self {
             template: AdapterKind::NativePortable,
             contract_version: 15,
         });
@@ -249,6 +257,14 @@ impl EngineTemplateCapability {
         supported.push(Self {
             template: AdapterKind::NativePortable,
             contract_version: crate::native_external_profile::openjk::NATIVE_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::native_portable_data::NATIVE_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::runtime::NATIVE_MAC_BUNDLE_TAR_XZ_CAPABILITY,
         });
         supported
     }
@@ -968,7 +984,7 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(5));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 30, 30)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 32, 32)).unwrap();
         assert!(!future.compatible);
     }
 

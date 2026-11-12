@@ -1,6 +1,7 @@
 import { defineConfig } from "vite-plus";
 import { registeredNodeCommand } from "./scripts/node-test-suites.mts";
 import { desktopProjects, testReporters } from "./scripts/frontend-tests.ts";
+import { browserShardSequence } from "./scripts/browser-shard-balance.mts";
 import { checkStagedFiles, exactByteFormatInputs } from "./scripts/viteplus-cli.mts";
 
 export default defineConfig({
@@ -26,7 +27,6 @@ export default defineConfig({
       ".codex-remote-attachments/**",
       ".fallow/**",
       ".fallow-review/**",
-      ".rscheck/**",
       ".tmp/**",
       "mutants.out/**",
       "mutants.out.old/**",
@@ -222,7 +222,12 @@ export default defineConfig({
       },
     ],
   },
-  test: { projects: desktopProjects, reporters: testReporters },
+  test: {
+    projects: desktopProjects,
+    reporters: testReporters,
+    // Hosted shard jobs split by recorded file duration instead of path hash.
+    ...browserShardSequence(),
+  },
   staged: { "*": { title: "Check staged files", task: (files) => checkStagedFiles(files) } },
   run: {
     tasks: {

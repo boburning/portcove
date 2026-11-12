@@ -38,14 +38,6 @@
       "ci_install": "prebuilt"
     },
     {
-      "id": "rscheck-cli",
-      "crate": "rscheck-cli",
-      "version": "0.1.0",
-      "command": ["rscheck", "--version"],
-      "tier": "required",
-      "ci_install": "cached"
-    },
-    {
       "id": "cargo-mutants",
       "crate": "cargo-mutants",
       "version": "27.1.0",
@@ -58,6 +50,14 @@
       "crate": "cargo-llvm-cov",
       "version": "0.9.1",
       "command": ["cargo", "llvm-cov", "--version"],
+      "tier": "deep",
+      "ci_install": "local"
+    },
+    {
+      "id": "cargo-fuzz",
+      "crate": "cargo-fuzz",
+      "version": "0.13.2",
+      "command": ["cargo", "fuzz", "--version"],
       "tier": "deep",
       "ci_install": "local"
     },

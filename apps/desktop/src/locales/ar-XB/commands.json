@@ -1,0 +1,12 @@
+{
+  "palette": {
+    "available": "الأوامر المتاحة",
+    "empty": "لا تتوفر أوامر.",
+    "noMatch": "لا يوجد أمر يطابق “<query/>”.",
+    "placeholder": "البحث في الإجراءات والتنقل",
+    "quickActions": "إجراءات سريعة",
+    "results": "نتائج البحث",
+    "search": "البحث في الأوامر",
+    "title": "أوامر Portcove"
+  }
+}

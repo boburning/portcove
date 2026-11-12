@@ -97,3 +97,73 @@ fn conflicts_follow_the_supplied_precedence_and_ignore_unique_assets() {
     assert_eq!(reordered[0].winner, "a");
     assert!(asset_conflicts(&[("a", &a)]).is_empty());
 }
+
+#[test]
+fn wrapper_extraction_takes_only_package_members_flattened_and_ignores_the_rest() {
+    let dir = tempfile::tempdir().unwrap();
+    let wrapper = archive(
+        dir.path(),
+        "pack.zip",
+        &[
+            ("readme.txt", b"hello"),
+            ("mods/hd-link.O2R", b"pkg-one"),
+            ("extras/other.otr", b"pkg-two"),
+            ("tool.exe", b"MZ"),
+        ],
+    );
+    let out = dir.path().join("out");
+    std::fs::create_dir(&out).unwrap();
+    let extracted = extract_packages(&wrapper, &out, &["o2r", "otr"]).unwrap();
+    assert_eq!(extracted.ignored, 2, "non-packages are left unread");
+    let mut names = extracted
+        .files
+        .iter()
+        .map(|path| path.file_name().unwrap().to_string_lossy().into_owned())
+        .collect::<Vec<_>>();
+    names.sort();
+    assert_eq!(names, ["hd-link.O2R", "other.otr"]);
+    assert_eq!(std::fs::read(out.join("hd-link.O2R")).unwrap(), b"pkg-one");
+    assert!(!out.join("tool.exe").exists());
+}
+
+#[test]
+fn wrapper_extraction_refuses_unsafe_duplicate_or_traversing_members() {
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("out");
+    std::fs::create_dir(&out).unwrap();
+    for (case, entries) in [
+        ("traversal", vec![("../x.o2r", &b"x"[..])]),
+        (
+            "duplicate",
+            vec![("a/x.o2r", &b"x"[..]), ("b/x.o2r", &b"y"[..])],
+        ),
+        (
+            "case-duplicate",
+            vec![("a/X.o2r", &b"x"[..]), ("b/x.O2R", &b"y"[..])],
+        ),
+        ("hidden", vec![(".hidden.o2r", &b"x"[..])]),
+        ("empty", vec![("empty.o2r", &b""[..])]),
+    ] {
+        let wrapper = archive(dir.path(), &format!("{case}.zip"), &entries);
+        assert!(
+            extract_packages(&wrapper, &out, &["o2r"]).is_err(),
+            "{case}"
+        );
+    }
+    assert!(extract_packages(&dir.path().join("missing.zip"), &out, &["o2r"]).is_err());
+}
+
+#[test]
+fn wrapper_extraction_bounds_the_aggregate_not_just_each_member() {
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("out");
+    std::fs::create_dir(&out).unwrap();
+    let wrapper = archive(
+        dir.path(),
+        "many.zip",
+        &[("a.o2r", &[1u8; 600][..]), ("b.o2r", &[2u8; 600][..])],
+    );
+    // Each member fits under the cap; together they do not.
+    assert!(extract_packages_capped(&wrapper, &out, &["o2r"], 1000).is_err());
+    assert!(extract_packages_capped(&wrapper, &out, &["o2r"], 1200).is_ok());
+}

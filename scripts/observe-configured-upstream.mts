@@ -222,6 +222,12 @@ export function compactObserverCheckpoint(checkpoint: unknown, config: ObserverC
   return result;
 }
 
+/** Names only the error class: unexpected messages may carry provider or host text. */
+function unexpectedErrorClass(error: unknown) {
+  const name = error instanceof Error ? error.name : typeof error;
+  return /^[A-Za-z][A-Za-z0-9_]{0,63}$/u.test(name) ? name : "unrecognized";
+}
+
 function exceptionFor(
   error: unknown,
   prior: CheckpointException | null,
@@ -248,7 +254,7 @@ function exceptionFor(
     details:
       error instanceof ObservationFailure
         ? error.message
-        : "Observation or core policy inspection failed; inspect this run's retained evidence.",
+        : `Observation or core policy inspection failed (${unexpectedErrorClass(error)}); inspect this run's retained evidence.`,
     retry_at: error instanceof ObservationFailure ? error.retryAt : null,
     resume_condition:
       rule === "rate-limit"

@@ -1,0 +1,158 @@
+{
+  "alternatives": {
+    "external": "External installation · <version/>",
+    "heading": "Other ports for this game ({{total}})",
+    "independence": "Each project keeps its own files and installation. Choosing one does not transfer saves or choose a release.",
+    "managed": "Managed installation · <version/>",
+    "notInstalled": "Not installed",
+    "originalFiles": "Original files: <files/>",
+    "originalFilesUnknown": "Original files: Check project setup instructions",
+    "runsOn": "Runs on: <platforms/>",
+    "runsOnUnknown": "Runs on: Not recorded",
+    "sourceEditions": "Source editions: <editions/>",
+    "stateUnavailable": "Installation state unavailable",
+    "view": "View <name/>",
+    "viewing": "<name/> · Viewing"
+  },
+  "discover": {
+    "action": {
+      "compare": "Compare ports",
+      "compareAll": "Compare all {{total}}",
+      "continue": "Continue setup",
+      "installation": "View installation",
+      "port": "View port",
+      "task": "View task",
+      "why": "Why this port?"
+    },
+    "cardLabel": "{{game}}. {{state}}.",
+    "chip": {
+      "channel": "Update channel",
+      "platform": "Runs on",
+      "system": "Original system"
+    },
+    "compare": {
+      "files": "Required files",
+      "filesUnlisted": "Requirements are not listed here. Check the project’s setup instructions.",
+      "instructions": "Project instructions",
+      "noChannel": "No update channel is listed.",
+      "noPlatform": "No platform is listed.",
+      "options": "Comparison options and reports",
+      "optionsIntro": "Feature details are not available for every project. Check the reports and project instructions. Your saves and mods may not work with another port.",
+      "outsideFilters": "Outside the current filters.",
+      "setup": "How to set it up",
+      "several": "Compare setup requirements for {{total}} ports. Check each port’s instructions for shared save locations.",
+      "single": "Review this port’s setup requirements and reports.",
+      "status": "Current status",
+      "updates": "Who handles updates"
+    },
+    "compareMatching": "Compare the matching ports for their own setup requirements and installation status.",
+    "drop": {
+      "hover": "Drop to check for this game",
+      "release": "Release to check"
+    },
+    "favorite": {
+      "add": "Add to favorites",
+      "label": "Favorite {{game}}",
+      "remove": "Remove from favorites"
+    },
+    "groupLabel_one": "{{title}}. {{count}} separate port project; {{matching}} matching.",
+    "groupLabel_other": "{{title}}. {{count}} separate port projects; {{matching}} matching.",
+    "identity": {
+      "matching": "{{title}} {{project}}. Matching port: {{port}}. {{state}}. {{action}}",
+      "single": "{{title}} {{project}}. {{state}}. {{action}}"
+    },
+    "label": "Discover games",
+    "matchingPort": "Matching port: <port />",
+    "memberLabel": "{{action}}: {{game}}",
+    "ownership": {
+      "external": "External installation. You or its launcher handle updates.",
+      "managed": "Managed installation. Portcove handles reviewed updates.",
+      "notInstalled": "Not installed. Follow this project’s setup instructions.",
+      "unavailable": "Installation ownership is unavailable. Check the project instructions."
+    },
+    "separateProjects_one": "{{count}} separate port project",
+    "separateProjects_other": "{{count}} separate port projects"
+  },
+  "hero": {
+    "continueLabel": "{{title}} recently played",
+    "credits": "Image credits",
+    "detailLabel": "{{title}} game details"
+  },
+  "implementation": {
+    "choose": "Choose <name/>",
+    "preferred": "Preferred: <name/>",
+    "refresh": "Refresh choices",
+    "unconfirmed": "Portcove couldn’t confirm that your choice was saved. Refresh choices to check."
+  },
+  "library": {
+    "allPorts_one": "All {{count, number}} port · {{matching, number}} matching",
+    "allPorts_other": "All {{count, number}} ports · {{matching, number}} matching",
+    "choiceFiltered": "Your preferred port is outside these filters. You can view matching ports below.",
+    "choiceReadFailed": "Your implementation choice could not be read. Existing installation actions remain available.",
+    "choiceStale": "Your chosen port is no longer in this game group. Choose a port from the list.",
+    "choosePrompt": "Choose the port to show for this game. Check its setup instructions for shared save locations before switching.",
+    "chosen": "<name/> · Your choice",
+    "chosenOutside": "<name/> · Your choice · Outside current filters",
+    "independence": "Choosing a project does not select a release, transfer saves or replace another installation.",
+    "outside": "<name/> · Outside current filters",
+    "portCount_one": "{{count, number}} port",
+    "portCount_other": "{{count, number}} ports",
+    "portsLabel": "{{title}} ports"
+  },
+  "maintenance": {
+    "offer": "Current managed offer",
+    "reconsider": "Reconsider when: <condition/>"
+  },
+  "match": {
+    "channelUnknown": "Channel unknown",
+    "choose": "Choose a version to inspect. Each choice matches all selected filters.",
+    "heading": "Matching versions for your filters",
+    "installedBuild": "Installed build",
+    "label": "Matching browsing contexts",
+    "lostChoice": "Your previous choice is no longer current. Choose a matching version to inspect.",
+    "methodUnknown": "Saved setup method unknown",
+    "noCheck": "No current game-file check for this version. Check again.",
+    "noDetails": "This game matches your filters. Version details are unavailable; Portcove checks requirements before setup or launch.",
+    "noLongerMatches": "This port no longer matches your filters.",
+    "platformUnknown": "Platform unknown",
+    "savedInstallation": "<method/>. This is your matching saved installation. Portcove checks the current requirements again before setup or launch.",
+    "setup": "Setup",
+    "setupOption": "<method/>. This setup option matches your filters. Portcove checks the current requirements again before setup or launch.",
+    "unavailable": "These filter results are unavailable. Return to Filters to update your choices or check again."
+  },
+  "media": {
+    "captionUnavailable": "<caption/> · Image unavailable",
+    "choose": "Choose a screenshot",
+    "creditOriginal": "Original release · <edition/> · <credit/>",
+    "creditPort": "Port image · <credit/>",
+    "enlarge": "Enlarge screenshot {{number, number}}: {{caption}}",
+    "exactPort": "Screenshot of this exact port.",
+    "fromOriginal": "From the original release; this port may look different.",
+    "igdbTerms": "IGDB terms",
+    "loading": "Loading image…",
+    "loadingScreenshot": "Loading screenshot…",
+    "next": "Next",
+    "openOriginal": "Open original image",
+    "position": "Image preview · Screenshot {{number, number}} of {{total, number}}",
+    "previous": "Previous",
+    "retry": "Retry image",
+    "retryScreenshot": "Retry screenshot {{number, number}}",
+    "screenshots": "Screenshots",
+    "show": "Show screenshot {{number, number}}: {{caption}}",
+    "source": "Source",
+    "unavailable": "Image unavailable"
+  },
+  "observations": {
+    "available": "Update available at last check",
+    "channel": "Selected update channel: <channel/>",
+    "retired": "Retired upstream",
+    "staged": "Update saved for later",
+    "updateDetails": "Update details"
+  },
+  "search": {
+    "clear": "Clear search",
+    "discover": "Search Discover",
+    "library": "Search your library",
+    "placeholder": "Game or port name"
+  }
+}

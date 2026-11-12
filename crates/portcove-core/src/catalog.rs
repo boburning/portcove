@@ -1497,6 +1497,18 @@ impl Catalog {
                     port.id
                 )));
             }
+            // An optional source is only meaningful where an unregistered source leaves a
+            // usable runtime: a staged disc-image port whose unpacking is the only use of it.
+            if port.optional_game_source
+                && (port.adapter != AdapterKind::StagedSourcePortable
+                    || port.source_profile.is_none()
+                    || port.runtime_disc_image.is_none())
+            {
+                return Err(PortcoveError::usage(format!(
+                    "{} declares an optional game source without a staged disc-image source",
+                    port.id
+                )));
+            }
             match port.runtime_source_materialization {
                 Some(materialization) if materialization.disc_image_format().is_some() => {
                     let image_valid = port.runtime_disc_image.as_ref().is_some_and(|image| {
@@ -3121,6 +3133,17 @@ mod tests {
         // Keep frozen port facts except the reviewed metadata/runtime/persistence
         // declarations below. Every source contract remains exact.
         let mut expected_ports = legacy.document().ports.clone();
+        let nookery = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "animal-crossing-pc-port")
+            .unwrap();
+        assert_eq!(nookery.name, "Animal Crossing PC Port");
+        assert_eq!(
+            nookery.project_url,
+            "https://github.com/flyngmt/ACGC-PC-Port"
+        );
+        nookery.name = "Animal Crossing — Nookery".into();
+        nookery.project_url = "https://github.com/flyngmt/Nookery".into();
         let shipwright = expected_ports
             .iter_mut()
             .find(|port| port.id == "shipwright")
@@ -3144,6 +3167,21 @@ mod tests {
             .retain(|platform| !matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64));
         gen1.executable_hints.remove(&Platform::MacosX86_64);
         gen1.executable_hints.remove(&Platform::MacosAarch64);
+        // Gen2Recomped's fused runtime downloads newer Lua payloads into its shared
+        // LOVE save folder. The current definitions switch that to notify-only.
+        for id in ["gen2recomp-gold", "gen2recomp-silver", "gen2recomp-crystal"] {
+            let port = expected_ports
+                .iter_mut()
+                .find(|port| port.id == id)
+                .unwrap();
+            assert!(
+                !port
+                    .launch_environment
+                    .contains_key("POKEPORT_NOTIFY_ONLY_UPDATES")
+            );
+            port.launch_environment
+                .insert("POKEPORT_NOTIFY_ONLY_UPDATES".into(), "1".into());
+        }
         // Reviewed Unix route corrections after the frozen input. Three disk-image-only
         // Mac routes became a handoff, and the Linux AppImage and Spaghettify
         // executables are now named in the declared hints.
@@ -3202,6 +3240,22 @@ mod tests {
                 port.release.asset_hints.remove(&Platform::LinuxX86_64);
             }
         }
+        // Persona's exact v0.1.1 Linux kit matches the accepted Windows kit's
+        // preparation contract and adds a reviewed fresh Linux route.
+        let persona = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "revelations-persona-recompiled")
+            .unwrap();
+        assert_eq!(persona.platforms, [Platform::WindowsX86_64]);
+        persona.platforms.push(Platform::LinuxX86_64);
+        persona
+            .release
+            .asset_hints
+            .insert(Platform::LinuxX86_64, vec!["linux-x64".into()]);
+        persona.executable_hints.insert(
+            Platform::LinuxX86_64,
+            vec!["Revelations__Persona_Recompiled".into()],
+        );
         for (id, platform, hints) in [
             (
                 "2ship2harkinian",
@@ -4903,6 +4957,14 @@ mod tests {
                     .map(String::as_str),
                 Some(version)
             );
+            // The fused runtime's own payload downloader must not replace the
+            // Core-owned engine version.
+            assert_eq!(
+                port.launch_environment
+                    .get("POKEPORT_NOTIFY_ONLY_UPDATES")
+                    .map(String::as_str),
+                Some("1")
+            );
             assert!(port.portable_marker);
             assert_eq!(port.support_tier, crate::SupportTier::Beta);
             assert_eq!(
@@ -5027,6 +5089,49 @@ mod tests {
                 error.message
             );
         }
+    }
+
+    #[test]
+    fn an_optional_game_source_requires_a_staged_disc_image_source() {
+        disc_image_catalog(|port| port.optional_game_source = true)
+            .expect("an optional source on a staged disc-image port is valid");
+        type Mutation = fn(&mut PortDefinition);
+        let rejected: [(&str, Mutation); 3] = [
+            ("non-staged adapter", |port| {
+                port.optional_game_source = true;
+                port.adapter = AdapterKind::NativePortable;
+            }),
+            ("no source profile", |port| {
+                port.optional_game_source = true;
+                port.source_profile = None;
+            }),
+            ("no disc image", |port| {
+                port.optional_game_source = true;
+                port.runtime_disc_image = None;
+            }),
+        ];
+        for (label, mutate) in rejected {
+            // Rejected by this check or by an earlier consistency check; either way refused.
+            assert!(
+                disc_image_catalog(mutate).is_err(),
+                "{label} must be rejected"
+            );
+        }
+        // The flag on an ordinary port (no disc image at all) is refused for that reason.
+        let mut document = Catalog::embedded().unwrap().document().clone();
+        document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "nocturne-recomp")
+            .unwrap()
+            .optional_game_source = true;
+        let error = Catalog::from_document(document).err().expect("rejected");
+        assert_eq!(error.code, crate::ErrorCode::Usage);
+        assert!(
+            error.message.contains("optional game source"),
+            "{}",
+            error.message
+        );
     }
 
     #[test]
@@ -5669,19 +5774,19 @@ mod tests {
             assert_eq!(port.launch_arguments, ["--no-launcher"]);
             let selected = runtime.join(executable);
             let working = crate::adapter::launch_working_directory(
-                port.adapter,
                 port,
                 root.path(),
                 &selected,
+                Platform::WindowsX86_64,
             )
             .unwrap();
             assert_eq!(working, runtime);
             assert!(
                 crate::adapter::launch_working_directory(
-                    port.adapter,
                     port,
                     root.path(),
-                    &root.path().join(executable)
+                    &root.path().join(executable),
+                    Platform::WindowsX86_64,
                 )
                 .is_err()
             );
@@ -6005,7 +6110,11 @@ mod tests {
 
             let port = catalog.port(port_id).unwrap();
             assert_eq!(port.source_profile.as_deref(), Some(profile_id));
-            assert_eq!(port.platforms, vec![crate::Platform::WindowsX86_64]);
+            let mut platforms = vec![crate::Platform::WindowsX86_64];
+            if port_id == "revelations-persona-recompiled" {
+                platforms.push(crate::Platform::LinuxX86_64);
+            }
+            assert_eq!(port.platforms, platforms);
             assert!(port.automated_tested_platforms.is_empty());
             assert!(
                 port.executable_hints[&crate::Platform::WindowsX86_64]

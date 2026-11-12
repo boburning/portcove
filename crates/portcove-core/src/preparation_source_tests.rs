@@ -716,6 +716,7 @@ async fn assert_native6_originals_launch(zip: bool, wrapped: bool) {
     let working = crate::runtime::working_root(
         fixture.service.catalog().port(NATIVE_PORT).unwrap(),
         &install,
+        Platform::current().unwrap(),
     );
     assert_eq!(
         working,

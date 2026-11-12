@@ -42,6 +42,24 @@
         "Paperboat-Mulberry-Delta-Linux.zip"
       ]
     },
+    "street-fighter-iii-3rd-strike-3sx": {
+      "inventory": "three_sx",
+      "repository_id": 1071157272,
+      "selected_assets": ["3SX-6187364-windows.zip", "3SX-abcdef1-windows.zip"],
+      "linux_selected_assets": [
+        "3SX-6187364-linux-x86_64.tar.gz",
+        "3SX-abcdef1-linux-x86_64.tar.gz"
+      ],
+      "channel": "rolling",
+      "mutable_tag_snapshots": true
+    },
+    "mdk-sdl-nemo22": {
+      "inventory": "mdk_sdl",
+      "repository_id": 1406153922,
+      "selected_assets": ["mdk-win-x64.zip", "mdk-win-x64.zip"],
+      "linux_selected_assets": ["mdk-linux-x64.tar.gz", "mdk-linux-x64.tar.gz"],
+      "macos_aarch64_selected_assets": ["mdk-osx-arm64.zip", "mdk-osx-arm64.zip"]
+    },
     "perfect-dark": {
       "inventory": "perfect_dark",
       "repository_id": 669207138,
@@ -51,6 +69,46 @@
       "macos_aarch64_selected_assets": ["pd-arm64-osx.tar.xz", "pd-arm64-osx.tar.xz"],
       "channel": "rolling",
       "mutable_tag_snapshots": true
+    },
+    "mechakotik-tails-adventure": {
+      "inventory": "tails_adventure",
+      "repository_id": 532480163,
+      "selected_assets": [
+        "tails-adventure-v0.3.2-1-windows.zip",
+        "tails-adventure-v0.3.3-1-windows.zip"
+      ],
+      "linux_selected_assets": [
+        "tails-adventure-v0.3.2-1-linux-amd64.tar.xz",
+        "tails-adventure-v0.3.3-1-linux-amd64.tar.xz"
+      ]
+    },
+    "sdw-community-sheep-dog-n-wolf-rewooled": {
+      "inventory": "rewooled",
+      "repository_id": 1402106850,
+      "selected_assets": ["Rewooled-Windows-x64-1.1.3.zip", "Rewooled-Windows-x64-1.1.4.zip"],
+      "linux_selected_assets": [
+        "Rewooled-Linux-x86_64-1.1.3.zip",
+        "Rewooled-Linux-x86_64-1.1.4.zip"
+      ]
+    },
+    "rise-of-the-triad-barrett-lunarmeadow": {
+      "inventory": "barrett",
+      "repository_id": 1069797622,
+      "selected_assets": ["barrett-win64.zip", "barrett-win64.zip"],
+      "linux_selected_assets": ["barrett-linux.zip", "barrett-linux.zip"],
+      "macos_aarch64_selected_assets": ["barrett-macOS.zip", "barrett-macOS.zip"],
+      "channel": "beta"
+    },
+    "blast-corps-power-dozer": {
+      "inventory": "power_dozer",
+      "selected_assets": [
+        "power-dozer-v0.84-windows-x86_64.zip",
+        "power-dozer-v0.85-windows-x86_64.zip"
+      ],
+      "linux_selected_assets": [
+        "power-dozer-v0.84-linux-x86_64.tar.gz",
+        "power-dozer-v0.85-linux-x86_64.tar.gz"
+      ]
     },
     "doom-3-classic-dude-doom-3-unified-development-engine": {
       "inventory": "dude",
@@ -1453,6 +1511,184 @@
         "crash_diagnostic": true,
         "split_mod_paths": true
       }
+    },
+    "isledecomp-isle-portable": {
+      "inventory": "isle_portable",
+      "repository_id": 801786411,
+      "selected_assets": ["isle-0.1-Windows-x64.zip", "isle-0.2-Windows-x64.zip"],
+      "linux_selected_assets": ["isle-0.1-Linux-x64.tar.gz", "isle-0.2-Linux-x64.tar.gz"],
+      "channel": "rolling",
+      "mutable_tag_snapshots": true
+    },
+    "brawmario-infinite-mario-64-ever": {
+      "inventory": "infinite_mario_64_ever",
+      "repository_id": 924970713,
+      "selected_assets": [
+        "infinite-mario-64-ever.v0.1.5.windows.zip",
+        "infinite-mario-64-ever.v0.1.6.windows.zip"
+      ],
+      "linux_selected_assets": [
+        "infinite-mario-64-ever.v0.1.5.linux.zip",
+        "infinite-mario-64-ever.v0.1.6.linux.zip"
+      ]
+    },
+    "wing-commander-kilrathi-saga-wing-commander-reloaded-wc1-re": {
+      "inventory": "wc1_re",
+      "repository_id": 1328043392,
+      "selected_assets": [
+        "wc1-re-v0.9.8-windows-x86_64-sdl2.zip",
+        "wc1-re-v0.9.9-windows-x86_64-sdl2.zip"
+      ],
+      "linux_selected_assets": [
+        "wc1-re-v0.9.8-linux-x86_64-sdl2.zip",
+        "wc1-re-v0.9.9-linux-x86_64-sdl2.zip"
+      ],
+      "macos_aarch64_selected_assets": [
+        "wc1-re-v0.9.8-macos-arm64-sdl2.zip",
+        "wc1-re-v0.9.9-macos-arm64-sdl2.zip"
+      ]
+    },
+    "colin-mcrae-rally-2-opencmr2": {
+      "inventory": "opencmr2",
+      "repository_id": 1413279818,
+      "selected_assets": ["OpenCMR2-Windows-x64.zip", "OpenCMR2-Windows-x64.zip"],
+      "linux_selected_assets": ["OpenCMR2-Linux-x86_64.tar.gz", "OpenCMR2-Linux-x86_64.tar.gz"],
+      "macos_aarch64_selected_assets": ["OpenCMR2-macOS-arm64.zip", "OpenCMR2-macOS-arm64.zip"]
+    },
+    "starlancer-openreliant": {
+      "inventory": "openreliant",
+      "repository_id": 1378937518,
+      "selected_assets": [
+        "openreliant-v1.0.0-windows-x86_64.zip",
+        "openreliant-v1.0.1-windows-x86_64.zip"
+      ],
+      "linux_selected_assets": [
+        "openreliant-v1.0.0-linux-x86_64.tar.gz",
+        "openreliant-v1.0.1-linux-x86_64.tar.gz"
+      ],
+      "macos_x86_64_selected_assets": [
+        "openreliant-v1.0.0-macos-x86_64.tar.gz",
+        "openreliant-v1.0.1-macos-x86_64.tar.gz"
+      ],
+      "macos_aarch64_selected_assets": [
+        "openreliant-v1.0.0-macos-aarch64.tar.gz",
+        "openreliant-v1.0.1-macos-aarch64.tar.gz"
+      ]
+    },
+    "knuckles-chaotix-recompiled": {
+      "inventory": "chaotix",
+      "repository_id": 1384460165,
+      "selected_assets": [
+        "ChaotixRecompiled-0.15.20-windows-x64.zip",
+        "ChaotixRecompiled-0.15.21-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "ChaotixRecompiled-0.15.20-linux-x64.tar.gz",
+        "ChaotixRecompiled-0.15.21-linux-x64.tar.gz"
+      ],
+      "macos_aarch64_selected_assets": [
+        "ChaotixRecompiled-0.15.20-macos-arm64.zip",
+        "ChaotixRecompiled-0.15.21-macos-arm64.zip"
+      ]
+    },
+    "alexbeav-quake-ii-recomp": {
+      "inventory": "alexbeav-quake-ii-recomp",
+      "selected_assets": [
+        "quake-ii-recomp-0.1.2-windows-x64.zip",
+        "quake-ii-recomp-999.123.456-windows-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00757",
+        "track_sha1": "f936e7cc477b0daf456c86eff86acc82e7f549ce",
+        "track_sha256": null,
+        "generated_executable": "Quake_II_Recompiled.exe",
+        "track_count": 2,
+        "crash_diagnostic": true
+      },
+      "linux_selected_assets": [
+        "quake-ii-recomp-0.1.2-linux-x64.zip",
+        "quake-ii-recomp-999.123.456-linux-x64.zip"
+      ]
+    },
+    "alexbeav-suikoden-recomp": {
+      "inventory": "alexbeav-suikoden-recomp",
+      "selected_assets": ["suikoden-0.1.1-windows-x64.zip", "suikoden-999.123.456-windows-x64.zip"],
+      "managed_psx": {
+        "serial": "SLUS-00292",
+        "revision": "Rev 1",
+        "track_sha1": "409453aaedfb6bb7d5bb8a228cce5f04b7c35ee0",
+        "track_sha256": null,
+        "generated_executable": "Suikoden_Recompiled.exe",
+        "track_count": 1,
+        "bios_profile": "psx-scph-5552-bios",
+        "crash_diagnostic": true
+      },
+      "linux_selected_assets": [
+        "suikoden-0.1.1-linux-x64.zip",
+        "suikoden-999.123.456-linux-x64.zip"
+      ]
+    },
+    "alexbeav-silent-bomber-recomp": {
+      "inventory": "alexbeav-silent-bomber-recomp",
+      "selected_assets": [
+        "silent-bomber-0.1.1-windows-x64.zip",
+        "silent-bomber-999.123.456-windows-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLES-02792",
+        "track_sha1": "c9293c685b16321c08e8f4f5cf4f93f21cf8df27",
+        "track_sha256": null,
+        "generated_executable": "Silent_Bomber_Recompiled.exe",
+        "track_count": 1,
+        "bios_profile": "psx-scph-5552-bios",
+        "crash_diagnostic": true
+      },
+      "linux_selected_assets": [
+        "silent-bomber-0.1.1-linux-x64.zip",
+        "silent-bomber-999.123.456-linux-x64.zip"
+      ]
+    },
+    "alexbeav-mortal-kombat-trilogy-recomp": {
+      "inventory": "alexbeav-mortal-kombat-trilogy-recomp",
+      "selected_assets": [
+        "mortal-kombat-trilogy-0.1.1-windows-x64.zip",
+        "mortal-kombat-trilogy-999.123.456-windows-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00330",
+        "revision": "Rev 1",
+        "track_sha1": "aa9b7e1716bd8790bca25d651c280f7a2a48b884",
+        "track_sha256": null,
+        "generated_executable": "Mortal_Kombat_Trilogy_Recompiled.exe",
+        "track_count": 30,
+        "bios_profile": "psx-scph-5552-bios",
+        "crash_diagnostic": true
+      },
+      "linux_selected_assets": [
+        "mortal-kombat-trilogy-0.1.1-linux-x64.zip",
+        "mortal-kombat-trilogy-999.123.456-linux-x64.zip"
+      ]
+    },
+    "njh-1001-wipeout2k97xl": {
+      "inventory": "njh-1001-wipeout2k97xl",
+      "selected_assets": [
+        "wipeoutxl-0.2.0-windows-x64.zip",
+        "wipeoutxl-999.123.456-windows-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SCUS-94351",
+        "track_sha1": "5694008c30fa9896d17afdd6281e4bebb9f63953",
+        "track_sha256": null,
+        "generated_executable": "Wipeout2K97XL.exe",
+        "track_count": 12,
+        "openbios": true,
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      },
+      "linux_selected_assets": [
+        "wipeoutxl-0.2.0-linux-x64.zip",
+        "wipeoutxl-999.123.456-linux-x64.zip"
+      ]
     }
   },
   "inventories": {
@@ -1782,6 +2018,172 @@
         ]
       }
     ],
+    "three_sx": [
+      {
+        "id": 288757274,
+        "tag_name": "rolling-pre-release",
+        "draft": false,
+        "prerelease": true,
+        "published_at": "2026-02-20T15:06:20Z",
+        "assets": [
+          {
+            "id": 668541820,
+            "name": "3SX-6187364-linux-arm64.tar.gz",
+            "browser_download_url": "https://github.com/crowded-street/3sx/releases/download/rolling-pre-release/3SX-6187364-linux-arm64.tar.gz",
+            "size": 8305567,
+            "digest": "sha256:1d4bd686e04123cb2e1cf22ad4669c498413e83e8763657a565f5adc3156c204"
+          },
+          {
+            "id": 668541826,
+            "name": "3SX-6187364-linux-x86_64.tar.gz",
+            "browser_download_url": "https://github.com/crowded-street/3sx/releases/download/rolling-pre-release/3SX-6187364-linux-x86_64.tar.gz",
+            "size": 8624391,
+            "digest": "sha256:e7d61eb19266c994ad90e012bf4616c09fbbc07072cd80992b7f0ca5e5a31e65"
+          },
+          {
+            "id": 668541828,
+            "name": "3SX-6187364-macos.dmg",
+            "browser_download_url": "https://github.com/crowded-street/3sx/releases/download/rolling-pre-release/3SX-6187364-macos.dmg",
+            "size": 2469659,
+            "digest": "sha256:a50536a3b8fe70b3c6b12310a9e81f42cff107567e35382d75b57c702cc3f733"
+          },
+          {
+            "id": 668541822,
+            "name": "3SX-6187364-windows.zip",
+            "browser_download_url": "https://github.com/crowded-street/3sx/releases/download/rolling-pre-release/3SX-6187364-windows.zip",
+            "size": 9720942,
+            "digest": "sha256:81874b57df0c1433148882d5f34316000b7254103b333a511457ce52fe4a0830"
+          }
+        ]
+      },
+      {
+        "id": 288757274,
+        "tag_name": "rolling-pre-release",
+        "draft": false,
+        "prerelease": true,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999200000,
+            "name": "3SX-abcdef1-linux-arm64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/3SX-abcdef1-linux-arm64.tar.gz",
+            "size": 8305567,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999200001,
+            "name": "3SX-abcdef1-linux-x86_64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/3SX-abcdef1-linux-x86_64.tar.gz",
+            "size": 8624391,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999200002,
+            "name": "3SX-abcdef1-macos.dmg",
+            "browser_download_url": "https://downloads.example.invalid/3SX-abcdef1-macos.dmg",
+            "size": 2469659,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999200003,
+            "name": "3SX-abcdef1-windows.zip",
+            "browser_download_url": "https://downloads.example.invalid/3SX-abcdef1-windows.zip",
+            "size": 9720942,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        ]
+      }
+    ],
+    "mdk_sdl": [
+      {
+        "id": 436524063,
+        "tag_name": "v1.2.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-06T13:18:32Z",
+        "assets": [
+          {
+            "id": 717237410,
+            "name": "mdk-android.apk",
+            "browser_download_url": "https://github.com/nautilusbits/mdk-sdl/releases/download/v1.2.6/mdk-android.apk",
+            "size": 19153772,
+            "digest": "sha256:ce3654db1bc58c231fc1fe6c660ce2147360125c8cc2c00eff4b3e3515efc124"
+          },
+          {
+            "id": 717237404,
+            "name": "mdk-linux-arm64.tar.gz",
+            "browser_download_url": "https://github.com/nautilusbits/mdk-sdl/releases/download/v1.2.6/mdk-linux-arm64.tar.gz",
+            "size": 4960901,
+            "digest": "sha256:e46f52c3c598feb8564a72a6da359ff112ce1911b958b659749aebb728e35fa0"
+          },
+          {
+            "id": 717237406,
+            "name": "mdk-linux-x64.tar.gz",
+            "browser_download_url": "https://github.com/nautilusbits/mdk-sdl/releases/download/v1.2.6/mdk-linux-x64.tar.gz",
+            "size": 5153514,
+            "digest": "sha256:4b983ef199a71084586e3fc2f8a125ced17156c2f81df4003757c5d796bd0100"
+          },
+          {
+            "id": 717237412,
+            "name": "mdk-osx-arm64.zip",
+            "browser_download_url": "https://github.com/nautilusbits/mdk-sdl/releases/download/v1.2.6/mdk-osx-arm64.zip",
+            "size": 4293984,
+            "digest": "sha256:87f552cfe84f831d794f90409be0f54af13ab10525a003d8bd9e675e9f68127e"
+          },
+          {
+            "id": 717237409,
+            "name": "mdk-win-x64.zip",
+            "browser_download_url": "https://github.com/nautilusbits/mdk-sdl/releases/download/v1.2.6/mdk-win-x64.zip",
+            "size": 4240198,
+            "digest": "sha256:e44e91720e92d399c746247bd9d5c1f38e71ef6a53444df824dcdcd0bdc2dfc5"
+          }
+        ]
+      },
+      {
+        "id": 999300000,
+        "tag_name": "v1.2.7",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999300010,
+            "name": "mdk-android.apk",
+            "browser_download_url": "https://downloads.example.invalid/v1.2.7/mdk-android.apk",
+            "size": 19153772,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999300011,
+            "name": "mdk-linux-arm64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/v1.2.7/mdk-linux-arm64.tar.gz",
+            "size": 4960901,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999300012,
+            "name": "mdk-linux-x64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/v1.2.7/mdk-linux-x64.tar.gz",
+            "size": 5153514,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999300013,
+            "name": "mdk-osx-arm64.zip",
+            "browser_download_url": "https://downloads.example.invalid/v1.2.7/mdk-osx-arm64.zip",
+            "size": 4293984,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999300014,
+            "name": "mdk-win-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/v1.2.7/mdk-win-x64.zip",
+            "size": 4240198,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          }
+        ]
+      }
+    ],
     "perfect_dark": [
       {
         "id": 155654014,
@@ -1924,6 +2326,296 @@
             "browser_download_url": "https://github.com/perfect-dark-pc-port/perfect_dark/releases/download/ci-dev-build/pd-x86_64-windows.zip",
             "size": 25739820,
             "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        ]
+      }
+    ],
+    "tails_adventure": [
+      {
+        "id": 312258250,
+        "tag_name": "v0.3.2-1",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-04-22T14:22:14Z",
+        "assets": [
+          {
+            "id": 405999751,
+            "name": "tails-adventure-v0.3.2-1-android.apk",
+            "browser_download_url": "https://github.com/mechakotik/tails-adventure/releases/download/v0.3.2-1/tails-adventure-v0.3.2-1-android.apk",
+            "size": 11663734,
+            "digest": "sha256:6ad893f1adc6ebc50b786529d763c3c91665fb02b53f7bedba12f1169b8a6893"
+          },
+          {
+            "id": 405999781,
+            "name": "tails-adventure-v0.3.2-1-linux-amd64.tar.xz",
+            "browser_download_url": "https://github.com/mechakotik/tails-adventure/releases/download/v0.3.2-1/tails-adventure-v0.3.2-1-linux-amd64.tar.xz",
+            "size": 4977016,
+            "digest": "sha256:74aa9d7a9ffbeb09a97f259f328135210b45823793e1011fbdb2c0afce848174"
+          },
+          {
+            "id": 405999799,
+            "name": "tails-adventure-v0.3.2-1-windows.zip",
+            "browser_download_url": "https://github.com/mechakotik/tails-adventure/releases/download/v0.3.2-1/tails-adventure-v0.3.2-1-windows.zip",
+            "size": 6625286,
+            "digest": "sha256:3dac0a4d470046b76a72d8e5d8f69afe766920d54f0585e69e5119db5702dd6e"
+          }
+        ]
+      },
+      {
+        "id": 999100000,
+        "tag_name": "v0.3.3-1",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999100100,
+            "name": "tails-adventure-v0.3.3-1-android.apk",
+            "browser_download_url": "https://downloads.example.invalid/tails-adventure-v0.3.3-1-android.apk",
+            "size": 11663734,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999100107,
+            "name": "tails-adventure-v0.3.3-1-linux-amd64.tar.xz",
+            "browser_download_url": "https://downloads.example.invalid/tails-adventure-v0.3.3-1-linux-amd64.tar.xz",
+            "size": 4977016,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999100114,
+            "name": "tails-adventure-v0.3.3-1-windows.zip",
+            "browser_download_url": "https://downloads.example.invalid/tails-adventure-v0.3.3-1-windows.zip",
+            "size": 6625286,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        ]
+      }
+    ],
+    "rewooled": [
+      {
+        "id": 417800534,
+        "tag_name": "v1.1.3",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-19T22:03:51Z",
+        "assets": [
+          {
+            "id": 657556900,
+            "name": "Rewooled-Linux-x86_64-1.1.3.zip",
+            "browser_download_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled/releases/download/v1.1.3/Rewooled-Linux-x86_64-1.1.3.zip",
+            "size": 4660608,
+            "digest": "sha256:49a58ef97c7f61f130d5050b3ac275a39f5c212f7c1ba06fbfcf7f1488ee1c58"
+          },
+          {
+            "id": 657556896,
+            "name": "Rewooled-macOS-arm64-1.1.3.zip",
+            "browser_download_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled/releases/download/v1.1.3/Rewooled-macOS-arm64-1.1.3.zip",
+            "size": 4584433,
+            "digest": "sha256:ac62d76d03e72d0c448c126df04c62d716cca462a7847a819d44172dd8bee901"
+          },
+          {
+            "id": 657556895,
+            "name": "Rewooled-Windows-x64-1.1.3.zip",
+            "browser_download_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled/releases/download/v1.1.3/Rewooled-Windows-x64-1.1.3.zip",
+            "size": 4050500,
+            "digest": "sha256:b4d785cefabb4d818c5421cb5ed14cc2041d48f343b5167a74e185c403f9b4bd"
+          }
+        ]
+      },
+      {
+        "id": 999100396,
+        "tag_name": "v1.1.4",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999100100,
+            "name": "Rewooled-Linux-x86_64-1.1.4.zip",
+            "browser_download_url": "https://downloads.example.invalid/Rewooled-Linux-x86_64-1.1.4.zip",
+            "size": 4660608,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999100107,
+            "name": "Rewooled-macOS-arm64-1.1.4.zip",
+            "browser_download_url": "https://downloads.example.invalid/Rewooled-macOS-arm64-1.1.4.zip",
+            "size": 4584433,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999100114,
+            "name": "Rewooled-Windows-x64-1.1.4.zip",
+            "browser_download_url": "https://downloads.example.invalid/Rewooled-Windows-x64-1.1.4.zip",
+            "size": 4050500,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        ]
+      }
+    ],
+    "barrett": [
+      {
+        "id": 339203412,
+        "tag_name": "v1.3-beta",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-06-14T16:17:30Z",
+        "assets": [
+          {
+            "id": 447399700,
+            "name": "barrett-linux.zip",
+            "browser_download_url": "https://github.com/lunarmeadow/barrett/releases/download/v1.3-beta/barrett-linux.zip",
+            "size": 922781,
+            "digest": "sha256:bbfc275234ef06953510f223efc1de380ce1bdc164f5bcc09190889c76be568b"
+          },
+          {
+            "id": 447399701,
+            "name": "barrett-macOS.zip",
+            "browser_download_url": "https://github.com/lunarmeadow/barrett/releases/download/v1.3-beta/barrett-macOS.zip",
+            "size": 928007,
+            "digest": "sha256:b2688cfc4fad28944829b74b76ac2f909fc4388aac1b0f8f1aae4c5bbef9baa5"
+          },
+          {
+            "id": 447399696,
+            "name": "barrett-win64.zip",
+            "browser_download_url": "https://github.com/lunarmeadow/barrett/releases/download/v1.3-beta/barrett-win64.zip",
+            "size": 2020033,
+            "digest": "sha256:fa0214cbcfb10b2cd7d8ead4e8f3fe77d9418f9dd5d54bd9a5f389cec1c4ba57"
+          }
+        ]
+      },
+      {
+        "id": 999100763,
+        "tag_name": "v1.4-beta",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999100104,
+            "name": "barrett-linux.zip",
+            "browser_download_url": "https://downloads.example.invalid/barrett-linux.zip",
+            "size": 922781,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999100111,
+            "name": "barrett-macOS.zip",
+            "browser_download_url": "https://downloads.example.invalid/barrett-macOS.zip",
+            "size": 928007,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999100118,
+            "name": "barrett-win64.zip",
+            "browser_download_url": "https://downloads.example.invalid/barrett-win64.zip",
+            "size": 2020033,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        ]
+      }
+    ],
+    "power_dozer": [
+      {
+        "id": 410159926,
+        "tag_name": "v0.84",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-12T04:24:48Z",
+        "assets": [
+          {
+            "id": 632650079,
+            "name": "power-dozer-v0.84-linux-x86_64.tar.gz",
+            "browser_download_url": "https://github.com/djultra64/Power-Dozer/releases/download/v0.84/power-dozer-v0.84-linux-x86_64.tar.gz",
+            "size": 18788674,
+            "digest": "sha256:56b342f4209544634d7f8debffd3f6bc5d79afcd8e196726436cf46d80f8d5f6"
+          },
+          {
+            "id": 632650074,
+            "name": "power-dozer-v0.84-linux-x86_64.tar.gz.sha256",
+            "browser_download_url": "https://github.com/djultra64/Power-Dozer/releases/download/v0.84/power-dozer-v0.84-linux-x86_64.tar.gz.sha256",
+            "size": 104,
+            "digest": "sha256:a28e68af24fdb41c9b862501b796f37c078db6ecd5d2bef1c797987e3ee833e2"
+          },
+          {
+            "id": 633621849,
+            "name": "power-dozer-v0.84-source.tar.gz",
+            "browser_download_url": "https://github.com/djultra64/Power-Dozer/releases/download/v0.84/power-dozer-v0.84-source.tar.gz",
+            "size": 23473804,
+            "digest": "sha256:fc04a9613d765fcccf70af4bba55a59bb0796764136c48f3eb28124f6182cf71"
+          },
+          {
+            "id": 633621859,
+            "name": "power-dozer-v0.84-source.tar.gz.sha256",
+            "browser_download_url": "https://github.com/djultra64/Power-Dozer/releases/download/v0.84/power-dozer-v0.84-source.tar.gz.sha256",
+            "size": 98,
+            "digest": "sha256:b3a1567c63000e54605a34a60795c36398ae215891e7f67416d3eee3c9f02e70"
+          },
+          {
+            "id": 633621837,
+            "name": "power-dozer-v0.84-windows-x86_64.zip",
+            "browser_download_url": "https://github.com/djultra64/Power-Dozer/releases/download/v0.84/power-dozer-v0.84-windows-x86_64.zip",
+            "size": 14232529,
+            "digest": "sha256:5b25d339376065442d82972917c921fa25f3b9e2f5bb87252389a993a4723533"
+          },
+          {
+            "id": 633621845,
+            "name": "power-dozer-v0.84-windows-x86_64.zip.sha256",
+            "browser_download_url": "https://github.com/djultra64/Power-Dozer/releases/download/v0.84/power-dozer-v0.84-windows-x86_64.zip.sha256",
+            "size": 103,
+            "digest": "sha256:2a28ab11222d1f56ff6b30fc34df7733bfde892565c6c84476159234f4875d33"
+          }
+        ]
+      },
+      {
+        "id": 999000085,
+        "tag_name": "v0.85",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999000850,
+            "name": "power-dozer-v0.85-linux-x86_64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/power-dozer-v0.85-linux-x86_64.tar.gz",
+            "size": 18788674,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999000851,
+            "name": "power-dozer-v0.85-linux-x86_64.tar.gz.sha256",
+            "browser_download_url": "https://downloads.example.invalid/power-dozer-v0.85-linux-x86_64.tar.gz.sha256",
+            "size": 104,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999000852,
+            "name": "power-dozer-v0.85-source.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/power-dozer-v0.85-source.tar.gz",
+            "size": 23473804,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999000853,
+            "name": "power-dozer-v0.85-source.tar.gz.sha256",
+            "browser_download_url": "https://downloads.example.invalid/power-dozer-v0.85-source.tar.gz.sha256",
+            "size": 98,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999000854,
+            "name": "power-dozer-v0.85-windows-x86_64.zip",
+            "browser_download_url": "https://downloads.example.invalid/power-dozer-v0.85-windows-x86_64.zip",
+            "size": 14232529,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          {
+            "id": 999000855,
+            "name": "power-dozer-v0.85-windows-x86_64.zip.sha256",
+            "browser_download_url": "https://downloads.example.invalid/power-dozer-v0.85-windows-x86_64.zip.sha256",
+            "size": 103,
+            "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
           }
         ]
       }
@@ -7911,9 +8603,1401 @@
           }
         ]
       }
+    ],
+    "isle_portable": [
+      {
+        "id": 438405393,
+        "tag_name": "continuous",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-08T17:33:25Z",
+        "assets": [
+          {
+            "id": 724678063,
+            "name": "app-debug.apk",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/app-debug.apk",
+            "size": 13615026,
+            "digest": "sha256:ca9ac4d91d7f8e535e29e2d8a4275e532d26466fa9cdcaa271e77905e1fd27db"
+          },
+          {
+            "id": 724678129,
+            "name": "app-release.apk",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/app-release.apk",
+            "size": 12548892,
+            "digest": "sha256:060bb0d655c62e0363a5a606268e6f2fc7d9eb49f3f7efa3899b478ba7b3b8f4"
+          },
+          {
+            "id": 724678236,
+            "name": "isle-0.1-Darwin-arm64.dmg",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-Darwin-arm64.dmg",
+            "size": 23584676,
+            "digest": "sha256:edb806bb7ede36431b3531c9408621035907cbb9f81b6cb6ea6afa2787c8d37b"
+          },
+          {
+            "id": 724678302,
+            "name": "isle-0.1-Darwin-x64.dmg",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-Darwin-x64.dmg",
+            "size": 24080688,
+            "digest": "sha256:d744dada3b346221dc1ad403fc8aa04f6a06c079e09da24401adde517a8127c8"
+          },
+          {
+            "id": 724678193,
+            "name": "isle-0.1-DOS-x86.tar.gz",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-DOS-x86.tar.gz",
+            "size": 2381341,
+            "digest": "sha256:e574d3b7aab3fd027d039051bd7f4fdc6695ba301508f455301b4a25f07b72c4"
+          },
+          {
+            "id": 724678380,
+            "name": "isle-0.1-Emscripten-emscripten.tar.gz",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-Emscripten-emscripten.tar.gz",
+            "size": 1027396,
+            "digest": "sha256:7d1379e6b6cbd41f46e312a2842ab2b2ab1f9ee27d438996e68975bf8505556d"
+          },
+          {
+            "id": 724678413,
+            "name": "isle-0.1-FreeBSD-x64.tar.gz",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-FreeBSD-x64.tar.gz",
+            "size": 3455812,
+            "digest": "sha256:12ef1af4cda514c9e540aadf7a4658be8ed94617e31aaa83c4cddfb08a6f2f83"
+          },
+          {
+            "id": 724678769,
+            "name": "isle-0.1-iOS-arm64.ipa",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-iOS-arm64.ipa",
+            "size": 2402999,
+            "digest": "sha256:b1062130ed10c82cacfece7b28b1aebdea5df904916e93a19d3688d29dbf1d5f"
+          },
+          {
+            "id": 724678430,
+            "name": "isle-0.1-Linux-x64.tar.gz",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-Linux-x64.tar.gz",
+            "size": 4420732,
+            "digest": "sha256:9cba0cba1b48b6352f95b07b0bf48346a28b0c2696ed59a97b15e7ee8588af27"
+          },
+          {
+            "id": 724678478,
+            "name": "isle-0.1-Windows-arm64.zip",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-Windows-arm64.zip",
+            "size": 2226381,
+            "digest": "sha256:ed95dc65b43e5b23cf19d81c225ba41f607ba9daec7a8379044904608a879921"
+          },
+          {
+            "id": 724678526,
+            "name": "isle-0.1-Windows-x64.tar.gz",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-Windows-x64.tar.gz",
+            "size": 17933327,
+            "digest": "sha256:ce129bebe368c60bd5288150db2802e53a0835da40fce90f4e5bb778c9b1e866"
+          },
+          {
+            "id": 724678595,
+            "name": "isle-0.1-Windows-x64.zip",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-Windows-x64.zip",
+            "size": 21392622,
+            "digest": "sha256:167546f43293dfac3869483c139c29cbb13d72e5b2e51756d89476cd2ae27efd"
+          },
+          {
+            "id": 724678661,
+            "name": "isle-0.1-Windows-x86.zip",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-Windows-x86.zip",
+            "size": 1442181,
+            "digest": "sha256:80c33449d87d88d4ef544f11f2e4a1439c5fe85670194ddb8abd472758ff6842"
+          },
+          {
+            "id": 724678723,
+            "name": "isle-0.1-Xbox_One_Series_XS-x64.zip",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-Xbox_One_Series_XS-x64.zip",
+            "size": 2316342,
+            "digest": "sha256:cb8caba1f8d4a2e306673127bd70e72f67158db120328812bc2b1d688f95b137"
+          },
+          {
+            "id": 724678825,
+            "name": "isle-assets.zip",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-assets.zip",
+            "size": 457392031,
+            "digest": "sha256:4be88b223102c55df431f958cba2997a011f0a685f544c55fdb325a3cf20e5b0"
+          },
+          {
+            "id": 724679601,
+            "name": "isle-hdaudio.zip",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-hdaudio.zip",
+            "size": 298041650,
+            "digest": "sha256:5d4d42e1107b886bd1d205cb781d7f8bfbe39397d63dd2c6e626354edd1cd624"
+          },
+          {
+            "id": 724680055,
+            "name": "isle.3dsx",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle.3dsx",
+            "size": 3054772,
+            "digest": "sha256:2b2b1fcb66814c2025faa559c8ce5285c9f186a8c2e73ac4b02f9e7e5d2802ae"
+          },
+          {
+            "id": 724680110,
+            "name": "isle.cia",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle.cia",
+            "size": 2196416,
+            "digest": "sha256:647c0b8a7f7ff82b9db35960df1c80a4a1407cb238d401b419a5f1f9680fd203"
+          },
+          {
+            "id": 724680142,
+            "name": "isle.nro",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle.nro",
+            "size": 8837851,
+            "digest": "sha256:bd7a23866e1ac77151b24e1822d9eaa5705e8a46bcf0e15546d953a50bb604c7"
+          },
+          {
+            "id": 724680180,
+            "name": "isle.vpk",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle.vpk",
+            "size": 7198401,
+            "digest": "sha256:282d1a67162b4737e95e2ddac1666af4b6e396e659baf4c75498efa3c700ad90"
+          },
+          {
+            "id": 724677962,
+            "name": "Isle_Portable-x86_64.AppImage",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/Isle_Portable-x86_64.AppImage",
+            "size": 33421816,
+            "digest": "sha256:3f22bb59098d27cc4e24904441e6f36551827e37beb06d4e671d066fcaf9757a"
+          },
+          {
+            "id": 724680250,
+            "name": "org.legoisland.Isle.aarch64.flatpak",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/org.legoisland.Isle.aarch64.flatpak",
+            "size": 2451768,
+            "digest": "sha256:2d952ec313af4b4573c51ba42585e00fef7b04f27601166021c99d28ea91ce20"
+          },
+          {
+            "id": 724680300,
+            "name": "org.legoisland.Isle.x86_64.flatpak",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/org.legoisland.Isle.x86_64.flatpak",
+            "size": 2670080,
+            "digest": "sha256:949ed93d18a1bce49bc244c83c567f3093e923e3ee33ad1abe73b2de45452177"
+          }
+        ]
+      },
+      {
+        "id": 438405393,
+        "tag_name": "continuous",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999400100,
+            "name": "app-debug.apk",
+            "browser_download_url": "https://downloads.example.invalid/app-debug.apk",
+            "size": 13615026,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999400101,
+            "name": "app-release.apk",
+            "browser_download_url": "https://downloads.example.invalid/app-release.apk",
+            "size": 12548892,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999400102,
+            "name": "isle-0.2-Darwin-arm64.dmg",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-Darwin-arm64.dmg",
+            "size": 23584676,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999400103,
+            "name": "isle-0.2-Darwin-x64.dmg",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-Darwin-x64.dmg",
+            "size": 24080688,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999400104,
+            "name": "isle-0.2-DOS-x86.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-DOS-x86.tar.gz",
+            "size": 2381341,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          {
+            "id": 999400105,
+            "name": "isle-0.2-Emscripten-emscripten.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-Emscripten-emscripten.tar.gz",
+            "size": 1027396,
+            "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "id": 999400106,
+            "name": "isle-0.2-FreeBSD-x64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-FreeBSD-x64.tar.gz",
+            "size": 3455812,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999400107,
+            "name": "isle-0.2-iOS-arm64.ipa",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-iOS-arm64.ipa",
+            "size": 2402999,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999400108,
+            "name": "isle-0.2-Linux-x64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-Linux-x64.tar.gz",
+            "size": 4420732,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999400109,
+            "name": "isle-0.2-Windows-arm64.zip",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-Windows-arm64.zip",
+            "size": 2226381,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999400110,
+            "name": "isle-0.2-Windows-x64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-Windows-x64.tar.gz",
+            "size": 17933327,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          {
+            "id": 999400111,
+            "name": "isle-0.2-Windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-Windows-x64.zip",
+            "size": 21392622,
+            "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "id": 999400112,
+            "name": "isle-0.2-Windows-x86.zip",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-Windows-x86.zip",
+            "size": 1442181,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999400113,
+            "name": "isle-0.2-Xbox_One_Series_XS-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-Xbox_One_Series_XS-x64.zip",
+            "size": 2316342,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999400114,
+            "name": "isle-assets.zip",
+            "browser_download_url": "https://downloads.example.invalid/isle-assets.zip",
+            "size": 457392031,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999400115,
+            "name": "isle-hdaudio.zip",
+            "browser_download_url": "https://downloads.example.invalid/isle-hdaudio.zip",
+            "size": 298041650,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999400116,
+            "name": "isle.3dsx",
+            "browser_download_url": "https://downloads.example.invalid/isle.3dsx",
+            "size": 3054772,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          {
+            "id": 999400117,
+            "name": "isle.cia",
+            "browser_download_url": "https://downloads.example.invalid/isle.cia",
+            "size": 2196416,
+            "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "id": 999400118,
+            "name": "isle.nro",
+            "browser_download_url": "https://downloads.example.invalid/isle.nro",
+            "size": 8837851,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999400119,
+            "name": "isle.vpk",
+            "browser_download_url": "https://downloads.example.invalid/isle.vpk",
+            "size": 7198401,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999400120,
+            "name": "Isle_Portable-x86_64.AppImage",
+            "browser_download_url": "https://downloads.example.invalid/Isle_Portable-x86_64.AppImage",
+            "size": 33421816,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999400121,
+            "name": "org.legoisland.Isle.aarch64.flatpak",
+            "browser_download_url": "https://downloads.example.invalid/org.legoisland.Isle.aarch64.flatpak",
+            "size": 2451768,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999400122,
+            "name": "org.legoisland.Isle.x86_64.flatpak",
+            "browser_download_url": "https://downloads.example.invalid/org.legoisland.Isle.x86_64.flatpak",
+            "size": 2670080,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          }
+        ]
+      }
+    ],
+    "infinite_mario_64_ever": [
+      {
+        "id": 277742706,
+        "tag_name": "v0.1.5",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-01-18T19:15:09Z",
+        "assets": [
+          {
+            "id": 342387823,
+            "name": "infinite-mario-64-ever.v0.1.5.linux.zip",
+            "browser_download_url": "https://github.com/Brawmario/infinite-mario-64-ever/releases/download/v0.1.5/infinite-mario-64-ever.v0.1.5.linux.zip",
+            "size": 42393997,
+            "digest": "sha256:bdec381b55f316c2d62f9788130844fd1c9ee6165e987bf3e302c1a671f21c8c"
+          },
+          {
+            "id": 342387820,
+            "name": "infinite-mario-64-ever.v0.1.5.mac.zip",
+            "browser_download_url": "https://github.com/Brawmario/infinite-mario-64-ever/releases/download/v0.1.5/infinite-mario-64-ever.v0.1.5.mac.zip",
+            "size": 70599152,
+            "digest": "sha256:708e5b94a0c7e4af38d0e154a78dff222a7883dc90279420e8ad98296f54912e"
+          },
+          {
+            "id": 342387821,
+            "name": "infinite-mario-64-ever.v0.1.5.web.nothreads.zip",
+            "browser_download_url": "https://github.com/Brawmario/infinite-mario-64-ever/releases/download/v0.1.5/infinite-mario-64-ever.v0.1.5.web.nothreads.zip",
+            "size": 27036011,
+            "digest": "sha256:6b305e26d464ef61dfc62d847db2db261b0998f5214b6f0b6ef00bb4beeb26fb"
+          },
+          {
+            "id": 342387824,
+            "name": "infinite-mario-64-ever.v0.1.5.web.pwa.zip",
+            "browser_download_url": "https://github.com/Brawmario/infinite-mario-64-ever/releases/download/v0.1.5/infinite-mario-64-ever.v0.1.5.web.pwa.zip",
+            "size": 27056528,
+            "digest": "sha256:c92bea1f153bbe79ccb258a8c47d1a7c732ff99152d21f9de02d7846ce338f86"
+          },
+          {
+            "id": 342387819,
+            "name": "infinite-mario-64-ever.v0.1.5.web.zip",
+            "browser_download_url": "https://github.com/Brawmario/infinite-mario-64-ever/releases/download/v0.1.5/infinite-mario-64-ever.v0.1.5.web.zip",
+            "size": 26982202,
+            "digest": "sha256:1b59efa35d1fa5525a54328349539f01d1db19cdb4e01a6b2eedfabddae40348"
+          },
+          {
+            "id": 342387818,
+            "name": "infinite-mario-64-ever.v0.1.5.windows.zip",
+            "browser_download_url": "https://github.com/Brawmario/infinite-mario-64-ever/releases/download/v0.1.5/infinite-mario-64-ever.v0.1.5.windows.zip",
+            "size": 47971173,
+            "digest": "sha256:5bb8e4e694a4e3bcf236371751b7a101aad3230c42b6fada9f7dfb58d75135dd"
+          }
+        ]
+      },
+      {
+        "id": 999400001,
+        "tag_name": "v0.1.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999400200,
+            "name": "infinite-mario-64-ever.v0.1.6.linux.zip",
+            "browser_download_url": "https://downloads.example.invalid/infinite-mario-64-ever.v0.1.6.linux.zip",
+            "size": 42393997,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999400201,
+            "name": "infinite-mario-64-ever.v0.1.6.mac.zip",
+            "browser_download_url": "https://downloads.example.invalid/infinite-mario-64-ever.v0.1.6.mac.zip",
+            "size": 70599152,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999400202,
+            "name": "infinite-mario-64-ever.v0.1.6.web.nothreads.zip",
+            "browser_download_url": "https://downloads.example.invalid/infinite-mario-64-ever.v0.1.6.web.nothreads.zip",
+            "size": 27036011,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999400203,
+            "name": "infinite-mario-64-ever.v0.1.6.web.pwa.zip",
+            "browser_download_url": "https://downloads.example.invalid/infinite-mario-64-ever.v0.1.6.web.pwa.zip",
+            "size": 27056528,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999400204,
+            "name": "infinite-mario-64-ever.v0.1.6.web.zip",
+            "browser_download_url": "https://downloads.example.invalid/infinite-mario-64-ever.v0.1.6.web.zip",
+            "size": 26982202,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          {
+            "id": 999400205,
+            "name": "infinite-mario-64-ever.v0.1.6.windows.zip",
+            "browser_download_url": "https://downloads.example.invalid/infinite-mario-64-ever.v0.1.6.windows.zip",
+            "size": 47971173,
+            "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ]
+      }
+    ],
+    "wc1_re": [
+      {
+        "id": 441476829,
+        "tag_name": "v0.9.8",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-11T09:41:36Z",
+        "assets": [
+          {
+            "id": 734954170,
+            "name": "SHA256SUMS",
+            "browser_download_url": "https://github.com/neuromancer/wc1-re/releases/download/v0.9.8/SHA256SUMS",
+            "size": 919,
+            "digest": "sha256:4d5742824832bf4d9dbd3736a3a6dee2200b82a3247cfdf81211cc4fa67307ce"
+          },
+          {
+            "id": 734954166,
+            "name": "wc1-re-v0.9.8-linux-x86_64-experimental.flatpak",
+            "browser_download_url": "https://github.com/neuromancer/wc1-re/releases/download/v0.9.8/wc1-re-v0.9.8-linux-x86_64-experimental.flatpak",
+            "size": 36896504,
+            "digest": "sha256:d00952c996415e620b0ae7becab62a916686036ec65eaca4e32fede082234c0e"
+          },
+          {
+            "id": 734954016,
+            "name": "wc1-re-v0.9.8-linux-x86_64-sdl2.zip",
+            "browser_download_url": "https://github.com/neuromancer/wc1-re/releases/download/v0.9.8/wc1-re-v0.9.8-linux-x86_64-sdl2.zip",
+            "size": 42926444,
+            "digest": "sha256:d072251a432e722c402a720c22b01ea3855351b440a62df09a71c4b9216dba3d"
+          },
+          {
+            "id": 734954015,
+            "name": "wc1-re-v0.9.8-macos-arm64-sdl2.zip",
+            "browser_download_url": "https://github.com/neuromancer/wc1-re/releases/download/v0.9.8/wc1-re-v0.9.8-macos-arm64-sdl2.zip",
+            "size": 37517796,
+            "digest": "sha256:00b4a2d3acb88bdd656a91ae4cf1e1edcb950465346df18ce270c92282787382"
+          },
+          {
+            "id": 734954036,
+            "name": "wc1-re-v0.9.8-macos-arm64.dmg",
+            "browser_download_url": "https://github.com/neuromancer/wc1-re/releases/download/v0.9.8/wc1-re-v0.9.8-macos-arm64.dmg",
+            "size": 38410164,
+            "digest": "sha256:e04a98b35109f2be67d316736ab0c961f139722086913ea8f7e8467bf65380c0"
+          },
+          {
+            "id": 734954013,
+            "name": "wc1-re-v0.9.8-macos-x86_64-sdl2.zip",
+            "browser_download_url": "https://github.com/neuromancer/wc1-re/releases/download/v0.9.8/wc1-re-v0.9.8-macos-x86_64-sdl2.zip",
+            "size": 37453851,
+            "digest": "sha256:15de785cd4234dd5b77f967ee4fbded513f29f4405e098fecda5bb437a44878c"
+          },
+          {
+            "id": 734954147,
+            "name": "wc1-re-v0.9.8-macos-x86_64.dmg",
+            "browser_download_url": "https://github.com/neuromancer/wc1-re/releases/download/v0.9.8/wc1-re-v0.9.8-macos-x86_64.dmg",
+            "size": 38446009,
+            "digest": "sha256:cf89f61acf735ef9ac3c4d3b1f7b6d89f8d029a6d314cba9598e4288536ca543"
+          },
+          {
+            "id": 734954012,
+            "name": "wc1-re-v0.9.8-win32-msvc420.zip",
+            "browser_download_url": "https://github.com/neuromancer/wc1-re/releases/download/v0.9.8/wc1-re-v0.9.8-win32-msvc420.zip",
+            "size": 268414,
+            "digest": "sha256:0a5c928947bd70ca2423370ce440c6a82d99b4be0c4f0b97cc247194ae05b4a1"
+          },
+          {
+            "id": 734954011,
+            "name": "wc1-re-v0.9.8-windows-x86_64-sdl2.zip",
+            "browser_download_url": "https://github.com/neuromancer/wc1-re/releases/download/v0.9.8/wc1-re-v0.9.8-windows-x86_64-sdl2.zip",
+            "size": 38838411,
+            "digest": "sha256:391e6916f2704662f56609e73fe8724e361ab3427c50f105190e7601580a5b82"
+          },
+          {
+            "id": 734954152,
+            "name": "wc1-re-v0.9.8-windows-x86_64-setup.exe",
+            "browser_download_url": "https://github.com/neuromancer/wc1-re/releases/download/v0.9.8/wc1-re-v0.9.8-windows-x86_64-setup.exe",
+            "size": 34372239,
+            "digest": "sha256:c6f95d44a67098e7db4b08799e4c917aa2d2ec1edb98aee71a05f2c28af15036"
+          }
+        ]
+      },
+      {
+        "id": 999400002,
+        "tag_name": "v0.9.9",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999400300,
+            "name": "SHA256SUMS",
+            "browser_download_url": "https://downloads.example.invalid/SHA256SUMS",
+            "size": 919,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999400301,
+            "name": "wc1-re-v0.9.9-linux-x86_64-experimental.flatpak",
+            "browser_download_url": "https://downloads.example.invalid/wc1-re-v0.9.9-linux-x86_64-experimental.flatpak",
+            "size": 36896504,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999400302,
+            "name": "wc1-re-v0.9.9-linux-x86_64-sdl2.zip",
+            "browser_download_url": "https://downloads.example.invalid/wc1-re-v0.9.9-linux-x86_64-sdl2.zip",
+            "size": 42926444,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999400303,
+            "name": "wc1-re-v0.9.9-macos-arm64-sdl2.zip",
+            "browser_download_url": "https://downloads.example.invalid/wc1-re-v0.9.9-macos-arm64-sdl2.zip",
+            "size": 37517796,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999400304,
+            "name": "wc1-re-v0.9.9-macos-arm64.dmg",
+            "browser_download_url": "https://downloads.example.invalid/wc1-re-v0.9.9-macos-arm64.dmg",
+            "size": 38410164,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          {
+            "id": 999400305,
+            "name": "wc1-re-v0.9.9-macos-x86_64-sdl2.zip",
+            "browser_download_url": "https://downloads.example.invalid/wc1-re-v0.9.9-macos-x86_64-sdl2.zip",
+            "size": 37453851,
+            "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "id": 999400306,
+            "name": "wc1-re-v0.9.9-macos-x86_64.dmg",
+            "browser_download_url": "https://downloads.example.invalid/wc1-re-v0.9.9-macos-x86_64.dmg",
+            "size": 38446009,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999400307,
+            "name": "wc1-re-v0.9.9-win32-msvc420.zip",
+            "browser_download_url": "https://downloads.example.invalid/wc1-re-v0.9.9-win32-msvc420.zip",
+            "size": 268414,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999400308,
+            "name": "wc1-re-v0.9.9-windows-x86_64-sdl2.zip",
+            "browser_download_url": "https://downloads.example.invalid/wc1-re-v0.9.9-windows-x86_64-sdl2.zip",
+            "size": 38838411,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999400309,
+            "name": "wc1-re-v0.9.9-windows-x86_64-setup.exe",
+            "browser_download_url": "https://downloads.example.invalid/wc1-re-v0.9.9-windows-x86_64-setup.exe",
+            "size": 34372239,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        ]
+      }
+    ],
+    "opencmr2": [
+      {
+        "id": 437812406,
+        "tag_name": "v1.8.7",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-07T20:07:47Z",
+        "assets": [
+          {
+            "id": 721800434,
+            "name": "OpenCMR2-Android.apk",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-Android.apk",
+            "size": 15214540,
+            "digest": "sha256:618dd3086a8fed832d7195a77e54bf5dd31c0efc88bed36af568cf8c7221cba0"
+          },
+          {
+            "id": 721800440,
+            "name": "OpenCMR2-Linux-arm64.tar.gz",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-Linux-arm64.tar.gz",
+            "size": 9356728,
+            "digest": "sha256:ec50eb9b2ef6effa1f28b9c1c52a70d6e858d4b68926e8231f10feedf0611b5b"
+          },
+          {
+            "id": 721800439,
+            "name": "OpenCMR2-Linux-arm64.tar.gz.sha256",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-Linux-arm64.tar.gz.sha256",
+            "size": 94,
+            "digest": "sha256:519bb8bd45a2d7a64a0595f9967eed359cdf24145da68090081faeee271fe233"
+          },
+          {
+            "id": 721800438,
+            "name": "OpenCMR2-Linux-i686.tar.gz",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-Linux-i686.tar.gz",
+            "size": 9775865,
+            "digest": "sha256:2e3d41e61dba666f10057d5add8bd2619bf91ac94218e7f77d7913639334a0e4"
+          },
+          {
+            "id": 721800436,
+            "name": "OpenCMR2-Linux-i686.tar.gz.sha256",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-Linux-i686.tar.gz.sha256",
+            "size": 93,
+            "digest": "sha256:846668d663b38c244e223824819f72c513095000bc68ec72be40a920bb8c0199"
+          },
+          {
+            "id": 721800464,
+            "name": "OpenCMR2-Linux-x86_64.tar.gz",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-Linux-x86_64.tar.gz",
+            "size": 9697385,
+            "digest": "sha256:f0edd0d8eaa56e7aa001131867403d0b361515bdfc4be0b03ffd509df571a910"
+          },
+          {
+            "id": 721800469,
+            "name": "OpenCMR2-Linux-x86_64.tar.gz.sha256",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-Linux-x86_64.tar.gz.sha256",
+            "size": 95,
+            "digest": "sha256:9808a1b406d7b5686194c6154c6d06afcfede187db433a57c3e8d9709d0c12a0"
+          },
+          {
+            "id": 721800499,
+            "name": "OpenCMR2-macOS-arm64.zip",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-macOS-arm64.zip",
+            "size": 2576140,
+            "digest": "sha256:a07f71f40b77be9ccc740c535994e873ad3d90259d47e4ab29df8dc98964626d"
+          },
+          {
+            "id": 721800510,
+            "name": "OpenCMR2-macOS-arm64.zip.sha256",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-macOS-arm64.zip.sha256",
+            "size": 91,
+            "digest": "sha256:08947028faea24eb006a6a3915c681ecb839bec33eadcf218dd2fb91d0233302"
+          },
+          {
+            "id": 721800491,
+            "name": "OpenCMR2-Windows-x64.zip",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-Windows-x64.zip",
+            "size": 2970029,
+            "digest": "sha256:577e361d179d41842e98746d139cb372927880a11fc1dd2fc4e6956abd718b70"
+          },
+          {
+            "id": 721800492,
+            "name": "OpenCMR2-Windows-x64.zip.sha256",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-Windows-x64.zip.sha256",
+            "size": 92,
+            "digest": "sha256:9081240568d3008e01d33bdc139af519a757f9b2815dfcc169b9f6377184fed9"
+          }
+        ]
+      },
+      {
+        "id": 999600000,
+        "tag_name": "v1.8.8",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999600100,
+            "name": "OpenCMR2-Android.apk",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-Android.apk",
+            "size": 15214540,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999600101,
+            "name": "OpenCMR2-Linux-arm64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-Linux-arm64.tar.gz",
+            "size": 9356728,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999600102,
+            "name": "OpenCMR2-Linux-arm64.tar.gz.sha256",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-Linux-arm64.tar.gz.sha256",
+            "size": 94,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999600103,
+            "name": "OpenCMR2-Linux-i686.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-Linux-i686.tar.gz",
+            "size": 9775865,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999600104,
+            "name": "OpenCMR2-Linux-i686.tar.gz.sha256",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-Linux-i686.tar.gz.sha256",
+            "size": 93,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          {
+            "id": 999600105,
+            "name": "OpenCMR2-Linux-x86_64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-Linux-x86_64.tar.gz",
+            "size": 9697385,
+            "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "id": 999600106,
+            "name": "OpenCMR2-Linux-x86_64.tar.gz.sha256",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-Linux-x86_64.tar.gz.sha256",
+            "size": 95,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999600107,
+            "name": "OpenCMR2-macOS-arm64.zip",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-macOS-arm64.zip",
+            "size": 2576140,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999600108,
+            "name": "OpenCMR2-macOS-arm64.zip.sha256",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-macOS-arm64.zip.sha256",
+            "size": 91,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999600109,
+            "name": "OpenCMR2-Windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-Windows-x64.zip",
+            "size": 2970029,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999600110,
+            "name": "OpenCMR2-Windows-x64.zip.sha256",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-Windows-x64.zip.sha256",
+            "size": 92,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          }
+        ]
+      }
+    ],
+    "openreliant": [
+      {
+        "id": 440297139,
+        "tag_name": "v1.0.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-10T11:51:21Z",
+        "assets": [
+          {
+            "id": 731308682,
+            "name": "openreliant-v1.0.0-linux-aarch64.tar.gz",
+            "browser_download_url": "https://github.com/OpenReliant/openreliant/releases/download/v1.0.0/openreliant-v1.0.0-linux-aarch64.tar.gz",
+            "size": 9814941,
+            "digest": "sha256:c24b6156a985366c70a2337a6c548270c10a6f55a7821999bac7611cddecece2"
+          },
+          {
+            "id": 731308684,
+            "name": "openreliant-v1.0.0-linux-x86_64.tar.gz",
+            "browser_download_url": "https://github.com/OpenReliant/openreliant/releases/download/v1.0.0/openreliant-v1.0.0-linux-x86_64.tar.gz",
+            "size": 10444840,
+            "digest": "sha256:e39fa619d0d4565cd21db1f4218cd349729c0c839eaa545ddbbc03043e6ef073"
+          },
+          {
+            "id": 731308688,
+            "name": "openreliant-v1.0.0-macos-aarch64.tar.gz",
+            "browser_download_url": "https://github.com/OpenReliant/openreliant/releases/download/v1.0.0/openreliant-v1.0.0-macos-aarch64.tar.gz",
+            "size": 9463328,
+            "digest": "sha256:390ae959f866133ce0d250f8171b8eac20ae981e8ee3d49342541e28992ef90c"
+          },
+          {
+            "id": 731308691,
+            "name": "openreliant-v1.0.0-macos-x86_64.tar.gz",
+            "browser_download_url": "https://github.com/OpenReliant/openreliant/releases/download/v1.0.0/openreliant-v1.0.0-macos-x86_64.tar.gz",
+            "size": 9898689,
+            "digest": "sha256:f64d7d220570feae2b37e89a31f2893b167239fba41fbd380f9fae8c0b624df0"
+          },
+          {
+            "id": 731308685,
+            "name": "openreliant-v1.0.0-sha256sums.txt",
+            "browser_download_url": "https://github.com/OpenReliant/openreliant/releases/download/v1.0.0/openreliant-v1.0.0-sha256sums.txt",
+            "size": 631,
+            "digest": "sha256:5662367df5dc8787cd67a39aae9281611480931ee6d09573e54a743ce51cf2f3"
+          },
+          {
+            "id": 731308709,
+            "name": "openreliant-v1.0.0-windows-aarch64.zip",
+            "browser_download_url": "https://github.com/OpenReliant/openreliant/releases/download/v1.0.0/openreliant-v1.0.0-windows-aarch64.zip",
+            "size": 9302212,
+            "digest": "sha256:47d3819535c1d80ae42d7516fb5182ac6c74b2df2dded92c069485f280148e13"
+          },
+          {
+            "id": 731308741,
+            "name": "openreliant-v1.0.0-windows-x86_64.zip",
+            "browser_download_url": "https://github.com/OpenReliant/openreliant/releases/download/v1.0.0/openreliant-v1.0.0-windows-x86_64.zip",
+            "size": 10143749,
+            "digest": "sha256:a204af41848aa62d0074bb184386349dd9661e184768d1decdba4ed3dc16da32"
+          }
+        ]
+      },
+      {
+        "id": 999600001,
+        "tag_name": "v1.0.1",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999600200,
+            "name": "openreliant-v1.0.1-linux-aarch64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/v1.0.1/openreliant-v1.0.1-linux-aarch64.tar.gz",
+            "size": 9814941,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999600201,
+            "name": "openreliant-v1.0.1-linux-x86_64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/v1.0.1/openreliant-v1.0.1-linux-x86_64.tar.gz",
+            "size": 10444840,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999600202,
+            "name": "openreliant-v1.0.1-macos-aarch64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/v1.0.1/openreliant-v1.0.1-macos-aarch64.tar.gz",
+            "size": 9463328,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999600203,
+            "name": "openreliant-v1.0.1-macos-x86_64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/v1.0.1/openreliant-v1.0.1-macos-x86_64.tar.gz",
+            "size": 9898689,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999600204,
+            "name": "openreliant-v1.0.1-sha256sums.txt",
+            "browser_download_url": "https://downloads.example.invalid/v1.0.1/openreliant-v1.0.1-sha256sums.txt",
+            "size": 631,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          {
+            "id": 999600205,
+            "name": "openreliant-v1.0.1-windows-aarch64.zip",
+            "browser_download_url": "https://downloads.example.invalid/v1.0.1/openreliant-v1.0.1-windows-aarch64.zip",
+            "size": 9302212,
+            "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "id": 999600206,
+            "name": "openreliant-v1.0.1-windows-x86_64.zip",
+            "browser_download_url": "https://downloads.example.invalid/v1.0.1/openreliant-v1.0.1-windows-x86_64.zip",
+            "size": 10143749,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      }
+    ],
+    "chaotix": [
+      {
+        "id": 439942063,
+        "tag_name": "v0.15.20",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-10T04:20:39Z",
+        "assets": [
+          {
+            "id": 730079190,
+            "name": "ChaotixRecompiled-0.15.20-android-armeabi-v7a.apk",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.20/ChaotixRecompiled-0.15.20-android-armeabi-v7a.apk",
+            "size": 12169997,
+            "digest": "sha256:d6efbf29507c53fd5c7bd7421eca5b057d720497232b12f16c6641389dac455b"
+          },
+          {
+            "id": 730079126,
+            "name": "ChaotixRecompiled-0.15.20-android.apk",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.20/ChaotixRecompiled-0.15.20-android.apk",
+            "size": 33101080,
+            "digest": "sha256:37a9d5e71df3f70f60c50f54d3d4f11b2f2832a5ef4778f66b8a034f0882b830"
+          },
+          {
+            "id": 730079124,
+            "name": "ChaotixRecompiled-0.15.20-ios-arm64.ipa",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.20/ChaotixRecompiled-0.15.20-ios-arm64.ipa",
+            "size": 6108404,
+            "digest": "sha256:f672adc3af416d0c45c37b2a95d25c1f4080d5e64cd55c4de5035a1e1dc51a53"
+          },
+          {
+            "id": 730079123,
+            "name": "ChaotixRecompiled-0.15.20-linux-x64.tar.gz",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.20/ChaotixRecompiled-0.15.20-linux-x64.tar.gz",
+            "size": 5360095,
+            "digest": "sha256:227ce9d1a65abc21bc90ba4bde10e6088f0bb1fd994def3b2915e7141ea17e0a"
+          },
+          {
+            "id": 730079143,
+            "name": "ChaotixRecompiled-0.15.20-macos-arm64.zip",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.20/ChaotixRecompiled-0.15.20-macos-arm64.zip",
+            "size": 5220589,
+            "digest": "sha256:d8c35b31c487454c8cdb8bb6dd3c92c33a141570b48fe53b2aa2a73027e9025f"
+          },
+          {
+            "id": 730079144,
+            "name": "ChaotixRecompiled-0.15.20-windows-x64.zip",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.20/ChaotixRecompiled-0.15.20-windows-x64.zip",
+            "size": 9878125,
+            "digest": "sha256:f9366e19ee50f425dd294bf07e2f205ab224a25226cb0fc7c63a9d164414394b"
+          }
+        ]
+      },
+      {
+        "id": 440133970,
+        "tag_name": "v0.15.21",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-10T09:00:45Z",
+        "assets": [
+          {
+            "id": 730772336,
+            "name": "ChaotixRecompiled-0.15.21-android-armeabi-v7a.apk",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.21/ChaotixRecompiled-0.15.21-android-armeabi-v7a.apk",
+            "size": 12174901,
+            "digest": "sha256:6ecb63881cef7cb64c574c1b0065b9197aa43170c2a609612bd6b842c30e5c74"
+          },
+          {
+            "id": 730772119,
+            "name": "ChaotixRecompiled-0.15.21-android.apk",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.21/ChaotixRecompiled-0.15.21-android.apk",
+            "size": 33108680,
+            "digest": "sha256:f4548de6661920666c8b31015fe97aade824d25aa139062ee168b2297fcbea41"
+          },
+          {
+            "id": 730772126,
+            "name": "ChaotixRecompiled-0.15.21-ios-arm64.ipa",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.21/ChaotixRecompiled-0.15.21-ios-arm64.ipa",
+            "size": 6111095,
+            "digest": "sha256:0fa8b5d7dd21afa59ed52f2648d27994c0493f0612a511a722afe9462e5c49b3"
+          },
+          {
+            "id": 730772118,
+            "name": "ChaotixRecompiled-0.15.21-linux-x64.tar.gz",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.21/ChaotixRecompiled-0.15.21-linux-x64.tar.gz",
+            "size": 5363811,
+            "digest": "sha256:6ab47d7ac0597385a5dc1456bc6ee21986040a2bc8f670efbd9514aae8e63842"
+          },
+          {
+            "id": 730772125,
+            "name": "ChaotixRecompiled-0.15.21-macos-arm64.zip",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.21/ChaotixRecompiled-0.15.21-macos-arm64.zip",
+            "size": 5223881,
+            "digest": "sha256:60570154e64b71e306674d1d4416615f02d75eb29c1a2367ef87243c89577acc"
+          },
+          {
+            "id": 730772124,
+            "name": "ChaotixRecompiled-0.15.21-windows-x64.zip",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.21/ChaotixRecompiled-0.15.21-windows-x64.zip",
+            "size": 9882286,
+            "digest": "sha256:cbd6a5192ad6f10651bf973f883f763df1bd8a115e6a0570079097bda5adbf22"
+          }
+        ]
+      }
+    ],
+    "alexbeav-quake-ii-recomp": [
+      {
+        "id": 382787940,
+        "tag_name": "v0.1.2",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:49:07Z",
+        "assets": [
+          {
+            "id": 544447855,
+            "name": "quake-ii-recomp-0.1.2-linux-x64.zip",
+            "size": 27797758,
+            "digest": "sha256:c3d3e196db2efd296940b25bd8fc94a11c58bbbb34e3e7ea6a00726d368711d1",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/releases/download/v0.1.2/quake-ii-recomp-0.1.2-linux-x64.zip"
+          },
+          {
+            "id": 544447941,
+            "name": "quake-ii-recomp-0.1.2-macos-arm64.zip",
+            "size": 25541224,
+            "digest": "sha256:dc6f6a0a32b1a2b29fdd27234c9c01f6a5f8fdbfd53932f547e25700bbad4fa4",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/releases/download/v0.1.2/quake-ii-recomp-0.1.2-macos-arm64.zip"
+          },
+          {
+            "id": 544448014,
+            "name": "quake-ii-recomp-0.1.2-macos-x64.zip",
+            "size": 25889027,
+            "digest": "sha256:c5d568d24db3749c5a6c5a40cfdc3588e75a52ac00ebb4c912ac9d1b4b41867c",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/releases/download/v0.1.2/quake-ii-recomp-0.1.2-macos-x64.zip"
+          },
+          {
+            "id": 544448106,
+            "name": "quake-ii-recomp-0.1.2-windows-x64.zip",
+            "size": 29903257,
+            "digest": "sha256:dd9fc377d91b0ce789308278487eb1f9bf892384e7637968f646828163e176cb",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/releases/download/v0.1.2/quake-ii-recomp-0.1.2-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999700474,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-12T00:00:00Z",
+        "assets": [
+          {
+            "id": 999700475,
+            "name": "quake-ii-recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/quake-ii-recomp-999.123.456-windows-x64.zip",
+            "size": 29700000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999700476,
+            "name": "quake-ii-recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/quake-ii-recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-suikoden-recomp": [
+      {
+        "id": 399982168,
+        "tag_name": "v0.1.1",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-30T11:33:56Z",
+        "assets": [
+          {
+            "id": 600772323,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2678,
+            "digest": "sha256:d9d111e9dcec2b0086abe51cd071ca2e66785892b6a23c64dcb6e794a6d0d45b",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/releases/download/v0.1.1/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 600772340,
+            "name": "SHA256SUMS.txt",
+            "size": 384,
+            "digest": "sha256:0ee9237879195bbcacf75800e328ecdfb064c1a599ba7095cbf1590724fca48c",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/releases/download/v0.1.1/SHA256SUMS.txt"
+          },
+          {
+            "id": 600772321,
+            "name": "suikoden-0.1.1-linux-x64.zip",
+            "size": 24178522,
+            "digest": "sha256:3909192ab327f60b953973a201a984492d6531b813ae4b5fd67b058ce0c0e54b",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/releases/download/v0.1.1/suikoden-0.1.1-linux-x64.zip"
+          },
+          {
+            "id": 600772318,
+            "name": "suikoden-0.1.1-macos-arm64.zip",
+            "size": 22989957,
+            "digest": "sha256:7978e78362d3649e3dffa2d60b8aaa2aeff2b06f016746d48cb3a377a0de3c2b",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/releases/download/v0.1.1/suikoden-0.1.1-macos-arm64.zip"
+          },
+          {
+            "id": 600772316,
+            "name": "suikoden-0.1.1-macos-x64.zip",
+            "size": 23588161,
+            "digest": "sha256:aa979cbae74c1e5d2a87519026652d3e454d36af4212752ac7007ad825413a03",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/releases/download/v0.1.1/suikoden-0.1.1-macos-x64.zip"
+          },
+          {
+            "id": 600772320,
+            "name": "suikoden-0.1.1-windows-x64.zip",
+            "size": 26205124,
+            "digest": "sha256:51ac6d1446e429f55af5edbdc8d053cf3f2e76186142dd40f11bb5f77a4ce0f3",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/releases/download/v0.1.1/suikoden-0.1.1-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999700490,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-12T00:00:00Z",
+        "assets": [
+          {
+            "id": 999700491,
+            "name": "suikoden-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/suikoden-999.123.456-windows-x64.zip",
+            "size": 26200000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999700492,
+            "name": "suikoden-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/suikoden-999.123.456-linux-x64.zip",
+            "size": 24100000,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-silent-bomber-recomp": [
+      {
+        "id": 399986069,
+        "tag_name": "v0.1.1",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-30T11:39:27Z",
+        "assets": [
+          {
+            "id": 600782493,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2723,
+            "digest": "sha256:6f99678aac325cc75c82feb5837443d80a71425a99bfd86a1ccd1512bff9ee6d",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/releases/download/v0.1.1/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 600782525,
+            "name": "SHA256SUMS.txt",
+            "size": 404,
+            "digest": "sha256:50be502e95f33b89bff88717781c73976d97456f15411fb2881f63795fc7a836",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/releases/download/v0.1.1/SHA256SUMS.txt"
+          },
+          {
+            "id": 600782492,
+            "name": "silent-bomber-0.1.1-linux-x64.zip",
+            "size": 24180676,
+            "digest": "sha256:cca1c12b83ae016920e12c842fc835a39a6a31e1b6fb067ed0322e6e8b294a48",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/releases/download/v0.1.1/silent-bomber-0.1.1-linux-x64.zip"
+          },
+          {
+            "id": 600782494,
+            "name": "silent-bomber-0.1.1-macos-arm64.zip",
+            "size": 22993395,
+            "digest": "sha256:4c06a6e12eb8cd53a3debbfac73b4841e07d2f25716482ddbe7878b10d2bc6d5",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/releases/download/v0.1.1/silent-bomber-0.1.1-macos-arm64.zip"
+          },
+          {
+            "id": 600782497,
+            "name": "silent-bomber-0.1.1-macos-x64.zip",
+            "size": 23589933,
+            "digest": "sha256:3b3a9165cf684e8f014afb0a8db41339875b38334ae0c7614dfe97835ad21ab8",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/releases/download/v0.1.1/silent-bomber-0.1.1-macos-x64.zip"
+          },
+          {
+            "id": 600782495,
+            "name": "silent-bomber-0.1.1-windows-x64.zip",
+            "size": 26207167,
+            "digest": "sha256:f846b3e99aa7769ad8fb0fa786bd5566a220f97833325c69ba0b16658ecbd124",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/releases/download/v0.1.1/silent-bomber-0.1.1-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999700493,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-12T00:00:00Z",
+        "assets": [
+          {
+            "id": 999700494,
+            "name": "silent-bomber-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/silent-bomber-999.123.456-windows-x64.zip",
+            "size": 26200000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999700495,
+            "name": "silent-bomber-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/silent-bomber-999.123.456-linux-x64.zip",
+            "size": 24100000,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-mortal-kombat-trilogy-recomp": [
+      {
+        "id": 399981222,
+        "tag_name": "v0.1.1",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-30T11:32:36Z",
+        "assets": [
+          {
+            "id": 600769993,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2795,
+            "digest": "sha256:3ef647cf99dd4bada4cf0e4632a51d0cb1019b3a330438775f2112a52774200f",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp/releases/download/v0.1.1/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 600770020,
+            "name": "SHA256SUMS.txt",
+            "size": 436,
+            "digest": "sha256:c0fc6009c85dd5c2b5706a2911a37fd2011ee49d228dba679047522c2070072f",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp/releases/download/v0.1.1/SHA256SUMS.txt"
+          },
+          {
+            "id": 600769995,
+            "name": "mortal-kombat-trilogy-0.1.1-linux-x64.zip",
+            "size": 24179638,
+            "digest": "sha256:89e6f5b36adeb06be73c18831abf0cfdb5a3cc8e2436192140cd24faa6a74a38",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp/releases/download/v0.1.1/mortal-kombat-trilogy-0.1.1-linux-x64.zip"
+          },
+          {
+            "id": 600769988,
+            "name": "mortal-kombat-trilogy-0.1.1-macos-arm64.zip",
+            "size": 22992173,
+            "digest": "sha256:2abac605c1790e683c9df1b2b09b4c0a2058adca783fb8b16efa58b399516a03",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp/releases/download/v0.1.1/mortal-kombat-trilogy-0.1.1-macos-arm64.zip"
+          },
+          {
+            "id": 600769990,
+            "name": "mortal-kombat-trilogy-0.1.1-macos-x64.zip",
+            "size": 23589129,
+            "digest": "sha256:223df89fa2b75d6fc0a6af767b36da221be6bd96c2f66b884929efd628e720d6",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp/releases/download/v0.1.1/mortal-kombat-trilogy-0.1.1-macos-x64.zip"
+          },
+          {
+            "id": 600769991,
+            "name": "mortal-kombat-trilogy-0.1.1-windows-x64.zip",
+            "size": 26207141,
+            "digest": "sha256:37087bb39cb7d9ee5283dc008883b25353b9e85a9a2dc5cc2ce5780ed3e9257d",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp/releases/download/v0.1.1/mortal-kombat-trilogy-0.1.1-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999700496,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-12T00:00:00Z",
+        "assets": [
+          {
+            "id": 999700497,
+            "name": "mortal-kombat-trilogy-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/mortal-kombat-trilogy-999.123.456-windows-x64.zip",
+            "size": 26200000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999700498,
+            "name": "mortal-kombat-trilogy-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/mortal-kombat-trilogy-999.123.456-linux-x64.zip",
+            "size": 24100000,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "njh-1001-wipeout2k97xl": [
+      {
+        "id": 421409989,
+        "tag_name": "v0.2.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-23T03:10:11Z",
+        "assets": [
+          {
+            "id": 667803741,
+            "name": "wipeoutxl-0.2.0-linux-x64.zip",
+            "size": 46036395,
+            "digest": "sha256:ee0e2ce8fb03d4c7071c1c98b2860183a839209116a07a25ec7f55ca976b6fc7",
+            "browser_download_url": "https://github.com/NJH-1001/Wipeout2K97XL/releases/download/v0.2.0/wipeoutxl-0.2.0-linux-x64.zip"
+          },
+          {
+            "id": 667804225,
+            "name": "wipeoutxl-0.2.0-linux-x64.zip.sha256",
+            "size": 96,
+            "digest": "sha256:e7de6b4d59bfcc3e708506c89f3cc4036f7e2017bfd4e83c9fba350aceda082f",
+            "browser_download_url": "https://github.com/NJH-1001/Wipeout2K97XL/releases/download/v0.2.0/wipeoutxl-0.2.0-linux-x64.zip.sha256"
+          },
+          {
+            "id": 667804237,
+            "name": "wipeoutxl-0.2.0-macos-arm64.zip",
+            "size": 22201188,
+            "digest": "sha256:e0e4ff5899b13f94050fd6bb6d60b3dfe84e1bfe186bc7e831a4d57bd929ccb4",
+            "browser_download_url": "https://github.com/NJH-1001/Wipeout2K97XL/releases/download/v0.2.0/wipeoutxl-0.2.0-macos-arm64.zip"
+          },
+          {
+            "id": 667804580,
+            "name": "wipeoutxl-0.2.0-macos-arm64.zip.sha256",
+            "size": 98,
+            "digest": "sha256:9ae03f5cc5d92072afa4b3f5fa7844d6ec2b97087330e7d19353b8ee3312f50c",
+            "browser_download_url": "https://github.com/NJH-1001/Wipeout2K97XL/releases/download/v0.2.0/wipeoutxl-0.2.0-macos-arm64.zip.sha256"
+          },
+          {
+            "id": 667804597,
+            "name": "wipeoutxl-0.2.0-macos-x64.zip",
+            "size": 22631908,
+            "digest": "sha256:74bc723d52abec9d2f56d4d6152f277ce3c0da237477844bf35a9db9a735a87f",
+            "browser_download_url": "https://github.com/NJH-1001/Wipeout2K97XL/releases/download/v0.2.0/wipeoutxl-0.2.0-macos-x64.zip"
+          },
+          {
+            "id": 667804993,
+            "name": "wipeoutxl-0.2.0-macos-x64.zip.sha256",
+            "size": 96,
+            "digest": "sha256:3b7da1f4ace5affddc1d75fac1d86603d28a8077f1344e5f288a935ac725bfe7",
+            "browser_download_url": "https://github.com/NJH-1001/Wipeout2K97XL/releases/download/v0.2.0/wipeoutxl-0.2.0-macos-x64.zip.sha256"
+          },
+          {
+            "id": 667803085,
+            "name": "wipeoutxl-0.2.0-windows-x64.zip",
+            "size": 45448914,
+            "digest": "sha256:effe49cb0185b4984f1aa7a0cf4f4390aaf377a3e43fb6c1fd2aa6be93eb4b5a",
+            "browser_download_url": "https://github.com/NJH-1001/Wipeout2K97XL/releases/download/v0.2.0/wipeoutxl-0.2.0-windows-x64.zip"
+          },
+          {
+            "id": 667803732,
+            "name": "wipeoutxl-0.2.0-windows-x64.zip.sha256",
+            "size": 99,
+            "digest": "sha256:cf8d79d4d9061f0bace2cd30d458135b9e7c240d89416da595cb04e2f05f4b57",
+            "browser_download_url": "https://github.com/NJH-1001/Wipeout2K97XL/releases/download/v0.2.0/wipeoutxl-0.2.0-windows-x64.zip.sha256"
+          }
+        ]
+      },
+      {
+        "id": 999700510,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-12T00:00:00Z",
+        "assets": [
+          {
+            "id": 999700511,
+            "name": "wipeoutxl-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/wipeoutxl-999.123.456-windows-x64.zip",
+            "size": 45400000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999700512,
+            "name": "wipeoutxl-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/wipeoutxl-999.123.456-linux-x64.zip",
+            "size": 46000000,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
     ]
   },
   "other_zip_assets": [
+    {
+      "inventory": "rewooled",
+      "release_index": 0,
+      "asset": "Rewooled-macOS-arm64-1.1.3.zip"
+    },
+    {
+      "inventory": "rewooled",
+      "release_index": 1,
+      "asset": "Rewooled-macOS-arm64-1.1.4.zip"
+    },
     {
       "inventory": "rsdkv4",
       "release_index": 0,
@@ -8898,6 +10982,176 @@
       "inventory": "fheroes2",
       "release_index": 2,
       "asset": "fheroes2_windows_x86_SDL2.zip"
+    },
+    {
+      "inventory": "wc1_re",
+      "release_index": 0,
+      "asset": "wc1-re-v0.9.8-macos-x86_64-sdl2.zip"
+    },
+    {
+      "inventory": "wc1_re",
+      "release_index": 1,
+      "asset": "wc1-re-v0.9.9-macos-x86_64-sdl2.zip"
+    },
+    {
+      "inventory": "isle_portable",
+      "release_index": 0,
+      "asset": "isle-0.1-Windows-arm64.zip"
+    },
+    {
+      "inventory": "isle_portable",
+      "release_index": 0,
+      "asset": "isle-0.1-Windows-x86.zip"
+    },
+    {
+      "inventory": "isle_portable",
+      "release_index": 0,
+      "asset": "isle-0.1-Xbox_One_Series_XS-x64.zip"
+    },
+    {
+      "inventory": "isle_portable",
+      "release_index": 0,
+      "asset": "isle-assets.zip"
+    },
+    {
+      "inventory": "isle_portable",
+      "release_index": 0,
+      "asset": "isle-hdaudio.zip"
+    },
+    {
+      "inventory": "isle_portable",
+      "release_index": 1,
+      "asset": "isle-0.2-Windows-arm64.zip"
+    },
+    {
+      "inventory": "isle_portable",
+      "release_index": 1,
+      "asset": "isle-0.2-Windows-x86.zip"
+    },
+    {
+      "inventory": "isle_portable",
+      "release_index": 1,
+      "asset": "isle-0.2-Xbox_One_Series_XS-x64.zip"
+    },
+    {
+      "inventory": "isle_portable",
+      "release_index": 1,
+      "asset": "isle-assets.zip"
+    },
+    {
+      "inventory": "isle_portable",
+      "release_index": 1,
+      "asset": "isle-hdaudio.zip"
+    },
+    {
+      "inventory": "infinite_mario_64_ever",
+      "release_index": 0,
+      "asset": "infinite-mario-64-ever.v0.1.5.mac.zip"
+    },
+    {
+      "inventory": "infinite_mario_64_ever",
+      "release_index": 0,
+      "asset": "infinite-mario-64-ever.v0.1.5.web.nothreads.zip"
+    },
+    {
+      "inventory": "infinite_mario_64_ever",
+      "release_index": 0,
+      "asset": "infinite-mario-64-ever.v0.1.5.web.pwa.zip"
+    },
+    {
+      "inventory": "infinite_mario_64_ever",
+      "release_index": 0,
+      "asset": "infinite-mario-64-ever.v0.1.5.web.zip"
+    },
+    {
+      "inventory": "infinite_mario_64_ever",
+      "release_index": 1,
+      "asset": "infinite-mario-64-ever.v0.1.6.mac.zip"
+    },
+    {
+      "inventory": "infinite_mario_64_ever",
+      "release_index": 1,
+      "asset": "infinite-mario-64-ever.v0.1.6.web.nothreads.zip"
+    },
+    {
+      "inventory": "infinite_mario_64_ever",
+      "release_index": 1,
+      "asset": "infinite-mario-64-ever.v0.1.6.web.pwa.zip"
+    },
+    {
+      "inventory": "infinite_mario_64_ever",
+      "release_index": 1,
+      "asset": "infinite-mario-64-ever.v0.1.6.web.zip"
+    },
+    {
+      "inventory": "wc1_re",
+      "release_index": 0,
+      "asset": "wc1-re-v0.9.8-win32-msvc420.zip"
+    },
+    {
+      "inventory": "wc1_re",
+      "release_index": 1,
+      "asset": "wc1-re-v0.9.9-win32-msvc420.zip"
+    },
+    {
+      "inventory": "openreliant",
+      "release_index": 0,
+      "asset": "openreliant-v1.0.0-windows-aarch64.zip"
+    },
+    {
+      "inventory": "openreliant",
+      "release_index": 1,
+      "asset": "openreliant-v1.0.1-windows-aarch64.zip"
+    },
+    {
+      "inventory": "alexbeav-quake-ii-recomp",
+      "release_index": 0,
+      "asset": "quake-ii-recomp-0.1.2-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-quake-ii-recomp",
+      "release_index": 0,
+      "asset": "quake-ii-recomp-0.1.2-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-suikoden-recomp",
+      "release_index": 0,
+      "asset": "suikoden-0.1.1-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-suikoden-recomp",
+      "release_index": 0,
+      "asset": "suikoden-0.1.1-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-silent-bomber-recomp",
+      "release_index": 0,
+      "asset": "silent-bomber-0.1.1-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-silent-bomber-recomp",
+      "release_index": 0,
+      "asset": "silent-bomber-0.1.1-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-mortal-kombat-trilogy-recomp",
+      "release_index": 0,
+      "asset": "mortal-kombat-trilogy-0.1.1-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-mortal-kombat-trilogy-recomp",
+      "release_index": 0,
+      "asset": "mortal-kombat-trilogy-0.1.1-macos-x64.zip"
+    },
+    {
+      "inventory": "njh-1001-wipeout2k97xl",
+      "release_index": 0,
+      "asset": "wipeoutxl-0.2.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "njh-1001-wipeout2k97xl",
+      "release_index": 0,
+      "asset": "wipeoutxl-0.2.0-macos-x64.zip"
     }
   ]
 }

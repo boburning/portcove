@@ -357,7 +357,7 @@ void test("Linux Rust quality keeps its platform-specific and policy gates witho
   assert.match(rustQuality, /node scripts\/dependency-security\.mts/);
   assert.doesNotMatch(rustQuality, /GH_TOKEN: \$\{\{ github.token \}\}/);
   assert.match(rustQuality, /check-rust-architecture\.mts/);
-  assert.match(rustQuality, /run-rscheck\.mts/);
+  assert.match(rustQuality, /cargo run --locked -p portcove-rust-portability/);
   const bootstrap = rustQuality.indexOf("./scripts/bootstrap-quality-tools.sh");
   for (const lint of ["aqua exec -- ruff", "aqua exec -- shellcheck", "run-actionlint.mts"]) {
     assert.ok(

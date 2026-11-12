@@ -991,10 +991,6 @@ jobs:
         uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
-      - name: Install source pinned rscheck
-        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
-        with:
-          tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin
         id: local-aqua
         working-directory: source
@@ -1071,10 +1067,6 @@ jobs:
         uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
-      - name: Install source pinned rscheck
-        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
-        with:
-          tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin
         id: local-aqua
         working-directory: source
@@ -1149,10 +1141,6 @@ jobs:
         uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
-      - name: Install source pinned rscheck
-        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
-        with:
-          tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin
         id: local-aqua
         working-directory: source
@@ -1227,10 +1215,6 @@ jobs:
         uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
-      - name: Install source pinned rscheck
-        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
-        with:
-          tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin
         id: local-aqua
         working-directory: source

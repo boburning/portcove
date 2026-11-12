@@ -584,7 +584,7 @@ jobs:
           retention-days: 7
           overwrite: false
   protection_metadata:
-    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' }}
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' }}
     needs: [source, tools, context]
     permissions:
       contents: read
@@ -596,7 +596,27 @@ jobs:
     with:
       operation: observe
       phase: metadata
-      timeout_minutes: ${{ (inputs.mode == 'prepare' || inputs.mode == 'bootstrap' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
+      timeout_minutes: 3
+      opportunity: ${{ inputs.opportunity }}
+      source_artifact: ${{ needs.source.outputs.artifact }}
+      source_attempt: ${{ needs.source.outputs.source_attempt }}
+      tools_artifact: ${{ needs.tools.outputs.artifact }}
+      tools_attempt: ${{ needs.tools.outputs.attempt }}
+      known_runs: ${{ needs.source.outputs.known_runs }}
+  renewal_protection_metadata:
+    if: ${{ always() && !cancelled() && (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' }}
+    needs: [source, tools, context]
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    uses: ./.github/workflows/application-release-private.yml
+    secrets:
+      PORTCOVE_PROTECTION_APP_PRIVATE_KEY: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+    with:
+      operation: observe
+      phase: metadata
+      timeout_minutes: 6
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -604,7 +624,7 @@ jobs:
       tools_attempt: ${{ needs.tools.outputs.attempt }}
       known_runs: ${{ needs.source.outputs.known_runs }}
   releases:
-    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.protection_metadata.result == 'success' }}
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && ((inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || needs.protection_metadata.result == 'success') }}
     needs: [source, tools, context, protection_metadata]
     permissions:
       contents: read
@@ -616,7 +636,7 @@ jobs:
     with:
       operation: role-releases
       phase: metadata
-      timeout_minutes: 2
+      timeout_minutes: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 5 || 2 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -627,9 +647,9 @@ jobs:
       context_artifact: ${{ needs.context.outputs.artifact }}
       context_attempt: ${{ needs.context.outputs.attempt }}
       protection_artifact: ${{ needs.protection_metadata.outputs.artifact }}
-      protection_attempt: ${{ needs.protection_metadata.outputs.attempt }}
+      protection_attempt: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && github.run_attempt || needs.protection_metadata.outputs.attempt }}
   preview:
-    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.protection_metadata.result == 'success' }}
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && ((inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || needs.protection_metadata.result == 'success') }}
     needs: [source, tools, context, protection_metadata]
     permissions:
       contents: read
@@ -641,7 +661,7 @@ jobs:
     with:
       operation: role-preview
       phase: metadata
-      timeout_minutes: 2
+      timeout_minutes: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 5 || 2 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -652,9 +672,9 @@ jobs:
       context_artifact: ${{ needs.context.outputs.artifact }}
       context_attempt: ${{ needs.context.outputs.attempt }}
       protection_artifact: ${{ needs.protection_metadata.outputs.artifact }}
-      protection_attempt: ${{ needs.protection_metadata.outputs.attempt }}
+      protection_attempt: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && github.run_attempt || needs.protection_metadata.outputs.attempt }}
   stable:
-    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.protection_metadata.result == 'success' }}
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && ((inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || needs.protection_metadata.result == 'success') }}
     needs: [source, tools, context, protection_metadata]
     permissions:
       contents: read
@@ -666,7 +686,7 @@ jobs:
     with:
       operation: role-stable
       phase: metadata
-      timeout_minutes: 2
+      timeout_minutes: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 5 || 2 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -677,9 +697,9 @@ jobs:
       context_artifact: ${{ needs.context.outputs.artifact }}
       context_attempt: ${{ needs.context.outputs.attempt }}
       protection_artifact: ${{ needs.protection_metadata.outputs.artifact }}
-      protection_attempt: ${{ needs.protection_metadata.outputs.attempt }}
+      protection_attempt: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && github.run_attempt || needs.protection_metadata.outputs.attempt }}
   protection_snapshot:
-    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' }}
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' }}
     needs: [source, tools, context, releases, preview, stable]
     permissions:
       contents: read
@@ -691,7 +711,27 @@ jobs:
     with:
       operation: observe
       phase: snapshot
-      timeout_minutes: ${{ (inputs.mode == 'prepare' || inputs.mode == 'bootstrap' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
+      timeout_minutes: 3
+      opportunity: ${{ inputs.opportunity }}
+      source_artifact: ${{ needs.source.outputs.artifact }}
+      source_attempt: ${{ needs.source.outputs.source_attempt }}
+      tools_artifact: ${{ needs.tools.outputs.artifact }}
+      tools_attempt: ${{ needs.tools.outputs.attempt }}
+      known_runs: ${{ needs.source.outputs.known_runs }}
+  renewal_protection_snapshot:
+    if: ${{ always() && !cancelled() && (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' }}
+    needs: [source, tools, context, releases, preview, stable]
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    uses: ./.github/workflows/application-release-private.yml
+    secrets:
+      PORTCOVE_PROTECTION_APP_PRIVATE_KEY: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+    with:
+      operation: observe
+      phase: snapshot
+      timeout_minutes: 6
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -699,7 +739,7 @@ jobs:
       tools_attempt: ${{ needs.tools.outputs.attempt }}
       known_runs: ${{ needs.source.outputs.known_runs }}
   snapshot:
-    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' && needs.protection_snapshot.result == 'success' }}
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && ((inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || needs.protection_snapshot.result == 'success') && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' }}
     needs: [source, tools, context, releases, preview, stable, protection_snapshot]
     permissions:
       contents: read
@@ -711,7 +751,7 @@ jobs:
     with:
       operation: role-snapshot
       phase: snapshot
-      timeout_minutes: 2
+      timeout_minutes: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 5 || 2 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -722,11 +762,11 @@ jobs:
       context_artifact: ${{ needs.context.outputs.artifact }}
       context_attempt: ${{ needs.context.outputs.attempt }}
       protection_artifact: ${{ needs.protection_snapshot.outputs.artifact }}
-      protection_attempt: ${{ needs.protection_snapshot.outputs.attempt }}
+      protection_attempt: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && github.run_attempt || needs.protection_snapshot.outputs.attempt }}
       signed_roles: >-
         {"releases":{"id":"${{ needs.releases.outputs.artifact }}","attempt":${{ needs.releases.outputs.attempt }}},"preview":{"id":"${{ needs.preview.outputs.artifact }}","attempt":${{ needs.preview.outputs.attempt }}},"stable":{"id":"${{ needs.stable.outputs.artifact }}","attempt":${{ needs.stable.outputs.attempt }}}}
   protection_timestamp:
-    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' && needs.snapshot.result == 'success' }}
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' && needs.snapshot.result == 'success' }}
     needs: [source, tools, context, releases, preview, stable, snapshot]
     permissions:
       contents: read
@@ -738,7 +778,27 @@ jobs:
     with:
       operation: observe
       phase: timestamp
-      timeout_minutes: ${{ (inputs.mode == 'prepare' || inputs.mode == 'bootstrap' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
+      timeout_minutes: 3
+      opportunity: ${{ inputs.opportunity }}
+      source_artifact: ${{ needs.source.outputs.artifact }}
+      source_attempt: ${{ needs.source.outputs.source_attempt }}
+      tools_artifact: ${{ needs.tools.outputs.artifact }}
+      tools_attempt: ${{ needs.tools.outputs.attempt }}
+      known_runs: ${{ needs.source.outputs.known_runs }}
+  renewal_protection_timestamp:
+    if: ${{ always() && !cancelled() && (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' && needs.snapshot.result == 'success' }}
+    needs: [source, tools, context, releases, preview, stable, snapshot]
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    uses: ./.github/workflows/application-release-private.yml
+    secrets:
+      PORTCOVE_PROTECTION_APP_PRIVATE_KEY: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+    with:
+      operation: observe
+      phase: timestamp
+      timeout_minutes: 6
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -746,7 +806,7 @@ jobs:
       tools_attempt: ${{ needs.tools.outputs.attempt }}
       known_runs: ${{ needs.source.outputs.known_runs }}
   timestamp:
-    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' && needs.snapshot.result == 'success' && needs.protection_timestamp.result == 'success' }}
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && ((inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || needs.protection_timestamp.result == 'success') && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' && needs.snapshot.result == 'success' }}
     needs: [source, tools, context, releases, preview, stable, snapshot, protection_timestamp]
     permissions:
       contents: read
@@ -758,7 +818,7 @@ jobs:
     with:
       operation: role-timestamp
       phase: timestamp
-      timeout_minutes: 2
+      timeout_minutes: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 5 || 2 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -769,7 +829,7 @@ jobs:
       context_artifact: ${{ needs.context.outputs.artifact }}
       context_attempt: ${{ needs.context.outputs.attempt }}
       protection_artifact: ${{ needs.protection_timestamp.outputs.artifact }}
-      protection_attempt: ${{ needs.protection_timestamp.outputs.attempt }}
+      protection_attempt: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && github.run_attempt || needs.protection_timestamp.outputs.attempt }}
       signed_roles: >-
         {"releases":{"id":"${{ needs.releases.outputs.artifact }}","attempt":${{ needs.releases.outputs.attempt }}},"preview":{"id":"${{ needs.preview.outputs.artifact }}","attempt":${{ needs.preview.outputs.attempt }}},"stable":{"id":"${{ needs.stable.outputs.artifact }}","attempt":${{ needs.stable.outputs.attempt }}},"snapshot":{"id":"${{ needs.snapshot.outputs.artifact }}","attempt":${{ needs.snapshot.outputs.attempt }}}}
   assemble:

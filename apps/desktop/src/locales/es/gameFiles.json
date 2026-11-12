@@ -1,0 +1,299 @@
+{
+  "controls": {
+    "cancel": "Cancelar la comprobación de filtros de archivos del juego",
+    "channel": "Canal",
+    "check": "Comprobar los filtros de archivos del juego",
+    "checking": "Comprobando los filtros de archivos del juego…",
+    "description": "Comprueba los archivos del juego para esta opción de configuración, plataforma y canal. Cambiar solo los filtros no examina archivos ni instala nada.",
+    "legend": "Archivos del juego que comprobar",
+    "platform": "Plataforma",
+    "route": "Opción de configuración"
+  },
+  "failure": {
+    "catalogMismatch": "La observación completa de archivos del juego ya no coincide con este contexto. Vuelve a comprobar.",
+    "catalogTooLarge": "Este catálogo es demasiado grande para comprobar todos los archivos del juego a la vez. Los filtros de archivos del juego no están disponibles.",
+    "selectionMismatch": "La observación de archivos del juego ya no coincide con esta selección. Vuelve a comprobar."
+  },
+  "filterObservation": {
+    "completeSet": "Conjunto completo: <identity/>",
+    "heading": "Resultados del filtro de archivos del juego",
+    "scope": "Los filtros del catálogo usan estos resultados. La configuración y el inicio hacen sus propias comprobaciones."
+  },
+  "filters": {
+    "additionalCatalog": "Siguen activos otros filtros restaurados. Restablece los filtros del catálogo para quitarlos.",
+    "additionalLibrary": "Siguen activos otros filtros restaurados. Restablece los filtros de la biblioteca para quitarlos.",
+    "additionalNote": "Hay otros filtros restaurados activos; abre Filtros para revisarlos o restablecerlos.",
+    "advanced": "Filtros avanzados",
+    "advancedNote": "Los filtros de configuración e instalación deben coincidir con la misma forma de instalar o configurar un juego. Los proyectos con datos desconocidos no cuentan como coincidencias.",
+    "all": "Todos",
+    "chip": "{{group}}: {{value}}",
+    "clear": "Borrar filtros",
+    "countKnownUnknown": "{{known}} conocidos; {{unknown}} desconocidos",
+    "countUnavailable": "no disponible",
+    "done": "Listo",
+    "group": {
+      "attention": "Atención de la instalación",
+      "channels": "Canales de actualización",
+      "gameFiles": "Archivos del juego",
+      "installationMethods": "Métodos de configuración",
+      "membership": "Pertenencia a la biblioteca",
+      "originalSystems": "Sistema original",
+      "platforms": "Funciona en",
+      "portOptions": "Opciones de adaptación",
+      "updates": "Actualizaciones observadas"
+    },
+    "headingDiscover": "Filtros de Descubrir",
+    "headingLibrary": "Filtros de la Biblioteca",
+    "help": {
+      "attention": "Necesidades registradas de la instalación actual. Los detalles no disponibles siguen siendo desconocidos.",
+      "gameFiles": "Usa la misma configuración o instalación que tus otros filtros. Los archivos cambiados o ilegibles necesitan comprobación; no cuentan como faltantes.",
+      "membership": "Incluye instalaciones administradas, entornos de ejecución registrados y descargas pendientes de configurar. Estar en la biblioteca no implica que esté listo.",
+      "platforms": "Destinos del paquete, no compatibilidad probada con el dispositivo. Disponible para este dispositivo usa la plataforma de este equipo; Intel y Apple silicon se distinguen.",
+      "updates": "Usa la última comprobación de la instalación actual y la actualización preparada verificada que coincida. Elegir un filtro no busca actualizaciones."
+    },
+    "howBody": "Elige una o más opciones. Los resultados coinciden con al menos una opción de cada grupo seleccionado.",
+    "howSummary": "Cómo funcionan los filtros",
+    "needsContextCatalog": "Estos filtros restaurados necesitan un contexto local que no está disponible. Restablece los filtros del catálogo para elegir una consulta compatible.",
+    "needsContextLibrary": "Estos filtros restaurados necesitan un contexto local que no está disponible. Restablece los filtros de la biblioteca para elegir una consulta compatible.",
+    "optionLabel": "{{option}} ({{amount}})",
+    "panelLabel": "Opciones de filtro",
+    "removeChip": "Quitar el filtro {{group}}: {{value}}",
+    "restoredNote": "Abre Filtros para revisar o restablecer la consulta restaurada.",
+    "reviewRestored": "Revisar la consulta restaurada",
+    "selectedCount": "{{total}} seleccionados",
+    "trigger": "Filtros",
+    "triggerLabel": "Filtros ({{total}})",
+    "unknownFacts_one": "{{count}} proyecto tiene datos desconocidos para estos filtros. Elige Todas las adaptaciones o borra estos filtros para encontrarlo.",
+    "unknownFacts_many": "{{count}} proyectos tienen datos desconocidos para estos filtros. Elige Todas las adaptaciones o borra estos filtros para encontrarlos.",
+    "unknownFacts_other": "{{count}} proyectos tienen datos desconocidos para estos filtros. Elige Todas las adaptaciones o borra estos filtros para encontrarlos.",
+    "unsupportedCatalog": "Estos filtros restaurados no son compatibles. Restablece los filtros del catálogo para elegir una consulta compatible.",
+    "unsupportedLibrary": "Estos filtros restaurados no son compatibles. Restablece los filtros de la biblioteca para elegir una consulta compatible.",
+    "value": {
+      "finishSetup": "Terminar la configuración",
+      "inLibrary": "En mi biblioteca",
+      "missingBios": "Falta la BIOS",
+      "missingRuntime": "Falta el entorno de ejecución",
+      "missingSource": "Faltan archivos del juego",
+      "multiplePorts": "Varias adaptaciones",
+      "notInLibrary": "No está en mi biblioteca",
+      "repairNeeded": "Requiere reparación",
+      "singlePort": "Una sola adaptación",
+      "thisDevice": "Disponible para este dispositivo",
+      "updateAvailable": "Disponible en la última comprobación",
+      "updateStaged": "Actualización coincidente preparada"
+    }
+  },
+  "folderSetup": {
+    "chooseGame": "Elige un juego",
+    "existingAndFuture": {
+      "detail": "Portcove instala cada juego apto cuando sus archivos y requisitos están listos. Nunca inicia un juego.",
+      "label": "Configurar los juegos aptos que ya están aquí y los que se añadan después"
+    },
+    "failed_one": "<game/> no terminó de configurarse tras {{count}} intento: <reason/>. Portcove lo vuelve a intentar cuando cambian los archivos o la configuración del juego.",
+    "failed_many": "<game/> no terminó de configurarse tras {{count}} intentos: <reason/>. Portcove lo vuelve a intentar cuando cambian los archivos o la configuración del juego.",
+    "failed_other": "<game/> no terminó de configurarse tras {{count}} intentos: <reason/>. Portcove lo vuelve a intentar cuando cambian los archivos o la configuración del juego.",
+    "futureOnly": {
+      "detail": "Portcove recuerda ahora todos los archivos de esta carpeta y deja esos juegos tal cual, aunque los reconozca después.",
+      "label": "Configurar solo los juegos que se añadan después"
+    },
+    "legend": "Configuración automática desde esta carpeta",
+    "off": {
+      "detail": "Portcove solo muestra lo que encuentra aquí.",
+      "label": "No configurar automáticamente los juegos de esta carpeta"
+    },
+    "sharedFiles": "Más de un juego puede usar algunos archivos de aquí. Elige cuál configurar; hasta que lo hagas, Portcove espera."
+  },
+  "intent": {
+    "discoverOnly": {
+      "detail": "Portcove no te avisa sobre este juego ni lo instala.",
+      "label": "Mostrarlo solo en Descubrir"
+    },
+    "failed": "La última configuración automática no terminó: <reason/>. Portcove lo vuelve a intentar cuando cambian los archivos del juego, el catálogo o los requisitos.",
+    "ignored": {
+      "detail": "Portcove no sugiere este juego, no avisa sobre él ni lo configura.",
+      "label": "Ignorar este juego"
+    },
+    "legend": "Cuando los archivos de este juego estén listos",
+    "notify": {
+      "detail": "Portcove te avisa cuando se puede instalar, y de nuevo solo si cambia su configuración. No se instala nada.",
+      "label": "Avisarme cuando esté listo"
+    },
+    "setUpWhenReady": {
+      "detail": "Portcove lo instala sin volver a preguntar cuando sus archivos y requisitos están listos. Nunca inicia el juego. Elige otra opción para desactivarlo.",
+      "label": "Configurarlo cuando esté listo"
+    },
+    "uninstalled": "Desinstalaste este juego, así que Portcove no lo configurará ni te avisará sobre él hasta que vuelvas a elegir una opción.",
+    "useAgain": "Volver a usar «{{choice}}»"
+  },
+  "preliminary": {
+    "check": "Comprobar estos archivos",
+    "description": "Estos archivos no coinciden exactamente. La validación no se ha ejecutado y la compatibilidad no está confirmada. Revisa una selección antes de decidir si guardar su ubicación.",
+    "heading": "Selecciones preliminares",
+    "inconsistent": "Los detalles de la selección no están disponibles o son incoherentes. Vuelve a buscar antes de revisar este archivo.",
+    "label": "Selecciones preliminares de archivos del juego",
+    "notValidated": "La validación no se ha ejecutado."
+  },
+  "query": {
+    "cancel": "Cancelar la comprobación de archivos del juego",
+    "channelScope": "Canal: <channel/>. Esta comprobación observa los archivos conectados; la configuración y el inicio siguen necesitando sus propias revisiones y requisitos.",
+    "check": "Comprobar los archivos para esta opción",
+    "checking": "Comprobando los archivos del juego…",
+    "heading": "Archivos del juego para esta opción de configuración o inicio",
+    "label": "Archivos del juego de la ruta seleccionada",
+    "platform": "Plataforma de destino",
+    "route": "Opción de configuración o inicio"
+  },
+  "ready": {
+    "dismiss": "Descartar <game/>",
+    "heading": "Listos para ti",
+    "installable": "<game/> está listo para instalarse.",
+    "label": "Juegos listos para ti",
+    "reviewSetup": "Revisar la configuración de <game/>",
+    "reviewUpdate": "Revisar la actualización de <game/>",
+    "update": "<game/> tiene una actualización disponible: <version/>. No se descargó ni cambió nada.",
+    "updateUnknownVersion": "<game/> tiene una actualización disponible: una versión más reciente. No se descargó ni cambió nada."
+  },
+  "reason": {
+    "completeCompatibleObservation": "Se encontró un conjunto completo de archivos del juego compatibles para esta opción de configuración o inicio.",
+    "contractNotReviewed": "Los requisitos de archivos no se han revisado para esta opción de configuración o inicio.",
+    "explicitEmptyRequirements": "Esta acción no necesita añadir archivos a Portcove. Aun así, el juego puede pedir los archivos originales.",
+    "identityNotAdmitted": "Estos archivos del juego no se han aceptado para esta opción de configuración o inicio.",
+    "noConnectedRegistration": "No hay ninguna ubicación guardada de archivos del juego conectada a esta opción de configuración o inicio.",
+    "observationStale": "El resultado de la comprobación de archivos está desactualizado. Vuelve a comprobar.",
+    "observationUnavailable": "No hay ningún resultado actual de comprobación de archivos.",
+    "profileContextChanged": "Los archivos del juego o la opción de configuración seleccionados cambiaron. Vuelve a comprobar.",
+    "releaseNotBound": "Aún no hemos confirmado si este resultado de comprobación de archivos se aplica a la versión seleccionada.",
+    "routeNotOffered": "La ruta seleccionada no se ofrece.",
+    "sourceNeedsChecking": "Hay que comprobar los archivos conectados.",
+    "storageAbsenceUnconfirmed": "Portcove no pudo confirmar si los archivos están presentes. No se ha confirmado que falten.",
+    "variantNotSupported": "La variante de archivo observada no coincide con esta ruta."
+  },
+  "reuse": {
+    "check": "Comprobar archivos del juego guardados",
+    "choose": "Elegir archivos guardados",
+    "choosePort": "Elige una adaptación para estos archivos",
+    "error": {
+      "locationChanged": "La ubicación del archivo guardado cambió. Actualiza antes de modificarla.",
+      "profileMissing": "Actualiza la biblioteca para revisar los requisitos de este archivo.",
+      "registrationChanged": "La ubicación de los archivos del juego guardados cambió. Actualiza la biblioteca y vuelve a comprobarla.",
+      "repairFailed": "<core/> La reparación de la ubicación necesita el mismo contenido original. Elige el original movido; comprueba los archivos distintos por separado."
+    },
+    "heading": "Usar archivos originales guardados",
+    "intro": "Elige archivos originales que ya agregaste para ver qué adaptaciones pueden usarlos. Los archivos permanecen donde están.",
+    "label": "Reutilizar archivos del juego guardados",
+    "noPorts": "Ninguna adaptación permite reutilizar archivos aquí. Abre la página del juego para revisar sus otras opciones de configuración.",
+    "refreshFirst": "Actualiza la biblioteca antes de usar estos archivos guardados.",
+    "repair": "Reparar ubicación de archivos movidos",
+    "repaired": "Ubicación reparada. La identidad del archivo original guardado no cambió: <path/>",
+    "reviewSetup": "Revisar la configuración de <name/> con estos archivos",
+    "select": "Archivos del juego guardados",
+    "viewRequirements": "Ver los requisitos de <name/>"
+  },
+  "route": {
+    "externalLaunch": "Inicio de una instalación existente",
+    "externalRegistration": "Configuración de una instalación existente",
+    "managedInstall": "Configuración administrada",
+    "managedLaunch": "Inicio administrado"
+  },
+  "setupReviews": {
+    "add": "Agregar {{total}} seleccionados a la Biblioteca",
+    "choiceNote_one": "Un juego tiene más de una versión que puede usar los mismos archivos. Selecciona la versión que quieras; seleccionar todas las deja fuera.",
+    "choiceNote_many": "{{count}} juegos tienen más de una versión que puede usar los mismos archivos. Selecciona la versión que quieras; seleccionar todas las deja fuera.",
+    "choiceNote_other": "{{count}} juegos tienen más de una versión que puede usar los mismos archivos. Selecciona la versión que quieras; seleccionar todas las deja fuera.",
+    "clear": "Borrar la selección de configuración",
+    "counts": "<status>{{selected}} seleccionados</status> · {{eligible}} aptos",
+    "countsWithChoice_one": "<status>{{selected}} seleccionados</status> · {{eligible}} aptos · {{count}} juego necesita elegir una versión",
+    "countsWithChoice_many": "<status>{{selected}} seleccionados</status> · {{eligible}} aptos · {{count}} juegos necesitan elegir una versión",
+    "countsWithChoice_other": "<status>{{selected}} seleccionados</status> · {{eligible}} aptos · {{count}} juegos necesitan elegir una versión",
+    "heading": "Seleccionar juegos para revisar su configuración",
+    "intro": "Selecciona juegos para revisar su configuración, de uno en uno o juntos. Seleccionar un juego no registra archivos ni instala nada.",
+    "label": "Revisiones de configuración seleccionadas",
+    "remove": "Quitar <name/> de la selección",
+    "returnNote": "Vuelve aquí después de cada revisión para continuar.",
+    "review": "Revisar la configuración de <name/>",
+    "reviewInstall": "Revisar la instalación de {{total}} seleccionados",
+    "selectAll": "Seleccionar los {{total}} aptos",
+    "selectMore": "Seleccionar {{total}} aptos más",
+    "unavailable": "La revisión de configuración no está disponible en la vista actual. Actualiza el espacio de trabajo y las carpetas, o consulta los detalles del juego para ver los requisitos pendientes.",
+    "unvalidated": "No se ha validado una entrada seleccionada. Revisa los requisitos de configuración antes de continuar."
+  },
+  "state": {
+    "filesAvailable": "Archivos completos y compatibles disponibles",
+    "filesMissing": "Faltan archivos",
+    "needsChecking": "Necesita comprobación",
+    "noFilesRequired": "No hay archivos que añadir en Portcove",
+    "unavailableContext": "Contexto no disponible"
+  },
+  "summary": {
+    "cancelled": "La última comprobación se canceló. No hay ninguna comprobación de archivos actual.",
+    "catalogHistory": "Historial de comprobaciones del catálogo",
+    "catalogScope_one": "Catálogo ({{count}} adaptación)",
+    "catalogScope_many": "Catálogo ({{count}} adaptaciones)",
+    "catalogScope_other": "Catálogo ({{count}} adaptaciones)",
+    "checkingCatalog": "Comprobando los archivos del juego para el catálogo…",
+    "checkingSelected": "Comprobando los archivos del juego para esta configuración…",
+    "expired": "La comprobación de archivos caducó. Vuelve a comprobar.",
+    "expiredCatalog": "La comprobación de archivos anterior caducó. Para volver a comprobar, abre Filtros → Comprobar los filtros de archivos del juego.",
+    "expiredSelected": "La comprobación de archivos anterior caducó. Usa Comprobar los archivos para esta opción para volver a comprobar.",
+    "failed": "La última comprobación falló. No hay ninguna comprobación de archivos actual.",
+    "informationalCatalog": "La comprobación anterior es solo informativa. Para volver a comprobar, abre Filtros → Comprobar los filtros de archivos del juego.",
+    "informationalSelected": "La comprobación anterior es solo informativa. Usa Comprobar los archivos para esta opción para volver a comprobar.",
+    "lastChecked": "Última comprobación: <time/>",
+    "missingCatalog": "Comprueba los archivos del juego antes de usar los filtros de archivos del juego.",
+    "missingSelected": "No hay una comprobación actual de archivos del juego para esta selección. Vuelve a comprobar.",
+    "previousCheck": "Comprobación anterior: <time/>",
+    "readyCatalog": "Las comprobaciones de archivos del juego están listas para usar en Filtros.",
+    "readySelected": "La comprobación de archivos del juego está al día.",
+    "selectedHistory": "Historial de comprobaciones de la ruta seleccionada",
+    "selectedScope": "Adaptación seleccionada",
+    "waiting": "Esperando a que termine la comprobación anterior."
+  },
+  "testResults": {
+    "detailsAvailable": "Los detalles de descarga y de prueba están disponibles en Detalles técnicos.",
+    "detailsMissing": "No se registró la descarga probada ni la versión de prueba.",
+    "earlierAutomated": "Pruebas automáticas anteriores",
+    "earlierHandsOn": "Pruebas manuales anteriores",
+    "earlierNote": "Estos son resultados de pruebas anteriores. Superar las comprobaciones automáticas no confirma que el juego funcione correctamente. Estos resultados por plataforma no identifican la descarga, la edición ni el formato de archivo exactos que se probaron.",
+    "field": {
+      "artifact": "SHA-256 del artefacto registrado",
+      "checkVersion": "Versión de comprobación registrada",
+      "contract": "Contrato registrado",
+      "edition": "Edición y formato registrados",
+      "observed": "Fecha de observación (UTC)",
+      "platform": "Plataforma registrada",
+      "release": "Versión publicada registrada"
+    },
+    "heading": {
+      "bios": "Observaciones registradas de BIOS",
+      "game": "Observaciones registradas de archivos del juego"
+    },
+    "kind": {
+      "automated": "Ciclo de vida automatizado",
+      "handsOn": "Observación manual",
+      "knownFailure": "Fallo conocido",
+      "structural": "Comprobación estructural",
+      "unknown": "Tipo de comprobación desconocido"
+    },
+    "kindOutcome": "{{kind}} · {{outcome}}",
+    "methodNotRecorded": "Método no registrado",
+    "noEarlierTests": "No hay pruebas de plataforma anteriores registradas",
+    "noRecords": "Este informe no aporta observaciones registradas coincidentes.",
+    "notConfirmed": "No hemos confirmado si estos resultados de prueba se aplican a tus archivos, tu versión del juego o tu dispositivo.",
+    "notRecorded": "Sin registrar",
+    "outcome": {
+      "failed": "Con errores",
+      "notRun": "Sin ejecutar",
+      "passed": "Correcto",
+      "unknown": "Resultado desconocido"
+    },
+    "partialCoverage": "<recorded/> · Sin registrar: <missing/>",
+    "reportUnavailable": "El informe de comprobación de archivos no está disponible para este requisito. Puede que aún exista evidencia del catálogo.",
+    "section": {
+      "bios": "Comprobaciones registradas de BIOS",
+      "game": "Comprobaciones registradas de archivos del juego",
+      "technicalBios": "Comprobaciones técnicas registradas de BIOS",
+      "technicalGame": "Comprobaciones técnicas registradas de archivos del juego"
+    },
+    "unverifiedScopes": "No se pudieron verificar algunos ámbitos registrados para este requisito."
+  }
+}

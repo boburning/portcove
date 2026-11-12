@@ -454,6 +454,332 @@ fn recovery_holds_instead_of_deleting_a_player_edited_owned_file() {
     assert!(layout.journal().exists(), "the switch stays resumable");
 }
 
+fn native_list(world: &World) -> Option<String> {
+    let bytes = fs::read(user(world).join("starship.cfg.json")).ok()?;
+    let value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    value["CVars"]["gSettings"]["EnabledMods"]
+        .as_str()
+        .map(str::to_owned)
+}
+
+fn install(world: &World, profile: &str, name: &str, expected: u64) -> Result<ProfileRevision> {
+    let package = archive(&world.scratch, name, &[(name, name.as_bytes())]);
+    world
+        .service
+        .install_mod_package("starship", profile, &package, expected)
+}
+
+fn native_status(world: &World) -> NativeModListStatus {
+    world
+        .service
+        .observe_live_mods("starship")
+        .unwrap()
+        .native_list
+}
+
+#[test]
+fn the_game_list_names_exactly_the_enabled_packages_in_override_order() {
+    let w = world();
+    install(&w, &w.default, "b-models.o2r", 1).unwrap();
+    install(&w, &w.default, "a-sounds.otr", 2).unwrap();
+    // Installation order is the override order; the last listed mod wins.
+    assert_eq!(native_list(&w).as_deref(), Some("b-models|a-sounds"));
+    assert_eq!(native_status(&w), NativeModListStatus::InSync);
+    w.service
+        .set_mod_package_enabled("starship", &w.default, "b-models.o2r", false, 3)
+        .unwrap();
+    assert_eq!(native_list(&w).as_deref(), Some("a-sounds"));
+    assert_eq!(live_mods(&w), ["a-sounds.otr"]);
+    w.service
+        .set_mod_package_enabled("starship", &w.default, "a-sounds.otr", false, 4)
+        .unwrap();
+    assert_eq!(
+        native_list(&w).as_deref(),
+        Some(""),
+        "clean play lists nothing"
+    );
+}
+
+#[test]
+fn the_same_mod_under_another_extension_replaces_and_unlistable_names_are_refused() {
+    let w = world();
+    install(&w, &w.default, "a-first.o2r", 1).unwrap();
+    install(&w, &w.default, "Link.otr", 2).unwrap();
+    install(&w, &w.default, "z-last.o2r", 3).unwrap();
+    // The same mod under another extension replaces it and keeps its place.
+    let replaced = install(&w, &w.default, "link.o2r", 4).unwrap();
+    assert_eq!(live_mods(&w), ["a-first.o2r", "link.o2r", "z-last.o2r"]);
+    assert_eq!(
+        replaced.orderings[0].native_ids,
+        ["a-first.o2r", "link.o2r", "z-last.o2r"]
+    );
+    assert_eq!(native_list(&w).as_deref(), Some("a-first|link|z-last"));
+    // A list separator in a name would split it into two native entries.
+    #[cfg(unix)]
+    {
+        assert!(install(&w, &w.default, "a|b.o2r", 5).is_err());
+        assert_eq!(revision(&w, &w.default), 5, "nothing was recorded");
+    }
+}
+
+#[test]
+fn a_reorder_in_the_game_menu_becomes_the_next_revision() {
+    let w = world();
+    install(&w, &w.default, "b.o2r", 1).unwrap();
+    install(&w, &w.default, "a.o2r", 2).unwrap();
+    let config = user(&w).join("starship.cfg.json");
+    // The player drags `a` above `b` and changes an unrelated setting.
+    fs::write(
+        &config,
+        br#"{"CVars":{"gSettings":{"EnabledMods":"a|b","Volume":{"Master":20}}}}"#,
+    )
+    .unwrap();
+    assert_eq!(
+        native_status(&w),
+        NativeModListStatus::Reordered {
+            native_order: vec!["a".into(), "b".into()]
+        }
+    );
+    w.service.adopt_native_mod_order_locked("starship").unwrap();
+    let inventory = w.service.profile_inventory("starship").unwrap();
+    let current = inventory
+        .profiles
+        .iter()
+        .find(|view| view.profile.id == w.default)
+        .unwrap();
+    assert_eq!(current.profile.current_revision, 4);
+    let connection = w.service.library().connection().unwrap();
+    let adopted = profile::current_revision(&connection, "starship", &w.default).unwrap();
+    assert_eq!(adopted.orderings[0].native_ids, ["a.o2r", "b.o2r"]);
+    assert_eq!(native_status(&w), NativeModListStatus::InSync);
+    // Adopting again is a no-op; the unrelated setting is untouched.
+    w.service.adopt_native_mod_order_locked("starship").unwrap();
+    assert_eq!(revision(&w, &w.default), 4);
+    let value: serde_json::Value = serde_json::from_slice(&fs::read(&config).unwrap()).unwrap();
+    assert_eq!(value["CVars"]["gSettings"]["Volume"]["Master"], 20);
+}
+
+#[test]
+fn other_differences_are_reported_and_rewritten_before_launch_without_a_revision() {
+    let w = world();
+    install(&w, &w.default, "b.o2r", 1).unwrap();
+    install(&w, &w.default, "a.o2r", 2).unwrap();
+    // A disable in the game's menu would not survive its next start anyway.
+    // `mine` is the player's own entry and is neither reported nor moved.
+    fs::write(
+        user(&w).join("starship.cfg.json"),
+        br#"{"CVars":{"gSettings":{"EnabledMods":"mine|b"}}}"#,
+    )
+    .unwrap();
+    assert_eq!(
+        native_status(&w),
+        NativeModListStatus::Differs {
+            missing: vec!["a".into()],
+            unexpected: Vec::new(),
+        }
+    );
+    w.service
+        .prepare_native_mod_list_locked("starship")
+        .unwrap();
+    assert_eq!(native_list(&w).as_deref(), Some("mine|b|a"));
+    assert_eq!(revision(&w, &w.default), 3, "no revision was created");
+    assert!(
+        restore_pending(&user(&w)),
+        "the build copy is refreshed at launch"
+    );
+}
+
+#[test]
+fn the_players_own_list_entries_keep_their_positions() {
+    let w = world();
+    install(&w, &w.default, "hd.o2r", 1).unwrap();
+    install(&w, &w.default, "sfx.o2r", 2).unwrap();
+    // The player's own mods surround the managed ones in their chosen order.
+    fs::write(
+        user(&w).join("starship.cfg.json"),
+        br#"{"CVars":{"gSettings":{"EnabledMods":"zz-mine|hd|aa-mine|sfx"}}}"#,
+    )
+    .unwrap();
+    assert_eq!(native_status(&w), NativeModListStatus::InSync);
+    w.service
+        .prepare_native_mod_list_locked("starship")
+        .unwrap();
+    assert_eq!(native_list(&w).as_deref(), Some("zz-mine|hd|aa-mine|sfx"));
+    // Disabling a managed mod only removes its own entry.
+    w.service
+        .set_mod_package_enabled("starship", &w.default, "hd.o2r", false, 3)
+        .unwrap();
+    assert_eq!(native_list(&w).as_deref(), Some("zz-mine|sfx|aa-mine"));
+}
+
+#[test]
+fn a_revision_the_game_cannot_load_unambiguously_is_never_recorded_or_switched_to() {
+    let w = world();
+    install(&w, &w.default, "a.o2r", 1).unwrap();
+    let connection = w.service.library().connection().unwrap();
+    let current = profile::current_revision(&connection, "starship", &w.default).unwrap();
+    let mut colliding = current.packages[0].clone();
+    colliding.native_id = "A.otr".into();
+    let mut packages = current.packages.clone();
+    packages.push(colliding);
+    let refused = w
+        .service
+        .create_profile_revision(
+            "starship",
+            &w.default,
+            &ProfileRevisionRequest {
+                expected_revision: 2,
+                packages: Some(packages.clone()),
+                ..Default::default()
+            },
+        )
+        .unwrap_err();
+    assert_eq!(refused.code, crate::ErrorCode::Conflict);
+    assert_eq!(revision(&w, &w.default), 2);
+
+    // A legacy or imported profile already holding such a revision: switching to
+    // it refuses before any data is parked.
+    let other = w
+        .service
+        .copy_profile("starship", &w.default, "Legacy")
+        .unwrap();
+    let mut legacy = profile::current_revision(&connection, "starship", &other.id).unwrap();
+    legacy.revision = 2;
+    legacy.parent_revision = Some(1);
+    legacy.packages = packages;
+    profile::seal(&mut legacy).unwrap();
+    profile::write_revision(&connection, &legacy).unwrap();
+    let mut record = w
+        .service
+        .profile_inventory("starship")
+        .unwrap()
+        .profiles
+        .into_iter()
+        .find(|view| view.profile.id == other.id)
+        .unwrap()
+        .profile;
+    record.current_revision = 2;
+    profile::write_profile(&connection, &record).unwrap();
+    fs::create_dir_all(user(&w).join("saves")).unwrap();
+    fs::write(user(&w).join("saves/file1.sav"), b"progress").unwrap();
+    assert!(w.service.activate_profile("starship", &other.id).is_err());
+    assert!(!Layout::for_user(&user(&w)).journal().exists());
+    assert_eq!(
+        fs::read(user(&w).join("saves/file1.sav")).unwrap(),
+        b"progress"
+    );
+    // Switching among valid profiles still works.
+    let clean = w
+        .service
+        .copy_profile("starship", &w.default, "Clean")
+        .unwrap();
+    w.service.activate_profile("starship", &clean.id).unwrap();
+}
+
+#[test]
+fn a_menu_reorder_is_kept_before_switching_away() {
+    let w = world();
+    install(&w, &w.default, "b.o2r", 1).unwrap();
+    install(&w, &w.default, "a.o2r", 2).unwrap();
+    let clean = w
+        .service
+        .copy_profile("starship", &w.default, "Clean")
+        .unwrap();
+    fs::write(
+        user(&w).join("starship.cfg.json"),
+        br#"{"CVars":{"gSettings":{"EnabledMods":"a|b"}}}"#,
+    )
+    .unwrap();
+    w.service.activate_profile("starship", &clean.id).unwrap();
+    w.service.activate_profile("starship", &w.default).unwrap();
+    assert_eq!(native_list(&w).as_deref(), Some("a|b"));
+    let connection = w.service.library().connection().unwrap();
+    let adopted = profile::current_revision(&connection, "starship", &w.default).unwrap();
+    assert_eq!(adopted.orderings[0].native_ids, ["a.o2r", "b.o2r"]);
+}
+
+#[test]
+fn each_profile_keeps_its_own_list_and_settings_across_switches() {
+    let w = world();
+    install(&w, &w.default, "hd.o2r", 1).unwrap();
+    fs::write(
+        user(&w).join("starship.cfg.json"),
+        br#"{"CVars":{"gSettings":{"EnabledMods":"hd","Volume":{"Master":70}}}}"#,
+    )
+    .unwrap();
+    let clean = w
+        .service
+        .copy_profile("starship", &w.default, "Clean")
+        .unwrap();
+    w.service
+        .set_mod_package_enabled("starship", &clean.id, "hd.o2r", false, 1)
+        .unwrap();
+    w.service.activate_profile("starship", &clean.id).unwrap();
+    assert_eq!(native_list(&w).as_deref(), Some(""));
+    w.service.activate_profile("starship", &w.default).unwrap();
+    assert_eq!(native_list(&w).as_deref(), Some("hd"));
+    let value: serde_json::Value =
+        serde_json::from_slice(&fs::read(user(&w).join("starship.cfg.json")).unwrap()).unwrap();
+    assert_eq!(value["CVars"]["gSettings"]["Volume"]["Master"], 70);
+}
+
+#[test]
+fn an_unreadable_game_configuration_is_reported_and_never_rewritten() {
+    let w = world();
+    install(&w, &w.default, "hd.o2r", 1).unwrap();
+    let config = user(&w).join("starship.cfg.json");
+    fs::write(&config, b"{broken").unwrap();
+    assert!(matches!(
+        native_status(&w),
+        NativeModListStatus::Unreadable { .. }
+    ));
+    w.service
+        .prepare_native_mod_list_locked("starship")
+        .unwrap();
+    install(&w, &w.default, "more.o2r", 2).unwrap();
+    assert_eq!(fs::read(&config).unwrap(), b"{broken");
+}
+
+#[test]
+fn the_setups_view_offers_mods_only_where_a_reviewed_contract_exists() {
+    let w = world();
+    let unsupported = w.service.mod_setups("opengoal-jak1").unwrap();
+    assert!(!unsupported.supported && unsupported.inventory.is_none());
+    install(&w, &w.default, "hd.o2r", 1).unwrap();
+    let view = w.service.mod_setups("starship").unwrap();
+    assert!(view.supported);
+    assert_eq!(view.package_types, ["o2r", "otr"]);
+    let inventory = view.inventory.unwrap();
+    assert_eq!(inventory.profiles.len(), 1);
+    let live = view.live.unwrap();
+    assert_eq!(live.profile_id.as_deref(), Some(w.default.as_str()));
+    assert_eq!(live.native_list, NativeModListStatus::InSync);
+}
+
+#[test]
+fn a_change_reviewed_before_a_menu_reorder_still_applies_and_keeps_the_new_order() {
+    let w = world();
+    install(&w, &w.default, "b.o2r", 1).unwrap();
+    install(&w, &w.default, "a.o2r", 2).unwrap();
+    install(&w, &w.default, "c.o2r", 3).unwrap();
+    let shown = revision(&w, &w.default);
+    fs::write(
+        user(&w).join("starship.cfg.json"),
+        br#"{"CVars":{"gSettings":{"EnabledMods":"c|a|b"}}}"#,
+    )
+    .unwrap();
+    // The player turns off `a` from the view read before the reorder was kept.
+    let next = w
+        .service
+        .set_mod_package_enabled("starship", &w.default, "a.o2r", false, shown)
+        .unwrap();
+    assert_eq!(next.revision, shown + 2, "reorder kept, then the change");
+    assert_eq!(native_list(&w).as_deref(), Some("c|b"));
+    // A change that is not order-only still needs a new review.
+    let stale = install(&w, &w.default, "d.o2r", shown).unwrap_err();
+    assert_eq!(stale.code, crate::ErrorCode::Conflict);
+}
+
 #[test]
 fn launch_pins_a_non_default_profiles_exact_build_without_moving_the_active_pointer() {
     use crate::retained_build::tests::install;
@@ -533,4 +859,353 @@ fn an_unavailable_pinned_build_holds_the_launch_instead_of_substituting_latest()
         .unwrap_err();
     assert_eq!(error.code, crate::ErrorCode::Conflict);
     assert!(error.message.contains("no other build was substituted"));
+}
+
+const RECOMP: &str = "zelda64-recomp";
+
+struct RecompWorld {
+    _temporary: tempfile::TempDir,
+    scratch: PathBuf,
+    service: PortcoveService,
+    default: String,
+}
+
+fn recomp_world() -> RecompWorld {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    crate::retained_build::tests::install_port(&library, RECOMP, "first", b"recomp runtime", true);
+    let service = PortcoveService::new_read_only(library).unwrap();
+    let scratch = temporary.path().join("scratch");
+    fs::create_dir_all(&scratch).unwrap();
+    let default = service.ensure_default_profile(RECOMP).unwrap().id;
+    RecompWorld {
+        _temporary: temporary,
+        scratch,
+        service,
+        default,
+    }
+}
+
+fn manifest(id: &str, dependencies: &[&str]) -> Vec<u8> {
+    serde_json::to_vec(&serde_json::json!({
+        "game_id": "mm", "id": id, "display_name": id, "version": "1.0.0",
+        "authors": ["someone"], "minimum_recomp_version": "1.2.0",
+        "dependencies": dependencies,
+    }))
+    .unwrap()
+}
+
+impl RecompWorld {
+    fn user(&self) -> PathBuf {
+        self.service.library().user_dir(RECOMP)
+    }
+
+    fn nrm(&self, file: &str, id: &str, dependencies: &[&str], extra: &[(&str, &[u8])]) -> PathBuf {
+        let manifest = manifest(id, dependencies);
+        let mut entries = vec![
+            ("mod.json", manifest.as_slice()),
+            ("textures/a.png", b"png"),
+        ];
+        entries.extend_from_slice(extra);
+        archive(&self.scratch, file, &entries)
+    }
+
+    fn install(&self, file: &str, id: &str, dependencies: &[&str]) -> Result<ProfileRevision> {
+        let package = self.nrm(file, id, dependencies, &[]);
+        let current = self.revision();
+        self.service
+            .install_mod_package(RECOMP, &self.default, &package, current)
+    }
+
+    fn revision(&self) -> u64 {
+        self.service
+            .profile_inventory(RECOMP)
+            .unwrap()
+            .profiles
+            .into_iter()
+            .find(|view| view.profile.id == self.default)
+            .unwrap()
+            .profile
+            .current_revision
+    }
+
+    fn list(&self) -> serde_json::Value {
+        serde_json::from_slice(&fs::read(self.user().join("mods.json")).unwrap()).unwrap()
+    }
+
+    fn live(&self) -> Vec<String> {
+        let mut names = fs::read_dir(self.user().join("mods"))
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        names.sort();
+        names
+    }
+
+    fn status(&self) -> NativeModListStatus {
+        self.service.observe_live_mods(RECOMP).unwrap().native_list
+    }
+}
+
+#[test]
+fn recomp_asset_mods_are_named_by_manifest_id_and_listed_in_mods_json() {
+    let w = recomp_world();
+    let first = w
+        .install(
+            "Downloaded Pack (1).nrm",
+            "hd_textures",
+            &["mm_recomp_dpad_builtin:1.0.0"],
+        )
+        .unwrap();
+    assert_eq!(first.packages[0].native_id, "hd_textures.nrm");
+    assert_eq!(first.packages[0].native_version.as_deref(), Some("1.0.0"));
+    assert!(
+        first.packages[0].requires.is_empty(),
+        "built-ins need no package"
+    );
+    w.install("ui.nrm", "better_ui", &[]).unwrap();
+    assert_eq!(w.live(), ["better_ui.nrm", "hd_textures.nrm"]);
+    assert_eq!(
+        w.list(),
+        serde_json::json!({
+            "enabled_mods": ["hd_textures", "better_ui"],
+            "mod_order": ["hd_textures", "better_ui"],
+        })
+    );
+    assert_eq!(w.status(), NativeModListStatus::InSync);
+    let view = w.service.mod_setups(RECOMP).unwrap();
+    assert_eq!(view.package_types, ["nrm"]);
+    assert!(
+        !view.later_mods_take_priority,
+        "which mod wins is not established"
+    );
+
+    // Turning a mod off removes its file and its entries, so the runtime cannot
+    // re-enable it.
+    w.service
+        .set_mod_package_enabled(RECOMP, &w.default, "hd_textures.nrm", false, w.revision())
+        .unwrap();
+    assert_eq!(w.live(), ["better_ui.nrm"]);
+    assert_eq!(w.list()["enabled_mods"], serde_json::json!(["better_ui"]));
+    assert_eq!(w.list()["mod_order"], serde_json::json!(["better_ui"]));
+}
+
+#[test]
+fn recomp_mods_that_run_code_or_belong_to_another_game_are_refused() {
+    let w = recomp_world();
+    let code = w.nrm(
+        "code.nrm",
+        "speedrun_timer",
+        &[],
+        &[("mod_binary.bin", b"\0"), ("mod_syms.bin", b"\0")],
+    );
+    let error = w
+        .service
+        .install_mod_package(RECOMP, &w.default, &code, 1)
+        .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Unsupported);
+    assert!(error.message.contains("runs its own code"));
+    let other = archive(
+        &w.scratch,
+        "other.nrm",
+        &[(
+            "mod.json",
+            br#"{"game_id":"oot","id":"x","display_name":"X","version":"1.0.0",
+                "authors":["a"],"minimum_recomp_version":"1.0.0"}"#,
+        )],
+    );
+    let error = w
+        .service
+        .install_mod_package(RECOMP, &w.default, &other, 1)
+        .unwrap_err();
+    assert!(error.message.contains("different game"));
+    assert_eq!(w.revision(), 1, "nothing was recorded");
+    assert!(!w.user().join("mods.json").exists());
+}
+
+#[test]
+fn recomp_dependencies_must_be_installed_and_stay_on() {
+    let w = recomp_world();
+    let missing = w
+        .install("addon.nrm", "addon", &["base_pack:1.0.0"])
+        .unwrap_err();
+    assert_eq!(missing.code, crate::ErrorCode::Conflict);
+    assert_eq!(w.revision(), 1);
+    w.install("base.nrm", "base_pack", &[]).unwrap();
+    let added = w
+        .install("addon.nrm", "addon", &["base_pack:1.0.0"])
+        .unwrap();
+    assert_eq!(added.packages[0].requires, ["base_pack.nrm"]);
+    let refused = w
+        .service
+        .set_mod_package_enabled(RECOMP, &w.default, "base_pack.nrm", false, w.revision())
+        .unwrap_err();
+    assert_eq!(refused.code, crate::ErrorCode::Conflict);
+    assert!(refused.message.contains("turn that one on first"));
+    assert_eq!(w.live(), ["addon.nrm", "base_pack.nrm"]);
+    // Turning the dependent mod off first is allowed.
+    w.service
+        .set_mod_package_enabled(RECOMP, &w.default, "addon.nrm", false, w.revision())
+        .unwrap();
+    w.service
+        .set_mod_package_enabled(RECOMP, &w.default, "base_pack.nrm", false, w.revision())
+        .unwrap();
+}
+
+#[test]
+fn recomp_menu_changes_are_adopted_or_restored_and_player_entries_kept() {
+    let w = recomp_world();
+    w.install("a.nrm", "alpha", &[]).unwrap();
+    w.install("b.nrm", "beta", &[]).unwrap();
+    // The player reorders in the runtime's menu and keeps the built-in off.
+    fs::write(
+        w.user().join("mods.json"),
+        br#"{"enabled_mods":["beta","alpha","own_mod"],
+            "mod_order":["mm_recomp_dpad_builtin","beta","own_mod","alpha"],
+            "future":{"kept":true}}"#,
+    )
+    .unwrap();
+    assert_eq!(
+        w.status(),
+        NativeModListStatus::Reordered {
+            native_order: vec!["beta".into(), "alpha".into()]
+        }
+    );
+    let shown = w.revision();
+    let _guard = w.service.library().try_lock_port(RECOMP, "test").unwrap();
+    w.service.adopt_native_mod_order_locked(RECOMP).unwrap();
+    drop(_guard);
+    assert_eq!(w.revision(), shown + 1, "the reorder became a revision");
+    assert_eq!(w.status(), NativeModListStatus::InSync);
+
+    // Disabling a managed mod in the menu is reported, then restored on the next
+    // change, while the player's own entries keep their place and state.
+    fs::write(
+        w.user().join("mods.json"),
+        br#"{"enabled_mods":["beta","own_mod"],
+            "mod_order":["mm_recomp_dpad_builtin","beta","own_mod","alpha"],
+            "future":{"kept":true}}"#,
+    )
+    .unwrap();
+    assert_eq!(
+        w.status(),
+        NativeModListStatus::Differs {
+            missing: vec!["alpha".into()],
+            unexpected: Vec::new(),
+        }
+    );
+    w.install("c.nrm", "gamma", &[]).unwrap();
+    let list = w.list();
+    assert_eq!(
+        list["mod_order"],
+        serde_json::json!([
+            "mm_recomp_dpad_builtin",
+            "beta",
+            "own_mod",
+            "alpha",
+            "gamma"
+        ])
+    );
+    assert_eq!(
+        list["enabled_mods"],
+        serde_json::json!(["own_mod", "beta", "alpha", "gamma"])
+    );
+    assert_eq!(list["future"]["kept"], true);
+    assert_eq!(w.status(), NativeModListStatus::InSync);
+}
+
+#[test]
+fn recomp_switching_profiles_swaps_mods_and_their_list_and_keeps_progress() {
+    let w = recomp_world();
+    w.install("a.nrm", "alpha", &[]).unwrap();
+    fs::create_dir_all(w.user().join("saves")).unwrap();
+    fs::write(w.user().join("saves/file1.bin"), b"modded progress").unwrap();
+    let clean = w.service.copy_profile(RECOMP, &w.default, "Clean").unwrap();
+    let request = crate::ProfileRevisionRequest {
+        expected_revision: clean.current_revision,
+        packages: Some(Vec::new()),
+        orderings: Some(Vec::new()),
+        ..Default::default()
+    };
+    w.service
+        .create_profile_revision(RECOMP, &clean.id, &request)
+        .unwrap();
+    w.service.activate_profile(RECOMP, &clean.id).unwrap();
+    assert!(w.live().is_empty());
+    assert!(!w.user().join("saves/file1.bin").exists());
+    assert_eq!(
+        w.service.observe_live_mods(RECOMP).unwrap().native_list,
+        NativeModListStatus::InSync
+    );
+    assert_eq!(w.list()["enabled_mods"], serde_json::json!([]));
+    fs::create_dir_all(w.user().join("saves")).unwrap();
+    fs::write(w.user().join("saves/file1.bin"), b"clean progress").unwrap();
+
+    w.service.activate_profile(RECOMP, &w.default).unwrap();
+    assert_eq!(w.live(), ["alpha.nrm"]);
+    assert_eq!(w.list()["enabled_mods"], serde_json::json!(["alpha"]));
+    assert_eq!(
+        fs::read(w.user().join("saves/file1.bin")).unwrap(),
+        b"modded progress"
+    );
+    w.service.activate_profile(RECOMP, &clean.id).unwrap();
+    assert_eq!(
+        fs::read(w.user().join("saves/file1.bin")).unwrap(),
+        b"clean progress",
+        "each setup keeps its own newer progress"
+    );
+}
+
+#[test]
+fn recomp_self_runtime_and_unusable_ids_are_handled_before_anything_is_stored() {
+    let w = recomp_world();
+    // `.` and `*` name the mod itself and the runtime: version floors, not packages.
+    let floors = w
+        .install("floors.nrm", "floors", &[".:1.0.0", "*:1.2.0"])
+        .unwrap();
+    assert!(floors.packages[0].requires.is_empty());
+
+    let store = Layout::for_user(&w.user()).store();
+    let stored = || {
+        walk(&store)
+            .into_iter()
+            .filter(|path| path.extension().is_some_and(|ext| ext == "nrm"))
+            .count()
+    };
+    let before = stored();
+    for id in ["NUL", &"x".repeat(200)] {
+        let error = w.install("bad.nrm", id, &[]).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Unsupported, "{id}");
+        assert!(error.message.contains("cannot be used as a file name"));
+    }
+    assert_eq!(stored(), before, "nothing was stored for refused IDs");
+
+    // The runtime knows a mod by its ID: the same ID under another file name
+    // replaces the installed package instead of adding a second one.
+    let renamed = w.install("floors (copy).nrm", "floors", &[]).unwrap();
+    assert_eq!(renamed.packages.len(), 1);
+    assert_eq!(w.live(), ["floors.nrm"]);
+
+    let missing = w.install("addon.nrm", "addon", &["base_pack"]).unwrap_err();
+    assert!(
+        missing
+            .message
+            .contains("not installed; install that one first")
+    );
+}
+
+fn walk(root: &Path) -> Vec<PathBuf> {
+    let mut found = Vec::new();
+    let Ok(entries) = fs::read_dir(root) else {
+        return found;
+    };
+    for entry in entries {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            found.extend(walk(&path));
+        } else {
+            found.push(path);
+        }
+    }
+    found
 }

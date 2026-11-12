@@ -3,12 +3,13 @@
   "listing": {
     "id": "njh-1001-wipeout2k97xl",
     "name": "Wipeout XL / Wipeout XL Recompiled (NJH-1001)",
-    "summary": "Documented Windows Wipeout XL preparation and completed native build route from your own exact PlayStation disc. Select the finished build-release/Wipeout2K97XL.exe; upstream owns generation, rebuilding and player data.",
+    "summary": "Build and play Wipeout XL on Windows or Linux with your own matching USA PlayStation disc and the kit's bundled OpenBIOS. You can also use a separately prepared upstream copy.",
+    "original_game_title": "Wipeout XL",
     "project_url": "https://github.com/NJH-1001/Wipeout2K97XL",
     "issue_number": 1908,
     "listed_at": "2026-10-23",
     "platforms": [],
-    "availability": "unknown",
+    "availability": "packages",
     "setup_url": "https://github.com/NJH-1001/Wipeout2K97XL",
     "artwork": {
       "game_id": 1538,
@@ -45,6 +46,41 @@
         "Release ZIPs are setup kits rather than generated game builds. Keep your complete 12-track disc and the supplied OpenBIOS. Controller and enhancement support varies. Back up cards, settings and mods before rebuilding; the pinned framework allows noncommercial use only."
       ],
       "help_url": "https://github.com/NJH-1001/Wipeout2K97XL/blob/464def7d7d95d46a548863475cdccee1e1ea31b3/README.md"
+    }
+  },
+  "psx_managed_windows_v1": "split-mods-openbios",
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "github",
+      "repository": "NJH-1001/Wipeout2K97XL",
+      "asset_hints": {
+        "windows-x86-64": ["wipeoutxl-", "-windows-x64.zip"],
+        "linux-x86-64": ["wipeoutxl-", "-linux-x64.zip"]
+      }
+    },
+    "source_profile": "njh-1001-wipeout2k97xl-usa-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Wipeout2K97XL.exe"],
+      "linux-x86-64": ["Wipeout2K97XL"]
+    },
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "njh-1001-wipeout2k97xl-usa-psx",
+          "label": "Wipeout XL (USA) disc",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Provide your own complete 12-track USA Wipeout XL CHD (SCUS-94351). Portcove verifies the data track and track count, builds privately with the registered toolchain and the kit's bundled OpenBIOS, and keeps saves, settings and installed mods. Provide all tracks; the remaining tracks are carried into preparation without authenticating their audio content. Bundled mods belong to the runtime version. Keep your original disc separately. Windows and Linux package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved."
     }
   }
 }

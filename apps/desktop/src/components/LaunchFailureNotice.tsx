@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
+import { useAppTranslation } from "../localization";
 import { copyText } from "../clipboard";
 import type { LaunchSessionView, PortStatus } from "../types";
 import { portActionPresentation } from "../features/port-actions/port-action-presentation";
@@ -37,6 +39,7 @@ export function LaunchFailureNotice({
     view: LaunchSessionView | null;
   } | null>(null);
   const [copiedFor, setCopiedFor] = useState<string | null>(null);
+  const { t } = useAppTranslation("launch");
   useEffect(() => {
     let current = true;
     load(portId, generation).then(
@@ -67,14 +70,18 @@ export function LaunchFailureNotice({
   return (
     <section
       role="status"
-      aria-label="Last launch"
+      aria-label={t("failure.label")}
       data-launch-failure={explanation.key}
       className="grid gap-2 rounded-md border border-pc-border p-3"
     >
       <p>{explanation.explanation}</p>
       <p className="text-sm text-pc-muted-foreground">{explanation.next_action}</p>
       <p className="text-sm text-pc-muted-foreground">
-        Exit code <code>{explanation.raw_code}</code>
+        <Trans
+          t={t}
+          i18nKey="failure.exitCode"
+          components={{ code: <code dir="ltr">{explanation.raw_code}</code> }}
+        />
       </p>
       <div className="flex flex-wrap gap-2">
         <Button
@@ -83,12 +90,12 @@ export function LaunchFailureNotice({
             void copyText(explanation.raw_code).then(() => setCopiedFor(failure.id));
           }}
         >
-          {copied ? "Copied" : "Copy exit code"}
+          {copied ? t("failure.copied") : t("failure.copyExitCode")}
         </Button>
         <ReportProblem portId={portId} generation={generation} />
         {openActivity && (
           <Button variant="outline" onClick={openActivity}>
-            Open Activity
+            {t("failure.openActivity")}
           </Button>
         )}
         {status?.previous && !portActionPresentation(status, "rollback").blocked && (
@@ -99,7 +106,7 @@ export function LaunchFailureNotice({
               void rollback();
             }}
           >
-            Restore previous version
+            {t("failure.restorePrevious")}
           </Button>
         )}
       </div>

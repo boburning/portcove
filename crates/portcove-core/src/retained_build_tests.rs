@@ -9,10 +9,20 @@ use crate::{
 use std::{fs, sync::Arc};
 
 pub(crate) fn install(library: &Library, id: &str, bytes: &[u8], active: bool) -> InstallRecord {
+    install_port(library, "starship", id, bytes, active)
+}
+
+pub(crate) fn install_port(
+    library: &Library,
+    port_id: &str,
+    id: &str,
+    bytes: &[u8],
+    active: bool,
+) -> InstallRecord {
     let catalog = Catalog::embedded().unwrap();
     let platform = Platform::current().unwrap();
-    let port = catalog.port("starship").unwrap();
-    let path = library.versions_dir().join("starship").join(id);
+    let port = catalog.port(port_id).unwrap();
+    let path = library.versions_dir().join(port_id).join(id);
     fs::create_dir_all(&path).unwrap();
     let executable = path.join(&port.executable_hints[&platform][0]);
     fs::create_dir_all(executable.parent().unwrap()).unwrap();
@@ -24,14 +34,14 @@ pub(crate) fn install(library: &Library, id: &str, bytes: &[u8], active: bool) -
         size: bytes.len() as u64,
     };
     let qualification =
-        crate::InstallQualification::from_catalog(&catalog, "starship", platform).unwrap();
+        crate::InstallQualification::from_catalog(&catalog, port_id, platform).unwrap();
     let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
         .unwrap()
-        .create_manifest(id, "starship", "v1", &artifact, &qualification, &path)
+        .create_manifest(id, port_id, "v1", &artifact, &qualification, &path)
         .unwrap();
     let install = InstallRecord {
         id: id.into(),
-        port_id: "starship".into(),
+        port_id: port_id.into(),
         version: "v1".into(),
         path,
         channel: ReleaseChannel::Stable,

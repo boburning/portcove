@@ -32,7 +32,7 @@
       "steps": [
         {
           "title": "Prepare the Mac tools and setup kit",
-          "instruction": "Choose the official v0.1.4 ZIP for your Intel or Apple silicon Mac and unpack it into a writable folder. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The bundled game and BIOS generators require macOS 15 or newer."
+          "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The inspected Mac setup host requires macOS 11 or newer. The bundled game and BIOS generators require macOS 15 or newer."
         },
         {
           "title": "Supply your matching disc and BIOS",
@@ -44,9 +44,10 @@
         }
       ],
       "warnings": [
+        "Before replacing your kit, make a normal in-game save, close the game and keep the previous kit and memory cards. Upstream warns that save states may be incompatible across versions.",
         "Portcove has not verified Mac setup, gameplay or save compatibility for this kit."
       ],
-      "help_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/tag/v0.1.4",
+      "help_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp#readme",
       "references": [
         {
           "title": "Updates and backups",

@@ -1,28 +1,58 @@
+import type { TFunction } from "i18next";
+import { Trans } from "react-i18next";
+import { useAppTranslation } from "../localization";
 import type { BackupInventory, PortStatus } from "../types";
 import type { BackupReadState } from "../features/backups/use-port-backups";
 
 type Protection = NonNullable<BackupInventory["protection"]>;
 type Installation = Protection["installations"][number];
 
-const pathLabels: Record<Protection["managed_data"]["state"], string> = {
-  present: "Found",
-  missing: "Not found",
-  unsafe: "Needs safety review",
-  unreadable: "Couldn’t read",
-};
+// Paths and hashes are passed as `<code/>` children, never interpolated values,
+// so `{{…}}` text inside a real path is shown exactly.
+function pathLabel(t: TFunction<"backups">, state: Protection["managed_data"]["state"]) {
+  switch (state) {
+    case "present":
+      return t("protection.pathPresent");
+    case "missing":
+      return t("protection.pathMissing");
+    case "unsafe":
+      return t("protection.pathUnsafe");
+    case "unreadable":
+      return t("protection.pathUnreadable");
+    default:
+      return t("protection.pathUnknown");
+  }
+}
 
-const collectionLabels: Record<Installation["collection"], string> = {
-  selected_for_collection:
-    "These files may be included in the next backup. They’ll be checked before copying.",
-  direct_to_managed_data:
-    "This installation writes saves and settings directly to Portcove’s folder. They’re checked before a new backup is made.",
-  not_initialized:
-    "Portcove hasn’t selected files to copy from this installation yet. Files already in Portcove’s saves and settings folder may still be backed up.",
-  inactive:
-    "This version isn’t in use. New backups won’t collect files from its installation folder.",
-  external_not_collected: "Portcove won’t collect saves from this installation’s folder",
-  unavailable: "Portcove couldn’t confirm which files this installation can add to a new backup.",
-};
+function collectionLabel(t: TFunction<"backups">, collection: Installation["collection"]) {
+  switch (collection) {
+    case "selected_for_collection":
+      return t("protection.collectionSelected");
+    case "direct_to_managed_data":
+      return t("protection.collectionDirect");
+    case "not_initialized":
+      return t("protection.collectionNotInitialized");
+    case "inactive":
+      return t("protection.collectionInactive");
+    case "external_not_collected":
+      return t("protection.collectionExternal");
+    case "unavailable":
+      return t("protection.collectionUnavailable");
+  }
+}
+
+function installHeading(t: TFunction<"backups">, role: Installation["role"], version: string) {
+  switch (role) {
+    case "active":
+      return t("protection.headingActive", { version });
+    case "previous":
+      return t("protection.headingPrevious", { version });
+    case "staged":
+      return t("protection.headingStaged", { version });
+    case "external":
+      return t("protection.headingExternal", { version });
+  }
+}
 
 /** Presentation only. Existing Core assessments and reviewed actions own eligibility. */
 export function ProtectionSummary({
@@ -40,6 +70,7 @@ export function ProtectionSummary({
   inventoryState?: BackupInventory["state"] | undefined;
   problems?: BackupInventory["problems"] | undefined;
 }) {
+  const { t } = useAppTranslation("backups");
   const matches =
     protection?.port_id === portId &&
     status?.port_id === portId &&
@@ -55,62 +86,71 @@ export function ProtectionSummary({
   const complete = inventoryState === "healthy" && problems.length === 0;
   const current = matches && readState?.status === "current" && readState.hasInventory;
   return (
-    <section aria-label="Backups and updates" className="grid min-w-0 gap-3 text-sm wrap-anywhere">
-      <h3 className="m-0 text-base font-semibold">Backups and updates</h3>
+    <section
+      aria-label={t("protection.title")}
+      className="grid min-w-0 gap-3 text-sm wrap-anywhere"
+    >
+      <h3 className="m-0 text-base font-semibold">{t("protection.title")}</h3>
       {!current && (
         <p role="status">
           {readState?.status === "failed"
-            ? "We couldn’t load backup information. Previously loaded information may be out of date. Refresh backup history before continuing."
+            ? t("protection.loadFailed")
             : readState?.status === "pending"
-              ? "Checking backup information. Previously loaded information may be out of date."
-              : "Backup information is unavailable for this installation. Refresh backup history before continuing."}
+              ? t("protection.checking")
+              : readState?.status === "current" && readState.hasInventory
+                ? // The list was read; only this installation's protection details are missing.
+                  t("protection.detailsMissing")
+                : t("protection.unavailable")}
         </p>
       )}
       {matches && protection && (
         <>
-          <p>{current ? "Latest backup information" : "Last loaded backup information"}</p>
+          <p>
+            {current ? t("protection.latestInformation") : t("protection.lastLoadedInformation")}
+          </p>
           {protection.problem && (
             <div role="status">
-              <p>
-                Some installation information couldn’t be loaded. Check the details and refresh
-                backup history.
-              </p>
+              <p>{t("protection.installationProblem")}</p>
               <details>
-                <summary data-focusable>Installation check details</summary>
+                <summary data-focusable>{t("protection.installationCheckDetails")}</summary>
                 <p>{protection.problem}</p>
               </details>
             </div>
           )}
           {!protection.installations.length && !protection.problem && (
-            <p>No installation is recorded. Choose an installation to see who handles updates.</p>
+            <p>{t("protection.noInstallation")}</p>
           )}
-          {!complete && (
-            <p role="status">
-              We couldn’t confirm your latest completed backup. Refresh backup history before
-              continuing.
-            </p>
-          )}
+          {!complete && <p role="status">{t("protection.unconfirmedLatest")}</p>}
           {protection.latest_completed_backup ? (
             <div>
               <p>
-                {current && complete ? "Latest completed backup" : "Last known completed backup"}:{" "}
-                {new Date(protection.latest_completed_backup.created_at * 1000).toLocaleString()} ·{" "}
-                {protection.latest_completed_backup.file_count} files. Backup history is shared
-                across this port’s installed versions. Choose Restore in Backup history to review
-                the files before confirming. Another version may not be able to use these saves.
+                {/* Dates follow the system's regional format, separate from message language. */}
+                {current && complete
+                  ? t("protection.latestBackup", {
+                      time: new Date(
+                        protection.latest_completed_backup.created_at * 1000,
+                      ).toLocaleString(),
+                      count: protection.latest_completed_backup.file_count,
+                    })
+                  : t("protection.lastKnownBackup", {
+                      time: new Date(
+                        protection.latest_completed_backup.created_at * 1000,
+                      ).toLocaleString(),
+                      count: protection.latest_completed_backup.file_count,
+                    })}
               </p>
               <details>
-                <summary data-focusable>Backup identifier</summary>
+                <summary data-focusable>{t("protection.backupIdentifier")}</summary>
                 <code>{protection.latest_completed_backup.id}</code>
               </details>
             </div>
           ) : (
             <p>
               {!complete
-                ? "We couldn’t confirm a completed backup because the history is incomplete."
+                ? t("protection.historyIncomplete")
                 : current
-                  ? "No completed backup recorded."
-                  : "No completed backup was listed when backup history was last loaded."}
+                  ? t("protection.noCompletedBackup")
+                  : t("protection.noCompletedBackupLastLoaded")}
             </p>
           )}
           {protection.installations.map((install) => (
@@ -119,61 +159,63 @@ export function ProtectionSummary({
               key={install.install_id}
             >
               <h4 className="m-0 font-semibold">
-                {
-                  {
-                    active: "Current version",
-                    previous: "Previous version",
-                    staged: "Prepared version",
-                    external: "Installation you maintain",
-                  }[install.role]
-                }{" "}
-                · {install.version}
+                {installHeading(t, install.role, install.version)}
               </h4>
               <p>
-                Updates handled by:{" "}
-                {install.update_owner === "portcove" ? "Portcove" : "the game’s launcher or you"}.
+                {install.update_owner === "portcove"
+                  ? t("protection.updatesPortcove")
+                  : t("protection.updatesExternal")}
               </p>
-              <p>{collectionLabels[install.collection]}</p>
+              <p>{collectionLabel(t, install.collection)}</p>
               {!install.retained && install.role !== "external" && (
-                <p>
-                  Backup rules for this installation are unavailable. The current catalog may
-                  describe a different version, so it can’t confirm which files this copy uses.
-                </p>
+                <p>{t("protection.rulesUnavailableVersion")}</p>
               )}
               {install.problem && (
                 <details>
-                  <summary data-focusable>Backup check details</summary>
+                  <summary data-focusable>{t("protection.backupCheckDetails")}</summary>
                   <p>{install.problem}</p>
                 </details>
               )}
               {install.collection_root && (
                 <p>
-                  Where these files were found: <code>{install.collection_root}</code>
+                  <Trans
+                    t={t}
+                    i18nKey="protection.foundAt"
+                    components={{ code: <code dir="ltr">{install.collection_root}</code> }}
+                  />
                 </p>
               )}
               {!!install.collection_candidates.length && (
                 <ul className="list-disc ps-5">
                   {install.collection_candidates.map((entry) => (
                     <li key={entry.path}>
-                      <code>{entry.path}</code> · {pathLabels[entry.state]}
+                      <Trans
+                        t={t}
+                        i18nKey="protection.candidate"
+                        values={{ state: pathLabel(t, entry.state) }}
+                        components={{ code: <code dir="ltr">{entry.path}</code> }}
+                      />
                     </li>
                   ))}
                 </ul>
               )}
-              <p>Finding these files does not mean they’ve been backed up or checked.</p>
-              <Declaration title="Backup rules for this installation" value={install.retained} />
-              <Declaration title="Files considered for backup" value={install.effective} />
+              <p>{t("protection.foundNotBackedUp")}</p>
+              <Declaration title={t("protection.rulesInstallation")} value={install.retained} />
+              <Declaration title={t("protection.filesConsidered")} value={install.effective} />
               {install.exclusions.map((text) => (
                 <p key={text}>{text}</p>
               ))}
             </div>
           ))}
           <p>
-            Saved-data folder: <code>{protection.managed_data.path}</code> ·{" "}
-            {pathLabels[protection.managed_data.state]}. This folder’s presence doesn’t mean its
-            contents have been backed up.
+            <Trans
+              t={t}
+              i18nKey="protection.savedFolder"
+              values={{ state: pathLabel(t, protection.managed_data.state) }}
+              components={{ code: <code dir="ltr">{protection.managed_data.path}</code> }}
+            />
           </p>
-          <Declaration title="Backup rules in the current catalog" value={protection.catalog} />
+          <Declaration title={t("protection.rulesCatalog")} value={protection.catalog} />
           {protection.exclusions.map((text) => (
             <p key={text}>{text}</p>
           ))}
@@ -184,6 +226,7 @@ export function ProtectionSummary({
 }
 
 function Declaration({ title, value }: { title: string; value: Installation["retained"] }) {
+  const { t } = useAppTranslation("backups");
   return (
     <details>
       <summary data-focusable className="cursor-pointer">
@@ -192,16 +235,18 @@ function Declaration({ title, value }: { title: string; value: Installation["ret
       {value ? (
         <>
           <p>
-            Definition <code>{value.definition_sha256}</code>
+            <Trans
+              t={t}
+              i18nKey="protection.definition"
+              components={{ code: <code>{value.definition_sha256}</code> }}
+            />
           </p>
           <p>
-            Save and settings rules:{" "}
             {value.saves_and_settings === "portcove-managed"
-              ? "Portcove manages the listed files"
+              ? t("protection.rulesPortcove")
               : value.saves_and_settings === "external-user-owned"
-                ? "You handle the external saves and settings"
-                : "Coverage unknown"}
-            . These are rules, not proof of backed-up saves.
+                ? t("protection.rulesExternal")
+                : t("protection.rulesUnknown")}
           </p>
           {value.persistent_paths.length || value.persistent_file_patterns.length ? (
             <ul className="list-disc ps-5">
@@ -219,14 +264,11 @@ function Declaration({ title, value }: { title: string; value: Installation["ret
               ))}
             </ul>
           ) : (
-            <p>No files in this installation folder are listed for backup.</p>
+            <p>{t("protection.noListedFiles")}</p>
           )}
         </>
       ) : (
-        <p>
-          Backup rules for this installation are unavailable. The current catalog can’t confirm what
-          this installation backs up.
-        </p>
+        <p>{t("protection.rulesUnavailable")}</p>
       )}
     </details>
   );

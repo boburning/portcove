@@ -8,7 +8,6 @@ use std::{
 
 use async_trait::async_trait;
 use futures_util::StreamExt;
-use octocrab::Octocrab;
 use reqwest::{StatusCode, header};
 use serde::{Deserialize, de::DeserializeOwned};
 use tokio::sync::{Mutex, RwLock};
@@ -181,7 +180,8 @@ impl ReleaseSelectionCacheKey {
                 || crate::native_external_profile::archive_siblings::requires_archive(
                     port, platform,
                 )
-                || crate::native_external_profile::openjk::requires_archive(port, platform),
+                || crate::native_external_profile::openjk::requires_archive(port, platform)
+                || crate::native_portable_data::directory_name(port, platform).is_some(),
             scope_binding: None,
             repository: port.release.repository.clone(),
             channel,
@@ -363,10 +363,11 @@ impl GithubReleaseProvider {
         credential: Option<GithubCredential>,
         qualification: bool,
     ) -> Result<Self> {
-        let build_sdk_transport = || {
+        let build_transport = || {
             let mut transport = reqwest::Client::builder()
                 .redirect(reqwest::redirect::Policy::none())
                 .retry(reqwest::retry::never())
+                .user_agent(PROVIDER_USER_AGENT)
                 .connect_timeout(bounds.connect)
                 .read_timeout(bounds.read_idle)
                 .timeout(bounds.request);
@@ -391,8 +392,8 @@ impl GithubReleaseProvider {
             .build()
             .map_err(|error| PortcoveError::network(error.to_string()))?;
         Ok(Self {
-            api_transport: build_sdk_transport()?,
-            device_transport: build_sdk_transport()?,
+            api_transport: build_transport()?,
+            device_transport: build_transport()?,
             download_client,
             network_bounds: bounds,
             api_root: api_root.into(),
@@ -502,6 +503,14 @@ impl GithubReleaseProvider {
         cached: Option<&HttpCacheEntry>,
     ) -> Result<header::HeaderMap> {
         let mut headers = header::HeaderMap::new();
+        headers.insert(
+            "x-github-api-version",
+            header::HeaderValue::from_static("2022-11-28"),
+        );
+        headers.insert(
+            header::CONTENT_LENGTH,
+            header::HeaderValue::from_static("0"),
+        );
         if same_origin(url, &self.api_root)
             && let Some(token) = token
         {
@@ -534,17 +543,17 @@ impl GithubReleaseProvider {
         cached: Option<&HttpCacheEntry>,
     ) -> impl std::future::Future<Output = Result<reqwest::Response>> + Send + 'static + use<> {
         let headers = self.metadata_headers(url, token, cached);
-        let url = url.to_owned();
-        let origin = self.api_root.clone();
+        let url = reqwest::Url::parse(url);
         let transport = self.api_transport.clone();
         async move {
-            let response = github_sdk_client(&origin, transport)?
-                ._get_with_headers(url.as_str(), Some(headers?))
+            let url = url.map_err(|error| PortcoveError::network(error.to_string()))?;
+            // Only Core's explicit headers may authorize an API request.
+            let mut request = reqwest::Request::new(reqwest::Method::GET, url);
+            *request.headers_mut() = headers?;
+            transport
+                .execute(request)
                 .await
-                .map_err(github_sdk_request_error)?;
-            // Keep the raw status, headers and streaming body for Core's
-            // conditional cache, provider errors and bounded response reader.
-            Ok(response.map(reqwest::Body::wrap).into())
+                .map_err(github_request_error)
         }
     }
 
@@ -553,20 +562,13 @@ impl GithubReleaseProvider {
         endpoint: &str,
         fields: &[(&str, &str)],
     ) -> Result<reqwest::Response> {
-        let body = serde_urlencoded::to_string(fields)
-            .map_err(|error| PortcoveError::network(error.to_string()))?;
-        let request = http::Request::post(format!("{}{endpoint}", self.web_root))
+        self.device_transport
+            .post(format!("{}{endpoint}", self.web_root))
             .header(header::ACCEPT, "application/json")
-            .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
-            .header(header::CONTENT_LENGTH, body.len())
-            .body(body)
-            .map_err(|error| PortcoveError::network(error.to_string()))?;
-        // The web protocol has its own anonymous SDK client and pool.
-        let response = github_sdk_client(&self.web_root, self.device_transport.clone())?
-            .execute(request)
+            .form(fields)
+            .send()
             .await
-            .map_err(github_sdk_request_error)?;
-        Ok(response.map(reqwest::Body::wrap).into())
+            .map_err(github_request_error)
     }
 
     fn active_token(&self) -> Option<String> {
@@ -1293,6 +1295,29 @@ impl GithubReleaseProvider {
                 crate::definition_repository::publisher_policy::CuratedArtifactOperation::Acquisition,
             )?;
         }
+        match self.resolve_observed(port, channel, platform, scope).await {
+            Ok(resolved) => Ok(resolved),
+            Err(error) => match (port.release.curated.get(&platform), scope) {
+                (Some(record), Some(scope))
+                    if !record.preserved_locations.is_empty()
+                        && error.upstream_failure()
+                            == crate::failure::UpstreamFailure::Unavailable =>
+                {
+                    preserved_resolution(port, channel, record, scope)
+                }
+                _ => Err(error),
+            },
+        }
+    }
+
+    /// Fresh upstream observation. Every guard above has already passed.
+    async fn resolve_observed(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+    ) -> Result<ResolvedGithub> {
         let repository_url = format!("{}/repos/{}", self.api_root, port.release.repository);
         let repository: GithubRepository = match scope {
             Some(scope) => self.scoped_json(&repository_url, scope).await?,
@@ -1341,6 +1366,34 @@ impl GithubReleaseProvider {
             Some(scope) => self.releases_scoped(&repository_url, Some(scope)).await?,
             None => self.releases(&repository_url).await?,
         };
+        if let Some(record) = curated.filter(|record| !record.preserved_locations.is_empty()) {
+            // Failover-capable records only: classify an accepted release or asset
+            // that is gone as unavailable. Any partial match (a moved tag, a reused
+            // name, a changed ID) falls through to the identity refusal below.
+            let by_id = releases
+                .iter()
+                .find(|release| release.id == Some(record.release_id));
+            let by_tag = releases
+                .iter()
+                .find(|release| release.tag_name == record.tag);
+            let gone = match (by_id, by_tag) {
+                (None, None) => true,
+                (Some(by_id), Some(by_tag))
+                    if by_id.id == by_tag.id && by_id.tag_name == by_tag.tag_name =>
+                {
+                    !by_id.assets.iter().any(|asset| {
+                        asset.id == Some(record.asset_id) || asset.name == record.filename
+                    })
+                }
+                _ => false,
+            };
+            if gone {
+                return Err(PortcoveError::network(
+                    "the accepted curated release or asset is no longer published",
+                )
+                .with_upstream(Some(crate::failure::UpstreamObservation::Status(404))));
+            }
+        }
         let release = select_channel_candidate(
             &releases,
             channel,
@@ -1463,6 +1516,51 @@ impl GithubReleaseProvider {
             identity,
         })
     }
+}
+
+/// Selects an accepted curated artifact from the authenticated, fresh policy
+/// record alone after upstream was classified unavailable (#1306). No network
+/// request is made; bytes are still verified against the accepted size and
+/// SHA-256, trying upstream first and then each preserved location.
+fn preserved_resolution(
+    port: &PortDefinition,
+    channel: ReleaseChannel,
+    record: &crate::curated_acquisition::CuratedAcquisitionRecord,
+    scope: &crate::DefinitionAcquisitionScope,
+) -> Result<ResolvedGithub> {
+    scope.require_current()?;
+    scope.require_port(port)?;
+    crate::definition_repository::publisher_policy::require_curated_artifact_operation(
+        &scope.library.connection()?,
+        scope.repository_id,
+        record,
+        crate::definition_repository::publisher_policy::CuratedArtifactOperation::Acquisition,
+    )?;
+    for location in &record.preserved_locations {
+        scope.require_asset_url(&crate::curated_acquisition::transport_url(scope, location)?)?;
+    }
+    let identity = crate::definition_acquisition::GithubArtifactIdentity {
+        repository: port.release.repository.clone(),
+        repository_id: scope.repository_id,
+        release_id: record.release_id,
+        asset_id: record.asset_id,
+        tag: record.tag.clone(),
+    };
+    identity.validate()?;
+    Ok(ResolvedGithub {
+        release: ResolvedRelease {
+            version: release_version(&record.tag),
+            channel,
+            published_at: None,
+            asset: ReleaseAsset {
+                name: record.filename.clone(),
+                url: crate::curated_acquisition::transport_url(scope, &record.acquisition_url)?,
+                size: record.size,
+                sha256: record.sha256.clone(),
+            },
+        },
+        identity: Some(identity),
+    })
 }
 
 fn native_release_applies_to_platform(
@@ -1628,30 +1726,14 @@ fn rate_limit_from_headers(headers: &header::HeaderMap) -> Option<GithubRateLimi
     })
 }
 
-fn github_sdk_client(origin: &str, transport: reqwest::Client) -> Result<Octocrab> {
-    // The SDK starts a worker on the current runtime. Create it inside the
-    // request future and keep the connection pools on the synchronous provider.
-    Octocrab::builder()
-        .base_uri(origin)
-        .and_then(|builder| {
-            builder
-                .add_header(header::USER_AGENT, PROVIDER_USER_AGENT.into())
-                .build_with_reqwest(transport)
-        })
-        .map_err(|error| PortcoveError::network(error.to_string()))
-}
-
-fn github_sdk_request_error(error: octocrab::Error) -> PortcoveError {
-    let transport = std::iter::successors(Some(&error as &dyn std::error::Error), |error| {
-        error.source()
-    })
-    .find_map(|error| error.downcast_ref::<reqwest::Error>());
+fn github_request_error(error: reqwest::Error) -> PortcoveError {
     #[cfg(test)]
     observe_test_response(ResponseTestEvent::Failed(
         ResponseTestPhase::Headers,
-        transport.is_some_and(reqwest::Error::is_timeout),
+        error.is_timeout(),
     ));
-    PortcoveError::network(transport.map_or_else(|| error.to_string(), ToString::to_string))
+    let observation = crate::failure::UpstreamObservation::from_reqwest(&error);
+    PortcoveError::network(error.to_string()).with_upstream(observation)
 }
 
 fn github_http_error(status: StatusCode, headers: &header::HeaderMap) -> PortcoveError {
@@ -1875,6 +1957,7 @@ fn choose_asset<'a>(
                 || !crate::native_external_profile::archive_siblings::matches_asset(
                     port, platform, &name,
                 )
+                || !crate::native_portable_data::matches_archive(port, platform, &name)
             {
                 return None;
             }
@@ -3853,6 +3936,8 @@ mod tests {
         );
         assert!(api_request.starts_with("get /user "));
         assert!(api_request.contains("\r\nauthorization: bearer api-secret\r\n"));
+        assert!(api_request.contains("\r\nx-github-api-version: 2022-11-28\r\n"));
+        assert!(api_request.contains("\r\ncontent-length: 0\r\n"));
         assert!(api_request.contains(&agent));
         for (path, body) in [
             ("/login/device/code", "client_id=client+id"),
@@ -3867,7 +3952,10 @@ mod tests {
             assert!(headers.starts_with(&format!("post {path} ")));
             assert!(headers.contains("\r\naccept: application/json"));
             assert!(headers.contains("\r\ncontent-type: application/x-www-form-urlencoded"));
+            let content_length = format!("content-length: {}", body.len());
+            assert!(headers.lines().any(|line| line == content_length));
             assert!(!headers.contains("\r\nauthorization:"));
+            assert!(!headers.contains("\r\nx-github-api-version:"));
             assert!(headers.contains(&agent));
             assert_eq!(received, body);
         }
@@ -4270,7 +4358,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn github_sdk_caps_chunked_metadata_before_parsing_or_caching() {
+    async fn github_caps_chunked_metadata_before_parsing_or_caching() {
         let mut response = format!(
             "HTTP/1.1 200 OK\r\nETag: \"fixture\"\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n{PROVIDER_JSON_MAX_BYTES:x}\r\n"
         )
@@ -4294,7 +4382,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn dropping_github_sdk_metadata_body_closes_the_incomplete_response() {
+    async fn dropping_github_metadata_body_closes_the_incomplete_response() {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -4355,6 +4443,42 @@ mod tests {
         let error = choose_asset(port, Platform::WindowsX86_64, &assets).unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Conflict);
         assert!(error.message.contains("equally qualified"));
+    }
+
+    #[test]
+    fn native_mac_bundle_tar_xz_selects_reflectionhle_for_all_siblings() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let ports: Vec<_> = catalog
+            .ports()
+            .iter()
+            .filter(|port| port.release.repository == "ReflectionHLE/ReflectionHLE")
+            .collect();
+        assert_eq!(ports.len(), 9);
+        let asset = |name: &str| GithubAsset {
+            id: None,
+            name: name.into(),
+            browser_download_url: format!("https://example.invalid/{name}"),
+            size: 1,
+            digest: None,
+        };
+        let excluded = [
+            asset("reflectionhle-macos-universal2-next.zip"),
+            asset("reflectionhle-macos-arm64-next.tar.xz"),
+            asset("reflectionhle-linux-x86_64-next.tar.xz"),
+        ];
+        for port in ports {
+            for platform in [Platform::MacosX86_64, Platform::MacosAarch64] {
+                assert!(choose_asset(port, platform, &excluded).is_err());
+                for package in [
+                    "reflectionhle-macos-universal2-20260606.tar.xz",
+                    "reflectionhle-macos-universal2-next.tar.xz",
+                ] {
+                    let mut assets = excluded.to_vec();
+                    assets.push(asset(package));
+                    assert_eq!(choose_asset(port, platform, &assets).unwrap().name, package);
+                }
+            }
+        }
     }
 
     #[test]

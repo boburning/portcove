@@ -196,6 +196,23 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
         Commands::Launch { command } => match command {
             LaunchCommand::Show { .. } | LaunchCommand::Recover { .. } => Recovering,
         },
+        Commands::Games { command } => match command {
+            GamesCommand::List
+            | GamesCommand::BatchPlan { .. }
+            | GamesCommand::BatchShow { .. }
+            | GamesCommand::Intents
+            | GamesCommand::FolderSetups => ReadOnly,
+            GamesCommand::Add { .. }
+            | GamesCommand::Remove { .. }
+            | GamesCommand::BatchRun { .. }
+            | GamesCommand::BatchResume { .. }
+            | GamesCommand::BatchCancel { .. }
+            | GamesCommand::Intent { .. }
+            | GamesCommand::IntentsAcknowledge { .. }
+            | GamesCommand::SetupReady
+            | GamesCommand::FolderSetup { .. }
+            | GamesCommand::FolderSetupChoose { .. } => Recovering,
+        },
         // These commands return before shared service construction. Preserve the
         // historical policy bit without moving their own dispatch/constructors.
         Commands::Library { command } => match command {
@@ -232,7 +249,13 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
         | Commands::Plan { .. }
         | Commands::Paths { .. }
         | Commands::RemovePreview { .. }
+        | Commands::LauncherLibrary {
+            command: LauncherLibraryCommand::Inspect { .. },
+        }
         | Commands::Capabilities => ReadOnly,
+        Commands::LauncherLibrary {
+            command: LauncherLibraryCommand::Adopt { .. },
+        } => Recovering,
         Commands::Cancel { .. }
         | Commands::About
         | Commands::Check(_)
@@ -346,6 +369,7 @@ mod tests {
     #[test]
     fn parsed_leaf_policy_matches_prechange_oracle() {
         let observations = [
+            "launcher-library inspect --launcher quiver dir",
             "artwork handoff p --role portrait-cover",
             "artwork handoff-bytes p --role portrait-cover --expected-library-id l --expected-revision 1 --expected-asset-sha256 a",
             "artwork show p",
@@ -456,6 +480,7 @@ mod tests {
             "reconcile",
             "install p",
             "adopt dir --port p",
+            "launcher-library adopt --launcher quiver dir --yes",
             "ensure p",
             "update p",
             "verify p",

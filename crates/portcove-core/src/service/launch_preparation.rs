@@ -93,10 +93,20 @@ impl PortcoveService {
             checkpoint()?;
             source
         } else if let Some(profile) = &port.source_profile {
-            if self.library.source(profile)?.is_some() {
-                Some(self.verified_source_record_with_checkpoint(&catalog, profile, &checkpoint)?)
-            } else {
-                None
+            match self.library.source(profile)? {
+                // An optional source whose file has gone is treated as absent: nothing is
+                // unpacked and the runtime and its persistent files stay as they are.
+                Some(record)
+                    if port.optional_game_source && super::source_file_is_gone(&record.path) =>
+                {
+                    None
+                }
+                Some(_) => Some(self.verified_source_record_with_checkpoint(
+                    &catalog,
+                    profile,
+                    &checkpoint,
+                )?),
+                None => None,
             }
         } else {
             None
@@ -185,6 +195,9 @@ impl PortcoveService {
         }
         self.prepare_ghostship_legacy_archive(active)?;
         checkpoint()?;
+        // Adopt a menu reorder from the collected data, then write the selected
+        // revision's mod list so the build loads exactly that order.
+        self.prepare_native_mod_list_locked(&port.id)?;
         self.restore_user_data_to(port, &active.path)?;
         crate::profile_deploy::clear_restore_pending(&self.library.user_dir(&port.id))?;
         checkpoint()?;
@@ -192,9 +205,11 @@ impl PortcoveService {
         let selected_executable =
             Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
         checkpoint()?;
+        let disc_reported = std::cell::Cell::new(false);
         let report_disc =
             |phase: crate::adapter::DiscUnpackPhase, completed: u64, total: Option<u64>| {
                 if let (Some(operation), Some(events)) = (operation, events) {
+                    disc_reported.set(true);
                     events(disc_unpack_event(operation, phase, completed, total));
                 }
             };
@@ -232,6 +247,12 @@ impl PortcoveService {
         self.refresh_upstream_setup_manifest(port, active, &spec.working_directory)?;
         crate::preparation::require_manual_setup(port, active)?;
         checkpoint()?;
+        if let (true, Some(operation), Some(events)) = (disc_reported.get(), operation, events) {
+            // Preparation is over and the game starts next: supersede the last
+            // unpacking step so an observer does not keep showing it while the
+            // launch activity stays open for the whole play session.
+            events(preparation_finished_event(operation));
+        }
         Ok(spec)
     }
     fn recheck_launch_bios(
@@ -263,6 +284,11 @@ impl PortcoveService {
         }
         Ok(())
     }
+}
+
+/// The launch activity's event once preparation is done and the game is starting.
+fn preparation_finished_event(operation: &OperationCoordinator) -> crate::OperationEvent {
+    operation.progress_with_unit("launch", crate::ProgressUnit::Indeterminate, 0, None)
 }
 
 /// The launch activity's event for one disc-unpacking step. Extract carries
@@ -322,6 +348,13 @@ mod tests {
             .collect();
         let bytes = Some(crate::ProgressUnit::Bytes);
         let step = Some(crate::ProgressUnit::Indeterminate);
+        let finished = preparation_finished_event(&operation);
+        assert!(finished.sequence > events.last().unwrap().sequence);
+        assert!(matches!(
+            &finished.event,
+            crate::OperationEventKind::Progress { phase_id: Some(id), unit, .. }
+                if id == "launch" && *unit == Some(crate::ProgressUnit::Indeterminate)
+        ));
         assert_eq!(
             shaped,
             [

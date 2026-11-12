@@ -31,6 +31,7 @@ const ROOT_COMMAND_GROUPS: &[(&str, &[&str])] = &[
             "saves",
             "game-settings",
             "library",
+            "games",
             "storage",
             "artwork",
             "output",
@@ -58,6 +59,7 @@ const ROOT_COMMAND_GROUPS: &[(&str, &[&str])] = &[
             "installation",
             "external",
             "adopt",
+            "launcher-library",
             "ensure",
             "reconcile",
             "channel",
@@ -250,6 +252,11 @@ pub(crate) enum Commands {
         /// Operation ID from `portcove activity`; inspect its current state before recovery or cancellation.
         operation_id: String,
     },
+    /// Save games to the Library without installing, registering files or launching.
+    Games {
+        #[command(subcommand)]
+        command: GamesCommand,
+    },
     /// Read a caller-known durable launch request without starting or recovering a game.
     Launch {
         #[command(subcommand)]
@@ -295,6 +302,11 @@ pub(crate) enum Commands {
     Install(InstallArgs),
     /// Review and register an existing managed port installation.
     Adopt(AdoptArgs),
+    /// Inventory another launcher's library before copying its games with `adopt`.
+    LauncherLibrary {
+        #[command(subcommand)]
+        command: LauncherLibraryCommand,
+    },
     /// Reuse the current installation when its required runtime is present, or install a selected release.
     Ensure(EnsureArgs),
     /// Install or stage available game updates for installed ports.
@@ -608,6 +620,122 @@ impl ArtworkCommand {
             Self::ClearCache => "artwork.clear-cache",
             Self::Unused => "artwork.unused",
             Self::RemoveUnused { .. } => "artwork.remove-unused",
+        }
+    }
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum GamesCommand {
+    /// List explicitly saved Library entries, independent of installation state.
+    List,
+    /// Save catalog games to the Library; nothing is downloaded, installed or registered.
+    Add {
+        /// Catalog port IDs to save; repeating an ID is idempotent. At most 512 per command.
+        #[arg(required = true, num_args = 1..)]
+        port_ids: Vec<String>,
+    },
+    /// Forget one saved entry without changing installations, registrations or game files.
+    Remove {
+        /// Catalog port ID of the saved entry.
+        port_id: String,
+    },
+    /// Review first installs for several games at once; nothing changes.
+    BatchPlan {
+        /// Catalog port IDs to review together. At most 512 per batch.
+        #[arg(required = true, num_args = 1..)]
+        port_ids: Vec<String>,
+    },
+    /// Save the reviewed games to the Library and install each one whose plan is unchanged.
+    BatchRun {
+        /// Reviewed game and plan digest from `games batch-plan`, as PORT_ID=PLAN_SHA256. Repeat per game.
+        #[arg(long = "item", value_name = "PORT_ID=PLAN_SHA256", required = true)]
+        items: Vec<String>,
+        /// Confirm this reviewed batch without a prompt; each plan is still checked before it runs.
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Continue an interrupted batch. Finished games are never repeated.
+    BatchResume {
+        /// Batch ID returned by `games batch-run`.
+        batch_id: String,
+        /// Confirm continuing without a prompt; each plan is still checked before it runs.
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Stop games in a batch that have not started. A running install finishes or cleans up normally.
+    BatchCancel {
+        /// Batch ID returned by `games batch-run`.
+        batch_id: String,
+    },
+    /// Show each game's state in a batch without changing anything.
+    BatchShow {
+        /// Batch ID returned by `games batch-run`.
+        batch_id: String,
+    },
+    /// Choose what Portcove does about one game over time. Discover-only is the default.
+    Intent {
+        /// Catalog port ID.
+        port_id: String,
+        /// discover-only, notify, set-up-when-ready or ignored.
+        #[arg(value_enum)]
+        mode: GameIntentMode,
+    },
+    /// Reassess remembered choices against current files, catalog and tools; changes nothing.
+    Intents,
+    /// Mark ready games as seen so the same opportunity is not reported again.
+    IntentsAcknowledge {
+        /// Ready game and plan digest from `games intents`, as PORT_ID=PLAN_SHA256. Repeat per game.
+        #[arg(long = "item", value_name = "PORT_ID=PLAN_SHA256", required = true)]
+        items: Vec<String>,
+    },
+    /// Install every set-up-when-ready game that is ready now, and eligible games in
+    /// folders with automatic setup turned on. Never launches a game.
+    SetupReady,
+    /// Turn automatic setup for one saved game-file folder on or off. Off by default.
+    FolderSetup {
+        /// Folder ID from `source roots`.
+        root_id: String,
+        /// existing-and-future, future-only (needs a complete current scan) or off.
+        #[arg(value_enum)]
+        mode: FolderSetupMode,
+    },
+    /// Choose which game to set up from a folder for files several games can use.
+    FolderSetupChoose {
+        /// Folder ID from `source roots`.
+        root_id: String,
+        /// Source profile of the files, as shown by `games setup-ready`.
+        #[arg(long = "files", value_name = "PROFILE_ID")]
+        profile_id: String,
+        /// Catalog port ID to set up for those files.
+        #[arg(long = "game", value_name = "PORT_ID")]
+        port_id: String,
+    },
+    /// List folders with automatic setup turned on; changes nothing.
+    FolderSetups,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub(crate) enum FolderSetupMode {
+    ExistingAndFuture,
+    FutureOnly,
+    Off,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub(crate) enum GameIntentMode {
+    DiscoverOnly,
+    Notify,
+    SetUpWhenReady,
+    Ignored,
+}
+
+impl From<GameIntentMode> for portcove_core::PortIntentMode {
+    fn from(mode: GameIntentMode) -> Self {
+        match mode {
+            GameIntentMode::DiscoverOnly => Self::DiscoverOnly,
+            GameIntentMode::Notify => Self::Notify,
+            GameIntentMode::SetUpWhenReady => Self::SetUpWhenReady,
+            GameIntentMode::Ignored => Self::Ignored,
         }
     }
 }
@@ -1489,6 +1617,55 @@ pub(crate) struct AdoptArgs {
     /// Confirm the reviewed copy and registration without prompting; skipped entries remain outside the copy.
     #[arg(long)]
     pub(crate) yes: bool,
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum LauncherLibraryCommand {
+    /// List each app, its matching catalog port and its `adopt` command without changing anything.
+    Inspect {
+        /// Launcher whose library format to read.
+        #[arg(long, value_enum)]
+        launcher: LauncherLibraryKind,
+        /// Launcher data folder holding apps.json (or legacy games.json) and settings.json.
+        data_root: PathBuf,
+        /// Use this apps folder instead of the one in settings.json, for example after a move.
+        #[arg(long)]
+        apps_root: Option<PathBuf>,
+    },
+    /// Review and copy several matched apps after one confirmation; originals stay unchanged.
+    Adopt {
+        /// Launcher whose library format to read.
+        #[arg(long, value_enum)]
+        launcher: LauncherLibraryKind,
+        /// Launcher data folder holding apps.json (or legacy games.json) and settings.json.
+        data_root: PathBuf,
+        /// Use this apps folder instead of the one in settings.json, for example after a move.
+        #[arg(long)]
+        apps_root: Option<PathBuf>,
+        /// Copy only this app, by its launcher name or folder name; repeat for more. Default: every app ready to review.
+        #[arg(long = "app")]
+        apps: Vec<String>,
+        /// Confirm the reviewed batch without prompting; changed apps are held, not copied.
+        #[arg(long)]
+        yes: bool,
+    },
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub(crate) enum LauncherLibraryKind {
+    /// GitHub Launcher (SirDiabo/GithubLauncher).
+    GithubLauncher,
+    /// Quiver (tgeorgiadis/quiver-launcher).
+    Quiver,
+}
+
+impl From<LauncherLibraryKind> for portcove_core::LauncherKind {
+    fn from(kind: LauncherLibraryKind) -> Self {
+        match kind {
+            LauncherLibraryKind::GithubLauncher => Self::GithubLauncher,
+            LauncherLibraryKind::Quiver => Self::Quiver,
+        }
+    }
 }
 
 #[derive(Debug, Args)]

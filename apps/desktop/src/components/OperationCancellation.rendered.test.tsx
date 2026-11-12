@@ -26,4 +26,25 @@ describe("operation cancellation", () => {
     expect(finishing).toContain("Finishing safely…");
     expect(finishing).not.toContain("Cancel operation");
   });
+
+  it("renders the generic cancellation copy in the current language", async () => {
+    const { initializeLocalization } = await import("../localization");
+    const localization = initializeLocalization(["en-US"]);
+    try {
+      await localization.changeLanguage("ar-XB");
+      const markup = renderToStaticMarkup(
+        <OperationCancellation operationId="00000000-0000-0000-0000-000000000001" />,
+      );
+      expect(markup).toContain("إلغاء العملية");
+      const labelled = renderToStaticMarkup(
+        <OperationCancellation
+          operationId="00000000-0000-0000-0000-000000000001"
+          label="Caller label"
+        />,
+      );
+      expect(labelled).toContain("Caller label");
+    } finally {
+      await localization.changeLanguage("en");
+    }
+  });
 });

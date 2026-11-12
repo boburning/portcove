@@ -235,6 +235,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         windows_temp_directory,
         portable_marker,
         portable_marker_file,
+        linux_portable_data_directory,
         n64_windows_initial_d3d12,
         n64_runtime_at_executable_parent,
         managed_initialization,
@@ -254,6 +255,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         runtime_source_materialization,
         runtime_source_hashes,
         runtime_disc_image,
+        optional_game_source,
         runtime_source_set,
         launch_from_install_root,
         setup_executable_hints,
@@ -311,9 +313,15 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
     if let Some(marker) = portable_marker_file {
         compatibility["portable_marker_file"] = serde_json::json!(marker);
     }
+    if let Some(directory) = linux_portable_data_directory {
+        compatibility["linux_portable_data_directory"] = serde_json::json!(directory);
+    }
     // Likewise, disc-image unpacking limits and game identifiers join only when declared.
     if let Some(image) = runtime_disc_image {
         compatibility["runtime_disc_image"] = serde_json::json!(image);
+    }
+    if *optional_game_source {
+        compatibility["optional_game_source"] = serde_json::json!(true);
     }
     compatibility
 }

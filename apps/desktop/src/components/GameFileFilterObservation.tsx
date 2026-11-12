@@ -1,9 +1,11 @@
 import {
-  reasons,
-  routes,
-  states,
+  gameFileReasonLabel,
+  gameFileRouteLabel,
+  gameFileStateLabel,
   type GameFileFilterContext,
 } from "../features/browsing/game-file-query-context";
+import { Trans } from "react-i18next";
+import { useAppTranslation } from "../localization";
 import { platformLabel, releaseChannelPresentation } from "../view-model";
 
 /** Present the same accepted observation used by the catalog, without another check. */
@@ -14,15 +16,16 @@ export function GameFileFilterObservation({
   portId: string;
   context?: GameFileFilterContext | undefined;
 }) {
+  const { t } = useAppTranslation("gameFiles");
   const projection = context?.byPort.get(portId);
   if (!projection || projection.port_id !== portId) return null;
   return (
-    <section aria-label="Game-file filter results" className="space-y-2">
-      <h2>Game-file filter results</h2>
-      <p>{states[projection.state]}</p>
-      <p>{reasons[projection.reason]}</p>
+    <section aria-label={t("filterObservation.heading")} className="space-y-2">
+      <h2>{t("filterObservation.heading")}</h2>
+      <p>{gameFileStateLabel(t, projection.state)}</p>
+      <p>{gameFileReasonLabel(t, projection.reason)}</p>
       <p className="text-sm text-pc-muted-foreground">
-        {routes.find((route) => route.value === projection.route)?.label}
+        {gameFileRouteLabel(t, projection.route)}
         {" · "}
         {platformLabel(projection.platform)}
         {" · "}
@@ -30,13 +33,21 @@ export function GameFileFilterObservation({
       </p>
       {projection.state === "files_available" && projection.identity && (
         <p>
-          Complete set: {projection.identity.game_id} / {projection.identity.variant_id} /{" "}
-          {projection.identity.representation_id}
+          {/* The identity triple is exact catalog data, never interpolated. */}
+          <Trans
+            t={t}
+            i18nKey="filterObservation.completeSet"
+            components={{
+              identity: (
+                <bdi dir="ltr">
+                  {`${projection.identity.game_id} / ${projection.identity.variant_id} / ${projection.identity.representation_id}`}
+                </bdi>
+              ),
+            }}
+          />
         </p>
       )}
-      <p className="text-sm text-pc-muted-foreground">
-        These results are used by catalog filters. Setup and launch perform their own checks.
-      </p>
+      <p className="text-sm text-pc-muted-foreground">{t("filterObservation.scope")}</p>
     </section>
   );
 }

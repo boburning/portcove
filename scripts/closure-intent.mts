@@ -266,6 +266,7 @@ export function validateClosingInventoryEvidence(
   workflowRuns: unknown,
   head: string,
   number: number,
+  { mergedSuite }: { mergedSuite?: number | undefined } = {},
 ) {
   const latest = latestClosingInventoryCheck(checks, head);
   const runs: unknown = isRecord(workflowRuns) ? workflowRuns.workflow_runs : undefined;
@@ -285,7 +286,15 @@ export function validateClosingInventoryEvidence(
   // (or a fork, whose run lists none) cannot vouch for this one.
   const pulls: unknown = run.pull_requests;
   const entries: readonly unknown[] = Array.isArray(pulls) ? pulls : [];
-  if (entries.length !== 1 || !isRecord(entries[0]) || entries[0].number !== number)
+  // GitHub clears pull_requests once a pull request merges. A merged readback may
+  // therefore present an empty list, but only for the exact run its preparation
+  // already bound to this pull request.
+  const mergedBinding =
+    mergedSuite !== undefined && entries.length === 0 && latest.suite === mergedSuite;
+  if (
+    !mergedBinding &&
+    (entries.length !== 1 || !isRecord(entries[0]) || entries[0].number !== number)
+  )
     throw new Error("The closing-inventory check did not run for this pull request");
   return latest;
 }

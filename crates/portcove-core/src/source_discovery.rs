@@ -835,6 +835,40 @@ fn current_game_file_scan(
     Ok(Some(snapshot))
 }
 
+/// A complete current scan snapshot holding exactly `candidates`, for tests
+/// that need matched files without real game data.
+#[cfg(test)]
+pub(crate) fn complete_test_game_file_scan(
+    catalog: &Catalog,
+    library: &crate::Library,
+    candidates: Vec<crate::SourceRecord>,
+) -> GameFileScanSnapshot {
+    let roots = library.game_file_roots().unwrap();
+    GameFileScanSnapshot {
+        format_version: CURRENT_SCAN_FORMAT_VERSION,
+        catalog_sha256: catalog_sha256(catalog).unwrap(),
+        roots: roots.clone(),
+        limits: Some(SourceDiscoveryLimits::default()),
+        report: SourceDiscoveryReport {
+            searched_roots: roots.into_iter().map(|root| root.path).collect(),
+            searched_profiles: Vec::new(),
+            candidates,
+            preliminary_selections: Vec::new(),
+            entries_examined: 0,
+            files_hashed: 0,
+            hash_bytes: 0,
+            symlinks_skipped: 0,
+            limits_reached: Vec::new(),
+            issues: Vec::new(),
+            issues_omitted: 0,
+        },
+        completed_at: crate::Library::now(),
+        freshness: GameFileScanFreshness::InputsMatch,
+        coverage: None,
+        continuation: None,
+    }
+}
+
 fn catalog_sha256(catalog: &Catalog) -> Result<String> {
     Ok(hex::encode(Sha256::digest(serde_json::to_vec(
         &catalog.authoritative_document(),

@@ -9,12 +9,12 @@ use flate2::read::GzDecoder;
 
 use crate::{PortcoveError, Result};
 
+#[cfg(any(test, feature = "archive-fuzzing"))]
+pub mod fuzzing;
 pub(crate) mod sevenz;
 mod xz;
-#[cfg(all(test, target_os = "linux", target_arch = "x86_64"))]
-pub(crate) use xz::tests::encode as encode_xz_fixture;
 #[cfg(test)]
-pub(crate) use xz::tests::fixture as xz_fixture;
+pub(crate) use xz::tests::{encode as encode_xz_fixture, fixture as xz_fixture};
 
 const MAX_COMPRESSED_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_EXPANDED_BYTES: u64 = 16 * 1024 * 1024 * 1024;
@@ -147,7 +147,13 @@ pub(crate) fn extract_download_archive_with_checkpoint(
         let compressed_size = validate_compressed_size(source, expected_compressed_size)?;
         sevenz::extract(source, destination, compressed_size, checkpoint)
     } else if name.ends_with(".tar.xz") {
-        extract_tar_xz_with_checkpoint(source, destination, expected_compressed_size, checkpoint)
+        extract_tar_xz_with_checkpoint(
+            source,
+            destination,
+            expected_compressed_size,
+            true,
+            checkpoint,
+        )
     } else {
         extract_archive_with_checkpoint(
             source,
@@ -163,6 +169,7 @@ pub(crate) fn extract_tar_xz_with_checkpoint(
     source: &Path,
     destination: &Path,
     expected_compressed_size: u64,
+    allow_file_links: bool,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     checkpoint()?;
@@ -172,6 +179,7 @@ pub(crate) fn extract_tar_xz_with_checkpoint(
         destination,
         compressed_size,
         true,
+        allow_file_links,
         checkpoint,
     )
 }
@@ -224,7 +232,7 @@ fn validate_plan(destination: &Path, plans: &[EntryPlan], compressed_size: u64) 
     for plan in plans {
         validate_declared_entry(&plan.relative, plan.size, &mut total, compressed_size)?;
     }
-    let available = fs2::available_space(destination)?;
+    let available = fs4::available_space(destination)?;
     if total > available {
         return Err(
             PortcoveError::state("archive cannot fit in the available destination space")
@@ -530,6 +538,7 @@ fn extract_tar_gz(
         destination,
         compressed_size,
         false,
+        true,
         checkpoint,
     )
 }
@@ -539,6 +548,7 @@ fn extract_tar<R: Read>(
     destination: &Path,
     compressed_size: u64,
     verify_stream_end: bool,
+    allow_file_links: bool,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     let decoded_limit = MAX_EXPANDED_BYTES + MAX_TAR_FORMAT_OVERHEAD_BYTES;
@@ -597,7 +607,9 @@ fn extract_tar<R: Read>(
         }
         let directory = entry.header().entry_type().is_dir();
         let alias = entry.header().entry_type().is_symlink();
-        if !directory && !alias && !entry.header().entry_type().is_file() {
+        if (alias && !allow_file_links)
+            || (!directory && !alias && !entry.header().entry_type().is_file())
+        {
             return Err(PortcoveError::verification(
                 "TAR links and special files are not allowed",
             ));
@@ -934,6 +946,10 @@ fn normalize_archive_directories(destination: &Path, deepest: &Path) -> Result<(
 #[cfg(test)]
 #[path = "archive_fuzz_tests.rs"]
 mod fuzz_tests;
+
+#[cfg(test)]
+#[path = "archive_fuzz_seed_tests.rs"]
+mod fuzz_seed_tests;
 
 #[cfg(test)]
 mod tests {

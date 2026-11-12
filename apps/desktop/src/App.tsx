@@ -30,6 +30,10 @@ import {
   type ReactNode,
 } from "react";
 import { usePortcoveData } from "./features/workspace/use-workspace-data";
+import {
+  sourcesKey,
+  useStandingSetupCatchUp,
+} from "./features/game-file-discovery/use-standing-setup";
 import { useGithubAuth } from "./features/github-auth/use-github-auth";
 import { useSourceHealth } from "./features/source-health/use-source-health";
 import { useSourceIntakeState } from "./features/source-intake/use-source-intake-state";
@@ -68,6 +72,8 @@ import {
 } from "./features/app-shell/use-library-selection-return";
 import { useBootstrapState, type StartupFailure } from "./features/bootstrap/use-bootstrap-state";
 import { AdoptionModal } from "./components/AdoptionModal";
+import { LauncherLibraryImport } from "./components/LauncherLibraryImport";
+import { useLauncherAdoptionChoice } from "./features/installation/use-launcher-adoption-choice";
 import {
   LibraryMoveRecovery,
   transferRecoveryCanKeepOriginal,
@@ -781,7 +787,7 @@ function useWorkspace(props: WorkspaceProps) {
           (candidate) => gameGroupId(candidate) === gameGroupId(model.entry!),
         )}
         implementationControl={implementationControl}
-        heroSupplement={setupAvailabilityControl}
+        managementSupplement={setupAvailabilityControl}
         favoriteControl={
           model.status?.external_runtime
             ? renderSelectedPortFavoriteControl({
@@ -803,7 +809,7 @@ function useWorkspace(props: WorkspaceProps) {
       <>
         <SelectedPortPanel
           implementationControl={implementationControl}
-          heroSupplement={setupAvailabilityControl}
+          managementSupplement={setupAvailabilityControl}
           backLabel={detailBackLabel}
           favorites={favorites}
           extraFiles={
@@ -1049,8 +1055,10 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
                   invocations={model.operations.invocations}
                   operationEvents={model.operations.operationEvents}
                   dismissInvocation={model.operations.dismissInvocation}
+                  onActivity={model.ui.view === "updates"}
                   openActivity={(id) => {
-                    model.ui.setReviewedActivityId(id);
+                    model.ui.revealActivity(id);
+                    // Also selects the Tasks section, even when Activity is already open.
                     model.setPrimaryView("updates");
                   }}
                   error={model.operations.error}
@@ -1411,6 +1419,7 @@ function CurrentView({
         activities={data.activities}
         activityFeed={data.activityFeed}
         reviewedActivityId={ui.reviewedActivityId}
+        reviewedActivityRequest={ui.reviewedActivityRequest}
         onReviewActivity={ui.setReviewedActivityId}
         outcomes={updates.outcomes}
         batchRead={updates.batchRead}
@@ -1507,6 +1516,10 @@ function CurrentView({
         window.requestAnimationFrame(() => document.querySelector<HTMLElement>("main h1")?.focus());
       }}
       onBrowseCatalog={onAddGames}
+      onDiscover={() => {
+        ui.setView("catalog");
+        window.requestAnimationFrame(() => document.querySelector<HTMLElement>("main h1")?.focus());
+      }}
       onConnectGameFiles={() => {
         ui.setSettingsCategory("game-files");
         ui.setView("settings");
@@ -1727,7 +1740,7 @@ function renderSelectedPortFavoriteControl({
 
 function SelectedPortPanel({
   implementationControl,
-  heroSupplement,
+  managementSupplement,
   favorites,
   organization,
   openSupport,
@@ -1750,7 +1763,7 @@ function SelectedPortPanel({
   close,
 }: {
   implementationControl?: ReactNode;
-  heroSupplement?: ReactNode;
+  managementSupplement?: ReactNode;
   favorites: ReturnType<typeof useFavorites>;
   organization: ReturnType<typeof useOrganization>;
   openSupport: () => void;
@@ -1809,7 +1822,7 @@ function SelectedPortPanel({
   return (
     <DetailPanel
       backLabel={backLabel}
-      heroSupplement={heroSupplement}
+      managementSupplement={managementSupplement}
       favoriteControl={
         <>
           {implementationControl}
@@ -1933,13 +1946,15 @@ function AdoptionOverlay({
   libraryGeneration: number;
   ports: readonly PortDefinition[];
 }) {
+  const launcher = useLauncherAdoptionChoice(ui.adoptPath, ui.selectedId);
   const finish = () => {
+    launcher.reset();
     ui.setAdoptOpen(false);
     ui.setAdoptPath("");
   };
   const planning = useAdoptionPlanning(
     ui.adoptPath,
-    ui.selectedId,
+    launcher.portId,
     ui.adoptOpen,
     libraryGeneration,
     operations.perform,
@@ -1950,6 +1965,10 @@ function AdoptionOverlay({
     planning.invalidate();
     ui.setAdoptPath(path);
   };
+  // Choosing a launcher app opens the ordinary copy review once its folder is set.
+  useEffect(() => {
+    if (launcher.takePendingReview()) void planning.review();
+  });
   if (!ui.adoptOpen) return null;
   return (
     <AdoptionModal
@@ -1962,11 +1981,83 @@ function AdoptionOverlay({
       busy={operations.busy}
       close={() => {
         planning.invalidate();
+        launcher.reset();
         ui.setAdoptOpen(false);
       }}
       pickFolder={() => {
         void applyPathChoice(pickInstallFolder(ui.adoptPath), setPath, operations.setError);
       }}
+      launcherImport={
+        <LauncherLibraryImport
+          disabled={Boolean(operations.busy) || planning.applying}
+          inspect={(kind, dataRoot, appsRoot) =>
+            operations.perform(
+              "list launcher apps",
+              () => desktopApi.inspectLauncherLibrary(kind, dataRoot, libraryGeneration, appsRoot),
+              {
+                refresh: "none",
+                invalidateDiagnostics: false,
+                context: targetInvocationContext(
+                  "List launcher apps",
+                  { kind: "source", id: dataRoot, label: "Launcher data folder" },
+                  libraryGeneration,
+                ),
+              },
+            )
+          }
+          pickFolder={async (current) => {
+            try {
+              return await pickInstallFolder(current);
+            } catch (value) {
+              operations.setError(errorText(value));
+              return null;
+            }
+          }}
+          choose={(entry) => launcher.choose(entry, setPath)}
+          gameName={(portId) => {
+            const port = ports.find((candidate) => candidate.id === portId);
+            return port ? `${gameIdentityLabel(port)} (${portId})` : portId;
+          }}
+          reviewBatch={(items) =>
+            operations.perform(
+              "review several launcher apps",
+              () => desktopApi.previewAdoptionBatch(items, libraryGeneration),
+              {
+                refresh: "none",
+                invalidateDiagnostics: false,
+                context: targetInvocationContext(
+                  "Review copying several apps",
+                  {
+                    kind: "source",
+                    id: items.map((item) => item.source).join("\n"),
+                    label: "Selected launcher apps",
+                  },
+                  libraryGeneration,
+                ),
+              },
+            )
+          }
+          copyBatch={(items, batchSha256) =>
+            operations.perform(
+              "adopt",
+              () => desktopApi.adoptBatch(items, batchSha256, libraryGeneration),
+              {
+                cancelledResult: (value) => value === null,
+                context: targetInvocationContext(
+                  "Copy several apps",
+                  {
+                    kind: "source",
+                    id: items.map((item) => item.source).join("\n"),
+                    label: "Selected launcher apps",
+                  },
+                  libraryGeneration,
+                  "library",
+                ),
+              },
+            )
+          }
+        />
+      }
       review={(selectedPortId) => {
         void planning.review(selectedPortId);
       }}
@@ -2051,6 +2142,13 @@ function useWorkspaceLibrary({
   returnToSelection,
 }: WorkspaceProps) {
   const data = usePortcoveData(bootstrap.generation);
+  useStandingSetupCatchUp(
+    bootstrap.generation,
+    Boolean(data.catalog) && !data.recoveryFailure,
+    data.catalog,
+    sourcesKey(data.sources),
+    data.refreshAfterMutation,
+  );
   const favorites = useFavorites(bootstrap.generation);
   const organization = useOrganization(bootstrap.generation);
   const [setupSource, setSetupSource] = useSetupSource(data.sources);

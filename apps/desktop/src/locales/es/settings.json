@@ -1,0 +1,101 @@
+{
+  "language": {
+    "applyFailed": "Portcove no pudo confirmar el idioma de visualización. Vuelve a abrir Ajustes para comprobarlo.",
+    "current": "Idioma actual: {{language}}.",
+    "description": "El inglés es el idioma de visualización admitido. La opción del sistema usa el inglés cuando el idioma de tu sistema no está disponible.",
+    "engineering": "Árabe (vista previa de ingeniería)",
+    "english": "English",
+    "eyebrow": "IDIOMA",
+    "loadFailed": "No se pudo cargar tu preferencia de idioma. Se usará {{language}} por ahora.",
+    "pickerLabel": "Idioma de visualización",
+    "previewDescription": "Esta vista previa cambia la dirección del texto y las pantallas preparadas para traducción hasta ahora. Las demás pantallas siguen en inglés.",
+    "previewTitle": "Vista previa del idioma",
+    "richProof": "El foco del teclado permanece <strong>donde lo dejaste</strong> al cambiar el idioma.",
+    "sample_one": "{{count}} mensaje traducido está listo.",
+    "sample_many": "{{count}} mensajes traducidos están listos.",
+    "sample_other": "{{count}} mensajes traducidos están listos.",
+    "saved": "Idioma guardado.",
+    "saveFailed": "No se pudo guardar el idioma. Tu idioma actual no ha cambiado.",
+    "saving": "Guardando el idioma…",
+    "system": "Predeterminado del sistema",
+    "title": "Idioma",
+    "unavailable": "Traducción no disponible"
+  },
+  "libraryRestore": {
+    "busy": {
+      "choosing": "Eligiendo tu exportación… Mantén Portcove abierto hasta que termine.",
+      "copying": "Copiando y verificando la biblioteca restaurada… Mantén Portcove abierto hasta que termine.",
+      "recovering": "Recuperando la restauración… Mantén Portcove abierto hasta que termine.",
+      "reviewing": "Revisando la restauración… Mantén Portcove abierto hasta que termine."
+    },
+    "chooseFile": "Elegir archivo",
+    "chooseFolder": "Elegir carpeta",
+    "close": "Cerrar",
+    "closeRefreshes": "Al cerrar esta revisión de la restauración, la biblioteca se actualiza antes de continuar.",
+    "content": "Copia de la carpeta original de la biblioteca",
+    "contentPlaceholder": "Elige la carpeta copiada de la biblioteca",
+    "description": "Necesitas un archivo de información de la biblioteca y una copia aparte de la carpeta original de la biblioteca. Restaura en una biblioteca nueva o vacía. Revisa primero el destino y los archivos copiados. Portcove copia y verifica el contenido restaurado antes de abrir la biblioteca. Una revisión por sí sola no verifica que la copia de recuperación esté completa. Los originales se quedan donde están.",
+    "destination": "Destino: <path />",
+    "metadata": "Archivo de información de la biblioteca",
+    "metadataPlaceholder": "Elige el archivo de información de la biblioteca",
+    "open": "Restaurar desde una copia de la biblioteca",
+    "plan": "Plan de restauración de la biblioteca",
+    "recovery": {
+      "busy": "Recuperando la restauración de la biblioteca…",
+      "destination": "Destino de la restauración: <path />",
+      "heading": "Terminar la restauración interrumpida de la biblioteca",
+      "intro": "Reanuda la restauración para verificar y terminar de abrir la biblioteca copiada. La exportación de Portcove no cambia. Las copias incompletas siguen cerradas hasta que la recuperación se complete.",
+      "label": "Recuperación de la restauración de la biblioteca",
+      "resume": "Reanudar la restauración"
+    },
+    "restore": "Restaurar esta biblioteca",
+    "review": "Revisar la restauración",
+    "title": "Restaurar desde una copia de la biblioteca",
+    "trust": "<strong>Usa una exportación de confianza.</strong> Revisa su origen, el destino, el espacio necesario, las versiones instaladas, las ubicaciones de los archivos guardados y los archivos copiados antes de restaurarla."
+  },
+  "supportReport": {
+    "collecting": "Recopilando los diagnósticos disponibles…",
+    "contentsLimits": "Es posible que este informe no incluya todas las entradas del registro ni todas las tareas. Puede faltar actividad o salida del registro anterior o posterior.",
+    "contentsSummary": "Ver el contenido del informe de soporte",
+    "create": "Crear un informe de soporte",
+    "creating": "Creando el informe de soporte…",
+    "examples": "Los identificadores de adaptaciones y herramientas, las marcas de tiempo y otros detalles del sistema pueden quedar después de ocultar los valores sensibles.",
+    "examplesSummary": "Ejemplos de detalles que pueden quedar",
+    "failed": "La exportación del informe de soporte no terminó. Inténtalo de nuevo.",
+    "intro": "Crea un informe de soporte con los registros recientes disponibles, el historial de operaciones y los detalles del sistema. Se excluyen el contenido de los archivos del juego y las credenciales guardadas, pero pueden quedar rutas, nombres de archivo y otros metadatos. Revisa el informe de soporte antes de compartirlo.",
+    "libraryUnavailable": "La biblioteca no estaba disponible durante la recopilación. Las secciones disponibles se muestran abajo.",
+    "openFolder": "Abrir la carpeta del informe de soporte",
+    "openFolderFailed": "No se pudo abrir la carpeta. El informe de soporte sigue guardado en la ubicación indicada arriba.",
+    "reason": {
+      "boundedSnapshot": "Solo se incluyó parte del registro. Pueden faltar entradas anteriores o posteriores.",
+      "captureIncomplete": "Es posible que falten algunos mensajes de configuración posteriores.",
+      "captureNotCollected": "No se incluyeron los mensajes de configuración guardados.",
+      "captureTruncated": "Se omitió parte de la salida capturada al alcanzar el límite de captura.",
+      "deadline": "La recopilación se detuvo al alcanzar el límite de tiempo.",
+      "incompleteRecord": "Se dejó fuera una entrada del registro sin terminar.",
+      "invalidRecord": "Se omitieron registros no válidos.",
+      "readFailed": "La fuente de diagnóstico no se pudo leer por completo; el contenido que falte es desconocido.",
+      "recordLimit": "Se omitieron algunos registros para respetar el límite de registros.",
+      "sectionLimit": "Se omitieron algunos datos para respetar el límite de tamaño de la sección.",
+      "totalLimit": "Se omitieron algunos datos para respetar el límite de tamaño del informe.",
+      "unavailable": "La fuente de diagnóstico no estaba disponible; su contenido es desconocido.",
+      "unsafeFile": "Un archivo no se pudo leer de forma segura y se omitió."
+    },
+    "savedComplete": "Informe de soporte guardado en <path/>. Solo se guardaron los diagnósticos disponibles dentro de los límites de recopilación.",
+    "savedPartial": "Informe de soporte guardado en <path/>. Algunos diagnósticos son parciales o se omitieron. Revisa los detalles de la recopilación abajo.",
+    "section": {
+      "activities": "Historial de actividad reciente",
+      "activityCapture": "Salida de la preparación",
+      "doctor": "Comprobaciones del sistema y de la biblioteca",
+      "runtimeLog": "Registro de ejecución",
+      "startup": "Diagnósticos de inicio"
+    },
+    "sectionsLabel": "Secciones del informe de soporte",
+    "sectionSummary": "{{section}}: {{status}}",
+    "status": {
+      "included": "Incluida",
+      "omitted": "Omitida",
+      "partial": "Incluida parcialmente"
+    }
+  }
+}
