@@ -71,6 +71,7 @@ export default defineConfig({
       "src/components/RecoveryReview.tsx",
       "src/components/GhostshipRecoveryReview.tsx",
       "src/components/InstallBatchPanel.tsx",
+      "src/components/AdoptionModal.tsx",
       "src/components/GameFileSetupReviews.tsx",
       "src/components/GameSettingsPanel.tsx",
       "src/components/LibraryImport.tsx",

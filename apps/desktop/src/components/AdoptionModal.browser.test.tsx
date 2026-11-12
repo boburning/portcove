@@ -378,3 +378,91 @@ it("offers only detected ports for a fresh bound copy review", async () => {
     vi.unstubAllGlobals();
   }
 });
+
+it("keeps the copy plan wording exact and presents it in the active locale", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const port = portDefinition();
+  const preview: AdoptionPreview = {
+    source: "D:/Existing",
+    detected_port_ids: [port.id],
+    selected_port_id: port.id,
+    application_files_will_be_copied: true,
+    original_will_be_modified: false,
+    copy_plan: {
+      directories: [],
+      files: [
+        { relative_path: "game.exe", sha256: "a".repeat(64), size: 1024 },
+        { relative_path: "data.pak", sha256: "b".repeat(64), size: 1024 },
+      ],
+      skipped_entries: [{ relative_path: "link", reason: "symbolic link" }],
+      total_bytes: 2048,
+    },
+    destination: {
+      output_location: {
+        port_id: port.id,
+        library_root: "D:/Library",
+        default_output_directory: "D:/Library/versions/sample",
+        configured_output_directory: null,
+        effective_output_directory: "D:/Library/versions/sample",
+        selection_source: "library_default",
+        user_data_root: "D:/Library/user/sample",
+      },
+      active_install: null,
+      imported_user_data_paths: ["saves/slot1.sav"],
+      current_user_data_files: 1,
+      current_user_data_sha256: "c".repeat(64),
+    },
+    plan_sha256: "d".repeat(64),
+  } as unknown as AdoptionPreview;
+  const paragraphs = () =>
+    [...container.ownerDocument.querySelectorAll("[aria-label] p, [role=dialog] p")].map(
+      (item) => item.textContent,
+    );
+  try {
+    await act(async () =>
+      root.render(
+        <AdoptionModal
+          path="D:/Existing"
+          setPath={vi.fn()}
+          preview={preview}
+          ports={[port]}
+          close={vi.fn()}
+          review={vi.fn()}
+          adopt={vi.fn()}
+        />,
+      ),
+    );
+    expect(paragraphs()).toContain(
+      "Application destination: D:/Library/versions/sampleA new version folder is created here and becomes active. Existing versions remain.",
+    );
+    expect(paragraphs()).toContain(
+      "Saved-data destination: D:/Library/user/sample1 existing file.",
+    );
+    expect(paragraphs()).toContain("Original folder: D:/Existing");
+    expect(document.body.textContent).toMatch(
+      /2 files · .+ will be copied into the managed library\./u,
+    );
+    expect(document.body.textContent).toContain(
+      "1 unsupported item will remain only in the original folder",
+    );
+    await act(async () => localization.changeLanguage("ar-XB"));
+    expect(document.querySelector("#adopt-title")?.textContent).toBe("نسخ تثبيت موجود");
+    expect(paragraphs()).toContain("وجهة البيانات المحفوظة: D:/Library/user/sampleملف واحد موجود.");
+    expect(document.body.textContent).toContain("عنصر واحد غير مدعوم سيبقى في المجلد الأصلي فقط");
+    expect(document.body.textContent).toMatch(/ملفان · .+ سيُنسخان إلى المكتبة المُدارة\./u);
+    expect(
+      document.querySelector("[aria-label='مسارات البيانات المحفوظة المراد استيرادها'] bdi")
+        ?.textContent,
+    ).toBe("saves/slot1.sav");
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    await localization.changeLanguage("en");
+    vi.unstubAllGlobals();
+  }
+});
