@@ -370,7 +370,11 @@ pub(crate) fn adoption_batch_preview(preview: &AdoptionBatchPreview, catalog: &C
     text
 }
 
-pub(crate) fn adoption_batch_result(result: &AdoptionBatchResult, catalog: &Catalog) -> String {
+pub(crate) fn adoption_batch_result(
+    result: &AdoptionBatchResult,
+    catalog: &Catalog,
+    labels: &std::collections::BTreeMap<std::path::PathBuf, String>,
+) -> String {
     let count = |outcome| {
         result
             .items
@@ -407,10 +411,12 @@ pub(crate) fn adoption_batch_result(result: &AdoptionBatchResult, catalog: &Cata
         .iter()
         .filter(|item| item.outcome != AdoptionBatchItemOutcome::Copied)
         .map(|item| {
-            item.source
-                .file_name()
-                .map(|name| clean(&name.to_string_lossy()))
-                .unwrap_or_default()
+            labels.get(&item.source).cloned().unwrap_or_else(|| {
+                item.source
+                    .file_name()
+                    .map(|name| name.to_string_lossy().into_owned())
+                    .unwrap_or_default()
+            })
         })
         .collect::<Vec<_>>();
     if !remaining.is_empty() {
@@ -419,7 +425,7 @@ pub(crate) fn adoption_batch_result(result: &AdoptionBatchResult, catalog: &Cata
             "\n\nNext step: review the installations that were not copied with {}.",
             remaining
                 .iter()
-                .map(|name| format!("--app \"{name}\""))
+                .map(|name| format!("--app {}", shell_quoted(name)))
                 .collect::<Vec<_>>()
                 .join(" ")
         ));

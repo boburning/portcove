@@ -2683,7 +2683,24 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 mode,
                 "launcher-library.adopt",
                 service.adopt_batch(&items, &preview, &authorization.token)?,
-                |result| human::adoption_batch_result(result, service.catalog()),
+                |result| {
+                    // Name apps as `--app` will find them: by their launcher label.
+                    let labels = inventory
+                        .entries
+                        .iter()
+                        .filter_map(|entry| {
+                            entry.install_path.clone().map(|path| {
+                                let label = if entry.name.trim().is_empty() {
+                                    entry.folder_name.clone()
+                                } else {
+                                    entry.name.clone()
+                                };
+                                (path, label)
+                            })
+                        })
+                        .collect::<std::collections::BTreeMap<_, _>>();
+                    human::adoption_batch_result(result, service.catalog(), &labels)
+                },
             )?;
         }
         Commands::Channel {
@@ -3244,6 +3261,7 @@ fn launcher_batch_items(
         let mut items = Vec::new();
         let mut left_out = Vec::new();
         let mut ports = std::collections::BTreeSet::new();
+        let mut folders = std::collections::BTreeSet::new();
         for entry in &inventory.entries {
             let Some(candidate) = item(entry) else {
                 continue;
@@ -3253,9 +3271,18 @@ fn launcher_batch_items(
             } else {
                 entry.name.clone()
             };
-            if entry.shares_folder_with.is_some() || !ports.insert(candidate.port_id.clone()) {
+            // Compare with what this batch already takes, not with every earlier
+            // entry: an unmatched earlier entry for the same folder takes nothing.
+            let folder = if cfg!(any(windows, target_os = "macos")) {
+                candidate.source.to_string_lossy().to_lowercase()
+            } else {
+                candidate.source.to_string_lossy().into_owned()
+            };
+            if ports.contains(&candidate.port_id) || folders.contains(&folder) {
                 left_out.push(label);
             } else {
+                ports.insert(candidate.port_id.clone());
+                folders.insert(folder);
                 items.push(candidate);
             }
         }
@@ -3698,6 +3725,76 @@ fn command_name(command: &Commands) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    fn launcher_inventory(entries: serde_json::Value) -> portcove_core::LauncherLibraryInventory {
+        serde_json::from_value(serde_json::json!({
+            "launcher": "quiver",
+            "format_revision": "r",
+            "data_root": "/d",
+            "library_file": "/d/apps.json",
+            "legacy_library_file": false,
+            "apps_root": "/a",
+            "apps_root_origin": "default",
+            "entries": entries,
+            "skipped_entries": [],
+            "original_will_be_modified": false,
+            "inventory_sha256": "0",
+        }))
+        .unwrap()
+    }
+
+    fn launcher_entry(
+        name: &str,
+        folder: &str,
+        status: &str,
+        port: Option<&str>,
+        shares: Option<usize>,
+    ) -> serde_json::Value {
+        serde_json::json!({
+            "index": 0, "name": name, "repository_source": "github", "repository": "o/r",
+            "folder_name": folder, "install_path": format!("/a/{folder}"),
+            "explicit_install_path": false, "status": status,
+            "candidate_port_ids": [], "detected_port_ids": [], "user_data_paths": [],
+            "hints": {"preferred_version": null, "installed_version_label": null, "selected_executable": null},
+            "mods": null, "explanation": "", "adopt_port_id": port,
+            "shares_folder_with": shares, "not_carried_over": [],
+        })
+    }
+
+    #[test]
+    fn default_launcher_batch_leaves_out_only_real_repeats() {
+        let inventory = launcher_inventory(serde_json::json!([
+            launcher_entry("Fork", "Game", "not-in-catalog", None, None),
+            // Shares a folder with an unmatched entry: still taken.
+            launcher_entry("Game", "Game", "ready-to-review", Some("game"), Some(0)),
+            launcher_entry("Nightly", "Nightly", "ready-to-review", Some("game"), None),
+            launcher_entry("Other", "Other", "ready-to-review", Some("other"), None),
+        ]));
+        let (items, left_out) = super::launcher_batch_items(&inventory, &[]).unwrap();
+        assert_eq!(
+            items
+                .iter()
+                .map(|item| item.port_id.as_str())
+                .collect::<Vec<_>>(),
+            ["game", "other"]
+        );
+        assert_eq!(left_out, ["Nightly"]);
+    }
+
+    #[test]
+    fn named_launcher_apps_ignore_duplicates_and_refuse_unready_or_unknown() {
+        let inventory = launcher_inventory(serde_json::json!([
+            launcher_entry("Game", "Game", "ready-to-review", Some("game"), None),
+            launcher_entry("Game", "Game", "duplicate", None, None),
+            launcher_entry("Gone", "Gone", "not-installed", None, None),
+        ]));
+        let (items, left_out) =
+            super::launcher_batch_items(&inventory, &["game".to_owned()]).unwrap();
+        assert_eq!(items.len(), 1);
+        assert!(left_out.is_empty());
+        assert!(super::launcher_batch_items(&inventory, &["Gone".to_owned()]).is_err());
+        assert!(super::launcher_batch_items(&inventory, &["Nope".to_owned()]).is_err());
+    }
+
     use super::parse_batch_item;
 
     #[test]

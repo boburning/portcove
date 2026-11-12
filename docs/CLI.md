@@ -1834,8 +1834,8 @@ portcove --json --non-interactive launcher-library adopt --launcher github-launc
 ```
 
 Without `--app`, the batch holds every `ready-to-review` app, leaving out one
-that repeats a folder or game already in the batch and naming it so it can be
-copied separately; an app that cannot be reviewed refuses the whole batch, so
+that repeats a folder or game already in the batch (human output names it so
+it can be copied separately with `--app`; JSON output does not list it); an app that cannot be reviewed refuses the whole batch, so
 name the others with `--app`. `--app` selects by
 launcher name or folder name (ignoring `duplicate` entries) and refuses an unknown, ambiguous or not-ready
 app. A batch holds at most 32 installations, each folder once and each game
