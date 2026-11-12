@@ -894,8 +894,23 @@ export async function installScenarios({
     let pendingGame: NativeManagedGame | undefined;
     let observationIndex = 0;
     const evidenceName = (name: string) => `acquisition-${name}-${++observationIndex}`;
-    const status = async () =>
-      required((await statuses()).find((item) => item.port_id === port.id));
+    // Timeout calibration (docs/QUALITY.md): on the hosted Windows debug build,
+    // get_statuses after the activating update exceeded the session's 15 s
+    // WebDriver script budget, which bounds the harness IPC bridge. This journey
+    // uses 60 s, reapplied after each application restart and restored at the
+    // end; product deadlines and assertions are unchanged. The slowest read is
+    // recorded so a pass under the larger budget stays visible as such.
+    const acquisitionScriptBudgetMs = 60_000;
+    const calibrateScriptBudget = () =>
+      browser.manage().setTimeouts({ script: acquisitionScriptBudgetMs });
+    let slowestStatusMs = 0;
+    const status = async () => {
+      const started = Date.now();
+      const current = required((await statuses()).find((item) => item.port_id === port.id));
+      slowestStatusMs = Math.max(slowestStatusMs, Date.now() - started);
+      observations.slowest_status_ms = slowestStatusMs;
+      return current;
+    };
     const bootstrap = async () =>
       transportValue("desktop_bootstrap_status", success(await invoke("get_bootstrap_status")));
     const visibleButton = async (label: string) => {
@@ -1107,6 +1122,7 @@ export async function installScenarios({
           }),
         ),
       );
+    await calibrateScriptBudget();
     const first = await status();
     assert.ok(first.active, "Setup must install the owned executable fixture");
     assert.equal(first.staged, null);
@@ -1231,6 +1247,7 @@ export async function installScenarios({
             inputs.push(await fileIdentity(file));
         }
       });
+      await calibrateScriptBudget();
       await rm(marker, { force: true });
       await openFixture(port, true);
       await revealDetailSection(browser, "Versions & updates");
@@ -1670,6 +1687,10 @@ export async function installScenarios({
       observations.failure_stack = primaryFailure.stack?.slice(0, 4000);
     } finally {
       for (const gate of gates) gate.release();
+      await browser
+        .manage()
+        .setTimeouts({ script: 15_000 })
+        .catch(() => undefined);
       try {
         await stopGame();
         observations.cleanup = {
