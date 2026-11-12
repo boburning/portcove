@@ -532,19 +532,34 @@ impl PortcoveService {
                 let stored = layout.package(&package.sha256, &package.native_id);
                 let present = stored.try_exists().unwrap_or(false)
                     && sha256_file(&stored).is_ok_and(|sha| sha == package.sha256);
+                let plannable = package
+                    .provider
+                    .as_ref()
+                    .and_then(|provider| plannable_provider_file(&recipe.port_id, provider));
                 let (status, detail) = if present {
                     (
                         RecipeInputStatus::Available,
-                        "its exact bytes are in the package store",
+                        "its exact bytes are in the package store".to_owned(),
                     )
-                } else if package.provider.is_some() {
+                } else if let Some((project, file)) = plannable {
                     holds.push(format!(
                         "package {} must be acquired first",
                         package.native_id
                     ));
                     (
                         RecipeInputStatus::Acquirable,
-                        "acquire it through the provider's ordinary reviewed plan",
+                        format!(
+                            "review GameBanana project {project}, file {file} with `profile provider-plan`; the recipe's label is a claim until those bytes match"
+                        ),
+                    )
+                } else if package.provider.is_some() {
+                    holds.push(format!(
+                        "package {} names a source Portcove cannot plan",
+                        package.native_id
+                    ));
+                    (
+                        RecipeInputStatus::Unavailable,
+                        "its bytes are not in the store, and its source is not a GameBanana file this game has a reviewed binding for".to_owned(),
                     )
                 } else {
                     holds.push(format!(
@@ -553,13 +568,14 @@ impl PortcoveService {
                     ));
                     (
                         RecipeInputStatus::Unavailable,
-                        "a local package: its bytes are not in the store and cannot be fetched",
+                        "a local package: its bytes are not in the store and cannot be fetched"
+                            .to_owned(),
                     )
                 };
                 RecipeInputPlan {
                     name: package.native_id.clone(),
                     status,
-                    detail: detail.into(),
+                    detail,
                 }
             })
             .collect::<Vec<_>>();
@@ -639,6 +655,10 @@ impl PortcoveService {
                     .map(|source| profile::bind_original(&original.requirement_id, source))
             })
             .collect::<Vec<_>>();
+        // A recipe's provider label is an unverified claim. The new profile keeps a
+        // provider reference only where this port already recorded one for the
+        // same bytes, so update checks never follow a label the recipe supplied.
+        let verified = self.verified_provider_refs(&port_id)?;
         let packages = plan
             .recipe
             .packages
@@ -646,7 +666,9 @@ impl PortcoveService {
             .map(|package| crate::ResolvedPackage {
                 native_id: package.native_id.clone(),
                 native_version: package.native_version.clone(),
-                provider: package.provider.clone(),
+                provider: verified
+                    .get(&(package.sha256.clone(), package.native_id.clone()))
+                    .cloned(),
                 sha256: package.sha256.clone(),
                 size: package.size,
                 enabled: package.enabled,
@@ -684,6 +706,41 @@ impl PortcoveService {
             base.loader.clone(),
         )
     }
+}
+
+impl PortcoveService {
+    /// Provider references this port recorded for package bytes it installed,
+    /// keyed by content digest and file name.
+    fn verified_provider_refs(
+        &self,
+        port_id: &str,
+    ) -> Result<BTreeMap<(String, String), ProviderPackageRef>> {
+        let mut verified = BTreeMap::new();
+        for view in self.profile_inventory(port_id)?.profiles {
+            for revision in self.profile_revisions(port_id, &view.profile.id)? {
+                for package in revision.packages {
+                    if let Some(provider) = package.provider {
+                        verified
+                            .entry((package.sha256, package.native_id))
+                            .or_insert(provider);
+                    }
+                }
+            }
+        }
+        Ok(verified)
+    }
+}
+
+/// The GameBanana project and file a recipe package names, when this game has a
+/// reviewed binding and the reference is complete enough for `provider-plan`.
+fn plannable_provider_file(port_id: &str, provider: &ProviderPackageRef) -> Option<(u64, u64)> {
+    crate::provider_install::gamebanana_game(port_id)?;
+    if provider.provider != "gamebanana" {
+        return None;
+    }
+    let project = provider.project.parse::<u64>().ok()?;
+    let file = provider.file.as_deref()?.parse::<u64>().ok()?;
+    Some((project, file))
 }
 
 fn target(plan: &RecipeImportPlan, display_name: &str) -> Result<String> {

@@ -236,8 +236,39 @@ fn missing_changed_or_foreign_inputs_hold_the_plan_and_change_nothing() {
         file: Some("2".into()),
         version: None,
     });
-    let plan = w.service.plan_recipe_import(&sealed(missing)).unwrap();
+    let plan = w
+        .service
+        .plan_recipe_import(&sealed(missing.clone()))
+        .unwrap();
     assert_eq!(plan.packages[0].status, RecipeInputStatus::Acquirable);
+    assert!(plan.packages[0].detail.contains("project 1, file 2"));
+    // Only a complete GameBanana file reference for a bound game can be planned.
+    for provider in [
+        ProviderPackageRef {
+            provider: "gamebanana".into(),
+            project: "1".into(),
+            file: None,
+            version: None,
+        },
+        ProviderPackageRef {
+            provider: "elsewhere".into(),
+            project: "1".into(),
+            file: Some("2".into()),
+            version: None,
+        },
+        ProviderPackageRef {
+            provider: "gamebanana".into(),
+            project: "../1".into(),
+            file: Some("2".into()),
+            version: None,
+        },
+    ] {
+        let mut unplannable = missing.clone();
+        unplannable.packages[0].provider = Some(provider);
+        let held = w.service.plan_recipe_import(&sealed(unplannable)).unwrap();
+        assert_eq!(held.packages[0].status, RecipeInputStatus::Unavailable);
+        assert!(!held.can_apply);
+    }
     let token = w.service.authorize_recipe_import(&plan, "x").unwrap().token;
     assert_eq!(
         w.service
@@ -356,4 +387,38 @@ fn constructed_recipes_are_held_to_the_same_rules_as_inspected_ones() {
     let mut long = recipe;
     long.runtime.artifact.asset_name = "x".repeat(300);
     assert!(ProfileRecipe::inspect(&bytes(&sealed(long))).is_err());
+}
+
+#[test]
+fn a_recipe_cannot_relabel_local_bytes_with_a_provider_source() {
+    let w = world();
+    let mut recipe = w
+        .service
+        .export_profile_recipe("starship", &w.profile, None)
+        .unwrap();
+    assert!(recipe.packages[0].provider.is_none());
+    // The bytes are present, but the recipe claims they came from a provider.
+    recipe.packages[0].provider = Some(ProviderPackageRef {
+        provider: "gamebanana".into(),
+        project: "9".into(),
+        file: Some("9".into()),
+        version: None,
+    });
+    let plan = w.service.plan_recipe_import(&sealed(recipe)).unwrap();
+    assert!(plan.can_apply, "{:?}", plan.holds);
+    let token = w
+        .service
+        .authorize_recipe_import(&plan, "Relabelled")
+        .unwrap()
+        .token;
+    let imported = w
+        .service
+        .apply_recipe_import(&plan, "Relabelled", &token)
+        .unwrap();
+    let connection = w.service.library().connection().unwrap();
+    let revision = profile::current_revision(&connection, "starship", &imported.id).unwrap();
+    assert_eq!(
+        revision.packages[0].provider, None,
+        "update checks never follow a label the recipe supplied"
+    );
 }
