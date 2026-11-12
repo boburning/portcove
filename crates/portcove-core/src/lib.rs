@@ -98,6 +98,7 @@ mod provider_update;
 mod psx;
 #[cfg(feature = "qualification-fixtures")]
 mod qualification_checkpoint;
+mod recipe;
 mod recovery;
 mod relative_file_set;
 mod release;
@@ -309,6 +310,10 @@ pub use provider_install::{PlanMember, ProviderInstallPlan};
 pub use provider_update::{ProviderUpdateObservation, ProviderUpdateState};
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;
+pub use recipe::{
+    ProfileRecipe, RECIPE_FORMAT, RecipeImportPlan, RecipeInputPlan, RecipeInputStatus,
+    RecipeOriginal, RecipePackage, RecipeRuntime,
+};
 pub use release::{
     GithubReleaseProvider, ObservationEvidence, ObservedReleaseIdentity, ObservedResolution,
     ReleaseProvider, UpstreamChannelObservation, UpstreamObservationReport,

@@ -36166,6 +36166,429 @@
     "title": "ProfileInventory",
     "type": "object"
   },
+  "profile_recipe": {
+    "$defs": {
+      "ArtifactIdentity": {
+        "properties": {
+          "asset_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_name",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "AuthenticatedDefinitionProvenance": {
+        "additionalProperties": false,
+        "description": "Authenticated metadata facts captured with a candidate. They are not a persisted replay floor.",
+        "properties": {
+          "definitions_sha256": {
+            "type": "string"
+          },
+          "definitions_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "earliest_expiration": {
+            "type": "string"
+          },
+          "index_sha256": {
+            "type": "string"
+          },
+          "root_sha256": {
+            "type": "string"
+          },
+          "root_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "snapshot_sha256": {
+            "type": "string"
+          },
+          "snapshot_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "targets_sha256": {
+            "type": "string"
+          },
+          "targets_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "timestamp_sha256": {
+            "type": "string"
+          },
+          "timestamp_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "root_version",
+          "root_sha256",
+          "timestamp_version",
+          "timestamp_sha256",
+          "snapshot_version",
+          "snapshot_sha256",
+          "targets_version",
+          "targets_sha256",
+          "definitions_version",
+          "definitions_sha256",
+          "earliest_expiration",
+          "index_sha256"
+        ],
+        "type": "object"
+      },
+      "DefinitionSelectionIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "definition_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "grant_id": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "policy_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provenance": {
+            "$ref": "#/$defs/AuthenticatedDefinitionProvenance"
+          },
+          "repository_root_sha256": {
+            "type": "string"
+          },
+          "stable_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "stable_id",
+          "definition_revision",
+          "repository_root_sha256",
+          "grant_id",
+          "policy_revision",
+          "provenance"
+        ],
+        "type": "object"
+      },
+      "LoaderContractRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "ProviderPackageRef": {
+        "additionalProperties": false,
+        "description": "A provider's own coordinates. Provider IDs never double as native loader IDs.",
+        "properties": {
+          "file": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "project"
+        ],
+        "type": "object"
+      },
+      "RecipeOriginal": {
+        "additionalProperties": false,
+        "description": "A reference to an original, by content identity only. No path, no payload.",
+        "properties": {
+          "requirement_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requirement_id",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "RecipePackage": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "native_id": {
+            "type": "string"
+          },
+          "native_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderPackageRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requires": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "native_id",
+          "native_version",
+          "provider",
+          "sha256",
+          "size",
+          "enabled",
+          "requires"
+        ],
+        "type": "object"
+      },
+      "RecipeRuntime": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DefinitionSelectionIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "installed_contract_sha256": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "artifact",
+          "runtime",
+          "definition",
+          "installed_contract_sha256",
+          "platform"
+        ],
+        "type": "object"
+      },
+      "RuntimeIdentity": {
+        "properties": {
+          "archive_root": {
+            "type": "string"
+          },
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/$defs/RuntimeOrigin"
+          },
+          "target_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "origin",
+          "artifact",
+          "archive_root",
+          "target_directory",
+          "executable"
+        ],
+        "type": "object"
+      },
+      "RuntimeOrigin": {
+        "enum": [
+          "verified_download",
+          "adopted_tree"
+        ],
+        "type": "string"
+      },
+      "TypedOrdering": {
+        "additionalProperties": false,
+        "description": "One precedence domain. A loader may need several; no universal number exists.",
+        "properties": {
+          "domain": {
+            "type": "string"
+          },
+          "native_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "domain",
+          "native_ids"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "format": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "identity_sha256": {
+        "description": "SHA-256 of the recipe's canonical content with this field empty.",
+        "type": "string"
+      },
+      "loader": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/LoaderContractRef"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "orderings": {
+        "items": {
+          "$ref": "#/$defs/TypedOrdering"
+        },
+        "type": "array"
+      },
+      "originals": {
+        "items": {
+          "$ref": "#/$defs/RecipeOriginal"
+        },
+        "type": "array"
+      },
+      "packages": {
+        "items": {
+          "$ref": "#/$defs/RecipePackage"
+        },
+        "type": "array"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "runtime": {
+        "$ref": "#/$defs/RecipeRuntime"
+      },
+      "uncaptured": {
+        "description": "Inputs this recipe cannot reproduce; always stated, never implied.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "format",
+      "port_id",
+      "runtime",
+      "loader",
+      "originals",
+      "packages",
+      "orderings",
+      "uncaptured",
+      "identity_sha256"
+    ],
+    "title": "ProfileRecipe",
+    "type": "object"
+  },
   "profile_revision": {
     "$defs": {
       "ArtifactIdentity": {
@@ -37063,6 +37486,520 @@
       "reason"
     ],
     "title": "ProviderUpdateObservation",
+    "type": "object"
+  },
+  "recipe_import_plan": {
+    "$defs": {
+      "ArtifactIdentity": {
+        "properties": {
+          "asset_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_name",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "AuthenticatedDefinitionProvenance": {
+        "additionalProperties": false,
+        "description": "Authenticated metadata facts captured with a candidate. They are not a persisted replay floor.",
+        "properties": {
+          "definitions_sha256": {
+            "type": "string"
+          },
+          "definitions_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "earliest_expiration": {
+            "type": "string"
+          },
+          "index_sha256": {
+            "type": "string"
+          },
+          "root_sha256": {
+            "type": "string"
+          },
+          "root_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "snapshot_sha256": {
+            "type": "string"
+          },
+          "snapshot_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "targets_sha256": {
+            "type": "string"
+          },
+          "targets_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "timestamp_sha256": {
+            "type": "string"
+          },
+          "timestamp_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "root_version",
+          "root_sha256",
+          "timestamp_version",
+          "timestamp_sha256",
+          "snapshot_version",
+          "snapshot_sha256",
+          "targets_version",
+          "targets_sha256",
+          "definitions_version",
+          "definitions_sha256",
+          "earliest_expiration",
+          "index_sha256"
+        ],
+        "type": "object"
+      },
+      "DefinitionSelectionIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "definition_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "grant_id": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "policy_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provenance": {
+            "$ref": "#/$defs/AuthenticatedDefinitionProvenance"
+          },
+          "repository_root_sha256": {
+            "type": "string"
+          },
+          "stable_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "stable_id",
+          "definition_revision",
+          "repository_root_sha256",
+          "grant_id",
+          "policy_revision",
+          "provenance"
+        ],
+        "type": "object"
+      },
+      "LoaderContractRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "ProfileRecipe": {
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "identity_sha256": {
+            "description": "SHA-256 of the recipe's canonical content with this field empty.",
+            "type": "string"
+          },
+          "loader": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LoaderContractRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "orderings": {
+            "items": {
+              "$ref": "#/$defs/TypedOrdering"
+            },
+            "type": "array"
+          },
+          "originals": {
+            "items": {
+              "$ref": "#/$defs/RecipeOriginal"
+            },
+            "type": "array"
+          },
+          "packages": {
+            "items": {
+              "$ref": "#/$defs/RecipePackage"
+            },
+            "type": "array"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "runtime": {
+            "$ref": "#/$defs/RecipeRuntime"
+          },
+          "uncaptured": {
+            "description": "Inputs this recipe cannot reproduce; always stated, never implied.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format",
+          "port_id",
+          "runtime",
+          "loader",
+          "originals",
+          "packages",
+          "orderings",
+          "uncaptured",
+          "identity_sha256"
+        ],
+        "type": "object"
+      },
+      "ProviderPackageRef": {
+        "additionalProperties": false,
+        "description": "A provider's own coordinates. Provider IDs never double as native loader IDs.",
+        "properties": {
+          "file": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "project"
+        ],
+        "type": "object"
+      },
+      "RecipeInputPlan": {
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/$defs/RecipeInputStatus"
+          }
+        },
+        "required": [
+          "name",
+          "status",
+          "detail"
+        ],
+        "type": "object"
+      },
+      "RecipeInputStatus": {
+        "oneOf": [
+          {
+            "const": "available",
+            "description": "Present locally with the exact identity the recipe names.",
+            "type": "string"
+          },
+          {
+            "const": "acquirable",
+            "description": "Not present; ordinary acquisition could supply it.",
+            "type": "string"
+          },
+          {
+            "const": "unavailable",
+            "description": "Present but different, or absent with no way to acquire it from the recipe.",
+            "type": "string"
+          }
+        ]
+      },
+      "RecipeOriginal": {
+        "additionalProperties": false,
+        "description": "A reference to an original, by content identity only. No path, no payload.",
+        "properties": {
+          "requirement_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requirement_id",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "RecipePackage": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "native_id": {
+            "type": "string"
+          },
+          "native_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderPackageRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requires": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "native_id",
+          "native_version",
+          "provider",
+          "sha256",
+          "size",
+          "enabled",
+          "requires"
+        ],
+        "type": "object"
+      },
+      "RecipeRuntime": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DefinitionSelectionIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "installed_contract_sha256": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "artifact",
+          "runtime",
+          "definition",
+          "installed_contract_sha256",
+          "platform"
+        ],
+        "type": "object"
+      },
+      "RuntimeIdentity": {
+        "properties": {
+          "archive_root": {
+            "type": "string"
+          },
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/$defs/RuntimeOrigin"
+          },
+          "target_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "origin",
+          "artifact",
+          "archive_root",
+          "target_directory",
+          "executable"
+        ],
+        "type": "object"
+      },
+      "RuntimeOrigin": {
+        "enum": [
+          "verified_download",
+          "adopted_tree"
+        ],
+        "type": "string"
+      },
+      "TypedOrdering": {
+        "additionalProperties": false,
+        "description": "One precedence domain. A loader may need several; no universal number exists.",
+        "properties": {
+          "domain": {
+            "type": "string"
+          },
+          "native_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "domain",
+          "native_ids"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "can_apply": {
+        "type": "boolean"
+      },
+      "holds": {
+        "description": "Why applying is not possible yet; empty when every input is present.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "install_id": {
+        "description": "The exact installation the new profile would bind, when one matches.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "originals": {
+        "items": {
+          "$ref": "#/$defs/RecipeInputPlan"
+        },
+        "type": "array"
+      },
+      "packages": {
+        "items": {
+          "$ref": "#/$defs/RecipeInputPlan"
+        },
+        "type": "array"
+      },
+      "plan_sha256": {
+        "type": "string"
+      },
+      "recipe": {
+        "$ref": "#/$defs/ProfileRecipe"
+      },
+      "runtime": {
+        "$ref": "#/$defs/RecipeInputPlan"
+      }
+    },
+    "required": [
+      "recipe",
+      "runtime",
+      "install_id",
+      "originals",
+      "packages",
+      "holds",
+      "can_apply",
+      "plan_sha256"
+    ],
+    "title": "RecipeImportPlan",
     "type": "object"
   },
   "recommendation_metadata": {
