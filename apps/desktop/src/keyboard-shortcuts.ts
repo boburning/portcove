@@ -8,6 +8,8 @@ export type KeyboardShortcutAction = "toggle-palette" | "close-palette" | "focus
 
 /** Keyboard key names stay literal; see docs/LOCALIZATION.md. */
 export const escapeKeyName = "Esc";
+export const arrowKeysName = "Arrow keys";
+export const enterKeyName = "Enter";
 
 export function commandShortcut(key: string, platform = globalThis.navigator?.platform ?? "") {
   return `${/Mac/i.test(platform) ? "Command" : "Ctrl"} ${key}`;
