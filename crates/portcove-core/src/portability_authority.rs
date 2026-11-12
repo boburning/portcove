@@ -287,7 +287,9 @@ fn credential_entry() -> Result<keyring::Entry> {
 
 #[cfg(not(test))]
 fn credential_error(action: &str, error: keyring::Error) -> PortcoveError {
-    crate::credential_store::store_error("portability authority", action, error)
+    // Import and move reach this key after copying files, so the transfer
+    // journal keeps owning the mutation state.
+    crate::credential_store::store_error("portability authority", action, error, false)
 }
 
 #[cfg(test)]

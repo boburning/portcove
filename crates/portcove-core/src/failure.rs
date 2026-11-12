@@ -238,11 +238,11 @@ impl KnownFailureCause {
             }
             Self::CredentialStoreUnavailable => (
                 "credential_store_unavailable",
-                "This device has no secure credential storage that Portcove can use, so saved keys and sign-ins can't be read or saved. Nothing was changed. On Linux, sign in to a desktop session where a keyring service such as GNOME Keyring or KWallet is running, then try again.",
+                "This device has no secure credential storage that Portcove can use, so Portcove can't read or save the credential this task needs. On Linux, sign in to a desktop session where a keyring service such as GNOME Keyring or KWallet is running, then try again.",
             ),
             Self::CredentialStoreLocked => (
                 "credential_store_locked",
-                "Secure credential storage on this device is locked or refused access. Nothing was changed. Unlock it, for example your login keyring, then try again.",
+                "Secure credential storage on this device is locked or refused access, so Portcove can't read or save the credential this task needs. Unlock it or allow access, for example to your login keyring or keychain, then try again.",
             ),
             Self::CatalogValidity => (
                 "catalog_validity_rejected",
@@ -668,10 +668,23 @@ impl PortcoveError {
             _ => None,
         };
         let mut recovery_actions = self.failure.recovery_actions.clone();
+        // A credential store that could not be used before anything changed has
+        // a device step in its summary; there is no operation state to review.
+        let nothing_to_review = self.failure.mutation_state == MutationState::NoChanges
+            && matches!(
+                self.failure.known_cause,
+                Some(
+                    KnownFailureCause::CredentialStoreUnavailable
+                        | KnownFailureCause::CredentialStoreLocked
+                )
+            );
         for action in [
             RecoveryAction::ReviewCurrentState,
             RecoveryAction::ViewTechnicalDetails,
         ] {
+            if action == RecoveryAction::ReviewCurrentState && nothing_to_review {
+                continue;
+            }
             if !recovery_actions.contains(&action) {
                 recovery_actions.push(action);
             }
