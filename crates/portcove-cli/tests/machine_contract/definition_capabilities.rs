@@ -192,6 +192,7 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     }
     let staged_versions = [
         2, 3, 4, 5, 8, 10, 11, 12, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+        31,
     ];
     for version in staged_versions {
         assert!(expected.insert(("staged-source-portable", version)));
@@ -257,12 +258,13 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         (28, true, 28),
         (29, true, 29),
         (30, true, 30),
-        (31, false, 30),
-        (6, false, 30),
-        (7, false, 30),
-        (9, false, 30),
-        (13, false, 30),
-        (14, false, 30),
+        (31, true, 31),
+        (32, false, 31),
+        (6, false, 31),
+        (7, false, 31),
+        (9, false, 31),
+        (13, false, 31),
+        (14, false, 31),
     ] {
         std::fs::write(&requirements, serde_json::to_vec(&json!({
             "capability_contract_schema": 1,

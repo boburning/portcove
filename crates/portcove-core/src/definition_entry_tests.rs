@@ -852,8 +852,8 @@ fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old
         entry["required_capabilities"][0]["minimum_version"] = json!(26);
         entry["required_capabilities"][0]["maximum_version"] = json!(26);
         assert!(inspect(&entry).unwrap().capabilities().compatible);
-        entry["required_capabilities"][0]["minimum_version"] = json!(31);
-        entry["required_capabilities"][0]["maximum_version"] = json!(31);
+        entry["required_capabilities"][0]["minimum_version"] = json!(32);
+        entry["required_capabilities"][0]["maximum_version"] = json!(32);
         assert!(!inspect(&entry).unwrap().capabilities().compatible);
         let old = packet["rows"]
             .as_array()
@@ -1229,6 +1229,24 @@ fn disc_image_unpacking_entries_require_staged_source_version_30() {
 }
 
 #[test]
+fn an_optional_game_source_requires_staged_source_version_31() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut entry = entry_for_port(catalog.port("nocturne-recomp").unwrap());
+    entry["port"]["optional_game_source"] = json!(true);
+    for version in [15, 30] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(version);
+        entry["required_capabilities"][0]["maximum_version"] = json!(version);
+        assert!(
+            inspect(&entry).unwrap_err().message.contains("version 31"),
+            "v{version}"
+        );
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(31);
+    entry["required_capabilities"][0]["maximum_version"] = json!(31);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+}
+
+#[test]
 fn managed_shared_preferences_require_a_window_excluding_older_readers() {
     let catalog = crate::test_fixture::historical_managed_policy_catalog();
     let mut entry = entry_for_port(catalog.port("resident-evil-gaiden-recomp").unwrap());
@@ -1293,7 +1311,12 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if port.linux_portable_data_directory.is_some() {
+        let version = if port.optional_game_source {
+            // An optional game source needs staged-source capability version 31. Keep this
+            // branch first: a later capability chain that matched earlier would silently
+            // skip the requirement.
+            31
+        } else if port.linux_portable_data_directory.is_some() {
             crate::native_portable_data::NATIVE_CAPABILITY
         } else if !port.release.tar_xz_platforms.is_empty() {
             if port.adapter == crate::AdapterKind::NativePortable {

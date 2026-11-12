@@ -1455,7 +1455,11 @@ function RequirementsSummary({
           key={requirement.role}
         >
           <small className="mb-[5px] block text-[var(--color-text-muted)]">
-            {requirement.role === "bios" ? "Required BIOS" : "Required game files"}
+            {requirement.role === "bios"
+              ? "Required BIOS"
+              : port.optional_game_source
+                ? "Optional game files"
+                : "Required game files"}
           </small>
           {requirement.label}
           <small className="mb-[5px] block text-[var(--color-text-muted)]">
@@ -1622,7 +1626,8 @@ function detailReadiness(
   const readiness = status?.readiness;
   const sourceReady = detailInputReady({
     kind: "source",
-    required: Boolean(port.source_profile),
+    // An optional source is never required; a registered one that changed still blocks.
+    required: Boolean(port.source_profile) && !port.optional_game_source,
     installed,
     readiness,
     registered: Boolean(source),

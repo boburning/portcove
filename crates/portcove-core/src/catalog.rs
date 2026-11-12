@@ -1497,6 +1497,18 @@ impl Catalog {
                     port.id
                 )));
             }
+            // An optional source is only meaningful where an unregistered source leaves a
+            // usable runtime: a staged disc-image port whose unpacking is the only use of it.
+            if port.optional_game_source
+                && (port.adapter != AdapterKind::StagedSourcePortable
+                    || port.source_profile.is_none()
+                    || port.runtime_disc_image.is_none())
+            {
+                return Err(PortcoveError::usage(format!(
+                    "{} declares an optional game source without a staged disc-image source",
+                    port.id
+                )));
+            }
             match port.runtime_source_materialization {
                 Some(materialization) if materialization.disc_image_format().is_some() => {
                     let image_valid = port.runtime_disc_image.as_ref().is_some_and(|image| {
@@ -5077,6 +5089,49 @@ mod tests {
                 error.message
             );
         }
+    }
+
+    #[test]
+    fn an_optional_game_source_requires_a_staged_disc_image_source() {
+        disc_image_catalog(|port| port.optional_game_source = true)
+            .expect("an optional source on a staged disc-image port is valid");
+        type Mutation = fn(&mut PortDefinition);
+        let rejected: [(&str, Mutation); 3] = [
+            ("non-staged adapter", |port| {
+                port.optional_game_source = true;
+                port.adapter = AdapterKind::NativePortable;
+            }),
+            ("no source profile", |port| {
+                port.optional_game_source = true;
+                port.source_profile = None;
+            }),
+            ("no disc image", |port| {
+                port.optional_game_source = true;
+                port.runtime_disc_image = None;
+            }),
+        ];
+        for (label, mutate) in rejected {
+            // Rejected by this check or by an earlier consistency check; either way refused.
+            assert!(
+                disc_image_catalog(mutate).is_err(),
+                "{label} must be rejected"
+            );
+        }
+        // The flag on an ordinary port (no disc image at all) is refused for that reason.
+        let mut document = Catalog::embedded().unwrap().document().clone();
+        document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "nocturne-recomp")
+            .unwrap()
+            .optional_game_source = true;
+        let error = Catalog::from_document(document).err().expect("rejected");
+        assert_eq!(error.code, crate::ErrorCode::Usage);
+        assert!(
+            error.message.contains("optional game source"),
+            "{}",
+            error.message
+        );
     }
 
     #[test]

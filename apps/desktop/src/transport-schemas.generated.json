@@ -5985,6 +5985,10 @@
           "name": {
             "type": "string"
           },
+          "optional_game_source": {
+            "description": "A disc-image source that is offered but not required: with none registered the\ngame is not blocked and the runtime and its persistent files are left as they are;\nwhen one is registered it is unpacked as for a required source. Only valid with a\ndisc-image materialization.",
+            "type": "boolean"
+          },
           "persistent_file_patterns": {
             "default": [],
             "items": {
@@ -15054,6 +15058,10 @@
           "label": {
             "type": "string"
           },
+          "optional": {
+            "description": "The definition offers this source but does not require it; an unregistered\noptional source never blocks installing, updating or launching.",
+            "type": "boolean"
+          },
           "profile_id": {
             "type": "string"
           },
@@ -16370,6 +16378,10 @@
         "properties": {
           "label": {
             "type": "string"
+          },
+          "optional": {
+            "description": "The definition offers this source but does not require it; an unregistered\noptional source never blocks installing, updating or launching.",
+            "type": "boolean"
           },
           "profile_id": {
             "type": "string"
@@ -18018,6 +18030,10 @@
         "properties": {
           "label": {
             "type": "string"
+          },
+          "optional": {
+            "description": "The definition offers this source but does not require it; an unregistered\noptional source never blocks installing, updating or launching.",
+            "type": "boolean"
           },
           "profile_id": {
             "type": "string"
@@ -26884,6 +26900,10 @@
           "label": {
             "type": "string"
           },
+          "optional": {
+            "description": "The definition offers this source but does not require it; an unregistered\noptional source never blocks installing, updating or launching.",
+            "type": "boolean"
+          },
           "profile_id": {
             "type": "string"
           },
@@ -32476,6 +32496,10 @@
       },
       "name": {
         "type": "string"
+      },
+      "optional_game_source": {
+        "description": "A disc-image source that is offered but not required: with none registered the\ngame is not blocked and the runtime and its persistent files are left as they are;\nwhen one is registered it is unpacked as for a required source. Only valid with a\ndisc-image materialization.",
+        "type": "boolean"
       },
       "persistent_file_patterns": {
         "default": [],
@@ -45229,6 +45253,10 @@
           },
           "name": {
             "type": "string"
+          },
+          "optional_game_source": {
+            "description": "A disc-image source that is offered but not required: with none registered the\ngame is not blocked and the runtime and its persistent files are left as they are;\nwhen one is registered it is unpacked as for a required source. Only valid with a\ndisc-image materialization.",
+            "type": "boolean"
           },
           "persistent_file_patterns": {
             "default": [],
