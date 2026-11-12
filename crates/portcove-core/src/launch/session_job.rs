@@ -51,8 +51,8 @@ use windows_sys::Win32::{
         JobObjects::{
             AssignProcessToJobObject, CreateJobObjectW, IsProcessInJob,
             JOB_OBJECT_LIMIT_BREAKAWAY_OK, JOBOBJECT_BASIC_ACCOUNTING_INFORMATION,
-            JOBOBJECT_BASIC_LIMIT_INFORMATION, JobObjectBasicAccountingInformation,
-            JobObjectBasicLimitInformation, JobObjectBasicProcessIdList, OpenJobObjectW,
+            JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JobObjectBasicAccountingInformation,
+            JobObjectBasicProcessIdList, JobObjectExtendedLimitInformation, OpenJobObjectW,
             QueryInformationJobObject, SetInformationJobObject,
         },
         Threading::{
@@ -114,15 +114,15 @@ impl SessionJob {
                 "another object already uses this launch session's process job name",
             ));
         }
-        let limits = JOBOBJECT_BASIC_LIMIT_INFORMATION {
-            LimitFlags: JOB_OBJECT_LIMIT_BREAKAWAY_OK,
-            ..Default::default()
-        };
+        // Breakaway is an extended limit: the basic information class refuses
+        // it with ERROR_INVALID_PARAMETER.
+        let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_BREAKAWAY_OK;
         // SAFETY: the live job handle and a correctly sized limit structure.
         if unsafe {
             SetInformationJobObject(
                 job.as_raw_handle(),
-                JobObjectBasicLimitInformation,
+                JobObjectExtendedLimitInformation,
                 (&raw const limits).cast(),
                 std::mem::size_of_val(&limits) as u32,
             )
