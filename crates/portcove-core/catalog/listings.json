@@ -11239,7 +11239,7 @@
           },
           {
             "title": "Supply the matching original files",
-            "instruction": "Select your own Vib-Ribbon (Europe) (En,Fr,De,Es,It).cue (SCES-02873) with all 8 referenced BIN tracks. The current stable kit requires your own 524,288-byte SCPH-5552 (Europe) retail BIOS with SHA-256 1faaa18fa820a0225e488d9f086296b8e6c46df739666093987ff7d8fd352c09."
+            "instruction": "Select your own Vib-Ribbon (Europe) (En,Fr,De,Es,It).cue (SCES-02873) with all 8 referenced BIN tracks. The v0.1.2 kit requires your own 524,288-byte SCPH-5552 (Europe) retail BIOS with SHA-256 1faaa18fa820a0225e488d9f086296b8e6c46df739666093987ff7d8fd352c09."
           },
           {
             "title": "Build and add the completed player",
@@ -11254,7 +11254,7 @@
         "references": [
           {
             "title": "Check Linux and Mac prerequisites",
-            "instruction": "Check the release notes for the kit’s Python version, macOS minimum and required libraries before starting setup. The current Mac kits require Homebrew’s OpenSSL, FreeType and HarfBuzz libraries."
+            "instruction": "Check the release notes for the kit’s Python version, macOS minimum and required libraries before starting setup. The v0.1.2 kits need Python 3.10 or newer on Linux and Mac. The Mac setup uses Apple clang 15 and needs Homebrew’s OpenSSL, FreeType and HarfBuzz libraries."
           },
           {
             "title": "Keep your working copy and data",
@@ -11548,7 +11548,7 @@
           },
           {
             "title": "Supply the matching original files",
-            "instruction": "Select your own Wipeout XL (USA).cue (SCUS-94351) with all 12 referenced BIN tracks. The current stable kit requires your own 524,288-byte SCPH-1001 (USA) retail BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3."
+            "instruction": "Select your own Wipeout XL (USA).cue (SCUS-94351) with all 12 referenced BIN tracks. The v0.1.2 kit requires your own 524,288-byte SCPH-1001 (USA) retail BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3."
           },
           {
             "title": "Build and add the completed player",
@@ -11563,7 +11563,7 @@
         "references": [
           {
             "title": "Check Linux and Mac prerequisites",
-            "instruction": "Check the release notes for the kit’s Python version, macOS minimum and required libraries before starting setup. The current Mac kits require Homebrew’s OpenSSL, FreeType and HarfBuzz libraries."
+            "instruction": "Check the release notes for the kit’s Python version, macOS minimum and required libraries before starting setup. The v0.1.2 kits need Python 3.10 or newer on Linux and Mac. The Mac setup uses Apple clang 15 and needs Homebrew’s OpenSSL, FreeType and HarfBuzz libraries."
           },
           {
             "title": "Keep your working copy and data",
