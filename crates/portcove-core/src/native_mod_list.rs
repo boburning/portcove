@@ -54,6 +54,41 @@ pub(crate) fn contract(port_id: &str) -> Option<NativeListContract> {
     }
 }
 
+/// Which native list a reviewed loader keeps its enabled mods and order in.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum LoaderList {
+    /// libultraship's `|`-separated CVar, named by file name without extension.
+    Ship(NativeListContract),
+    /// The Recomp runtime's `mods.json`, named by manifest mod ID. Portcove stores
+    /// and deploys each package as `<mod ID>.nrm`, so the file name without its
+    /// extension is the runtime's identity here too.
+    Recomp,
+}
+
+/// The Recomp game ID a reviewed port's runtime loads mods for.
+pub(crate) fn recomp_game(port_id: &str) -> Option<&'static str> {
+    match port_id {
+        "zelda64-recomp" => Some("mm"),
+        _ => None,
+    }
+}
+
+/// Mods the runtime builds into its executable for a game (Zelda64Recomp
+/// `54950a10`, `CMakeLists.txt`); a dependency on one needs no package.
+pub(crate) fn recomp_builtins(game: &str) -> &'static [&'static str] {
+    match game {
+        "mm" => &["mm_recomp_dpad_builtin"],
+        _ => &[],
+    }
+}
+
+pub(crate) fn loader_list(port_id: &str) -> Option<LoaderList> {
+    if let Some(contract) = contract(port_id) {
+        return Some(LoaderList::Ship(contract));
+    }
+    recomp_game(port_id).map(|_| LoaderList::Recomp)
+}
+
 /// The loader's identity for a package file: its name without the last extension.
 pub(crate) fn native_name(file_name: &str) -> &str {
     file_name

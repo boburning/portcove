@@ -4268,6 +4268,12 @@ export interface OutputModSetupsView {
    * None until the installed game has its default setup.
    */
   inventory: ProfileInventory | null;
+  /**
+   * True when reviewed loader source shows that the later of two mods changing
+   * the same asset wins. False when the order is kept but which mod wins is not
+   * established.
+   */
+  later_mods_take_priority: boolean;
   live: LiveMods | null;
   /**
    * Package file types the game loads, such as `o2r`.

@@ -860,3 +860,352 @@ fn an_unavailable_pinned_build_holds_the_launch_instead_of_substituting_latest()
     assert_eq!(error.code, crate::ErrorCode::Conflict);
     assert!(error.message.contains("no other build was substituted"));
 }
+
+const RECOMP: &str = "zelda64-recomp";
+
+struct RecompWorld {
+    _temporary: tempfile::TempDir,
+    scratch: PathBuf,
+    service: PortcoveService,
+    default: String,
+}
+
+fn recomp_world() -> RecompWorld {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    crate::retained_build::tests::install_port(&library, RECOMP, "first", b"recomp runtime", true);
+    let service = PortcoveService::new_read_only(library).unwrap();
+    let scratch = temporary.path().join("scratch");
+    fs::create_dir_all(&scratch).unwrap();
+    let default = service.ensure_default_profile(RECOMP).unwrap().id;
+    RecompWorld {
+        _temporary: temporary,
+        scratch,
+        service,
+        default,
+    }
+}
+
+fn manifest(id: &str, dependencies: &[&str]) -> Vec<u8> {
+    serde_json::to_vec(&serde_json::json!({
+        "game_id": "mm", "id": id, "display_name": id, "version": "1.0.0",
+        "authors": ["someone"], "minimum_recomp_version": "1.2.0",
+        "dependencies": dependencies,
+    }))
+    .unwrap()
+}
+
+impl RecompWorld {
+    fn user(&self) -> PathBuf {
+        self.service.library().user_dir(RECOMP)
+    }
+
+    fn nrm(&self, file: &str, id: &str, dependencies: &[&str], extra: &[(&str, &[u8])]) -> PathBuf {
+        let manifest = manifest(id, dependencies);
+        let mut entries = vec![
+            ("mod.json", manifest.as_slice()),
+            ("textures/a.png", b"png"),
+        ];
+        entries.extend_from_slice(extra);
+        archive(&self.scratch, file, &entries)
+    }
+
+    fn install(&self, file: &str, id: &str, dependencies: &[&str]) -> Result<ProfileRevision> {
+        let package = self.nrm(file, id, dependencies, &[]);
+        let current = self.revision();
+        self.service
+            .install_mod_package(RECOMP, &self.default, &package, current)
+    }
+
+    fn revision(&self) -> u64 {
+        self.service
+            .profile_inventory(RECOMP)
+            .unwrap()
+            .profiles
+            .into_iter()
+            .find(|view| view.profile.id == self.default)
+            .unwrap()
+            .profile
+            .current_revision
+    }
+
+    fn list(&self) -> serde_json::Value {
+        serde_json::from_slice(&fs::read(self.user().join("mods.json")).unwrap()).unwrap()
+    }
+
+    fn live(&self) -> Vec<String> {
+        let mut names = fs::read_dir(self.user().join("mods"))
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        names.sort();
+        names
+    }
+
+    fn status(&self) -> NativeModListStatus {
+        self.service.observe_live_mods(RECOMP).unwrap().native_list
+    }
+}
+
+#[test]
+fn recomp_asset_mods_are_named_by_manifest_id_and_listed_in_mods_json() {
+    let w = recomp_world();
+    let first = w
+        .install(
+            "Downloaded Pack (1).nrm",
+            "hd_textures",
+            &["mm_recomp_dpad_builtin:1.0.0"],
+        )
+        .unwrap();
+    assert_eq!(first.packages[0].native_id, "hd_textures.nrm");
+    assert_eq!(first.packages[0].native_version.as_deref(), Some("1.0.0"));
+    assert!(
+        first.packages[0].requires.is_empty(),
+        "built-ins need no package"
+    );
+    w.install("ui.nrm", "better_ui", &[]).unwrap();
+    assert_eq!(w.live(), ["better_ui.nrm", "hd_textures.nrm"]);
+    assert_eq!(
+        w.list(),
+        serde_json::json!({
+            "enabled_mods": ["hd_textures", "better_ui"],
+            "mod_order": ["hd_textures", "better_ui"],
+        })
+    );
+    assert_eq!(w.status(), NativeModListStatus::InSync);
+    let view = w.service.mod_setups(RECOMP).unwrap();
+    assert_eq!(view.package_types, ["nrm"]);
+    assert!(
+        !view.later_mods_take_priority,
+        "which mod wins is not established"
+    );
+
+    // Turning a mod off removes its file and its entries, so the runtime cannot
+    // re-enable it.
+    w.service
+        .set_mod_package_enabled(RECOMP, &w.default, "hd_textures.nrm", false, w.revision())
+        .unwrap();
+    assert_eq!(w.live(), ["better_ui.nrm"]);
+    assert_eq!(w.list()["enabled_mods"], serde_json::json!(["better_ui"]));
+    assert_eq!(w.list()["mod_order"], serde_json::json!(["better_ui"]));
+}
+
+#[test]
+fn recomp_mods_that_run_code_or_belong_to_another_game_are_refused() {
+    let w = recomp_world();
+    let code = w.nrm(
+        "code.nrm",
+        "speedrun_timer",
+        &[],
+        &[("mod_binary.bin", b"\0"), ("mod_syms.bin", b"\0")],
+    );
+    let error = w
+        .service
+        .install_mod_package(RECOMP, &w.default, &code, 1)
+        .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Unsupported);
+    assert!(error.message.contains("runs its own code"));
+    let other = archive(
+        &w.scratch,
+        "other.nrm",
+        &[(
+            "mod.json",
+            br#"{"game_id":"oot","id":"x","display_name":"X","version":"1.0.0",
+                "authors":["a"],"minimum_recomp_version":"1.0.0"}"#,
+        )],
+    );
+    let error = w
+        .service
+        .install_mod_package(RECOMP, &w.default, &other, 1)
+        .unwrap_err();
+    assert!(error.message.contains("different game"));
+    assert_eq!(w.revision(), 1, "nothing was recorded");
+    assert!(!w.user().join("mods.json").exists());
+}
+
+#[test]
+fn recomp_dependencies_must_be_installed_and_stay_on() {
+    let w = recomp_world();
+    let missing = w
+        .install("addon.nrm", "addon", &["base_pack:1.0.0"])
+        .unwrap_err();
+    assert_eq!(missing.code, crate::ErrorCode::Conflict);
+    assert_eq!(w.revision(), 1);
+    w.install("base.nrm", "base_pack", &[]).unwrap();
+    let added = w
+        .install("addon.nrm", "addon", &["base_pack:1.0.0"])
+        .unwrap();
+    assert_eq!(added.packages[0].requires, ["base_pack.nrm"]);
+    let refused = w
+        .service
+        .set_mod_package_enabled(RECOMP, &w.default, "base_pack.nrm", false, w.revision())
+        .unwrap_err();
+    assert_eq!(refused.code, crate::ErrorCode::Conflict);
+    assert!(refused.message.contains("turn that one on first"));
+    assert_eq!(w.live(), ["addon.nrm", "base_pack.nrm"]);
+    // Turning the dependent mod off first is allowed.
+    w.service
+        .set_mod_package_enabled(RECOMP, &w.default, "addon.nrm", false, w.revision())
+        .unwrap();
+    w.service
+        .set_mod_package_enabled(RECOMP, &w.default, "base_pack.nrm", false, w.revision())
+        .unwrap();
+}
+
+#[test]
+fn recomp_menu_changes_are_adopted_or_restored_and_player_entries_kept() {
+    let w = recomp_world();
+    w.install("a.nrm", "alpha", &[]).unwrap();
+    w.install("b.nrm", "beta", &[]).unwrap();
+    // The player reorders in the runtime's menu and keeps the built-in off.
+    fs::write(
+        w.user().join("mods.json"),
+        br#"{"enabled_mods":["beta","alpha","own_mod"],
+            "mod_order":["mm_recomp_dpad_builtin","beta","own_mod","alpha"],
+            "future":{"kept":true}}"#,
+    )
+    .unwrap();
+    assert_eq!(
+        w.status(),
+        NativeModListStatus::Reordered {
+            native_order: vec!["beta".into(), "alpha".into()]
+        }
+    );
+    let shown = w.revision();
+    let _guard = w.service.library().try_lock_port(RECOMP, "test").unwrap();
+    w.service.adopt_native_mod_order_locked(RECOMP).unwrap();
+    drop(_guard);
+    assert_eq!(w.revision(), shown + 1, "the reorder became a revision");
+    assert_eq!(w.status(), NativeModListStatus::InSync);
+
+    // Disabling a managed mod in the menu is reported, then restored on the next
+    // change, while the player's own entries keep their place and state.
+    fs::write(
+        w.user().join("mods.json"),
+        br#"{"enabled_mods":["beta","own_mod"],
+            "mod_order":["mm_recomp_dpad_builtin","beta","own_mod","alpha"],
+            "future":{"kept":true}}"#,
+    )
+    .unwrap();
+    assert_eq!(
+        w.status(),
+        NativeModListStatus::Differs {
+            missing: vec!["alpha".into()],
+            unexpected: Vec::new(),
+        }
+    );
+    w.install("c.nrm", "gamma", &[]).unwrap();
+    let list = w.list();
+    assert_eq!(
+        list["mod_order"],
+        serde_json::json!([
+            "mm_recomp_dpad_builtin",
+            "beta",
+            "own_mod",
+            "alpha",
+            "gamma"
+        ])
+    );
+    assert_eq!(
+        list["enabled_mods"],
+        serde_json::json!(["own_mod", "beta", "alpha", "gamma"])
+    );
+    assert_eq!(list["future"]["kept"], true);
+    assert_eq!(w.status(), NativeModListStatus::InSync);
+}
+
+#[test]
+fn recomp_switching_profiles_swaps_mods_and_their_list_and_keeps_progress() {
+    let w = recomp_world();
+    w.install("a.nrm", "alpha", &[]).unwrap();
+    fs::create_dir_all(w.user().join("saves")).unwrap();
+    fs::write(w.user().join("saves/file1.bin"), b"modded progress").unwrap();
+    let clean = w.service.copy_profile(RECOMP, &w.default, "Clean").unwrap();
+    let request = crate::ProfileRevisionRequest {
+        expected_revision: clean.current_revision,
+        packages: Some(Vec::new()),
+        orderings: Some(Vec::new()),
+        ..Default::default()
+    };
+    w.service
+        .create_profile_revision(RECOMP, &clean.id, &request)
+        .unwrap();
+    w.service.activate_profile(RECOMP, &clean.id).unwrap();
+    assert!(w.live().is_empty());
+    assert!(!w.user().join("saves/file1.bin").exists());
+    assert_eq!(
+        w.service.observe_live_mods(RECOMP).unwrap().native_list,
+        NativeModListStatus::InSync
+    );
+    assert_eq!(w.list()["enabled_mods"], serde_json::json!([]));
+    fs::create_dir_all(w.user().join("saves")).unwrap();
+    fs::write(w.user().join("saves/file1.bin"), b"clean progress").unwrap();
+
+    w.service.activate_profile(RECOMP, &w.default).unwrap();
+    assert_eq!(w.live(), ["alpha.nrm"]);
+    assert_eq!(w.list()["enabled_mods"], serde_json::json!(["alpha"]));
+    assert_eq!(
+        fs::read(w.user().join("saves/file1.bin")).unwrap(),
+        b"modded progress"
+    );
+    w.service.activate_profile(RECOMP, &clean.id).unwrap();
+    assert_eq!(
+        fs::read(w.user().join("saves/file1.bin")).unwrap(),
+        b"clean progress",
+        "each setup keeps its own newer progress"
+    );
+}
+
+#[test]
+fn recomp_self_runtime_and_unusable_ids_are_handled_before_anything_is_stored() {
+    let w = recomp_world();
+    // `.` and `*` name the mod itself and the runtime: version floors, not packages.
+    let floors = w
+        .install("floors.nrm", "floors", &[".:1.0.0", "*:1.2.0"])
+        .unwrap();
+    assert!(floors.packages[0].requires.is_empty());
+
+    let store = Layout::for_user(&w.user()).store();
+    let stored = || {
+        walk(&store)
+            .into_iter()
+            .filter(|path| path.extension().is_some_and(|ext| ext == "nrm"))
+            .count()
+    };
+    let before = stored();
+    for id in ["NUL", &"x".repeat(200)] {
+        let error = w.install("bad.nrm", id, &[]).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Unsupported, "{id}");
+        assert!(error.message.contains("cannot be used as a file name"));
+    }
+    assert_eq!(stored(), before, "nothing was stored for refused IDs");
+
+    // The runtime knows a mod by its ID: the same ID under another file name
+    // replaces the installed package instead of adding a second one.
+    let renamed = w.install("floors (copy).nrm", "floors", &[]).unwrap();
+    assert_eq!(renamed.packages.len(), 1);
+    assert_eq!(w.live(), ["floors.nrm"]);
+
+    let missing = w.install("addon.nrm", "addon", &["base_pack"]).unwrap_err();
+    assert!(
+        missing
+            .message
+            .contains("not installed; install that one first")
+    );
+}
+
+fn walk(root: &Path) -> Vec<PathBuf> {
+    let mut found = Vec::new();
+    let Ok(entries) = fs::read_dir(root) else {
+        return found;
+    };
+    for entry in entries {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            found.extend(walk(&path));
+        } else {
+            found.push(path);
+        }
+    }
+    found
+}

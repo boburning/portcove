@@ -240,7 +240,9 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                 </ul>
               )}
               <p className="text-sm text-pc-muted-foreground">
-                Later mods in this list take priority when two mods change the same thing.
+                {view.later_mods_take_priority
+                  ? "Later mods in this list take priority when two mods change the same thing."
+                  : "The game loads mods in this order."}
               </p>
               <ActionRow>
                 <Button
