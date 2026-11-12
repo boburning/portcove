@@ -461,9 +461,7 @@ fn credential_entry() -> Result<keyring::Entry> {
 }
 
 fn credential_error(action: &str, error: keyring::Error) -> PortcoveError {
-    PortcoveError::state(format!(
-        "could not {action} the SteamGridDB key in operating-system secure storage: {error}"
-    ))
+    crate::credential_store::store_error("SteamGridDB key", action, error)
 }
 
 struct HttpTransport;

@@ -150,6 +150,10 @@ fn socket_unreachable(error: &(dyn std::error::Error + 'static)) -> bool {
 /// Facts attached at the refusing domain branch, never recovered from diagnostics.
 #[derive(Debug)]
 pub(crate) enum KnownFailureCause {
+    /// No operating-system secure credential store is available on this host.
+    CredentialStoreUnavailable,
+    /// The secure credential store exists but is locked or refused access.
+    CredentialStoreLocked,
     HostLocalCredential {
         path: std::path::PathBuf,
     },
@@ -232,6 +236,14 @@ impl KnownFailureCause {
                     ),
                 );
             }
+            Self::CredentialStoreUnavailable => (
+                "credential_store_unavailable",
+                "This device has no secure credential storage that Portcove can use, so saved keys and sign-ins can't be read or saved. Nothing was changed. On Linux, sign in to a desktop session where a keyring service such as GNOME Keyring or KWallet is running, then try again.",
+            ),
+            Self::CredentialStoreLocked => (
+                "credential_store_locked",
+                "Secure credential storage on this device is locked or refused access. Nothing was changed. Unlock it, for example your login keyring, then try again.",
+            ),
             Self::CatalogValidity => (
                 "catalog_validity_rejected",
                 "The signed catalog sequence or validity period was not accepted. Check the system clock and obtain a current catalog from its configured source.",

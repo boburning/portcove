@@ -287,9 +287,7 @@ fn credential_entry() -> Result<keyring::Entry> {
 
 #[cfg(not(test))]
 fn credential_error(action: &str, error: keyring::Error) -> PortcoveError {
-    PortcoveError::state(format!(
-        "could not {action} the portability authority in operating-system secure storage: {error}"
-    ))
+    crate::credential_store::store_error("portability authority", action, error)
 }
 
 #[cfg(test)]

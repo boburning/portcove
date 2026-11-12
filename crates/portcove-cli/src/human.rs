@@ -241,6 +241,12 @@ pub(crate) fn failure(error: &portcove_core::FailureReport, technical: bool) -> 
     } else if presentation
         .recovery_actions
         .contains(&RecoveryAction::ReviewCurrentState)
+        // A missing or locked credential store changed nothing, and its summary
+        // already names the device step to take.
+        && !matches!(
+            presentation.presentation_key.as_str(),
+            "credential_store_unavailable" | "credential_store_locked"
+        )
     {
         output.push_str("\nNext step: Using the same library selection, inspect portcove status and portcove activity before trying again.");
     }
@@ -2853,6 +2859,21 @@ fn optional_path(path: Option<&Path>) -> String {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn credential_store_failures_name_the_device_step_without_a_generic_review() {
+        let mut report = portcove_core::PortcoveError::state("store")
+            .with_mutation_state(portcove_core::MutationState::NoChanges)
+            .report();
+        for key in ["credential_store_unavailable", "credential_store_locked"] {
+            report.presentation.presentation_key = key.into();
+            let text = super::failure(&report, false);
+            assert!(!text.contains("Next step"), "{text}");
+            assert!(text.contains("No files were changed"), "{text}");
+        }
+        report.presentation.presentation_key = "state_unavailable".into();
+        assert!(super::failure(&report, false).contains("Next step"));
+    }
     #[test]
     fn preparation_failure_guidance_is_read_only_and_keeps_the_originating_library_selection() {
         use portcove_core::{FailureRecoveryTarget, MutationState, PortcoveError, RecoveryAction};

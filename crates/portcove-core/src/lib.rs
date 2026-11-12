@@ -20,6 +20,7 @@ mod catalog;
 mod catalog_media;
 mod catalog_store;
 mod catalog_update;
+mod credential_store;
 mod curated_acquisition;
 mod curated_cache;
 mod database;

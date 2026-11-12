@@ -110,9 +110,7 @@ fn credential_entry() -> Result<keyring::Entry> {
 }
 
 fn credential_error(action: &str, error: keyring::Error) -> PortcoveError {
-    PortcoveError::state(format!(
-        "could not {action} the GitHub credential in operating-system secure storage: {error}"
-    ))
+    crate::credential_store::store_error("GitHub credential", action, error)
 }
 
 #[cfg(test)]
