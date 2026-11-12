@@ -5412,7 +5412,7 @@ fn candidate_pairs(report: &SourceDiscoveryReport) -> Vec<(String, std::path::Pa
 #[test]
 fn a_library_larger_than_one_entry_budget_resumes_to_completion_without_silent_truncation() {
     const MATCHING: usize = 20;
-    const NOISE: usize = 10_240;
+    const NOISE: usize = 2_980;
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().join("selected");
     fs::create_dir(&root).unwrap();
@@ -5421,11 +5421,13 @@ fn a_library_larger_than_one_entry_budget_resumes_to_completion_without_silent_t
     let catalog = catalog(payload);
     let library = crate::Library::open(temporary.path().join("library")).unwrap();
     library.add_game_file_root(&root).unwrap();
-    let limits = SourceDiscoveryLimits::default();
-    assert_eq!(limits.max_entries, 10_000);
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1_000,
+        ..Default::default()
+    };
 
-    // One default processing budget cannot cover the library. The first batch
-    // stays within it and says the scan can continue.
+    // One processing budget cannot cover the library. The first batch stays
+    // within it and says the scan can continue.
     let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
     assert!(first.report.entries_examined <= limits.max_entries);
     assert!(
@@ -5444,11 +5446,15 @@ fn a_library_larger_than_one_entry_budget_resumes_to_completion_without_silent_t
     while snapshot.coverage.as_ref().unwrap().can_resume {
         snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
         batches += 1;
-        assert!(batches <= 8, "scan did not converge");
+        assert!(batches <= 12, "scan did not converge");
     }
     assert!(batches >= 2);
     let coverage = snapshot.coverage.as_ref().unwrap();
-    assert!(coverage.frontier_exhausted);
+    assert!(
+        coverage.frontier_exhausted,
+        "coverage={coverage:?} issues={:?}",
+        snapshot.report.issues
+    );
     assert_eq!(coverage.remaining_entries, Some(0));
     assert!(snapshot.continuation.is_none());
     assert!(snapshot.report.limits_reached.is_empty());
@@ -5464,13 +5470,43 @@ fn a_library_larger_than_one_entry_budget_resumes_to_completion_without_silent_t
         .collect::<std::collections::BTreeSet<_>>();
     assert_eq!(files.len(), MATCHING);
     assert!(files.len() > 16);
-    // Only extension-matching candidates are hashed; the 10,240 unrelated files
-    // are never read, so resumed batches do not rehash earlier work.
+    // Only extension-matching candidates are hashed; the unrelated files are
+    // never read, so resumed batches do not rehash earlier work.
     assert_eq!(snapshot.report.files_hashed, MATCHING as u32);
     assert_eq!(
         snapshot.report.hash_bytes,
         (MATCHING * payload.len()) as u64
     );
+}
+
+#[test]
+fn a_library_beyond_the_continuation_capacity_stops_with_an_explicit_narrower_folder_instruction() {
+    // Far more entries than the bounded continuation can retain: the scan must
+    // say so and never present the examined prefix as the whole library.
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported large-library source";
+    write_large_library(&root, 20, 10_240, payload);
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let snapshot =
+        publish_saved_batch(&catalog, &library, &SourceDiscoveryLimits::default()).unwrap();
+    let coverage = snapshot.coverage.as_ref().unwrap();
+    assert!(!coverage.can_resume);
+    assert!(!coverage.frontier_exhausted);
+    assert_ne!(coverage.remaining_entries, Some(0));
+    assert!(
+        snapshot
+            .report
+            .issues
+            .iter()
+            .any(|issue| issue.message.contains("select narrower folders")),
+        "issues={:?}",
+        snapshot.report.issues
+    );
+    assert!(snapshot.report.entries_examined < 10_260);
 }
 
 #[test]
