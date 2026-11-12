@@ -26,7 +26,9 @@ const MAX_RESUME_CHECKS: u32 = 100_000;
 /// Safety ceiling for matches one saved-folder scan retains across batches.
 /// `max_candidates` bounds each batch; reaching this ceiling ends the scan as
 /// safety-limited, never as "no more matches".
-pub const MAX_SCAN_CANDIDATES: usize = 2048;
+/// It equals the largest per-request allowance, which the 8 MiB snapshot
+/// already holds alongside a full continuation.
+pub const MAX_SCAN_CANDIDATES: usize = 512;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -1396,6 +1398,15 @@ impl Discovery<'_> {
 
     /// Records that a match had to be dropped. For a saved scan that is the
     /// safety ceiling, so the scan can't continue without losing matches.
+    /// A full batch continues; reaching the scan ceiling ends coverage.
+    fn candidate_boundary(&mut self) {
+        if self.unit_full() {
+            self.candidates_exhausted();
+        } else {
+            self.reached.insert(SourceDiscoveryLimit::Candidates);
+        }
+    }
+
     fn candidates_exhausted(&mut self) {
         self.reached.insert(SourceDiscoveryLimit::Candidates);
         if self.resumable() {
@@ -1836,7 +1847,7 @@ impl Discovery<'_> {
                     }
                     state.deferred_file = None;
                     if self.batch_full() || self.unit_full() {
-                        self.reached.insert(SourceDiscoveryLimit::Candidates);
+                        self.candidate_boundary();
                         state.complete = complete;
                         pending.push_front(state);
                         self.save_frontier(pending);
@@ -1872,10 +1883,20 @@ impl Discovery<'_> {
                     return Ok(());
                 }
                 if self.batch_full() || self.unit_full() {
-                    self.reached.insert(SourceDiscoveryLimit::Candidates);
+                    self.candidate_boundary();
                     self.save_frontier(pending);
                     return Ok(());
                 }
+            }
+            // Finished folders are forgotten between batches, so ending here
+            // keeps checkpoint storage bounded by the frontier, not the tree.
+            if self.continuation.as_ref().is_some_and(|cursor| {
+                cursor.retained_bytes > MAX_CONTINUATION_BYTES / 2
+                    || cursor.observed.len() > MAX_CONTINUATION_RECORDS / 2
+            }) && !pending.is_empty()
+            {
+                self.save_frontier(pending);
+                return Ok(());
             }
         }
         self.save_frontier(pending);

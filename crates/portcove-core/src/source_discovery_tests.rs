@@ -4876,6 +4876,84 @@ fn a_ten_thousand_entry_folder_is_covered_across_batches_without_losing_matches(
 }
 
 #[test]
+fn reaching_the_scan_match_ceiling_on_a_batch_boundary_ends_coverage_as_limited() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    // Two matches per file: every 64-match batch ends exactly on a file, so
+    // the ceiling is reached without dropping anything.
+    for game in 0..(super::MAX_SCAN_CANDIDATES / 2 + 8) {
+        fs::write(root.join(format!("game-{game:04}.z64")), payload).unwrap();
+    }
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits::default();
+    let catalog = catalog(payload);
+    let mut snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    let mut batches = 1;
+    while snapshot.coverage.as_ref().unwrap().can_resume {
+        snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        batches += 1;
+        assert!(batches <= 64, "the scan must stop");
+    }
+    let coverage = snapshot.coverage.as_ref().unwrap();
+    assert_eq!(snapshot.report.candidates.len(), super::MAX_SCAN_CANDIDATES);
+    assert!(
+        snapshot
+            .report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::Candidates)
+    );
+    assert!(!coverage.frontier_exhausted && !coverage.restart_required);
+    assert!(snapshot.continuation.is_none());
+}
+
+#[test]
+fn a_large_tree_with_few_matches_ends_batches_before_checkpoint_storage_fills() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    let payload = b"supported resumable source";
+    for folder in 0..60 {
+        let directory = root.join(format!("folder-with-a-long-descriptive-name-{folder:02}"));
+        fs::create_dir_all(&directory).unwrap();
+        for file in 0..200 {
+            fs::write(
+                directory.join(format!("unrelated-notes-file-number-{file:03}.txt")),
+                b"x",
+            )
+            .unwrap();
+        }
+        if folder % 10 == 0 {
+            fs::write(directory.join("game.z64"), payload).unwrap();
+        }
+    }
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_entries: 20_000,
+        ..Default::default()
+    };
+    let catalog = catalog(payload);
+    let mut snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    let mut batches = 1;
+    while snapshot.coverage.as_ref().unwrap().can_resume {
+        snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        batches += 1;
+        assert!(batches <= 64, "the scan must finish");
+    }
+    let coverage = snapshot.coverage.as_ref().unwrap();
+    assert!(
+        snapshot.report.issues.is_empty(),
+        "{:?}",
+        snapshot.report.issues
+    );
+    assert!(coverage.frontier_exhausted && !coverage.restart_required);
+    assert!(snapshot.report.entries_examined >= 12_000);
+    assert_eq!(snapshot.report.candidates.len(), 12);
+}
+
+#[test]
 fn finished_folders_drop_stamps_except_matches_which_still_refuse_changes() {
     for matched in [false, true] {
         let temporary = tempfile::tempdir().unwrap();
