@@ -175,7 +175,7 @@
       "edition": "Edición y formato registrados",
       "observed": "Fecha de observación (UTC)",
       "platform": "Plataforma registrada",
-      "release": "Versión registrada"
+      "release": "Versión publicada registrada"
     },
     "heading": {
       "bios": "Observaciones registradas de BIOS",
@@ -195,9 +195,9 @@
     "notConfirmed": "No hemos confirmado si estos resultados de prueba se aplican a tus archivos, tu versión del juego o tu dispositivo.",
     "notRecorded": "Sin registrar",
     "outcome": {
-      "failed": "Fallida",
-      "notRun": "No ejecutada",
-      "passed": "Superada",
+      "failed": "Con errores",
+      "notRun": "Sin ejecutar",
+      "passed": "Correcto",
       "unknown": "Resultado desconocido"
     },
     "partialCoverage": "<recorded/> · Sin registrar: <missing/>",

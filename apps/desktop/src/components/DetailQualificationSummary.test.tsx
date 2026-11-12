@@ -321,6 +321,17 @@ describe("detail qualification history", () => {
 });
 
 describe("earlier test results localization", () => {
+  it("labels unrecognized Core kinds and outcomes as unknown", () => {
+    const value = report();
+    const record = structuredClone(value.applications[0].qualification.exact_records[0]!);
+    Object.assign(record, { kind: "future_kind", outcome: "future" });
+    value.applications[0].qualification.exact_records = [record];
+    const markup = renderToStaticMarkup(
+      <DetailQualificationSummary port={snap64} sourceInspection={value} />,
+    );
+    expect(markup).toContain("Check kind unknown · Outcome unknown");
+  });
+
   it("translates labels while recorded editions and methods stay exact", async () => {
     const { initializeLocalization } = await import("../localization");
     const localization = initializeLocalization(["en-US"]);
