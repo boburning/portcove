@@ -133,7 +133,7 @@ unless the copy change is intended and reviewed.
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-11 it
-reported 1,597 findings in 73 of 208 analyzed files, measured after the
+reported 1,531 findings in 69 of 208 analyzed files, measured after the
 migrations listed above and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
 and are migrated with the surface that renders them. The count is a work
@@ -142,7 +142,7 @@ inventory, not a coverage claim.
 Narrow technical-literal exclusions: the lint ignores the `align`, `aria-live`,
 `aria-atomic`, `aria-describedby`, `aria-hidden`, `aria-labelledby`, `data-backup-action`, `data-settings-control`,
 `data-slot`, `dir`, `intent`, `reviewSize`, `size`, `triggerId` and `variant`
-attributes, which carry design-system tokens, element ids or ARIA references,
+attributes, which carry design-system tokens, element ids, ARIA references or ARIA state tokens,
 never player copy.
 Thrown `Error` messages that are caught and never displayed, stable state codes,
 keyboard key names and product names remain literals.
