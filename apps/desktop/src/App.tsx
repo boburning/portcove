@@ -30,6 +30,10 @@ import {
   type ReactNode,
 } from "react";
 import { usePortcoveData } from "./features/workspace/use-workspace-data";
+import {
+  sourcesKey,
+  useStandingSetupCatchUp,
+} from "./features/game-file-discovery/use-standing-setup";
 import { useGithubAuth } from "./features/github-auth/use-github-auth";
 import { useSourceHealth } from "./features/source-health/use-source-health";
 import { useSourceIntakeState } from "./features/source-intake/use-source-intake-state";
@@ -2095,6 +2099,13 @@ function useWorkspaceLibrary({
   returnToSelection,
 }: WorkspaceProps) {
   const data = usePortcoveData(bootstrap.generation);
+  useStandingSetupCatchUp(
+    bootstrap.generation,
+    Boolean(data.catalog) && !data.recoveryFailure,
+    data.catalog,
+    sourcesKey(data.sources),
+    data.refreshAfterMutation,
+  );
   const favorites = useFavorites(bootstrap.generation);
   const organization = useOrganization(bootstrap.generation);
   const [setupSource, setSetupSource] = useSetupSource(data.sources);

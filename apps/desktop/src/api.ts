@@ -92,6 +92,11 @@ import type {
   InstallBatchRecord,
   InstallBatchRequestItem,
   InstallBatchReview,
+  PortIntent,
+  PortIntentAssessments,
+  PortIntentMode,
+  PortReadinessAcknowledgement,
+  StandingSetupResult,
   LibraryMembership,
   LibraryMembershipOutcome,
   LibraryMembershipRequest,
@@ -668,6 +673,21 @@ export const desktopApi = {
   },
   unfinishedInstallBatches: (generation: number) =>
     invoke<InstallBatchRecord[]>("get_unfinished_install_batches", { generation }),
+  setPortIntent: (portId: string, mode: PortIntentMode, generation: number) =>
+    invoke<PortIntent>("set_port_intent", { portId, mode, generation }),
+  portIntents: (generation: number) => invoke<PortIntent[]>("get_port_intents", { generation }),
+  assessPortIntents: (generation: number) =>
+    invoke<PortIntentAssessments>("assess_port_intents", { generation }),
+  acknowledgePortReadiness: (
+    acknowledgements: PortReadinessAcknowledgement[],
+    generation: number,
+  ) => invoke<null>("acknowledge_port_readiness", { acknowledgements, generation }),
+  /** Installs ready set-up-when-ready games under the player's standing choice. Never launches. */
+  runStandingSetup: (generation: number, onEvent: (event: OperationEvent) => void) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = onEvent;
+    return invoke<StandingSetupResult>("run_standing_setup", { generation, onEvent: channel });
+  },
   cancelInstallBatch: (batchId: string, generation: number) =>
     invoke<InstallBatchRecord>("cancel_install_batch", { batchId, generation }),
   installBatch: (batchId: string, generation: number) =>

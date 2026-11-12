@@ -986,6 +986,58 @@
     ],
     "title": "OrganizationChange"
   },
+  "port_intent_mode": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "oneOf": [
+      {
+        "const": "discover_only",
+        "description": "Portcove may show the game in discovery results. Nothing else happens.",
+        "type": "string"
+      },
+      {
+        "const": "notify",
+        "description": "Tell the player when the game becomes ready to install, again only if\nits ready plan changes.",
+        "type": "string"
+      },
+      {
+        "const": "set_up_when_ready",
+        "description": "Install the game when it is ready, without another confirmation, as\nlong as this choice stands. Never launches it.",
+        "type": "string"
+      },
+      {
+        "const": "ignored",
+        "description": "Do not suggest or set up this game.",
+        "type": "string"
+      }
+    ],
+    "title": "PortIntentMode"
+  },
+  "port_readiness_acknowledgements": {
+    "$defs": {
+      "PortReadinessAcknowledgement": {
+        "additionalProperties": false,
+        "properties": {
+          "plan_sha256": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "plan_sha256"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "$ref": "#/$defs/PortReadinessAcknowledgement"
+    },
+    "title": "Array_of_PortReadinessAcknowledgement",
+    "type": "array"
+  },
   "steam_artwork_selection": {
     "$defs": {
       "SteamArtworkOperation": {

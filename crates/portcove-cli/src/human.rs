@@ -947,6 +947,110 @@ pub(crate) fn install_batch(record: &portcove_core::InstallBatchRecord) -> Strin
     lines.join("\n")
 }
 
+fn port_intent_mode_label(mode: portcove_core::PortIntentMode) -> &'static str {
+    use portcove_core::PortIntentMode as Mode;
+    match mode {
+        Mode::DiscoverOnly => "discover only",
+        Mode::Notify => "tell me when ready",
+        Mode::SetUpWhenReady => "set up when ready",
+        Mode::Ignored => "ignored",
+    }
+}
+
+pub(crate) fn port_intent(intent: &portcove_core::PortIntent) -> String {
+    let mut text = format!(
+        "{}: {}",
+        clean(&intent.port_id),
+        port_intent_mode_label(intent.mode)
+    );
+    if intent.mode == portcove_core::PortIntentMode::SetUpWhenReady {
+        text.push_str(
+            "\nPortcove installs this game, without asking again, when `games setup-ready` or the desktop app finds it ready. It is never launched automatically. Choose another mode to stop.",
+        );
+    }
+    if intent.explicitly_uninstalled_at.is_some() {
+        text.push_str("\nYou uninstalled this game. It won't be set up or reported again until you choose a mode for it.");
+    }
+    text
+}
+
+fn port_readiness_line(assessment: &portcove_core::PortIntentAssessment) -> String {
+    use portcove_core::PortReadiness;
+    let state = match &assessment.readiness {
+        PortReadiness::Installed { .. } => "installed".to_owned(),
+        PortReadiness::Ready {
+            version,
+            plan_sha256,
+        } => {
+            format!("ready to install {} (plan {plan_sha256})", clean(version))
+        }
+        PortReadiness::Waiting { reason } => format!("waiting: {}", clean(reason)),
+    };
+    let mut line = format!(
+        "{} [{}]: {state}",
+        clean(&assessment.port_id),
+        port_intent_mode_label(assessment.mode)
+    );
+    if assessment.newly_ready {
+        line.push_str(" (new)");
+    }
+    if let Some(suppressed) = &assessment.suppressed {
+        line.push_str(&format!("; on hold: {}", clean(suppressed)));
+    }
+    line
+}
+
+pub(crate) fn port_intent_assessments(value: &portcove_core::PortIntentAssessments) -> String {
+    if value.assessments.is_empty() && value.not_assessed == 0 {
+        return "No game has a notify or set-up-when-ready choice. Discover-only is the default."
+            .to_owned();
+    }
+    let mut lines = value
+        .assessments
+        .iter()
+        .map(port_readiness_line)
+        .collect::<Vec<_>>();
+    if value.not_assessed > 0 {
+        lines.push(format!(
+            "{} more choices were not assessed; one pass covers the first 512 choices by game ID.",
+            value.not_assessed
+        ));
+    }
+    lines.push("Nothing was changed.".to_owned());
+    lines.join("\n")
+}
+
+pub(crate) fn standing_setup(value: &portcove_core::StandingSetupResult) -> String {
+    if value.already_running {
+        return "Another Portcove process is already setting up ready games, so this pass changed nothing. Check again with `portcove games intents`.".to_owned();
+    }
+    let mut lines = value
+        .assessments
+        .iter()
+        .map(port_readiness_line)
+        .collect::<Vec<_>>();
+    if value.batches.is_empty() {
+        lines.push("No set-up-when-ready game was ready, so nothing was installed.".to_owned());
+    }
+    for batch in &value.batches {
+        lines.push(install_batch(batch));
+    }
+    for failure in &value.failures {
+        lines.push(format!(
+            "{}: couldn't start setup - {}",
+            clean(&failure.port_id),
+            clean(&failure.reason)
+        ));
+    }
+    if value.not_assessed > 0 {
+        lines.push(format!(
+            "{} more choices were not assessed; one pass covers the first 512 choices by game ID.",
+            value.not_assessed
+        ));
+    }
+    lines.join("\n")
+}
+
 pub(crate) fn game_file_roots(roots: &[GameFileRoot]) -> String {
     if roots.is_empty() {
         return "No game-file folders are connected.".into();

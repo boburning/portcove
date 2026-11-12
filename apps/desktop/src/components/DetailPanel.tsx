@@ -1,4 +1,5 @@
 import { AuthoredSetupWarnings } from "./AuthoredSetupWarnings";
+import { SetupIntentChoice } from "./SetupIntentChoice";
 import { PortCapabilities } from "./PortCapabilities";
 import { setupRoutePresentation } from "../features/port-actions/setup-route-presentation";
 import { Chip } from "./ui/chip";
@@ -3776,6 +3777,12 @@ function DetailFilesSection({
           managedPreparation={managedPreparation}
           pendingSetup={model.pendingSetup}
           busy={model.busy}
+        />
+        <SetupIntentChoice
+          key={`intent:${model.port.id}:${model.libraryGeneration}`}
+          portId={model.port.id}
+          generation={model.libraryGeneration}
+          installed={Boolean(model.installed || model.status?.external_runtime)}
         />
         {(model.port.presentation?.manual_setup || model.port.presentation?.manual_preparation) && (
           <SetupStatement

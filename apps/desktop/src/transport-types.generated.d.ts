@@ -927,6 +927,25 @@ export type InstallationContext =
       installation_id: string;
       kind: "external";
     };
+export type PortIntentMode = "discover_only" | "notify" | "set_up_when_ready" | "ignored";
+export type PortReadiness =
+  | {
+      install_id: string;
+      state: "installed";
+      [k: string]: unknown;
+    }
+  | {
+      plan_sha256: string;
+      state: "ready";
+      version: string;
+      [k: string]: unknown;
+    }
+  | {
+      reason: string;
+      state: "waiting";
+      [k: string]: unknown;
+    };
+export type OutputDesktopPortIntents = PortIntent[];
 export type SteamArtworkRoleAction =
   "write" | "replace" | "preserve" | "unchanged" | "unavailable" | "remove" | "preserve_modified" | "absent";
 /**
@@ -1139,11 +1158,15 @@ export interface TransportOutputs {
   desktop_managed_route_change_preview: OutputManagedRouteChangePreview;
   desktop_managed_route_change_result: OutputManagedRouteChangeResult;
   desktop_pending_setup_record: PendingSetupRecord;
+  desktop_port_intent: PortIntent;
+  desktop_port_intent_assessments: OutputDesktopPortIntentAssessments;
+  desktop_port_intents: OutputDesktopPortIntents;
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
   desktop_setup_launch_targets: OutputSetupLaunchTargets;
   desktop_source_reuse_review: OutputSourceReuseReview;
   desktop_source_verification_outcome: OutputSourceBatchOutcome;
+  desktop_standing_setup: OutputDesktopStandingSetup;
   desktop_steam_artwork_apply_result: OutputDesktopSteamArtworkApplyResult;
   desktop_steam_artwork_review: OutputDesktopSteamArtworkReview;
   desktop_steam_batch_review: OutputDesktopSteamBatchReview;
@@ -5034,6 +5057,77 @@ export interface UpdateNoticeRelease {
 }
 export interface OutputDesktopLocalePreference {
   locale: string | null;
+  [k: string]: unknown;
+}
+export interface PortIntent {
+  /**
+   * The ready plan the player was last told about; a notification repeats
+   * only when the ready plan changes.
+   */
+  acknowledged_plan_sha256?: string | null;
+  /**
+   * Set when the player uninstalled the game. Standing setup and
+   * notifications stay quiet until the player chooses a mode again.
+   */
+  explicitly_uninstalled_at?: number | null;
+  failed_attempts?: number;
+  /**
+   * The plan whose standing setup last failed, and how many times it has
+   * failed. It is retried on later passes up to a small limit, then waits
+   * until the plan changes, so a permanent failure does not recur.
+   */
+  failed_plan_sha256?: string | null;
+  failure?: string | null;
+  format_version: number;
+  mode: PortIntentMode;
+  port_id: string;
+  updated_at: number;
+}
+export interface OutputDesktopPortIntentAssessments {
+  assessments: PortIntentAssessment[];
+  /**
+   * Intents left for a later pass because one pass is bounded.
+   */
+  not_assessed: number;
+  [k: string]: unknown;
+}
+export interface PortIntentAssessment {
+  mode: PortIntentMode;
+  /**
+   * Ready with a plan the player has not been told about yet.
+   */
+  newly_ready: boolean;
+  port_id: string;
+  readiness: PortReadiness;
+  /**
+   * Why this intent will not act or notify right now, if it won't.
+   */
+  suppressed?: string | null;
+  [k: string]: unknown;
+}
+/**
+ * What one standing-setup pass did for each game it considered.
+ */
+export interface OutputDesktopStandingSetup {
+  /**
+   * Another process is already running a pass; this one did nothing.
+   */
+  already_running: boolean;
+  assessments: PortIntentAssessment[];
+  /**
+   * One single-game batch per game that started, in order.
+   */
+  batches: InstallBatchRecord[];
+  /**
+   * Games that could not start; the others were not affected.
+   */
+  failures: StandingSetupFailure[];
+  not_assessed: number;
+  [k: string]: unknown;
+}
+export interface StandingSetupFailure {
+  port_id: string;
+  reason: string;
   [k: string]: unknown;
 }
 export interface OutputDesktopSteamArtworkApplyResult {

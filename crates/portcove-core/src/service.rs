@@ -128,10 +128,17 @@ std::thread_local! {
 mod game_install_review;
 #[path = "install_batch.rs"]
 mod install_batch;
+#[path = "port_intent.rs"]
+mod port_intent;
 pub use install_batch::{
     INSTALL_BATCH_FORMAT_VERSION, InstallBatchItem, InstallBatchItemState, InstallBatchRecord,
     InstallBatchRequestItem, InstallBatchReview, InstallBatchReviewItem, InstallBatchSummary,
     MAX_INSTALL_BATCH_ITEMS,
+};
+pub use port_intent::{
+    MAX_PORT_INTENT_ASSESSMENTS, MAX_STANDING_SETUP_ATTEMPTS, PORT_INTENT_FORMAT_VERSION,
+    PortIntent, PortIntentAssessment, PortIntentAssessments, PortIntentMode, PortReadiness,
+    PortReadinessAcknowledgement, StandingSetupFailure, StandingSetupResult,
 };
 mod game_settings;
 #[path = "game_update_acquisition.rs"]
@@ -4567,6 +4574,10 @@ impl PortcoveService {
             }
             let mut removal = RemovalOperation::decode(&self.library, &lifecycle)?;
             removal.require_retained_outputs(self, &lifecycle)?;
+            // Remember the explicit uninstall before the removal starts, so a
+            // removal that later needs recovery is still never undone by
+            // standing setup. Failing here changes nothing.
+            self.library.record_explicit_uninstall(port_id)?;
             store.put(&mut lifecycle)?;
             intent_persisted = true;
             for removal in &removals {

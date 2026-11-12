@@ -33,6 +33,7 @@ import {
 import { Button } from "./ui/button";
 import { GameFileSetupReviews } from "./GameFileSetupReviews";
 import { InstallBatchPanel } from "./InstallBatchPanel";
+import { ReadyGameNotices } from "./ReadyGameNotices";
 
 const setupReturnOrigin = "game-file-libraries-setup";
 
@@ -1147,6 +1148,7 @@ export function GameFileLibraries({
       {error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
       {renderCompletedScan()}
+      <ReadyGameNotices generation={generation} ports={ports} onOpenPort={openPort} />
       {renderSetupReviews()}
       {renderInstallBatch()}
       {renderSourceReview()}
