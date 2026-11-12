@@ -238,7 +238,7 @@ mod grant_tests {
         let fat = file(dir.path(), "fat", &universal, 0o644);
         assert!(is_platform_binary(&fat, Platform::MacosAarch64).unwrap());
         let link = dir.path().join("link");
-        std::os::unix::fs::symlink(&good_target(dir.path()), &link).unwrap();
+        std::os::unix::fs::symlink(good_target(dir.path()), &link).unwrap();
         assert!(grant_verified_executable(&link, Platform::LinuxX86_64, "program").is_err());
     }
 
