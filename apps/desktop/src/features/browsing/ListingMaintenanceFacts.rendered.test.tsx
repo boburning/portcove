@@ -15,14 +15,14 @@ it("translates maintenance labels and keeps authored catalog text verbatim", asy
     },
   } as unknown as PortListing;
   expect(renderToStaticMarkup(<ListingMaintenanceFacts listing={listing} />)).toContain(
-    "Reconsider when: upstream ships {{next}} &lt;b&gt;builds&lt;/b&gt;",
+    "Reconsider when: <bdi>upstream ships {{next}} &lt;b&gt;builds&lt;/b&gt;</bdi>",
   );
   try {
     await localization.changeLanguage("ar-XB");
     const markup = renderToStaticMarkup(<ListingMaintenanceFacts listing={listing} />);
     expect(markup).toContain("العرض المُدار الحالي");
     expect(markup).toContain(
-      "إعادة النظر عندما: upstream ships {{next}} &lt;b&gt;builds&lt;/b&gt;",
+      "إعادة النظر عندما: <bdi>upstream ships {{next}} &lt;b&gt;builds&lt;/b&gt;</bdi>",
     );
     expect(markup).toContain("Authored reason");
   } finally {

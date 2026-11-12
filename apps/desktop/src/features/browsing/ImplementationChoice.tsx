@@ -76,10 +76,14 @@ export function ImplementationChoice({
           <Trans
             t={t}
             i18nKey="implementation.preferred"
-            components={{ name: <>{projectName}</> }}
+            components={{ name: <bdi>{projectName}</bdi> }}
           />
         ) : (
-          <Trans t={t} i18nKey="implementation.choose" components={{ name: <>{projectName}</> }} />
+          <Trans
+            t={t}
+            i18nKey="implementation.choose"
+            components={{ name: <bdi>{projectName}</bdi> }}
+          />
         )}
       </Button>
       {failed && <p role="alert">{t("implementation.unconfirmed")}</p>}

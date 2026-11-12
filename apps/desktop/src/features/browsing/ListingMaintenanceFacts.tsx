@@ -22,7 +22,7 @@ export function ListingMaintenanceFacts({ listing }: { listing?: PortListing | u
         <Trans
           t={t}
           i18nKey="maintenance.reconsider"
-          components={{ condition: <>{maintenance.reconsider_when}</> }}
+          components={{ condition: <bdi>{maintenance.reconsider_when}</bdi> }}
         />
       </dd>
     </div>
