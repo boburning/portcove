@@ -146,6 +146,14 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   const selected = setups.find((entry) => entry.profile.id === selectedId);
   const nativeMessage = nativeListMessage(t, view.live);
   const heldUpdates = (view.held_updates ?? []).filter((held) => held.profile_id === selectedId);
+  // The default setup follows game updates; any other setup stays on the exact
+  // build it was made with, so an update offers an upgraded copy instead.
+  const onEarlierBuild = Boolean(
+    selected &&
+    !selected.profile.is_default &&
+    view.current_install_id &&
+    selected.revision.build.install_id !== view.current_install_id,
+  );
   const blocked = Boolean(
     view.live && (view.live.unmanaged.length > 0 || view.live.changed_owned.length > 0),
   );
@@ -340,6 +348,13 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                   }}
                 />
               )}
+              {onEarlierBuild && (
+                <Notice intent="info">
+                  <div data-slot="notice-body">
+                    <p>{t("mods.earlierBuild")}</p>
+                  </div>
+                </Notice>
+              )}
               <p className="text-sm text-pc-muted-foreground">{t("mods.copyIntro")}</p>
               <ActionRow>
                 <label htmlFor={copyId} className="text-sm">
@@ -366,6 +381,30 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                 >
                   {t("mods.copy")}
                 </Button>
+                {onEarlierBuild && (
+                  <Button
+                    variant="outline"
+                    disabled={locked || copyName.trim() === ""}
+                    onClick={() => {
+                      const name = copyName.trim();
+                      void perform(
+                        () =>
+                          desktopApi.copyModSetup(
+                            portId,
+                            selected.profile.id,
+                            name,
+                            generation,
+                            true,
+                          ),
+                        t("mods.outcome.copiedUpdated", { name }),
+                      ).then((created) => {
+                        if (created) setCopyName("");
+                      });
+                    }}
+                  >
+                    {t("mods.copyUpdated")}
+                  </Button>
+                )}
               </ActionRow>
             </section>
           )}

@@ -1,6 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import type { ModSetupsView } from "../types";
 import { ModSetupsControl } from "./ModSetupsControl";
@@ -385,5 +386,58 @@ it("words held updates with the locale's plural forms", async () => {
     expect(host.textContent).toContain("ابحث عن كل تعديل باستخدام «ابحث عن تعديلات في GameBanana»");
   } finally {
     await localization.changeLanguage("en");
+  }
+});
+
+it("offers an upgraded copy only for a customized setup left on an earlier game version", async () => {
+  const onBuild = (entry: ReturnType<typeof setup>, install_id: string) => ({
+    ...entry,
+    revision: { ...entry.revision, build: { install_id } },
+  });
+  const customized = view({
+    current_install_id: "v2",
+    inventory: {
+      port_id: "shipwright",
+      profiles: [
+        onBuild(setup("default", "Default", 3, [["hd.o2r", true]]), "v2"),
+        onBuild(setup("custom", "Custom", 2, [["hd.o2r", true]]), "v1"),
+      ],
+    },
+    live: {
+      profile_id: "custom",
+      revision: 2,
+      unmanaged: [],
+      changed_owned: [],
+      native_list: { state: "in-sync" },
+    },
+  } as unknown as Partial<ModSetupsView>);
+  const read = vi.spyOn(desktopApi, "modSetups").mockResolvedValue(customized);
+  const copy = vi
+    .spyOn(desktopApi, "copyModSetup")
+    .mockResolvedValue({} as Awaited<ReturnType<typeof desktopApi.copyModSetup>>);
+  const host = await render();
+  expect(host.textContent).toContain("stays on the game version it was made with");
+  await page.getByRole("textbox", { name: "New setup name" }).fill("Custom updated");
+  await act(async () => button(host, "Copy onto the updated game").click());
+  expect(copy).toHaveBeenCalledWith("shipwright", "custom", "Custom updated", 7, true);
+  expect(host.querySelector("[role=status]")?.textContent).toContain(
+    "Created Custom updated on the updated game",
+  );
+
+  // The default setup follows updates, and a setup already on the current
+  // version needs no upgraded copy.
+  for (const live of ["default", "custom"]) {
+    read.mockResolvedValue({
+      ...customized,
+      current_install_id: live === "custom" ? "v1" : "v2",
+      live: { ...customized.live!, profile_id: live },
+    });
+    const again = await render();
+    expect(again.textContent).not.toContain("stays on the game version");
+    expect(
+      [...again.querySelectorAll("button")].some(
+        (candidate) => candidate.textContent === "Copy onto the updated game",
+      ),
+    ).toBe(false);
   }
 });

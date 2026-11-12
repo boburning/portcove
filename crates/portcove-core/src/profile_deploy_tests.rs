@@ -1209,3 +1209,62 @@ fn walk(root: &Path) -> Vec<PathBuf> {
     }
     found
 }
+
+#[test]
+fn an_upgraded_copy_uses_the_current_build_and_leaves_the_pinned_setup_on_its_own() {
+    use crate::retained_build::tests::install;
+    let w = world();
+    let pinned = w
+        .service
+        .copy_profile("starship", &w.default, "Pinned")
+        .unwrap();
+    // The game later updates; the customized setup keeps its exact build.
+    let second = install(w.service.library(), "second", b"newer runtime", true);
+    let view = w.service.mod_setups("starship").unwrap();
+    assert_eq!(view.current_install_id.as_deref(), Some("second"));
+    let build_of = |id: &str| {
+        w.service
+            .profile_inventory("starship")
+            .unwrap()
+            .profiles
+            .into_iter()
+            .find(|view| view.profile.id == id)
+            .unwrap()
+            .revision
+    };
+    assert_eq!(build_of(&pinned.id).build.install_id, "first");
+
+    let upgraded = w
+        .service
+        .copy_profile_onto_current_build("starship", &pinned.id, "Pinned on the update")
+        .unwrap();
+    let copy = build_of(&upgraded.id);
+    let original = build_of(&pinned.id);
+    assert_eq!(copy.build.install_id, "second");
+    assert_eq!(copy.packages, original.packages, "the same mods");
+    assert_ne!(copy.save_group, original.save_group, "its own progress");
+    assert_eq!(
+        original.build.install_id, "first",
+        "the original is unchanged"
+    );
+    assert_eq!(original.revision, 1);
+
+    // Launching the upgraded copy uses the current build; the original still
+    // launches its own.
+    w.service
+        .activate_profile("starship", &upgraded.id)
+        .unwrap();
+    let chosen = w
+        .service
+        .profile_pinned_install("starship", Some(second.clone()))
+        .unwrap()
+        .unwrap();
+    assert_eq!(chosen.id, "second");
+    w.service.activate_profile("starship", &pinned.id).unwrap();
+    let chosen = w
+        .service
+        .profile_pinned_install("starship", Some(second))
+        .unwrap()
+        .unwrap();
+    assert_eq!(chosen.id, "first");
+}

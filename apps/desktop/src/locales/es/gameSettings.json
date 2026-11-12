@@ -80,7 +80,9 @@
     "copy": "Copiar este perfil",
     "copyIntro": "Una copia tiene los mismos mods, pero empieza sin partidas guardadas y con los ajustes predeterminados del juego. Tu perfil actual conserva los suyos.",
     "copyName": "Nombre del nuevo perfil",
+    "copyUpdated": "Copiar en el juego actualizado",
     "createFirst": "Crear el primer perfil",
+    "earlierBuild": "Este perfil se queda en la versión del juego con la que se creó, así que las actualizaciones del juego no lo cambian. Para usar estos mods con el juego actualizado, copia el perfil en él. Este perfil y sus partidas guardadas se quedan como están.",
     "empty": "No hay mods. El juego se ejecuta sin cambios en este perfil.",
     "fromProvider": "<name /> (de <provider />)",
     "gameChanged": "Este juego cambió. Actualiza sus detalles antes de cambiar los mods.",
@@ -114,6 +116,7 @@
     "outcome": {
       "added": "Se añadió un mod a {{name}}.",
       "copied": "Se creó {{name}} con los mismos mods, sin partidas guardadas y con los ajustes predeterminados.",
+      "copiedUpdated": "Se creó {{name}} en el juego actualizado con los mismos mods, sin partidas guardadas y con los ajustes predeterminados.",
       "createdFirst": "Se creó el primer perfil a partir de tus partidas guardadas y ajustes actuales.",
       "turnedOff": "Se desactivó {{name}}.",
       "turnedOn": "Se activó {{name}}.",

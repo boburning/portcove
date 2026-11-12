@@ -4317,6 +4317,11 @@ export interface OutputManagedRouteChangeResult {
  */
 export interface OutputModSetupsView {
   /**
+   * The game's current installation. A setup whose build differs stays on
+   * its own build; an upgraded copy can use this one.
+   */
+  current_install_id?: string | null;
+  /**
    * Unattended provider updates waiting for the player's review, for each
    * setup's current revision.
    */

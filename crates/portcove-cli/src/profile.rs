@@ -56,6 +56,10 @@ pub(crate) enum ProfileCommand {
         source_profile_id: String,
         /// Name shown for the new profile.
         name: String,
+        /// Use the game's current installation instead of the source profile's
+        /// build; the source profile keeps its own build and progress.
+        #[arg(long)]
+        current_build: bool,
     },
     /// Show every immutable revision of one profile, oldest first.
     Revisions {
@@ -670,10 +674,15 @@ pub(crate) async fn execute(
             port_id,
             source_profile_id,
             name: display,
+            current_build,
         } => render_read_success(
             mode,
             name,
-            service.copy_profile(&port_id, &source_profile_id, &display)?,
+            if current_build {
+                service.copy_profile_onto_current_build(&port_id, &source_profile_id, &display)?
+            } else {
+                service.copy_profile(&port_id, &source_profile_id, &display)?
+            },
             |profile| summary("Profile created with its own progress", profile),
         ),
         ProfileCommand::Revisions {

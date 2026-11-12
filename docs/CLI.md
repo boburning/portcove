@@ -1712,7 +1712,7 @@ build protected (see [earlier builds](#earlier-builds-stay-offered-for-recovery)
 ```text
 portcove --library PATH --json profile list PORT_ID
 portcove --library PATH --json profile ensure-default PORT_ID
-portcove --library PATH --json profile copy PORT_ID PROFILE_ID NAME
+portcove --library PATH --json profile copy PORT_ID PROFILE_ID NAME [--current-build]
 portcove --library PATH --json profile revisions PORT_ID PROFILE_ID
 portcove --library PATH --json profile policy PORT_ID PROFILE_ID keep-current|review-updates|automatic-eligible
 portcove --library PATH --json profile install-package PORT_ID PROFILE_ID FILE --expected-revision N
@@ -1732,7 +1732,11 @@ same result.
 `ensure-default` gives an installed port its equivalent default profile and is safe
 to repeat; a player with one setup needs nothing else. `copy` starts a new profile
 from a profile's current revision with its **own save group**: progress is not
-copied. Stale `--expected-revision` values fail as `conflict`.
+copied. The default profile follows the game's current build; any other profile
+launches the exact build its revision names, so a game update never changes a
+customized setup. `copy --current-build` makes an upgraded copy on the current
+build instead, leaving the source profile, its build and its progress unchanged.
+Stale `--expected-revision` values fail as `conflict`.
 
 `install-package` inspects a local archive without extracting or executing it, stores
 its bytes by SHA-256, records a new revision and, for the selected profile, deploys
