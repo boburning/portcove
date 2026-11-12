@@ -18625,6 +18625,15 @@
               "null"
             ]
           },
+          "selectable_discs": {
+            "description": "Discs a player may choose at launch, from the effective contract of a\nPortcove-managed multi-disc installation. Absent for every other route.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "setup_contract": {
             "anyOf": [
               {

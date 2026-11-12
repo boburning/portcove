@@ -1753,6 +1753,9 @@ struct LaunchSupervisorRequest {
     port_id: String,
     source: Option<PathBuf>,
     arguments: Vec<String>,
+    /// Ephemeral managed multi-disc choice; Core validates it.
+    #[serde(default)]
+    disc: Option<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1784,12 +1787,13 @@ async fn launch_port(
     port_id: String,
     source: Option<PathBuf>,
     arguments: Vec<String>,
+    disc: Option<u32>,
     generation: u64,
 ) -> DesktopResult<LaunchResult> {
     let worker_state = state.inner().clone();
     let (library, result) = tauri::async_runtime::spawn_blocking(move || {
         let library = library_at_generation(&worker_state, generation)?;
-        let result = request_supervised_launch(&library, port_id, source, arguments)?;
+        let result = request_supervised_launch(&library, port_id, source, arguments, disc)?;
         Ok::<_, DesktopError>((library, result))
     })
     .await
@@ -1940,6 +1944,7 @@ fn request_supervised_launch(
     port_id: String,
     source: Option<PathBuf>,
     arguments: Vec<String>,
+    disc: Option<u32>,
 ) -> DesktopResult<LaunchResult> {
     let request_id = OperationCoordinator::new("launch-supervisor-request", None)
         .operation_id()
@@ -1956,6 +1961,7 @@ fn request_supervised_launch(
             port_id,
             source,
             arguments,
+            disc,
         },
     )?;
     let executable = std::env::current_exe().map_err(PortcoveError::from)?;
@@ -2390,6 +2396,7 @@ fn run_supervisor_request(request_path: &Path) -> i32 {
                     source_override: request.source.as_deref(),
                     arguments: &request.arguments,
                     stdio: LaunchStdio::Null,
+                    disc: request.disc,
                 },
                 // Best-effort: a failed progress write never affects the launch.
                 &|event| {

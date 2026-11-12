@@ -2082,6 +2082,10 @@ pub struct LaunchReadiness {
     pub source_assessment: Option<crate::SourceAssessment>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bios_assessment: Option<crate::SourceAssessment>,
+    /// Discs a player may choose at launch, from the effective contract of a
+    /// Portcove-managed multi-disc installation. Absent for every other route.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selectable_discs: Option<u32>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

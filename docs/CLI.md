@@ -1330,7 +1330,7 @@ portcove --library <path> --jsonl reconcile --all
 portcove --library <path> --jsonl update --all [--stage]
 portcove --library <path> --json verify <port-id>
 portcove --library <path> --json activate <port-id>
-portcove --library <path> exec <port-id> -- <game arguments...>
+portcove --library <path> exec <port-id> [--disc <n>] -- <game arguments...>
 ```
 
 Saving a per-port update policy (`policy set`) persists the setting only; it does
@@ -1382,6 +1382,16 @@ A registered source is rehashed against its stored baseline before install, upda
 A port may transactionally materialize a catalog-declared runtime source through N64 normalization, bounded copy/ZIP extraction, GameCube ISO conversion, PS1 CHD expansion, or PS2 ISO/CHD normalization. A schema-2 source marker binds reuse to the current storage SHA-256 and size, so changing bytes at the same path, size, and timestamp forces restaging.
 
 `exec` forwards arguments after `--` literally only to native executables. A cataloged Windows `.bat` or `.cmd` launcher crosses an implicit `cmd.exe` boundary, so Portcove rejects caller-supplied arguments for that launch kind and permits only fixed catalog arguments that pass the batch metacharacter policy. The same core process policy removes GitHub and credential-shaped environment variables from games and every third-party setup, validation, conversion, and builder process while retaining the reviewed host/session variables required for graphics, audio, locale, profile paths, Steam/Proton, Wine, and executable discovery. Native games run in a supervised process group. Ctrl-C, plus SIGTERM on Unix, is forwarded to that group; the CLI keeps supervising until the child exits and exact-install save collection finishes.
+
+`exec --disc N` starts disc N (1-based) of a Portcove-managed multi-disc PS1
+installation for this launch only. Core takes the disc count from the
+installation's retained contract and reports it as `readiness.selectable_discs`
+in `status`; that field is absent for every other route. Core appends the
+literal `--disc <absolute runtime-discs/disc-NN.cue>` pair after the fixed
+launch arguments. It refuses an out-of-range number (`usage`), another route or
+external registration (`unsupported`) and a missing materialized disc
+(`launch`). Without `--disc` nothing is added and the runtime starts its
+saved disc. The choice is not stored.
 
 External launchers can supply a fresh UUID before starting the raw-stream CLI and
 observe it from another process:

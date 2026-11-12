@@ -257,6 +257,7 @@ impl PortcoveService {
             bios: None,
             source_assessment: None,
             bios_assessment: None,
+            selectable_discs: None,
         });
         // Public PortStatus carries lifecycle actions; backup-only assessments
         // belong to the backup inventory, including for selected runtimes.

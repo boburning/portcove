@@ -1624,6 +1624,11 @@ export interface LaunchReadiness {
    */
   required_source_extension?: string | null;
   /**
+   * Discs a player may choose at launch, from the effective contract of a
+   * Portcove-managed multi-disc installation. Absent for every other route.
+   */
+  selectable_discs?: number | null;
+  /**
    * Mechanical explanation from the effective (possibly retained) contract.
    */
   setup_contract?: SetupExplanation | null;

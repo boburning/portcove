@@ -3139,6 +3139,7 @@ async fn exec_game(service: &PortcoveService, args: ExecArgs) -> Result<ExitCode
                 source_override: args.source.as_deref(),
                 arguments: &args.game_args,
                 stdio: LaunchStdio::Inherit,
+                disc: args.disc,
             },
             &|event| write_progress(progress.borrow_mut().render(&event)),
             |session| {
@@ -4343,6 +4344,22 @@ mod tests {
         };
         assert_eq!(args.port_id, "lighthouse");
         assert!(args.game_args.is_empty());
+    }
+
+    #[test]
+    fn exec_accepts_a_one_based_disc_choice() {
+        let cli = Cli::try_parse_from(["portcove", "exec", "lighthouse", "--disc", "2"]).unwrap();
+        let Commands::Exec(args) = cli.command else {
+            panic!("expected exec command");
+        };
+        assert_eq!(args.disc, Some(2));
+        assert!(args.game_args.is_empty());
+        assert!(Cli::try_parse_from(["portcove", "exec", "lighthouse", "--disc", "0"]).is_err());
+        let default = Cli::try_parse_from(["portcove", "exec", "lighthouse"]).unwrap();
+        let Commands::Exec(args) = default.command else {
+            panic!("expected exec command");
+        };
+        assert_eq!(args.disc, None);
     }
 
     #[test]

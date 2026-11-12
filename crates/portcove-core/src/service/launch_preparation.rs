@@ -156,16 +156,25 @@ impl PortcoveService {
         source_override: Option<&Path>,
         operation: Option<&OperationCoordinator>,
     ) -> Result<crate::LaunchSpec> {
-        self.prepare_launch_for_install_observed(port, active, source_override, operation, None)
+        self.prepare_launch_for_install_observed(
+            port,
+            active,
+            source_override,
+            None,
+            operation,
+            None,
+        )
     }
 
     /// As `prepare_launch_for_install`, also delivering the launch activity's
     /// preparation events (currently disc-image unpacking phases) to `events`.
+    /// `disc` appends the literal managed PS1 disc choice; `None` adds nothing.
     pub(super) fn prepare_launch_for_install_observed(
         &self,
         port: &PortDefinition,
         active: &InstallRecord,
         source_override: Option<&Path>,
+        disc: Option<u32>,
         operation: Option<&OperationCoordinator>,
         events: Option<&dyn Fn(crate::OperationEvent)>,
     ) -> Result<crate::LaunchSpec> {
@@ -216,6 +225,17 @@ impl PortcoveService {
             },
             &checkpoint,
         )?;
+        if let Some(disc) = disc {
+            // Count from the retained contract; the disc files were hash-checked
+            // with the other critical paths by `verify_critical` above.
+            spec.arguments
+                .extend(crate::adapter::managed_psx_disc_arguments(
+                    &catalog,
+                    port,
+                    &spec.working_directory,
+                    disc,
+                )?);
+        }
         if active.port_id == "ghostship" && active.version == "2.0.0" && !spec.arguments.is_empty()
         {
             return Err(PortcoveError::verification(

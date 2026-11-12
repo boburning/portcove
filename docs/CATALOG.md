@@ -2392,6 +2392,12 @@ environment, owned save/settings/mod paths, and disposable diagnostic paths.
 It refuses duplicate fields. A different writer layout or setup contract
 needs the explicit form and applicable qualification.
 
+For a `psx-raw-set` source, the retained source profile's disc count is the
+launch disc choice that `status` reports as `readiness.selectable_discs`. A
+one-launch choice appends `--disc` with the absolute `runtime-discs/disc-NN.cue`
+beneath `build-portcove`; omitting it keeps `--no-launcher` and the runtime's
+saved disc unchanged.
+
 Reuse the PSX adapter’s preparation, preservation, and recovery evidence where
 the kit uses `psxrecomp/psxrecomp_cli.py` and the `psx-runtime` target, the same
 generated-player lifetime, and the same data layout. The

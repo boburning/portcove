@@ -303,6 +303,9 @@ pub struct IdentifiedLaunchRequest<'a> {
     pub source_override: Option<&'a Path>,
     pub arguments: &'a [String],
     pub stdio: LaunchStdio,
+    /// Ephemeral 1-based disc choice for a managed multi-disc PS1 install.
+    /// `None` keeps the runtime's own saved disc and adds no arguments.
+    pub disc: Option<u32>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1905,6 +1908,7 @@ impl PortcoveService {
                     bios: None,
                     source_assessment: None,
                     bios_assessment: None,
+                    selectable_discs: None,
                 });
                 return Ok(status);
             }
@@ -2160,6 +2164,11 @@ impl PortcoveService {
             bios,
             source_assessment,
             bios_assessment,
+            selectable_discs: status
+                .active
+                .as_ref()
+                .filter(|_| status.external_runtime.is_none())
+                .and_then(|_| crate::adapter::managed_psx_selectable_discs(catalog, port)),
         });
         Ok(status)
     }
@@ -4926,6 +4935,7 @@ impl PortcoveService {
                 source_override,
                 arguments,
                 stdio,
+                disc: None,
             },
             |_| {},
             on_started,
@@ -4968,6 +4978,7 @@ impl PortcoveService {
             source_override,
             arguments,
             stdio,
+            disc,
         } = request;
         let request_id = Uuid::parse_str(request_id)
             .map_err(|_| PortcoveError::usage("launch request ID must be a UUID"))?;
@@ -5034,6 +5045,20 @@ impl PortcoveService {
                 return Err(PortcoveError::usage(
                     "this prepared settings contract does not allow forwarded launch arguments",
                 ));
+            }
+            if let Some(disc) = disc {
+                // Refuse before a session exists; preparation rechecks the files.
+                let Some(install) = active.as_ref().filter(|_| external.is_none()) else {
+                    return Err(PortcoveError::unsupported(
+                        "A disc choice is available only for games Portcove installed and manages.",
+                    ));
+                };
+                let catalog = self.installed_catalog(install)?;
+                crate::adapter::require_managed_psx_disc_selection(
+                    &catalog,
+                    catalog.port(port_id)?,
+                    disc,
+                )?;
             }
             let (install_id, install_root, owner_kind) = match (&active, &external) {
                 (Some(_), Some(_)) => {
@@ -5102,6 +5127,7 @@ impl PortcoveService {
                     })?,
                     install,
                     source_override,
+                    disc,
                     Some(&operation),
                     Some(on_event),
                 )?,
@@ -14584,6 +14610,7 @@ fn main() {
                     source_override: None,
                     arguments: &arguments,
                     stdio: LaunchStdio::Null,
+                    disc: None,
                 },
                 |session| assert_eq!(session.owner_kind, crate::LaunchOwnerKind::External),
                 |_| {},
@@ -14596,6 +14623,21 @@ fn main() {
             b"player settings"
         );
         assert!(!external.join(LAUNCH_MARKER).exists());
+        let refused = reopened
+            .supervise_launch_identified(
+                IdentifiedLaunchRequest {
+                    request_id: &Uuid::new_v4().to_string(),
+                    port_id: "external-probe",
+                    source_override: None,
+                    arguments: &arguments,
+                    stdio: LaunchStdio::Null,
+                    disc: Some(1),
+                },
+                |_| panic!("a refused disc choice must not accept a launch session"),
+                |_| panic!("a refused disc choice must not start"),
+            )
+            .unwrap_err();
+        assert_eq!(refused.code, crate::ErrorCode::Unsupported, "{refused}");
         assert!(
             reopened
                 .supervise_launch_identified(
@@ -14605,6 +14647,7 @@ fn main() {
                         source_override: None,
                         arguments: &arguments,
                         stdio: LaunchStdio::Null,
+                        disc: None,
                     },
                     |_| {},
                     |_| {},
@@ -14623,6 +14666,7 @@ fn main() {
                         source_override: None,
                         arguments: &arguments,
                         stdio: LaunchStdio::Null,
+                        disc: None,
                     },
                     |_| {},
                     |_| panic!("changed external tree must not start"),
@@ -18326,6 +18370,7 @@ fn main() {
                     source_override: None,
                     arguments: &arguments,
                     stdio: LaunchStdio::Null,
+                    disc: None,
                 },
                 |_| {},
                 |_| panic!("cancelled preparation must not report a child"),
@@ -18382,6 +18427,7 @@ fn main() {
                     source_override: None,
                     arguments: &arguments,
                     stdio: LaunchStdio::Null,
+                    disc: None,
                 },
                 |_| {},
                 |_| {},
@@ -18435,6 +18481,7 @@ fn main() {
                 source_override: None,
                 arguments: &arguments,
                 stdio: LaunchStdio::Null,
+                disc: None,
             },
             |_| {},
             |_| started = true,
@@ -18521,6 +18568,7 @@ fn main() {
                     source_override: None,
                     arguments: &arguments,
                     stdio: LaunchStdio::Null,
+                    disc: None,
                 },
                 |_| {},
                 |_| {},
