@@ -900,11 +900,19 @@ during a pass. An unavailable folder waits and keeps its setting. Removing a fol
 `games folder-setups` lists folders with automatic setup turned on, their
 implementation choices, local-copy choice and recent failures, and changes nothing.
 
-Self-contained installations (sealed source-only preparations, prepared
-upstream/Libultraship outputs, managed PS1 raw sets and retained cartridge
-builds) launch from their verified installed data without their registered
-original, which is needed only to repair, rebuild or prepare again. Games that
-read their original at launch still need it present and unchanged.
+A self-contained installation launches from its verified installed data
+without its registered original, which is then needed only to repair, rebuild
+or prepare again. Portcove decides this by what launch would still hand the
+game: an installation is never self-contained when launch exports the original
+(`source_environment`), copies it again (managed initialization, or a runtime
+source file or set that is not sealed or prepared) or passes it as an argument.
+In practice this covers sealed source-only preparations, prepared
+upstream/Libultraship installations with a prepared runtime input, managed PS1
+raw sets (the BIOS is still read at launch) and retained cartridge builds whose
+launch reads only installed files. Other games still need their original
+present and unchanged. When it is missing because its saved game-file folder
+is disconnected, readiness names that folder (`source_folder_unavailable`) and
+says to connect it.
 
 ### Register and inspect
 
@@ -1836,7 +1844,7 @@ For `exec`, a successfully started game returns its exit code when it fits the p
 - `PORTCOVE_GITHUB_CLIENT_ID`: public GitHub App client ID used by device login. It may be embedded at build time or provided at runtime; it is not a client secret.
 - `PORTCOVE_PORT_ID`: supplied to launched ports.
 - `PORTCOVE_USER_DATA`: stable per-port mutable-data directory.
-- `PORTCOVE_SOURCE`: registered source path when the port needs one.
+- `PORTCOVE_SOURCE`: registered source path when the port needs one; not supplied when a self-contained installation launches without its original.
 - `PORTCOVE_CACHE`: generated-cache location for applicable adapters.
 - `PORTCOVE_CHDMAN`: optional full path to `chdman`; an invalid explicit path fails closed instead of falling back to another copy.
 - `PORTCOVE_DOLPHIN_TOOL`: optional full path to `DolphinTool`; an invalid explicit path fails closed instead of falling back to another copy.

@@ -165,8 +165,8 @@ export function FolderSetupChoice({
           <span>
             <strong>Keep a copy of each game's files on this computer</strong>
             <span id={`${name}-copy`} className="block text-pc-muted-foreground">
-              Use this for a network or removable drive. Only the files each game needs are copied;
-              nothing in this folder is moved or deleted.
+              Use this for a network or removable drive. Applies to games set up from now on. Only
+              the files each game needs are copied; nothing in this folder is moved or deleted.
             </span>
           </span>
         </label>

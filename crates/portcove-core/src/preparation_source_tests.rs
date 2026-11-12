@@ -453,6 +453,23 @@ async fn assert_sealed_install_launches_without_its_original(zip_source: bool) {
 }
 
 #[tokio::test]
+async fn launch_that_would_still_consume_the_original_is_never_self_contained() {
+    let fixture = Fixture::new(false);
+    let install = fixture.install(true).await;
+    let library = fixture.service.library();
+    let port = fixture.service.catalog().port(PORT).unwrap().clone();
+    assert!(crate::preparation::self_contained_launch(
+        library, &port, &install
+    ));
+    // Exporting the original to the game keeps it required.
+    let mut exported = port.clone();
+    exported.source_environment = Some("GAME_ROM".into());
+    assert!(!crate::preparation::self_contained_launch(
+        library, &exported, &install
+    ));
+}
+
+#[tokio::test]
 async fn sealed_directory_install_launches_without_its_original() {
     assert_sealed_install_launches_without_its_original(false).await;
 }

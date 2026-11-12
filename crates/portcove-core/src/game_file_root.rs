@@ -151,6 +151,27 @@ impl Library {
         rows.map(|row| row?.into_record()).collect()
     }
 
+    /// The saved folder containing `path` when that folder is unavailable.
+    /// Only the containing folder is checked, so other disconnected network
+    /// folders never slow this down. Best effort: errors read as available.
+    pub(crate) fn unavailable_game_file_root_containing(&self, path: &Path) -> Option<PathBuf> {
+        let connection = self.connection().ok()?;
+        let mut statement = connection
+            .prepare("SELECT path FROM game_file_roots")
+            .ok()?;
+        let roots = statement
+            .query_map([], |row| row.get::<_, String>(0))
+            .ok()?
+            .filter_map(std::result::Result::ok)
+            .map(PathBuf::from)
+            .collect::<Vec<_>>();
+        let root = roots
+            .into_iter()
+            .filter(|root| path.starts_with(root))
+            .max_by_key(|root| root.components().count())?;
+        (!std::fs::metadata(&root).is_ok_and(|metadata| metadata.is_dir())).then_some(root)
+    }
+
     pub fn relink_game_file_root(&self, id: &str, path: &Path) -> Result<GameFileRoot> {
         validate_id(id)?;
         let path = require_available_root(path)?;

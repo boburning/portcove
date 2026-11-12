@@ -1974,7 +1974,7 @@ impl PortcoveService {
         // A self-contained installation launches without its original, which
         // only repair, rebuild or preparation needs (owner decision on #966).
         let self_contained = match &status.active {
-            Some(active) => crate::preparation::self_contained_launch(&self.library, port, active)?,
+            Some(active) => crate::preparation::self_contained_launch(&self.library, port, active),
             None => false,
         };
         if !self_contained {
@@ -2166,15 +2166,8 @@ impl PortcoveService {
                 .and_then(|profile| registered_sources.get(profile))
                 .and_then(|record| {
                     self.library
-                        .game_file_roots()
-                        .ok()?
-                        .into_iter()
-                        .find(|root| {
-                            root.availability == crate::GameFileRootAvailability::Unavailable
-                                && record.path.starts_with(&root.path)
-                        })
+                        .unavailable_game_file_root_containing(&record.path)
                 })
-                .map(|root| root.path)
         } else {
             None
         };

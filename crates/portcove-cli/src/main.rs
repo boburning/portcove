@@ -5202,6 +5202,7 @@ mod tests {
             "games.setup-ready",
             "games.folder-setup",
             "games.folder-setup-choose",
+            "games.folder-setup-copy",
             "games.folder-setups",
         ] {
             assert!(capabilities.commands.iter().any(|command| command == name));

@@ -46,34 +46,71 @@ impl<'a> ReceiptSource<'a> {
 
 /// Owner decision on #966: when installed, manifest-covered data already
 /// holds every game input, the registered original is needed only to repair,
-/// rebuild or prepare again, so launch neither requires nor reads it. This
-/// covers sealed source-only preparations, prepared upstream/Libultraship
-/// outputs, managed PS1 raw sets (the BIOS is still read at launch) and
-/// retained cartridge builds.
+/// rebuild or prepare again, so launch neither requires nor reads it.
+///
+/// This is decided by what launch would still hand the game, not by family:
+/// any port whose launch exports the original (`source_environment`), copies
+/// it each time (managed initialization, or a runtime source file or set that
+/// is not sealed or prepared) or passes it as an argument is never
+/// self-contained. Covered: sealed source-only preparations, prepared
+/// upstream/Libultraship outputs with a prepared runtime input, managed PS1
+/// raw sets (the BIOS is still read at launch) and retained cartridge builds
+/// whose launch reads only installed files. An unreadable installation is
+/// treated as not self-contained, so the original stays required.
 pub(crate) fn self_contained_launch(
     library: &crate::Library,
     port: &PortDefinition,
     install: &InstallRecord,
-) -> Result<bool> {
+) -> bool {
+    if launch_consumes_original(port) {
+        return false;
+    }
     if port.adapter == AdapterKind::PsxRecompManaged {
-        return Ok(port.runtime_source_materialization
-            == Some(crate::RuntimeSourceMaterialization::PsxRawSet));
+        return true;
     }
-    let installer = Installer::new(library.clone())?;
+    let Ok(installer) = Installer::new(library.clone()) else {
+        return false;
+    };
     if super::source::eligible(port) {
-        return Ok(installer.retained_preparation_mode(install)?
-            == Some(super::PreparationMode::SourceOnly));
+        return installer.retained_preparation_mode(install).ok().flatten()
+            == Some(super::PreparationMode::SourceOnly);
     }
-    if managed(port) && managed_mode(port, install) == Some(super::PreparationMode::Default) {
+    if managed(port) {
         // Only once prepared: an unprepared install still needs its original.
-        return Ok(installer
-            .read_verified_member(install, RECEIPT_FILE, 1024 * 1024)
-            .is_ok());
+        return managed_mode(port, install) == Some(super::PreparationMode::Default)
+            && installer
+                .read_verified_member(install, RECEIPT_FILE, 1024 * 1024)
+                .is_ok();
     }
-    Ok(!port.release.managed_build.is_empty()
+    !port.release.managed_build.is_empty()
         && installer
             .read_verified_member(install, crate::cartridge_build::RECEIPT, 1024 * 1024)
-            .is_ok())
+            .is_ok()
+}
+
+/// Whether launch would still hand the game its registered original: by
+/// export, by copying it again at launch, or as an argument. Sealed and
+/// prepared installations skip runtime materialization.
+pub(crate) fn launch_consumes_original(port: &PortDefinition) -> bool {
+    if port.source_environment.is_some() || port.managed_initialization.is_some() {
+        return true;
+    }
+    match port.adapter {
+        AdapterKind::ReferencedDisc | AdapterKind::GeneratedCache => return true,
+        AdapterKind::PsxRecompManaged => {
+            return port.runtime_source_materialization
+                != Some(crate::RuntimeSourceMaterialization::PsxRawSet);
+        }
+        _ => {}
+    }
+    let libultraship_rom_argument =
+        port.adapter == AdapterKind::LibultrashipPortable && port.runtime_source_filename.is_none();
+    if super::source::eligible(port) || managed(port) {
+        return libultraship_rom_argument;
+    }
+    libultraship_rom_argument
+        || port.runtime_source_filename.is_some()
+        || !port.runtime_source_set.is_empty()
 }
 
 pub(crate) fn managed_install(port: &PortDefinition, install: &InstallRecord) -> bool {
@@ -258,5 +295,55 @@ impl PortcoveService {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod self_contained_tests {
+    use super::*;
+
+    fn port(adapter: AdapterKind) -> PortDefinition {
+        let mut port = crate::Catalog::embedded()
+            .unwrap()
+            .document()
+            .ports
+            .iter()
+            .find(|port| port.source_profile.is_some())
+            .unwrap()
+            .clone();
+        port.adapter = adapter;
+        port.source_environment = None;
+        port.managed_initialization = None;
+        port.runtime_source_filename = None;
+        port.runtime_source_set.clear();
+        port.setup_output_paths.clear();
+        port.runtime_source_materialization = None;
+        port
+    }
+
+    #[test]
+    fn launch_consumption_decides_self_containment_not_family() {
+        // A cartridge-style build that reads only installed files.
+        assert!(!launch_consumes_original(&port(
+            AdapterKind::NativePortable
+        )));
+        // CVLoD rewrites its ROM from the original at every launch.
+        let mut rom = port(AdapterKind::N64RecompPortable);
+        rom.runtime_source_filename = Some("rom.z64".into());
+        assert!(launch_consumes_original(&rom));
+        let mut exported = port(AdapterKind::NativePortable);
+        exported.source_environment = Some("GAME_ROM".into());
+        assert!(launch_consumes_original(&exported));
+        assert!(launch_consumes_original(&port(AdapterKind::ReferencedDisc)));
+        assert!(launch_consumes_original(&port(AdapterKind::GeneratedCache)));
+        // PS1: only a raw set is self-contained; CHD paths are mounted.
+        let mut raw = port(AdapterKind::PsxRecompManaged);
+        assert!(launch_consumes_original(&raw));
+        raw.runtime_source_materialization = Some(crate::RuntimeSourceMaterialization::PsxRawSet);
+        assert!(!launch_consumes_original(&raw));
+        // Libultraship passes the ROM itself unless a prepared input exists.
+        assert!(launch_consumes_original(&port(
+            AdapterKind::LibultrashipPortable
+        )));
     }
 }

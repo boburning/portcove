@@ -1,6 +1,6 @@
 import { fixtureValue } from "../../test-fixtures";
 import { expect, it } from "vite-plus/test";
-import { portStatus } from "../../test-fixtures";
+import { installedLaunchStatus, portStatus } from "../../test-fixtures";
 import type { PortStatus } from "../../types";
 import {
   catalogSetupPresentation,
@@ -700,6 +700,21 @@ it("asks to reconnect a disconnected saved folder instead of reporting deleted f
   };
   expect(portActionPresentation(disconnected, "launch")).toEqual({
     blocked: true,
-    reason: "Connect N:/Games to play. Its game files weren't deleted.",
+    reason: "Connect N:/Games to play.",
   });
+});
+
+it("labels the installed card with the disconnected folder, not missing files", () => {
+  const status = {
+    ...installedLaunchStatus({
+      launchable: false,
+      blockers: ["missing_source"],
+      pending_setup: false,
+      source_folder_unavailable: "\\\\?\\UNC\\nas\\games",
+    }),
+  };
+  const card = installedCardInputPresentation(status);
+  expect(card?.label).toBe("Game-file folder disconnected");
+  expect(JSON.stringify(card)).toContain("Connect \\\\\\\\nas\\\\games to play.");
+  expect(JSON.stringify(card)).not.toContain("select and review");
 });

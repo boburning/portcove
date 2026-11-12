@@ -2473,6 +2473,7 @@ impl CapabilityDocument {
                 "games.setup-ready".into(),
                 "games.folder-setup".into(),
                 "games.folder-setup-choose".into(),
+                "games.folder-setup-copy".into(),
                 "games.folder-setups".into(),
                 "ensure".into(),
                 "update".into(),

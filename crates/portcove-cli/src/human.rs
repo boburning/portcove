@@ -2769,7 +2769,7 @@ fn readiness(status: &PortStatus) -> String {
         .join(", ");
     let blockers = match &readiness.source_folder_unavailable {
         Some(folder) => format!(
-            "{blockers}; connect {} to play (its game files weren't deleted)",
+            "{blockers}; connect {} to play",
             clean(&folder.display().to_string())
         ),
         None => blockers,
