@@ -1265,8 +1265,10 @@ void test("29 candidates fit one receipt and retain every scoped doctor and the 
   assert.equal(status.pending, 0);
   assert.equal(status.full_doctor_required, true);
   assert.equal(status.doctor, null);
-  assert.match(status.last_error?.message ?? "", /^Fixture full doctor input unavailable: /u);
-  assert.match(status.last_error?.message ?? "", /\[truncated\]$/u);
+  const diagnostic = status.last_error?.message;
+  assert(typeof diagnostic === "string");
+  assert.match(diagnostic, /^Fixture full doctor input unavailable: /u);
+  assert.match(diagnostic, /\[truncated\]$/u);
   const comment = f.all().find((c) => c.id === status.receipt_comment)!;
   const receipt = JSON.parse(comment.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) as {
     delivery: { status: string; doctor?: { status: string } }[];
