@@ -877,7 +877,7 @@ export default interface Resources {
   },
   "organization": {
     "collection": {
-      "withCount": "<name/> ({{total, number}})"
+      "withCount": "<name/> ({{total}})"
     },
     "edit": {
       "create": "Create collection",
