@@ -1,4 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Trans } from "react-i18next";
+import { useAppTranslation } from "../localization";
 import { desktopApi } from "../api";
 import type { InstallRecord, OperationEvent, PreparationPlan } from "../types";
 import { errorText, formatBytes, isCancellation } from "../view-model";
@@ -29,9 +31,25 @@ export function PreparationControl({
   focusFallback?: () => HTMLElement | null;
   onPrepared?: () => void;
 }) {
+  const { t } = useAppTranslation("installation");
   const [plan, setPlan] = useState<PreparationPlan>();
   const [pending, setPending] = useState<"review" | "prepare">();
-  const [message, setMessage] = useState<string>();
+  // App-owned outcomes are codes translated at render; Core progress text stays verbatim.
+  const [status, setStatus] = useState<
+    "starting" | "prepared" | "unfinished" | "cancelled" | { text: string }
+  >();
+  const message =
+    status === undefined
+      ? undefined
+      : typeof status === "object"
+        ? status.text
+        : status === "starting"
+          ? t("preparation.status.starting")
+          : status === "prepared"
+            ? t("preparation.status.prepared")
+            : status === "unfinished"
+              ? t("preparation.status.unfinished")
+              : t("preparation.status.cancelled");
   const [error, setError] = useState<string>();
   const [operationId, setOperationId] = useState<string>();
   const request = useRef(0);
@@ -61,7 +79,7 @@ export function PreparationControl({
     setPending("review");
     setError(undefined);
     setPlan(undefined);
-    setMessage(undefined);
+    setStatus(undefined);
     try {
       const value = await desktopApi.planPreparation(portId, generation);
       if (request.current === current) setPlan(value);
@@ -76,27 +94,21 @@ export function PreparationControl({
     const current = ++request.current;
     setPending("prepare");
     setError(undefined);
-    setMessage("Starting preparation…");
+    setStatus("starting");
     try {
       const result = await run(plan.plan_sha256, (event) => {
         if (request.current !== current) return;
         if (event.type === "started") setOperationId(event.operation_id);
-        if (event.type === "message") setMessage(event.message);
+        if (event.type === "message") setStatus({ text: event.message });
       });
       // Readback may already have removed this control. The parent completion
       // owner validates its target/epoch and connected workspace before focusing.
       if (result && observing.current) onPrepared?.();
       if (request.current === current) completed.current = Boolean(result);
-      if (request.current === current)
-        setMessage(
-          result
-            ? "Game data is prepared."
-            : "Setup didn’t finish. Check the selected game files before starting again.",
-        );
+      if (request.current === current) setStatus(result ? "prepared" : "unfinished");
     } catch (value) {
       if (request.current === current) {
-        if (isCancellation(value))
-          setMessage("Setup cancelled. Check Recent activity for unfinished work.");
+        if (isCancellation(value)) setStatus("cancelled");
         else setError(errorText(value));
       }
     } finally {
@@ -111,14 +123,11 @@ export function PreparationControl({
     <section
       ref={actionRegion}
       tabIndex={-1}
-      aria-label="Prepare game data"
+      aria-label={t("preparation.label")}
       className="preparation-control"
     >
       {taskLabel && <p className="font-semibold [overflow-wrap:anywhere]">{taskLabel}</p>}
-      <p>
-        Portcove will use your selected original files to prepare this installed version. Your
-        current installation and saved data will stay in place.
-      </p>
+      <p>{t("preparation.intro")}</p>
       <Button
         ref={reviewButton}
         hidden={Boolean(plan)}
@@ -131,7 +140,7 @@ export function PreparationControl({
           void review();
         }}
       >
-        {pending === "review" ? "Checking preparation inputs…" : "Review setup"}
+        {pending === "review" ? t("preparation.checking") : t("preparation.review")}
       </Button>
       {plan && (
         <Dialog
@@ -169,12 +178,12 @@ export function PreparationControl({
               tabIndex={-1}
               className="mb-2 text-xl"
             >
-              Prepare game data
+              {t("preparation.title")}
             </DialogTitle>
             <DialogDescription id="preparation-review-description" className="mb-4 leading-relaxed">
               {pending === "prepare"
-                ? "Preparing the reviewed installation and game files."
-                : "Review the files and changes before starting."}
+                ? t("preparation.description.running")
+                : t("preparation.description.review")}
             </DialogDescription>
             <div className="mb-4 flex min-w-0 items-center gap-4 border-b border-[var(--color-border)] pb-4">
               <ArtworkImage
@@ -184,29 +193,31 @@ export function PreparationControl({
               />
               <div className="min-w-0">
                 <p className="m-0 font-semibold [overflow-wrap:anywhere]">
-                  {taskLabel ?? "Selected installation"}
+                  {taskLabel ?? t("preparation.selected")}
                 </p>
                 <p className="mt-1 mb-0 text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
-                  Installed version {plan.inputs.install.version}
+                  <Trans
+                    t={t}
+                    i18nKey="preparation.installedVersion"
+                    components={{ version: <bdi>{plan.inputs.install.version}</bdi> }}
+                  />
                 </p>
               </div>
             </div>
             {pending === "prepare" ? (
               <>
-                <p role="status">{message ?? "Starting preparation…"}</p>
-                <p>
-                  Keep Portcove open. You can continue browsing and revisit this task in Activity.
-                </p>
+                <p role="status">{message ?? t("preparation.status.starting")}</p>
+                <p>{t("preparation.keepOpen")}</p>
                 {operationId && (
                   <OperationCancellation
                     key={operationId}
                     operationId={operationId}
-                    label="Cancel preparation"
+                    label={t("preparation.cancel")}
                   />
                 )}
                 <details className="mt-4">
                   <summary data-focusable className="cursor-pointer py-2">
-                    Files and setup details
+                    {t("preparation.details")}
                   </summary>
                   <PreparationFacts plan={plan} />
                 </details>
@@ -224,7 +235,7 @@ export function PreparationControl({
                     setPlan(undefined);
                   }}
                 >
-                  Continue browsing
+                  {t("preparation.continue")}
                 </Button>
               )}
               {pending !== "prepare" && (
@@ -236,7 +247,7 @@ export function PreparationControl({
                     void prepare();
                   }}
                 >
-                  Prepare game data
+                  {t("preparation.prepare")}
                 </Button>
               )}
               {pending !== "prepare" && (
@@ -246,7 +257,7 @@ export function PreparationControl({
                   disabled={disabled}
                   onClick={dismissReview}
                 >
-                  Cancel review
+                  {t("preparation.cancelReview")}
                 </Button>
               )}
             </DialogFooter>
@@ -258,7 +269,7 @@ export function PreparationControl({
         <OperationCancellation
           key={operationId}
           operationId={operationId}
-          label="Cancel preparation"
+          label={t("preparation.cancel")}
         />
       )}
       {error && <p role="alert">{error}</p>}
@@ -267,54 +278,61 @@ export function PreparationControl({
 }
 
 function PreparationFacts({ plan }: { plan: PreparationPlan }) {
+  const { t } = useAppTranslation("installation");
   return (
-    <div className="preparation-plan" aria-label="Preparation plan">
-      <h3>Files used</h3>
+    <div className="preparation-plan" aria-label={t("preparation.plan.label")}>
+      <h3>{t("preparation.plan.files")}</h3>
       <dl className="preparation-inputs">
         <div>
           <dt className="text-pc-secondary-foreground">
-            Installed version {plan.inputs.install.version}
+            <Trans
+              t={t}
+              i18nKey="preparation.installedVersion"
+              components={{ version: <bdi>{plan.inputs.install.version}</bdi> }}
+            />
           </dt>
-          <dd className="m-0 [user-select:text]">{plan.inputs.install.path}</dd>
+          <dd className="m-0 [user-select:text]">
+            <bdi dir="ltr">{plan.inputs.install.path}</bdi>
+          </dd>
         </div>
         <div>
-          <dt className="text-pc-secondary-foreground">Selected game files</dt>
-          <dd className="m-0 [user-select:text]">{plan.inputs.source.path}</dd>
+          <dt className="text-pc-secondary-foreground">{t("preparation.plan.source")}</dt>
+          <dd className="m-0 [user-select:text]">
+            <bdi dir="ltr">{plan.inputs.source.path}</bdi>
+          </dd>
         </div>
       </dl>
-      <h3>What changes</h3>
+      <h3>{t("preparation.plan.changes")}</h3>
       <dl className="preparation-consequences">
         <div>
-          <dt>Free space</dt>
+          <dt>{t("preparation.plan.space")}</dt>
           <dd>
-            At least {formatBytes(plan.copy.total_bytes + plan.inputs.source.storage_size)}, plus
-            the output generated by the game.
+            <Trans
+              t={t}
+              i18nKey="preparation.plan.spaceText"
+              components={{
+                size: (
+                  <bdi>{formatBytes(plan.copy.total_bytes + plan.inputs.source.storage_size)}</bdi>
+                ),
+              }}
+            />
           </dd>
         </div>
         <div>
-          <dt>Activation & recovery</dt>
-          <dd>
-            Your original files and current installation remain unchanged until the verified result
-            becomes active. The previous version stays available for rollback.
-          </dd>
+          <dt>{t("preparation.plan.activation")}</dt>
+          <dd>{t("preparation.plan.activationText")}</dd>
         </div>
       </dl>
-      <aside className="preparation-during" aria-label="During setup">
-        <h3>During setup</h3>
-        <p>Keep Portcove open. Continue browsing and revisit progress in Activity.</p>
-        <p>
-          Cancellation or interruption may leave working files in Activity. Starting again keeps
-          earlier unfinished work.
-        </p>
+      <aside className="preparation-during" aria-label={t("preparation.plan.during")}>
+        <h3>{t("preparation.plan.during")}</h3>
+        <p>{t("preparation.plan.duringOpen")}</p>
+        <p>{t("preparation.plan.duringInterrupt")}</p>
       </aside>
       <details>
         <summary data-focusable className="cursor-pointer py-2">
-          If setup opens another window
+          {t("preparation.plan.window")}
         </summary>
-        <p className="mt-2 mb-0">
-          Finish setup in that window, then close it without starting the game. Portcove will check
-          the files. If the checks pass, it will switch to the new version.
-        </p>
+        <p className="mt-2 mb-0">{t("preparation.plan.windowText")}</p>
       </details>
     </div>
   );
