@@ -214,3 +214,26 @@ void test("the classifier records deferral as the marker step the supersede scri
   const step = workflowStep("classify", deferralMarkerStep);
   assert.equal(step.if, "steps.plan.outputs.windows_tests_deferred == 'true'");
 });
+
+void test("fast pull request producers stop at once when a newer head superseded their run", () => {
+  const ci = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+  const action = readFileSync(
+    new URL("../.github/actions/stop-if-superseded/action.yml", import.meta.url),
+    "utf8",
+  );
+  const uses = "uses: ./.github/actions/stop-if-superseded";
+  // classify, the three Windows Rust producers and the Linux quality, frontend, browser and catalog producers.
+  assert.equal(ci.split(uses).length - 1, 8);
+  for (const block of ci.split(uses).slice(1)) {
+    assert.match(
+      block,
+      /^\s+with:\s+pull-request: \$\{\{ github\.event\.pull_request\.number \}\}\s+head-sha: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/u,
+    );
+  }
+  // Only a pull request event with a proven different head stops; anything unreadable continues.
+  assert.match(action, /if: inputs\.pull-request != '' && inputs\.head-sha != ''/u);
+  assert.match(action, /ls-remote origin "refs\/pull\/\$\{PORTCOVE_PULL_REQUEST\}\/head"/u);
+  assert.match(action, /\|\| true\)"/u);
+  assert.match(action, /=~ \^\[0-9a-f\]\{40\}\$ && "\$current" != "\$PORTCOVE_RUN_HEAD"/u);
+  assert.doesNotMatch(action, /GH_TOKEN|github\.token|secrets\./u);
+});
