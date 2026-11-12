@@ -103,8 +103,10 @@ unrelated facets.
 
 The detail hero holds identity, concise port/system context, readiness, one
 primary action, Favorite and More. Catalog setup-availability checks and catalog
-update settings are maintenance and appear at the top of the management section (Manage, or Game files when Manage is absent), not in the hero. Before the game is installed they open Game files instead, beside setup. In desktop windows
-up to 760px high (from 761px width) the hero uses a 12.5rem minimum, tighter
+update settings are maintenance and appear at the top of the management section
+(Manage, or Game files when Manage is absent), not in the hero. Before the game is
+installed they appear at the top of Game files, beside setup. In desktop
+windows up to 760px high (from 761px width) the hero uses a 12.5rem minimum, tighter
 padding and a smaller title clamp so the tabs and initial tab content are visible
 at 1280×720; long titles and enlarged text still grow it. (#5058 D1)
 
@@ -147,7 +149,9 @@ Panels stay mounted to preserve drafts and reviews; inactive panels are hidden a
 inert, so they cannot receive keyboard, accessibility or controller traversal.
 Overview pairs the actual description with a narrower facts column; project status,
 compatibility qualifications and recorded checks have named disclosures. Game files owns setup, source/BIOS/tool and file observations. Saves owns
-coverage, unknowns, backup history, recovery and reviews. Versions & updates owns
+coverage, unknowns, backup history, recovery and reviews, plus game settings and, for
+games with reviewed mod support, setups and mods (each setup keeps its own saves and
+settings). Versions & updates owns
 checks, candidate decisions, staged activation, rollback, future preferences and
 private notice choices. Manage owns installation/location/artwork/Steam/CLI,
 verification/removal and the existing reviewed managed-route transition. Unsupported routes state their actual limits and keep upstream links.

@@ -61,6 +61,11 @@ export type GameSettingView = GameSettingsView["files"][number]["settings"][numb
 export type GameSettingReview = Generated.TransportOutputs["game_setting_review"];
 export type GameSettingChange = Requests.TransportInputs["game_setting_change"];
 export type GameUpdateAcquisition = Generated.TransportOutputs["game_update_acquisition"];
+export type ModSetupsView = Generated.TransportOutputs["mod_setups_view"];
+export type ModSetupView = NonNullable<ModSetupsView["inventory"]>["profiles"][number];
+export type ModSetup = ModSetupView["profile"];
+export type ModSetupRevision = Generated.TransportOutputs["profile_revision"];
+export type LiveMods = Generated.TransportOutputs["live_mods"];
 
 export type { SourceHealth } from "./transport-types.generated";
 
@@ -109,6 +114,11 @@ export type AdoptionPreview = Generated.TransportOutputs["adoption_preview"];
 export type LauncherLibraryInventory = Generated.TransportOutputs["launcher_library_inventory"];
 export type LauncherLibraryEntry = LauncherLibraryInventory["entries"][number];
 export type LauncherKind = LauncherLibraryInventory["launcher"];
+export type AdoptionBatchItem = Requests.TransportInputs["desktop_adoption_batch_items"][number];
+export type AdoptionBatchPreview = Generated.TransportOutputs["desktop_adoption_batch_preview"];
+export type AdoptionBatchResult = NonNullable<
+  Generated.TransportOutputs["desktop_adoption_batch_result"]
+>;
 export type ExternalRuntimePreview = Generated.TransportOutputs["desktop_external_runtime_preview"];
 export type ExternalRuntimeRelinkPreview =
   Generated.TransportOutputs["desktop_external_runtime_relink_preview"];

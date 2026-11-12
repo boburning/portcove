@@ -19,7 +19,7 @@ use crate::{
     inspect_asset_archive,
     mod_package::extract_packages,
     profile,
-    profile_deploy::{StagedPackage, adapter_extensions, sha256_file},
+    profile_deploy::{adapter_extensions, inspect_for_port, sha256_file},
 };
 
 const MAX_DOWNLOAD_BYTES: u64 = 4 * 1024 * 1024 * 1024;
@@ -29,13 +29,25 @@ const ACTION: &str = "install_provider_package";
 
 /// Reviewed operational binding between a port and the provider's game identity.
 /// Names and popularity never authorize compatibility; only this binding does.
-fn gamebanana_game(port_id: &str) -> Option<u64> {
-    match port_id {
-        "shipwright" => Some(16121),
-        #[cfg(test)]
-        "starship" => Some(777),
-        _ => None,
+/// Planning inspects asset archives directly; binding a port whose loader names
+/// packages from their contents (Recomp) needs planning through
+/// `inspect_for_port` first, though apply already uses it.
+const GAMEBANANA_BINDINGS: &[(&str, u64)] = &[("shipwright", 16121)];
+
+pub(crate) fn gamebanana_game(port_id: &str) -> Option<u64> {
+    #[cfg(test)]
+    if port_id == "starship" {
+        return Some(777);
     }
+    GAMEBANANA_BINDINGS
+        .iter()
+        .find(|(port, _)| *port == port_id)
+        .map(|(_, game)| *game)
+}
+
+/// Ports with a reviewed binding, for passes that visit each of them.
+pub(crate) fn gamebanana_ports() -> impl Iterator<Item = &'static str> {
+    GAMEBANANA_BINDINGS.iter().map(|(port, _)| *port)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -61,7 +73,8 @@ pub struct ProviderInstallPlan {
     pub members: Vec<PlanMember>,
     /// Entries of the provider's wrapper that are not packages and were not read.
     pub ignored_entries: u32,
-    /// Installed packages with the same native ID but different bytes.
+    /// Installed packages this plan replaces: the same native ID with different
+    /// bytes, or a package the game loads as the same mod under another extension.
     pub replaces: Vec<String>,
     pub conflicts: Vec<AssetConflict>,
     pub conflicts_truncated: bool,
@@ -217,19 +230,41 @@ impl PortcoveService {
                 existing_assets.push((package.native_id.clone(), inspection.asset_paths));
             }
         }
+        // The checks apply would make, made before anything is authorized.
+        let named = crate::native_mod_list::contract(port_id).is_some();
+        if named {
+            for member in &members {
+                crate::native_mod_list::require_listable(&member.file_name)?;
+            }
+            if let Some((first, second)) = crate::native_mod_list::identity_collision(
+                members.iter().map(|member| member.file_name.as_str()),
+            ) {
+                return Err(PortcoveError::unsupported(
+                    "this file contains two packages the game would load as the same mod, so it cannot be installed",
+                )
+                .detail("packages", format!("{first}, {second}")));
+            }
+        }
+        // A package the game loads as the same mod is replaced, even under another
+        // extension (`.otr` to `.o2r`).
+        let same = |member: &PlanMember, id: &str| {
+            member.file_name == id
+                || (named && crate::native_mod_list::same_mod(&member.file_name, id))
+        };
         let replaces = current
             .packages
             .iter()
             .filter(|package| {
-                members
-                    .iter()
-                    .any(|m| m.file_name == package.native_id && m.sha256 != package.sha256)
+                members.iter().any(|m| {
+                    same(m, &package.native_id)
+                        && (m.sha256 != package.sha256 || m.file_name != package.native_id)
+                })
             })
             .map(|package| package.native_id.clone())
             .collect::<Vec<_>>();
         let mut ordered = existing_assets
             .iter()
-            .filter(|(id, _)| !members.iter().any(|m| &m.file_name == id))
+            .filter(|(id, _)| !members.iter().any(|m| same(m, id)))
             .map(|(id, paths)| (id.as_str(), paths.as_slice()))
             .collect::<Vec<_>>();
         for inspection in &inspections {
@@ -365,17 +400,14 @@ impl PortcoveService {
                 )
                 .detail("package", &member.file_name));
             }
-            let inspection = inspect_asset_archive(&path)?;
-            if inspection.sha256 != member.sha256 {
+            // The same loader review a local install gets.
+            let item = inspect_for_port(&plan.port_id, path, Some(plan.provider.clone()))?;
+            if item.inspection.sha256 != member.sha256 {
                 return Err(PortcoveError::verification(
                     "the reviewed package bytes changed during inspection; plan again",
                 ));
             }
-            staged.push(StagedPackage {
-                private: path,
-                inspection,
-                provider: Some(plan.provider.clone()),
-            });
+            staged.push(item);
         }
         let revision = self.install_staged_locked(
             &plan.port_id,

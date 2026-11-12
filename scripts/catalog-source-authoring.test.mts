@@ -814,8 +814,7 @@ void test("PSX managed Windows authoring preserves the embedded contracts", () =
     duplicate.integration!.runtime_subdirectory = "setup-host";
     assert.throws(() => checkedAuthoredPort(duplicate), /already owns runtime_subdirectory/u);
     const otherBios = structuredClone(record);
-    otherBios.integration!.bios_source_profile =
-      record.psx_managed_windows_v1 === "split-mods" ? "psx-scph-5501-bios" : "psx-scph-5552-bios";
+    otherBios.integration!.bios_source_profile = "psx-scph-5501-bios";
     assert.throws(() => checkedAuthoredPort(otherBios), /retail SCPH-1001/u);
     const otherPlatform = structuredClone(record);
     delete otherPlatform.listing.platforms;

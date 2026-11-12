@@ -14,7 +14,7 @@
       "steps": [
         {
           "title": "Use the modern SDL2 player and your own Kilrathi Saga data",
-          "instruction": "Use the official modern Windows x64 SDL2 package with all companion DLLs, or an already permitted working copy of that same route. Select normal wc1-modern.exe for an attached copy. The separate win32-msvc420 reconstruction package is not this player. Use your own full Wing Commander Kilrathi Saga installation: GAMEDAT plus STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. DOS support is partial and does not inherit this offer."
+          "instruction": "Use the official modern SDL2 package for Windows x64, Linux x86-64 or an Apple silicon Mac with all companion libraries, or an already permitted working copy of that same route. Select normal wc1-modern.exe (wc1-modern on Linux or a Mac) for an attached copy. The separate win32-msvc420 reconstruction package is not this player. Use your own full Wing Commander Kilrathi Saga installation: GAMEDAT plus STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. DOS support is partial and does not inherit this offer."
         },
         {
           "title": "Choose the actual writable original directory in upstream setup",
@@ -54,16 +54,20 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "adapter": "native-portable",
     "release": {
       "repository": "neuromancer/wc1-re",
       "asset_hints": {
-        "windows-x86-64": ["-windows-x86_64-sdl2.zip"]
+        "windows-x86-64": ["-windows-x86_64-sdl2.zip"],
+        "linux-x86-64": ["-linux-x86_64-sdl2.zip"],
+        "macos-aarch64": ["-macos-arm64-sdl2.zip"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": ["wc1-modern.exe"]
+      "windows-x86-64": ["wc1-modern.exe"],
+      "linux-x86-64": ["wc1-modern"],
+      "macos-aarch64": ["wc1-modern"]
     },
     "launch_arguments": ["--gui"],
     "persistent_paths": [],
@@ -71,7 +75,7 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "On Play, use the upstream graphical Browse/Launch dialog to choose your own permitted, writable Wing Commander Kilrathi Saga directory. It needs GAMEDAT including MODULE.000, CAMP.000 and INSTALL.DAT plus sibling STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. These are upstream startup checks, not Core authentication of every original file. Portcove supplies --gui so supported graphics arguments do not bypass that setup. The launcher changes to the selected original directory and runs the game in the same process. Original data and SAVEGAME.WLD stay in that creating game directory; shared settings use the actual SDL preference directory for Origin Systems/WC Kilrathi Saga, including wc1-modern.cfg. Core replaces only its engine; it does not import, migrate, back up, roll back or delete those external game/save/profile files. Preserve the whole actual original/profile trees and compatible old runtime before changes. Another engine copy can share them. DOS data support is partial and is not the managed offer; original MSVC420 reconstruction is a different package. Existing external registrations remain independently owned."
+      "manual_preparation": "On Play, use the upstream graphical Browse/Launch dialog to choose your own permitted, writable Wing Commander Kilrathi Saga directory. It needs GAMEDAT including MODULE.000, CAMP.000 and INSTALL.DAT plus sibling STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. These are upstream startup checks, not Core authentication of every original file. Portcove supplies --gui so supported graphics arguments do not bypass that setup. The launcher changes to the selected original directory and runs the game in the same process. Original data and SAVEGAME.WLD stay in that creating game directory; shared settings use the actual SDL preference directory for Origin Systems/WC Kilrathi Saga, including wc1-modern.cfg (on Linux under ~/.local/share, on a Mac under ~/Library/Application Support). The Linux x86-64 player needs glibc 2.39 and the Apple silicon Mac player needs macOS 15. Both packages keep their bundled SDL2 and LZO libraries beside wc1-modern. The Intel Mac package also needs SDL3, which it does not include, so it stays a copy you set up yourself. Core replaces only its engine; it does not import, migrate, back up, roll back or delete those external game/save/profile files. Preserve the whole actual original/profile trees and compatible old runtime before changes. Another engine copy can share them. DOS data support is partial and is not the managed offer; original MSVC420 reconstruction is a different package. Existing external registrations remain independently owned."
     }
   }
 }

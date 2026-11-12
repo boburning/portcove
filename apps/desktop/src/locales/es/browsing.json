@@ -1,0 +1,79 @@
+{
+  "alternatives": {
+    "external": "Instalación externa · <version/>",
+    "heading": "Otras adaptaciones de este juego ({{total}})",
+    "independence": "Cada proyecto conserva sus propios archivos e instalación. Elegir uno no transfiere partidas ni elige una versión.",
+    "managed": "Instalación administrada · <version/>",
+    "notInstalled": "No instalado",
+    "originalFiles": "Archivos originales: <files/>",
+    "originalFilesUnknown": "Archivos originales: consulta las instrucciones de configuración del proyecto",
+    "runsOn": "Funciona en: <platforms/>",
+    "runsOnUnknown": "Funciona en: sin registrar",
+    "sourceEditions": "Ediciones de origen: <editions/>",
+    "stateUnavailable": "Estado de la instalación no disponible",
+    "view": "Ver <name/>",
+    "viewing": "<name/> · Viendo"
+  },
+  "hero": {
+    "continueLabel": "{{title}}, jugado recientemente",
+    "credits": "Créditos de las imágenes",
+    "detailLabel": "Detalles del juego {{title}}"
+  },
+  "implementation": {
+    "choose": "Elegir <name/>",
+    "preferred": "Preferida: <name/>",
+    "refresh": "Actualizar las opciones",
+    "unconfirmed": "Portcove no pudo confirmar que se guardó tu elección. Actualiza las opciones para comprobarlo."
+  },
+  "library": {
+    "allPorts_one": "La única adaptación ({{count, number}}) · Coincidentes: {{matching, number}}",
+    "allPorts_many": "Todas las adaptaciones ({{count, number}}) · Coincidentes: {{matching, number}}",
+    "allPorts_other": "Todas las adaptaciones ({{count, number}}) · Coincidentes: {{matching, number}}",
+    "choiceFiltered": "Tu adaptación preferida está fuera de estos filtros. Puedes ver las adaptaciones coincidentes abajo.",
+    "choiceReadFailed": "No se pudo leer tu elección de implementación. Las acciones de las instalaciones existentes siguen disponibles.",
+    "choiceStale": "La adaptación que elegiste ya no está en el grupo de este juego. Elige una adaptación de la lista.",
+    "choosePrompt": "Elige la adaptación que se mostrará para este juego. Antes de cambiar, consulta sus instrucciones de configuración sobre las ubicaciones compartidas de las partidas.",
+    "chosen": "<name/> · Tu elección",
+    "chosenOutside": "<name/> · Tu elección · Fuera de los filtros actuales",
+    "independence": "Elegir un proyecto no selecciona una versión, no transfiere partidas ni reemplaza otra instalación.",
+    "outside": "<name/> · Fuera de los filtros actuales",
+    "portCount_one": "{{count, number}} adaptación",
+    "portCount_many": "{{count, number}} adaptaciones",
+    "portCount_other": "{{count, number}} adaptaciones",
+    "portsLabel": "Adaptaciones de {{title}}"
+  },
+  "maintenance": {
+    "offer": "Oferta administrada actual",
+    "reconsider": "Reconsiderar cuando: <condition/>"
+  },
+  "match": {
+    "channelUnknown": "Canal desconocido",
+    "choose": "Elige una versión para inspeccionarla. Cada opción coincide con todos los filtros seleccionados.",
+    "heading": "Versiones que coinciden con tus filtros",
+    "installedBuild": "Compilación instalada",
+    "label": "Contextos de exploración coincidentes",
+    "lostChoice": "Tu elección anterior ya no está vigente. Elige una versión coincidente para inspeccionarla.",
+    "methodUnknown": "Método de configuración guardado desconocido",
+    "noCheck": "No hay una comprobación actual de archivos del juego para esta versión. Vuelve a comprobar.",
+    "noDetails": "Este juego coincide con tus filtros. Los detalles de la versión no están disponibles; Portcove comprueba los requisitos antes de la configuración o el inicio.",
+    "noLongerMatches": "Esta adaptación ya no coincide con tus filtros.",
+    "platformUnknown": "Plataforma desconocida",
+    "savedInstallation": "<method/>. Esta es tu instalación guardada coincidente. Portcove vuelve a comprobar los requisitos actuales antes de la configuración o el inicio.",
+    "setup": "Configuración",
+    "setupOption": "<method/>. Esta opción de configuración coincide con tus filtros. Portcove vuelve a comprobar los requisitos actuales antes de la configuración o el inicio.",
+    "unavailable": "Estos resultados de filtro no están disponibles. Vuelve a Filtros para actualizar tus elecciones o comprobar de nuevo."
+  },
+  "observations": {
+    "available": "Actualización disponible en la última comprobación",
+    "channel": "Canal de actualización seleccionado: <channel/>",
+    "retired": "Retirada en el origen",
+    "staged": "Actualización guardada para más tarde",
+    "updateDetails": "Detalles de la actualización"
+  },
+  "search": {
+    "clear": "Borrar la búsqueda",
+    "discover": "Buscar en Descubrir",
+    "library": "Buscar en tu biblioteca",
+    "placeholder": "Nombre del juego o de la adaptación"
+  }
+}

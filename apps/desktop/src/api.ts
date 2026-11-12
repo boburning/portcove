@@ -55,6 +55,9 @@ import type {
   ActivityDiagnostic,
   ActivityFeed,
   AdoptionPreview,
+  AdoptionBatchItem,
+  AdoptionBatchPreview,
+  AdoptionBatchResult,
   LauncherKind,
   LauncherLibraryInventory,
   ApplicationUpdateChoice,
@@ -283,6 +286,53 @@ export const desktopApi = {
     invoke<ArtworkState>("import_artwork", {
       portId,
       slot,
+      path,
+      expectedRevision,
+      generation,
+    }),
+  modSetups: (portId: string, generation: number) =>
+    invoke<import("./types").ModSetupsView>("get_mod_setups", { portId, generation }),
+  createDefaultModSetup: (portId: string, generation: number) =>
+    invoke<import("./types").ModSetup>("create_default_mod_setup", { portId, generation }),
+  copyModSetup: (portId: string, profileId: string, displayName: string, generation: number) =>
+    invoke<import("./types").ModSetup>("copy_mod_setup", {
+      portId,
+      profileId,
+      displayName,
+      generation,
+    }),
+  useModSetup: (portId: string, profileId: string, generation: number) =>
+    invoke<import("./types").ModSetupRevision>("use_mod_setup", {
+      portId,
+      profileId,
+      generation,
+    }),
+  setModPackageEnabled: (
+    portId: string,
+    profileId: string,
+    nativeId: string,
+    enabled: boolean,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetupRevision>("set_mod_package_enabled", {
+      portId,
+      profileId,
+      nativeId,
+      enabled,
+      expectedRevision,
+      generation,
+    }),
+  addModPackage: (
+    portId: string,
+    profileId: string,
+    path: string,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetupRevision>("add_mod_package", {
+      portId,
+      profileId,
       path,
       expectedRevision,
       generation,
@@ -1082,6 +1132,12 @@ export const desktopApi = {
       appsRoot: appsRoot ?? null,
       generation,
     }),
+  /** Read-only review of several existing installations as one batch. */
+  previewAdoptionBatch: (items: AdoptionBatchItem[], generation: number) =>
+    invoke<AdoptionBatchPreview>("preview_adoption_batch", { items, generation }),
+  /** Re-reviews, asks once natively, then copies each unchanged item; null when declined. */
+  adoptBatch: (items: AdoptionBatchItem[], batchSha256: string, generation: number) =>
+    invoke<AdoptionBatchResult | null>("adopt_batch", { items, generation, batchSha256 }),
   adopt: (path: string, planSha256: string, generation: number, portId?: string) =>
     invoke<InstallRecord | null>("adopt_port", {
       path,

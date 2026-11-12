@@ -26,7 +26,8 @@ use crate::{
 #[path = "profile_tests.rs"]
 mod tests;
 
-const MAX_PROFILES_PER_PORT: usize = 64;
+pub(crate) const MAX_PROFILES: usize = 64;
+const MAX_PROFILES_PER_PORT: usize = MAX_PROFILES;
 const MAX_PACKAGES: usize = 512;
 const MAX_SETTINGS: usize = 64;
 const MAX_LIMITS: usize = 64;
@@ -320,6 +321,8 @@ impl PortcoveService {
             created_at: Library::now(),
             digest: String::new(),
         };
+        // A revision the game could not load unambiguously is never recorded.
+        crate::profile_deploy::require_projectable(port_id, &next)?;
         seal(&mut next)?;
         let mut connection = self.library.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -417,7 +420,7 @@ impl PortcoveService {
         .collect())
     }
 
-    fn publish_new_profile(
+    pub(crate) fn publish_new_profile(
         &self,
         profile: &Profile,
         install_id: &str,
@@ -441,6 +444,7 @@ impl PortcoveService {
             created_at: profile.created_at,
             digest: String::new(),
         };
+        crate::profile_deploy::require_projectable(&profile.port_id, &revision)?;
         seal(&mut revision)?;
         let mut connection = self.library.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -483,7 +487,7 @@ pub(crate) fn new_profile(port_id: &str, display_name: &str, is_default: bool) -
     }
 }
 
-fn bind_original(requirement_id: &str, source: &SourceRecord) -> OriginalBinding {
+pub(crate) fn bind_original(requirement_id: &str, source: &SourceRecord) -> OriginalBinding {
     OriginalBinding {
         requirement_id: requirement_id.into(),
         sha256: source.sha256.clone(),
@@ -966,6 +970,40 @@ fn profiles_from(connection: &Connection, port_id: &str) -> Result<Vec<Profile>>
     Ok(profiles)
 }
 
+/// Whether a stored revision of this port records exactly `provider` for these
+/// package bytes and file name. One query finds the revisions whose stored JSON
+/// names the digest; each is verified against its recorded identity.
+pub(crate) fn provider_label_recorded(
+    connection: &Connection,
+    port_id: &str,
+    sha256: &str,
+    native_id: &str,
+    provider: &ProviderPackageRef,
+) -> Result<bool> {
+    let candidates = connection
+        .prepare(
+            "SELECT r.profile_id, r.revision FROM profile_revisions r
+             JOIN profiles p ON p.id = r.profile_id
+             WHERE p.port_id=?1 AND instr(r.revision_json, ?2) > 0
+             ORDER BY r.profile_id, r.revision",
+        )?
+        .query_map(params![port_id, sha256], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, u64>(1)?))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    for (profile_id, revision) in candidates {
+        let stored = revision_from(connection, &profile_id, revision)?;
+        if stored.packages.iter().any(|package| {
+            package.sha256 == sha256
+                && package.native_id == native_id
+                && package.provider.as_ref() == Some(provider)
+        }) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 fn default_profile(connection: &Connection, port_id: &str) -> Result<Option<Profile>> {
     Ok(profiles_from(connection, port_id)?
         .into_iter()
@@ -1077,6 +1115,10 @@ pub(crate) fn current_revision(
 ) -> Result<ProfileRevision> {
     let profile = profile_from(connection, port_id, profile_id)?;
     revision_from(connection, profile_id, profile.current_revision)
+}
+
+pub(crate) fn profile_count(connection: &Connection, port_id: &str) -> Result<usize> {
+    Ok(profiles_from(connection, port_id)?.len())
 }
 
 pub(crate) fn profile_by_id(

@@ -24,9 +24,9 @@ The foundation was implemented on 2026-09-22 with the exact registry packages be
 
 | Package         | Version | Runtime role                                                                         |
 | --------------- | ------: | ------------------------------------------------------------------------------------ |
-| `i18next`       |  26.4.2 | Offline resource lookup, fallback, interpolation, plural rules, and language changes |
-| `react-i18next` | 17.0.15 | React provider, hooks, and safe rich-text composition                                |
-| `i18next-cli`   |  1.74.1 | Development-only extraction, status, lint, and generated TypeScript contracts        |
+| `i18next`       |  26.7.2 | Offline resource lookup, fallback, interpolation, plural rules, and language changes |
+| `react-i18next` | 17.1.13 | React provider, hooks, and safe rich-text composition                                |
+| `i18next-cli`   |  1.85.0 | Development-only extraction, status, lint, and generated TypeScript contracts        |
 
 The official CLI requires Node 22 or newer. It is a development dependency and is absent from production bundles. A bounded Lingui comparison confirmed that it also met the current React and Node floor, but its additional compile and macro layer did not improve this small offline foundation enough to reverse the approved i18next direction. This is not an invitation to repeat the framework comparison during screen migration.
 
@@ -57,7 +57,7 @@ not inline message dictionaries. This adds no supported product language.
 
 Use feature-owned namespaces and semantic keys: `settings:language.saveFailed`, not English sentences as identifiers. Keep technical identifiers, paths, checksums, commands, and product names in logical-direction containers when they appear inside translated copy.
 
-Write complete messages. Do not concatenate translated fragments or attach punctuation outside a translation. Use named interpolation for values, i18next plural forms for counts, and `Trans` only with an explicit component map for limited semantic markup. Never insert translated HTML or use `dangerouslySetInnerHTML`.
+Write complete messages. Do not concatenate translated fragments or attach punctuation outside a translation. Use named interpolation for values, i18next plural forms for counts, and `Trans` only with an explicit component map for limited semantic markup. Never insert translated HTML or use `dangerouslySetInnerHTML`. Pass paths, hashes and other exact user or Core values as the child of a self-closing `Trans` component placeholder (for example `<code/>` with `components={{ code: <code dir="ltr">{path}</code> }}`), never as an interpolated value: `Trans` would substitute `{{…}}` sequences that appear inside a real path.
 
 Context and glossary rules:
 
@@ -109,32 +109,74 @@ locale names and fallback plumbing, so it receives extraction and key checks onl
 Migrate a complete surface before listing it, and keep English output identical
 unless the copy change is intended and reviewed.
 
-| Surface                                  | Files                                                      | Namespace           |
-| ---------------------------------------- | ---------------------------------------------------------- | ------------------- |
-| Language settings                        | `components/LanguageSettings.tsx`, `localization.tsx`      | `settings`          |
-| Startup render recovery                  | `ErrorBoundary.tsx`                                        | `shell`             |
-| Interface size                           | `InterfaceSize.tsx`                                        | `shell`             |
-| Application-update notices               | `features/application-update/ApplicationUpdateNotices.tsx` | `applicationUpdate` |
-| Application-update settings              | `features/application-update/ApplicationUpdates.tsx`       | `applicationUpdate` |
-| Official setup information               | `components/OfficialDefinitionUpdates.tsx`                 | `catalogUpdates`    |
-| Official catalog updates                 | `components/OfficialCatalogUpdates.tsx`                    | `catalogUpdates`    |
-| Custom catalog sources and game listings | `components/CatalogUpdates.tsx`                            | `catalogUpdates`    |
-| Uninstall review                         | `components/RemovalReview.tsx`                             | `removal`           |
-| Saved file location removal              | `components/SourceRemoval.tsx`                             | `removal`           |
+| Surface                                                                                                                                                                                       | Files                                                      | Namespace           |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------- |
+| Language settings                                                                                                                                                                             | `components/LanguageSettings.tsx`, `localization.tsx`      | `settings`          |
+| Startup render recovery                                                                                                                                                                       | `ErrorBoundary.tsx`                                        | `shell`             |
+| Interface size                                                                                                                                                                                | `InterfaceSize.tsx`                                        | `shell`             |
+| Application-update notices                                                                                                                                                                    | `features/application-update/ApplicationUpdateNotices.tsx` | `applicationUpdate` |
+| Application-update settings                                                                                                                                                                   | `features/application-update/ApplicationUpdates.tsx`       | `applicationUpdate` |
+| Official setup information                                                                                                                                                                    | `components/OfficialDefinitionUpdates.tsx`                 | `catalogUpdates`    |
+| Official catalog updates                                                                                                                                                                      | `components/OfficialCatalogUpdates.tsx`                    | `catalogUpdates`    |
+| Custom catalog sources and game listings                                                                                                                                                      | `components/CatalogUpdates.tsx`                            | `catalogUpdates`    |
+| Uninstall review                                                                                                                                                                              | `components/RemovalReview.tsx`                             | `removal`           |
+| Saved file location removal                                                                                                                                                                   | `components/SourceRemoval.tsx`                             | `removal`           |
+| Backup restore and deletion review                                                                                                                                                            | `components/BackupReview.tsx`                              | `backups`           |
+| Backup history                                                                                                                                                                                | `components/BackupHistory.tsx`                             | `backups`           |
+| Backups and updates summary                                                                                                                                                                   | `components/ProtectionSummary.tsx`                         | `backups`           |
+| Automatic snapshot setting                                                                                                                                                                    | `components/AutomaticSnapshotsSetting.tsx`                 | `backups`           |
+| Game update channel                                                                                                                                                                           | `components/ReleaseChannel.tsx`                            | `gameUpdates`       |
+| Last-launch failure notice                                                                                                                                                                    | `components/LaunchFailureNotice.tsx`                       | `launch`            |
+| Library refresh and recovery notices                                                                                                                                                          | `features/workspace/WorkspaceRefreshNotice.tsx`            | `workspace`         |
+| Bug report preview                                                                                                                                                                            | `components/ReportProblem.tsx`                             | `report`            |
+| Game search field                                                                                                                                                                             | `components/PortSearch.tsx`                                | `browsing`          |
+| Command palette chrome                                                                                                                                                                        | `components/CommandPalette.tsx`                            | `commands`          |
+| Operation cancellation control                                                                                                                                                                | `components/OperationCancellation.tsx`                     | `operations`        |
+| Shared dialog, tooltip, filter field and game search primitives                                                                                                                               | `components/ui/{dialog,tooltip,field,combobox}.tsx`        | `common`            |
+| External link failure                                                                                                                                                                         | `components/ExternalLink.tsx`                              | `common`            |
+| Setup-warning heading (warnings stay authored data)                                                                                                                                           | `components/AuthoredSetupWarnings.tsx`                     | `common`            |
+| Task-update live region label                                                                                                                                                                 | `components/InvocationAnnouncements.tsx`                   | `common`            |
+| Preferred implementation choice                                                                                                                                                               | `features/browsing/ImplementationChoice.tsx`               | `browsing`          |
+| Listing maintenance facts (reasons stay authored data; pinned platform labels follow the shared `platformLabel` migration)                                                                    | `features/browsing/ListingMaintenanceFacts.tsx`            | `browsing`          |
+| Game hero label and image-credits summary                                                                                                                                                     | `components/GameHero.tsx`                                  | `browsing`          |
+| Brand mascot alternative text (product name stays literal)                                                                                                                                    | `components/Brand.tsx`                                     | `common`            |
+| Identity icon (no copy of its own)                                                                                                                                                            | `features/identity/IdentityIcon.tsx`                       | —                   |
+| Game-file filter observation (platform and channel labels follow the shared view-model migration)                                                                                             | `components/GameFileFilterObservation.tsx`                 | `gameFiles`         |
+| Preliminary game-file selections                                                                                                                                                              | `components/PreliminarySourceSelections.tsx`               | `gameFiles`         |
+| Automatic setup choice for a saved folder                                                                                                                                                     | `components/FolderSetupChoice.tsx`                         | `gameFiles`         |
+| Ready-game notices                                                                                                                                                                            | `components/ReadyGameNotices.tsx`                          | `gameFiles`         |
+| Per-game setup intent choice                                                                                                                                                                  | `components/SetupIntentChoice.tsx`                         | `gameFiles`         |
+| Shared game-file route, state and reason labels                                                                                                                                               | `features/browsing/game-file-query-context.ts`             | `gameFiles`         |
+| Game-file filter controls (platform and channel labels follow the shared view-model migration)                                                                                                | `features/browsing/GameFileFilterControls.tsx`             | `gameFiles`         |
+| Selected-route game-file check (platform and channel labels follow the shared view-model migration)                                                                                           | `components/GameFileQuery.tsx`                             | `gameFiles`         |
+| Game-file check summary (platform and channel labels follow the shared view-model migration)                                                                                                  | `features/browsing/GameFileObservationSummary.tsx`         | `gameFiles`         |
+| Matching versions for browsing filters (platform, channel and installation-method labels follow the shared view-model migration)                                                              | `features/browsing/BrowsingMatchDetails.tsx`               | `browsing`          |
+| Other ports for a game and implementation facts (platform labels follow the shared view-model migration; requirement labels and edition titles stay catalog data)                             | `features/browsing/GameAlternatives.tsx`                   | `browsing`          |
+| Grouped library entries, alternative markers and implementation-choice prompts (project names stay exact)                                                                                     | `features/browsing/GroupedLibrary.tsx`                     | `browsing`          |
+| Game settings entry, reading and installation-changed states (Core failure text stays verbatim)                                                                                               | `components/GameSettingsControl.tsx`                       | `gameSettings`      |
+| Support report export, receipt, section statuses and collection reasons (the saved path and entry names stay exact)                                                                           | `components/SupportBundleExport.tsx`                       | `settings`          |
+| Collections, saved and hidden views, save action and Library visibility menu items (collection names stay exact; focus restoration uses `data-organization-controls`, not a translated label) | `features/organization/OrganizationControls.tsx`           | `organization`      |
+| Setup reminder and library update-notice choices (skipped release versions stay exact)                                                                                                        | `components/DetailChoices.tsx`                             | `organization`      |
+| Discover card observations (readiness, acquisition and setup-route text follow their producers' migrations)                                                                                   | `features/port-actions/BrowsePortObservations.tsx`         | `browsing`          |
+| Navigation hints (keyboard key names stay literal)                                                                                                                                            | `components/ui.tsx`                                        | `common`            |
+| Failure technical details (codes, phases, messages and context values stay verbatim)                                                                                                          | `components/FailureDetails.tsx`                            | `common`            |
+| Application entry (no copy of its own)                                                                                                                                                        | `main.tsx`                                                 | —                   |
 
 Remaining scope is measured with the same linter over every non-test source file
-(temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-11 it
-reported 1,628 findings in 79 of 208 analyzed files, measured after the
+(temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-12 it
+reported 1,432 findings in 43 of 218 analyzed files, measured after the
 migrations listed above and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
 and are migrated with the surface that renders them. The count is a work
 inventory, not a coverage claim.
 
-Narrow technical-literal exclusions: the lint ignores the `aria-live`,
-`aria-atomic`, `aria-describedby`, `aria-labelledby`, `data-settings-control`,
-`data-slot`, `dir`, `intent`, `reviewSize`, `size`, `triggerId` and `variant`
-attributes, which carry design-system tokens, element ids or ARIA references,
-never player copy.
+Narrow technical-literal exclusions: the lint ignores the `align`, `aria-live`,
+`aria-atomic`, `aria-autocomplete`, `aria-describedby`, `aria-hidden`, `aria-labelledby`, `aria-relevant`, `data-backup-action`, `data-settings-control`,
+`data-slot`, `decoding`, `dir`, `direction`, `focusable`, `intent`, `positionMethod`, `reviewSize`, `size`, `triggerId` and `variant`
+attributes, which carry design-system tokens, element ids, ARIA references, ARIA state tokens or HTML/SVG rendering hints,
+never player copy. `dir` and `direction` carry only the `ltr`/`rtl` direction token (for example
+the `DirectionProvider` in `main.tsx`); a component whose `direction` prop carried visible text
+would need a different prop name rather than this exclusion.
 Thrown `Error` messages that are caught and never displayed, stable state codes,
 keyboard key names and product names remain literals.
 

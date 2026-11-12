@@ -2359,30 +2359,43 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
         // Both exceeded the 5s setup latch before an actual 64KiB copy.
         // Reuse the finite 15s allowance for these exact ARM variants;
         // preserve the incomplete-copy barrier, refusal, drain and outer limit.
+        // Qualification 43090604192/1 job 130788166154: ARM CancelRestore
+        // missed the same 5s setup latch (expired 5.32s after installer start,
+        // before any copy). Apply the identical 15s allowance to this variant.
         || (cfg!(all(target_os = "macos", target_arch = "aarch64"))
             && matches!(
                 intervention,
-                CacheIntervention::ArtifactRevocationRestore
+                CacheIntervention::CancelRestore
+                    | CacheIntervention::ArtifactRevocationRestore
+                    | CacheIntervention::ArtifactWithdrawalRestore
+            ))
+        // Qualification 43090604192/1 Intel jobs 130795135036/130795135059:
+        // revocation restore first copied 10.03s after installer start, just
+        // beyond the former 10s Intel restore latch; cancellation restore
+        // expired at 10.00s before any copy. Use the existing 15s allowance for
+        // the three Intel restore variants, replacing the 10s Intel branch.
+        || (cfg!(all(target_os = "macos", target_arch = "x86_64"))
+            && matches!(
+                intervention,
+                CacheIntervention::CancelRestore
+                    | CacheIntervention::ArtifactRevocationRestore
                     | CacheIntervention::ArtifactWithdrawalRestore
             ));
     // Windows CI 42741019876/1 partition 7 reached download about 14.08s
     // after installer start on both attempts. The 15s latch expired before
     // the first partial copy. Give only CancelRetain more setup headroom.
-    let windows_cancel_retention =
-        cfg!(target_os = "windows") && matches!(intervention, CacheIntervention::CancelRetain);
-    let latch_timeout = if windows_cancel_retention {
+    // Qualification 43090604192/1 Intel job 130795135059: withdrawal retention
+    // first copied 15.33s after installer start, beyond its 15s latch. Give
+    // only that Intel variant the same finite 30s setup headroom; every
+    // barrier, refusal and drain assertion and the outer case limit remain.
+    let extended_retention_setup = (cfg!(target_os = "windows")
+        && matches!(intervention, CacheIntervention::CancelRetain))
+        || (cfg!(all(target_os = "macos", target_arch = "x86_64"))
+            && matches!(intervention, CacheIntervention::ArtifactWithdrawalRetain));
+    let latch_timeout = if extended_retention_setup {
         Duration::from_secs(30)
     } else if slow_retention_setup {
         Duration::from_secs(15)
-    } else if cfg!(all(target_os = "macos", target_arch = "x86_64"))
-        && matches!(
-            intervention,
-            CacheIntervention::CancelRestore
-                | CacheIntervention::ArtifactRevocationRestore
-                | CacheIntervention::ArtifactWithdrawalRestore
-        )
-    {
-        Duration::from_secs(10)
     } else {
         Duration::from_secs(5)
     };

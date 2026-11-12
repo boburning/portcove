@@ -420,6 +420,19 @@ failed. Since the change it has passed in 214 to 300 seconds in runs 42956417507
 43053961839. A budget of 300 seconds or more keeps zero retries, so a hang uses
 the cutoff once. The case's phases and assertions are unchanged.
 
+Qualification run 43090604192 attempt 1 (source `0e743fbc`) calibrated four
+macOS fixture waits; product deadlines and assertions are unchanged. Intel job
+130795135036 terminated
+`service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh`
+at the 120-second default on its single zero-retry attempt, while the ARM job passed it in 55.9
+seconds; Intel now has the same exact 180-second override (5s × 36) as Windows.
+The curated-cache setup latch in `definition_publisher_policy_tests.rs` went
+from 10 to 15 seconds for the three Intel restore variants (first copy 10.03
+seconds after installer start), from 15 to 30 seconds for Intel withdrawal
+retention (first copy at 15.33 seconds), and from 5 to 15 seconds for ARM
+cancellation restore (expired at 5.32 seconds before any copy). Each latch still
+requires a real partial copy, then the intervention, refusal and worker-drain checks.
+
 The October 2026 test audit calibrated the three maintained Node suites that
 contain fixed Linux Python child wrappers from a 30-second default to
 60 seconds. Their child limits remain 30 seconds. The dynamic ordinary and

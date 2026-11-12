@@ -3155,6 +3155,21 @@ mod tests {
             .retain(|platform| !matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64));
         gen1.executable_hints.remove(&Platform::MacosX86_64);
         gen1.executable_hints.remove(&Platform::MacosAarch64);
+        // Gen2Recomped's fused runtime downloads newer Lua payloads into its shared
+        // LOVE save folder. The current definitions switch that to notify-only.
+        for id in ["gen2recomp-gold", "gen2recomp-silver", "gen2recomp-crystal"] {
+            let port = expected_ports
+                .iter_mut()
+                .find(|port| port.id == id)
+                .unwrap();
+            assert!(
+                !port
+                    .launch_environment
+                    .contains_key("POKEPORT_NOTIFY_ONLY_UPDATES")
+            );
+            port.launch_environment
+                .insert("POKEPORT_NOTIFY_ONLY_UPDATES".into(), "1".into());
+        }
         // Reviewed Unix route corrections after the frozen input. Three disk-image-only
         // Mac routes became a handoff, and the Linux AppImage and Spaghettify
         // executables are now named in the declared hints.
@@ -3213,6 +3228,22 @@ mod tests {
                 port.release.asset_hints.remove(&Platform::LinuxX86_64);
             }
         }
+        // Persona's exact v0.1.1 Linux kit matches the accepted Windows kit's
+        // preparation contract and adds a reviewed fresh Linux route.
+        let persona = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "revelations-persona-recompiled")
+            .unwrap();
+        assert_eq!(persona.platforms, [Platform::WindowsX86_64]);
+        persona.platforms.push(Platform::LinuxX86_64);
+        persona
+            .release
+            .asset_hints
+            .insert(Platform::LinuxX86_64, vec!["linux-x64".into()]);
+        persona.executable_hints.insert(
+            Platform::LinuxX86_64,
+            vec!["Revelations__Persona_Recompiled".into()],
+        );
         for (id, platform, hints) in [
             (
                 "2ship2harkinian",
@@ -4914,6 +4945,14 @@ mod tests {
                     .map(String::as_str),
                 Some(version)
             );
+            // The fused runtime's own payload downloader must not replace the
+            // Core-owned engine version.
+            assert_eq!(
+                port.launch_environment
+                    .get("POKEPORT_NOTIFY_ONLY_UPDATES")
+                    .map(String::as_str),
+                Some("1")
+            );
             assert!(port.portable_marker);
             assert_eq!(port.support_tier, crate::SupportTier::Beta);
             assert_eq!(
@@ -6016,7 +6055,11 @@ mod tests {
 
             let port = catalog.port(port_id).unwrap();
             assert_eq!(port.source_profile.as_deref(), Some(profile_id));
-            assert_eq!(port.platforms, vec![crate::Platform::WindowsX86_64]);
+            let mut platforms = vec![crate::Platform::WindowsX86_64];
+            if port_id == "revelations-persona-recompiled" {
+                platforms.push(crate::Platform::LinuxX86_64);
+            }
+            assert_eq!(port.platforms, platforms);
             assert!(port.automated_tested_platforms.is_empty());
             assert!(
                 port.executable_hints[&crate::Platform::WindowsX86_64]

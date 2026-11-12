@@ -349,8 +349,10 @@ it("names exact port choices from their visible identity and readiness inside gr
   choice.scrollIntoView({ block: "nearest" });
   expect(choice.getBoundingClientRect().bottom).toBeLessThanOrEqual(innerHeight);
   await userEvent.click(choice);
+  // The opened installation names the port in its identity link; the still-mounted
+  // choice button names it too, so select the link by role rather than bare text.
   await expect
-    .element(page.getByText("Mario modern port · Modern renderer", { exact: true }))
+    .element(page.getByRole("link", { name: "Mario modern port · Modern renderer", exact: true }))
     .toBeVisible();
   expect(document.querySelector("[data-detail-port-id]")?.getAttribute("data-detail-port-id")).toBe(
     "collection-1",

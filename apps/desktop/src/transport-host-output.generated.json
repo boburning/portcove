@@ -1,4 +1,617 @@
 {
+  "adoption_batch_preview": {
+    "$defs": {
+      "AdoptionCopyFile": {
+        "properties": {
+          "relative_path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "relative_path",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "AdoptionCopyPlan": {
+        "properties": {
+          "directories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/$defs/AdoptionCopyFile"
+            },
+            "type": "array"
+          },
+          "skipped_entries": {
+            "items": {
+              "$ref": "#/$defs/AdoptionSkippedEntry"
+            },
+            "type": "array"
+          },
+          "total_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "directories",
+          "files",
+          "skipped_entries",
+          "total_bytes"
+        ],
+        "type": "object"
+      },
+      "AdoptionDestinationPreview": {
+        "properties": {
+          "active_install": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstallRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "current_user_data_files": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "current_user_data_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "imported_user_data_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "output_location": {
+            "$ref": "#/$defs/PortOutputLocation"
+          }
+        },
+        "required": [
+          "output_location",
+          "active_install",
+          "imported_user_data_paths",
+          "current_user_data_files",
+          "current_user_data_sha256"
+        ],
+        "type": "object"
+      },
+      "AdoptionPreview": {
+        "properties": {
+          "application_files_will_be_copied": {
+            "type": "boolean"
+          },
+          "copy_plan": {
+            "$ref": "#/$defs/AdoptionCopyPlan"
+          },
+          "destination": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/AdoptionDestinationPreview"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "detected_port_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "original_will_be_modified": {
+            "type": "boolean"
+          },
+          "plan_sha256": {
+            "type": "string"
+          },
+          "selected_port_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "detected_port_ids",
+          "selected_port_id",
+          "application_files_will_be_copied",
+          "original_will_be_modified",
+          "copy_plan",
+          "destination",
+          "plan_sha256"
+        ],
+        "type": "object"
+      },
+      "AdoptionSkippedEntry": {
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "relative_path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "relative_path",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "ArtifactIdentity": {
+        "properties": {
+          "asset_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_name",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "InstallRecord": {
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity",
+            "default": {
+              "asset_name": "",
+              "sha256": "",
+              "size": 0
+            }
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "id": {
+            "type": "string"
+          },
+          "installed_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "manifest_sha256": {
+            "default": "",
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "selected_executable": {
+            "default": "",
+            "type": "string"
+          },
+          "staged": {
+            "type": "boolean"
+          },
+          "verified": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "version",
+          "path",
+          "channel",
+          "installed_at",
+          "verified",
+          "staged",
+          "artifact",
+          "runtime",
+          "manifest_sha256",
+          "selected_executable"
+        ],
+        "type": "object"
+      },
+      "OutputLocationSource": {
+        "enum": [
+          "request_override",
+          "port_setting",
+          "library_default"
+        ],
+        "type": "string"
+      },
+      "PortOutputLocation": {
+        "properties": {
+          "configured_output_directory": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "default_output_directory": {
+            "type": "string"
+          },
+          "effective_output_directory": {
+            "type": "string"
+          },
+          "library_root": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "selection_source": {
+            "$ref": "#/$defs/OutputLocationSource"
+          },
+          "user_data_root": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "library_root",
+          "default_output_directory",
+          "configured_output_directory",
+          "effective_output_directory",
+          "selection_source",
+          "user_data_root"
+        ],
+        "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      },
+      "RuntimeIdentity": {
+        "properties": {
+          "archive_root": {
+            "type": "string"
+          },
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/$defs/RuntimeOrigin"
+          },
+          "target_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "origin",
+          "artifact",
+          "archive_root",
+          "target_directory",
+          "executable"
+        ],
+        "type": "object"
+      },
+      "RuntimeOrigin": {
+        "enum": [
+          "verified_download",
+          "adopted_tree"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "batch_sha256": {
+        "description": "Binds the item list and every item's reviewed plan.",
+        "type": "string"
+      },
+      "items": {
+        "description": "The ordinary adoption review of each item, in batch order.",
+        "items": {
+          "$ref": "#/$defs/AdoptionPreview"
+        },
+        "type": "array"
+      },
+      "items_replacing_saved_files": {
+        "description": "Items that import saved files while Portcove already holds saved files for\nthat game, so matching files there are replaced.",
+        "format": "uint",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "original_will_be_modified": {
+        "type": "boolean"
+      },
+      "total_bytes": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "total_files": {
+        "format": "uint",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "items",
+      "total_files",
+      "total_bytes",
+      "items_replacing_saved_files",
+      "original_will_be_modified",
+      "batch_sha256"
+    ],
+    "title": "AdoptionBatchPreview",
+    "type": "object"
+  },
+  "adoption_batch_result": {
+    "$defs": {
+      "AdoptionBatchItemOutcome": {
+        "oneOf": [
+          {
+            "const": "copied",
+            "description": "Copied and registered through the ordinary adoption.",
+            "type": "string"
+          },
+          {
+            "const": "changed",
+            "description": "The folder or destination changed after review; nothing was copied for it.",
+            "type": "string"
+          },
+          {
+            "const": "failed",
+            "description": "Adoption refused or failed; the original stays unchanged.",
+            "type": "string"
+          }
+        ]
+      },
+      "AdoptionBatchItemResult": {
+        "properties": {
+          "install": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstallRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outcome": {
+            "$ref": "#/$defs/AdoptionBatchItemOutcome"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "port_id",
+          "outcome",
+          "install",
+          "message"
+        ],
+        "type": "object"
+      },
+      "AdoptionBatchResult": {
+        "properties": {
+          "batch_sha256": {
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/$defs/AdoptionBatchItemResult"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "batch_sha256",
+          "items"
+        ],
+        "type": "object"
+      },
+      "ArtifactIdentity": {
+        "properties": {
+          "asset_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_name",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "InstallRecord": {
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity",
+            "default": {
+              "asset_name": "",
+              "sha256": "",
+              "size": 0
+            }
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "id": {
+            "type": "string"
+          },
+          "installed_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "manifest_sha256": {
+            "default": "",
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "selected_executable": {
+            "default": "",
+            "type": "string"
+          },
+          "staged": {
+            "type": "boolean"
+          },
+          "verified": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "version",
+          "path",
+          "channel",
+          "installed_at",
+          "verified",
+          "staged",
+          "artifact",
+          "runtime",
+          "manifest_sha256",
+          "selected_executable"
+        ],
+        "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      },
+      "RuntimeIdentity": {
+        "properties": {
+          "archive_root": {
+            "type": "string"
+          },
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/$defs/RuntimeOrigin"
+          },
+          "target_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "origin",
+          "artifact",
+          "archive_root",
+          "target_directory",
+          "executable"
+        ],
+        "type": "object"
+      },
+      "RuntimeOrigin": {
+        "enum": [
+          "verified_download",
+          "adopted_tree"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "anyOf": [
+      {
+        "$ref": "#/$defs/AdoptionBatchResult"
+      },
+      {
+        "type": "null"
+      }
+    ],
+    "title": "Nullable_AdoptionBatchResult"
+  },
   "application_update_check_phase": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "enum": [
@@ -4907,6 +5520,35 @@
         ],
         "type": "object"
       },
+      "InstallBatchCapacity": {
+        "description": "What the games ready to install in a batch need together.",
+        "properties": {
+          "download_bytes": {
+            "description": "Known downloads: releases, bundled runtimes and required extras.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unknown_space": {
+            "description": "Ready games whose space needs could not be estimated.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "volumes": {
+            "items": {
+              "$ref": "#/$defs/InstallBatchVolume"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "download_bytes",
+          "volumes"
+        ],
+        "type": "object"
+      },
       "InstallBatchReviewItem": {
         "description": "One game in a batch review: its exact plan, or why it cannot run yet.",
         "properties": {
@@ -4932,6 +5574,54 @@
         },
         "required": [
           "port_id"
+        ],
+        "type": "object"
+      },
+      "InstallBatchVolume": {
+        "description": "Space one volume needs for the games in a batch that will download.",
+        "properties": {
+          "available_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "path": {
+            "description": "A destination on the volume (the first game's).",
+            "type": "string"
+          },
+          "port_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "required_bytes": {
+            "description": "Sum of the games' temporary space floors on this volume. Final\ninstalled sizes are not known in advance.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "sufficient": {
+            "description": "Whether the volume has room for all of them together; unknown when its\nfree space could not be observed. Each game is checked again before it runs.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "volume_identity": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "path",
+          "required_bytes",
+          "port_ids"
         ],
         "type": "object"
       },
@@ -5396,6 +6086,14 @@
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
+      "capacity": {
+        "$ref": "#/$defs/InstallBatchCapacity",
+        "default": {
+          "download_bytes": 0,
+          "volumes": []
+        },
+        "description": "Combined needs of the games ready to install."
+      },
       "items": {
         "items": {
           "$ref": "#/$defs/InstallBatchReviewItem"
@@ -5404,7 +6102,8 @@
       }
     },
     "required": [
-      "items"
+      "items",
+      "capacity"
     ],
     "title": "InstallBatchReview",
     "type": "object"
@@ -7939,6 +8638,31 @@
             "type": "string"
           }
         ]
+      },
+      "PortIntentSource": {
+        "additionalProperties": false,
+        "description": "One registered copy a remembered choice is bound to.",
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -7950,6 +8674,17 @@
           "string",
           "null"
         ]
+      },
+      "channel": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The release channel chosen with this choice. A different channel later\nwaits for the player to choose again."
       },
       "explicitly_uninstalled_at": {
         "description": "Set when the player uninstalled the game. Standing setup and\nnotifications stay quiet until the player chooses a mode again.",
@@ -7989,6 +8724,13 @@
       "port_id": {
         "type": "string"
       },
+      "sources": {
+        "description": "The registered copies of this game's files when the choice was made.\nA different or removed copy later waits for the player; it is never\nsilently retargeted. Empty when no files were registered yet: the first\nfiles that arrive are used.",
+        "items": {
+          "$ref": "#/$defs/PortIntentSource"
+        },
+        "type": "array"
+      },
       "updated_at": {
         "format": "int64",
         "type": "integer"
@@ -8011,7 +8753,7 @@
             "$ref": "#/$defs/PortIntentMode"
           },
           "newly_ready": {
-            "description": "Ready with a plan the player has not been told about yet.",
+            "description": "Ready with a plan, or installed with an update, the player has not\nbeen told about yet.",
             "type": "boolean"
           },
           "port_id": {
@@ -8060,6 +8802,65 @@
           }
         ]
       },
+      "PortMaintenance": {
+        "description": "An installed game's maintenance state, read from its saved channel and\nupdate policy and its last update check. Assessing it downloads, stages or\nactivates nothing; the existing update check and policy own that.",
+        "properties": {
+          "active_version": {
+            "type": "string"
+          },
+          "available_sha256": {
+            "description": "Identity of that release, used to announce it once.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "available_version": {
+            "description": "A newer release the last check found on this channel, if any.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "busy": {
+            "description": "The game is running or its launch must recover, an update is\ndownloading or verifying, or an install, update or data change for it\nis unfinished or must recover; maintenance waits for it.",
+            "type": "boolean"
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "checked_at": {
+            "description": "When updates were last checked for this install on this channel;\n`None` means not yet.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "previous_version": {
+            "description": "The earlier version Portcove keeps for this game, if any. Whether a\nrollback to it is allowed right now is decided by the game's actions.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "staged_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "update_policy": {
+            "$ref": "#/$defs/UpdatePolicy"
+          }
+        },
+        "required": [
+          "channel",
+          "update_policy",
+          "active_version"
+        ],
+        "type": "object"
+      },
       "PortReadiness": {
         "oneOf": [
           {
@@ -8067,6 +8868,17 @@
             "properties": {
               "install_id": {
                 "type": "string"
+              },
+              "maintenance": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/PortMaintenance"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The installed game's maintenance state under its own update policy."
               },
               "state": {
                 "const": "installed",
@@ -8118,6 +8930,22 @@
             "type": "object"
           }
         ]
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      },
+      "UpdatePolicy": {
+        "enum": [
+          "notify",
+          "stage",
+          "automatic"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -8153,6 +8981,17 @@
               "string",
               "null"
             ]
+          },
+          "channel": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReleaseChannel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The release channel chosen with this choice. A different channel later\nwaits for the player to choose again."
           },
           "explicitly_uninstalled_at": {
             "description": "Set when the player uninstalled the game. Standing setup and\nnotifications stay quiet until the player chooses a mode again.",
@@ -8192,6 +9031,13 @@
           "port_id": {
             "type": "string"
           },
+          "sources": {
+            "description": "The registered copies of this game's files when the choice was made.\nA different or removed copy later waits for the player; it is never\nsilently retargeted. Empty when no files were registered yet: the first\nfiles that arrive are used.",
+            "items": {
+              "$ref": "#/$defs/PortIntentSource"
+            },
+            "type": "array"
+          },
           "updated_at": {
             "format": "int64",
             "type": "integer"
@@ -8228,6 +9074,31 @@
             "type": "string"
           }
         ]
+      },
+      "PortIntentSource": {
+        "additionalProperties": false,
+        "description": "One registered copy a remembered choice is bound to.",
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -13032,7 +13903,7 @@
             "$ref": "#/$defs/PortIntentMode"
           },
           "newly_ready": {
-            "description": "Ready with a plan the player has not been told about yet.",
+            "description": "Ready with a plan, or installed with an update, the player has not\nbeen told about yet.",
             "type": "boolean"
           },
           "port_id": {
@@ -13081,6 +13952,65 @@
           }
         ]
       },
+      "PortMaintenance": {
+        "description": "An installed game's maintenance state, read from its saved channel and\nupdate policy and its last update check. Assessing it downloads, stages or\nactivates nothing; the existing update check and policy own that.",
+        "properties": {
+          "active_version": {
+            "type": "string"
+          },
+          "available_sha256": {
+            "description": "Identity of that release, used to announce it once.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "available_version": {
+            "description": "A newer release the last check found on this channel, if any.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "busy": {
+            "description": "The game is running or its launch must recover, an update is\ndownloading or verifying, or an install, update or data change for it\nis unfinished or must recover; maintenance waits for it.",
+            "type": "boolean"
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "checked_at": {
+            "description": "When updates were last checked for this install on this channel;\n`None` means not yet.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "previous_version": {
+            "description": "The earlier version Portcove keeps for this game, if any. Whether a\nrollback to it is allowed right now is decided by the game's actions.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "staged_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "update_policy": {
+            "$ref": "#/$defs/UpdatePolicy"
+          }
+        },
+        "required": [
+          "channel",
+          "update_policy",
+          "active_version"
+        ],
+        "type": "object"
+      },
       "PortReadiness": {
         "oneOf": [
           {
@@ -13088,6 +14018,17 @@
             "properties": {
               "install_id": {
                 "type": "string"
+              },
+              "maintenance": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/PortMaintenance"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The installed game's maintenance state under its own update policy."
               },
               "state": {
                 "const": "installed",
@@ -13140,6 +14081,118 @@
           }
         ]
       },
+      "ProviderAutoUpdate": {
+        "description": "What one standing pass did about one installed provider file.",
+        "oneOf": [
+          {
+            "description": "The newer file was installed as the setup's next revision.",
+            "properties": {
+              "file_id": {
+                "type": "string"
+              },
+              "outcome": {
+                "const": "applied",
+                "type": "string"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "outcome",
+              "revision",
+              "file_id"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "An update exists but needs the player's review; nothing changed. The hold\nis not repeated until the setup or the provider's offer changes.",
+            "properties": {
+              "outcome": {
+                "const": "held",
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "outcome",
+              "reason"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Something temporary prevented the update, such as the game running or\nanother change in progress; a later pass tries again.",
+            "properties": {
+              "outcome": {
+                "const": "deferred",
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "outcome",
+              "reason"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Whether an update exists could not be established; nothing changed.",
+            "properties": {
+              "outcome": {
+                "const": "unavailable",
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "outcome",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ],
+        "properties": {
+          "native_ids": {
+            "description": "The setup's packages from the provider file this outcome is about; empty\nwhen the whole setup could not be checked.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "profile_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "profile_id",
+          "profile_name",
+          "native_ids"
+        ],
+        "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      },
       "RootSetupWaiting": {
         "description": "An eligible-looking file in a consented folder that is waiting for a person\nor a requirement.",
         "properties": {
@@ -13180,6 +14233,14 @@
           "reason"
         ],
         "type": "object"
+      },
+      "UpdatePolicy": {
+        "enum": [
+          "notify",
+          "stage",
+          "automatic"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -13206,6 +14267,13 @@
         "description": "Games that could not start; the others were not affected.",
         "items": {
           "$ref": "#/$defs/StandingSetupFailure"
+        },
+        "type": "array"
+      },
+      "mod_updates": {
+        "description": "Provider updates for mod setups whose policy allows unattended updates.",
+        "items": {
+          "$ref": "#/$defs/ProviderAutoUpdate"
         },
         "type": "array"
       },
@@ -13243,12 +14311,21 @@
         "type": "string"
       },
       "DestinationArtworkUnavailableReason": {
-        "enum": [
-          "role_not_provided",
-          "no_local_original",
-          "selected_original_unavailable"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "role_not_provided",
+              "no_local_original",
+              "selected_original_unavailable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "selected_image_not_wide",
+            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
+            "type": "string"
+          }
+        ]
       },
       "SteamArtworkRoleAction": {
         "enum": [
@@ -13364,12 +14441,21 @@
         "type": "string"
       },
       "DestinationArtworkUnavailableReason": {
-        "enum": [
-          "role_not_provided",
-          "no_local_original",
-          "selected_original_unavailable"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "role_not_provided",
+              "no_local_original",
+              "selected_original_unavailable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "selected_image_not_wide",
+            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
+            "type": "string"
+          }
+        ]
       },
       "SteamArtworkOperation": {
         "description": "Separate reviewed Steam artwork action for one owned shortcut.",
@@ -13602,12 +14688,21 @@
         "type": "string"
       },
       "DestinationArtworkUnavailableReason": {
-        "enum": [
-          "role_not_provided",
-          "no_local_original",
-          "selected_original_unavailable"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "role_not_provided",
+              "no_local_original",
+              "selected_original_unavailable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "selected_image_not_wide",
+            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
+            "type": "string"
+          }
+        ]
       },
       "SteamArtworkRoleAction": {
         "enum": [
@@ -13876,12 +14971,21 @@
         "type": "string"
       },
       "DestinationArtworkUnavailableReason": {
-        "enum": [
-          "role_not_provided",
-          "no_local_original",
-          "selected_original_unavailable"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "role_not_provided",
+              "no_local_original",
+              "selected_original_unavailable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "selected_image_not_wide",
+            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
+            "type": "string"
+          }
+        ]
       },
       "SteamArtworkRoleAction": {
         "enum": [
@@ -14078,12 +15182,21 @@
         "type": "string"
       },
       "DestinationArtworkUnavailableReason": {
-        "enum": [
-          "role_not_provided",
-          "no_local_original",
-          "selected_original_unavailable"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "role_not_provided",
+              "no_local_original",
+              "selected_original_unavailable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "selected_image_not_wide",
+            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
+            "type": "string"
+          }
+        ]
       },
       "SteamArtworkRoleAction": {
         "enum": [

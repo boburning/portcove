@@ -113,6 +113,45 @@ pub(crate) enum ProfileCommand {
         /// Catalog port ID.
         port_id: String,
     },
+    /// Show whether a game supports mod setups, its setups and what is live now.
+    Setups {
+        /// Catalog port ID.
+        port_id: String,
+    },
+    /// Export a profile revision as a shareable recipe: identity only, no files or saves.
+    RecipeExport {
+        /// Catalog port ID owning the profile.
+        port_id: String,
+        /// Profile ID from `profile list`.
+        profile_id: String,
+        /// Revision to export; the current revision when omitted.
+        #[arg(long)]
+        revision: Option<u64>,
+    },
+    /// Inspect a recipe file locally; it grants no authority and needs no account.
+    RecipeInspect {
+        /// Recipe JSON file (`profile recipe-export` output).
+        recipe_file: PathBuf,
+    },
+    /// Plan importing a recipe: reports each input as available, acquirable or unavailable.
+    RecipePlan {
+        /// Recipe JSON file.
+        recipe_file: PathBuf,
+    },
+    /// Create a new profile from a recipe when every input is already present.
+    RecipeApply {
+        /// Recipe JSON file.
+        recipe_file: PathBuf,
+        /// Name for the new profile.
+        #[arg(long)]
+        name: String,
+        /// `plan_sha256` from `profile recipe-plan`; changed inputs refuse.
+        #[arg(long)]
+        expected_plan: String,
+        /// Confirm without a prompt; the digest check still applies.
+        #[arg(long)]
+        yes: bool,
+    },
     /// Check installed GameBanana packages for newer files, same-version changes or removals.
     ProviderUpdates {
         /// Catalog port ID owning the profile.
@@ -170,6 +209,11 @@ impl ProfileCommand {
             Self::SetPackage { .. } => "profile.set-package",
             Self::Activate { .. } => "profile.activate",
             Self::Live { .. } => "profile.live",
+            Self::Setups { .. } => "profile.setups",
+            Self::RecipeExport { .. } => "profile.recipe-export",
+            Self::RecipeInspect { .. } => "profile.recipe-inspect",
+            Self::RecipePlan { .. } => "profile.recipe-plan",
+            Self::RecipeApply { .. } => "profile.recipe-apply",
             Self::ProviderUpdates { .. } => "profile.provider-updates",
             Self::ProviderPlan { .. } => "profile.provider-plan",
             Self::ProviderApply { .. } => "profile.provider-apply",
@@ -182,9 +226,119 @@ impl ProfileCommand {
             Self::List { .. }
                 | Self::Revisions { .. }
                 | Self::Live { .. }
+                | Self::Setups { .. }
+                | Self::RecipeExport { .. }
+                | Self::RecipeInspect { .. }
+                | Self::RecipePlan { .. }
                 | Self::ProviderUpdates { .. }
         )
     }
+}
+
+fn live_text(live: &portcove_core::LiveMods) -> String {
+    let native = match &live.native_list {
+        portcove_core::NativeModListStatus::NotApplicable
+        | portcove_core::NativeModListStatus::InSync => None,
+        portcove_core::NativeModListStatus::NotWritten => {
+            Some("The game's mod list is written before the next launch.".to_owned())
+        }
+        portcove_core::NativeModListStatus::Reordered { native_order } => Some(format!(
+            "Mods were reordered in the game: {}",
+            native_order
+                .iter()
+                .map(|name| clean(name))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )),
+        portcove_core::NativeModListStatus::Differs {
+            missing,
+            unexpected,
+        } => Some(format!(
+            "The game's mod list differs (missing: {}; not enabled: {}); it is rewritten before the next launch.",
+            missing
+                .iter()
+                .map(|name| clean(name))
+                .collect::<Vec<_>>()
+                .join(", "),
+            unexpected
+                .iter()
+                .map(|name| clean(name))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )),
+        portcove_core::NativeModListStatus::Unreadable { reason } => Some(format!(
+            "The game's configuration could not be read and is left unchanged: {}",
+            clean(reason)
+        )),
+    };
+    let mut lines = Vec::new();
+    if live.unmanaged.is_empty() && live.changed_owned.is_empty() {
+        lines.push("Live mods match the selected profile.".to_owned());
+    } else {
+        lines.push(format!(
+            "Unmanaged files: {}\nChanged installed files: {}",
+            live.unmanaged.join(", "),
+            live.changed_owned.join(", ")
+        ));
+    }
+    lines.extend(native);
+    lines.join("\n")
+}
+
+fn read_recipe(path: &PathBuf) -> Result<portcove_core::ProfileRecipe> {
+    let mut bytes = Vec::new();
+    std::fs::File::open(path)?
+        .take(MAX_REQUEST_BYTES + 1)
+        .read_to_end(&mut bytes)?;
+    portcove_core::ProfileRecipe::inspect_document(&bytes)
+}
+
+fn recipe_text(title: &str, recipe: &portcove_core::ProfileRecipe) -> String {
+    let mut lines = vec![format!(
+        "{title}: {} (format {}), {} package(s), identity {}",
+        clean(&recipe.port_id),
+        recipe.format,
+        recipe.packages.len(),
+        clean(&recipe.identity_sha256)
+    )];
+    lines.extend(
+        recipe
+            .uncaptured
+            .iter()
+            .map(|line| format!("  not captured: {}", clean(line))),
+    );
+    lines.join("\n")
+}
+
+fn recipe_plan_text(plan: &portcove_core::RecipeImportPlan) -> String {
+    let status = |value: &portcove_core::RecipeInputPlan| {
+        format!(
+            "  {} — {:?}: {}",
+            clean(&value.name),
+            value.status,
+            clean(&value.detail)
+        )
+    };
+    let mut lines = vec![format!(
+        "Recipe import plan for {}",
+        clean(&plan.recipe.port_id)
+    )];
+    lines.push(status(&plan.runtime));
+    lines.extend(plan.originals.iter().map(status));
+    lines.extend(plan.packages.iter().map(status));
+    for hold in &plan.holds {
+        lines.push(format!("  held: {}", clean(hold)));
+    }
+    lines.push(format!(
+        "{} · plan SHA-256 {}",
+        if plan.can_apply {
+            "Ready to apply"
+        } else {
+            "Not ready"
+        },
+        clean(&plan.plan_sha256)
+    ));
+    lines.join("\n")
 }
 
 fn read_plan(path: &PathBuf) -> Result<portcove_core::ProviderInstallPlan> {
@@ -437,17 +591,83 @@ pub(crate) async fn execute(
             |revision| format!("Profile active\n{}", revision_line(revision)),
         ),
         ProfileCommand::Live { port_id } => {
-            render_read_success(mode, name, service.observe_live_mods(&port_id)?, |live| {
-                if live.unmanaged.is_empty() && live.changed_owned.is_empty() {
-                    "Live mods match the selected profile.".into()
-                } else {
-                    format!(
-                        "Unmanaged files: {}\nChanged installed files: {}",
-                        live.unmanaged.join(", "),
-                        live.changed_owned.join(", ")
-                    )
+            render_read_success(mode, name, service.observe_live_mods(&port_id)?, live_text)
+        }
+        ProfileCommand::Setups { port_id } => {
+            render_read_success(mode, name, service.mod_setups(&port_id)?, |view| {
+                if !view.supported {
+                    return "This game has no reviewed mod support.".into();
                 }
+                let Some(inventory) = &view.inventory else {
+                    return "No setups yet; the installed game gets its default setup first."
+                        .into();
+                };
+                let mut lines = inventory
+                    .profiles
+                    .iter()
+                    .map(|entry| {
+                        format!(
+                            "{} ({}) revision {}",
+                            clean(&entry.profile.display_name),
+                            clean(&entry.profile.id),
+                            entry.profile.current_revision
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                if let Some(live) = &view.live {
+                    lines.push(live_text(live));
+                }
+                lines.join("\n")
             })
+        }
+        ProfileCommand::RecipeExport {
+            port_id,
+            profile_id,
+            revision,
+        } => render_read_success(
+            mode,
+            name,
+            service.export_profile_recipe(&port_id, &profile_id, revision)?,
+            |recipe| recipe_text("Recipe", recipe),
+        ),
+        ProfileCommand::RecipeInspect { recipe_file } => {
+            render_read_success(mode, name, read_recipe(&recipe_file)?, |recipe| {
+                recipe_text("Valid recipe", recipe)
+            })
+        }
+        ProfileCommand::RecipePlan { recipe_file } => render_read_success(
+            mode,
+            name,
+            service.plan_recipe_import(&read_recipe(&recipe_file)?)?,
+            recipe_plan_text,
+        ),
+        ProfileCommand::RecipeApply {
+            recipe_file,
+            name: display_name,
+            expected_plan,
+            yes,
+        } => {
+            let plan = service.plan_recipe_import(&read_recipe(&recipe_file)?)?;
+            if plan.plan_sha256 != expected_plan {
+                return Err(PortcoveError::conflict(
+                    "the local inputs differ from the plan you reviewed; plan again",
+                ));
+            }
+            if mode == OutputMode::Human {
+                println!("{}", recipe_plan_text(&plan));
+            }
+            crate::require_confirmation(
+                "Create a new profile from exactly these reviewed inputs?",
+                yes,
+                non_interactive,
+            )?;
+            let authorization = service.authorize_recipe_import(&plan, &display_name)?;
+            render_read_success(
+                mode,
+                name,
+                service.apply_recipe_import(&plan, &display_name, &authorization.token)?,
+                |profile| summary("Profile created from recipe", profile),
+            )
         }
         ProfileCommand::Revise {
             port_id,

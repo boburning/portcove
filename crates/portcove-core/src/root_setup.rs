@@ -682,6 +682,17 @@ impl PortcoveService {
         if handled.contains(&port_id) || busy.contains(&port_id) {
             return RootCandidate::Skip;
         }
+        // Earlier work for this game must recover before anything new starts.
+        if self
+            .library
+            .has_unfinished_lifecycle(&port_id)
+            .unwrap_or(true)
+        {
+            return waiting(
+                Some(port_id),
+                "earlier work for this game hasn't finished recovering",
+            );
+        }
         match self.library.port_intent(&port_id) {
             // The player's own choice for this game wins over folder consent.
             Ok(Some(intent))

@@ -1,4 +1,5 @@
 import { cn } from "cn";
+import { useAppTranslation } from "../localization";
 const BRAND_ASSETS = {
   mascot: "/brand/mascot/portcove-mascot-v2-front.png",
   transparentMascot: "/brand/icons/portcove-mascot-transparent.png",
@@ -26,6 +27,7 @@ export function BrandMascot({
   decorative?: boolean;
   transparent?: boolean;
 }) {
+  const { t } = useAppTranslation("common");
   return (
     <img
       className={cn(
@@ -34,7 +36,7 @@ export function BrandMascot({
         className,
       )}
       src={transparent ? BRAND_ASSETS.transparentMascot : BRAND_ASSETS.mascot}
-      alt={decorative ? "" : "Portcove crab mascot"}
+      alt={decorative ? "" : t("brand.mascot")}
       aria-hidden={decorative || undefined}
       decoding="async"
     />

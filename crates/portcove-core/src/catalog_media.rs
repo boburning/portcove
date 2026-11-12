@@ -1,5 +1,9 @@
 //! Reviewed descriptive media. Images never grant installation or launch authority.
-use std::{collections::HashSet, io::Read, path::PathBuf};
+use std::{
+    collections::HashSet,
+    io::Read,
+    path::{Path, PathBuf},
+};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -349,7 +353,14 @@ impl PortcoveService {
                 "catalog image changed; refresh its details",
             ));
         }
-        thumbnail_with_fetch(self.library(), asset, || fetch_original(asset))
+        thumbnail_with_fetch(
+            self.library(),
+            asset,
+            || fetch_original(asset),
+            |path, original| {
+                self.publish_remote_original(path, "pending-catalog-media-original", original)
+            },
+        )
     }
 }
 
@@ -367,6 +378,7 @@ fn thumbnail_with_fetch(
     library: &Library,
     asset: &CatalogMediaAsset,
     fetch: impl FnOnce() -> Result<Vec<u8>>,
+    publish: impl FnOnce(&Path, &[u8]) -> Result<()>,
 ) -> Result<ArtworkThumbnail> {
     let _permit = crate::artwork::admit_image_work()?;
     let path = cache_path(library, asset)?;
@@ -399,13 +411,7 @@ fn thumbnail_with_fetch(
     }
     if !from_cache {
         let _guard = library.try_lock_artwork()?;
-        crate::artwork::publish_cache_file(
-            library,
-            &path,
-            "pending-catalog-media-original",
-            crate::artwork_image::MAX_ORIGINAL_BYTES,
-            &original,
-        )?;
+        publish(&path, &original)?;
     }
     Ok(ArtworkThumbnail {
         asset_sha256: asset.sha256.clone(),
@@ -641,6 +647,23 @@ mod tests {
         assert!(validate_catalog_media("example", None, &[invalid]).is_err());
         assert!(validate_catalog_media("example", None, &[image.clone(), image.clone()]).is_err());
         assert!(validate_catalog_media("example", None, &vec![image; 10]).is_err());
+    }
+
+    fn thumbnail_with_fetch(
+        library: &Library,
+        asset: &CatalogMediaAsset,
+        fetch: impl FnOnce() -> Result<Vec<u8>>,
+    ) -> Result<ArtworkThumbnail> {
+        super::thumbnail_with_fetch(library, asset, fetch, |path, original| {
+            crate::artwork::publish_cache_file(
+                library,
+                path,
+                "pending-catalog-media-original",
+                crate::artwork_image::MAX_ORIGINAL_BYTES,
+                original,
+                None,
+            )
+        })
     }
 
     #[test]

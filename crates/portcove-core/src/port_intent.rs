@@ -65,13 +65,36 @@ pub struct PortIntent {
     pub failed_attempts: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub failure: Option<String>,
+    /// The release channel chosen with this choice. A different channel later
+    /// waits for the player to choose again.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub channel: Option<crate::ReleaseChannel>,
+    /// The registered copies of this game's files when the choice was made.
+    /// A different or removed copy later waits for the player; it is never
+    /// silently retargeted. Empty when no files were registered yet: the first
+    /// files that arrive are used.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sources: Vec<PortIntentSource>,
+}
+
+/// One registered copy a remembered choice is bound to.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PortIntentSource {
+    pub profile_id: String,
+    pub sha256: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum PortReadiness {
     /// Installed already; standing setup never reinstalls or updates it.
-    Installed { install_id: String },
+    Installed {
+        install_id: String,
+        /// The installed game's maintenance state under its own update policy.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        maintenance: Option<PortMaintenance>,
+    },
     /// A first install could start now with this exact plan.
     Ready {
         plan_sha256: String,
@@ -79,6 +102,37 @@ pub enum PortReadiness {
     },
     /// Something is missing or needs a person; the reason says what.
     Waiting { reason: String },
+}
+
+/// An installed game's maintenance state, read from its saved channel and
+/// update policy and its last update check. Assessing it downloads, stages or
+/// activates nothing; the existing update check and policy own that.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct PortMaintenance {
+    pub channel: crate::ReleaseChannel,
+    pub update_policy: crate::UpdatePolicy,
+    pub active_version: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub staged_version: Option<String>,
+    /// A newer release the last check found on this channel, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub available_version: Option<String>,
+    /// Identity of that release, used to announce it once.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub available_sha256: Option<String>,
+    /// The earlier version Portcove keeps for this game, if any. Whether a
+    /// rollback to it is allowed right now is decided by the game's actions.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub previous_version: Option<String>,
+    /// The game is running or its launch must recover, an update is
+    /// downloading or verifying, or an install, update or data change for it
+    /// is unfinished or must recover; maintenance waits for it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub busy: bool,
+    /// When updates were last checked for this install on this channel;
+    /// `None` means not yet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checked_at: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -89,7 +143,8 @@ pub struct PortIntentAssessment {
     /// Why this intent will not act or notify right now, if it won't.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub suppressed: Option<String>,
-    /// Ready with a plan the player has not been told about yet.
+    /// Ready with a plan, or installed with an update, the player has not
+    /// been told about yet.
     pub newly_ready: bool,
 }
 
@@ -132,6 +187,9 @@ pub struct StandingSetupResult {
     /// or a requirement.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub root_waiting: Vec<crate::RootSetupWaiting>,
+    /// Provider updates for mod setups whose policy allows unattended updates.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mod_updates: Vec<crate::ProviderAutoUpdate>,
 }
 
 impl PortIntent {
@@ -146,6 +204,8 @@ impl PortIntent {
             failed_plan_sha256: None,
             failed_attempts: 0,
             failure: None,
+            channel: None,
+            sources: Vec::new(),
         }
     }
 
@@ -172,6 +232,20 @@ fn decode(port_id: &str, json: &str) -> Result<PortIntent> {
 }
 
 impl Library {
+    /// Whether this game has a lifecycle operation (an install, update or
+    /// data change) that hasn't finished or recovered yet. Such a game is left
+    /// to recovery; nothing new starts for it.
+    pub(crate) fn has_unfinished_lifecycle(&self, port_id: &str) -> Result<bool> {
+        Ok(self.connection()?.query_row(
+            // A retained update download is not unfinished work; it waits for
+            // the player's review and never needs recovery.
+            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations
+             WHERE port_id=?1 AND kind<>'acquire_update')",
+            [port_id],
+            |row| row.get(0),
+        )?)
+    }
+
     pub fn port_intents(&self) -> Result<Vec<PortIntent>> {
         let connection = self.connection()?;
         let mut statement =
@@ -294,6 +368,16 @@ impl PortcoveService {
         ) {
             self.catalog.listing(port_id)?;
         }
+        // A choice that can act remembers what it was made with, so later
+        // changes wait for the player instead of silently retargeting it.
+        let (channel, sources) = if matches!(
+            mode,
+            PortIntentMode::Notify | PortIntentMode::SetUpWhenReady
+        ) {
+            self.intent_binding(port_id)?
+        } else {
+            (None, Vec::new())
+        };
         if mode == PortIntentMode::SetUpWhenReady {
             self.add_games_to_library(&[crate::LibraryMembershipRequest {
                 port_id: port_id.to_owned(),
@@ -321,12 +405,73 @@ impl PortcoveService {
                 intent.mode = mode;
                 intent.explicitly_uninstalled_at = None;
                 intent.clear_failure();
+                intent.channel = channel;
+                intent.sources = sources;
                 intent.clone()
             })
     }
 
     pub fn port_intents(&self) -> Result<Vec<PortIntent>> {
         self.library.port_intents()
+    }
+
+    /// The channel and registered copies a new choice is made with.
+    fn intent_binding(
+        &self,
+        port_id: &str,
+    ) -> Result<(Option<crate::ReleaseChannel>, Vec<PortIntentSource>)> {
+        let port = self.catalog.port(port_id)?;
+        // A status that can't be read now doesn't block saving the choice; it
+        // is simply not bound to a channel.
+        let channel = self.status(port_id).ok().map(|status| status.channel);
+        // Only the game's own files are bound. A shared prerequisite such as a
+        // BIOS is checked by the ordinary install review instead.
+        let mut sources = Vec::new();
+        if let Some(profile_id) = &port.source_profile
+            && let Some(source) = self.library.source(profile_id)?
+        {
+            sources.push(PortIntentSource {
+                profile_id: source.profile_id,
+                sha256: source.sha256,
+            });
+        }
+        Ok((channel, sources))
+    }
+
+    /// Why a remembered choice no longer matches the current channel or
+    /// registered files, if it doesn't. The player chooses again to accept them.
+    fn intent_binding_hold(&self, intent: &PortIntent) -> Option<String> {
+        if let Some(chosen) = intent.channel {
+            match self.status(&intent.port_id) {
+                Ok(status) if status.channel != chosen => {
+                    return Some(format!(
+                        "this game's channel changed from {chosen} to {} since you chose this; choose again to set it up from {}",
+                        status.channel, status.channel
+                    ));
+                }
+                Ok(_) => {}
+                Err(error) => return Some(error.message),
+            }
+        }
+        for bound in &intent.sources {
+            match self.library.source(&bound.profile_id) {
+                Ok(Some(current)) if current.sha256 == bound.sha256 => {}
+                Ok(Some(_)) => {
+                    return Some(
+                        "a different copy of this game's files is registered now; choose again to set it up with them"
+                            .to_owned(),
+                    );
+                }
+                Ok(None) => {
+                    return Some(
+                        "the files you chose for this game are no longer registered; register them again, or choose again"
+                            .to_owned(),
+                    );
+                }
+                Err(error) => return Some(error.message),
+            }
+        }
+        None
     }
 
     /// Reassesses every remembered notify or set-up-when-ready choice with the
@@ -362,6 +507,10 @@ impl PortcoveService {
             .library
             .status(&intent.port_id, crate::ReleaseChannel::Stable)
         {
+            Ok(status) if status.active.is_none() => match self.intent_binding_hold(intent) {
+                Some(reason) => PortReadiness::Waiting { reason },
+                None => self.port_readiness(&intent.port_id, status).await,
+            },
             Ok(status) => self.port_readiness(&intent.port_id, status).await,
             Err(error) => PortReadiness::Waiting {
                 reason: error.message,
@@ -372,12 +521,69 @@ impl PortcoveService {
 
     async fn port_readiness(&self, port_id: &str, status: crate::PortStatus) -> PortReadiness {
         if let Some(active) = status.active {
+            // A check counts only if it was made for exactly this install on
+            // its current channel; applying, reinstalling or rolling back
+            // makes an older check stale.
+            let current = status.last_update_check.as_ref().filter(|snapshot| {
+                snapshot.check.channel == status.channel
+                    && snapshot.check.installed_version.as_deref() == Some(active.version.as_str())
+                    && snapshot
+                        .check
+                        .installed_artifact
+                        .as_ref()
+                        .is_some_and(|artifact| artifact.sha256 == active.artifact.sha256)
+                    && snapshot.check.installed_runtime == active.runtime
+            });
+            // An update already staged is not "available"; it is staged.
+            let available = current.filter(|snapshot| {
+                snapshot.check.update_available
+                    && status.staged.as_ref().is_none_or(|staged| {
+                        staged.artifact.sha256 != snapshot.check.release.asset.sha256
+                    })
+            });
             PortReadiness::Installed {
+                maintenance: Some(PortMaintenance {
+                    channel: status.channel,
+                    update_policy: status.update_policy,
+                    active_version: active.version.clone(),
+                    staged_version: status.staged.as_ref().map(|staged| staged.version.clone()),
+                    available_version: available
+                        .map(|snapshot| snapshot.check.release.version.clone()),
+                    available_sha256: available
+                        .map(|snapshot| snapshot.check.release.asset.sha256.clone()),
+                    checked_at: current.map(|snapshot| snapshot.checked_at),
+                    previous_version: status
+                        .previous
+                        .as_ref()
+                        .map(|previous| previous.version.clone()),
+                    busy: status.acquisition.as_ref().is_some_and(|acquisition| {
+                        matches!(
+                            acquisition.phase,
+                            crate::GameUpdateAcquisitionPhase::Acquiring
+                                | crate::GameUpdateAcquisitionPhase::Verifying
+                        )
+                    }) || self
+                        .library
+                        .has_unfinished_lifecycle(port_id)
+                        .unwrap_or(true)
+                        || self
+                            .library
+                            .launch_session_for_port(port_id)
+                            .map_or(true, |session| session.is_some()),
+                }),
                 install_id: active.id,
             }
         } else if status.external_runtime.is_some() {
             PortReadiness::Waiting {
                 reason: "this game is registered from another launcher; Portcove does not install over it".to_owned(),
+            }
+        } else if self
+            .library
+            .has_unfinished_lifecycle(port_id)
+            .unwrap_or(true)
+        {
+            PortReadiness::Waiting {
+                reason: "earlier work for this game hasn't finished recovering; it must recover before setup can start".to_owned(),
             }
         } else {
             match self.plan_game_install(port_id).await {
@@ -414,9 +620,17 @@ impl PortcoveService {
         } else {
             None
         };
+        let announced = match &readiness {
+            PortReadiness::Ready { plan_sha256, .. } => Some(plan_sha256.as_str()),
+            // Only a game the player asked to hear about announces updates.
+            PortReadiness::Installed {
+                maintenance: Some(maintenance),
+                ..
+            } if intent.mode == PortIntentMode::Notify => maintenance.available_sha256.as_deref(),
+            _ => None,
+        };
         let newly_ready = suppressed.is_none()
-            && matches!(&readiness, PortReadiness::Ready { plan_sha256, .. }
-                if intent.acknowledged_plan_sha256.as_deref() != Some(plan_sha256.as_str()));
+            && announced.is_some_and(|key| intent.acknowledged_plan_sha256.as_deref() != Some(key));
         PortIntentAssessment {
             port_id: intent.port_id.clone(),
             mode: intent.mode,
@@ -463,10 +677,12 @@ impl PortcoveService {
                     batches: Vec::new(),
                     failures: Vec::new(),
                     root_waiting: Vec::new(),
+                    mod_updates: Vec::new(),
                 });
             }
             Err(error) => return Err(error),
         };
+        self.recover_interrupted_setups();
         let assessed = self.assess_port_intents().await?;
         let busy = self
             .unfinished_install_batches()?
@@ -521,6 +737,21 @@ impl PortcoveService {
                 Vec::new()
             }
         };
+        let mut mod_updates = Vec::new();
+        for port_id in crate::provider_install::gamebanana_ports() {
+            match self.run_eligible_provider_updates(port_id).await {
+                Ok(updates) => mod_updates.extend(updates),
+                Err(error) => mod_updates.push(crate::ProviderAutoUpdate {
+                    port_id: port_id.into(),
+                    profile_id: String::new(),
+                    profile_name: String::new(),
+                    native_ids: Vec::new(),
+                    outcome: crate::ProviderAutoUpdateOutcome::Unavailable {
+                        reason: error.message,
+                    },
+                }),
+            }
+        }
         Ok(StandingSetupResult {
             already_running: false,
             assessments: assessed.assessments,
@@ -528,7 +759,84 @@ impl PortcoveService {
             batches,
             failures,
             root_waiting,
+            mod_updates,
         })
+    }
+
+    /// Settles batches left mid-run by an interruption before anything new
+    /// starts: a committed install counts as ready, and a game with nothing
+    /// committed is marked interrupted. Batches another process is running,
+    /// and games another operation holds, are left alone. For a game set up
+    /// under standing consent, an interruption counts as a failed attempt for
+    /// that plan, so repeated interruptions stop at the attempt limit.
+    fn recover_interrupted_setups(&self) {
+        let batches = match self.unfinished_install_batches() {
+            Ok(batches) => batches,
+            Err(error) => {
+                tracing::warn!(error = %error.message, "could not list unfinished setup batches");
+                return;
+            }
+        };
+        for batch in batches {
+            let running = batch
+                .items
+                .iter()
+                .filter(|item| item.state == InstallBatchItemState::Running)
+                .map(|item| item.port_id.clone())
+                .collect::<Vec<_>>();
+            if running.is_empty() {
+                continue;
+            }
+            // Work that recovery may still roll forward is never settled here:
+            // the batch stays in progress and nothing new starts for its games.
+            if running.iter().any(|port_id| {
+                self.library
+                    .has_unfinished_lifecycle(port_id)
+                    .unwrap_or(true)
+            }) {
+                continue;
+            }
+            // Only games set up under standing consent are settled, because
+            // only they have an attempt limit for interruptions. Other batches
+            // stay in progress for the player to continue or review.
+            let all_standing = running.iter().all(|port_id| {
+                self.library
+                    .port_intent(port_id)
+                    .ok()
+                    .flatten()
+                    .is_some_and(|intent| intent.mode == PortIntentMode::SetUpWhenReady)
+            });
+            if !all_standing {
+                continue;
+            }
+            match self.reconcile_install_batch(&batch.id) {
+                Ok(record) => {
+                    for item in record.items.iter().filter(|item| {
+                        item.state == InstallBatchItemState::Interrupted
+                            && running.contains(&item.port_id)
+                    }) {
+                        // Only standing consent spends attempts; a player's
+                        // own interrupted install doesn't.
+                        let standing = self
+                            .library
+                            .port_intent(&item.port_id)
+                            .ok()
+                            .flatten()
+                            .is_some_and(|intent| intent.mode == PortIntentMode::SetUpWhenReady);
+                        if standing {
+                            self.remember_standing_failure(
+                                &item.port_id,
+                                &item.expected_plan_sha256,
+                                "setup was interrupted before it finished",
+                            );
+                        }
+                    }
+                }
+                Err(error) => {
+                    tracing::warn!(batch_id = %batch.id, error = %error.message, "could not reconcile an interrupted setup batch");
+                }
+            }
+        }
     }
 
     async fn standing_setup_one(
@@ -541,6 +849,7 @@ impl PortcoveService {
         let still_wanted = self.library.port_intent(port_id)?.is_some_and(|intent| {
             intent.mode == PortIntentMode::SetUpWhenReady
                 && intent.explicitly_uninstalled_at.is_none()
+                && self.intent_binding_hold(&intent).is_none()
         });
         if !still_wanted {
             return Ok(None);
@@ -866,6 +1175,469 @@ mod tests {
             service.status(PORT).unwrap().active.unwrap().id,
             installed.id
         );
+    }
+
+    fn registered_copy(service: &PortcoveService, byte: char) -> crate::SourceRecord {
+        let profile_id = service
+            .catalog()
+            .port(PORT)
+            .unwrap()
+            .source_profile
+            .clone()
+            .unwrap();
+        let sha256 = byte.to_string().repeat(64);
+        let source = crate::SourceRecord {
+            profile_id,
+            path: std::env::temp_dir().join(format!("portcove-intent-{byte}.z64")),
+            sha256: sha256.clone(),
+            size: 4,
+            storage_sha256: sha256,
+            storage_size: 4,
+            updated_at: 0,
+            observed_identity: None,
+        };
+        service.library().register_source(&source).unwrap();
+        source
+    }
+
+    #[tokio::test]
+    async fn a_choice_remembers_its_files_and_never_switches_to_another_copy() {
+        let (_temporary, service) = ready_service().await;
+        let chosen = registered_copy(&service, 'a');
+        let intent = service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        assert_eq!(intent.sources.len(), 1);
+        assert_eq!(intent.sources[0].sha256, chosen.sha256);
+        assert_eq!(intent.channel, Some(service.status(PORT).unwrap().channel));
+        // Another copy is registered later: the choice waits, nothing installs.
+        registered_copy(&service, 'b');
+        let result = service.run_standing_setup(|_| {}).await.unwrap();
+        assert!(result.batches.is_empty());
+        let PortReadiness::Waiting { reason } = &result.assessments[0].readiness else {
+            panic!("expected waiting: {result:?}");
+        };
+        assert!(reason.contains("different copy"), "{reason}");
+        assert!(service.status(PORT).unwrap().active.is_none());
+        // Choosing again accepts the new copy.
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        assert_eq!(
+            service
+                .run_standing_setup(|_| {})
+                .await
+                .unwrap()
+                .batches
+                .len(),
+            1
+        );
+        assert!(service.status(PORT).unwrap().active.is_some());
+    }
+
+    #[tokio::test]
+    async fn a_removed_copy_waits_and_the_same_copy_moved_does_not() {
+        let (_temporary, service) = ready_service().await;
+        let chosen = registered_copy(&service, 'a');
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        // The same bytes registered at another path are still the chosen copy.
+        service
+            .library()
+            .register_source(&crate::SourceRecord {
+                path: std::env::temp_dir().join("portcove-intent-moved.z64"),
+                ..chosen.clone()
+            })
+            .unwrap();
+        let intent = service.library().port_intent(PORT).unwrap().unwrap();
+        assert!(service.intent_binding_hold(&intent).is_none());
+        // A removed registration waits.
+        service.library().remove_source(&chosen.profile_id).unwrap();
+        let reason = service.intent_binding_hold(&intent).unwrap();
+        assert!(reason.contains("no longer registered"), "{reason}");
+        assert!(
+            service
+                .run_standing_setup(|_| {})
+                .await
+                .unwrap()
+                .batches
+                .is_empty()
+        );
+    }
+
+    #[tokio::test]
+    async fn a_changed_channel_waits_for_a_new_choice() {
+        let (_temporary, service) = ready_service().await;
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        let current = service.status(PORT).unwrap().channel;
+        let other = [
+            crate::ReleaseChannel::Stable,
+            crate::ReleaseChannel::Beta,
+            crate::ReleaseChannel::Rolling,
+        ]
+        .into_iter()
+        .find(|channel| *channel != current)
+        .unwrap();
+        // The choice was made while the game followed another channel.
+        service
+            .library()
+            .update_port_intent(PORT, |intent, _| {
+                intent.as_mut().unwrap().channel = Some(other);
+            })
+            .unwrap();
+        let result = service.run_standing_setup(|_| {}).await.unwrap();
+        assert!(result.batches.is_empty());
+        let PortReadiness::Waiting { reason } = &result.assessments[0].readiness else {
+            panic!("expected waiting: {result:?}");
+        };
+        assert!(reason.contains("channel"), "{reason}");
+        assert!(service.status(PORT).unwrap().active.is_none());
+        // Choosing again adopts the current channel.
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        assert_eq!(
+            service
+                .run_standing_setup(|_| {})
+                .await
+                .unwrap()
+                .batches
+                .len(),
+            1
+        );
+    }
+
+    #[tokio::test]
+    async fn an_installed_game_reports_its_maintenance_and_announces_an_update_once() {
+        let (_temporary, service) = ready_service().await;
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        assert_eq!(
+            service
+                .run_standing_setup(|_| {})
+                .await
+                .unwrap()
+                .batches
+                .len(),
+            1
+        );
+        service
+            .set_port_intent(PORT, PortIntentMode::Notify)
+            .unwrap();
+        let assessed = service.assess_port_intents().await.unwrap();
+        let PortReadiness::Installed {
+            maintenance: Some(maintenance),
+            ..
+        } = &assessed.assessments[0].readiness
+        else {
+            panic!("expected installed: {assessed:?}");
+        };
+        assert_eq!(maintenance.active_version, "v1");
+        assert!(maintenance.available_version.is_none());
+        assert!(!maintenance.busy);
+        assert!(maintenance.previous_version.is_none());
+        assert!(!assessed.assessments[0].newly_ready);
+        // A check finds a newer release on the game's channel.
+        let status = service.status(PORT).unwrap();
+        let mut release = crate::ResolvedRelease {
+            version: "v2".into(),
+            channel: status.channel,
+            published_at: None,
+            asset: crate::ReleaseAsset {
+                name: "v2.zip".into(),
+                url: "https://example.invalid/v2.zip".into(),
+                size: 1,
+                sha256: "2".repeat(64),
+            },
+        };
+        let active = status.active.clone().unwrap();
+        let check = |installed_version: &str, release: crate::ResolvedRelease| crate::UpdateCheck {
+            port_id: PORT.into(),
+            channel: status.channel,
+            installed_version: Some(installed_version.into()),
+            installed_artifact: Some(active.artifact.clone()),
+            installed_runtime: active.runtime.clone(),
+            required_runtime: None,
+            update_available: true,
+            release,
+        };
+        service
+            .library()
+            .store_update_snapshot(&check("v0", release.clone()))
+            .unwrap();
+        // A check made for another install is stale and ignored.
+        assert!(!service.assess_port_intents().await.unwrap().assessments[0].newly_ready);
+        service
+            .library()
+            .store_update_snapshot(&check("v1", release.clone()))
+            .unwrap();
+        let assessed = service.assess_port_intents().await.unwrap();
+        let item = &assessed.assessments[0];
+        assert!(item.newly_ready);
+        let PortReadiness::Installed {
+            maintenance: Some(maintenance),
+            ..
+        } = &item.readiness
+        else {
+            panic!("expected installed");
+        };
+        assert_eq!(maintenance.available_version.as_deref(), Some("v2"));
+        // Told once; nothing was downloaded, staged or activated.
+        service
+            .acknowledge_port_readiness(&[PortReadinessAcknowledgement {
+                port_id: PORT.into(),
+                plan_sha256: release.asset.sha256.clone(),
+            }])
+            .unwrap();
+        assert!(!service.assess_port_intents().await.unwrap().assessments[0].newly_ready);
+        let after = service.status(PORT).unwrap();
+        assert_eq!(after.active.unwrap().version, "v1");
+        assert!(after.staged.is_none());
+        // A different newer release is announced again.
+        release.version = "v3".into();
+        release.asset.sha256 = "3".repeat(64);
+        service
+            .library()
+            .store_update_snapshot(&check("v1", release))
+            .unwrap();
+        assert!(service.assess_port_intents().await.unwrap().assessments[0].newly_ready);
+        // A set-up-when-ready game is never announced; standing setup never updates.
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        assert!(!service.assess_port_intents().await.unwrap().assessments[0].newly_ready);
+        assert!(
+            service
+                .run_standing_setup(|_| {})
+                .await
+                .unwrap()
+                .batches
+                .is_empty()
+        );
+        // Unfinished lifecycle work marks the installed game busy.
+        let now = Library::now();
+        service
+            .library()
+            .connection()
+            .unwrap()
+            .execute(
+                "INSERT INTO lifecycle_operations(id,kind,port_id,phase,created_at,updated_at)
+                 VALUES ('pending-update','update',?1,'prepared',?2,?2)",
+                params![PORT, now],
+            )
+            .unwrap();
+        let PortReadiness::Installed {
+            maintenance: Some(maintenance),
+            ..
+        } = &service.assess_port_intents().await.unwrap().assessments[0].readiness
+        else {
+            panic!("expected installed");
+        };
+        assert!(maintenance.busy);
+    }
+
+    #[test]
+    fn a_retained_update_download_is_not_unfinished_work() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let now = Library::now();
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "INSERT INTO lifecycle_operations(id,kind,port_id,phase,created_at,updated_at)
+                 VALUES ('kept-download','acquire_update',?1,'acquired',?2,?2)",
+                params![PORT, now],
+            )
+            .unwrap();
+        assert!(!library.has_unfinished_lifecycle(PORT).unwrap());
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "INSERT INTO lifecycle_operations(id,kind,port_id,phase,created_at,updated_at)
+                 VALUES ('pending-install','install',?1,'prepared',?2,?2)",
+                params![PORT, now],
+            )
+            .unwrap();
+        assert!(library.has_unfinished_lifecycle(PORT).unwrap());
+    }
+
+    #[tokio::test]
+    async fn an_interrupted_standing_setup_is_reconciled_before_anything_else() {
+        let (_temporary, service) = ready_service().await;
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        let plan = service.plan_game_install(PORT).await.unwrap();
+        // A pass started this game's batch, then the process stopped mid-run.
+        let batch = service
+            .start_install_batch(
+                &[InstallBatchRequestItem {
+                    port_id: PORT.into(),
+                    expected_plan_sha256: plan.plan_sha256.clone(),
+                }],
+                LibraryMembershipOrigin::Manual,
+            )
+            .unwrap();
+        service
+            .library()
+            .update_install_batch(&batch.id, |record| {
+                record.items[0].state = InstallBatchItemState::Running;
+            })
+            .unwrap();
+        // The next pass settles it against committed state first: nothing was
+        // committed, so it is interrupted, counted once, and then set up
+        // afresh with a new plan check and authorization.
+        let result = service.run_standing_setup(|_| {}).await.unwrap();
+        let settled = service.install_batch(&batch.id).unwrap().unwrap();
+        assert_eq!(settled.items[0].state, InstallBatchItemState::Interrupted);
+        assert_eq!(result.batches.len(), 1);
+        let installed = service.status(PORT).unwrap().active.unwrap();
+        // A later pass repeats nothing.
+        assert!(
+            service
+                .run_standing_setup(|_| {})
+                .await
+                .unwrap()
+                .batches
+                .is_empty()
+        );
+        assert_eq!(
+            service.status(PORT).unwrap().active.unwrap().id,
+            installed.id
+        );
+        assert!(service.unfinished_install_batches().unwrap().is_empty());
+    }
+
+    fn interrupted_batch(service: &PortcoveService, plan_sha256: &str) -> String {
+        let batch = service
+            .start_install_batch(
+                &[InstallBatchRequestItem {
+                    port_id: PORT.into(),
+                    expected_plan_sha256: plan_sha256.to_owned(),
+                }],
+                LibraryMembershipOrigin::Manual,
+            )
+            .unwrap();
+        service
+            .library()
+            .update_install_batch(&batch.id, |record| {
+                record.items[0].state = InstallBatchItemState::Running;
+            })
+            .unwrap();
+        batch.id
+    }
+
+    #[tokio::test]
+    async fn unfinished_install_work_is_left_to_recovery() {
+        let (_temporary, service) = ready_service().await;
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        let plan = service.plan_game_install(PORT).await.unwrap();
+        let batch_id = interrupted_batch(&service, &plan.plan_sha256);
+        // The crash left a publication journal that recovery may roll forward.
+        let now = Library::now();
+        service
+            .library()
+            .connection()
+            .unwrap()
+            .execute(
+                "INSERT INTO lifecycle_operations(id,kind,port_id,phase,created_at,updated_at)
+                 VALUES ('crashed-install','install',?1,'payload_published',?2,?2)",
+                params![PORT, now],
+            )
+            .unwrap();
+        for _ in 0..2 {
+            let result = service.run_standing_setup(|_| {}).await.unwrap();
+            assert!(result.batches.is_empty(), "{result:?}");
+            let PortReadiness::Waiting { reason } = &result.assessments[0].readiness else {
+                panic!("expected waiting: {result:?}");
+            };
+            assert!(reason.contains("recover"), "{reason}");
+        }
+        // The batch stays in progress, nothing is counted, nothing installs.
+        let held = service.install_batch(&batch_id).unwrap().unwrap();
+        assert_eq!(held.items[0].state, InstallBatchItemState::Running);
+        assert_eq!(
+            service
+                .library()
+                .port_intent(PORT)
+                .unwrap()
+                .unwrap()
+                .failed_attempts,
+            0
+        );
+        assert!(service.status(PORT).unwrap().active.is_none());
+    }
+
+    #[tokio::test]
+    async fn a_players_own_interrupted_install_spends_no_standing_attempts() {
+        let (_temporary, service) = ready_service().await;
+        service
+            .set_port_intent(PORT, PortIntentMode::Notify)
+            .unwrap();
+        let plan = service.plan_game_install(PORT).await.unwrap();
+        let batch_id = interrupted_batch(&service, &plan.plan_sha256);
+        service.recover_interrupted_setups();
+        assert_eq!(
+            service
+                .library()
+                .port_intent(PORT)
+                .unwrap()
+                .unwrap()
+                .failed_attempts,
+            0
+        );
+        // Not standing consent: left in progress for the player, as before.
+        assert_eq!(
+            service.install_batch(&batch_id).unwrap().unwrap().items[0].state,
+            InstallBatchItemState::Running
+        );
+    }
+
+    #[tokio::test]
+    async fn repeated_interruptions_stop_at_the_attempt_limit() {
+        let (_temporary, service) = ready_service().await;
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        let plan = service.plan_game_install(PORT).await.unwrap();
+        for _ in 0..MAX_STANDING_SETUP_ATTEMPTS {
+            let batch = service
+                .start_install_batch(
+                    &[InstallBatchRequestItem {
+                        port_id: PORT.into(),
+                        expected_plan_sha256: plan.plan_sha256.clone(),
+                    }],
+                    LibraryMembershipOrigin::Manual,
+                )
+                .unwrap();
+            service
+                .library()
+                .update_install_batch(&batch.id, |record| {
+                    record.items[0].state = InstallBatchItemState::Running;
+                })
+                .unwrap();
+            service.recover_interrupted_setups();
+        }
+        let intent = service.library().port_intent(PORT).unwrap().unwrap();
+        assert_eq!(intent.failed_attempts, MAX_STANDING_SETUP_ATTEMPTS);
+        // The plan now waits for a change instead of being retried.
+        assert!(
+            service
+                .run_standing_setup(|_| {})
+                .await
+                .unwrap()
+                .batches
+                .is_empty()
+        );
+        assert!(service.status(PORT).unwrap().active.is_none());
     }
 
     #[test]

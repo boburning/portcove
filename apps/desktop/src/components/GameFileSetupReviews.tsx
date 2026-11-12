@@ -35,7 +35,7 @@ export function GameFileSetupReviews({
   onReviewInstall?: ((portIds: string[]) => void) | undefined;
   focusFallback?: (() => HTMLElement | null) | undefined;
 }) {
-  const { selected, toggle, clear, requestReview } = useSetupReviewSelection();
+  const { selected, toggle, selectAll, clear, requestReview } = useSetupReviewSelection();
   const section = useRef<HTMLElement>(null);
   const restoreFocus = useRef(false);
   useEffect(() => {
@@ -84,14 +84,57 @@ export function GameFileSetupReviews({
     );
   };
   const available = compatible.filter((port) => canReview(port.id));
+  // Several versions that can use the same files are never selected together
+  // automatically; the player chooses between them.
+  // Versions are counted across every catalog game using the same files, so a
+  // lone reviewable version whose sibling is installed or blocked still waits
+  // for the player's choice.
+  const versions = new Map<string, number>();
+  for (const port of ports)
+    if (port.source_profile)
+      versions.set(port.source_profile, (versions.get(port.source_profile) ?? 0) + 1);
+  const needsChoice = available.filter(
+    (port) => port.source_profile && (versions.get(port.source_profile) ?? 0) > 1,
+  );
+  const choiceGames = new Set(needsChoice.map((port) => port.source_profile)).size;
+  const eligible = available.filter((port) => !needsChoice.includes(port));
+  const unselectedEligible = eligible.filter((port) => !selected.includes(port.id));
+  const room = Math.max(0, maxSetupReviewSelection - selected.length);
+  const toSelect = Math.min(unselectedEligible.length, room);
   if (!available.length && !selected.length) return null;
   return (
     <section ref={section} aria-label="Selected setup reviews" className="col-span-full">
-      <h3>Select ports for setup review</h3>
+      <h3>Select games for setup review</h3>
       <p>
-        Select up to {maxSetupReviewSelection} independent ports. Each opens the existing setup
-        review; selecting a port does not register files or install anything.
+        Select games to review their setup, one at a time or together. Selecting a game doesn't
+        register files or install anything.
       </p>
+      <p>
+        <span role="status">{selected.length} selected</span> · {eligible.length} eligible
+        {choiceGames > 0 &&
+          ` · ${choiceGames} ${choiceGames === 1 ? "game needs" : "games need"} a version choice`}
+      </p>
+      {choiceGames > 0 && (
+        <p>
+          {choiceGames === 1 ? "One game has" : `${choiceGames} games have`} more than one version
+          that can use the same files. Select the version you want; selecting all leaves them out.
+        </p>
+      )}
+      {toSelect > 0 && (
+        <Button
+          data-focusable
+          variant="outline"
+          onClick={() => {
+            // The button disappears once everything is selected; keep focus in the section.
+            restoreFocus.current = true;
+            selectAll(unselectedEligible.map((port) => port.id));
+          }}
+        >
+          {toSelect === unselectedEligible.length && toSelect === eligible.length
+            ? `Select all ${toSelect} eligible`
+            : `Select ${toSelect} more eligible`}
+        </Button>
+      )}
       {available.map((port) => (
         <label key={port.id} className="setup-review-choice">
           <Checkbox
@@ -117,10 +160,7 @@ export function GameFileSetupReviews({
       ))}
       {selected.length > 0 && (
         <>
-          <p role="status">
-            {selected.length} of {maxSetupReviewSelection} ports selected. Return here after each
-            review to continue.
-          </p>
+          <p>Return here after each review to continue.</p>
           <ol>
             {selected.map((id) => (
               <li key={id}>

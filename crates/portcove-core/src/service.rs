@@ -51,11 +51,16 @@ pub use catalog_download_identity::{
     CatalogForeignReleaseId,
 };
 pub(crate) use catalog_download_provider::CatalogDownloadRepository;
+mod adoption_batch;
 mod launcher_library;
 mod native_portable;
 pub(crate) mod package_selection;
 mod retained_direct_compatibility;
 mod setup_discovery;
+pub use adoption_batch::{
+    ADOPTION_BATCH_LIMIT, AdoptionBatchItem, AdoptionBatchItemOutcome, AdoptionBatchItemResult,
+    AdoptionBatchPreview, AdoptionBatchResult,
+};
 pub use catalog_download::{
     CatalogDownloadCandidate, CatalogDownloadCandidates, CatalogDownloadCoverage,
     CatalogDownloadPreview, CatalogDownloadRequest, PendingSetupRecord, PendingSetupState,
@@ -133,14 +138,15 @@ mod port_intent;
 #[path = "root_setup.rs"]
 mod root_setup;
 pub use install_batch::{
-    INSTALL_BATCH_FORMAT_VERSION, InstallBatchItem, InstallBatchItemState, InstallBatchRecord,
-    InstallBatchRequestItem, InstallBatchReview, InstallBatchReviewItem, InstallBatchSummary,
-    MAX_INSTALL_BATCH_ITEMS,
+    INSTALL_BATCH_FORMAT_VERSION, InstallBatchCapacity, InstallBatchItem, InstallBatchItemState,
+    InstallBatchRecord, InstallBatchRequestItem, InstallBatchReview, InstallBatchReviewItem,
+    InstallBatchSummary, InstallBatchVolume, MAX_INSTALL_BATCH_ITEMS,
 };
 pub use port_intent::{
     MAX_PORT_INTENT_ASSESSMENTS, MAX_STANDING_SETUP_ATTEMPTS, PORT_INTENT_FORMAT_VERSION,
-    PortIntent, PortIntentAssessment, PortIntentAssessments, PortIntentMode, PortReadiness,
-    PortReadinessAcknowledgement, StandingSetupFailure, StandingSetupResult,
+    PortIntent, PortIntentAssessment, PortIntentAssessments, PortIntentMode, PortIntentSource,
+    PortMaintenance, PortReadiness, PortReadinessAcknowledgement, StandingSetupFailure,
+    StandingSetupResult,
 };
 pub use root_setup::{
     MAX_ROOT_SETUP_BASELINE, MAX_ROOT_SETUPS_PER_PASS, ROOT_SETUP_FORMAT_VERSION, RootSetupConsent,
@@ -6056,7 +6062,19 @@ impl PortcoveService {
         let install_root = self.managed_install_root(port_id, install_root)?;
         let catalog = self.catalog_for_installed_fallback(port_id)?;
         let port = catalog.port(port_id)?;
-        self.collect_user_data_from(port, &install_root)
+        let collected = self.collect_user_data_from(port, &install_root)?;
+        // A reorder made in the game's mod menu becomes the profile's next revision.
+        // Best effort: the data is already collected, so a failure here must not
+        // leave the session unfinished. The reorder stays reported and is adopted
+        // again before the next profile change or launch.
+        if let Err(error) = self.adopt_native_mod_order_locked(port_id) {
+            tracing::warn!(
+                port_id,
+                error = %error.message,
+                "the game's mod order could not be recorded after play"
+            );
+        }
+        Ok(collected)
     }
 
     fn managed_install_root(&self, port_id: &str, install_root: &Path) -> Result<PathBuf> {
@@ -11754,7 +11772,7 @@ mod tests {
         port_id: &str,
         contents: &[u8],
     ) -> PathBuf {
-        let catalog = Catalog::embedded().unwrap();
+        let catalog = crate::test_fixture::host_declared_embedded_catalog(&[port_id]);
         let port = catalog.port(port_id).unwrap();
         let platform = Platform::current().unwrap();
         let executable_name = port
@@ -11803,7 +11821,7 @@ mod tests {
         artifact: ArtifactIdentity,
         active: bool,
     ) -> InstallRecord {
-        let catalog = Catalog::embedded().unwrap();
+        let catalog = crate::test_fixture::host_declared_embedded_catalog(&[port_id]);
         let port = catalog.port(port_id).unwrap();
         register_existing_test_artifact_with_port(library, port, version, path, artifact, active)
     }
@@ -14680,8 +14698,7 @@ fn main() {
         fs::create_dir_all(&executable_root).unwrap();
         write_host_test_executable(&executable_root, "gen1recomp");
         let id = Uuid::new_v4().to_string();
-        let port = Catalog::embedded()
-            .unwrap()
+        let port = crate::test_fixture::host_declared_embedded_catalog(&["gen1recomp"])
             .port("gen1recomp")
             .unwrap()
             .clone();
@@ -16210,7 +16227,10 @@ fn main() {
         fs::create_dir_all(&lighthouse).unwrap();
         write_host_test_executable(&lighthouse, "lighthouse");
         register_existing_test_install(&library, "lighthouse", "v1", &lighthouse, true);
-        let service = PortcoveService::new(library.clone()).unwrap();
+        let mut service = PortcoveService::new(library.clone()).unwrap();
+        service.replace_catalog_for_test(crate::test_fixture::host_declared_embedded_catalog(&[
+            "lighthouse",
+        ]));
 
         let preview = service.preview_source_removal("banjo-kazooie").unwrap();
         assert_eq!(preview.dependent_port_ids, ["banjo-recomp", "lighthouse"]);
@@ -16499,7 +16519,10 @@ fn main() {
         let first_runtime = first.join("gen1recomp-win64");
         fs::create_dir_all(first_runtime.join("red")).unwrap();
         fs::write(first_runtime.join("red/rom-cache.complete"), b"ready").unwrap();
-        let service = PortcoveService::new(library.clone()).unwrap();
+        let mut service = PortcoveService::new(library.clone()).unwrap();
+        service.replace_catalog_for_test(crate::test_fixture::host_declared_embedded_catalog(&[
+            "gen1recomp",
+        ]));
 
         service.collect_user_data("gen1recomp").unwrap();
         assert_eq!(
@@ -16777,7 +16800,10 @@ fn main() {
         fs::create_dir_all(user_archive.parent().unwrap()).unwrap();
         fs::write(&user_archive, b"generated by the running port").unwrap();
         fs::write(install.join("bk.o2r"), b"stale restored copy").unwrap();
-        let service = PortcoveService::new(library).unwrap();
+        let mut service = PortcoveService::new(library).unwrap();
+        service.replace_catalog_for_test(crate::test_fixture::host_declared_embedded_catalog(&[
+            "lighthouse",
+        ]));
 
         service.collect_user_data("lighthouse").unwrap();
         assert_eq!(
@@ -17599,7 +17625,10 @@ fn main() {
         register_existing_test_install(&library, "lighthouse", "v1", &install, true);
         let invalid = temporary.path().join("not-a-rom.txt");
         fs::write(&invalid, b"not a ROM").unwrap();
-        let service = PortcoveService::new(library).unwrap();
+        let mut service = PortcoveService::new(library).unwrap();
+        service.replace_catalog_for_test(crate::test_fixture::host_declared_embedded_catalog(&[
+            "lighthouse",
+        ]));
 
         let error = service
             .prepare_launch("lighthouse", Some(&invalid))
@@ -19215,7 +19244,7 @@ fn main() {
             },
             false,
         );
-        let service = PortcoveService::with_provider(
+        let mut service = PortcoveService::with_provider(
             library.clone(),
             Arc::new(RepublishedReleaseProvider {
                 version: "v1".into(),
@@ -19223,6 +19252,9 @@ fn main() {
             }),
         )
         .unwrap();
+        service.replace_catalog_for_test(crate::test_fixture::host_declared_embedded_catalog(&[
+            "lighthouse",
+        ]));
 
         let check = service.check_update("lighthouse").await.unwrap();
         assert!(check.update_available);

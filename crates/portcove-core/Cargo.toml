@@ -18,6 +18,9 @@ ignored-paths = [
 
 [features]
 qualification-fixtures = []
+# Exposes the hidden archive extraction entry used only by the out-of-workspace
+# cargo-fuzz crate in `fuzz/`. Production builds never enable it.
+archive-fuzzing = []
 
 [[example]]
 name = "forbidden-memories-producer"

@@ -1760,7 +1760,10 @@ impl Library {
             .filter(|session| session.outcome.is_none()))
     }
 
-    fn launch_session_for_port(&self, port_id: &str) -> Result<Option<LaunchSessionRecord>> {
+    pub(crate) fn launch_session_for_port(
+        &self,
+        port_id: &str,
+    ) -> Result<Option<LaunchSessionRecord>> {
         let row = self
             .connection()?
             .query_row(

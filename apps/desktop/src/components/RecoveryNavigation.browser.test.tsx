@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
+import { useState } from "react";
 import { RecoveryReview } from "./RecoveryReview";
 import { UpdateCenter } from "./UpdateCenter";
 import { desktopApi } from "../api";
@@ -132,6 +133,57 @@ it("reveals and focuses the exact loaded recovery activity beyond the short hist
     .poll(() => document.activeElement?.getAttribute("data-activity-id"))
     .toBe("activity-12");
   expect(document.querySelectorAll("[data-activity-id]")).toHaveLength(9);
+});
+
+it("focuses a recovery activity once when the shell also records the reviewed task", async () => {
+  const activity: ActivityRecord = {
+    id: "activity-0",
+    operation: "install",
+    target_kind: "port",
+    target_id: port.id,
+    status: "failed",
+    started_at: 100,
+    finished_at: 101,
+    message: null,
+    failure: null,
+    cancellation: null,
+  };
+  const focus = vi.spyOn(HTMLElement.prototype, "focus");
+  function Shell() {
+    const [reviewedActivityId, setReviewedActivityId] = useState<string>();
+    return (
+      <UpdateCenter
+        ports={[port]}
+        statuses={new Map()}
+        activities={[activity]}
+        outcomes={[]}
+        checkAll={vi.fn()}
+        onSelect={vi.fn()}
+        onOpenSettings={vi.fn()}
+        generation={1}
+        repair={{
+          generated_at: 1,
+          items: [{ ...item("partial_operation"), operation_id: activity.id }],
+        }}
+        diagnosticsRefreshing={false}
+        diagnosticsStale={false}
+        refreshDiagnostics={vi.fn(async () => undefined)}
+        reviewedActivityId={reviewedActivityId}
+        onReviewActivity={setReviewedActivityId}
+      />
+    );
+  }
+  await render(<Shell />);
+  await page.getByRole("button", { name: "View related task record", exact: true }).click();
+  await expect
+    .poll(() => document.activeElement?.getAttribute("data-activity-id"))
+    .toBe(activity.id);
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  const rowFocuses = focus.mock.contexts.filter(
+    (element) => (element as HTMLElement).dataset?.activityId === activity.id,
+  );
+  focus.mockRestore();
+  expect(rowFocuses).toHaveLength(1);
 });
 
 it("retains a recovery opener when a refresh removes an earlier unrelated item", async () => {

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { desktopApi } from "../api";
+import { useAppTranslation } from "../localization";
 import type { CancellationState } from "../types";
 import { errorText } from "../view-model";
 import { Button } from "./ui/button";
@@ -7,12 +8,14 @@ import { Button } from "./ui/button";
 export function OperationCancellation({
   operationId,
   state,
-  label = "Cancel operation",
+  label,
 }: {
   operationId: string;
   state?: CancellationState | undefined;
+  /** A translated, operation-specific label; defaults to a generic one. */
   label?: string;
 }) {
+  const { t } = useAppTranslation("operations");
   const [requested, setRequested] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
@@ -28,7 +31,7 @@ export function OperationCancellation({
       setPending(false);
     }
   };
-  if (state?.phase === "finishing") return <p role="status">Finishing safely…</p>;
+  if (state?.phase === "finishing") return <p role="status">{t("cancellation.finishing")}</p>;
   return (
     <div className="operation-cancellation my-3">
       <Button
@@ -41,16 +44,12 @@ export function OperationCancellation({
         }}
       >
         {requested || state?.requested
-          ? "Cancellation requested"
+          ? t("cancellation.requested")
           : pending
-            ? "Requesting cancellation…"
-            : label}
+            ? t("cancellation.requesting")
+            : (label ?? t("cancellation.cancel"))}
       </Button>
-      {(requested || state?.requested) && (
-        <p role="status">
-          Portcove will stop after the current step reaches a safe stopping point.
-        </p>
-      )}
+      {(requested || state?.requested) && <p role="status">{t("cancellation.requestedBody")}</p>}
       {error && <p role="alert">{error}</p>}
     </div>
   );

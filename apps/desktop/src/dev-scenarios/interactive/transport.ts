@@ -399,6 +399,19 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         state_sha256: "a".repeat(64),
       } satisfies Awaited<ReturnType<typeof desktopApi.catalogStatus>>;
     },
+    // Fixture games have no reviewed mod contract, as most real games do not;
+    // the setups view then renders nothing.
+    get_mod_setups: (args) => {
+      const portId = requirePort("get_mod_setups", args);
+      return {
+        port_id: portId,
+        supported: false,
+        package_types: [],
+        later_mods_take_priority: false,
+        inventory: null,
+        live: null,
+      } satisfies Awaited<ReturnType<typeof desktopApi.modSetups>>;
+    },
     get_port_capabilities: (args) => {
       const snapshot = workspace(journey);
       if (

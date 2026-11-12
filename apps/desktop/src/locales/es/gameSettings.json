@@ -1,0 +1,12 @@
+{
+  "control": {
+    "busy": "Termina la operación actual antes de revisar los ajustes del juego.",
+    "heading": "Ajustes del juego",
+    "installationChanged": "Esta instalación cambió. Actualiza sus detalles antes de editar los ajustes.",
+    "intro": "Revisa los ajustes que ofrece esta versión instalada.",
+    "label": "Ajustes del juego",
+    "read": "Leer los ajustes del juego",
+    "reading": "Leyendo los ajustes del juego…",
+    "reread": "Volver a leer los ajustes"
+  }
+}

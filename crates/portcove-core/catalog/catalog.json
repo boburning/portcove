@@ -322,6 +322,16 @@
         "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/revelations-persona-recompiled-windows-reinstall-2026-09-15.md"
       },
       {
+        "id": "revelations-persona-recompiled-v011-linux-static-contract",
+        "role": "upstream_support",
+        "authority": "NJH-1001/RevPRecompile",
+        "authority_ref": "38fa6f4cf49a9a03244a64d2a12762074ed23348",
+        "reviewed_at": "2026-11-12",
+        "claim": "Exact v0.1.1 Linux x64 kit (28,066,719 bytes) matches the provider SHA-256 and passed Core package-layout inspection. After line-ending normalization, its shared game, CMake, setup CLI, runtime, UI and mod files match the accepted Windows owned-input kit. README-SETUP.txt and the native ELF emitters and setup host differ; Windows DLLs and executables, vendored .git markers, generated rabbitizer headers and fmt build-docs.py are absent, and setup uses the packaged prebuilt emitters. The kit keeps the same USA SLUS-00339 game configuration and normalized Track 1 contract. Its Linux emitters and host need glibc 2.38 and GLIBCXX 3.4.32. The runtime keeps saves and settings beside the generated player. Linux generation, native operation and gameplay were not observed.",
+        "immutable_url": "https://github.com/NJH-1001/RevPRecompile/blob/38fa6f4cf49a9a03244a64d2a12762074ed23348/game.toml",
+        "live_url": null
+      },
+      {
         "id": "dr-mario-64-recompiled-windows-2026-09-15",
         "role": "portcove_qualification",
         "authority": "boburning/portcove",
@@ -1991,6 +2001,86 @@
         "claim": "MediEvil (USA), SCUS-94227, has 2 tracks. Track 1 is 528755472 bytes, SHA-1 928257764f5107c9d27aa3e2d469c43aee591abd, MD5 53d908f5bd11d86f3deda75c2da3b750 and CRC32 846f15a7. Core binds the first data track and track count.",
         "immutable_url": "https://redump.info/disc/3472",
         "live_url": null
+      },
+      {
+        "id": "alexbeav-quake-ii-recomp-v012-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/quake-ii-recomp",
+        "authority_ref": "348015cc55f945d71dd13edba2f975bbab34bcdb",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/blob/348015cc55f945d71dd13edba2f975bbab34bcdb/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.1.2 Windows (29903257 bytes, SHA-256 dd9fc377d91b0ce789308278487eb1f9bf892384e7637968f646828163e176cb) and Linux x64 (27797758 bytes, SHA-256 c3d3e196db2efd296940b25bd8fc94a11c58bbbb34e3e7ea6a00726d368711d1) setup kits match provider SHA-256 and pass Core package-layout inspection. Both kits carry the same game.toml: SLUS-00757, two tracks, first data track size 323642256 and SHA-1 f936e7cc477b0daf456c86eff86acc82e7f549ce. README-SETUP requires a retail SCPH-1001 BIOS and states OpenBIOS is not supported. The kit pins PSXRecomp 40ce47896026be52bcaae7de03b69766e0bd03e4, the reviewed Tony Hawk's Pro Skater 3 framework, ships its packages under mods/packages and generates Quake_II_Recompiled from the window title through the psx-runtime target. Native generation, gameplay and saves remain unobserved."
+      },
+      {
+        "id": "alexbeav-quake-ii-recomp-redump-6643",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/6643",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://redump.info/disc/6643",
+        "live_url": null,
+        "claim": "Redump Quake II (USA), SLUS-00757, has two tracks. Track 1 size 323642256, SHA-1 f936e7cc477b0daf456c86eff86acc82e7f549ce, MD5 ca6eb702916d24f928a265bbaca00235 and CRC32 efbd3060 agree with the kit. Core binds the first data track and count."
+      },
+      {
+        "id": "alexbeav-suikoden-recomp-v011-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/suikoden-recomp",
+        "authority_ref": "4db9b62cd773704928722aebae55b133588a102b",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/blob/4db9b62cd773704928722aebae55b133588a102b/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.1.1 Windows (26205124 bytes, SHA-256 51ac6d1446e429f55af5edbdc8d053cf3f2e76186142dd40f11bb5f77a4ce0f3) and Linux x64 (24178522 bytes, SHA-256 3909192ab327f60b953973a201a984492d6531b813ae4b5fd67b058ce0c0e54b) setup kits match provider SHA-256 and pass Core package-layout inspection. Both carry the same game.toml: SLUS-00292, 1 track, first data track size 590119152 and SHA-1 409453aaedfb6bb7d5bb8a228cce5f04b7c35ee0, and the SCPH5552 BIOS configuration. README-SETUP requires the SCPH-5502/5552 Europe BIOS with SHA-256 1faaa18fa820a0225e488d9f086296b8e6c46df739666093987ff7d8fd352c09. The kits pin PSXRecomp a839474e2941cdc44488ace4d53584e6a485ea41, keep the whole mods/packages layout and set EXE_NAME Suikoden_Recompiled for the psx-runtime target. Native generation, gameplay and saves remain unobserved."
+      },
+      {
+        "id": "alexbeav-suikoden-recomp-redump-7712",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/7712",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://redump.info/disc/7712",
+        "live_url": null,
+        "claim": "Redump Suikoden (USA) (Rev 1), SLUS-00292, has 1 track. Track 1 size 590119152, SHA-1 409453aaedfb6bb7d5bb8a228cce5f04b7c35ee0, MD5 0a5aaa5aaa7649b1cb48a900f1649c8c and CRC32 e0df06e0 agree with the kit. Core binds the first data track and count."
+      },
+      {
+        "id": "alexbeav-silent-bomber-recomp-v011-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/silent-bomber-recomp",
+        "authority_ref": "bc491c6ca40caa2058bf63d7199191dac9659897",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/blob/bc491c6ca40caa2058bf63d7199191dac9659897/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.1.1 Windows (26207167 bytes, SHA-256 f846b3e99aa7769ad8fb0fa786bd5566a220f97833325c69ba0b16658ecbd124) and Linux x64 (24180676 bytes, SHA-256 cca1c12b83ae016920e12c842fc835a39a6a31e1b6fb067ed0322e6e8b294a48) setup kits match provider SHA-256 and pass Core package-layout inspection. Both carry the same game.toml: SLES-02792, 1 track, first data track size 383601792 and SHA-1 c9293c685b16321c08e8f4f5cf4f93f21cf8df27, and the SCPH5552 BIOS configuration. README-SETUP requires the SCPH-5502/5552 Europe BIOS with SHA-256 1faaa18fa820a0225e488d9f086296b8e6c46df739666093987ff7d8fd352c09. The kits pin PSXRecomp a839474e2941cdc44488ace4d53584e6a485ea41, keep the whole mods/packages layout and set EXE_NAME Silent_Bomber_Recompiled for the psx-runtime target. Native generation, gameplay and saves remain unobserved."
+      },
+      {
+        "id": "alexbeav-silent-bomber-recomp-redump-3617",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/3617",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://redump.info/disc/3617",
+        "live_url": null,
+        "claim": "Redump Silent Bomber (Europe), SLES-02792, has 1 track. Track 1 size 383601792, SHA-1 c9293c685b16321c08e8f4f5cf4f93f21cf8df27, MD5 1fefcbc8612457930fa9e6f421bd8a43 and CRC32 5f5e85e2 agree with the kit. Core binds the first data track and count."
+      },
+      {
+        "id": "alexbeav-mortal-kombat-trilogy-recomp-v011-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp",
+        "authority_ref": "4bd910c238a9e24c574dcd4ef3dc8481c37c7ffd",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp/blob/4bd910c238a9e24c574dcd4ef3dc8481c37c7ffd/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.1.1 Windows (26207141 bytes, SHA-256 37087bb39cb7d9ee5283dc008883b25353b9e85a9a2dc5cc2ce5780ed3e9257d) and Linux x64 (24179638 bytes, SHA-256 89e6f5b36adeb06be73c18831abf0cfdb5a3cc8e2436192140cd24faa6a74a38) setup kits match provider SHA-256 and pass Core package-layout inspection. Both carry the same game.toml: SLUS-00330, 30 tracks, first data track size 70755216 and SHA-1 aa9b7e1716bd8790bca25d651c280f7a2a48b884, and the SCPH5552 BIOS configuration. README-SETUP requires the SCPH-5502/5552 Europe BIOS with SHA-256 1faaa18fa820a0225e488d9f086296b8e6c46df739666093987ff7d8fd352c09. The kits pin PSXRecomp a839474e2941cdc44488ace4d53584e6a485ea41, keep the whole mods/packages layout and set EXE_NAME Mortal_Kombat_Trilogy_Recompiled for the psx-runtime target. Native generation, gameplay and saves remain unobserved."
+      },
+      {
+        "id": "alexbeav-mortal-kombat-trilogy-recomp-redump-469",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/469",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://redump.info/disc/469",
+        "live_url": null,
+        "claim": "Redump Mortal Kombat Trilogy (USA) (Rev 1), SLUS-00330, has 30 tracks. Track 1 size 70755216, SHA-1 aa9b7e1716bd8790bca25d651c280f7a2a48b884, MD5 12131037d60bdfcbc870c84b97e70a35 and CRC32 a3e7f67a agree with the kit. Core binds the first data track and count."
       }
     ],
     "identities": [
@@ -11960,6 +12050,194 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-quake-ii-recomp-usa-psx",
+        "label": "Quake II (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Quake II (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00757"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  2
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "f936e7cc477b0daf456c86eff86acc82e7f549ce",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-quake-ii-recomp-v012-static-contract",
+                  "alexbeav-quake-ii-recomp-redump-6643"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-quake-ii-recomp-v012-static-contract",
+              "alexbeav-quake-ii-recomp-redump-6643"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-suikoden-recomp-usa-psx",
+        "label": "Suikoden (USA) (Rev 1) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Suikoden (USA) (Rev 1) disc",
+            "region": "USA",
+            "revision": "Rev 1",
+            "product_codes": [
+              "SLUS-00292"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "409453aaedfb6bb7d5bb8a228cce5f04b7c35ee0",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-suikoden-recomp-v011-static-contract",
+                  "alexbeav-suikoden-recomp-redump-7712"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-suikoden-recomp-v011-static-contract",
+              "alexbeav-suikoden-recomp-redump-7712"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-silent-bomber-recomp-europe-psx",
+        "label": "Silent Bomber (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Silent Bomber (Europe) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SLES-02792"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "c9293c685b16321c08e8f4f5cf4f93f21cf8df27",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-silent-bomber-recomp-v011-static-contract",
+                  "alexbeav-silent-bomber-recomp-redump-3617"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-silent-bomber-recomp-v011-static-contract",
+              "alexbeav-silent-bomber-recomp-redump-3617"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-mortal-kombat-trilogy-recomp-usa-psx",
+        "label": "Mortal Kombat Trilogy (USA) (Rev 1) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Mortal Kombat Trilogy (USA) (Rev 1) disc",
+            "region": "USA",
+            "revision": "Rev 1",
+            "product_codes": [
+              "SLUS-00330"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  30
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "aa9b7e1716bd8790bca25d651c280f7a2a48b884",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-mortal-kombat-trilogy-recomp-v011-static-contract",
+                  "alexbeav-mortal-kombat-trilogy-recomp-redump-469"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-mortal-kombat-trilogy-recomp-v011-static-contract",
+              "alexbeav-mortal-kombat-trilogy-recomp-redump-469"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -12795,7 +13073,8 @@
         "evidence_ids": [
           "alpha1-schema1-source-contracts",
           "revelations-persona-recompiled-windows-2026-09-15",
-          "revelations-persona-recompiled-windows-reinstall-2026-09-15"
+          "revelations-persona-recompiled-windows-reinstall-2026-09-15",
+          "revelations-persona-recompiled-v011-linux-static-contract"
         ],
         "authority_ref": "ffee8733e4448b8fbc8fe357ebdf77252a6260e8",
         "reviewed_at": "2026-09-15",
@@ -12806,6 +13085,10 @@
           {
             "upstream_ref": "v0.1.1",
             "artifact_sha256": "f4336030ba9c0e032061ad6892aa5ce9ff01c4cedcbaf3a5355428e6d728158a"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "b4cb5d74027689465ac4778fd5d71e7f6244f39e2a43b8fe4d7a89dd959b5f70"
           }
         ],
         "aliases": [],
@@ -18068,6 +18351,258 @@
         ],
         "aliases": [],
         "tombstones": []
+      },
+      {
+        "id": "alexbeav-quake-ii-recomp-game-source",
+        "port_id": "alexbeav-quake-ii-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-quake-ii-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-quake-ii-recomp-v012-static-contract",
+          "alexbeav-quake-ii-recomp-redump-6643"
+        ],
+        "authority_ref": "348015cc55f945d71dd13edba2f975bbab34bcdb",
+        "reviewed_at": "2026-11-12",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/blob/348015cc55f945d71dd13edba2f975bbab34bcdb/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "dd9fc377d91b0ce789308278487eb1f9bf892384e7637968f646828163e176cb"
+          },
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "c3d3e196db2efd296940b25bd8fc94a11c58bbbb34e3e7ea6a00726d368711d1"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-quake-ii-recomp-bios-source",
+        "port_id": "alexbeav-quake-ii-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-quake-ii-recomp-v012-static-contract"
+        ],
+        "authority_ref": "348015cc55f945d71dd13edba2f975bbab34bcdb",
+        "reviewed_at": "2026-11-12",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/blob/348015cc55f945d71dd13edba2f975bbab34bcdb/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "dd9fc377d91b0ce789308278487eb1f9bf892384e7637968f646828163e176cb"
+          },
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "c3d3e196db2efd296940b25bd8fc94a11c58bbbb34e3e7ea6a00726d368711d1"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-suikoden-recomp-game-source",
+        "port_id": "alexbeav-suikoden-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-suikoden-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-suikoden-recomp-v011-static-contract",
+          "alexbeav-suikoden-recomp-redump-7712"
+        ],
+        "authority_ref": "4db9b62cd773704928722aebae55b133588a102b",
+        "reviewed_at": "2026-11-12",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/blob/4db9b62cd773704928722aebae55b133588a102b/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "51ac6d1446e429f55af5edbdc8d053cf3f2e76186142dd40f11bb5f77a4ce0f3"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "3909192ab327f60b953973a201a984492d6531b813ae4b5fd67b058ce0c0e54b"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-suikoden-recomp-bios-source",
+        "port_id": "alexbeav-suikoden-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-suikoden-recomp-v011-static-contract"
+        ],
+        "authority_ref": "4db9b62cd773704928722aebae55b133588a102b",
+        "reviewed_at": "2026-11-12",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/blob/4db9b62cd773704928722aebae55b133588a102b/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "51ac6d1446e429f55af5edbdc8d053cf3f2e76186142dd40f11bb5f77a4ce0f3"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "3909192ab327f60b953973a201a984492d6531b813ae4b5fd67b058ce0c0e54b"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-silent-bomber-recomp-game-source",
+        "port_id": "alexbeav-silent-bomber-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-silent-bomber-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-silent-bomber-recomp-v011-static-contract",
+          "alexbeav-silent-bomber-recomp-redump-3617"
+        ],
+        "authority_ref": "bc491c6ca40caa2058bf63d7199191dac9659897",
+        "reviewed_at": "2026-11-12",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/blob/bc491c6ca40caa2058bf63d7199191dac9659897/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "f846b3e99aa7769ad8fb0fa786bd5566a220f97833325c69ba0b16658ecbd124"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "cca1c12b83ae016920e12c842fc835a39a6a31e1b6fb067ed0322e6e8b294a48"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-silent-bomber-recomp-bios-source",
+        "port_id": "alexbeav-silent-bomber-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-silent-bomber-recomp-v011-static-contract"
+        ],
+        "authority_ref": "bc491c6ca40caa2058bf63d7199191dac9659897",
+        "reviewed_at": "2026-11-12",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/blob/bc491c6ca40caa2058bf63d7199191dac9659897/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "f846b3e99aa7769ad8fb0fa786bd5566a220f97833325c69ba0b16658ecbd124"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "cca1c12b83ae016920e12c842fc835a39a6a31e1b6fb067ed0322e6e8b294a48"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-mortal-kombat-trilogy-recomp-game-source",
+        "port_id": "alexbeav-mortal-kombat-trilogy-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-mortal-kombat-trilogy-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-mortal-kombat-trilogy-recomp-v011-static-contract",
+          "alexbeav-mortal-kombat-trilogy-recomp-redump-469"
+        ],
+        "authority_ref": "4bd910c238a9e24c574dcd4ef3dc8481c37c7ffd",
+        "reviewed_at": "2026-11-12",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp/blob/4bd910c238a9e24c574dcd4ef3dc8481c37c7ffd/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "37087bb39cb7d9ee5283dc008883b25353b9e85a9a2dc5cc2ce5780ed3e9257d"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "89e6f5b36adeb06be73c18831abf0cfdb5a3cc8e2436192140cd24faa6a74a38"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-mortal-kombat-trilogy-recomp-bios-source",
+        "port_id": "alexbeav-mortal-kombat-trilogy-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-mortal-kombat-trilogy-recomp-v011-static-contract"
+        ],
+        "authority_ref": "4bd910c238a9e24c574dcd4ef3dc8481c37c7ffd",
+        "reviewed_at": "2026-11-12",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp/blob/4bd910c238a9e24c574dcd4ef3dc8481c37c7ffd/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "37087bb39cb7d9ee5283dc008883b25353b9e85a9a2dc5cc2ce5780ed3e9257d"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "89e6f5b36adeb06be73c18831abf0cfdb5a3cc8e2436192140cd24faa6a74a38"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
       }
     ],
     "validators": [
@@ -22358,7 +22893,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "psx-recomp-managed",
       "release": {
@@ -22366,6 +22902,9 @@
         "asset_hints": {
           "windows-x86-64": [
             "windows-x86_64-owned-input"
+          ],
+          "linux-x86-64": [
+            "linux-x64"
           ]
         }
       },
@@ -22373,6 +22912,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Revelations__Persona_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Revelations__Persona_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -22405,6 +22947,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own Revelations: Persona (USA) disc. Portcove builds the player on Windows or Linux before first Play. On Linux, the setup tools need glibc 2.38 or later. Linux generation, gameplay and save behavior are untested.",
         "original_game_title": "Revelations: Persona",
         "artwork": {
           "game_id": 11452,
@@ -23283,6 +23826,7 @@
       "portable_marker": true,
       "source_environment": "POKEPORT_IMPORT_ROM",
       "launch_environment": {
+        "POKEPORT_NOTIFY_ONLY_UPDATES": "1",
         "POKEPORT_VERSION": "gold"
       },
       "runtime_source_filename": "portcove-import.gbc",
@@ -23317,6 +23861,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Portcove replaces this runtime and, from its next Portcove update or install, turns off its built-in update downloads; the game still checks for and announces new releases. A newer update that another copy downloaded into the shared Gen2Recomp updates folder (%APPDATA%/Gen2Recomp/updates on Windows) still loads when this copy starts, so remove that folder if you want the version Portcove installed.",
         "original_game_title": "Pokémon Gold",
         "artwork": {
           "game_id": 1558,
@@ -23364,6 +23909,7 @@
       "portable_marker": true,
       "source_environment": "POKEPORT_IMPORT_ROM",
       "launch_environment": {
+        "POKEPORT_NOTIFY_ONLY_UPDATES": "1",
         "POKEPORT_VERSION": "silver"
       },
       "runtime_source_filename": "portcove-import.gbc",
@@ -23398,6 +23944,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Portcove replaces this runtime and, from its next Portcove update or install, turns off its built-in update downloads; the game still checks for and announces new releases. A newer update that another copy downloaded into the shared Gen2Recomp updates folder (%APPDATA%/Gen2Recomp/updates on Windows) still loads when this copy starts, so remove that folder if you want the version Portcove installed.",
         "original_game_title": "Pokémon Silver",
         "artwork": {
           "game_id": 1513,
@@ -23445,6 +23992,7 @@
       "portable_marker": true,
       "source_environment": "POKEPORT_IMPORT_ROM",
       "launch_environment": {
+        "POKEPORT_NOTIFY_ONLY_UPDATES": "1",
         "POKEPORT_VERSION": "crystal"
       },
       "runtime_source_filename": "portcove-import.gbc",
@@ -23479,6 +24027,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Portcove replaces this runtime and, from its next Portcove update or install, turns off its built-in update downloads; the game still checks for and announces new releases. A newer update that another copy downloaded into the shared Gen2Recomp updates folder (%APPDATA%/Gen2Recomp/updates on Windows) still loads when this copy starts, so remove that folder if you want the version Portcove installed.",
         "original_game_title": "Pokémon Crystal",
         "artwork": {
           "game_id": 1514,
@@ -34754,6 +35303,142 @@
       "bios_source_profile": "psx-scph-1001-bios"
     },
     {
+      "id": "alexbeav-mortal-kombat-trilogy-recomp",
+      "name": "Mortal Kombat Trilogy / Alexbeav PSXRecomp",
+      "summary": "Build and play Mortal Kombat Trilogy on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-5552 BIOS. You can also use a separately prepared upstream copy.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "mortal-kombat-trilogy-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "mortal-kombat-trilogy-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-mortal-kombat-trilogy-recomp-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Mortal_Kombat_Trilogy_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Mortal_Kombat_Trilogy_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-mortal-kombat-trilogy-recomp-usa-psx",
+            "label": "Mortal Kombat Trilogy (USA) (Rev 1) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-5552-bios",
+            "label": "PlayStation SCPH-5552 BIOS (Europe)",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching 30-track USA CHD (SLUS-00330) and retail SCPH-5552 BIOS. Portcove verifies the data track and track count and builds privately with the registered toolchain. Provide all tracks; the remaining tracks are carried into preparation without authenticating their audio content. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows and Linux package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Mortal Kombat Trilogy",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Download and unpack the setup kit",
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
+            },
+            {
+              "title": "Supply the matching original files",
+              "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            },
+            {
+              "title": "Build the game and add it to Portcove",
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Mortal_Kombat_Trilogy_Recompiled as the program and build-release as the start folder."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 4121,
+          "cover_id": 90798,
+          "image_id": "co1y26",
+          "image_sha256": "76ba7e3d108ac917ec6164b7985da023681426182726351b82dd0f7bcbabd703",
+          "game_slug": "mortal-kombat-trilogy",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-5552-bios"
+    },
+    {
       "id": "alexbeav-nightmare-creatures-ii-recomp",
       "name": "Nightmare Creatures II / Alexbeav PSXRecomp",
       "summary": "Build a native Nightmare Creatures II player from your matching original PlayStation disc and BIOS.",
@@ -35165,6 +35850,142 @@
           "image_id": "co89fk",
           "image_sha256": "1fdb0a42c9fe7d87464d610b83edcc3b69fad0f3fe7270542be97d8322303957",
           "game_slug": "oddworld-abe-s-oddysee",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-1001-bios"
+    },
+    {
+      "id": "alexbeav-quake-ii-recomp",
+      "name": "Quake II / Alexbeav PSXRecomp",
+      "summary": "Build and play Quake II on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/quake-ii-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "quake-ii-recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "quake-ii-recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-quake-ii-recomp-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Quake_II_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Quake_II_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-quake-ii-recomp-usa-psx",
+            "label": "Quake II (USA) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-1001-bios",
+            "label": "PlayStation SCPH-1001 BIOS",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching two-track USA CHD (SLUS-00757) and retail SCPH-1001 BIOS. Portcove verifies the data track and track count and builds privately with the registered toolchain. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows and Linux package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Quake II",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Download and unpack the setup kit",
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
+            },
+            {
+              "title": "Supply the matching original files",
+              "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            },
+            {
+              "title": "Build the game and add it to Portcove",
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Quake_II_Recompiled as the program and build-release as the start folder."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 286,
+          "cover_id": 434744,
+          "image_id": "co9bg8",
+          "image_sha256": "0582a3455678d4ed8db6a726c1bfeebf0a70bf7996a26c242ddfa8e6da337f80",
+          "game_slug": "quake-ii",
           "match_kind": "underlying-game"
         }
       },
@@ -35606,6 +36427,142 @@
       "bios_source_profile": "psx-scph-1001-bios"
     },
     {
+      "id": "alexbeav-silent-bomber-recomp",
+      "name": "Silent Bomber / Alexbeav PSXRecomp",
+      "summary": "Build and play Silent Bomber on Windows or Linux with your own matching Europe PlayStation disc and retail SCPH-5552 BIOS. You can also use a separately prepared upstream copy.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/silent-bomber-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "silent-bomber-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "silent-bomber-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-silent-bomber-recomp-europe-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Silent_Bomber_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Silent_Bomber_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-silent-bomber-recomp-europe-psx",
+            "label": "Silent Bomber (Europe) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-5552-bios",
+            "label": "PlayStation SCPH-5552 BIOS (Europe)",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching one-track Europe CHD (SLES-02792) and retail SCPH-5552 BIOS. Portcove verifies the data track and track count and builds privately with the registered toolchain. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows and Linux package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Silent Bomber",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Download and unpack the setup kit",
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
+            },
+            {
+              "title": "Supply the matching original files",
+              "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            },
+            {
+              "title": "Build the game and add it to Portcove",
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Silent_Bomber_Recompiled as the program and build-release as the start folder."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 24131,
+          "cover_id": 480584,
+          "image_id": "coaatk",
+          "image_sha256": "9b4951eb9b721fb20d75d62d5dd31a9b1a320a3adec8981234c543a95757e533",
+          "game_slug": "silent-bomber",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-5552-bios"
+    },
+    {
       "id": "alexbeav-spider-man-2-enter-electro-recomp",
       "name": "Spider-Man 2: Enter Electro / Alexbeav PSXRecomp",
       "summary": "Build a native Spider-Man 2: Enter Electro player from your matching original PlayStation disc and BIOS.",
@@ -36031,6 +36988,142 @@
         }
       },
       "bios_source_profile": "psx-scph-1001-bios"
+    },
+    {
+      "id": "alexbeav-suikoden-recomp",
+      "name": "Suikoden / Alexbeav PSXRecomp",
+      "summary": "Build and play Suikoden on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-5552 BIOS. You can also use a separately prepared upstream copy.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/suikoden-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "suikoden-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "suikoden-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-suikoden-recomp-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Suikoden_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Suikoden_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-suikoden-recomp-usa-psx",
+            "label": "Suikoden (USA) (Rev 1) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-5552-bios",
+            "label": "PlayStation SCPH-5552 BIOS (Europe)",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching one-track USA CHD (SLUS-00292) and retail SCPH-5552 BIOS. Portcove verifies the data track and track count and builds privately with the registered toolchain. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows and Linux package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Suikoden",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Download and unpack the setup kit",
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
+            },
+            {
+              "title": "Supply the matching original files",
+              "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            },
+            {
+              "title": "Build the game and add it to Portcove",
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Suikoden_Recompiled as the program and build-release as the start folder."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 1447,
+          "cover_id": 493093,
+          "image_id": "coakh1",
+          "image_sha256": "a8fa47a6df8d9c1318d5d9a18ec8fd730da34ad9f071be0ee1c9f63c5e742f89",
+          "game_slug": "suikoden",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-5552-bios"
     },
     {
       "id": "alexbeav-syphon-filter-3-recomp",
@@ -39006,14 +40099,15 @@
     {
       "id": "blast-corps-power-dozer",
       "name": "Blast Corps (Power Dozer)",
-      "summary": "A native Blast Corps player using your own USA revision 1 cartridge dump. Portcove manages the official Windows x64 package and preserves its default local game data; upstream owns original-game import.",
+      "summary": "A native Blast Corps player using your own USA revision 1 cartridge dump. Portcove manages the official Windows x64 and Linux x86-64 packages and preserves their default local game data; upstream owns original-game import.",
       "project_url": "https://github.com/djultra64/Power-Dozer",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -39022,12 +40116,19 @@
           "windows-x86-64": [
             "power-dozer-",
             "-windows-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "power-dozer-",
+            "-linux-x86_64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "power-dozer.exe"
+        ],
+        "linux-x86-64": [
+          "power-dozer"
         ]
       },
       "persistent_paths": [
@@ -39040,7 +40141,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Choose your own Blast Corps USA revision 1 dump through the upstream in-process selector. It accepts .z64, .v64, .n64 or a single-ROM ZIP and checks normalized SHA-1 483f7161aea39de8b45c9fbc70a2c3883c4dea8c. The game stores its own normalized copy under data/cache/rom.z64. Core does not acquire or authenticate your cartridge dump; keep the original separately and do not share a data backup containing it. The official v0.84 Windows ZIP is an experimental beta despite its stable release stream. Keep power-dozer.exe, its matching DLLs and notices together. Windows x64 needs SSSE3/SSE4.1, Vulkan drivers and the Microsoft Visual C++ x64 runtime linked in the packaged README. No game compiler, installer or command wrapper is required for the normal native entry. Other platforms remain upstream-owned. For the managed Windows route, Portcove sets BLASTCORPS_DATA_DIR=data with the executable directory as working directory. It preserves the complete local data folder across compatible package updates and rollback, including cached original, EEPROM, committed Controller Pak data, settings, controls, backups and interrupted temporary files. A rollback does not rewind saves or guarantee that an older runtime reads newer state. In-progress Controller Pak game transactions follow upstream commit markers; this is not a guarantee of unsaved gameplay recovery. The separate %LOCALAPPDATA%/blastcorps-feasibility RT64 diagnostics and ImGui profile remain external and outside Portcove backup/removal. Keep a separate backup of actual custom --data-dir, capture or debug paths; Portcove does not import or migrate them. Close the actual player before deliberate external changes. Use Portcove for the managed copy and upstream/player ownership for separately registered installations. Existing external copies and custom profile paths retain their own update and preservation responsibility. Package integrity and first-party fixtures do not establish gameplay, real-save restoration or every graphics device.",
+        "manual_preparation": "Choose your own Blast Corps USA revision 1 dump through the upstream in-process selector. It accepts .z64, .v64, .n64 or a single-ROM ZIP and checks normalized SHA-1 483f7161aea39de8b45c9fbc70a2c3883c4dea8c. The game stores its own normalized copy under data/cache/rom.z64. Core does not acquire or authenticate your cartridge dump; keep the original separately and do not share a data backup containing it. The official v0.84 Windows ZIP and Linux x86-64 archive are experimental betas despite their stable release stream. Keep power-dozer.exe, its matching DLLs and notices together. Windows x64 needs SSSE3/SSE4.1, Vulkan drivers and the Microsoft Visual C++ x64 runtime linked in the packaged README. On Linux, keep power-dozer with its lib and licenses folders; it needs SSSE3/SSE4.1, glibc 2.38 or later, libz, Vulkan drivers, X11 or XWayland and a desktop file chooser. Portcove starts power-dozer directly, so the bundled Run Power Dozer.sh script is not needed. No game compiler or installer is required. Other platforms remain upstream-owned. For the managed Windows and Linux routes, Portcove sets BLASTCORPS_DATA_DIR=data with the executable directory as working directory. It preserves the complete local data folder across compatible package updates and rollback, including cached original, EEPROM, committed Controller Pak data, settings, controls, backups and interrupted temporary files. A rollback does not rewind saves or guarantee that an older runtime reads newer state. In-progress Controller Pak game transactions follow upstream commit markers; this is not a guarantee of unsaved gameplay recovery. The separate RT64 diagnostics and ImGui profile remain external and outside Portcove backup/removal: %LOCALAPPDATA%/blastcorps-feasibility on Windows, and ~/.config/.blastcorps-feasibility on Linux, or ~/.blastcorps-feasibility when ~/.config does not exist. Keep a separate backup of actual custom --data-dir, capture or debug paths; Portcove does not import or migrate them. Close the actual player before deliberate external changes. Use Portcove for the managed copy and upstream/player ownership for separately registered installations. Existing external copies and custom profile paths retain their own update and preservation responsibility. Package integrity and first-party fixtures do not establish gameplay, real-save restoration or every graphics device.",
         "original_game_title": "Blast Corps",
         "manual_setup": {
           "steps": [
@@ -39049,12 +40150,12 @@
               "instruction": "Choose your own Blast Corps USA revision 1 dump through the upstream in-process selector. It accepts .z64, .v64, .n64 or a single-ROM ZIP and checks normalized SHA-1 483f7161aea39de8b45c9fbc70a2c3883c4dea8c. The game stores its own normalized copy under data/cache/rom.z64. Core does not acquire or authenticate your cartridge dump; keep the original separately and do not share a data backup containing it."
             },
             {
-              "title": "Use the complete Windows package",
-              "instruction": "The official v0.84 Windows ZIP is an experimental beta despite its stable release stream. Keep power-dozer.exe, its matching DLLs and notices together. Windows x64 needs SSSE3/SSE4.1, Vulkan drivers and the Microsoft Visual C++ x64 runtime linked in the packaged README. No game compiler, installer or command wrapper is required for the normal native entry. Other platforms remain upstream-owned."
+              "title": "Use the complete Windows or Linux package",
+              "instruction": "The official v0.84 Windows ZIP and Linux x86-64 archive are experimental betas despite their stable release stream. Keep power-dozer.exe, its matching DLLs and notices together. Windows x64 needs SSSE3/SSE4.1, Vulkan drivers and the Microsoft Visual C++ x64 runtime linked in the packaged README. On Linux, keep power-dozer with its lib and licenses folders; it needs SSSE3/SSE4.1, glibc 2.38 or later, libz, Vulkan drivers, X11 or XWayland and a desktop file chooser. Portcove starts power-dozer directly, so the bundled Run Power Dozer.sh script is not needed. No game compiler or installer is required. Other platforms remain upstream-owned."
             },
             {
               "title": "Preserve game data and external diagnostics",
-              "instruction": "For the managed Windows route, Portcove sets BLASTCORPS_DATA_DIR=data with the executable directory as working directory. It preserves the complete local data folder across compatible package updates and rollback, including cached original, EEPROM, committed Controller Pak data, settings, controls, backups and interrupted temporary files. A rollback does not rewind saves or guarantee that an older runtime reads newer state. In-progress Controller Pak game transactions follow upstream commit markers; this is not a guarantee of unsaved gameplay recovery. The separate %LOCALAPPDATA%/blastcorps-feasibility RT64 diagnostics and ImGui profile remain external and outside Portcove backup/removal. Keep a separate backup of actual custom --data-dir, capture or debug paths; Portcove does not import or migrate them. Close the actual player before deliberate external changes."
+              "instruction": "For the managed Windows and Linux routes, Portcove sets BLASTCORPS_DATA_DIR=data with the executable directory as working directory. It preserves the complete local data folder across compatible package updates and rollback, including cached original, EEPROM, committed Controller Pak data, settings, controls, backups and interrupted temporary files. A rollback does not rewind saves or guarantee that an older runtime reads newer state. In-progress Controller Pak game transactions follow upstream commit markers; this is not a guarantee of unsaved gameplay recovery. The separate RT64 diagnostics and ImGui profile remain external and outside Portcove backup/removal: %LOCALAPPDATA%/blastcorps-feasibility on Windows, and ~/.config/.blastcorps-feasibility on Linux, or ~/.blastcorps-feasibility when ~/.config does not exist. Keep a separate backup of actual custom --data-dir, capture or debug paths; Portcove does not import or migrate them. Close the actual player before deliberate external changes."
             },
             {
               "title": "Keep one replacement owner",
@@ -39431,7 +40532,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -39440,12 +40542,19 @@
           "windows-x86-64": [
             "infinite-mario-64-ever.",
             ".windows.zip"
+          ],
+          "linux-x86-64": [
+            "infinite-mario-64-ever.",
+            ".linux.zip"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "Infinite Mario 64.exe"
+        ],
+        "linux-x86-64": [
+          "infinite-mario-64.x86_64"
         ]
       },
       "persistent_paths": [
@@ -39455,13 +40564,13 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows archive already contains the Godot player and its required companions. The game writes saves and backup saves through Godot user storage, normally AppData/Godot/app_userdata/Infinite Mario 64 on Windows. This is outside the package and outside Portcove backup. The transparency option can write project.godot beside the player; that exact configuration file is declared for compatible replacement and backup. The user-profile saves remain outside it. Keep a separate copy of that user folder; a customized data location can use external registration. Portcove replaces the managed runtime; existing external copies keep their files and update owner. Runtime rollback carries current declared data rather than rewinding saves; older-runtime and mod compatibility is not guaranteed.",
+        "manual_preparation": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows and Linux archives already contain the Godot player and its required companions. The Linux player and its bundled libraries need glibc 2.38 or later and GCC 13’s libstdc++. The game writes saves and backup saves through Godot user storage, normally AppData/Godot/app_userdata/Infinite Mario 64 on Windows or ~/.local/share/godot/app_userdata/Infinite Mario 64 on Linux. This is outside the package and outside Portcove backup. The transparency option can write project.godot beside the player; that exact configuration file is declared for compatible replacement and backup. The user-profile saves remain outside it. Keep a separate copy of that user folder; a customized data location can use external registration. Portcove replaces the managed runtime; existing external copies keep their files and update owner. Runtime rollback carries current declared data rather than rewinding saves; older-runtime and mod compatibility is not guaranteed.",
         "original_game_title": "Super Mario 64",
         "manual_setup": {
           "steps": [
             {
               "title": "Select your original in the game",
-              "instruction": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows archive already contains the Godot player and its required companions."
+              "instruction": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows and Linux archives already contain the Godot player and its required companions. The Linux player and its bundled libraries need glibc 2.38 or later and GCC 13’s libstdc++."
             }
           ],
           "warnings": [],
@@ -40037,7 +41146,8 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -40048,6 +41158,9 @@
           ],
           "linux-x86-64": [
             "opencmr2-linux-x86_64.tar.gz"
+          ],
+          "macos-aarch64": [
+            "opencmr2-macos-arm64.zip"
           ]
         }
       },
@@ -40056,6 +41169,9 @@
           "opencmr2.exe"
         ],
         "linux-x86-64": [
+          "opencmr2"
+        ],
+        "macos-aarch64": [
           "opencmr2"
         ]
       },
@@ -40069,7 +41185,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Select your installed original Colin McRae Rally 2.0 game folder when OpenCMR2 asks on first launch. The supported original files can stay outside the managed runtime. An optional Data folder beside the executable is carried between compatible versions. OpenCMR2 normally keeps saves, settings and logs in AppData/OpenCMR2, outside Portcove backups. Declared Data and in-folder fallback opencmr2.ini/opencmr2.log are retained when present. The upstream game owns edition checks and its storage resolver; Portcove replaces the package only. Existing external installations keep their files and update ownership. Play has not been tested through Portcove. The declared SaveGame folder also preserves the upstream user-directory fallback. If preference storage fails or custom launch paths create other files in the runtime, keep the current copy and review those exact paths before replacement; use external registration for custom storage. Linux normally uses ~/.local/share/OpenCMR2. Keep the packaged libSDL3.so.0 beside opencmr2; the game needs that companion library. Play has not been tested through Portcove on Linux.",
+        "manual_preparation": "Select your installed original Colin McRae Rally 2.0 game folder when OpenCMR2 asks on first launch. The supported original files can stay outside the managed runtime. An optional Data folder beside the executable is carried between compatible versions. OpenCMR2 normally keeps saves, settings and logs in AppData/OpenCMR2 on Windows, or in its SDL preference folder (~/Library/Application Support/OpenCMR2 on a Mac), outside Portcove backups. The Apple silicon player needs macOS 11 or later and keeps its libSDL3 library beside it. Declared Data and in-folder fallback opencmr2.ini/opencmr2.log are retained when present. The upstream game owns edition checks and its storage resolver; Portcove replaces the package only. Existing external installations keep their files and update ownership. Play has not been tested through Portcove. The declared SaveGame folder also preserves the upstream user-directory fallback. If preference storage fails or custom launch paths create other files in the runtime, keep the current copy and review those exact paths before replacement; use external registration for custom storage. Linux normally uses ~/.local/share/OpenCMR2. Keep the packaged libSDL3.so.0 beside opencmr2; the game needs that companion library. Play has not been tested through Portcove on Linux.",
         "original_game_title": "Colin McRae Rally 2.0",
         "manual_setup": {
           "steps": [
@@ -45132,7 +46248,8 @@
         "rolling"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -45141,6 +46258,10 @@
           "windows-x86-64": [
             "isle-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "isle-",
+            "-linux-x64.tar.gz"
           ]
         },
         "rolling_tag": "continuous"
@@ -45148,6 +46269,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "isle.exe"
+        ],
+        "linux-x86-64": [
+          "isle"
         ]
       },
       "persistent_paths": [
@@ -45157,13 +46281,13 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use the linked upstream guided installer/setup instructions for your own English LEGO Island 1.1 data. For this portable archive, run the included bin/isle-config.exe yourself, choose the original data and save locations, and save the configuration. Portcove’s Play target is bin/isle.exe; read-only discovery and installation do not run the configuration helper. The continuous channel follows upstream’s ongoing builds and may regress. Normal configuration and saves live in the SDL preference folder AppData/isledecomp/isle, or in the save location you choose, outside Portcove backups. The executable-folder isle.ini fallback is declared; original media and custom save folders remain external. Keep the complete bin/companions together. Custom profiles, runtime extensions and existing copies retain the non-owning route. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
+        "manual_preparation": "Use the linked upstream guided installer/setup instructions for your own English LEGO Island 1.1 data. For this portable archive, run the included bin/isle-config.exe yourself, choose the original data and save locations, and save the configuration. Portcove’s Play target is bin/isle.exe; read-only discovery and installation do not run the configuration helper. On Linux x86-64, run the included bin/isle-config yourself (it needs Qt 6 from your distribution); Portcove’s Play target is bin/isle. Keep bin/ and lib/ together. The Linux player and its bundled libraries need glibc 2.43 or later, GCC 13’s libstdc++ and OpenGL ES 2 with GLVND. The continuous channel follows upstream’s ongoing builds and may regress. Normal configuration and saves live in the SDL preference folder AppData/isledecomp/isle on Windows or ~/.local/share/isledecomp/isle on Linux, or in the save location you choose, outside Portcove backups. The executable-folder isle.ini fallback is declared; original media and custom save folders remain external. Custom profiles, runtime extensions and existing copies retain the non-owning route. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
         "original_game_title": "LEGO Island",
         "manual_setup": {
           "steps": [
             {
               "title": "Prepare your original game",
-              "instruction": "Use the linked upstream guided installer/setup instructions for your own English LEGO Island 1.1 data. For this portable archive, run the included bin/isle-config.exe yourself, choose the original data and save locations, and save the configuration. Portcove’s Play target is bin/isle.exe; read-only discovery and installation do not run the configuration helper. The continuous channel follows upstream’s ongoing builds and may regress."
+              "instruction": "Use the linked upstream guided installer/setup instructions for your own English LEGO Island 1.1 data. For this portable archive, run the included bin/isle-config.exe yourself, choose the original data and save locations, and save the configuration. Portcove’s Play target is bin/isle.exe; read-only discovery and installation do not run the configuration helper. On Linux x86-64, run the included bin/isle-config yourself (it needs Qt 6 from your distribution); Portcove’s Play target is bin/isle. Keep bin/ and lib/ together. The Linux player and its bundled libraries need glibc 2.43 or later, GCC 13’s libstdc++ and OpenGL ES 2 with GLVND. The continuous channel follows upstream’s ongoing builds and may regress."
             }
           ],
           "warnings": [],
@@ -45695,7 +46819,8 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -45708,6 +46833,10 @@
           "linux-x86-64": [
             "chaotixrecompiled-",
             "-linux-x64.tar.gz"
+          ],
+          "macos-aarch64": [
+            "chaotixrecompiled-",
+            "-macos-arm64.zip"
           ]
         }
       },
@@ -45717,6 +46846,9 @@
         ],
         "linux-x86-64": [
           "ChaotixRecompiled"
+        ],
+        "macos-aarch64": [
+          "ChaotixRecompiled.app/Contents/MacOS/ChaotixRecompiled"
         ]
       },
       "persistent_paths": [
@@ -45736,7 +46868,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "On first Play, select your own supported Knuckles’ Chaotix ROM from the setup page. The game validates and installs its own copy. Configure controls and compatible mods through upstream menus. The default Windows storage is AppData/ChaotixRecompiled/ChaotixRecompiled, outside Portcove backups. Saves, settings, imported ROM, mods and recordings remain there across runtime updates. The source also has a current-folder fallback; its declared data directories are preserved if present. Save states are tied to the ROM, patches and program version. Use an external registration for custom launch flags or a custom data root. Existing external copies keep their files and runtime update owner. Play has not been tested through Portcove. Linux normally uses ~/.local/share/ChaotixRecompiled/ChaotixRecompiled. Keep the packaged SDL3 and SDL3_ttf libraries beside the executable; the game needs those companion files. Play has not been tested through Portcove on Linux.",
+        "manual_preparation": "On first Play, select your own supported Knuckles’ Chaotix ROM from the setup page. The game validates and installs its own copy. Configure controls and compatible mods through upstream menus. The default Windows storage is AppData/ChaotixRecompiled/ChaotixRecompiled, outside Portcove backups. Saves, settings, imported ROM, mods and recordings remain there across runtime updates. The source also has a current-folder fallback; its declared data directories are preserved if present. Save states are tied to the ROM, patches and program version. Use an external registration for custom launch flags or a custom data root. Existing external copies keep their files and runtime update owner. Play has not been tested through Portcove. Linux normally uses ~/.local/share/ChaotixRecompiled/ChaotixRecompiled. Keep the packaged SDL3 and SDL3_ttf libraries beside the executable; the game needs those companion files. Play has not been tested through Portcove on Linux. On an Apple silicon Mac, the app needs macOS 11 or later and normally uses ~/Library/Application Support/ChaotixRecompiled/ChaotixRecompiled. Upstream signs this build ad hoc without notarization; follow its Mac instructions if Gatekeeper blocks it. Play has not been tested through Portcove on a Mac.",
         "original_game_title": "Knuckles' Chaotix",
         "manual_setup": {
           "steps": [
@@ -46288,7 +47420,9 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -46296,12 +47430,24 @@
         "asset_hints": {
           "windows-x86-64": [
             "mdk-win-x64.zip"
+          ],
+          "linux-x86-64": [
+            "mdk-linux-x64.tar.gz"
+          ],
+          "macos-aarch64": [
+            "mdk-osx-arm64.zip"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "mdk_sdl.exe"
+        ],
+        "linux-x86-64": [
+          "mdk_sdl"
+        ],
+        "macos-aarch64": [
+          "mdk_sdl"
         ]
       },
       "persistent_paths": [
@@ -46320,21 +47466,21 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required. Default settings.cfg, saves, mods and normal mdk-*.bmp captures live beside the player and are declared for compatible replacement and backup, along with the remembered mdk_paths.cfg. The original game remains external. If that directory is not writable, upstream uses AppData/mdk-sdl; MDK_USER_DIR and that external fallback remain outside backups. Optional locally generated texture mods/upstream upscaler tools belong to the declared mods folder, not the immutable player. Custom exported assets/captures and changed runtime files can use external registration. Runtime rollback carries current declared data, without rewinding saves or guaranteeing older-runtime compatibility. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
+        "manual_preparation": "On Windows, keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required. Default settings.cfg, saves, mods and normal mdk-*.bmp captures live beside the player and are declared for compatible replacement and backup, along with the remembered mdk_paths.cfg. The original game remains external. On an Apple silicon Mac, the managed mdk_sdl player and its libSDL3.dylib follow the same rules with macOS 12 or later and Metal, and mdk_paths.cfg beside mdk_sdl must name your original installation. On x86-64 Linux, the managed mdk_sdl player and its libSDL3.so follow the same rules; it needs glibc 2.43 or later and a Vulkan driver, and mdk_paths.cfg beside mdk_sdl must name your complete original installation because Linux has no default-location detection and Portcove does not pass MDK_DATA_DIR. If that directory is not writable, upstream uses AppData/mdk-sdl on Windows, ~/.local/share/mdk-sdl on Linux or ~/Library/Application Support/mdk-sdl on a Mac; MDK_USER_DIR and that external fallback remain outside backups. Optional locally generated texture mods/upstream upscaler tools belong to the declared mods folder, not the immutable player. Custom exported assets/captures and changed runtime files can use external registration. Runtime rollback carries current declared data, without rewinding saves or guaranteeing older-runtime compatibility. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
         "original_game_title": "MDK",
         "manual_setup": {
           "steps": [
             {
               "title": "Prepare your original game on Windows",
-              "instruction": "Keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required."
+              "instruction": "On Windows, keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required."
             },
             {
               "title": "Set up MDK on Linux",
-              "instruction": "Choose mdk-linux-x64.tar.gz or mdk-linux-arm64.tar.gz from the stable releases. Use a Vulkan driver and keep libSDL3.so beside mdk_sdl. Point MDK_DATA_DIR or the [paths] mdk entry in mdk_paths.cfg at your complete original installation. The inspected v1.2.6 x86-64 player needs glibc 2.43 or later and its ARM64 sibling needs glibc 2.38 or later."
+              "instruction": "On x86-64 Linux, Portcove can install and update the official mdk-linux-x64.tar.gz player. Linux has no default game-location detection, so create mdk_paths.cfg beside mdk_sdl and name your complete original installation in its [paths] mdk setting; Portcove does not pass MDK_DATA_DIR to the game. For an ARM64 copy you maintain, choose mdk-linux-arm64.tar.gz from the stable releases, keep libSDL3.so beside mdk_sdl, and point MDK_DATA_DIR or the [paths] mdk entry in mdk_paths.cfg at your original installation. Use a Vulkan driver. The inspected v1.2.6 x86-64 player needs glibc 2.43 or later and its ARM64 sibling needs glibc 2.38 or later."
             },
             {
               "title": "Set up MDK on an Apple silicon Mac",
-              "instruction": "Choose mdk-osx-arm64.zip from the stable releases. Keep libSDL3.dylib beside mdk_sdl and use MDK_DATA_DIR or mdk_paths.cfg to point at your complete original installation. The inspected v1.2.6 package requires macOS 12 or later with Metal. Review the publisher and your Mac’s download security prompts before opening the player."
+              "instruction": "Portcove can install and update the official mdk-osx-arm64.zip player. Create mdk_paths.cfg beside mdk_sdl and name your complete original installation in its [paths] mdk setting; Portcove does not pass MDK_DATA_DIR to the game. Keep libSDL3.dylib beside mdk_sdl. The inspected v1.2.6 package requires macOS 12 or later with Metal."
             },
             {
               "title": "Set up MDK on Android",
@@ -46342,13 +47488,13 @@
             }
           ],
           "warnings": [
-            "Optional HD texture generation downloads and starts a separate upscaling tool. Let it finish, or cancel and confirm it has stopped before updating, backing up or removing the player. You and upstream maintain the Linux, Mac and Android copies."
+            "Optional HD texture generation downloads and starts a separate upscaling tool. Let it finish, or cancel and confirm it has stopped before updating, backing up or removing the player. You and upstream maintain the Linux ARM64 and Android copies."
           ],
           "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/main/README.md",
           "references": [
             {
               "title": "Keep your desktop files",
-              "instruction": "For a Linux or Mac copy you maintain, keep settings.cfg, saves, mods, captures and custom exports. Keep the whole MDK_USER_DIR if you set it, or the actual user-data fallback if the player folder is read-only. On first portable start, upstream can copy settings and saves from an older personal profile. Keep both copies until you know which one the player uses. Keep mdk_paths.cfg and your originals separately."
+              "instruction": "For a Linux ARM64 copy you maintain, keep settings.cfg, saves, mods, captures and custom exports. Keep the whole MDK_USER_DIR if you set it, or the actual user-data fallback if the player folder is read-only. On first portable start, upstream can copy settings and saves from an older personal profile. Keep both copies until you know which one the player uses. Keep mdk_paths.cfg and your originals separately."
             }
           ]
         },
@@ -46372,7 +47518,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -46381,12 +47528,20 @@
           "windows-x86-64": [
             "tails-adventure-",
             "-windows.zip"
+          ],
+          "linux-x86-64": [
+            "tails-adventure-",
+            "-linux-amd64.tar.xz"
           ]
-        }
+        },
+        "linux_tar_xz": true
       },
       "executable_hints": {
         "windows-x86-64": [
           "tails-adventure.exe"
+        ],
+        "linux-x86-64": [
+          "tails-adventure"
         ]
       },
       "persistent_paths": [
@@ -46397,18 +47552,18 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "No original ROM or BIOS selection is required by the inspected Windows package. Keep its complete assets tree. Portcove preserves config (combined options and saves) and supported mods/ through accepted compatible runtime maintenance; direct edits to runtime assets and external copies remain outside that data contract. Close the actual game normally before backup or replacement. Runtime rollback keeps current data and does not rewind saved progress.",
+        "manual_preparation": "No original ROM or BIOS selection is required by the inspected Windows and Linux packages. The Linux player needs glibc 2.38 or later. Keep its complete assets tree. Portcove preserves config (combined options and saves) and supported mods/ through accepted compatible runtime maintenance; direct edits to runtime assets and external copies remain outside that data contract. Close the actual game normally before backup or replacement. Runtime rollback keeps current data and does not rewind saved progress.",
         "original_game_title": "Tails Adventure",
         "manual_setup": {
           "help_url": "https://github.com/mechakotik/tails-adventure",
           "steps": [
             {
               "title": "Keep the complete portable player",
-              "instruction": "The inspected Windows ZIP contains tails-adventure.exe and its assets tree; no original ROM, BIOS, first-run extraction or compilation is required by this route. Keep matching assets/default_config and packaged resources."
+              "instruction": "The inspected Windows ZIP and Linux x86-64 TAR.XZ contain tails-adventure.exe or tails-adventure and its assets tree; no original ROM, BIOS, first-run extraction or compilation is required by this route. Keep matching assets/default_config and packaged resources."
             },
             {
               "title": "Keep your saves, options and mods",
-              "instruction": "The Windows player stores both options and saved progress in config beside the executable. Supported mods live in mods/ beside it. Keep both with their creating runtime and close the game normally before maintenance: the inspected title writes config during shutdown. Put replacement content in the supported mods tree; direct edits to shipped assets are outside the declared preserved data and can block update or removal until preserved and reconciled. Runtime rollback retains current data and does not rewind saves or guarantee cross-version mod/save compatibility."
+              "instruction": "The Windows and Linux players store both options and saved progress in config beside the executable. Supported mods live in mods/ beside it. Keep both with their creating runtime and close the game normally before maintenance: the inspected title writes config during shutdown. Put replacement content in the supported mods tree; direct edits to shipped assets are outside the declared preserved data and can block update or removal until preserved and reconciled. Runtime rollback retains current data and does not rewind saves or guarantee cross-version mod/save compatibility."
             }
           ],
           "warnings": [
@@ -46775,7 +47930,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -46783,12 +47939,18 @@
         "asset_hints": {
           "windows-x86-64": [
             "zamn-windows-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "zamn-linux-x86_64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "zamn_launcher.exe"
+        ],
+        "linux-x86-64": [
+          "zamn_launcher"
         ]
       },
       "persistent_paths": [
@@ -46803,7 +47965,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Use your own USA 1,048,576-byte Zombies Ate My Neighbors ROM. Upstream's compatibility SHA-256 is b27e2e957fa760f4f483e2af30e03062034a6c0066984f2e284cc2cb430b2059; Core does not acquire, authenticate or import it. Keep the original outside the engine directory. The normal Windows entry is zamn_launcher.exe: select your ROM and settings there, then use its Play button. Keep zamn.exe, SDL2 and the whole package together. The normal launcher tracks and reaps its child and returns to its settings UI after the game exits; close both before maintenance. This source review is not an installed full-session or forced-exit certification. Core preserves default local zamn.ini, zamn.quicksave, zamn.hiscore and their atomic .tmp companions. Explicit config, high-score, capture, movie and other user-selected paths can be external and remain outside Core backup/removal. Preserve every effective creating path and complete old runtime before updating or restoring; the quicksave ROM/structure checks do not promise compatibility across future builds. Upstream mixes native game logic with hardware emulation; no complete-native, gameplay or real-save acceptance is implied. Core owns engine replacement, upstream owns ROM selection and settings.",
+        "manual_preparation": "Use your own USA 1,048,576-byte Zombies Ate My Neighbors ROM. Upstream's compatibility SHA-256 is b27e2e957fa760f4f483e2af30e03062034a6c0066984f2e284cc2cb430b2059; Core does not acquire, authenticate or import it. Keep the original outside the engine directory. The normal entry is zamn_launcher.exe on Windows and zamn_launcher on Linux x86-64 (the Linux build is experimental upstream and needs glibc 2.38 or later): select your ROM and settings there, then use its Play button. Keep the game binary (zamn.exe or zamn), SDL2 and the whole package together. The normal launcher tracks and reaps its child and returns to its settings UI after the game exits; close both before maintenance. This source review is not an installed full-session or forced-exit certification. Core preserves default local zamn.ini, zamn.quicksave, zamn.hiscore and their atomic .tmp companions. Explicit config, high-score, capture, movie and other user-selected paths can be external and remain outside Core backup/removal. Preserve every effective creating path and complete old runtime before updating or restoring; the quicksave ROM/structure checks do not promise compatibility across future builds. Upstream mixes native game logic with hardware emulation; no complete-native, gameplay or real-save acceptance is implied. Core owns engine replacement, upstream owns ROM selection and settings.",
         "original_game_title": "Zombies Ate My Neighbors",
         "manual_setup": {
           "steps": [
@@ -46816,8 +47978,8 @@
               "instruction": "Open the installed zamn_launcher.exe and select your original ROM in the game settings. Keep zamn.exe and SDL2 beside the launcher."
             },
             {
-              "title": "Run the upstream Linux launcher",
-              "instruction": "Extract zamn-linux-x86_64.tar.gz and run ./zamn_launcher from the extracted zamn folder. Keep the launcher, zamn and the bundled SDL2 library together. On Linux you can type the ROM path or drop the file onto the launcher."
+              "title": "Start the managed Linux player",
+              "instruction": "Open the installed zamn_launcher and select your original ROM in the launcher; you can type the ROM path or drop the file onto it. Keep the launcher, zamn and the bundled SDL2 library together."
             }
           ],
           "warnings": [
@@ -50496,7 +51658,9 @@
         "beta"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -50504,12 +51668,24 @@
         "asset_hints": {
           "windows-x86-64": [
             "barrett-win64.zip"
+          ],
+          "linux-x86-64": [
+            "barrett-linux.zip"
+          ],
+          "macos-aarch64": [
+            "barrett-macOS.zip"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "barrett.exe"
+        ],
+        "linux-x86-64": [
+          "barrett"
+        ],
+        "macos-aarch64": [
+          "barrett"
         ]
       },
       "persistent_paths": [
@@ -50533,13 +51709,13 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Before first Play, copy your own supported Rise of the Triad DARKWAR.RTC/RTL/WAD or supported shareware HUNTBGIN.RTC/RTL/WAD into the folder beside barrett.exe, together with upstream’s required DEMO1_3.DMO through DEMO4_3.DMO and REMOTE1.RTS. Keep the original source copy and the packaged SDL2/SDL2_mixer libraries. The native archive needs no installer or compiler; this upstream beta is offered through Preview. Upstream stores settings, saves, scores, optional soundfonts and OPL preferences in userdata beside the player. That folder, the named original inputs and named error/license outputs are declared for compatible replacement and backup. Original files must match the selected edition. Custom WAD/map/launch paths or changes to the runtime can use external registration; undeclared additions remain protected. Runtime rollback carries current declared data without rewinding progress or guaranteeing old-save compatibility. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
+        "manual_preparation": "Before first Play, copy your own supported Rise of the Triad DARKWAR.RTC/RTL/WAD or supported shareware HUNTBGIN.RTC/RTL/WAD into the folder beside barrett.exe on Windows or barrett on Linux and Apple silicon Macs, together with upstream’s required DEMO1_3.DMO through DEMO4_3.DMO and REMOTE1.RTS. Keep the original source copy and the packaged Windows SDL2/SDL2_mixer libraries. On Linux, install SDL2 and SDL2_mixer from your distribution, use glibc 2.38 or later, and keep the uppercase file names shown here so Portcove preserves them. On an Apple silicon Mac, use macOS 15 or later and install SDL2 and SDL2_mixer with Homebrew in /opt/homebrew. The native archive needs no installer or compiler; this upstream beta is offered through Preview. Upstream stores settings, saves, scores, optional soundfonts and OPL preferences in userdata beside the player. That folder, the named original inputs and named error/license outputs are declared for compatible replacement and backup. Original files must match the selected edition. Custom WAD/map/launch paths or changes to the runtime can use external registration; undeclared additions remain protected. Runtime rollback carries current declared data without rewinding progress or guaranteeing old-save compatibility. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
         "original_game_title": "Rise of the Triad",
         "manual_setup": {
           "steps": [
             {
               "title": "Prepare your original game",
-              "instruction": "Before first Play, copy your own supported Rise of the Triad DARKWAR.RTC/RTL/WAD or supported shareware HUNTBGIN.RTC/RTL/WAD into the folder beside barrett.exe, together with upstream’s required DEMO1_3.DMO through DEMO4_3.DMO and REMOTE1.RTS. Keep the original source copy and the packaged SDL2/SDL2_mixer libraries. The native archive needs no installer or compiler; this upstream beta is offered through Preview."
+              "instruction": "Before first Play, copy your own supported Rise of the Triad DARKWAR.RTC/RTL/WAD or supported shareware HUNTBGIN.RTC/RTL/WAD into the folder beside barrett.exe on Windows or barrett on Linux and Apple silicon Macs, together with upstream’s required DEMO1_3.DMO through DEMO4_3.DMO and REMOTE1.RTS. Keep the original source copy and the packaged Windows SDL2/SDL2_mixer libraries. On Linux, install SDL2 and SDL2_mixer from your distribution, use glibc 2.38 or later, and keep the uppercase file names shown here so Portcove preserves them. On an Apple silicon Mac, use macOS 15 or later and install SDL2 and SDL2_mixer with Homebrew in /opt/homebrew. The native archive needs no installer or compiler; this upstream beta is offered through Preview."
             }
           ],
           "warnings": [],
@@ -51032,7 +52208,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -51041,12 +52218,19 @@
           "windows-x86-64": [
             "rewooled-windows-x64-",
             ".zip"
+          ],
+          "linux-x86-64": [
+            "rewooled-linux-x86_64-",
+            ".zip"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "SheepD3D.exe"
+        ],
+        "linux-x86-64": [
+          "SheepD3D"
         ]
       },
       "persistent_paths": [
@@ -51059,13 +52243,13 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "For the managed direct-player route, copy your own original PC Sheep, Dog ’n’ Wolf game data into game-data beside SheepD3D.exe, with Levels directly inside game-data. Keep the original executable and DLLs in the source copy. The maintained --game-dir=game-data argument selects that folder; the game reads its saved rendering/input options. No engine compilation is needed. For external registration, supply your actual --game-dir=PATH in Change launch details, or use upstream’s SheepLauncher.exe workflow with its own installation. The original game-data folder is declared for compatible runtime replacement and backup. Default saves and launcher/game options are stored in AppData/Infogrames/Sheep, Dog'n Wolf DX7, outside Portcove backups. Only the direct SheepD3D.exe is launched by the managed route; the optional launcher checks release pages rather than replacing the runtime. Upstream disc extraction, language export and custom data paths stay manual/external. Do not put converted/custom output over the version-owned player. Use external registration for customized launch workflows or SDW_SAVE_DIR. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
+        "manual_preparation": "For the managed direct-player route, copy your own original PC Sheep, Dog ’n’ Wolf game data into game-data beside SheepD3D.exe on Windows or SheepD3D on Linux, with Levels directly inside game-data. Keep the original executable and DLLs in the source copy. The maintained --game-dir=game-data argument selects that folder; the game reads its saved rendering/input options. No engine compilation is needed. For external registration, supply your actual --game-dir=PATH in Change launch details, or use upstream’s SheepLauncher.exe workflow with its own installation. The original game-data folder is declared for compatible runtime replacement and backup. Default saves and launcher/game options are stored in AppData/Infogrames/Sheep, Dog'n Wolf DX7 on Windows, or $XDG_DATA_HOME (default ~/.local/share)/Infogrames/Sheep, Dog'n Wolf DX7 on Linux, outside Portcove backups. The Linux player needs glibc 2.38 or later. Only the direct SheepD3D player is launched by the managed route; the optional launcher checks release pages rather than replacing the runtime. Upstream disc extraction, language export and custom data paths stay manual/external. Do not put converted/custom output over the version-owned player. Use external registration for customized launch workflows or SDW_SAVE_DIR. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
         "original_game_title": "Sheep, Dog 'n' Wolf",
         "manual_setup": {
           "steps": [
             {
               "title": "Prepare your original game",
-              "instruction": "For the managed direct-player route, copy your own original PC Sheep, Dog ’n’ Wolf game data into game-data beside SheepD3D.exe, with Levels directly inside game-data. Keep the original executable and DLLs in the source copy. The maintained --game-dir=game-data argument selects that folder; the game reads its saved rendering/input options. No engine compilation is needed. For external registration, supply your actual --game-dir=PATH in Change launch details, or use upstream’s SheepLauncher.exe workflow with its own installation."
+              "instruction": "For the managed direct-player route, copy your own original PC Sheep, Dog ’n’ Wolf game data into game-data beside SheepD3D.exe on Windows or SheepD3D on Linux, with Levels directly inside game-data. Keep the original executable and DLLs in the source copy. The maintained --game-dir=game-data argument selects that folder; the game reads its saved rendering/input options. No engine compilation is needed. For external registration, supply your actual --game-dir=PATH in Change launch details, or use upstream’s SheepLauncher.exe workflow with its own installation."
             }
           ],
           "warnings": [],
@@ -52541,7 +53725,9 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -52554,6 +53740,14 @@
           "linux-x86-64": [
             "openreliant-",
             "-linux-x86_64.tar.gz"
+          ],
+          "macos-x86-64": [
+            "openreliant-",
+            "-macos-x86_64.tar.gz"
+          ],
+          "macos-aarch64": [
+            "openreliant-",
+            "-macos-aarch64.tar.gz"
           ]
         }
       },
@@ -52562,6 +53756,12 @@
           "openreliant.exe"
         ],
         "linux-x86-64": [
+          "openreliant"
+        ],
+        "macos-x86-64": [
+          "openreliant"
+        ],
+        "macos-aarch64": [
           "openreliant"
         ]
       },
@@ -52572,7 +53772,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Follow the linked installation guide to run openreliant.exe install StarLancer yourself from the player folder, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration. The declared StarLancer folder contains original game assets, campaign saves, starlancer.ini and openreliant.log. It is retained during compatible runtime replacement and backup. Keep another copy of the original media. A game installed elsewhere or custom launch arguments can use external registration; such external data is outside Portcove backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. On Linux, run ./openreliant install StarLancer yourself from the player folder with your own discs/images and upstream’s --from options. Play finds the resulting declared StarLancer folder. sltool is a helper, not the player. External or custom installed data remains outside backup. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
+        "manual_preparation": "Follow the linked installation guide to run openreliant.exe install StarLancer (./openreliant install StarLancer on Linux or a Mac) yourself from the player folder, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration. The Mac players need macOS 15 or later. The declared StarLancer folder contains original game assets, campaign saves, starlancer.ini and openreliant.log. It is retained during compatible runtime replacement and backup. Keep another copy of the original media. A game installed elsewhere or custom launch arguments can use external registration; such external data is outside Portcove backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. sltool is a helper, not the player. Core extraction and published SHA-256 comparison passed for each managed package. Native execution, minimum-environment and gameplay observations remain Not run on every platform.",
         "original_game_title": "Starlancer",
         "manual_setup": {
           "steps": [
@@ -52604,7 +53804,8 @@
         "rolling"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -52613,6 +53814,10 @@
           "windows-x86-64": [
             "3sx-",
             "-windows.zip"
+          ],
+          "linux-x86-64": [
+            "3sx-",
+            "-linux-x86_64.tar.gz"
           ]
         },
         "rolling_tag": "rolling-pre-release"
@@ -52620,6 +53825,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "3sx.exe"
+        ],
+        "linux-x86-64": [
+          "3sx"
         ]
       },
       "persistent_paths": [],
@@ -52627,7 +53835,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "This is the deliberately selected rolling prerelease, with upstream bugs and instability expected. Complete the normal in-process setup wizard using your legally obtained Street Fighter III: 3rd Strike or Street Fighter Anniversary Collection for PlayStation 2, or prepare the exact SF33RD.AFS from THIRD/ in the upstream resources location. A CPS-3/MAME set, future arcade-ROM-only roadmap or a different edition is not the current source contract. The selected Windows player 3sx.exe lives in bin/ and uses its executable parent as the launch working directory; keep all packaged dependencies. Normal resources, configuration, cache, logs and user storage live under AppData/Roaming/CrowdedStreet/3SX; preserve the whole actual profile and any custom effective roots. Upstream checks the expected AFS when its checksum option is enabled; Core does not authenticate, acquire, copy or import original data. Core owns engine replacement on the declared rolling provider channel; upstream owns original-data preparation and shared external profiles. Core supplies no external-profile backup, migration or deletion. Preserve the complete old runtime and compatible actual player data before changes. Rolling tag/assets can change; published provider identity and reviewed current selection remain required, and ambiguity or missing independent identity must refuse. No netplay, rollback gameplay, actual original import, save compatibility or physical-platform acceptance is claimed.",
+        "manual_preparation": "This is the deliberately selected rolling prerelease, with upstream bugs and instability expected. Complete the normal in-process setup wizard using your legally obtained Street Fighter III: 3rd Strike or Street Fighter Anniversary Collection for PlayStation 2, or prepare the exact SF33RD.AFS from THIRD/ in the upstream resources location. A CPS-3/MAME set, future arcade-ROM-only roadmap or a different edition is not the current source contract. The selected Windows player 3sx.exe and Linux x86-64 player 3sx live in bin/ and use their executable parent as the launch working directory; keep all packaged dependencies, including the Linux lib/ folder. The Linux player needs glibc 2.38 or later, libz and OpenGL. Normal resources, configuration, cache, logs and user storage live under AppData/Roaming/CrowdedStreet/3SX on Windows, or $XDG_DATA_HOME (default ~/.local/share)/CrowdedStreet/3SX on Linux; preserve the whole actual profile and any custom effective roots. Upstream checks the expected AFS when its checksum option is enabled; Core does not authenticate, acquire, copy or import original data. Core owns engine replacement on the declared rolling provider channel; upstream owns original-data preparation and shared external profiles. Core supplies no external-profile backup, migration or deletion. Preserve the complete old runtime and compatible actual player data before changes. Rolling tag/assets can change; published provider identity and reviewed current selection remain required, and ambiguity or missing independent identity must refuse. No netplay, rollback gameplay, actual original import, save compatibility or physical-platform acceptance is claimed.",
         "original_game_title": "Street Fighter III: 3rd Strike",
         "artwork": {
           "game_id": 243243,
@@ -54967,7 +56175,9 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -54975,12 +56185,24 @@
         "asset_hints": {
           "windows-x86-64": [
             "-windows-x86_64-sdl2.zip"
+          ],
+          "linux-x86-64": [
+            "-linux-x86_64-sdl2.zip"
+          ],
+          "macos-aarch64": [
+            "-macos-arm64-sdl2.zip"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "wc1-modern.exe"
+        ],
+        "linux-x86-64": [
+          "wc1-modern"
+        ],
+        "macos-aarch64": [
+          "wc1-modern"
         ]
       },
       "launch_arguments": [
@@ -54991,14 +56213,14 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "On Play, use the upstream graphical Browse/Launch dialog to choose your own permitted, writable Wing Commander Kilrathi Saga directory. It needs GAMEDAT including MODULE.000, CAMP.000 and INSTALL.DAT plus sibling STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. These are upstream startup checks, not Core authentication of every original file. Portcove supplies --gui so supported graphics arguments do not bypass that setup. The launcher changes to the selected original directory and runs the game in the same process. Original data and SAVEGAME.WLD stay in that creating game directory; shared settings use the actual SDL preference directory for Origin Systems/WC Kilrathi Saga, including wc1-modern.cfg. Core replaces only its engine; it does not import, migrate, back up, roll back or delete those external game/save/profile files. Preserve the whole actual original/profile trees and compatible old runtime before changes. Another engine copy can share them. DOS data support is partial and is not the managed offer; original MSVC420 reconstruction is a different package. Existing external registrations remain independently owned.",
+        "manual_preparation": "On Play, use the upstream graphical Browse/Launch dialog to choose your own permitted, writable Wing Commander Kilrathi Saga directory. It needs GAMEDAT including MODULE.000, CAMP.000 and INSTALL.DAT plus sibling STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. These are upstream startup checks, not Core authentication of every original file. Portcove supplies --gui so supported graphics arguments do not bypass that setup. The launcher changes to the selected original directory and runs the game in the same process. Original data and SAVEGAME.WLD stay in that creating game directory; shared settings use the actual SDL preference directory for Origin Systems/WC Kilrathi Saga, including wc1-modern.cfg (on Linux under ~/.local/share, on a Mac under ~/Library/Application Support). The Linux x86-64 player needs glibc 2.39 and the Apple silicon Mac player needs macOS 15. Both packages keep their bundled SDL2 and LZO libraries beside wc1-modern. The Intel Mac package also needs SDL3, which it does not include, so it stays a copy you set up yourself. Core replaces only its engine; it does not import, migrate, back up, roll back or delete those external game/save/profile files. Preserve the whole actual original/profile trees and compatible old runtime before changes. Another engine copy can share them. DOS data support is partial and is not the managed offer; original MSVC420 reconstruction is a different package. Existing external registrations remain independently owned.",
         "original_game_title": "Wing Commander (Kilrathi Saga)",
         "manual_setup": {
           "help_url": "https://github.com/neuromancer/wc1-re/tree/4462524b5ecb8a42f19b74ff141cc4240466ace8",
           "steps": [
             {
               "title": "Use the modern SDL2 player and your own Kilrathi Saga data",
-              "instruction": "Use the official modern Windows x64 SDL2 package with all companion DLLs, or an already permitted working copy of that same route. Select normal wc1-modern.exe for an attached copy. The separate win32-msvc420 reconstruction package is not this player. Use your own full Wing Commander Kilrathi Saga installation: GAMEDAT plus STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. DOS support is partial and does not inherit this offer."
+              "instruction": "Use the official modern SDL2 package for Windows x64, Linux x86-64 or an Apple silicon Mac with all companion libraries, or an already permitted working copy of that same route. Select normal wc1-modern.exe (wc1-modern on Linux or a Mac) for an attached copy. The separate win32-msvc420 reconstruction package is not this player. Use your own full Wing Commander Kilrathi Saga installation: GAMEDAT plus STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. DOS support is partial and does not inherit this offer."
             },
             {
               "title": "Choose the actual writable original directory in upstream setup",

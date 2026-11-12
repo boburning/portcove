@@ -27,7 +27,9 @@ import {
   type CatalogQuery,
   type CatalogQueryContext,
 } from "./catalog-query";
-import { states } from "./game-file-query-context";
+import type { TFunction } from "i18next";
+import { useAppTranslation } from "../../localization";
+import { gameFileStateLabel } from "./game-file-query-context";
 import { isQuickViewUpdateSelection } from "./quick-view-updates";
 import { GameFileFilterControls } from "./GameFileFilterControls";
 import type { GameFileFilterState } from "./use-game-file-filter-context";
@@ -69,13 +71,14 @@ export function queryFromFilter(filter: Filter | CatalogQuery): CatalogQuery {
       }
     : filter;
 }
-function label(group: Group, value: string) {
+function label(t: TFunction<"gameFiles">, group: Group, value: string) {
   if (group === "originalSystems") return identityLabel(value);
   if (group === "portOptions") return value === "multiple" ? "Multiple ports" : "Single port";
   if (group === "installationMethods")
     return installationMethodLabels[value as keyof typeof installationMethodLabels] ?? value;
   if (group === "platforms" && value === "this-device") return "Available for this device";
-  if (group === "gameFiles") return states[value as keyof typeof states];
+  if (group === "gameFiles")
+    return gameFileStateLabel(t, value as Parameters<typeof gameFileStateLabel>[1]);
   if (group === "updates")
     return value === "available" ? "Available at last check" : "Matching update staged";
   if (group === "attention") {
@@ -119,6 +122,7 @@ export function CatalogFilters({
   setFilter: Dispatch<SetStateAction<Filter | CatalogQuery>>;
   gameFileQuery?: GameFileFilterState | undefined;
 }) {
+  const { t } = useAppTranslation("gameFiles");
   const groups: FilterGroup[] = [
     {
       key: "originalSystems",
@@ -327,7 +331,7 @@ export function CatalogFilters({
                 data-focusable
                 size="sm"
                 variant="selected"
-                aria-label={`Remove ${groups.find((item) => item.key === group)?.label}: ${label(group, value)} filter`}
+                aria-label={`Remove ${groups.find((item) => item.key === group)?.label}: ${label(t, group, value)} filter`}
                 onClick={(event) => {
                   const ownedFocus = document.activeElement === event.currentTarget;
                   remove(group, value);
@@ -340,7 +344,7 @@ export function CatalogFilters({
                     channel={group === "channels"}
                   />
                 )}
-                {groups.find((item) => item.key === group)?.label}: {label(group, value)}{" "}
+                {groups.find((item) => item.key === group)?.label}: {label(t, group, value)}{" "}
                 <X aria-hidden="true" />
               </ChipButton>
             ))}
@@ -396,7 +400,7 @@ export function CatalogFilters({
             : chosen.length > 1
               ? `${chosen.length} selected`
               : chosen.length
-                ? label(group.key, chosen[0]!)!
+                ? label(t, group.key, chosen[0]!)!
                 : "All"
         }
         help={help[group.key]}
@@ -410,7 +414,7 @@ export function CatalogFilters({
               : unknown > 0
                 ? `${count} known; ${unknown} unknown`
                 : String(count);
-          const text = label(group.key, value);
+          const text = label(t, group.key, value);
           const optionId = `${panelId}:${group.key}:${value}`;
           return (
             <label

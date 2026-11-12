@@ -199,6 +199,15 @@ function useUpdateCenter({
     if (!reviewedActivityId) return;
     return focusActivityRow(reviewedActivityId);
   }, [reviewedActivityId, reviewedActivityRequest]);
+  // Recovery's own Review action focuses the row once; record the ID it hands to the
+  // shell so the prop change it causes is not revealed a second time.
+  const reviewActivity = (id: string) => {
+    if (onReviewActivity) {
+      revealedFromElsewhere.current = { id, request: reviewedActivityRequest };
+      onReviewActivity(id);
+    }
+    setReviewedActivity((previous) => ({ id, request: (previous?.request ?? 0) + 1 }));
+  };
   useEffect(() => {
     const refreshNow = () => setNowSeconds(Date.now() / 1000);
     refreshNow();
@@ -299,7 +308,7 @@ function useUpdateCenter({
     earlierBatch,
     nowSeconds,
     reviewedActivity,
-    setReviewedActivity,
+    reviewActivity,
     reviewingUpdate,
     setReviewingUpdate,
     updateReviewOwner,
@@ -814,13 +823,7 @@ function UpdateCenterView(model: UpdateCenterModel) {
             onSelect={model.onSelect}
             onOpenStorage={() => model.onOpenSettings("library-storage")}
             availableActivityIds={new Set(model.activities.map((activity) => activity.id))}
-            onReviewActivity={(id) => {
-              model.onReviewActivity?.(id);
-              model.setReviewedActivity((previous) => ({
-                id,
-                request: (previous?.request ?? 0) + 1,
-              }));
-            }}
+            onReviewActivity={model.reviewActivity}
           />
         </div>
         <ActivityHistory

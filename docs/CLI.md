@@ -745,6 +745,15 @@ such as shared preferences, waits for review while the others continue. The batc
 stores no authorization. No game is launched, and an already installed game is not
 reinstalled or updated.
 
+The review also adds up what the ready games need together: known downloads
+(releases, bundled runtimes and required extras) and, for each drive, the
+temporary space every game on it needs against the space free there. A drive can
+be short for the whole batch even when each game fits alone; the review says so,
+and each game is checked for space again before it runs. Games whose space needs
+are unknown are named. Final installed sizes are not estimated. Two games that
+would install into the same folder are never both ready: the later one waits
+until one of them gets a different install folder.
+
 `games batch-cancel BATCH_ID` stops games that haven't started; a running install
 keeps its ordinary cancellation and cleanup boundaries. After an interruption,
 `games batch-resume BATCH_ID` checks committed state first. It never repeats a
@@ -762,12 +771,37 @@ the Library and installs it without another confirmation when it is ready.
 an authorization. Adding a folder or saving a game never chooses a mode for
 you, and choosing another mode withdraws standing setup.
 
+A notify or set-up-when-ready choice remembers the game's release channel and
+the registered copy of its own files at the moment you choose. (Shared
+prerequisites such as a BIOS are checked by the ordinary install review.) If a
+different copy is registered later, the chosen copy is removed, or the game's
+channel changes, the game waits with that reason instead of being set up from something
+you didn't choose; choosing the mode again accepts the current files and
+channel. A choice made before any files were registered uses the first files
+that arrive.
+
 `games intents` reassesses every notify or set-up-when-ready choice with the
 ordinary first-install planner and changes nothing. New or changed files,
 catalog contracts and tools are reflected without selecting the files again.
 Each game shows `installed`, `ready` with its plan digest, or `waiting` with the
 reason. `games intents-acknowledge --item PORT_ID=PLAN_SHA256` marks a ready
 game as seen. It is reported again only when its ready plan changes.
+
+For an installed game, `installed` also shows its maintenance state under its
+own saved channel and update policy: the active version, the earlier version
+Portcove keeps (whether a rollback to it is allowed is shown by the game's
+actions), whether the game is busy (running, launch recovery pending, an update
+downloading or verifying, or an unfinished install, update or data change), any
+staged version,
+and the newer release the last update check found for exactly this installed
+version, artifact and runtime on that channel, if any. A check made before an
+update, reinstall, rollback or channel change no longer counts, and a release
+that is already staged is shown as staged, not available. A notify-mode game is
+reported once per newly available release; acknowledge it
+with that release's SHA-256 as `PLAN_SHA256`. Assessing reads saved state only:
+it doesn't check for updates, download, stage or activate anything. The
+existing update check and update policy own those, and standing setup never
+updates a game.
 
 `games setup-ready` runs one standing-setup pass. Each set-up-when-ready game
 that is ready gets its own one-game batch. Before the batch starts, Portcove
@@ -776,7 +810,20 @@ authorized. It is never launched, and an installed game is never reinstalled or
 updated. A failed or interrupted attempt is not retried with the same plan; it
 becomes eligible again when the plan changes. Uninstalling a game is
 remembered, so it is not set up or reported again until you choose a mode for it.
-The desktop app runs the same pass after a library opens, after the catalog or
+Each pass first settles setup batches left mid-run by an interruption, against
+committed state, before starting anything: an install that was committed counts
+as ready, and a game with nothing committed and no unfinished install or update
+journal is marked interrupted. A game whose earlier work hasn't finished
+recovering stays in progress and waits with that reason; nothing new starts for
+it and nothing is counted. Only batches whose in-progress games are all
+set-up-when-ready games are settled this way; other interrupted batches stay in
+progress for you to continue with `games batch-resume`. For a set-up-when-ready
+game an interruption counts as a failed attempt with that plan, so it is set up afresh (re-planned and freshly authorized) on the next
+pass, and repeated interruptions stop at the same three-attempt limit. Batches
+another process is still running, and games another operation holds, are left
+alone.
+The same pass also applies eligible mod updates for setups that allow them; see
+[unattended updates](#unattended-updates). The desktop app runs the same pass after a library opens, after the catalog or
 registered files change, and after a choice is saved. Only one pass runs at a
 time across windows and the CLI; a busy pass is tried again about 30 seconds
 later. Nothing runs while Portcove is closed.
@@ -948,13 +995,26 @@ port, each phase is shown on stderr as player-readable progress ("Checking your 
 image", "Reading the disc contents", "Checking free space", "Unpacking game files"
 with bytes completed, "Verifying game files", "Finishing game file setup") before
 the game starts; the game's own streams are untouched, and a port that does not
-unpack a disc prints nothing extra. The same phases are the stable operation-event
-ids `disc.identify`, `disc.plan`, `disc.free-space`, `disc.extract` (unit `bytes`,
-`completed` and `total`), `disc.verify` and `disc.activate`, delivered by core to a
-caller of `supervise_launch_observed`. `exec` rejects `--json` and `--jsonl`
-because it inherits the game's streams, so these events are not JSONL output of
-any CLI command, and the Desktop launch supervisor does not yet forward them
-(issue #4959). Stable error codes (`failure.code` in structured errors) are
+unpack a disc prints nothing extra. The same phases are the stable operation-event ids `disc.identify`, `disc.plan`,
+`disc.free-space`, `disc.extract` (unit `bytes`, `completed` and `total`, reported
+when the whole percent changes) and `disc.verify`, `disc.activate`, followed by a
+closing `launch` step once preparation is done, delivered by core to a caller of
+`supervise_launch_observed`. Ports that do not unpack a disc emit none of them.
+
+Desktop receives the same events. Its launch supervisor runs in a separate process,
+so that process leaves the latest event in an ephemeral
+`launch-requests/<request id>.progress.json` beside the request and response files
+(reporting only, never a launch decision), and Desktop's launch observer relays each
+newer event as the ordinary operation event for that launch, which the Activity view
+shows as "Checking your disc image", "Reading the disc contents", "Checking free
+space", "Unpacking game files" with bytes completed, "Verifying game files" and
+"Finishing game file setup". The closing `launch` step replaces the last unpacking
+step so it is not shown while the game runs.
+
+The CLI offers no JSONL form of these events. `exec` rejects `--json` and `--jsonl`
+because it inherits the game's streams, and no other command prepares a port for
+launch (`launch show` and `launch recover` only report on or recover existing
+sessions), so adding a JSONL command would only duplicate `exec`. Stable error codes (`failure.code` in structured errors) are
 `disc_image_unsupported`, `disc_image_limit`, `disc_product_mismatch` (details
 `found` and `expected`) and `disc_space_insufficient` (details `required_bytes` and
 `available_bytes`). A wrong game is refused before any extraction, and a failure or
@@ -1116,15 +1176,16 @@ a client. A reviewed catalog cover can resolve
 as the default for a mapped cover slot through the fixed IGDB image CDN path.
 The CLI does not search IGDB through these local-choice commands.
 
-API 67 also advertises optional `artwork_handoff_schema: 1`, `artwork.handoff`
-and `artwork.handoff-bytes`. These read-only destination observations export
+API 67 also advertises optional `artwork_handoff_schema` (currently 2),
+`artwork.handoff` and `artwork.handoff-bytes`. These read-only destination observations export
 semantic role, exact library/port/choice revision, accepted source provenance and
 availability; the bytes route additionally requires the observed library ID,
-revision and asset digest. V1 returns only validated durable local Cover originals
-as portrait bytes. Catalog defaults and unprovided landscape/hero roles remain
-explicitly unavailable, without provider requests or disposable-cache export.
+revision and asset digest. Validated durable local Cover originals provide
+portrait bytes, and a Detail original displayed wider than tall provides hero-banner
+bytes. Catalog defaults, a non-wide Detail image and the unprovided landscape role
+remain explicitly unavailable, without provider requests or disposable-cache export.
 See the [destination contract](INTEGRATION-AUTHOR.md#destination-artwork-handoff)
-for commands, strict v1 schemas, byte validation and destination preview obligations.
+for commands, strict schemas, byte validation and destination preview obligations.
 
 ## Export and restore a library
 
@@ -1658,8 +1719,13 @@ portcove --library PATH --json profile install-package PORT_ID PROFILE_ID FILE -
 portcove --library PATH --json profile set-package PORT_ID PROFILE_ID NATIVE_ID on|off --expected-revision N
 portcove --library PATH --json profile activate PORT_ID PROFILE_ID
 portcove --library PATH --json profile live PORT_ID
+portcove --library PATH --json profile setups PORT_ID
 portcove --library PATH --json profile revise PORT_ID PROFILE_ID REQUEST.json
 ```
+
+`setups` is read-only and reports in one result whether the game has reviewed mod
+support (`supported`), the package types it loads, its profiles and what is live
+now; Desktop's Setups and mods view reads the same result.
 
 `ensure-default` gives an installed port its equivalent default profile and is safe
 to repeat; a player with one setup needs nothing else. `copy` starts a new profile
@@ -1671,8 +1737,9 @@ its bytes by SHA-256, records a new revision and, for the selected profile, depl
 it into the port's `mods` folder. It refuses traversal, absolute or backslash paths,
 case aliases, device names, links, encrypted entries, oversized declared sizes,
 archives carrying executable files and unsupported package types. Only ports with a
-reviewed mod contract accept packages (currently Ship of Harkinian `.o2r`/`.otr`);
-others return `unsupported`. A computed digest establishes bytes, not publisher
+reviewed mod contract accept packages (currently Ship of Harkinian `.o2r`/`.otr`
+and [Zelda 64: Recompiled](#zelda-64-recompiled-mods) `.nrm`); others return
+`unsupported`. A computed digest establishes bytes, not publisher
 authenticity.
 
 Only files the selected revision installed are ever changed. Unknown files in `mods`
@@ -1684,6 +1751,85 @@ merging or losing either profile's data. Until launch (or an immediate refresh o
 the installed build) has restored the new live data, collection is suspended so a
 stale build copy can never overwrite the selected profile or resurrect a disabled
 mod.
+
+### The game's own mod list
+
+Ship of Harkinian keeps its enabled mods and their order in the
+`gSettings.EnabledMods` entry of `shipofharkinian.json`, naming each mod by its file
+name without the extension. At startup it enables every `.o2r`/`.otr` in `mods` that
+the list does not name, so a disabled package must be absent from the folder (which
+Portcove ensures) and the profile's order takes effect only when written into the
+list. Portcove writes that entry from the selected revision after every change,
+switch and before each launch, keeping every other key in the file. The
+`asset-override` order is the list order; the game adds archives in that order and
+the last one providing an asset wins. Only the profile's own entries are rewritten:
+entries for mods the player placed in `mods` themselves keep their positions.
+Installing a package the game would load as an installed mod (the same name without
+extension, ignoring case, such as `HD Link.o2r` for `HD Link.otr`) replaces it and
+keeps its place in the order; `provider-plan` reports it under `replaces`. Two such
+packages in one provider file, and names containing `|<>"?*`, are refused before
+anything is authorized. A revision the game could not load unambiguously is refused
+when it is created, including a new profile from a recipe (whose plan holds it), and
+a switch to an older revision with such packages refuses before anything is parked.
+
+`profile live` reports `native_list`: `in-sync`, `not-written`, `reordered`,
+`differs` (with `missing` and `unexpected` names) or `unreadable`. A reorder made in
+the game's mod menu (the same mods in another order) is kept as the profile's next
+revision when supervised play ends (or, if that cannot be recorded, at the next
+profile change or launch). A revision created this way changes only the order, so
+an install, a mod turned on or off, or a provider plan reviewed against the earlier
+revision still applies; any other newer revision makes it refuse. Any other difference among the profile's own entries, such as a mod
+disabled in the game's menu (which the game would re-enable at its next start), is
+reported and rewritten from the revision before the next launch. An unreadable or
+unexpectedly shaped configuration is never rewritten: the game itself discards a
+configuration it cannot parse.
+
+These behaviors come from Shipwright 9.2.3 (`cb71e22a`) and 9.3.1 (`f0599f96`)
+and libultraship (`fdcaf633`) source; they have not yet been observed in a running
+game. The catalog follows the latest Shipwright release, so a change to this list
+upstream needs a new review.
+
+### Zelda 64: Recompiled mods
+
+`zelda64-recomp` uses the same profile commands with a second, different loader:
+the Recomp runtime's `.nrm` packages (a zip with a `mod.json` manifest). Portcove
+reads the manifest without running anything and names the mod by its manifest mod
+ID, not its file name: the package is stored and placed in `mods` as
+`<mod ID>.nrm`, so a renamed download is still the same mod, and installing a
+package with an installed mod's ID replaces it. An ID that some supported system
+cannot use as a file name (a device name such as `NUL`, or one too long) is refused
+before anything is stored. The manifest's version is recorded with the package.
+
+Only mods that change assets are installed. A package that carries recompiled
+code, host libraries or other executable files, or that names another game, is
+refused with nothing recorded; running mod code needs its own review first.
+
+Required dependencies become package requirements. A mod needing a mod that is not
+installed is refused until that mod is installed, and a mod that is on cannot be
+left on while a mod it needs is turned off; turn the dependent mod off first.
+Dependencies on mods built into the runtime (`mm_recomp_dpad_builtin`) and the
+special `.` (the mod itself) and `*` (the runtime) entries need no package. Minimum
+dependency and runtime versions are left to the runtime, which reports them when
+the game starts; Portcove does not check them yet.
+
+The runtime keeps enabled mods and their load order in `mods.json`
+(`enabled_mods` and `mod_order`, by mod ID). Portcove writes the profile's enabled
+mods and order there after every change, switch and before each launch, keeping
+other keys and entries the player owns, such as the built-in mod or their own
+mods, in place with their state. `mods.json` is one of the port's persistent
+paths, so each profile keeps its own. `profile live` reports `native_list` as for
+Ship of Harkinian: a reorder in the runtime's menu is kept as the profile's next
+revision, and a profile mod turned off in the menu is reported and turned on again
+before the next launch. Turning a mod off in Portcove removes its file. The order
+is kept, but which of two mods changing the same asset wins is not established, so
+`profile setups` reports `later_mods_take_priority: false` and Desktop says only
+that mods load in this order.
+
+These behaviors come from Zelda64Recomp `54950a10`, N64ModernRuntime `df7e820d`
+and N64Recomp `c1a6dc93` source; they have not been observed in a running game.
+Whether the runtime falls back to `mods.json.bak` when `mods.json` is missing or
+unreadable is not established; Portcove reads and writes only `mods.json`, and both
+files are kept with each profile.
 
 ### Installing from GameBanana
 
@@ -1713,14 +1859,88 @@ resolved by name; an outage reports `unavailable`, never "no update".
 
 `provider-apply` takes the saved plan and its `plan_sha256`, asks for confirmation
 (or `--yes`), and installs exactly the reviewed bytes under a one-use authorization.
-Altered staged bytes, a tampered plan or a newer profile revision refuse without
-changing anything. Reviewed-but-unapplied staging is removed after a day.
+Altered staged bytes, a tampered plan or a newer profile revision that changed more
+than the mod order refuse without changing anything. Reviewed-but-unapplied staging is removed after a day.
+
+### Recipes
+
+```text
+portcove --library PATH --json profile recipe-export PORT_ID PROFILE_ID [--revision N] > recipe.json
+portcove --library PATH --json profile recipe-inspect recipe.json
+portcove --library PATH --json profile recipe-plan recipe.json
+portcove --library PATH --json profile recipe-apply recipe.json --name NAME --expected-plan SHA256 --yes
+```
+
+A recipe (`format` 1) records a profile revision's identity: runtime artifact,
+runtime and definition identities, original inputs by content digest, packages with
+their provider coordinates, enabled state, dependency requirements and typed
+orderings. It never contains original game files, credentials, private machine
+paths, local profile or install IDs, saves or settings, and always lists what it
+cannot reproduce. A recipe is untrusted data and grants no URL, path, script,
+acquisition or execution authority.
+
+`recipe-inspect` is local: no provider account, no network, bounded to 256 KiB. It
+refuses unknown fields at any depth, duplicate keys, an unsupported future format, a
+forged identity digest, unsafe package names, missing dependencies and dependency
+cycles. Export applies the same rules, so a profile with, for example, an enabled
+package whose requirement is disabled must be fixed before it can be shared; the
+refusal names the reason.
+`recipe-plan` reports each input as `available`, `acquirable` or `unavailable`.
+`acquirable` means a complete GameBanana file reference for a game with a reviewed
+binding; its detail names the project and file to review with `provider-plan`. Any
+other provider reference is `unavailable`. The plan holds for a different platform, a missing
+runtime, an original requirement the game does not use, an
+unregistered or different original, or package bytes not in the store.
+`recipe-apply` works only when every input is already present, requires the reviewed
+`plan_sha256`, asks for confirmation, recomputes the plan under the port lock and
+creates a new profile with its own save group. A recipe's provider labels are
+unverified claims: the new profile keeps a label only when this library recorded
+exactly that label for the same bytes and file name, so update checks never follow
+a label the recipe supplied. The plan says when a label is not kept; dropping one
+changes the identity of a later export. Otherwise a round trip reproduces the
+recipe's identity exactly; that is not evidence of gameplay or save compatibility.
+
+#### Unattended updates
+
+`profile policy PORT_ID PROFILE_ID automatic-eligible` lets the standing pass
+(`games setup-ready`) install a newer GameBanana file for that setup without asking
+again. Desktop runs the same pass only while at least one game is set to install
+when ready or a folder has automatic setup; otherwise run `games setup-ready`. Setups with the other policies
+(`review-updates`, the default, and `keep-current`) are never contacted. The policy
+is consent, not authorization: each pass checks for updates again, plans the newer
+file with the same checks as `provider-plan`, and authorizes and applies that exact
+plan at once.
+
+Updates are decided per installed provider file. One is applied only when the
+observation is current, the provider offers exactly one newer file, every mod from
+the installed file is on, the newer file contains exactly the same mods, and no
+asset that two enabled mods both change gets a different winner (an overlap that
+already exists and stays the same does not hold an update). Several newer files, a
+mod that is off and an obsolete project are held before anything is downloaded.
+Results are reported in `mod_updates`, one per installed file:
+
+- `applied`: the newer file is the setup's next revision. The earlier revision,
+  with the earlier file, stays recoverable; saves and settings are not touched.
+- `held`: it needs the player's review (for example the newer file adds or drops a
+  mod, or changes which mod wins an asset); nothing changed and its staging is
+  discarded. A hold found by comparing the newer file with the setup is remembered
+  for that setup revision and candidate file, so it is not downloaded again until
+  either changes.
+- `deferred`: something temporary, such as the game running, another change in
+  progress, or files in the live `mods` folder the setup did not add, prevented it;
+  this is checked before downloading, and the next pass tries again.
+- `unavailable`: whether an update exists could not be established; never reported
+  as "no update".
+
+Whether a newer file suits the setup's game build is not assessed by the provider
+or by Portcove (UNKNOWN). Desktop refreshes after an applied update but does not yet
+show held, deferred or unavailable updates; `games setup-ready` lists them.
 
 Library metadata schema 6 carries profiles, revisions and the selected profile; it is
 emitted only when profiles exist and import validates each profile against its
 retained reference before writing. Precedence between packages that provide the same
-asset path (`asset-override` ordering) follows the supplied order, last wins; this
-is an unverified loader assumption until confirmed against the real loader.
+asset path (`asset-override` ordering) follows the supplied order, last wins (see
+[the game's own mod list](#the-games-own-mod-list)).
 
 ## Retained builds and setup references
 
@@ -1905,6 +2125,42 @@ first entry per repository, while Portcove lists each distinct folder. Desktop
 offers the same read-only list in **Copy an existing installation** under
 **Moving from GitHub Launcher or Quiver?**; choosing an app opens that dialog's
 ordinary copy review for its folder, one app at a time.
+
+### Copy several launcher apps at once
+
+`launcher-library adopt` reviews several matched apps as one batch and copies
+them after one confirmation:
+
+```text
+portcove launcher-library adopt --launcher quiver DATA_ROOT
+portcove --json --non-interactive launcher-library adopt --launcher github-launcher DATA_ROOT --app "Game A" --app "Game B" --yes
+```
+
+Without `--app`, the batch holds every `ready-to-review` app, leaving out one
+that repeats a folder or game already in the batch (human output names it so
+it can be copied separately with `--app`; JSON output does not list it); an app that cannot be reviewed refuses the whole batch, so
+name the others with `--app`. `--app` selects by
+launcher name or folder name (ignoring `duplicate` entries) and refuses an unknown, ambiguous or not-ready
+app. A batch holds at most 32 installations, each folder once and each game
+once. The review is the ordinary adoption review of every app, shown together:
+files, size, managed destination, the current active version that stays
+installed, saved files copied in (and, when Portcove already holds saved files
+for that game, that matching ones are replaced with no backup first), and
+unsupported items left in the original. One consent binds the reviewed
+`batch_sha256`. The human output shows this review before asking; like `adopt`,
+JSON output with `--yes` confirms without printing it, so JSON callers should
+inspect the apps first with `launcher-library inspect`.
+
+After consent, each app is reviewed again just before it is copied. An app whose
+folder or destination changed is reported `changed` and not copied; an app
+whose ordinary adoption fails is reported `failed`. Each copy is the same
+journaled adoption as `adopt`, so other apps are unaffected and interrupted
+work follows the ordinary adoption recovery. The `launcher-library.adopt`
+result (`adoption_batch_result`) lists every app's outcome. Originals and the
+launcher's files are never modified. The command succeeds when the batch ran,
+even if some apps were not copied; each app's `outcome` is authoritative. Copied
+apps stay listed as ready, so review the rest by naming them with `--app`; the
+human result prints that command.
 
 ## Reviewed first installation
 

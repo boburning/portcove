@@ -1,34 +1,33 @@
+import type { TFunction } from "i18next";
 import { useEffect, useId, useRef, useState } from "react";
+import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
 import type { PortIntent, PortIntentMode } from "../types";
+import { useAppTranslation } from "../localization";
 import { errorText } from "../view-model";
 import { Button } from "./ui/button";
 import { requestStandingSetup } from "../features/game-file-discovery/use-standing-setup";
 
-const choices: { mode: PortIntentMode; label: string; detail: string }[] = [
-  {
-    mode: "discover_only",
-    label: "Only show it in discovery",
-    detail: "Portcove doesn't notify you about this game or install it.",
-  },
-  {
-    mode: "notify",
-    label: "Tell me when it's ready",
-    detail:
-      "Portcove tells you when it can be installed, and again only if its setup changes. Nothing is installed.",
-  },
-  {
-    mode: "set_up_when_ready",
-    label: "Set it up when it's ready",
-    detail:
-      "Portcove installs it without asking again once its files and requirements are ready. It never starts the game. Choose another option to stop.",
-  },
-  {
-    mode: "ignored",
-    label: "Ignore this game",
-    detail: "Portcove doesn't suggest, notify about or set up this game.",
-  },
+const choices: readonly PortIntentMode[] = [
+  "discover_only",
+  "notify",
+  "set_up_when_ready",
+  "ignored",
 ];
+
+/** Each choice's label and explanation by static key, so extraction keeps every form. */
+function choiceCopy(t: TFunction<"gameFiles">, mode: PortIntentMode) {
+  switch (mode) {
+    case "discover_only":
+      return { label: t("intent.discoverOnly.label"), detail: t("intent.discoverOnly.detail") };
+    case "notify":
+      return { label: t("intent.notify.label"), detail: t("intent.notify.detail") };
+    case "set_up_when_ready":
+      return { label: t("intent.setUpWhenReady.label"), detail: t("intent.setUpWhenReady.detail") };
+    case "ignored":
+      return { label: t("intent.ignored.label"), detail: t("intent.ignored.detail") };
+  }
+}
 
 /**
  * The player's remembered choice for one game. Core stores it and decides
@@ -43,6 +42,7 @@ export function SetupIntentChoice({
   generation: number;
   installed?: boolean | undefined;
 }) {
+  const { t } = useAppTranslation("gameFiles");
   const name = useId();
   const [intent, setIntent] = useState<PortIntent>();
   const [loaded, setLoaded] = useState(false);
@@ -85,36 +85,35 @@ export function SetupIntentChoice({
 
   return (
     <fieldset className="mt-6 grid gap-2 text-sm" aria-busy={busy || !loaded}>
-      <legend className="text-base">When this game's files are ready</legend>
-      {choices.map((choice) => (
-        <label
-          key={choice.mode}
-          className="flex cursor-pointer items-start gap-3"
-          aria-label={choice.label}
-        >
-          <input
-            aria-describedby={`${name}-${choice.mode}`}
-            type="radio"
-            name={name}
-            value={choice.mode}
-            checked={current === choice.mode}
-            disabled={!loaded || busy}
-            onChange={() => void choose(choice.mode)}
-          />
-          <span>
-            <strong>{choice.label}</strong>
-            <span id={`${name}-${choice.mode}`} className="block text-pc-muted-foreground">
-              {choice.detail}
+      <legend className="text-base">{t("intent.legend")}</legend>
+      {choices
+        .map((mode) => ({ mode, ...choiceCopy(t, mode) }))
+        .map((choice) => (
+          <label
+            key={choice.mode}
+            className="flex cursor-pointer items-start gap-3"
+            aria-label={choice.label}
+          >
+            <input
+              aria-describedby={`${name}-${choice.mode}`}
+              type="radio"
+              name={name}
+              value={choice.mode}
+              checked={current === choice.mode}
+              disabled={!loaded || busy}
+              onChange={() => void choose(choice.mode)}
+            />
+            <span>
+              <strong>{choice.label}</strong>
+              <span id={`${name}-${choice.mode}`} className="block text-pc-muted-foreground">
+                {choice.detail}
+              </span>
             </span>
-          </span>
-        </label>
-      ))}
+          </label>
+        ))}
       {intent?.explicitly_uninstalled_at && !installed && (
         <div>
-          <p>
-            You uninstalled this game, so Portcove won't set it up or notify you about it until you
-            choose an option again.
-          </p>
+          <p>{t("intent.uninstalled")}</p>
           {current !== "discover_only" && current !== "ignored" && (
             <Button
               data-focusable
@@ -122,15 +121,19 @@ export function SetupIntentChoice({
               disabled={busy}
               onClick={() => void choose(current)}
             >
-              Use “{choices.find((choice) => choice.mode === current)?.label}” again
+              {t("intent.useAgain", { choice: choiceCopy(t, current).label })}
             </Button>
           )}
         </div>
       )}
       {intent?.failure && (
         <p>
-          The last automatic setup didn't finish: {intent.failure}. Portcove tries again when the
-          game's files, catalog or requirements change.
+          {/* Core's failure text is exact, never interpolated. */}
+          <Trans
+            t={t}
+            i18nKey="intent.failed"
+            components={{ reason: <bdi>{intent.failure}</bdi> }}
+          />
         </p>
       )}
       {error && <p role="alert">{error}</p>}

@@ -876,6 +876,51 @@ pub(crate) fn library_membership_outcomes(
     lines.join("\n")
 }
 
+/// Combined downloads and space for the ready games, per volume.
+fn install_batch_capacity(capacity: &portcove_core::InstallBatchCapacity) -> Vec<String> {
+    let mut lines = Vec::new();
+    if capacity.download_bytes > 0 {
+        lines.push(format!(
+            "Downloads together: {}.",
+            format_bytes(capacity.download_bytes)
+        ));
+    }
+    for volume in &capacity.volumes {
+        let available = volume
+            .available_bytes
+            .map(|bytes| format!("{} free", format_bytes(bytes)))
+            .unwrap_or_else(|| "free space unknown".to_owned());
+        let verdict = match volume.sufficient {
+            Some(true) => "enough room for all of them",
+            Some(false) => "not enough room for all of them; later games may stop for space",
+            None => "each game is checked for space before it runs",
+        };
+        lines.push(format!(
+            "Space on {}: {} needed for {} ({available}) - {verdict}.",
+            clean(&volume.path.display().to_string()),
+            format_bytes(volume.required_bytes),
+            volume
+                .port_ids
+                .iter()
+                .map(|port_id| clean(port_id))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
+    if !capacity.unknown_space.is_empty() {
+        lines.push(format!(
+            "Space needed is unknown for {}; each is checked before it runs.",
+            capacity
+                .unknown_space
+                .iter()
+                .map(|port_id| clean(port_id))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
+    lines
+}
+
 pub(crate) fn install_batch_review(review: &portcove_core::InstallBatchReview) -> String {
     let mut ready = Vec::new();
     let mut lines = Vec::new();
@@ -897,6 +942,7 @@ pub(crate) fn install_batch_review(review: &portcove_core::InstallBatchReview) -
             (None, None) => lines.push(format!("{}: waiting", clean(&item.port_id))),
         }
     }
+    lines.extend(install_batch_capacity(&review.capacity));
     if ready.is_empty() {
         lines.push("No game in this review can install yet. Nothing was changed.".to_owned());
     } else {
@@ -977,7 +1023,44 @@ pub(crate) fn port_intent(intent: &portcove_core::PortIntent) -> String {
 fn port_readiness_line(assessment: &portcove_core::PortIntentAssessment) -> String {
     use portcove_core::PortReadiness;
     let state = match &assessment.readiness {
-        PortReadiness::Installed { .. } => "installed".to_owned(),
+        PortReadiness::Installed { maintenance, .. } => match maintenance {
+            Some(maintenance) => {
+                let mut text = format!(
+                    "installed {} ({} channel, updates: {})",
+                    clean(&maintenance.active_version),
+                    maintenance.channel,
+                    maintenance.update_policy
+                );
+                if maintenance.busy {
+                    text.push_str(
+                        "; busy until the running game or earlier work finishes or recovers",
+                    );
+                }
+                if let Some(previous) = &maintenance.previous_version {
+                    text.push_str(&format!(
+                        "; keeps {} as the previous version",
+                        clean(previous)
+                    ));
+                }
+                if let Some(staged) = &maintenance.staged_version {
+                    text.push_str(&format!("; {} is staged", clean(staged)));
+                }
+                match (&maintenance.available_version, maintenance.checked_at) {
+                    (Some(available), _) => {
+                        text.push_str(&format!("; update {} available", clean(available)))
+                    }
+                    (None, Some(_)) if maintenance.staged_version.is_some() => {
+                        text.push_str("; the staged version is ready to apply")
+                    }
+                    (None, Some(_)) => text.push_str("; up to date at the last check"),
+                    (None, None) => {
+                        text.push_str("; updates not checked for this version and channel yet")
+                    }
+                }
+                text
+            }
+            None => "installed".to_owned(),
+        },
         PortReadiness::Ready {
             version,
             plan_sha256,
@@ -1054,6 +1137,47 @@ pub(crate) fn standing_setup(value: &portcove_core::StandingSetupResult) -> Stri
                 .unwrap_or_default(),
             clean(&waiting.reason)
         ));
+    }
+    for update in &value.mod_updates {
+        let subject = if update.native_ids.is_empty() {
+            format!("{} {}", clean(&update.port_id), clean(&update.profile_name))
+        } else {
+            format!(
+                "{} {} ({})",
+                clean(&update.port_id),
+                clean(&update.profile_name),
+                update
+                    .native_ids
+                    .iter()
+                    .map(|name| clean(name))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        };
+        lines.push(match &update.outcome {
+            portcove_core::ProviderAutoUpdateOutcome::Applied { file_id, .. } => format!(
+                "{subject}: updated to GameBanana file {}; the earlier version stays recoverable",
+                clean(file_id)
+            ),
+            portcove_core::ProviderAutoUpdateOutcome::Held { reason } => {
+                format!(
+                    "{subject}: a mod update waits for your review - {}",
+                    clean(reason)
+                )
+            }
+            portcove_core::ProviderAutoUpdateOutcome::Deferred { reason } => {
+                format!(
+                    "{subject}: a mod update will be tried again later - {}",
+                    clean(reason)
+                )
+            }
+            portcove_core::ProviderAutoUpdateOutcome::Unavailable { reason } => {
+                format!(
+                    "{subject}: couldn't check for mod updates - {}",
+                    clean(reason)
+                )
+            }
+        });
     }
     if value.not_assessed > 0 {
         lines.push(format!(

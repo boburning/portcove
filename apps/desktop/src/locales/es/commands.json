@@ -1,0 +1,12 @@
+{
+  "palette": {
+    "available": "Comandos disponibles",
+    "empty": "No hay comandos disponibles.",
+    "noMatch": "Ningún comando coincide con «<query/>».",
+    "placeholder": "Buscar acciones y navegación",
+    "quickActions": "Acciones rápidas",
+    "results": "Resultados de búsqueda",
+    "search": "Buscar comandos",
+    "title": "Comandos de Portcove"
+  }
+}

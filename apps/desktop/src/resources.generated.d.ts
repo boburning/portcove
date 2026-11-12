@@ -197,6 +197,244 @@ export default interface Resources {
       "waitingRestartTitle": "Update requested. Waiting for Portcove to restart."
     }
   },
+  "backups": {
+    "automaticSnapshots": {
+      "control": "Snapshot saved data before each version change",
+      "description": "Before an update installs, a saved update is activated, or you restore a previous version, Portcove copies a game’s managed saves and settings so you can restore them if the new version misreads them. It skips games whose saves live outside Portcove and games with no saved data yet, and if a snapshot cannot be taken the version change stops. Portcove keeps the newest five automatic snapshots for each game and never removes the ones you take yourself. This applies to every game in this library, starting with the next version change.",
+      "heading": "Snapshot saved data before version changes",
+      "readFailed": "The setting could not be read.",
+      "retry": "Try again",
+      "saveFailed": "The setting could not be saved."
+    },
+    "details": {
+      "catalogId": "Catalog ID: {{id}}",
+      "dataFolder": "Saved-data folder",
+      "deleteInterrupted": "An interrupted deletion may finish when you reopen this library. Cancellation does not restore a deleted backup.",
+      "deleteIrreversible": "This snapshot cannot be recovered after deletion. No safety copy of the deleted snapshot is created.",
+      "deletePreserved": "Current saved data, other backups and installed game versions are preserved.",
+      "deleteRuntimeCopy": "This also permanently deletes the retained Ghostship 3.0.0 runtime saves/settings copy stored with this backup.",
+      "heading": "{{name}} · {{time}}",
+      "label": "Backup changes and preserved data",
+      "noSafetyBackup": "There is no current saved data to back up. A safety backup will not be created.",
+      "restoreInterrupted": "If interrupted, Portcove retains recovery data and checks the restore when the library reopens. Review any recovery notice before another restore.",
+      "restoreResult": "The saved-data folder will contain this snapshot's data. The selected backup, other backups and installed game versions are preserved.",
+      "restoreStopped": "The game must be stopped. If its data changes after this review, review again before restoring.",
+      "safetyBackup": "Portcove will back up the current saved data before replacing it. Restore that safety backup to return to the previous data.",
+      "selectedBackup": "Selected backup",
+      "summary_one": "{{count}} file · {{size}}",
+      "summary_other": "{{count}} files · {{size}}"
+    },
+    "history": {
+      "checksum": "SHA-256 {{sha256}}",
+      "deleteLabel": "Delete backup from {{time}}",
+      "description": "Backups include saves and settings managed by Portcove.",
+      "empty": "No backups yet",
+      "emptyDescription": "A backup will appear here after you back up this installation’s managed saves and settings.",
+      "loadFailed": "Backup history could not be loaded",
+      "loading": "Loading backup history",
+      "notLoadedYet": "The backup list has not been loaded yet.",
+      "refresh": "Refresh backup history",
+      "refreshing": "Refreshing backup history",
+      "restore": "Restore",
+      "retry": "Retry backup history",
+      "rowDetailsLabel": "Technical details for backup from {{time}}",
+      "showOlder_one": "Show {{count}} older",
+      "showOlder_other": "Show {{count}} older",
+      "showRecent": "Show recent only",
+      "showingLastStale": "Showing the last loaded backup list. It may have changed since it was read.",
+      "showingLastWhileChecking": "Showing the last loaded backup list while the current list is checked.",
+      "technicalDetails": "Technical details",
+      "title": "Backups",
+      "unknownRetry": "The backup list is unknown. Retry to read it again."
+    },
+    "notice": {
+      "attentionTitle": "Some backups need attention",
+      "listedAvailability": "Available backups remain listed. Review the current restore availability below.",
+      "listedRecoveryAll": "Available backups remain listed, but restoring and deleting require recovery to finish.",
+      "listedRecoveryRestore": "Available backups remain listed, but restoring requires recovery to finish.",
+      "listedReview": "Available backups remain listed. Review a backup before restoring it.",
+      "nextSteps": "What to do next",
+      "noneAvailable": "No backup is currently available to restore.",
+      "noneAvailableReview": "No backup is currently available to restore. Review the problems below.",
+      "notFullyChecked": "The backup inventory could not be fully checked.",
+      "problemAction": "{{label}}: {{action}}",
+      "recoveryAction": "Restart Portcove, then check your backups again. If recovery still needs attention, review diagnostics in Settings → Advanced.",
+      "recoveryTitle": "Backup recovery required",
+      "unavailableEntries_one": "{{count}} backup entry is unavailable.",
+      "unavailableEntries_other": "{{count}} backup entries are unavailable."
+    },
+    "problem": {
+      "identityMismatch": "Identity mismatch",
+      "malformedManifest": "Malformed manifest",
+      "missingManifest": "Missing manifest",
+      "recoveryRequired": "Recovery required",
+      "unknown": "Backup information unavailable",
+      "unreadableManifest": "Unreadable manifest",
+      "unsupportedEntry": "Unsupported entry"
+    },
+    "protection": {
+      "backupCheckDetails": "Backup check details",
+      "backupIdentifier": "Backup identifier",
+      "candidate": "<code/> · {{state}}",
+      "checking": "Checking backup information. Previously loaded information may be out of date.",
+      "collectionDirect": "This installation writes saves and settings directly to Portcove’s folder. They’re checked before a new backup is made.",
+      "collectionExternal": "Portcove won’t collect saves from this installation’s folder",
+      "collectionInactive": "This version isn’t in use. New backups won’t collect files from its installation folder.",
+      "collectionNotInitialized": "Portcove hasn’t selected files to copy from this installation yet. Files already in Portcove’s saves and settings folder may still be backed up.",
+      "collectionSelected": "These files may be included in the next backup. They’ll be checked before copying.",
+      "collectionUnavailable": "Portcove couldn’t confirm which files this installation can add to a new backup.",
+      "definition": "Definition <code/>",
+      "detailsMissing": "Protection details for this installation aren’t available in the loaded backup information. Refresh backup history to check again.",
+      "filesConsidered": "Files considered for backup",
+      "foundAt": "Where these files were found: <code/>",
+      "foundNotBackedUp": "Finding these files does not mean they’ve been backed up or checked.",
+      "headingActive": "Current version · {{version}}",
+      "headingExternal": "Installation you maintain · {{version}}",
+      "headingPrevious": "Previous version · {{version}}",
+      "headingStaged": "Prepared version · {{version}}",
+      "historyIncomplete": "We couldn’t confirm a completed backup because the history is incomplete.",
+      "installationCheckDetails": "Installation check details",
+      "installationProblem": "Some installation information couldn’t be loaded. Check the details and refresh backup history.",
+      "lastKnownBackup_one": "Last known completed backup: {{time}} · {{count}} file. Backup history is shared across this port’s installed versions. Choose Restore in Backup history to review the files before confirming. Another version may not be able to use these saves.",
+      "lastKnownBackup_other": "Last known completed backup: {{time}} · {{count}} files. Backup history is shared across this port’s installed versions. Choose Restore in Backup history to review the files before confirming. Another version may not be able to use these saves.",
+      "lastLoadedInformation": "Last loaded backup information",
+      "latestBackup_one": "Latest completed backup: {{time}} · {{count}} file. Backup history is shared across this port’s installed versions. Choose Restore in Backup history to review the files before confirming. Another version may not be able to use these saves.",
+      "latestBackup_other": "Latest completed backup: {{time}} · {{count}} files. Backup history is shared across this port’s installed versions. Choose Restore in Backup history to review the files before confirming. Another version may not be able to use these saves.",
+      "latestInformation": "Latest backup information",
+      "loadFailed": "We couldn’t load backup information. Previously loaded information may be out of date. Refresh backup history before continuing.",
+      "noCompletedBackup": "No completed backup recorded.",
+      "noCompletedBackupLastLoaded": "No completed backup was listed when backup history was last loaded.",
+      "noInstallation": "No installation is recorded. Choose an installation to see who handles updates.",
+      "noListedFiles": "No files in this installation folder are listed for backup.",
+      "pathMissing": "Not found",
+      "pathPresent": "Found",
+      "pathUnknown": "Status unavailable",
+      "pathUnreadable": "Couldn’t read",
+      "pathUnsafe": "Needs safety review",
+      "rulesCatalog": "Backup rules in the current catalog",
+      "rulesExternal": "Save and settings rules: You handle the external saves and settings. These are rules, not proof of backed-up saves.",
+      "rulesInstallation": "Backup rules for this installation",
+      "rulesPortcove": "Save and settings rules: Portcove manages the listed files. These are rules, not proof of backed-up saves.",
+      "rulesUnavailable": "Backup rules for this installation are unavailable. The current catalog can’t confirm what this installation backs up.",
+      "rulesUnavailableVersion": "Backup rules for this installation are unavailable. The current catalog may describe a different version, so it can’t confirm which files this copy uses.",
+      "rulesUnknown": "Save and settings rules: Coverage unknown. These are rules, not proof of backed-up saves.",
+      "savedFolder": "Saved-data folder: <code/> · {{state}}. This folder’s presence doesn’t mean its contents have been backed up.",
+      "title": "Backups and updates",
+      "unavailable": "Backup information is unavailable for this installation. Refresh backup history before continuing.",
+      "unconfirmedLatest": "We couldn’t confirm your latest completed backup. Refresh backup history before continuing.",
+      "updatesExternal": "Updates handled by: the game’s launcher or you.",
+      "updatesPortcove": "Updates handled by: Portcove."
+    },
+    "restore": {
+      "missingBackup": "No usable backup is currently available to restore.",
+      "recoveryRequired": "Restoring requires recovery to finish. Restart Portcove, then check your backups again. If recovery still needs attention, review diagnostics in Settings → Advanced.",
+      "unknownRefresh": "Restore eligibility is unknown. Refresh backup history before proceeding.",
+      "unknownUntilRead": "Restore eligibility is unknown until backup history is read again.",
+      "unreadableData": "Restore is on hold because Portcove’s managed saves folder could not be read.",
+      "unsafeData": "Restore is on hold. Review the backup and saves folder managed by Portcove."
+    },
+    "review": {
+      "applyDelete": "Delete this backup permanently",
+      "applyRestore": "Restore this backup",
+      "cancel": "Cancel",
+      "checking": "Checking the backup and current saved data…",
+      "deleting": "Deleting backup…",
+      "descriptionDelete": "Permanently delete only the selected backup.",
+      "descriptionRestore": "Replace this game’s current saved data with this backup.",
+      "failure": "The operation did not complete. Review the current backup and data before trying again.",
+      "restoring": "Restoring backup…",
+      "reviewAgain": "Review again",
+      "titleDelete": "Review backup deletion",
+      "titleRestore": "Review backup restore"
+    },
+    "summary": {
+      "count_one": "{{count}} backup",
+      "count_other": "{{count}} backups",
+      "lastLoadedEmpty": "Last-loaded backup list is empty",
+      "lastLoaded_one": "{{count}} last-loaded backup",
+      "lastLoaded_other": "{{count}} last-loaded backups",
+      "loading": "Loading backups",
+      "needsAttention": "Backups need attention",
+      "unavailable": "Backup history unavailable"
+    }
+  },
+  "browsing": {
+    "alternatives": {
+      "external": "External installation · <version/>",
+      "heading": "Other ports for this game ({{total}})",
+      "independence": "Each project keeps its own files and installation. Choosing one does not transfer saves or choose a release.",
+      "managed": "Managed installation · <version/>",
+      "notInstalled": "Not installed",
+      "originalFiles": "Original files: <files/>",
+      "originalFilesUnknown": "Original files: Check project setup instructions",
+      "runsOn": "Runs on: <platforms/>",
+      "runsOnUnknown": "Runs on: Not recorded",
+      "sourceEditions": "Source editions: <editions/>",
+      "stateUnavailable": "Installation state unavailable",
+      "view": "View <name/>",
+      "viewing": "<name/> · Viewing"
+    },
+    "hero": {
+      "continueLabel": "{{title}} recently played",
+      "credits": "Image credits",
+      "detailLabel": "{{title}} game details"
+    },
+    "implementation": {
+      "choose": "Choose <name/>",
+      "preferred": "Preferred: <name/>",
+      "refresh": "Refresh choices",
+      "unconfirmed": "Portcove couldn’t confirm that your choice was saved. Refresh choices to check."
+    },
+    "library": {
+      "allPorts_one": "All {{count, number}} port · {{matching, number}} matching",
+      "allPorts_other": "All {{count, number}} ports · {{matching, number}} matching",
+      "choiceFiltered": "Your preferred port is outside these filters. You can view matching ports below.",
+      "choiceReadFailed": "Your implementation choice could not be read. Existing installation actions remain available.",
+      "choiceStale": "Your chosen port is no longer in this game group. Choose a port from the list.",
+      "choosePrompt": "Choose the port to show for this game. Check its setup instructions for shared save locations before switching.",
+      "chosen": "<name/> · Your choice",
+      "chosenOutside": "<name/> · Your choice · Outside current filters",
+      "independence": "Choosing a project does not select a release, transfer saves or replace another installation.",
+      "outside": "<name/> · Outside current filters",
+      "portCount_one": "{{count, number}} port",
+      "portCount_other": "{{count, number}} ports",
+      "portsLabel": "{{title}} ports"
+    },
+    "maintenance": {
+      "offer": "Current managed offer",
+      "reconsider": "Reconsider when: <condition/>"
+    },
+    "match": {
+      "channelUnknown": "Channel unknown",
+      "choose": "Choose a version to inspect. Each choice matches all selected filters.",
+      "heading": "Matching versions for your filters",
+      "installedBuild": "Installed build",
+      "label": "Matching browsing contexts",
+      "lostChoice": "Your previous choice is no longer current. Choose a matching version to inspect.",
+      "methodUnknown": "Saved setup method unknown",
+      "noCheck": "No current game-file check for this version. Check again.",
+      "noDetails": "This game matches your filters. Version details are unavailable; Portcove checks requirements before setup or launch.",
+      "noLongerMatches": "This port no longer matches your filters.",
+      "platformUnknown": "Platform unknown",
+      "savedInstallation": "<method/>. This is your matching saved installation. Portcove checks the current requirements again before setup or launch.",
+      "setup": "Setup",
+      "setupOption": "<method/>. This setup option matches your filters. Portcove checks the current requirements again before setup or launch.",
+      "unavailable": "These filter results are unavailable. Return to Filters to update your choices or check again."
+    },
+    "observations": {
+      "available": "Update available at last check",
+      "channel": "Selected update channel: <channel/>",
+      "retired": "Retired upstream",
+      "staged": "Update saved for later",
+      "updateDetails": "Update details"
+    },
+    "search": {
+      "clear": "Clear search",
+      "discover": "Search Discover",
+      "library": "Search your library",
+      "placeholder": "Game or port name"
+    }
+  },
   "catalogUpdates": {
     "catalog": {
       "cancel": "Cancel catalog refresh",
@@ -320,6 +558,69 @@ export default interface Resources {
       "title": "Game listings"
     }
   },
+  "commands": {
+    "palette": {
+      "available": "Available commands",
+      "empty": "No commands are available.",
+      "noMatch": "No command matches “<query/>”.",
+      "placeholder": "Search actions and navigation",
+      "quickActions": "Quick actions",
+      "results": "Search results",
+      "search": "Search commands",
+      "title": "Portcove commands"
+    }
+  },
+  "common": {
+    "brand": {
+      "mascot": "Portcove crab mascot"
+    },
+    "browserFailed": "Couldn’t open the browser: <detail/>",
+    "close": "Close",
+    "failure": {
+      "clipboardUnavailable": "Clipboard unavailable. Select and copy the technical details below.",
+      "code": "Error code",
+      "copied": "Copied",
+      "copiedStatus": "Technical details copied.",
+      "copy": "Copy technical details",
+      "manualCopy": "Technical details for manual copy",
+      "message": "Message",
+      "outcome": {
+        "committed": "The change was saved. Check the result before trying again.",
+        "noChanges": "No files were changed by this operation.",
+        "notStarted": "This operation did not start.",
+        "recoveryRequired": "An earlier attempt left unfinished work. Review recovery options before trying again.",
+        "unknown": "Portcove couldn't confirm whether anything changed. Check the result before trying again."
+      },
+      "outcomeLabel": "Outcome",
+      "phase": "Phase",
+      "viewDetails": "View technical details"
+    },
+    "filter": {
+      "close": "Close choices",
+      "closeLabel": "Close {{label}} choices",
+      "summary": "{{label}}: {{value}}"
+    },
+    "gameSearch": {
+      "empty": "No game or port matches this search.",
+      "placeholder": "Search games and port projects…",
+      "show": "Show games and ports"
+    },
+    "navigation": {
+      "back": "<key/>: Back",
+      "gamepadBack": "Back button: Back",
+      "gamepadMenu": "Back button: Menu",
+      "gamepadMove": "D-pad or stick: Move",
+      "gamepadSection": "Shoulder buttons: Switch section",
+      "gamepadSelect": "Confirm button: Select",
+      "help": "Navigation help",
+      "menu": "<key/>: Menu",
+      "move": "<key/>: Move",
+      "select": "<key/>: Select",
+      "shortcuts": "Navigation shortcuts"
+    },
+    "setupWarnings": "Before you begin",
+    "taskUpdates": "Task updates"
+  },
   "counts": {
     "copiedFiles_one": "{{count, number}} file will be copied.",
     "copiedFiles_other": "{{count, number}} files will be copied.",
@@ -376,6 +677,282 @@ export default interface Resources {
     "updates_unknown": "Update count unavailable",
     "updates_zero": "No updates available"
   },
+  "gameFiles": {
+    "controls": {
+      "cancel": "Cancel game-file filter check",
+      "channel": "Channel",
+      "check": "Check game-file filters",
+      "checking": "Checking game-file filters…",
+      "description": "Check game files for this setup option, platform and channel. Changing filters alone does not scan files or install anything.",
+      "legend": "Game files to check",
+      "platform": "Platform",
+      "route": "Setup option"
+    },
+    "failure": {
+      "catalogMismatch": "The complete game-file observation no longer matches this context. Check again.",
+      "catalogTooLarge": "This catalog is too large to check all game files at once. Game-file filters are unavailable.",
+      "selectionMismatch": "The game-file observation no longer matches this selection. Check again."
+    },
+    "filterObservation": {
+      "completeSet": "Complete set: <identity/>",
+      "heading": "Game-file filter results",
+      "scope": "These results are used by catalog filters. Setup and launch perform their own checks."
+    },
+    "folderSetup": {
+      "chooseGame": "Choose a game",
+      "existingAndFuture": {
+        "detail": "Portcove installs each eligible game once its files and requirements are ready. It never starts a game.",
+        "label": "Set up eligible games already here and any added later"
+      },
+      "failed_one": "<game/> didn't finish setting up after {{count}} try: <reason/>. Portcove tries again when the game's files or setup change.",
+      "failed_other": "<game/> didn't finish setting up after {{count}} tries: <reason/>. Portcove tries again when the game's files or setup change.",
+      "futureOnly": {
+        "detail": "Portcove remembers every file in this folder now and leaves those games alone, even if it recognizes them later.",
+        "label": "Only set up games added later"
+      },
+      "legend": "Automatic setup from this folder",
+      "off": {
+        "detail": "Portcove only shows what it finds here.",
+        "label": "Don't set up games from this folder automatically"
+      },
+      "sharedFiles": "More than one game can use some files here. Choose which one to set up; until you do, Portcove waits."
+    },
+    "intent": {
+      "discoverOnly": {
+        "detail": "Portcove doesn't notify you about this game or install it.",
+        "label": "Only show it in discovery"
+      },
+      "failed": "The last automatic setup didn't finish: <reason/>. Portcove tries again when the game's files, catalog or requirements change.",
+      "ignored": {
+        "detail": "Portcove doesn't suggest, notify about or set up this game.",
+        "label": "Ignore this game"
+      },
+      "legend": "When this game's files are ready",
+      "notify": {
+        "detail": "Portcove tells you when it can be installed, and again only if its setup changes. Nothing is installed.",
+        "label": "Tell me when it's ready"
+      },
+      "setUpWhenReady": {
+        "detail": "Portcove installs it without asking again once its files and requirements are ready. It never starts the game. Choose another option to stop.",
+        "label": "Set it up when it's ready"
+      },
+      "uninstalled": "You uninstalled this game, so Portcove won't set it up or notify you about it until you choose an option again.",
+      "useAgain": "Use “{{choice}}” again"
+    },
+    "preliminary": {
+      "check": "Check these files",
+      "description": "These files are not exact matches. Validation has not run, and compatibility is not confirmed. Review a selection before deciding whether to save its location.",
+      "heading": "Preliminary selections",
+      "inconsistent": "Selection details are unavailable or inconsistent. Search again before reviewing this file.",
+      "label": "Preliminary game-file selections",
+      "notValidated": "Validation has not run."
+    },
+    "query": {
+      "cancel": "Cancel game-file check",
+      "channelScope": "Channel: <channel/>. This check observes connected files; setup and launch still require their own reviews and prerequisites.",
+      "check": "Check files for this option",
+      "checking": "Checking game files…",
+      "heading": "Game files for this setup or launch option",
+      "label": "Selected route game files",
+      "platform": "Target platform",
+      "route": "Setup or launch option"
+    },
+    "ready": {
+      "dismiss": "Dismiss <game/>",
+      "heading": "Ready for you",
+      "installable": "<game/> is ready to install.",
+      "label": "Games ready for you",
+      "reviewSetup": "Review <game/> setup",
+      "reviewUpdate": "Review <game/> update",
+      "update": "<game/> has an update available: <version/>. Nothing was downloaded or changed.",
+      "updateUnknownVersion": "<game/> has an update available: a newer version. Nothing was downloaded or changed."
+    },
+    "reason": {
+      "completeCompatibleObservation": "A complete set of compatible game files was found for this setup or launch option.",
+      "contractNotReviewed": "File requirements have not been reviewed for this setup or launch option.",
+      "explicitEmptyRequirements": "This action needs no files added to Portcove. The game may still ask for original files.",
+      "identityNotAdmitted": "These game files have not been accepted for this setup or launch option.",
+      "noConnectedRegistration": "No saved game-file location is connected for this setup or launch option.",
+      "observationStale": "The file-check result is out of date. Check again.",
+      "observationUnavailable": "No current file-check result is available.",
+      "profileContextChanged": "The selected game files or setup option changed. Check again.",
+      "releaseNotBound": "We haven’t confirmed whether this file-check result applies to the selected version.",
+      "routeNotOffered": "The selected route is not offered.",
+      "sourceNeedsChecking": "The connected files need checking.",
+      "storageAbsenceUnconfirmed": "Portcove could not confirm whether the files are present. They are not confirmed missing.",
+      "variantNotSupported": "The observed file variant does not match this route."
+    },
+    "route": {
+      "externalLaunch": "Existing installation launch",
+      "externalRegistration": "Existing installation setup",
+      "managedInstall": "Managed setup",
+      "managedLaunch": "Managed launch"
+    },
+    "state": {
+      "filesAvailable": "Compatible complete files available",
+      "filesMissing": "Files missing",
+      "needsChecking": "Needs checking",
+      "noFilesRequired": "No files to add in Portcove",
+      "unavailableContext": "Unavailable context"
+    },
+    "summary": {
+      "cancelled": "The latest check was cancelled. No current file check is available.",
+      "catalogHistory": "Catalog check history",
+      "catalogScope_one": "Catalog ({{count}} port)",
+      "catalogScope_other": "Catalog ({{count}} ports)",
+      "checkingCatalog": "Checking game files for the catalog…",
+      "checkingSelected": "Checking game files for this setup…",
+      "expired": "The file check expired. Check again.",
+      "expiredCatalog": "The previous file check expired. To check again, open Filters → Check game-file filters.",
+      "expiredSelected": "The previous file check expired. Use Check files for this option to check again.",
+      "failed": "The latest check failed. No current file check is available.",
+      "informationalCatalog": "The previous check is informational only. To check again, open Filters → Check game-file filters.",
+      "informationalSelected": "The previous check is informational only. Use Check files for this option to check again.",
+      "lastChecked": "Last checked: <time/>",
+      "missingCatalog": "Check game files before using game-file filters.",
+      "missingSelected": "No current game-file check for this selection. Check again.",
+      "previousCheck": "Previous check: <time/>",
+      "readyCatalog": "Game-file checks are ready to use in Filters.",
+      "readySelected": "Game-file check is current.",
+      "selectedHistory": "Selected-route check history",
+      "selectedScope": "Selected port",
+      "waiting": "Waiting for the previous check to finish."
+    }
+  },
+  "gameSettings": {
+    "control": {
+      "busy": "Finish the current operation before reviewing game settings.",
+      "heading": "Game settings",
+      "installationChanged": "This installation changed. Refresh its details before editing settings.",
+      "intro": "Check the settings offered by this installed version.",
+      "label": "Game settings",
+      "read": "Read game settings",
+      "reading": "Reading game settings…",
+      "reread": "Read settings again"
+    }
+  },
+  "gameUpdates": {
+    "channel": {
+      "beta": "Preview",
+      "rolling": "Rolling",
+      "stable": "Stable",
+      "unknown": "Unknown channel"
+    },
+    "releaseChannel": {
+      "changeEffect": "Changing channel selects releases for future checks and updates. Your installed version stays unchanged.",
+      "changing": "Changing update channel…",
+      "checking": "{{channel}} selected. Checking releases…",
+      "explanation": "Stable: regular releases. Preview: early versions. Rolling: frequent development builds. These names don’t guarantee bug-free gameplay.",
+      "label": "Game update channel",
+      "only": "{{channel}} only",
+      "refreshFailed": "{{channel}} saved. Release information could not be refreshed; check for updates again.",
+      "refreshed": "{{channel}} selected. Release information refreshed.",
+      "saved": "Selected channel: {{channel}}",
+      "select": "Update channel",
+      "single": "This game offers one update channel.",
+      "unavailable": "Update channel information is unavailable in this version. Your saved choice has not changed.",
+      "unconfirmed": "Channel change was not confirmed. Check the current selection before retrying.",
+      "unlisted": "This update channel is no longer listed. Your saved choice has not changed.",
+      "unrecognized": "This saved channel is not recognized in this version. Your saved choice has not changed."
+    }
+  },
+  "launch": {
+    "failure": {
+      "copied": "Copied",
+      "copyExitCode": "Copy exit code",
+      "exitCode": "Exit code <code/>",
+      "label": "Last launch",
+      "openActivity": "Open Activity",
+      "restorePrevious": "Restore previous version"
+    }
+  },
+  "operations": {
+    "cancellation": {
+      "cancel": "Cancel operation",
+      "finishing": "Finishing safely…",
+      "requested": "Cancellation requested",
+      "requestedBody": "Portcove will stop after the current step reaches a safe stopping point.",
+      "requesting": "Requesting cancellation…"
+    }
+  },
+  "organization": {
+    "choices": {
+      "notices": {
+        "heading": "Library update notices",
+        "introActive": "Show notices for new releases. These choices only affect notices for this port in this library. They do not change your update policy, pause downloads, or hide a downloaded update. You can still review and apply available updates here.",
+        "introPaused": "Notices are paused for this port. These choices only affect notices for this port in this library. They do not change your update policy, pause downloads, or hide a downloaded update. You can still review and apply available updates here.",
+        "label": "Library update notice choices",
+        "pause": "Pause update notices",
+        "resume": "Resume update notices",
+        "skip": "Hide the update notice for this version",
+        "skipLabel": "Hide the update notice for this version: {{version}}",
+        "skipped": "Notice hidden for <version/> and this download. We’ll show the notice again if the publisher replaces the download.",
+        "unskip": "Show this update notice again"
+      },
+      "readFailed": "Saved choices could not be read.",
+      "refresh": "Refresh choices",
+      "setup": {
+        "confirm": "I’ve finished this game’s first-time setup.",
+        "explanation": "This optional reminder doesn’t check your files, test the game, or change whether Play is available. A replacement installation needs its own reminder.",
+        "label": "Your setup reminder"
+      },
+      "writeFailed": "Portcove couldn’t confirm that your choice was saved."
+    },
+    "collection": {
+      "withCount": "<name/> ({{total}})"
+    },
+    "edit": {
+      "create": "Create collection",
+      "nameLabel": "Collection name",
+      "note": "Collections organize entries. Removing a collection keeps every game and file.",
+      "remove": "Remove collection",
+      "summary": "Edit collections"
+    },
+    "failure": {
+      "read": "Saved choices could not be read. Games are shown without hidden or collection choices.",
+      "refresh": "Saved choices could not be refreshed. Showing your last confirmed choices.",
+      "reload": "Reload choices",
+      "write": "Portcove couldn’t confirm the changes. Showing your last confirmed choices."
+    },
+    "group": {
+      "discover": "Discover collections",
+      "library": "Library collections"
+    },
+    "menu": {
+      "hide": "Hide from Library",
+      "show": "Show in Library"
+    },
+    "save": {
+      "label": "Save {{game}} for later",
+      "removeTitle": "Remove saved game",
+      "save": "Save",
+      "saved": "Saved",
+      "title": "Save for later"
+    },
+    "sidebar": {
+      "collectionLabel": "Collection: {{name}}",
+      "createFirst": "Create your first collection",
+      "failureRead": "Collections could not be refreshed. Open Manage collections to retry.",
+      "failureWrite": "Portcove couldn’t confirm the collection changes. Showing your last confirmed collections.",
+      "hiddenGames": "Hidden games",
+      "loading": "Loading collections…",
+      "manage": "Manage collections"
+    },
+    "title": "Collections",
+    "trigger": {
+      "all": "Collections",
+      "allGames": "Collections · All games",
+      "collection": "Collections · <name/>",
+      "hidden": "Collections · Hidden",
+      "unavailable": "Collections · Unavailable collection"
+    },
+    "view": {
+      "all": "All games",
+      "followed": "Followed",
+      "hidden": "Hidden",
+      "saved": "Saved"
+    }
+  },
   "removal": {
     "apply": "Uninstall all versions",
     "applying": "Uninstalling…",
@@ -419,6 +996,19 @@ export default interface Resources {
     "title": "Uninstall {{identity}}?",
     "uninstallPort": "Uninstall {{name}}"
   },
+  "report": {
+    "problem": {
+      "cancel": "Cancel",
+      "close": "Close",
+      "copied": "This report is too long for a link, so it was copied instead. Open a new bug report on GitHub and paste it in.",
+      "copyFailed": "This report is too long for a link and could not be copied automatically. Select and copy the text below, then paste it into a new bug report on GitHub.",
+      "description": "This is everything that will be filled into a GitHub bug report. Portcove sends nothing itself: you review it here, then submit it on GitHub. Folder paths and your user name are replaced.",
+      "open": "Report a problem",
+      "prepareFailed": "The report could not be prepared. Try again.",
+      "submit": "Open on GitHub",
+      "title": "Report a problem"
+    }
+  },
   "settings": {
     "language": {
       "applyFailed": "Portcove couldn't confirm the display language. Reopen Settings to check.",
@@ -440,6 +1030,51 @@ export default interface Resources {
       "system": "System default",
       "title": "Language",
       "unavailable": "Translation unavailable"
+    },
+    "supportReport": {
+      "collecting": "Collecting available diagnostics…",
+      "contentsLimits": "This report may not include every log entry or task. Older or later activity and log output may be missing.",
+      "contentsSummary": "View support report contents",
+      "create": "Create a support report",
+      "creating": "Creating support report…",
+      "examples": "Port and tool identifiers, timestamps, and other system details can remain after sensitive values are redacted.",
+      "examplesSummary": "Examples of details that may remain",
+      "failed": "Support report export did not finish. Try again.",
+      "intro": "Create a support report with available recent logs, operation history, and system details. Game-file contents and saved credentials are excluded, but paths, file names, and other metadata may remain. Review the support report before sharing it.",
+      "libraryUnavailable": "The library was unavailable during collection. Available sections are listed below.",
+      "openFolder": "Open support report folder",
+      "openFolderFailed": "Couldn’t open the folder. The support report is still saved at the location shown above.",
+      "reason": {
+        "boundedSnapshot": "Only part of the log was included. Earlier or later entries may be missing.",
+        "captureIncomplete": "Some later setup messages may be missing.",
+        "captureNotCollected": "Saved setup messages weren’t included.",
+        "captureTruncated": "Some captured output was omitted when the capture limit was reached.",
+        "deadline": "Collection stopped at the time limit.",
+        "incompleteRecord": "An unfinished log entry was left out.",
+        "invalidRecord": "Invalid records were omitted.",
+        "readFailed": "The diagnostic source could not be fully read; any missing contents are unknown.",
+        "recordLimit": "Some records were omitted to stay within the record limit.",
+        "sectionLimit": "Some data was omitted to stay within the section size limit.",
+        "totalLimit": "Some data was omitted to stay within the report size limit.",
+        "unavailable": "The diagnostic source was unavailable; its contents are unknown.",
+        "unsafeFile": "A file could not be safely read and was omitted."
+      },
+      "savedComplete": "Support report saved to <path/>. Only the available diagnostics within collection limits were saved.",
+      "savedPartial": "Support report saved to <path/>. Some diagnostics are partial or omitted. Review the collection details below.",
+      "section": {
+        "activities": "Recent activity history",
+        "activityCapture": "Preparation output",
+        "doctor": "System and library checks",
+        "runtimeLog": "Runtime log",
+        "startup": "Startup diagnostics"
+      },
+      "sectionSummary": "{{section}}: {{status}}",
+      "sectionsLabel": "Support report sections",
+      "status": {
+        "included": "Included",
+        "omitted": "Omitted",
+        "partial": "Partially included"
+      }
     }
   },
   "shell": {
@@ -467,5 +1102,27 @@ export default interface Resources {
       "title": "Portcove couldn’t display this screen",
       "unknownError": "Unknown display error"
     }
+  },
+  "workspace": {
+    "live": {
+      "body": "Portcove will keep checking activity at a reduced rate. Refresh manually after library changes until the desktop is restarted.",
+      "heading": "Live workspace updates are unavailable",
+      "refresh": "Refresh now"
+    },
+    "notLoaded": "Portcove has not loaded the library information yet.",
+    "recovery": {
+      "heading": "Library recovery could not finish",
+      "retry": "Retry recovery",
+      "snapshot": "Showing the last loaded library information. It may be out of date."
+    },
+    "refresh": {
+      "effectInitial": "Retry refresh loads the library information. It does not install, move, or change a game.",
+      "effectSnapshot": "Retry refresh loads the current information. It does not repeat your last install, move, or other action.",
+      "headingInitial": "Library information could not be loaded",
+      "headingSnapshot": "Library information could not be refreshed",
+      "retry": "Retry refresh",
+      "snapshot": "Showing the last loaded information. It may be out of date."
+    },
+    "refreshing": "Refreshing library…"
   }
 }

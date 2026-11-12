@@ -1,4 +1,7 @@
 import { cn } from "cn";
+import { Trans } from "react-i18next";
+import { arrowKeysName, enterKeyName, escapeKeyName } from "../keyboard-shortcuts";
+import { useAppTranslation } from "../localization";
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 
@@ -110,6 +113,8 @@ export function NavigationHints({
   workspace?: boolean;
   className?: string;
 }) {
+  const { t } = useAppTranslation("common");
+
   return (
     <details
       className={cn(
@@ -119,31 +124,52 @@ export function NavigationHints({
       open={controller ? true : undefined}
     >
       <summary data-focusable className="cursor-pointer py-2">
-        Navigation help
+        {t("navigation.help")}
       </summary>
-      <div role="group" aria-label="Navigation shortcuts" className="flex flex-wrap gap-3 py-2">
+      <div
+        role="group"
+        aria-label={t("navigation.shortcuts")}
+        className="flex flex-wrap gap-3 py-2"
+      >
         {controller && <strong>{controller}</strong>}
         <span className="keyboard-navigation-hint in-data-[input-mode=controller]:hidden">
-          Arrow keys: Move
+          {/* Keyboard key names stay literal; only the action is copy. */}
+          <Trans t={t} i18nKey="navigation.move" components={{ key: <bdi>{arrowKeysName}</bdi> }} />
         </span>
         <span className="keyboard-navigation-hint in-data-[input-mode=controller]:hidden">
-          Enter: Select
+          <Trans
+            t={t}
+            i18nKey="navigation.select"
+            components={{ key: <bdi>{enterKeyName}</bdi> }}
+          />
         </span>
         <span className="keyboard-navigation-hint in-data-[input-mode=controller]:hidden">
-          {workspace ? "Esc: Menu" : "Esc: Back"}
+          {workspace ? (
+            <Trans
+              t={t}
+              i18nKey="navigation.menu"
+              components={{ key: <bdi>{escapeKeyName}</bdi> }}
+            />
+          ) : (
+            <Trans
+              t={t}
+              i18nKey="navigation.back"
+              components={{ key: <bdi>{escapeKeyName}</bdi> }}
+            />
+          )}
         </span>
         <span className="gamepad-navigation-hint hidden in-data-[input-mode=controller]:inline">
-          D-pad or stick: Move
+          {t("navigation.gamepadMove")}
         </span>
         <span className="gamepad-navigation-hint hidden in-data-[input-mode=controller]:inline">
-          Confirm button: Select
+          {t("navigation.gamepadSelect")}
         </span>
         <span className="gamepad-navigation-hint hidden in-data-[input-mode=controller]:inline">
-          {workspace ? "Back button: Menu" : "Back button: Back"}
+          {workspace ? t("navigation.gamepadMenu") : t("navigation.gamepadBack")}
         </span>
         {workspace && (
           <span className="gamepad-navigation-hint hidden in-data-[input-mode=controller]:inline">
-            Shoulder buttons: Switch section
+            {t("navigation.gamepadSection")}
           </span>
         )}
       </div>

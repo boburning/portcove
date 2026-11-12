@@ -1,0 +1,85 @@
+{
+  "alternatives": {
+    "external": "تثبيت خارجي · <version/>",
+    "heading": "منافذ أخرى لهذه اللعبة ({{total}})",
+    "independence": "يحتفظ كل مشروع بملفاته وتثبيته الخاص. اختيار أحدها لا ينقل الحفظ ولا يختار إصدارًا.",
+    "managed": "تثبيت مُدار · <version/>",
+    "notInstalled": "غير مثبت",
+    "originalFiles": "الملفات الأصلية: <files/>",
+    "originalFilesUnknown": "الملفات الأصلية: راجع تعليمات إعداد المشروع",
+    "runsOn": "يعمل على: <platforms/>",
+    "runsOnUnknown": "يعمل على: غير مسجل",
+    "sourceEditions": "إصدارات المصدر: <editions/>",
+    "stateUnavailable": "حالة التثبيت غير متاحة",
+    "view": "عرض <name/>",
+    "viewing": "<name/> · قيد العرض"
+  },
+  "hero": {
+    "continueLabel": "{{title}} لُعبت مؤخرًا",
+    "credits": "حقوق الصور",
+    "detailLabel": "تفاصيل لعبة {{title}}"
+  },
+  "implementation": {
+    "choose": "اختيار <name/>",
+    "preferred": "المفضّل: <name/>",
+    "refresh": "تحديث الخيارات",
+    "unconfirmed": "تعذر على Portcove تأكيد حفظ اختيارك. حدّث الخيارات للتحقق."
+  },
+  "library": {
+    "allPorts_zero": "جميع المنافذ ({{count, number}}) · المطابقة: {{matching, number}}",
+    "allPorts_one": "المنفذ الوحيد ({{count, number}}) · المطابقة: {{matching, number}}",
+    "allPorts_two": "المنفذان ({{count, number}}) · المطابقة: {{matching, number}}",
+    "allPorts_few": "جميع المنافذ ({{count, number}}) · المطابقة: {{matching, number}}",
+    "allPorts_many": "جميع المنافذ ({{count, number}}) · المطابقة: {{matching, number}}",
+    "allPorts_other": "جميع المنافذ ({{count, number}}) · المطابقة: {{matching, number}}",
+    "choiceFiltered": "المنفذ المفضل لديك خارج عوامل التصفية هذه. يمكنك عرض المنافذ المطابقة أدناه.",
+    "choiceReadFailed": "تعذرت قراءة اختيارك للتنفيذ. تظل إجراءات التثبيت الحالية متاحة.",
+    "choiceStale": "لم يعد المنفذ الذي اخترته ضمن مجموعة اللعبة هذه. اختر منفذًا من القائمة.",
+    "choosePrompt": "اختر المنفذ الذي سيُعرض لهذه اللعبة. راجع تعليمات إعداده بشأن مواقع الحفظ المشتركة قبل التبديل.",
+    "chosen": "<name/> · اختيارك",
+    "chosenOutside": "<name/> · اختيارك · خارج عوامل التصفية الحالية",
+    "independence": "اختيار مشروع لا يحدد إصدارًا ولا ينقل الحفظ ولا يستبدل تثبيتًا آخر.",
+    "outside": "<name/> · خارج عوامل التصفية الحالية",
+    "portCount_zero": "{{count, number}} منفذ",
+    "portCount_one": "منفذ واحد ({{count, number}})",
+    "portCount_two": "منفذان ({{count, number}})",
+    "portCount_few": "{{count, number}} منافذ",
+    "portCount_many": "{{count, number}} منفذًا",
+    "portCount_other": "{{count, number}} منفذ",
+    "portsLabel": "منافذ {{title}}"
+  },
+  "maintenance": {
+    "offer": "العرض المُدار الحالي",
+    "reconsider": "إعادة النظر عندما: <condition/>"
+  },
+  "match": {
+    "channelUnknown": "القناة غير معروفة",
+    "choose": "اختر إصدارًا لفحصه. كل خيار يطابق جميع المرشحات المحددة.",
+    "heading": "إصدارات مطابقة لمرشحاتك",
+    "installedBuild": "إصدار مثبت",
+    "label": "سياقات تصفح مطابقة",
+    "lostChoice": "لم يعد اختيارك السابق حاليًا. اختر إصدارًا مطابقًا لفحصه.",
+    "methodUnknown": "طريقة الإعداد المحفوظة غير معروفة",
+    "noCheck": "لا يوجد فحص حالي لملفات اللعبة لهذا الإصدار. افحص مرة أخرى.",
+    "noDetails": "تطابق هذه اللعبة مرشحاتك. تفاصيل الإصدار غير متاحة؛ يتحقق Portcove من المتطلبات قبل الإعداد أو التشغيل.",
+    "noLongerMatches": "لم يعد هذا المنفذ يطابق مرشحاتك.",
+    "platformUnknown": "المنصة غير معروفة",
+    "savedInstallation": "<method/>. هذا هو تثبيتك المحفوظ المطابق. يتحقق Portcove من المتطلبات الحالية مرة أخرى قبل الإعداد أو التشغيل.",
+    "setup": "إعداد",
+    "setupOption": "<method/>. خيار الإعداد هذا يطابق مرشحاتك. يتحقق Portcove من المتطلبات الحالية مرة أخرى قبل الإعداد أو التشغيل.",
+    "unavailable": "نتائج التصفية هذه غير متاحة. عد إلى المرشحات لتحديث اختياراتك أو للفحص مرة أخرى."
+  },
+  "observations": {
+    "available": "تحديث متاح عند آخر فحص",
+    "channel": "قناة التحديث المحددة: <channel/>",
+    "retired": "متوقف من المصدر",
+    "staged": "تحديث محفوظ لوقت لاحق",
+    "updateDetails": "تفاصيل التحديث"
+  },
+  "search": {
+    "clear": "مسح البحث",
+    "discover": "البحث في الاكتشاف",
+    "library": "البحث في مكتبتك",
+    "placeholder": "اسم اللعبة أو المنفذ"
+  }
+}

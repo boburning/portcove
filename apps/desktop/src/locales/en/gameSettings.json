@@ -1,0 +1,12 @@
+{
+  "control": {
+    "busy": "Finish the current operation before reviewing game settings.",
+    "heading": "Game settings",
+    "installationChanged": "This installation changed. Refresh its details before editing settings.",
+    "intro": "Check the settings offered by this installed version.",
+    "label": "Game settings",
+    "read": "Read game settings",
+    "reading": "Reading game settings…",
+    "reread": "Read settings again"
+  }
+}

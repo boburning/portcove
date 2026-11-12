@@ -91,13 +91,18 @@ mod disc_product;
 mod gamebanana;
 mod mod_package;
 mod mod_provider;
+mod native_mod_list;
 mod profile;
 mod profile_deploy;
+mod provider_auto_update;
 mod provider_install;
 mod provider_update;
 mod psx;
 #[cfg(feature = "qualification-fixtures")]
 mod qualification_checkpoint;
+mod recipe;
+mod recomp_mod;
+mod recomp_mod_list;
 mod recovery;
 mod relative_file_set;
 mod release;
@@ -140,6 +145,9 @@ pub use activity_diagnostics::{ActivityDiagnostic, DiagnosticStream};
 pub use adapter::{Adapter, AdapterRegistry, LaunchSpecRequest};
 pub use adapter::{host_tool_statuses, recheck_host_tool};
 pub use application_runtime::{ApplicationRuntimeGuard, ApplicationUpdateExclusivityGuard};
+#[cfg(feature = "archive-fuzzing")]
+#[doc(hidden)]
+pub use archive::fuzzing as archive_fuzzing;
 pub use artwork::{
     ARTWORK_HANDOFF_SCHEMA, ArtworkAvailability, ArtworkCacheClear, ArtworkChoice,
     ArtworkImageFormat, ArtworkMetadata, ArtworkResolvedSource, ArtworkSlot, ArtworkState,
@@ -301,11 +309,19 @@ pub use profile::{
     ProfileUpdatePolicy, ProfileView, ProviderPackageRef, RequestedPackage, ResolvedPackage,
     TypedOrdering,
 };
-pub use profile_deploy::LiveMods;
+pub use profile_deploy::{LiveMods, ModSetupsView, NativeModListStatus};
+pub use provider_auto_update::{ProviderAutoUpdate, ProviderAutoUpdateOutcome};
 pub use provider_install::{PlanMember, ProviderInstallPlan};
 pub use provider_update::{ProviderUpdateObservation, ProviderUpdateState};
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;
+pub use recipe::{
+    ProfileRecipe, RECIPE_FORMAT, RecipeImportPlan, RecipeInputPlan, RecipeInputStatus,
+    RecipeOriginal, RecipePackage, RecipeRuntime,
+};
+pub use recomp_mod::{
+    RecompDependency, RecompExecution, RecompModHold, RecompModInspection, inspect_recomp_mod,
+};
 pub use release::{
     GithubReleaseProvider, ObservationEvidence, ObservedReleaseIdentity, ObservedResolution,
     ReleaseProvider, UpstreamChannelObservation, UpstreamObservationReport,
@@ -318,27 +334,29 @@ pub use retained_build::{
     RetainedBuildResolution, RetainedBuildRetirementPreview, RetainedBuildRevision,
 };
 pub use service::{
-    AdoptionCopyFile, AdoptionCopyPlan, AdoptionDestinationPreview, AdoptionPreview,
-    AdoptionSkippedEntry, AdvisoryApplicability, BackupAction, BackupActionPreview,
-    CapabilityAdvisory, CapabilityFeature, CapabilityMode, CatalogDownloadAssetId,
-    CatalogDownloadCandidate, CatalogDownloadCandidates, CatalogDownloadCoverage,
-    CatalogDownloadPreview, CatalogDownloadRelease, CatalogDownloadReleaseId,
-    CatalogDownloadRequest, CatalogForeignAssetId, CatalogForeignReleaseId,
-    CatalogPackageAssessment, GITHUB_LAUNCHER_FORMAT_REVISION, INSTALL_BATCH_FORMAT_VERSION,
-    IdentifiedLaunchRequest, InstallBatchItem, InstallBatchItemState, InstallBatchRecord,
-    InstallBatchRequestItem, InstallBatchReview, InstallBatchReviewItem, InstallBatchSummary,
-    InstallOverrides, InstallationProtection, LauncherAppsRootOrigin, LauncherEntryHints,
-    LauncherEntryStatus, LauncherKind, LauncherLibraryEntry, LauncherLibraryInventory,
-    LauncherLibrarySkippedEntry, LauncherModInventory, MAX_INSTALL_BATCH_ITEMS,
-    MAX_PORT_INTENT_ASSESSMENTS, MAX_ROOT_SETUP_BASELINE, MAX_ROOT_SETUPS_PER_PASS,
-    MAX_STANDING_SETUP_ATTEMPTS, ManagedRouteChangePreview, ManagedRouteChangeResult,
-    PORT_INTENT_FORMAT_VERSION, PendingSetupRecord, PendingSetupState, PlayerDataProtection,
-    PortCapabilityFeature, PortCapabilityNotice, PortCapabilityReport, PortCapabilityRoute,
-    PortIntent, PortIntentAssessment, PortIntentAssessments, PortIntentMode, PortReadiness,
-    PortReadinessAcknowledgement, PortRemovalPreview, PortcoveService, ProtectionDeclaration,
-    QUIVER_FORMAT_REVISION, ROOT_SETUP_FORMAT_VERSION, RootSetupConsent, RootSetupEnrollment,
-    RootSetupFailure, RootSetupImplementation, RootSetupWaiting, SetupLaunchTarget,
-    SetupLaunchTargets, StandingSetupFailure, StandingSetupResult,
+    ADOPTION_BATCH_LIMIT, AdoptionBatchItem, AdoptionBatchItemOutcome, AdoptionBatchItemResult,
+    AdoptionBatchPreview, AdoptionBatchResult, AdoptionCopyFile, AdoptionCopyPlan,
+    AdoptionDestinationPreview, AdoptionPreview, AdoptionSkippedEntry, AdvisoryApplicability,
+    BackupAction, BackupActionPreview, CapabilityAdvisory, CapabilityFeature, CapabilityMode,
+    CatalogDownloadAssetId, CatalogDownloadCandidate, CatalogDownloadCandidates,
+    CatalogDownloadCoverage, CatalogDownloadPreview, CatalogDownloadRelease,
+    CatalogDownloadReleaseId, CatalogDownloadRequest, CatalogForeignAssetId,
+    CatalogForeignReleaseId, CatalogPackageAssessment, GITHUB_LAUNCHER_FORMAT_REVISION,
+    INSTALL_BATCH_FORMAT_VERSION, IdentifiedLaunchRequest, InstallBatchCapacity, InstallBatchItem,
+    InstallBatchItemState, InstallBatchRecord, InstallBatchRequestItem, InstallBatchReview,
+    InstallBatchReviewItem, InstallBatchSummary, InstallBatchVolume, InstallOverrides,
+    InstallationProtection, LauncherAppsRootOrigin, LauncherEntryHints, LauncherEntryStatus,
+    LauncherKind, LauncherLibraryEntry, LauncherLibraryInventory, LauncherLibrarySkippedEntry,
+    LauncherModInventory, MAX_INSTALL_BATCH_ITEMS, MAX_PORT_INTENT_ASSESSMENTS,
+    MAX_ROOT_SETUP_BASELINE, MAX_ROOT_SETUPS_PER_PASS, MAX_STANDING_SETUP_ATTEMPTS,
+    ManagedRouteChangePreview, ManagedRouteChangeResult, PORT_INTENT_FORMAT_VERSION,
+    PendingSetupRecord, PendingSetupState, PlayerDataProtection, PortCapabilityFeature,
+    PortCapabilityNotice, PortCapabilityReport, PortCapabilityRoute, PortIntent,
+    PortIntentAssessment, PortIntentAssessments, PortIntentMode, PortIntentSource, PortMaintenance,
+    PortReadiness, PortReadinessAcknowledgement, PortRemovalPreview, PortcoveService,
+    ProtectionDeclaration, QUIVER_FORMAT_REVISION, ROOT_SETUP_FORMAT_VERSION, RootSetupConsent,
+    RootSetupEnrollment, RootSetupFailure, RootSetupImplementation, RootSetupWaiting,
+    SetupLaunchTarget, SetupLaunchTargets, StandingSetupFailure, StandingSetupResult,
 };
 pub use signed_catalog::{
     CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope, SignedCatalogPayload,

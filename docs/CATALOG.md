@@ -2369,7 +2369,8 @@ matching Linux x64 sibling when independently enrolled. Use the
 [Tony Hawk’s Pro Skater 3 record](../crates/portcove-core/catalog/ports/alexbeav-tony-hawk-s-pro-skater-3-recomp.json)
 as the example. Keep the release selector, generated executable basename,
 original-disc profile and source contract explicit. Set the value to
-`true` for a required retail SCPH-1001 BIOS with its own profile and contract.
+`true` for a required retail SCPH-1001 or SCPH-5552 BIOS with its own profile
+and contract; the kit's `game.toml` names the BIOS configuration it builds with.
 Use `"bundled-openbios"` when the reviewed kit supplies and supports OpenBIOS.
 This projects the literal `--bios bios/openbios.bin` argument and rejects a
 retail BIOS profile. Use `"split-mods"` for the reviewed dual-platform kits
@@ -2419,6 +2420,11 @@ unique enrollment, while selected asset coverage is deduplicated. Generated rout
 fixtures separately cover registration, managed runtime replacement and data
 ownership. Ordinary compatible successors use the unchanged authored selectors.
 [Shared release-selection fixture](../crates/portcove-core/src/testdata/windows-archive-release-selection.json).
+`node scripts/catalog-selection-enrollment.mts` transcribes the named releases
+from a configured-upstream observation into an inventory and classifies its
+remaining ZIPs. Pass the independently identified asset for each release and
+platform with `--select`; the command previews by default and writes with
+`--write`.
 
 When a managed route replaces a strict prepared-only definition, keep the exact
 previous port in a dated `*-retained-selected-YYYY-MM-DD.json` fixture and add

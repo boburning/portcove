@@ -1571,6 +1571,23 @@ pub(crate) enum LauncherLibraryCommand {
         #[arg(long)]
         apps_root: Option<PathBuf>,
     },
+    /// Review and copy several matched apps after one confirmation; originals stay unchanged.
+    Adopt {
+        /// Launcher whose library format to read.
+        #[arg(long, value_enum)]
+        launcher: LauncherLibraryKind,
+        /// Launcher data folder holding apps.json (or legacy games.json) and settings.json.
+        data_root: PathBuf,
+        /// Use this apps folder instead of the one in settings.json, for example after a move.
+        #[arg(long)]
+        apps_root: Option<PathBuf>,
+        /// Copy only this app, by its launcher name or folder name; repeat for more. Default: every app ready to review.
+        #[arg(long = "app")]
+        apps: Vec<String>,
+        /// Confirm the reviewed batch without prompting; changed apps are held, not copied.
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]

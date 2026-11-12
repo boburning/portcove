@@ -1628,6 +1628,7 @@ for (const [file, tests] of [
       "scripts/ui-test-selection.test.mts",
       "scripts/updater-historical-inputs.test.mts",
       "scripts/installed-game-data-fixture.test.mts",
+      "scripts/maintenance-handoffs.test.mts",
       "scripts/windows-installed-game-data.test.mts",
       "scripts/windows-historical-bootstrap.test.mts",
     ],
@@ -1637,6 +1638,7 @@ for (const [file, tests] of [
     [
       "scripts/desktop-boundary-wiring.test.mts",
       "scripts/fixture-module-closure.test.mts",
+      "scripts/maintenance-handoffs.test.mts",
       "scripts/precommit-check.test.mts",
       "scripts/daily-discovery.test.mts",
       "scripts/release-controller-wake.test.mts",

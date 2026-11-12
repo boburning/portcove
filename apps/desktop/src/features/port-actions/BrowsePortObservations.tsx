@@ -1,5 +1,7 @@
 import { CheckCircle2, Wrench } from "lucide-react";
+import { Trans } from "react-i18next";
 import { Icon } from "../../components/ui";
+import { useAppTranslation } from "../../localization";
 import { currentUpdateSnapshot, releaseChannelPresentation } from "../../view-model";
 import type { LibraryOrganization, PortStatus } from "../../types";
 import type { CatalogEntry } from "../browsing/catalog-entry";
@@ -26,6 +28,7 @@ export function BrowsePortObservations({
   descriptionId: string;
   noticeChoice?: LibraryOrganization["update_notices"][string] | undefined;
 }) {
+  const { t } = useAppTranslation("browsing");
   const { state, input, setup } = observation;
   const release = currentUpdateSnapshot(status)?.check.release;
   const hiddenNotice = updateNoticeHidden(
@@ -55,18 +58,25 @@ export function BrowsePortObservations({
       ))}
       {summary.update && <span className="text-pc-interactive-foreground">{summary.update}</span>}
       {port.upstream_status === "retired" && (
-        <span className="text-pc-warning-foreground">Retired upstream</span>
+        <span className="text-pc-warning-foreground">{t("observations.retired")}</span>
       )}
       {(status?.acquisition ||
         (status?.staged && updateAvailable) ||
         (status?.channel && status.active && status.channel !== status.active.channel)) && (
         <details>
-          <summary data-focusable>Update details</summary>
-          {status?.staged && <p>Update saved for later</p>}
+          <summary data-focusable>{t("observations.updateDetails")}</summary>
+          {status?.staged && <p>{t("observations.staged")}</p>}
           {status?.acquisition && <p>{gameUpdateAcquisitionLabel(status.acquisition.phase)}</p>}
-          {updateAvailable && <p>Update available at last check</p>}
+          {updateAvailable && <p>{t("observations.available")}</p>}
           {status?.active && status.channel !== status.active.channel && (
-            <p>Selected update channel: {releaseChannelPresentation(status.channel).label}</p>
+            <p>
+              {/* The channel name follows the shared view-model migration. */}
+              <Trans
+                t={t}
+                i18nKey="observations.channel"
+                components={{ channel: <>{releaseChannelPresentation(status.channel).label}</> }}
+              />
+            </p>
           )}
         </details>
       )}

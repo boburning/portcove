@@ -468,6 +468,609 @@
     "title": "Array_of_ActivityDiagnostic",
     "type": "array"
   },
+  "adoption_batch_preview": {
+    "$defs": {
+      "AdoptionCopyFile": {
+        "properties": {
+          "relative_path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "relative_path",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "AdoptionCopyPlan": {
+        "properties": {
+          "directories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/$defs/AdoptionCopyFile"
+            },
+            "type": "array"
+          },
+          "skipped_entries": {
+            "items": {
+              "$ref": "#/$defs/AdoptionSkippedEntry"
+            },
+            "type": "array"
+          },
+          "total_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "directories",
+          "files",
+          "skipped_entries",
+          "total_bytes"
+        ],
+        "type": "object"
+      },
+      "AdoptionDestinationPreview": {
+        "properties": {
+          "active_install": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstallRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "current_user_data_files": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "current_user_data_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "imported_user_data_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "output_location": {
+            "$ref": "#/$defs/PortOutputLocation"
+          }
+        },
+        "required": [
+          "output_location",
+          "active_install",
+          "imported_user_data_paths",
+          "current_user_data_files",
+          "current_user_data_sha256"
+        ],
+        "type": "object"
+      },
+      "AdoptionPreview": {
+        "properties": {
+          "application_files_will_be_copied": {
+            "type": "boolean"
+          },
+          "copy_plan": {
+            "$ref": "#/$defs/AdoptionCopyPlan"
+          },
+          "destination": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/AdoptionDestinationPreview"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "detected_port_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "original_will_be_modified": {
+            "type": "boolean"
+          },
+          "plan_sha256": {
+            "type": "string"
+          },
+          "selected_port_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "detected_port_ids",
+          "selected_port_id",
+          "application_files_will_be_copied",
+          "original_will_be_modified",
+          "copy_plan",
+          "destination",
+          "plan_sha256"
+        ],
+        "type": "object"
+      },
+      "AdoptionSkippedEntry": {
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "relative_path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "relative_path",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "ArtifactIdentity": {
+        "properties": {
+          "asset_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_name",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "InstallRecord": {
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity",
+            "default": {
+              "asset_name": "",
+              "sha256": "",
+              "size": 0
+            }
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "id": {
+            "type": "string"
+          },
+          "installed_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "manifest_sha256": {
+            "default": "",
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "selected_executable": {
+            "default": "",
+            "type": "string"
+          },
+          "staged": {
+            "type": "boolean"
+          },
+          "verified": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "version",
+          "path",
+          "channel",
+          "installed_at",
+          "verified",
+          "staged",
+          "artifact",
+          "runtime",
+          "manifest_sha256",
+          "selected_executable"
+        ],
+        "type": "object"
+      },
+      "OutputLocationSource": {
+        "enum": [
+          "request_override",
+          "port_setting",
+          "library_default"
+        ],
+        "type": "string"
+      },
+      "PortOutputLocation": {
+        "properties": {
+          "configured_output_directory": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "default_output_directory": {
+            "type": "string"
+          },
+          "effective_output_directory": {
+            "type": "string"
+          },
+          "library_root": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "selection_source": {
+            "$ref": "#/$defs/OutputLocationSource"
+          },
+          "user_data_root": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "library_root",
+          "default_output_directory",
+          "configured_output_directory",
+          "effective_output_directory",
+          "selection_source",
+          "user_data_root"
+        ],
+        "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      },
+      "RuntimeIdentity": {
+        "properties": {
+          "archive_root": {
+            "type": "string"
+          },
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/$defs/RuntimeOrigin"
+          },
+          "target_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "origin",
+          "artifact",
+          "archive_root",
+          "target_directory",
+          "executable"
+        ],
+        "type": "object"
+      },
+      "RuntimeOrigin": {
+        "enum": [
+          "verified_download",
+          "adopted_tree"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "batch_sha256": {
+        "description": "Binds the item list and every item's reviewed plan.",
+        "type": "string"
+      },
+      "items": {
+        "description": "The ordinary adoption review of each item, in batch order.",
+        "items": {
+          "$ref": "#/$defs/AdoptionPreview"
+        },
+        "type": "array"
+      },
+      "items_replacing_saved_files": {
+        "description": "Items that import saved files while Portcove already holds saved files for\nthat game, so matching files there are replaced.",
+        "format": "uint",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "original_will_be_modified": {
+        "type": "boolean"
+      },
+      "total_bytes": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "total_files": {
+        "format": "uint",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "items",
+      "total_files",
+      "total_bytes",
+      "items_replacing_saved_files",
+      "original_will_be_modified",
+      "batch_sha256"
+    ],
+    "title": "AdoptionBatchPreview",
+    "type": "object"
+  },
+  "adoption_batch_result": {
+    "$defs": {
+      "AdoptionBatchItemOutcome": {
+        "oneOf": [
+          {
+            "const": "copied",
+            "description": "Copied and registered through the ordinary adoption.",
+            "type": "string"
+          },
+          {
+            "const": "changed",
+            "description": "The folder or destination changed after review; nothing was copied for it.",
+            "type": "string"
+          },
+          {
+            "const": "failed",
+            "description": "Adoption refused or failed; the original stays unchanged.",
+            "type": "string"
+          }
+        ]
+      },
+      "AdoptionBatchItemResult": {
+        "properties": {
+          "install": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstallRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outcome": {
+            "$ref": "#/$defs/AdoptionBatchItemOutcome"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "port_id",
+          "outcome",
+          "install",
+          "message"
+        ],
+        "type": "object"
+      },
+      "ArtifactIdentity": {
+        "properties": {
+          "asset_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_name",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "InstallRecord": {
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity",
+            "default": {
+              "asset_name": "",
+              "sha256": "",
+              "size": 0
+            }
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "id": {
+            "type": "string"
+          },
+          "installed_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "manifest_sha256": {
+            "default": "",
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "selected_executable": {
+            "default": "",
+            "type": "string"
+          },
+          "staged": {
+            "type": "boolean"
+          },
+          "verified": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "version",
+          "path",
+          "channel",
+          "installed_at",
+          "verified",
+          "staged",
+          "artifact",
+          "runtime",
+          "manifest_sha256",
+          "selected_executable"
+        ],
+        "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      },
+      "RuntimeIdentity": {
+        "properties": {
+          "archive_root": {
+            "type": "string"
+          },
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/$defs/RuntimeOrigin"
+          },
+          "target_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "origin",
+          "artifact",
+          "archive_root",
+          "target_directory",
+          "executable"
+        ],
+        "type": "object"
+      },
+      "RuntimeOrigin": {
+        "enum": [
+          "verified_download",
+          "adopted_tree"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "batch_sha256": {
+        "type": "string"
+      },
+      "items": {
+        "items": {
+          "$ref": "#/$defs/AdoptionBatchItemResult"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "batch_sha256",
+      "items"
+    ],
+    "title": "AdoptionBatchResult",
+    "type": "object"
+  },
   "adoption_preview": {
     "$defs": {
       "AdoptionCopyFile": {
@@ -10173,7 +10776,7 @@
       },
       "DestinationArtworkHandoff": {
         "additionalProperties": false,
-        "description": "An observation, never provider permission, destination ownership or write consent.\nV1 exposes validated local portrait originals. Catalog defaults and unprovided\nwide roles remain explicit; they are never synthesized from another role/cache.",
+        "description": "An observation, never provider permission, destination ownership or write consent.\nPortrait exposes the validated local cover original; hero banner exposes the\nvalidated local detail original only when it is wider than tall. Catalog\ndefaults and the landscape role remain explicit unavailable states; nothing is\nsynthesized, cropped or resized from another role or cache.",
         "properties": {
           "choice": {
             "anyOf": [
@@ -10190,8 +10793,8 @@
           },
           "handoff_schema": {
             "format": "uint32",
-            "maximum": 1,
-            "minimum": 1,
+            "maximum": 2,
+            "minimum": 2,
             "type": "integer"
           },
           "library": {
@@ -10298,12 +10901,21 @@
         ]
       },
       "DestinationArtworkUnavailableReason": {
-        "enum": [
-          "role_not_provided",
-          "no_local_original",
-          "selected_original_unavailable"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "role_not_provided",
+              "no_local_original",
+              "selected_original_unavailable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "selected_image_not_wide",
+            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
+            "type": "string"
+          }
+        ]
       },
       "IgdbArtwork": {
         "additionalProperties": false,
@@ -10592,12 +11204,21 @@
         ]
       },
       "DestinationArtworkUnavailableReason": {
-        "enum": [
-          "role_not_provided",
-          "no_local_original",
-          "selected_original_unavailable"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "role_not_provided",
+              "no_local_original",
+              "selected_original_unavailable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "selected_image_not_wide",
+            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
+            "type": "string"
+          }
+        ]
       },
       "IgdbArtwork": {
         "additionalProperties": false,
@@ -10708,7 +11329,7 @@
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties": false,
-    "description": "An observation, never provider permission, destination ownership or write consent.\nV1 exposes validated local portrait originals. Catalog defaults and unprovided\nwide roles remain explicit; they are never synthesized from another role/cache.",
+    "description": "An observation, never provider permission, destination ownership or write consent.\nPortrait exposes the validated local cover original; hero banner exposes the\nvalidated local detail original only when it is wider than tall. Catalog\ndefaults and the landscape role remain explicit unavailable states; nothing is\nsynthesized, cropped or resized from another role or cache.",
     "properties": {
       "choice": {
         "anyOf": [
@@ -10725,8 +11346,8 @@
       },
       "handoff_schema": {
         "format": "uint32",
-        "maximum": 1,
-        "minimum": 1,
+        "maximum": 2,
+        "minimum": 2,
         "type": "integer"
       },
       "library": {
@@ -25773,6 +26394,116 @@
     "type": "array"
   },
   "live_mods": {
+    "$defs": {
+      "NativeModListStatus": {
+        "description": "How the game's own mod list relates to the selected revision.",
+        "oneOf": [
+          {
+            "description": "This game has no reviewed native mod list.",
+            "properties": {
+              "state": {
+                "const": "not-applicable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The list names the enabled packages in the revision's order. Entries for\nthe player's own files are not compared.",
+            "properties": {
+              "state": {
+                "const": "in-sync",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "No list yet; Portcove writes it before the next launch.",
+            "properties": {
+              "state": {
+                "const": "not-written",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The same mods in a different order, set in the game's menu. Portcove keeps\nit as the profile's next revision when supervised play ends, or at the next\nprofile change or launch.",
+            "properties": {
+              "native_order": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "state": {
+                "const": "reordered",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "native_order"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The list differs in which of the profile's mods it names (for example a\nmod disabled in the game's menu, which the game re-enables at its next\nstart). Portcove rewrites those entries before the next launch.",
+            "properties": {
+              "missing": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "state": {
+                "const": "differs",
+                "type": "string"
+              },
+              "unexpected": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "state",
+              "missing",
+              "unexpected"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The configuration could not be read; Portcove leaves it untouched.",
+            "properties": {
+              "reason": {
+                "type": "string"
+              },
+              "state": {
+                "const": "unreadable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
       "changed_owned": {
@@ -25781,6 +26512,10 @@
           "type": "string"
         },
         "type": "array"
+      },
+      "native_list": {
+        "$ref": "#/$defs/NativeModListStatus",
+        "description": "The game's own enabled-mods list compared with the selected revision."
       },
       "profile_id": {
         "type": [
@@ -25808,7 +26543,8 @@
       "profile_id",
       "revision",
       "unmanaged",
-      "changed_owned"
+      "changed_owned",
+      "native_list"
     ],
     "title": "LiveMods",
     "type": "object"
@@ -26864,6 +27600,877 @@
       "external_files_preserved"
     ],
     "title": "ManagedRouteChangeResult",
+    "type": "object"
+  },
+  "mod_setups_view": {
+    "$defs": {
+      "ArtifactIdentity": {
+        "properties": {
+          "asset_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_name",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "AuthenticatedDefinitionProvenance": {
+        "additionalProperties": false,
+        "description": "Authenticated metadata facts captured with a candidate. They are not a persisted replay floor.",
+        "properties": {
+          "definitions_sha256": {
+            "type": "string"
+          },
+          "definitions_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "earliest_expiration": {
+            "type": "string"
+          },
+          "index_sha256": {
+            "type": "string"
+          },
+          "root_sha256": {
+            "type": "string"
+          },
+          "root_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "snapshot_sha256": {
+            "type": "string"
+          },
+          "snapshot_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "targets_sha256": {
+            "type": "string"
+          },
+          "targets_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "timestamp_sha256": {
+            "type": "string"
+          },
+          "timestamp_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "root_version",
+          "root_sha256",
+          "timestamp_version",
+          "timestamp_sha256",
+          "snapshot_version",
+          "snapshot_sha256",
+          "targets_version",
+          "targets_sha256",
+          "definitions_version",
+          "definitions_sha256",
+          "earliest_expiration",
+          "index_sha256"
+        ],
+        "type": "object"
+      },
+      "DefinitionSelectionIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "definition_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "grant_id": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "policy_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provenance": {
+            "$ref": "#/$defs/AuthenticatedDefinitionProvenance"
+          },
+          "repository_root_sha256": {
+            "type": "string"
+          },
+          "stable_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "stable_id",
+          "definition_revision",
+          "repository_root_sha256",
+          "grant_id",
+          "policy_revision",
+          "provenance"
+        ],
+        "type": "object"
+      },
+      "LiveMods": {
+        "properties": {
+          "changed_owned": {
+            "description": "Installed files whose bytes changed outside Portcove; never overwritten.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "native_list": {
+            "$ref": "#/$defs/NativeModListStatus",
+            "description": "The game's own enabled-mods list compared with the selected revision."
+          },
+          "profile_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "unmanaged": {
+            "description": "Files in the mods folder this profile did not install; never touched.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "profile_id",
+          "revision",
+          "unmanaged",
+          "changed_owned",
+          "native_list"
+        ],
+        "type": "object"
+      },
+      "LoaderContractRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "type": "object"
+      },
+      "NativeModListStatus": {
+        "description": "How the game's own mod list relates to the selected revision.",
+        "oneOf": [
+          {
+            "description": "This game has no reviewed native mod list.",
+            "properties": {
+              "state": {
+                "const": "not-applicable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The list names the enabled packages in the revision's order. Entries for\nthe player's own files are not compared.",
+            "properties": {
+              "state": {
+                "const": "in-sync",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "No list yet; Portcove writes it before the next launch.",
+            "properties": {
+              "state": {
+                "const": "not-written",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The same mods in a different order, set in the game's menu. Portcove keeps\nit as the profile's next revision when supervised play ends, or at the next\nprofile change or launch.",
+            "properties": {
+              "native_order": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "state": {
+                "const": "reordered",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "native_order"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The list differs in which of the profile's mods it names (for example a\nmod disabled in the game's menu, which the game re-enables at its next\nstart). Portcove rewrites those entries before the next launch.",
+            "properties": {
+              "missing": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "state": {
+                "const": "differs",
+                "type": "string"
+              },
+              "unexpected": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "state",
+              "missing",
+              "unexpected"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The configuration could not be read; Portcove leaves it untouched.",
+            "properties": {
+              "reason": {
+                "type": "string"
+              },
+              "state": {
+                "const": "unreadable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "OriginalAvailability": {
+        "oneOf": [
+          {
+            "enum": [
+              "verified"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "missing",
+            "description": "No registered original currently satisfies the requirement.",
+            "type": "string"
+          },
+          {
+            "const": "changed",
+            "description": "A registered original differs from the bound identity.",
+            "type": "string"
+          }
+        ]
+      },
+      "OriginalBinding": {
+        "additionalProperties": false,
+        "description": "One required original, bound by observed content and storage identity rather\nthan by path, so relocation and rescans cannot silently change which original\na profile means.",
+        "properties": {
+          "observed_identity_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requirement_id": {
+            "description": "The catalog source requirement this original satisfies.",
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "storage_sha256": {
+            "type": "string"
+          },
+          "storage_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requirement_id",
+          "sha256",
+          "size",
+          "storage_sha256",
+          "storage_size"
+        ],
+        "type": "object"
+      },
+      "OriginalStatus": {
+        "properties": {
+          "availability": {
+            "$ref": "#/$defs/OriginalAvailability"
+          },
+          "binding": {
+            "$ref": "#/$defs/OriginalBinding"
+          }
+        },
+        "required": [
+          "binding",
+          "availability"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "Profile": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "current_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "intent": {
+            "$ref": "#/$defs/ProfileIntent"
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "display_name",
+          "is_default",
+          "intent",
+          "current_revision",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "ProfileIntent": {
+        "additionalProperties": false,
+        "properties": {
+          "requested_packages": {
+            "items": {
+              "$ref": "#/$defs/RequestedPackage"
+            },
+            "type": "array"
+          },
+          "update_policy": {
+            "$ref": "#/$defs/ProfileUpdatePolicy"
+          }
+        },
+        "required": [
+          "update_policy"
+        ],
+        "type": "object"
+      },
+      "ProfileInventory": {
+        "properties": {
+          "port_id": {
+            "type": "string"
+          },
+          "profiles": {
+            "items": {
+              "$ref": "#/$defs/ProfileView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "port_id",
+          "profiles"
+        ],
+        "type": "object"
+      },
+      "ProfileRevision": {
+        "additionalProperties": false,
+        "properties": {
+          "build": {
+            "$ref": "#/$defs/RetainedBuildIdentity"
+          },
+          "created_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "digest": {
+            "description": "SHA-256 of this revision's canonical content (with this field empty).",
+            "type": "string"
+          },
+          "limits": {
+            "description": "Explicit uncaptured or external inputs this revision cannot reproduce.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "loader": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LoaderContractRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "orderings": {
+            "items": {
+              "$ref": "#/$defs/TypedOrdering"
+            },
+            "type": "array"
+          },
+          "originals": {
+            "items": {
+              "$ref": "#/$defs/OriginalBinding"
+            },
+            "type": "array"
+          },
+          "packages": {
+            "items": {
+              "$ref": "#/$defs/ResolvedPackage"
+            },
+            "type": "array"
+          },
+          "parent_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "save_group": {
+            "description": "Revisions sharing a group share progress; a copy gets its own group.",
+            "type": "string"
+          },
+          "settings": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Consequential native settings only; ordinary preferences stay mutable state.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "profile_id",
+          "revision",
+          "parent_revision",
+          "build",
+          "originals",
+          "save_group",
+          "created_at",
+          "digest"
+        ],
+        "type": "object"
+      },
+      "ProfileUpdatePolicy": {
+        "description": "How a profile follows newer eligible releases. Stored as intent; unattended\napplication is owned by the provider/standing-policy work, not this module.",
+        "enum": [
+          "keep_current",
+          "review_updates",
+          "automatic_eligible"
+        ],
+        "type": "string"
+      },
+      "ProfileView": {
+        "properties": {
+          "build_availability": {
+            "$ref": "#/$defs/RetainedBuildAvailability"
+          },
+          "originals": {
+            "items": {
+              "$ref": "#/$defs/OriginalStatus"
+            },
+            "type": "array"
+          },
+          "profile": {
+            "$ref": "#/$defs/Profile"
+          },
+          "revision": {
+            "$ref": "#/$defs/ProfileRevision"
+          }
+        },
+        "required": [
+          "profile",
+          "revision",
+          "build_availability",
+          "originals"
+        ],
+        "type": "object"
+      },
+      "ProviderPackageRef": {
+        "additionalProperties": false,
+        "description": "A provider's own coordinates. Provider IDs never double as native loader IDs.",
+        "properties": {
+          "file": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "project"
+        ],
+        "type": "object"
+      },
+      "RequestedPackage": {
+        "additionalProperties": false,
+        "properties": {
+          "native_id": {
+            "type": "string"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderPackageRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version_constraint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "native_id"
+        ],
+        "type": "object"
+      },
+      "ResolvedPackage": {
+        "additionalProperties": false,
+        "description": "Exact package bytes plus its separate identities. A local import carries no\nprovider coordinates but still has its own native ID and digest.",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "native_id": {
+            "type": "string"
+          },
+          "native_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderPackageRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requires": {
+            "description": "Native IDs this package requires, from native metadata (not provider claims).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "native_id",
+          "sha256",
+          "size",
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "RetainedBuildAvailability": {
+        "enum": [
+          "verified",
+          "missing",
+          "changed",
+          "held",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "RetainedBuildIdentity": {
+        "additionalProperties": false,
+        "description": "Immutable identity only. Paths, version labels, and active selection are not keys.\n`runtime: None` means no separately identified bundled loader/runtime; the\nselected executable and installed contract still bind an integrated loader.",
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DefinitionSelectionIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "install_id": {
+            "type": "string"
+          },
+          "installed_contract_sha256": {
+            "type": "string"
+          },
+          "manifest_sha256": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "selected_executable": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "install_id",
+          "port_id",
+          "artifact",
+          "manifest_sha256",
+          "selected_executable",
+          "runtime",
+          "installed_contract_sha256",
+          "definition",
+          "platform"
+        ],
+        "type": "object"
+      },
+      "RuntimeIdentity": {
+        "properties": {
+          "archive_root": {
+            "type": "string"
+          },
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/$defs/RuntimeOrigin"
+          },
+          "target_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "origin",
+          "artifact",
+          "archive_root",
+          "target_directory",
+          "executable"
+        ],
+        "type": "object"
+      },
+      "RuntimeOrigin": {
+        "enum": [
+          "verified_download",
+          "adopted_tree"
+        ],
+        "type": "string"
+      },
+      "TypedOrdering": {
+        "additionalProperties": false,
+        "description": "One precedence domain. A loader may need several; no universal number exists.",
+        "properties": {
+          "domain": {
+            "type": "string"
+          },
+          "native_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "domain",
+          "native_ids"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Everything a game-level mods view needs in one read: whether the game has a\nreviewed mod contract, its setups and what is live now. Read-only.",
+    "properties": {
+      "inventory": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ProfileInventory"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "None until the installed game has its default setup."
+      },
+      "later_mods_take_priority": {
+        "description": "True when reviewed loader source shows that the later of two mods changing\nthe same asset wins. False when the order is kept but which mod wins is not\nestablished.",
+        "type": "boolean"
+      },
+      "live": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/LiveMods"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "package_types": {
+        "description": "Package file types the game loads, such as `o2r`.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "supported": {
+        "description": "False when the game has no reviewed mod package contract; nothing else is\noffered then.",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "port_id",
+      "supported",
+      "package_types",
+      "later_mods_take_priority",
+      "inventory",
+      "live"
+    ],
+    "title": "ModSetupsView",
     "type": "object"
   },
   "official_catalog_review": {
@@ -36166,6 +37773,429 @@
     "title": "ProfileInventory",
     "type": "object"
   },
+  "profile_recipe": {
+    "$defs": {
+      "ArtifactIdentity": {
+        "properties": {
+          "asset_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_name",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "AuthenticatedDefinitionProvenance": {
+        "additionalProperties": false,
+        "description": "Authenticated metadata facts captured with a candidate. They are not a persisted replay floor.",
+        "properties": {
+          "definitions_sha256": {
+            "type": "string"
+          },
+          "definitions_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "earliest_expiration": {
+            "type": "string"
+          },
+          "index_sha256": {
+            "type": "string"
+          },
+          "root_sha256": {
+            "type": "string"
+          },
+          "root_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "snapshot_sha256": {
+            "type": "string"
+          },
+          "snapshot_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "targets_sha256": {
+            "type": "string"
+          },
+          "targets_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "timestamp_sha256": {
+            "type": "string"
+          },
+          "timestamp_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "root_version",
+          "root_sha256",
+          "timestamp_version",
+          "timestamp_sha256",
+          "snapshot_version",
+          "snapshot_sha256",
+          "targets_version",
+          "targets_sha256",
+          "definitions_version",
+          "definitions_sha256",
+          "earliest_expiration",
+          "index_sha256"
+        ],
+        "type": "object"
+      },
+      "DefinitionSelectionIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "definition_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "grant_id": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "policy_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provenance": {
+            "$ref": "#/$defs/AuthenticatedDefinitionProvenance"
+          },
+          "repository_root_sha256": {
+            "type": "string"
+          },
+          "stable_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "stable_id",
+          "definition_revision",
+          "repository_root_sha256",
+          "grant_id",
+          "policy_revision",
+          "provenance"
+        ],
+        "type": "object"
+      },
+      "LoaderContractRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "ProviderPackageRef": {
+        "additionalProperties": false,
+        "description": "A provider's own coordinates. Provider IDs never double as native loader IDs.",
+        "properties": {
+          "file": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "project"
+        ],
+        "type": "object"
+      },
+      "RecipeOriginal": {
+        "additionalProperties": false,
+        "description": "A reference to an original, by content identity only. No path, no payload.",
+        "properties": {
+          "requirement_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requirement_id",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "RecipePackage": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "native_id": {
+            "type": "string"
+          },
+          "native_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderPackageRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requires": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "native_id",
+          "native_version",
+          "provider",
+          "sha256",
+          "size",
+          "enabled",
+          "requires"
+        ],
+        "type": "object"
+      },
+      "RecipeRuntime": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DefinitionSelectionIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "installed_contract_sha256": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "artifact",
+          "runtime",
+          "definition",
+          "installed_contract_sha256",
+          "platform"
+        ],
+        "type": "object"
+      },
+      "RuntimeIdentity": {
+        "properties": {
+          "archive_root": {
+            "type": "string"
+          },
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/$defs/RuntimeOrigin"
+          },
+          "target_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "origin",
+          "artifact",
+          "archive_root",
+          "target_directory",
+          "executable"
+        ],
+        "type": "object"
+      },
+      "RuntimeOrigin": {
+        "enum": [
+          "verified_download",
+          "adopted_tree"
+        ],
+        "type": "string"
+      },
+      "TypedOrdering": {
+        "additionalProperties": false,
+        "description": "One precedence domain. A loader may need several; no universal number exists.",
+        "properties": {
+          "domain": {
+            "type": "string"
+          },
+          "native_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "domain",
+          "native_ids"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "format": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "identity_sha256": {
+        "description": "SHA-256 of the recipe's canonical content with this field empty.",
+        "type": "string"
+      },
+      "loader": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/LoaderContractRef"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "orderings": {
+        "items": {
+          "$ref": "#/$defs/TypedOrdering"
+        },
+        "type": "array"
+      },
+      "originals": {
+        "items": {
+          "$ref": "#/$defs/RecipeOriginal"
+        },
+        "type": "array"
+      },
+      "packages": {
+        "items": {
+          "$ref": "#/$defs/RecipePackage"
+        },
+        "type": "array"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "runtime": {
+        "$ref": "#/$defs/RecipeRuntime"
+      },
+      "uncaptured": {
+        "description": "Inputs this recipe cannot reproduce; always stated, never implied.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "format",
+      "port_id",
+      "runtime",
+      "loader",
+      "originals",
+      "packages",
+      "orderings",
+      "uncaptured",
+      "identity_sha256"
+    ],
+    "title": "ProfileRecipe",
+    "type": "object"
+  },
   "profile_revision": {
     "$defs": {
       "ArtifactIdentity": {
@@ -36837,7 +38867,7 @@
         "$ref": "#/$defs/ProviderPackageRef"
       },
       "replaces": {
-        "description": "Installed packages with the same native ID but different bytes.",
+        "description": "Installed packages this plan replaces: the same native ID with different\nbytes, or a package the game loads as the same mod under another extension.",
         "items": {
           "type": "string"
         },
@@ -37063,6 +39093,520 @@
       "reason"
     ],
     "title": "ProviderUpdateObservation",
+    "type": "object"
+  },
+  "recipe_import_plan": {
+    "$defs": {
+      "ArtifactIdentity": {
+        "properties": {
+          "asset_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_name",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "AuthenticatedDefinitionProvenance": {
+        "additionalProperties": false,
+        "description": "Authenticated metadata facts captured with a candidate. They are not a persisted replay floor.",
+        "properties": {
+          "definitions_sha256": {
+            "type": "string"
+          },
+          "definitions_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "earliest_expiration": {
+            "type": "string"
+          },
+          "index_sha256": {
+            "type": "string"
+          },
+          "root_sha256": {
+            "type": "string"
+          },
+          "root_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "snapshot_sha256": {
+            "type": "string"
+          },
+          "snapshot_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "targets_sha256": {
+            "type": "string"
+          },
+          "targets_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "timestamp_sha256": {
+            "type": "string"
+          },
+          "timestamp_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "root_version",
+          "root_sha256",
+          "timestamp_version",
+          "timestamp_sha256",
+          "snapshot_version",
+          "snapshot_sha256",
+          "targets_version",
+          "targets_sha256",
+          "definitions_version",
+          "definitions_sha256",
+          "earliest_expiration",
+          "index_sha256"
+        ],
+        "type": "object"
+      },
+      "DefinitionSelectionIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "definition_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "grant_id": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "policy_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provenance": {
+            "$ref": "#/$defs/AuthenticatedDefinitionProvenance"
+          },
+          "repository_root_sha256": {
+            "type": "string"
+          },
+          "stable_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "stable_id",
+          "definition_revision",
+          "repository_root_sha256",
+          "grant_id",
+          "policy_revision",
+          "provenance"
+        ],
+        "type": "object"
+      },
+      "LoaderContractRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "ProfileRecipe": {
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "identity_sha256": {
+            "description": "SHA-256 of the recipe's canonical content with this field empty.",
+            "type": "string"
+          },
+          "loader": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LoaderContractRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "orderings": {
+            "items": {
+              "$ref": "#/$defs/TypedOrdering"
+            },
+            "type": "array"
+          },
+          "originals": {
+            "items": {
+              "$ref": "#/$defs/RecipeOriginal"
+            },
+            "type": "array"
+          },
+          "packages": {
+            "items": {
+              "$ref": "#/$defs/RecipePackage"
+            },
+            "type": "array"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "runtime": {
+            "$ref": "#/$defs/RecipeRuntime"
+          },
+          "uncaptured": {
+            "description": "Inputs this recipe cannot reproduce; always stated, never implied.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format",
+          "port_id",
+          "runtime",
+          "loader",
+          "originals",
+          "packages",
+          "orderings",
+          "uncaptured",
+          "identity_sha256"
+        ],
+        "type": "object"
+      },
+      "ProviderPackageRef": {
+        "additionalProperties": false,
+        "description": "A provider's own coordinates. Provider IDs never double as native loader IDs.",
+        "properties": {
+          "file": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "project"
+        ],
+        "type": "object"
+      },
+      "RecipeInputPlan": {
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/$defs/RecipeInputStatus"
+          }
+        },
+        "required": [
+          "name",
+          "status",
+          "detail"
+        ],
+        "type": "object"
+      },
+      "RecipeInputStatus": {
+        "oneOf": [
+          {
+            "const": "available",
+            "description": "Present locally with the exact identity the recipe names.",
+            "type": "string"
+          },
+          {
+            "const": "acquirable",
+            "description": "Not present; ordinary acquisition could supply it.",
+            "type": "string"
+          },
+          {
+            "const": "unavailable",
+            "description": "Present but different, or absent with no way to acquire it from the recipe.",
+            "type": "string"
+          }
+        ]
+      },
+      "RecipeOriginal": {
+        "additionalProperties": false,
+        "description": "A reference to an original, by content identity only. No path, no payload.",
+        "properties": {
+          "requirement_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requirement_id",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "RecipePackage": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "native_id": {
+            "type": "string"
+          },
+          "native_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderPackageRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requires": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "native_id",
+          "native_version",
+          "provider",
+          "sha256",
+          "size",
+          "enabled",
+          "requires"
+        ],
+        "type": "object"
+      },
+      "RecipeRuntime": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DefinitionSelectionIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "installed_contract_sha256": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "artifact",
+          "runtime",
+          "definition",
+          "installed_contract_sha256",
+          "platform"
+        ],
+        "type": "object"
+      },
+      "RuntimeIdentity": {
+        "properties": {
+          "archive_root": {
+            "type": "string"
+          },
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/$defs/RuntimeOrigin"
+          },
+          "target_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "origin",
+          "artifact",
+          "archive_root",
+          "target_directory",
+          "executable"
+        ],
+        "type": "object"
+      },
+      "RuntimeOrigin": {
+        "enum": [
+          "verified_download",
+          "adopted_tree"
+        ],
+        "type": "string"
+      },
+      "TypedOrdering": {
+        "additionalProperties": false,
+        "description": "One precedence domain. A loader may need several; no universal number exists.",
+        "properties": {
+          "domain": {
+            "type": "string"
+          },
+          "native_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "domain",
+          "native_ids"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "can_apply": {
+        "type": "boolean"
+      },
+      "holds": {
+        "description": "Why applying is not possible yet; empty when every input is present.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "install_id": {
+        "description": "The exact installation the new profile would bind, when one matches.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "originals": {
+        "items": {
+          "$ref": "#/$defs/RecipeInputPlan"
+        },
+        "type": "array"
+      },
+      "packages": {
+        "items": {
+          "$ref": "#/$defs/RecipeInputPlan"
+        },
+        "type": "array"
+      },
+      "plan_sha256": {
+        "type": "string"
+      },
+      "recipe": {
+        "$ref": "#/$defs/ProfileRecipe"
+      },
+      "runtime": {
+        "$ref": "#/$defs/RecipeInputPlan"
+      }
+    },
+    "required": [
+      "recipe",
+      "runtime",
+      "install_id",
+      "originals",
+      "packages",
+      "holds",
+      "can_apply",
+      "plan_sha256"
+    ],
+    "title": "RecipeImportPlan",
     "type": "object"
   },
   "recommendation_metadata": {

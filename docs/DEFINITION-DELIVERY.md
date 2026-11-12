@@ -16,7 +16,7 @@ component fixtures do not complete either production outcome.
 Core advertises each installed `AdapterKind` template with contract version 1.
 The public inventory additionally advertises Libultraship portable version 2,
 native portable versions 2–9, managed PS1 version 2, N64 portable versions 2–4
-and staged-source portable versions 2–5, 8, 10–12 and 15–29. The inventory owner is
+and staged-source portable versions 2–5, 8, 10–12 and 15–30. The inventory owner is
 `EngineTemplateCapability::current()` in
 [`definition_capabilities.rs`](../crates/portcove-core/src/definition_capabilities.rs);
 the version semantics and admission limits below remain part of each contract.
@@ -508,6 +508,15 @@ platform needs explicit package and executable hints. Windows keeps its
 existing path checks. A reviewed Windows predecessor keeps its exact creating
 contract, archive and Windows executable hint. Sibling platform hints do not
 grant cross-platform adoption or build-specific progress compatibility.
+
+Staged-source version 30 admits the `xdvdfs-directory` and `iso9660-directory`
+source materializations with their `runtime_disc_image` declaration (see
+[Disc-image unpacking](CATALOG.md#disc-image-unpacking)). An indexed entry that
+declares `runtime_disc_image` must require staged-source minimum version 30, so
+older readers that cannot unpack a disc image refuse it instead of misreading the
+definition. The version adds no source, installation or publisher authority and
+does not change versions 2–29. A definition bundled with the application ships with
+the build that understands it and needs no separate requirement.
 
 ## Decision and threat model
 
