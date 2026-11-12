@@ -134,17 +134,19 @@ unless the copy change is intended and reviewed.
 | Operation cancellation control                                  | `components/OperationCancellation.tsx`                     | `operations`        |
 | Shared dialog, tooltip, filter field and game search primitives | `components/ui/{dialog,tooltip,field,combobox}.tsx`        | `common`            |
 | External link failure                                           | `components/ExternalLink.tsx`                              | `common`            |
+| Setup-warning heading (warnings stay authored data)             | `components/AuthoredSetupWarnings.tsx`                     | `common`            |
+| Task-update live region label                                   | `components/InvocationAnnouncements.tsx`                   | `common`            |
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-12 it
-reported 1,543 findings in 66 of 216 analyzed files, measured after the
+reported 1,539 findings in 64 of 216 analyzed files, measured after the
 migrations listed above and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
 and are migrated with the surface that renders them. The count is a work
 inventory, not a coverage claim.
 
 Narrow technical-literal exclusions: the lint ignores the `align`, `aria-live`,
-`aria-atomic`, `aria-autocomplete`, `aria-describedby`, `aria-hidden`, `aria-labelledby`, `data-backup-action`, `data-settings-control`,
+`aria-atomic`, `aria-autocomplete`, `aria-describedby`, `aria-hidden`, `aria-labelledby`, `aria-relevant`, `data-backup-action`, `data-settings-control`,
 `data-slot`, `dir`, `intent`, `positionMethod`, `reviewSize`, `size`, `triggerId` and `variant`
 attributes, which carry design-system tokens, element ids, ARIA references or ARIA state tokens,
 never player copy.

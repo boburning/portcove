@@ -513,7 +513,9 @@ export default interface Resources {
       "empty": "No game or port matches this search.",
       "placeholder": "Search games and port projects…",
       "show": "Show games and ports"
-    }
+    },
+    "setupWarnings": "Before you begin",
+    "taskUpdates": "Task updates"
   },
   "counts": {
     "copiedFiles_one": "{{count, number}} file will be copied.",

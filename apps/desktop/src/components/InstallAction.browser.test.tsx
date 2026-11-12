@@ -832,7 +832,7 @@ it("shows authored save warnings before installation confirmation without openin
       install={install}
     />,
   );
-  const warning = document.querySelector('aside[aria-label="Before you begin"]');
+  const warning = document.querySelector("aside[data-setup-warnings]");
   expect(warning?.textContent).toContain("Separate program folders can share saves");
   expect(warning?.closest("details")).toBeNull();
   const confirm = button("Install");
