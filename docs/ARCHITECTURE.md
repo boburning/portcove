@@ -722,10 +722,13 @@ SteamGridDB-scoped operating-system secure-store entry. It is never read back fo
 display or accepted from process arguments or the environment, and it is sent as a
 bearer token only to `https://www.steamgriddb.com/api/v2` by a client that follows
 no redirects. Game search and per-role candidate listing request static PNG/JPEG
-images with `nsfw`, `humor` and `epilepsy` filtered out. Core rechecks each result,
+images with `nsfw`, `humor` and `epilepsy` filtered out. Core rechecks those flags and
+the image format for each result,
 keeps only image and thumbnail URLs on `https://cdn2.steamgriddb.com`, bounds
 responses and counts, and maps missing, rejected, rate-limited (with `Retry-After`),
-unavailable and malformed responses to explicit outcomes. Candidates are proposals
+unavailable and malformed responses to explicit outcomes. Responses do not mark
+animation, so the static-only filter relies on the provider until import decodes the
+image. Candidates are proposals
 with author attribution; they establish no game identity, selection or Steam write.
 No project key exists, and no CLI or Desktop surface exposes the client yet.
 

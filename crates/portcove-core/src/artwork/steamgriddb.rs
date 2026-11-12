@@ -159,7 +159,12 @@ pub(crate) fn search_games(
     term: &str,
 ) -> Result<Vec<SteamGridDbGame>> {
     let term = term.trim();
-    if term.is_empty() || term.chars().count() > MAX_SEARCH_TERM_CHARS {
+    // A dot-only term would be a `.`/`..` path segment (even percent-encoded),
+    // which URL parsing collapses into a different endpoint.
+    if term.is_empty()
+        || term.chars().all(|character| character == '.')
+        || term.chars().count() > MAX_SEARCH_TERM_CHARS
+    {
         return Err(PortcoveError::usage(format!(
             "enter a game name of 1 to {MAX_SEARCH_TERM_CHARS} characters"
         )));
@@ -231,7 +236,9 @@ pub(crate) fn role_candidates(
     let images: Vec<Image> = request(transport, key, &path)?;
     Ok(images
         .into_iter()
-        // Requested filters are rechecked; anything unexpected is dropped, not trusted.
+        // Requested flag, format and host filters are rechecked; anything unexpected is
+        // dropped, not trusted. Responses do not mark animation, so `types=static` relies
+        // on the provider and the eventual image import must reject animated files.
         .filter(|image| {
             image.id > 0
                 && !image.nsfw
@@ -402,6 +409,7 @@ fn http_client() -> Result<&'static reqwest::blocking::Client> {
             reqwest::blocking::Client::builder()
                 // Never follow redirects: the key must not leave the fixed origin.
                 .redirect(reqwest::redirect::Policy::none())
+                .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
                 .connect_timeout(Duration::from_secs(5))
                 .timeout(Duration::from_secs(15))
                 .build()

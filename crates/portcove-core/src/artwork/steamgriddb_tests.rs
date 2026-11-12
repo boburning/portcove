@@ -82,13 +82,20 @@ fn search_encodes_the_term_and_uses_only_the_fixed_api_path() {
             verified: true
         }]
     );
-    let requests = fixture.requests.borrow();
+    let requests = fixture.requests.borrow().clone();
     assert_eq!(
         requests[0].0,
         "/search/autocomplete/Zelda%3A%20Ocarina%20%2F%2064"
     );
     assert_eq!(requests[0].1, KEY);
-    assert!(search_games(&fixture, KEY, "  ").is_err());
+    for rejected in ["  ", ".", "..", " ... "] {
+        assert_eq!(
+            search_games(&fixture, KEY, rejected).unwrap_err().code,
+            crate::ErrorCode::Usage,
+            "{rejected:?}"
+        );
+    }
+    assert_eq!(fixture.requests.borrow().len(), 1);
 }
 
 #[test]
@@ -176,7 +183,10 @@ fn provider_failures_map_to_explicit_player_outcomes() {
         );
     }
     let oversized = Fixture::status(200, " ".repeat(MAX_RESPONSE_BYTES + 1));
-    assert!(search_games(&oversized, KEY, "game").is_err());
+    assert_eq!(
+        search_games(&oversized, KEY, "game").unwrap_err().code,
+        crate::ErrorCode::Verification
+    );
 }
 
 #[test]
