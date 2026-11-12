@@ -16,9 +16,11 @@ Skater 3, Quake II). The three kits below pin PSXRecomp `a839474e` and ship the
 same whole `mods/packages` layout.
 
 - **Writer paths:** the file and folder literals in the two frameworks'
-  `runtime/src` and `runtime/include` trees are identical apart from three
-  hard-coded `SCPH1001.bin` filename candidates that `a839474e` no longer has.
-  Those kits find the BIOS through configuration instead.
+  `runtime/src` and `runtime/include` trees are identical apart from BIOS
+  discovery. `40ce4789` hard-codes SCPH-1001 filename candidates, a SCPH-1001
+  size and CRC check in its setup host and a `bios/SCPH1001.BIN` default in
+  `runtime.cmake`; `a839474e` names `SCPH5552.BIN` instead. These affect only
+  first-run BIOS discovery, not where player data is written.
 - **BIOS staging:** Core's `psx-recomp-managed` preparation reads the kit's own
   `[recompiler] bios_config` from `game.toml` and stages the BIOS that profile
   names. Nothing in that path depends on the authoring form. The `split-mods`
@@ -47,7 +49,8 @@ single disc.
 | Mortal Kombat Trilogy (#468) | v0.1.1, `4bd910c2` | SLUS-00330 (USA) (Rev 1), 30 tracks, track 1 `aa9b7e17…` | [469](https://redump.info/disc/469)   | `Mortal_Kombat_Trilogy_Recompiled` |
 
 Mortal Kombat Trilogy's `game.toml` also lists a second 577,190,208-byte image
-(`b1f8cf90…`) that matches no Redump track. Core binds only the Redump Rev 1
+(`b1f8cf90…`) that matches no Redump track. Its size equals the full Redump
+disc, so it is most likely the same disc merged into one file. Core binds only the Redump Rev 1
 first data track and its 30-track count, so the managed route accepts the
 complete Redump disc in a CHD. Its other tracks are carried into preparation
 without authenticating their audio content.
