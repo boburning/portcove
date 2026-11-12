@@ -8,6 +8,7 @@ import {
   readApplicationJobBudget,
   permitsEmptyBootstrapContinuation,
   permitsRetainedServedRenewalContinuation,
+  permitsRetainedV8SourceRefusalContinuation,
   permitsBudgetedEmptyBootstrap,
   readBootstrapRecoveryObservations,
 } from "./application-release-budget.mts";
@@ -20,6 +21,7 @@ import {
   failedBootstrapRecovery,
   retainedServedRenewal,
   retainedServedRenewalFeed,
+  retainedV8RenewalDraft,
   retainedR55Renewal,
   retainedR56FeedRecovery,
 } from "./application-release-run.mts";
@@ -753,6 +755,127 @@ void test("forward metadata maintenance counts original executions, refuses miss
         (scope) => scope.opportunity === child && scope.run_ids.includes("124"),
       ),
     "refused maintenance run stays in the original cost record",
+  );
+});
+
+void test("the exact pre-registration renewal refusal permits one continuation with both contexts", () => {
+  const draft = retainedV8RenewalDraft;
+  const current = { source, ref: draft.next_ref, run_id: run, run_attempt: 1 };
+  const currentCustody = { id: run, control_commit: source, control_ref: current.ref };
+  const registered = draft.predecessors
+    .slice(0, 2)
+    .map(({ id, control_commit, control_ref }) => ({ id, control_commit, control_ref }));
+  const contexts = registered.map((actor, index) => ({
+    opportunity: draft.opportunity,
+    run_id: actor.id,
+    run_attempt: 1,
+    control_commit: actor.control_commit,
+    control_ref: actor.control_ref,
+    generated_at: at(index * 60).replace(".000Z", ".001Z"),
+    root_sha256: "a".repeat(64),
+    offline_targets_sha256: "b".repeat(64),
+    prior_repository_sha256: "c".repeat(64),
+    context_sha256: draft.context_sha256[index],
+    context_inventory_sha256: "d".repeat(64),
+    records_sha256: "e".repeat(64),
+    versions: {
+      targets: "1",
+      snapshot: String(index + 9),
+      timestamp: String(index + 9),
+      releases: String(index + 9),
+      preview: String(index + 9),
+      stable: String(index + 9),
+    },
+  }));
+  const custody = inspectApplicationRunCustody({
+    schema_version: 3,
+    kind: "application-release-run-custody",
+    source: draft.source,
+    source_tree: draft.source_tree,
+    opportunity: draft.opportunity,
+    preparation: null,
+    runs: [...registered, currentCustody],
+    metadata_contexts: contexts,
+  });
+  const inventory = [
+    ...draft.predecessors.map((actor) => ({
+      id: Number(actor.id),
+      head_sha: actor.control_commit,
+      head_branch: actor.control_ref.slice(10),
+      run_attempt: 1,
+      status: "completed",
+      conclusion: actor.conclusion,
+    })),
+    {
+      id: Number(run),
+      head_sha: source,
+      head_branch: current.ref.slice(10),
+      run_attempt: 1,
+      status: "in_progress",
+      conclusion: null,
+    },
+  ];
+  const permits = (
+    rows: readonly Record<string, unknown>[] = inventory,
+    actor: Parameters<typeof permitsRetainedV8SourceRefusalContinuation>[1] = current,
+    retained = custody,
+  ) =>
+    permitsRetainedV8SourceRefusalContinuation(
+      rows,
+      actor,
+      draft.opportunity,
+      "metadata-renewal",
+      "metadata-maintenance",
+      { release_id: draft.release_id, custody: retained },
+    );
+  assert.equal(permits(), true);
+  const nextContext = {
+    ...contexts[1]!,
+    run_id: run,
+    control_commit: source,
+    control_ref: current.ref,
+    generated_at: at(120).replace(".000Z", ".001Z"),
+    context_sha256: "f".repeat(64),
+    versions: Object.fromEntries(
+      Object.entries(contexts[1]!.versions).map(([name, version]) => [
+        name,
+        name === "targets" ? version : "11",
+      ]),
+    ),
+  };
+  assert.equal(
+    permits(
+      inventory,
+      current,
+      inspectApplicationRunCustody({ ...custody, metadata_contexts: [...contexts, nextContext] }),
+    ),
+    true,
+  );
+  assert.equal(
+    permits([...inventory.slice(0, 3), { ...inventory[3]!, conclusion: "failure" }]),
+    false,
+  );
+  assert.equal(permits(inventory.slice(1)), false);
+  assert.equal(permits([...inventory, { ...inventory[3]!, id: 124 }]), false);
+  assert.equal(permits(inventory, { ...current, run_attempt: 2 }), false);
+  assert.equal(permits(inventory, { ...current, ref: "refs/tags/unrelated" }), false);
+  assert.equal(
+    permits([...inventory.slice(0, 2), { ...inventory[2]!, conclusion: "success" }, inventory[3]!]),
+    false,
+  );
+  assert.equal(
+    permits(inventory, current, {
+      ...custody,
+      metadata_contexts: custody.metadata_contexts!.slice(0, 1),
+    }),
+    false,
+  );
+  assert.equal(
+    permits(inventory, current, {
+      ...custody,
+      runs: [...registered, currentCustody, draft.predecessors[2]],
+    }),
+    false,
   );
 });
 
