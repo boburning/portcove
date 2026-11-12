@@ -3461,8 +3461,8 @@ export interface GameFileScanCoverage {
   frontier_exhausted: boolean;
   metadata_checks: number;
   /**
-   * Files whose saved identity was reused because their recorded
-   * metadata and inspector version still match. Never admission.
+   * File identities (one per file and representation) reused because the
+   * recorded metadata and inspector version still match. Never admission.
    */
   observations_reused: number;
   pending_directories: number;
