@@ -457,7 +457,16 @@ impl PortcoveService {
                 .filter(|key| read_holds(layout).contains_key(key)),
             _ => None,
         };
-        settle_holds(layout, profile_id, installed, current_key.as_deref());
+        // A passing outage or a busy setup says nothing new about the update.
+        if !matches!(
+            outcome,
+            Some(
+                ProviderAutoUpdateOutcome::Unavailable { .. }
+                    | ProviderAutoUpdateOutcome::Deferred { .. }
+            )
+        ) {
+            settle_holds(layout, profile_id, installed, current_key.as_deref());
+        }
         outcome
     }
 

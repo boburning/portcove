@@ -1947,8 +1947,8 @@ Whether a newer file suits the setup's game build is not assessed by the provide
 or by Portcove (UNKNOWN). `profile setups` reports `held_updates`: the remembered
 holds for each setup's current revision, only while its policy is
 `automatic-eligible`, with the setup's affected mods, the candidate file and the
-reason. A new revision of the setup, another outcome for that installed file, or a
-newer candidate replaces or ends a hold, and the remembered holds are cleared
+reason. A new revision of the setup, another outcome for that installed file (other than
+a deferral or an outage), or a newer candidate replaces or ends a hold, and the remembered holds are cleared
 entirely if they ever exceed 256. Desktop's Setups and mods panel shows the held
 updates for the setup in use and refreshes after an applied one; it does not show
 deferred or unavailable updates or holds for other setups, which
