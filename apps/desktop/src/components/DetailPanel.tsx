@@ -92,6 +92,7 @@ import {
   releaseChannelPresentation,
 } from "../view-model";
 import { BackupHistory } from "./BackupHistory";
+import { PortableSaves } from "./PortableSaves";
 import { ProtectionSummary } from "./ProtectionSummary";
 import { GameSettingsControl } from "./GameSettingsControl";
 import { ModSetupsControl } from "./ModSetupsControl";
@@ -1202,6 +1203,14 @@ function SavesStorageGroup({
         Backups cover managed saves and settings. Game-version rollback, library metadata and other
         folders are separate.
       </p>
+      <PortableSaves
+        key={`portable-saves:${port.id}:${libraryGeneration}`}
+        portId={port.id}
+        gameName={gameIdentityLabel(port)}
+        generation={libraryGeneration}
+        busy={busy}
+        onChanged={() => void retryBackupRead?.()}
+      />
       <details className="text-sm">
         <summary className="cursor-pointer py-2 font-medium">Coverage and recorded rules</summary>
         <SavesAndSettingsSummary port={port} status={status} />

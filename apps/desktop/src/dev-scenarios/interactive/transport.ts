@@ -745,6 +745,21 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         state: "healthy",
       } satisfies Awaited<ReturnType<typeof desktopApi.backups>>;
     },
+    preview_portable_save_export: (args) => {
+      if (!workspace(journey).catalog.ports.some((port) => port.id === args?.portId))
+        return unsupported("preview_portable_save_export");
+      requireArgs("preview_portable_save_export", args, {
+        portId: args?.portId,
+        generation,
+      });
+      // Scenario ports have no reviewed portable-save contract.
+      return {
+        port_id: String(args?.portId),
+        files: [],
+        stays_local: [],
+        blockers: ["unqualified"],
+      } satisfies Awaited<ReturnType<typeof desktopApi.previewPortableSaveExport>>;
+    },
     get_artwork: (args) => {
       if (
         !(
