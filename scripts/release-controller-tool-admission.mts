@@ -385,6 +385,23 @@ export async function prepareControllerToolPredicate(
   }
 }
 
+type ControllerToolCustodyPhase =
+  | "provider-before"
+  | "opaque-download"
+  | "archive-inspection"
+  | "pinned-attestation-verifier"
+  | "provider-after"
+  | "materialize-only-verified-tools";
+
+export class ControllerToolCustodyRefusal extends Error {
+  readonly phase: ControllerToolCustodyPhase;
+
+  constructor(directory: string, phase: ControllerToolCustodyPhase) {
+    super(`controller tool verification refused; retain ${directory}`);
+    this.phase = phase;
+  }
+}
+
 /** Independently pinned gh/Sigstore verification survives producer completion
  * without retaining a bearer or ignoring token expiry. All tools are opaque
  * bytes until the complete archive, signed manifest and provider bracket agree. */
@@ -440,7 +457,7 @@ export async function receiveControllerTools(
   const directory = await mkdtemp(
     path.join(parent, profile.platform === "windows-x86_64" ? "ctr-" : "controller-tool-receiver-"),
   );
-  let phase = "provider-before";
+  let phase: ControllerToolCustodyPhase = "provider-before";
   try {
     const home = path.join(directory, "reader-home");
     await mkdir(home, { mode: 0o700 });
@@ -555,6 +572,7 @@ export async function receiveControllerTools(
       bundleArchive = await download(before.bundle);
     await writeFile(path.join(directory, "tools.zip"), archive, { flag: "wx", mode: 0o600 });
     await writeFile(path.join(directory, "bundle.zip"), bundleArchive, { flag: "wx", mode: 0o600 });
+    phase = "archive-inspection";
     const inspected = inspectControllerToolArchive(archive, {
       dependencies: fixedReleaseToolDependencies(),
       source_commit: expected.controller_revision,
@@ -722,6 +740,6 @@ export async function receiveControllerTools(
       JSON.stringify({ directory, phase, authority: "none", automatic_retry: false }),
       { flag: "wx", mode: 0o600 },
     ).catch(() => {});
-    throw new Error(`controller tool verification refused; retain ${directory}`);
+    throw new ControllerToolCustodyRefusal(directory, phase);
   }
 }
