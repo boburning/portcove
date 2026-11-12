@@ -65,7 +65,10 @@ it("counts favorites within actual composed search/channel results and reset pre
     />,
   );
   expect(host.querySelector('button[aria-label="Favorites 1"]')).not.toBeNull();
-  expect(host.textContent).toContain("1 ungrouped project · 1 matching port");
+  // Discover counts the favorite games left by search and channel filters, not stored choices.
+  expect(
+    host.querySelector('[role="status"][aria-label="Search results"]')?.textContent?.trim(),
+  ).toBe("1 game");
   expect(host.querySelector('button[aria-label="Favorite Keep first"]')).not.toBeNull();
   expect(host.querySelector('button[aria-label="Favorite Keep second"]')).toBeNull();
   const reset = [...host.querySelectorAll<HTMLButtonElement>("button")].find(

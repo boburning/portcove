@@ -79,7 +79,8 @@
     "separateProjects_two": "مشروعان منفصلان",
     "separateProjects_few": "{{count}} مشاريع منفصلة",
     "separateProjects_many": "{{count}} مشروعًا منفصلًا",
-    "separateProjects_other": "{{count}} مشروع منفصل"
+    "separateProjects_other": "{{count}} مشروع منفصل",
+    "unavailableFor": "غير متاح لـ {{platform}}"
   },
   "hero": {
     "continueLabel": "{{title}} لُعبت مؤخرًا",

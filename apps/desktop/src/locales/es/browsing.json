@@ -73,7 +73,8 @@
     },
     "separateProjects_one": "{{count}} proyecto de adaptación independiente",
     "separateProjects_many": "{{count}} proyectos de adaptación independientes",
-    "separateProjects_other": "{{count}} proyectos de adaptación independientes"
+    "separateProjects_other": "{{count}} proyectos de adaptación independientes",
+    "unavailableFor": "No disponible para {{platform}}"
   },
   "hero": {
     "continueLabel": "{{title}}, jugado recientemente",

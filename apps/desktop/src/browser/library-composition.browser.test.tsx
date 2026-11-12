@@ -322,7 +322,7 @@ it("names exact port choices from their visible identity and readiness inside gr
   expect(document.querySelectorAll("[data-discover-port-ids]")).toHaveLength(11);
   await expect
     .element(page.getByRole("status", { name: "Search results", exact: true }))
-    .toHaveTextContent("1 game + 10 ungrouped projects · 12 matching ports");
+    .toHaveTextContent("11 games");
   await userEvent.click(group.querySelector<HTMLButtonElement>(".discover-game-identity")!);
   const dialog = page.getByRole("dialog", { name: "Super Mario 64", exact: true });
   await expect.element(dialog).toBeVisible();
