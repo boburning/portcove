@@ -79,7 +79,7 @@ pub fn extract_download_archive(format: ArchiveFormat, bytes: &[u8]) -> Result<(
         &|| Ok(()),
     );
     check_scratch(scratch.path(), &source, &destination);
-    check_written_tree(&destination, bytes.len() as u64);
+    check_written_tree(&destination, bytes.len() as u64, result.is_err());
     scratch.close()?;
     result
 }
@@ -102,7 +102,7 @@ fn check_scratch(scratch: &Path, source: &Path, destination: &Path) {
     );
 }
 
-fn check_written_tree(destination: &Path, compressed_size: u64) {
+fn check_written_tree(destination: &Path, compressed_size: u64, refused: bool) {
     let mut pending = vec![PathBuf::new()];
     let mut files = 0_usize;
     let mut expanded = 0_u64;
@@ -150,12 +150,19 @@ fn check_written_tree(destination: &Path, compressed_size: u64) {
             }
         }
     }
+    // The limits bound declared sizes. A writer reads one byte past an entry's
+    // declared size to detect overrun, so a refused extraction can leave that
+    // byte in each file it was writing.
+    let slack = if refused { files as u64 } else { 0 };
     assert!(
-        expanded <= MAX_EXPANDED_BYTES,
+        expanded <= MAX_EXPANDED_BYTES.saturating_add(slack),
         "extracted more bytes than the total limit"
     );
     assert!(
-        expanded <= compressed_size.saturating_mul(MAX_COMPRESSION_RATIO),
+        expanded
+            <= compressed_size
+                .saturating_mul(MAX_COMPRESSION_RATIO)
+                .saturating_add(slack),
         "extracted {expanded} bytes from {compressed_size}, beyond the compression ratio limit"
     );
 }

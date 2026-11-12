@@ -28,7 +28,8 @@ refusal is ordinary. A finding is a panic, a crash, a libFuzzer timeout or
 memory-limit failure, or a broken extraction contract, which the entry checks
 after every success and every refusal:
 
-- nothing is written beside the destination;
+- nothing appears in the per-input scratch directory except the source file and
+  the destination (writes elsewhere on the host are not observed);
 - the destination holds only regular files and directories;
 - every written path passes the archive path rules;
 - the written files stay within the entry, total-size and compression-ratio limits.
@@ -47,7 +48,8 @@ PORTCOVE_WRITE_ARCHIVE_FUZZ_SEEDS=1 cargo test --locked -p portcove-core --lib a
 ```
 
 That run rewrites the files and then fails on purpose; run it again without the
-variable to check the new bytes.
+variable to check the new bytes. The test checks that the committed seeds
+extract; it does not compare them with the generators' current output.
 
 ## Toolchain and dependencies
 
@@ -57,10 +59,16 @@ variable to check the new bytes.
   `nightly-2026-09-02`, the same nightly the coverage investigation pins in
   `.config/rust-coverage.json`.
 - This directory is its own Cargo workspace, excluded from the root workspace.
-  `Cargo.lock` here is committed. It was seeded from the root lockfile, so every
-  shared package has the version main resolves, and adds only `libfuzzer-sys`,
-  `arbitrary` and this package. Production builds never see this lockfile, the
-  `archive-fuzzing` feature or the nightly compiler.
+  `Cargo.lock` here is committed. When it was created it was seeded from main's
+  root lockfile, so every shared package had main's version, and it added only
+  `libfuzzer-sys`, `arbitrary` and this package. It does not follow later root
+  lock changes. To resync it before a campaign, copy the root `Cargo.lock` here,
+  run `cargo metadata --format-version 1 --manifest-path crates/portcove-core/fuzz/Cargo.toml`
+  so Cargo adds or removes only what this manifest needs, and review the diff.
+  Production builds never see this lockfile, the `archive-fuzzing` feature or
+  the nightly compiler.
+- Renovate ignores this directory (`ignorePaths` in `renovate.json`). Its
+  weekly lock maintenance and the maintenance policy cover only the root locks.
 
 ## Build
 
@@ -75,7 +83,7 @@ node scripts/dev-storage.mts run -- node scripts/run-rust-tests.mts --guard-comm
 git diff --exit-code -- crates/portcove-core/fuzz/Cargo.lock
 ```
 
-cargo-fuzz 0.13.2 has no `--locked` option and does not pass one to the
+The pinned cargo-fuzz (0.13.2 when this was written) has no `--locked` option and does not pass one to the
 `cargo build` it runs, and Cargo has no configuration key for it. So the build
 itself is **not** a locked build. The three commands instead:
 

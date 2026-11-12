@@ -3,7 +3,9 @@
 //! Each seed goes through the same entry as its fuzz target. Set
 //! `PORTCOVE_WRITE_ARCHIVE_FUZZ_SEEDS=1` to rewrite the seed files from the
 //! generators below (TAR.XZ needs the Linux x86_64 test encoder), then run the
-//! test again without it so the embedded bytes are checked.
+//! test again without it so the embedded bytes are checked. The test checks
+//! that the committed bytes extract; it does not compare them with the
+//! generators' current output.
 use std::{
     fs,
     io::{Cursor, Write},
@@ -174,10 +176,15 @@ fn tar_xz_generator() -> Option<fn() -> Vec<u8>> {
 fn committed_archive_fuzz_seeds_extract_through_the_fuzz_entry() {
     if std::env::var_os("PORTCOVE_WRITE_ARCHIVE_FUZZ_SEEDS").is_some() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("fuzz/seeds");
-        for seed in seeds() {
-            let generate = seed
-                .generate
-                .unwrap_or_else(|| panic!("{} has no generator on this host", seed.name));
+        let seeds = seeds();
+        if let Some(seed) = seeds.iter().find(|seed| seed.generate.is_none()) {
+            panic!(
+                "{} has no generator on this host; nothing was written",
+                seed.name
+            );
+        }
+        for seed in seeds {
+            let generate = seed.generate.expect("checked above");
             let directory = root.join(seed.target);
             fs::create_dir_all(&directory).unwrap();
             fs::write(directory.join(seed.name), generate()).unwrap();
