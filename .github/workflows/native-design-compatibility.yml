@@ -766,6 +766,13 @@ jobs:
           if ([version]$record.after -lt [version]$minimum) {
             throw "WebView2 $($record.after) remains below the application floor $minimum."
           }
+          # The elevated hosted runner's WebView2 ignores msedgedriver's
+          # WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS, so no DevTools endpoint opens.
+          # On this disposable runner only, the machine policy supplies the
+          # automation port for the development executable the harness launches.
+          $policy = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge\WebView2\AdditionalBrowserArguments'
+          New-Item -Path $policy -Force | Out-Null
+          New-ItemProperty -Path $policy -Name 'portcove-desktop.exe' -Value '--remote-debugging-port=0' -PropertyType String -Force | Out-Null
       - name: Install locked packages and existing pinned native tools
         shell: pwsh
         run: |
