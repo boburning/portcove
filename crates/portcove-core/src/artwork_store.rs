@@ -3,11 +3,56 @@ use std::collections::BTreeSet;
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 
 use crate::{
-    ArtworkChoice, ArtworkMetadata, ArtworkSlot, LocalArtworkAsset, PortcoveError, Result,
+    ArtworkAttribution, ArtworkChoice, ArtworkMetadata, ArtworkProviderRecord, ArtworkSlot,
+    LocalArtworkAsset, PortcoveError, Result,
 };
 
 const MAX_ASSETS: usize = 4096;
 const MAX_TOTAL_BYTES: u64 = 1024 * 1024 * 1024;
+/// Distinct provider images that resolved to stored bytes; identical bytes from
+/// several provider images keep one record each.
+const MAX_PROVIDER_RECORDS: usize = 16384;
+const MAX_AUTHOR_CHARS: usize = 100;
+
+/// Library migration 52: provider provenance beside, never inside, asset payloads,
+/// so assets imported locally keep their stored form byte-for-byte.
+pub(crate) fn migrate_providers(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE artwork_asset_providers (
+            asset_sha256 TEXT NOT NULL REFERENCES artwork_assets(sha256),
+            provider TEXT NOT NULL CHECK(provider IN ('steamgriddb')),
+            asset_id INTEGER NOT NULL CHECK(asset_id>0),
+            record_json TEXT NOT NULL CHECK(length(record_json)<=8192),
+            PRIMARY KEY(asset_sha256,provider,asset_id)
+        );
+        CREATE TABLE artwork_provider_only_assets (
+            asset_sha256 TEXT PRIMARY KEY NOT NULL REFERENCES artwork_assets(sha256)
+        );",
+    )?;
+    Ok(())
+}
+
+pub(crate) fn validate_attribution(attribution: &ArtworkAttribution) -> Result<()> {
+    let name = &attribution.author_name;
+    if attribution.asset_id == 0
+        || attribution.asset_id > i64::MAX as u64
+        || attribution.game_id == 0
+        || name.trim() != name
+        || name.is_empty()
+        || name.chars().count() > MAX_AUTHOR_CHARS
+        || name.chars().any(char::is_control)
+        || attribution.author_steam64.as_ref().is_some_and(|id| {
+            id.is_empty() || id.len() > 20 || !id.bytes().all(|byte| byte.is_ascii_digit())
+        })
+        || !crate::artwork::steamgriddb::is_image_url(&attribution.source_url)
+        || attribution.fetched_at <= 0
+    {
+        return Err(PortcoveError::verification(
+            "invalid artwork provider attribution",
+        ));
+    }
+    Ok(())
+}
 
 pub(crate) fn migrate(transaction: &Transaction<'_>) -> Result<()> {
     transaction.execute_batch("CREATE TABLE artwork_assets (
@@ -152,6 +197,89 @@ pub(crate) fn write_asset(connection: &Connection, asset: &LocalArtworkAsset) ->
     Ok(())
 }
 
+pub(crate) fn asset_exists(connection: &Connection, id: &str) -> Result<bool> {
+    Ok(connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM artwork_assets WHERE sha256=?1)",
+        [id],
+        |row| row.get(0),
+    )?)
+}
+
+/// Keeps the first record for a provider image; attribution is never dropped or
+/// rewritten by a later identical import.
+pub(crate) fn write_provider(
+    connection: &Connection,
+    record: &ArtworkProviderRecord,
+) -> Result<()> {
+    validate_hash(&record.asset_sha256)?;
+    validate_attribution(&record.attribution)?;
+    connection.execute(
+        "INSERT INTO artwork_asset_providers(asset_sha256,provider,asset_id,record_json) VALUES (?1,?2,?3,?4)
+         ON CONFLICT(asset_sha256,provider,asset_id) DO NOTHING",
+        params![
+            record.asset_sha256,
+            record.attribution.provider.key(),
+            record.attribution.asset_id,
+            serde_json::to_string(&record.attribution)?
+        ],
+    )?;
+    Ok(())
+}
+
+pub(crate) fn mark_provider_only(connection: &Connection, id: &str) -> Result<()> {
+    validate_hash(id)?;
+    connection.execute(
+        "INSERT INTO artwork_provider_only_assets(asset_sha256) VALUES (?1) ON CONFLICT DO NOTHING",
+        [id],
+    )?;
+    Ok(())
+}
+
+/// A local import of the same bytes makes the player the origin as well, so a
+/// later provider withdrawal can never evict it.
+pub(crate) fn record_local_origin(connection: &Connection, id: &str) -> Result<()> {
+    connection.execute(
+        "DELETE FROM artwork_provider_only_assets WHERE asset_sha256=?1",
+        [id],
+    )?;
+    Ok(())
+}
+
+pub(crate) fn attributions(connection: &Connection, id: &str) -> Result<Vec<ArtworkAttribution>> {
+    validate_hash(id)?;
+    let mut statement = connection.prepare(
+        "SELECT record_json FROM artwork_asset_providers WHERE asset_sha256=?1 ORDER BY provider,asset_id LIMIT 65",
+    )?;
+    let records = statement
+        .query_map([id], |row| row.get::<_, String>(0))?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    if records.len() > 64 {
+        return Err(PortcoveError::verification(
+            "artwork asset has too many provider records",
+        ));
+    }
+    records
+        .iter()
+        .map(|json| {
+            let attribution: ArtworkAttribution = serde_json::from_str(json)?;
+            validate_attribution(&attribution)?;
+            Ok(attribution)
+        })
+        .collect()
+}
+
+pub(crate) fn remove_asset_provenance(connection: &Connection, id: &str) -> Result<()> {
+    connection.execute(
+        "DELETE FROM artwork_asset_providers WHERE asset_sha256=?1",
+        [id],
+    )?;
+    connection.execute(
+        "DELETE FROM artwork_provider_only_assets WHERE asset_sha256=?1",
+        [id],
+    )?;
+    Ok(())
+}
+
 pub(crate) fn write_choice(
     connection: &Connection,
     port_id: &str,
@@ -222,7 +350,82 @@ pub(crate) fn snapshot(connection: &Connection) -> Result<ArtworkMetadata> {
             })
         })
         .collect::<Result<Vec<_>>>()?;
-    Ok(ArtworkMetadata { assets, choices })
+    let mut statement = connection.prepare(&format!(
+        "SELECT asset_sha256,record_json FROM artwork_asset_providers ORDER BY asset_sha256,provider,asset_id LIMIT {}",
+        MAX_PROVIDER_RECORDS + 1
+    ))?;
+    let providers = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
+        .collect::<std::result::Result<Vec<_>, _>>()?
+        .into_iter()
+        .map(|(asset_sha256, json)| {
+            Ok(ArtworkProviderRecord {
+                asset_sha256,
+                attribution: serde_json::from_str(&json)?,
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let mut statement = connection.prepare(&format!(
+        "SELECT asset_sha256 FROM artwork_provider_only_assets ORDER BY asset_sha256 LIMIT {}",
+        MAX_ASSETS + 1
+    ))?;
+    let provider_only_assets = statement
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    let metadata = ArtworkMetadata {
+        assets,
+        choices,
+        providers,
+        provider_only_assets,
+    };
+    validate_provenance(&metadata, &ids.iter().collect())?;
+    Ok(metadata)
+}
+
+/// Every record names a retained asset exactly once per provider image, and a
+/// provider-only marker requires at least one provider record for that asset.
+fn validate_provenance(metadata: &ArtworkMetadata, ids: &BTreeSet<&String>) -> Result<()> {
+    if metadata.providers.len() > MAX_PROVIDER_RECORDS
+        || metadata.provider_only_assets.len() > MAX_ASSETS
+    {
+        return Err(PortcoveError::verification(
+            "artwork provenance exceeds its record limit",
+        ));
+    }
+    let mut records = BTreeSet::new();
+    for record in &metadata.providers {
+        validate_hash(&record.asset_sha256)?;
+        validate_attribution(&record.attribution)?;
+        if !ids.contains(&record.asset_sha256)
+            || !records.insert((
+                &record.asset_sha256,
+                record.attribution.provider,
+                record.attribution.asset_id,
+            ))
+        {
+            return Err(PortcoveError::verification(
+                "artwork provenance is repeated or names a missing asset",
+            ));
+        }
+    }
+    let mut only = BTreeSet::new();
+    for id in &metadata.provider_only_assets {
+        validate_hash(id)?;
+        if !ids.contains(id)
+            || !only.insert(id)
+            || !metadata
+                .providers
+                .iter()
+                .any(|record| &record.asset_sha256 == id)
+        {
+            return Err(PortcoveError::verification(
+                "provider-only artwork marker is repeated or unbound",
+            ));
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn validate_metadata_with(
@@ -252,6 +455,7 @@ pub(crate) fn validate_metadata_with(
             "artwork metadata exceeds its byte limit",
         ));
     }
+    validate_provenance(metadata, &ids)?;
     let mut choices = BTreeSet::new();
     for choice in &metadata.choices {
         require_port(&choice.port_id)?;
@@ -274,6 +478,12 @@ pub(crate) fn validate_metadata_with(
 pub(crate) fn restore(connection: &Connection, metadata: &ArtworkMetadata) -> Result<()> {
     for asset in &metadata.assets {
         write_asset(connection, asset)?;
+    }
+    for record in &metadata.providers {
+        write_provider(connection, record)?;
+    }
+    for id in &metadata.provider_only_assets {
+        mark_provider_only(connection, id)?;
     }
     for choice in &metadata.choices {
         write_choice(

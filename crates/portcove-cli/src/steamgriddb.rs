@@ -19,6 +19,7 @@ async fn blocking<T: Send + 'static>(
 
 pub(crate) async fn execute(
     command: SteamGridDbCommand,
+    service: &PortcoveService,
     mode: OutputMode,
     non_interactive: bool,
 ) -> Result<()> {
@@ -51,6 +52,27 @@ pub(crate) async fn execute(
             blocking(move || search_steamgriddb_games(&term)).await?,
             |games| search_results(games),
         ),
+        SteamGridDbCommand::Choose {
+            port_id,
+            slot,
+            game,
+            candidate,
+            expected_revision,
+        } => {
+            let slot = slot.into();
+            let revision = match expected_revision {
+                Some(value) => value,
+                None => service.artwork(&port_id, slot)?.choice.revision,
+            };
+            // The service is borrowed, so the blocking fetch and ingestion run in
+            // place on this worker thread rather than on a detached task.
+            let state = tokio::task::block_in_place(|| {
+                service.choose_steamgriddb_artwork(&port_id, slot, game, candidate, revision)
+            })?;
+            render_read_success(mode, name, state, |state| {
+                human_adapters::artwork_state(state, service.catalog())
+            })
+        }
         SteamGridDbCommand::Candidates { game_id, role } => render_read_success(
             mode,
             name,
@@ -109,7 +131,7 @@ pub(crate) fn search_results(games: &[SteamGridDbGame]) -> String {
 
 pub(crate) fn candidate_results(candidates: &[SteamGridDbCandidate]) -> String {
     if candidates.is_empty() {
-        return "No suitable static PNG or JPEG images were found for this role.".into();
+        return "No suitable static PNG or JPEG images were found for this role.\nNext step: Try another role, or search again for a different match of the game.".into();
     }
     let lines = candidates
         .iter()
@@ -127,7 +149,7 @@ pub(crate) fn candidate_results(candidates: &[SteamGridDbCandidate]) -> String {
         .collect::<Vec<_>>()
         .join("\n");
     format!(
-        "SteamGridDB images: {}\n\n{lines}\n\nImages are suggestions from SteamGridDB artists; nothing has been chosen or downloaded.",
+        "SteamGridDB images: {}\n\n{lines}\n\nImages are suggestions from SteamGridDB artists; nothing has been chosen or downloaded.\nNext step: Choose one with `portcove artwork steamgriddb choose <port-id> --game <game-id> --candidate <id>`.",
         candidates.len()
     )
 }
@@ -161,6 +183,11 @@ mod tests {
                 crate::startup::StartupMode::ReadOnly,
             ),
             (
+                "artwork steamgriddb choose shipwright --slot detail --game 42 --candidate 7 --expected-revision 3",
+                "artwork.steamgriddb.choose",
+                crate::startup::StartupMode::Recovering,
+            ),
+            (
                 "artwork steamgriddb candidates 42 --role hero-banner",
                 "artwork.steamgriddb.candidates",
                 crate::startup::StartupMode::ReadOnly,
@@ -180,6 +207,19 @@ mod tests {
         assert!(
             Cli::try_parse_from(["portcove", "artwork", "steamgriddb", "candidates", "42"])
                 .is_err()
+        );
+        // A choice names the provider image, never a URL or file.
+        assert!(
+            Cli::try_parse_from([
+                "portcove",
+                "artwork",
+                "steamgriddb",
+                "choose",
+                "shipwright",
+                "--game",
+                "42"
+            ])
+            .is_err()
         );
     }
 

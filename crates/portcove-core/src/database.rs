@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 51;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 52;
 
 struct Migration {
     version: i64,
@@ -329,7 +329,33 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_51,
         verify: verify_migration_51,
     },
+    Migration {
+        version: 52,
+        name: "artwork provider provenance",
+        apply: migration_52,
+        verify: verify_migration_52,
+    },
 ];
+
+fn migration_52(transaction: &Transaction<'_>) -> Result<()> {
+    // Who made a provider image and where it came from; never a selection,
+    // credential or permission record.
+    crate::artwork_store::migrate_providers(transaction)?;
+    verify_migration_52(transaction)
+}
+
+fn verify_migration_52(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "artwork_asset_providers",
+        &["asset_sha256", "provider", "asset_id", "record_json"],
+    )?;
+    require_columns(
+        connection,
+        "artwork_provider_only_assets",
+        &["asset_sha256"],
+    )
+}
 
 fn migration_51(transaction: &Transaction<'_>) -> Result<()> {
     // Consent policy for automatic setup from one saved folder, with its
@@ -3063,6 +3089,7 @@ mod tests {
         schema_48: 48,
         schema_49: 49,
         schema_50: 50,
+        schema_51: 51,
     }
 
     #[test]

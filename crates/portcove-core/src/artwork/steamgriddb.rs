@@ -102,9 +102,87 @@ impl From<SteamGridDbFailure> for PortcoveError {
     }
 }
 
-/// One HTTP GET against the fixed API origin; injected so tests use fixtures.
+/// HTTP access injected so tests use fixtures. Only `get` receives the key, and
+/// only for the fixed API origin; `fetch_image` has no key parameter, so the key
+/// can never reach the image host.
 pub(crate) trait SteamGridDbTransport {
     fn get(&self, path_and_query: &str, key: &str) -> Result<TransportResponse>;
+    fn fetch_image(&self, url: &str) -> Result<TransportResponse>;
+}
+
+/// A chosen image re-resolved from the provider, with its bounded bytes.
+#[derive(Debug)]
+pub(crate) struct FetchedCandidate {
+    pub(crate) candidate: SteamGridDbCandidate,
+    pub(crate) bytes: Vec<u8>,
+}
+
+/// Re-resolves `candidate_id` from the provider's own listing (never trusting a
+/// client-supplied URL or author) and fetches its image without the key.
+pub(crate) fn fetch_candidate(
+    transport: &impl SteamGridDbTransport,
+    key: &str,
+    game_id: u64,
+    role: DestinationArtworkRole,
+    candidate_id: u64,
+) -> Result<FetchedCandidate> {
+    // Only the first listing page is consulted; an image that moved off it is
+    // reported as no longer listed and the current artwork is kept.
+    let candidate = role_candidates(transport, key, game_id, role)?
+        .into_iter()
+        .find(|candidate| candidate.id == candidate_id)
+        .ok_or_else(|| {
+            PortcoveError::not_found(
+                "SteamGridDB no longer lists this image for this game and role; list the images again",
+            )
+        })?;
+    if !is_image_url(&candidate.url) {
+        return Err(SteamGridDbFailure::InvalidResponse.into());
+    }
+    let response = transport.fetch_image(&candidate.url)?;
+    match response.status {
+        200 => {}
+        404 => {
+            return Err(PortcoveError::not_found(
+                "SteamGridDB no longer serves this image; choose another",
+            ));
+        }
+        429 => {
+            return Err(SteamGridDbFailure::RateLimited {
+                retry_after_seconds: retry_after_seconds(response.retry_after.as_deref()),
+            }
+            .into());
+        }
+        500..=599 => return Err(SteamGridDbFailure::Unavailable.into()),
+        // Redirects are never followed; any other status is unexpected.
+        _ => return Err(SteamGridDbFailure::InvalidResponse.into()),
+    }
+    if response.body.is_empty()
+        || response.body.len() as u64 > crate::artwork_image::MAX_ORIGINAL_BYTES
+    {
+        return Err(PortcoveError::verification(
+            "the SteamGridDB image is empty or exceeds the artwork size limit",
+        ));
+    }
+    Ok(FetchedCandidate {
+        candidate,
+        bytes: response.body,
+    })
+}
+
+/// Fetches a chosen candidate with the player's stored key.
+pub(crate) fn fetch_chosen_candidate(
+    game_id: u64,
+    role: DestinationArtworkRole,
+    candidate_id: u64,
+) -> Result<FetchedCandidate> {
+    with_key(|key| fetch_candidate(&HttpTransport, key, game_id, role, candidate_id))
+}
+
+fn retry_after_seconds(value: Option<&str>) -> Option<u64> {
+    value
+        .and_then(|value| value.trim().parse::<u64>().ok())
+        .filter(|seconds| *seconds <= 24 * 60 * 60)
 }
 
 pub(crate) struct TransportResponse {
@@ -262,7 +340,7 @@ pub(crate) fn role_candidates(
             style: image.style.chars().take(40).collect(),
             score: image.score,
             author: SteamGridDbAuthor {
-                name: image.author.name.chars().take(100).collect(),
+                name: author_name(&image.author.name),
                 steam64: image.author.steam64.filter(|id| {
                     !id.is_empty() && id.len() <= 20 && id.bytes().all(|b| b.is_ascii_digit())
                 }),
@@ -283,10 +361,7 @@ fn request<T: for<'de> Deserialize<'de>>(
         404 => return Err(SteamGridDbFailure::NoMatch.into()),
         429 => {
             return Err(SteamGridDbFailure::RateLimited {
-                retry_after_seconds: response
-                    .retry_after
-                    .and_then(|value| value.trim().parse::<u64>().ok())
-                    .filter(|seconds| *seconds <= 24 * 60 * 60),
+                retry_after_seconds: retry_after_seconds(response.retry_after.as_deref()),
             }
             .into());
         }
@@ -316,7 +391,26 @@ fn request<T: for<'de> Deserialize<'de>>(
         .collect())
 }
 
-fn is_image_url(value: &str) -> bool {
+/// Attribution text shown to players and stored with provenance: no control
+/// characters, trimmed, bounded, and never empty.
+pub(crate) fn author_name(value: &str) -> String {
+    let name = value
+        .chars()
+        .filter(|character| !character.is_control())
+        .take(100)
+        .collect::<String>()
+        .trim()
+        .to_owned();
+    if name.is_empty() {
+        UNKNOWN_AUTHOR.into()
+    } else {
+        name
+    }
+}
+
+pub(crate) const UNKNOWN_AUTHOR: &str = "Unnamed SteamGridDB artist";
+
+pub(crate) fn is_image_url(value: &str) -> bool {
     match reqwest::Url::parse(value) {
         Ok(url) => {
             url.scheme() == "https"
@@ -391,6 +485,42 @@ impl SteamGridDbTransport for HttpTransport {
         use std::io::Read;
         response
             .take(MAX_RESPONSE_BYTES as u64 + 1)
+            .read_to_end(&mut body)
+            .map_err(|_| PortcoveError::from(SteamGridDbFailure::Unavailable))?;
+        Ok(TransportResponse {
+            status,
+            retry_after,
+            body,
+        })
+    }
+
+    fn fetch_image(&self, url: &str) -> Result<TransportResponse> {
+        self.fetch(url)
+    }
+}
+
+impl HttpTransport {
+    fn fetch(&self, url: &str) -> Result<TransportResponse> {
+        if !is_image_url(url) {
+            return Err(SteamGridDbFailure::InvalidResponse.into());
+        }
+        // No `bearer_auth`: the image host never receives the player's key.
+        let response = http_client()?
+            .get(url)
+            .timeout(Duration::from_secs(60))
+            .send()
+            .map_err(|_| PortcoveError::from(SteamGridDbFailure::Unavailable))?;
+        let status = response.status().as_u16();
+        let retry_after = response
+            .headers()
+            .get(reqwest::header::RETRY_AFTER)
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_owned);
+        let mut body = Vec::new();
+        use std::io::Read;
+        // The cap is enforced while reading; one extra byte detects overflow.
+        response
+            .take(crate::artwork_image::MAX_ORIGINAL_BYTES + 1)
             .read_to_end(&mut body)
             .map_err(|_| PortcoveError::from(SteamGridDbFailure::Unavailable))?;
         Ok(TransportResponse {

@@ -66,7 +66,9 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
                 SteamGridDbCommand::Status
                 | SteamGridDbCommand::Search { .. }
                 | SteamGridDbCommand::Candidates { .. } => ReadOnly,
-                SteamGridDbCommand::SetKey { .. } | SteamGridDbCommand::ClearKey => Recovering,
+                SteamGridDbCommand::SetKey { .. }
+                | SteamGridDbCommand::ClearKey
+                | SteamGridDbCommand::Choose { .. } => Recovering,
             },
             ArtworkCommand::Import { .. }
             | ArtworkCommand::Reset { .. }
@@ -435,6 +437,7 @@ mod tests {
             "artwork remove-unused hash",
             "artwork steamgriddb set-key --stdin",
             "artwork steamgriddb clear-key",
+            "artwork steamgriddb choose p --game 1 --candidate 2",
             "auth login",
             "auth set-token --stdin",
             "auth logout",

@@ -122,7 +122,7 @@ program/argument objects, not shell command strings:
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
 only the required command names and formats: launch-only needs JSON plus raw
 `exec`, read-only library integration needs JSON, and lifecycle operations add
-JSONL. The reference supports API 42–57, 60–63 or 65–88/events 2–3; schema 50 advertises
+JSONL. The reference supports API 42–57, 60–63 or 65–89/events 2–3; schema 50 advertises
 the event authority as `operation_event_schema_version`, while the historical
 42–49 window retains its documented event-2 contract. Schema 51 replaces the
 activity array with a feed whose protected ID sets and completeness fields must
@@ -279,11 +279,15 @@ builds or require clients to acquire compilers. See
 Clients display Core's complete current plan, acquisitions and capacity when
 offered, obtain its required consent and consume its action/readiness decisions.
 They must not execute catalog build instructions or derive eligibility from a
-historical recipe name. The maintained reference accepts API88 within its reviewed
-42–57, 60–63 or 65–88 membership and event schemas 2–3; unknown future APIs,
+historical recipe name. The maintained reference accepts API89 within its reviewed
+42–57, 60–63 or 65–89 membership and event schemas 2–3; unknown future APIs,
 unsupported required capabilities and unknown execution/ownership semantics
 remain refused. API or template negotiation alone grants no admission or operation
 authority.
+
+API89 adds provider attribution for chosen SteamGridDB images to
+`artwork_state` and the destination handoff (handoff schema 3); the reference
+client consumes neither.
 
 API88 adds provider-qualified GitLab release and registry-file references to
 self-service download selection. GitHub references remain numeric; GitLab
@@ -391,7 +395,7 @@ see [the managed contract and recovery path](reference/managed-regaiden.md).
 
 Current event records have **event schema 3 at the root**; they are not nested in API
 envelopes. A final root record has `type: "result"` and a negotiated API
-schema within the client's supported 42–57, 60–63 or 65–88 membership. Some
+schema within the client's supported 42–57, 60–63 or 65–89 membership. Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
 do not fabricate progress when a phase or event is missing. A valid terminal
 result and matching exit status establish the command response; refresh core
@@ -442,7 +446,7 @@ claim for the core result.
 
 API 67 introduced an optional, independently versioned `artwork_handoff_schema`
 capability and the `artwork.handoff` / `artwork.handoff-bytes` commands; current
-Core advertises and accepts only schema 2. A destination
+Core advertises and accepts only schema 3. A destination
 adapter such as #292 must negotiate all three before using them. API envelopes and
 operation events retain their existing versions; existing cover/detail clients
 and clients that ignore this optional capability remain compatible.
@@ -474,6 +478,12 @@ disposable display thumbnail exists. Missing or invalid selected originals repor
 Generated fallback also has no reusable original. Never stretch or destructively
 crop one role into another; originals are exported unmodified.
 
+Schema 3 adds a required `attribution` array. It lists provider credits for the
+selected local image (provider, provider image and game IDs, role, author name,
+optional author Steam ID, CDN source URL and fetch time) and is empty for a purely
+local import and for every other source. A destination that presents the image
+should show the author credit; the credit grants no redistribution permission.
+
 The bytes command requires the previously observed library ID, choice revision and
 asset digest, rechecks them under the artwork lock, and returns the complete handoff
 plus an `original` JSON byte array. It reads the bounded regular original and checks
@@ -482,7 +492,7 @@ original whose embedded orientation turns it a quarter turn. Stale bindings fail
 preview. Originals retain the existing 16 MiB limit; bound process output for JSON
 array expansion as well. Validate the handoff, byte count, digest and decode before
 storing a durable destination copy. Exported `destination_artwork_handoff` and
-`destination_artwork_bytes` schemas describe schema 2; the Core readers additionally reject
+`destination_artwork_bytes` schemas describe schema 3; the Core readers additionally reject
 contradictory identity/source/content combinations. Unknown versions, roles,
 provenance kinds or availability values require refusal, not inferred success.
 

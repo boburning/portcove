@@ -2394,6 +2394,7 @@ impl CapabilityDocument {
                 "artwork.steamgriddb.clear-key".into(),
                 "artwork.steamgriddb.search".into(),
                 "artwork.steamgriddb.candidates".into(),
+                "artwork.steamgriddb.choose".into(),
                 "catalog".into(),
                 "catalog.listings".into(),
                 "catalog.listing-refresh".into(),

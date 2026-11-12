@@ -8,6 +8,9 @@ struct Fixture {
     retry_after: Option<&'static str>,
     body: String,
     requests: RefCell<Vec<(String, String)>>,
+    /// Image host answer: status, Retry-After and body.
+    image: (u16, Option<&'static str>, Vec<u8>),
+    images: RefCell<Vec<String>>,
 }
 
 impl Fixture {
@@ -21,6 +24,8 @@ impl Fixture {
             retry_after: None,
             body,
             requests: RefCell::new(Vec::new()),
+            image: (200, None, Vec::new()),
+            images: RefCell::new(Vec::new()),
         }
     }
 }
@@ -34,6 +39,15 @@ impl SteamGridDbTransport for Fixture {
             status: self.status,
             retry_after: self.retry_after.map(str::to_owned),
             body: self.body.clone().into_bytes(),
+        })
+    }
+
+    fn fetch_image(&self, url: &str) -> Result<TransportResponse> {
+        self.images.borrow_mut().push(url.to_owned());
+        Ok(TransportResponse {
+            status: self.image.0,
+            retry_after: self.image.1.map(str::to_owned),
+            body: self.image.2.clone(),
         })
     }
 }
@@ -216,6 +230,85 @@ fn image_urls_must_be_https_on_the_steamgriddb_cdn() {
     }
 }
 
+fn listing() -> Fixture {
+    Fixture::ok(serde_json::json!({
+        "success": true,
+        "data": [image(1, serde_json::json!({})), image(2, serde_json::json!({"author": {"name": " \u{7}Artist Two "}}))]
+    }))
+}
+
+#[test]
+fn chosen_candidates_are_reresolved_and_fetched_without_the_key() {
+    let mut fixture = listing();
+    fixture.image = (200, None, vec![1, 2, 3]);
+    let fetched =
+        fetch_candidate(&fixture, KEY, 42, DestinationArtworkRole::PortraitCover, 2).unwrap();
+    assert_eq!(fetched.candidate.id, 2);
+    assert_eq!(fetched.candidate.author.name, "Artist Two");
+    assert_eq!(fetched.bytes, vec![1, 2, 3]);
+    // One authorized listing request to the API origin, one key-free image fetch.
+    assert_eq!(fixture.requests.borrow().len(), 1);
+    assert_eq!(
+        fixture.images.borrow().as_slice(),
+        ["https://cdn2.steamgriddb.com/grid/2.png"]
+    );
+}
+
+#[test]
+fn vanished_candidates_are_not_found_without_an_image_request() {
+    let fixture = listing();
+    let error =
+        fetch_candidate(&fixture, KEY, 42, DestinationArtworkRole::PortraitCover, 9).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::NotFound);
+    assert!(fixture.images.borrow().is_empty());
+    let mut rejected = Fixture::status(401, "{}".into());
+    rejected.image = (200, None, vec![1]);
+    assert_eq!(
+        fetch_candidate(&rejected, KEY, 42, DestinationArtworkRole::PortraitCover, 1)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Usage
+    );
+    assert!(rejected.images.borrow().is_empty());
+}
+
+#[test]
+fn image_host_failures_map_to_explicit_outcomes() {
+    for (status, retry, body, code) in [
+        (404, None, vec![1], crate::ErrorCode::NotFound),
+        (429, Some("12"), vec![], crate::ErrorCode::Network),
+        (503, None, vec![], crate::ErrorCode::Network),
+        (302, None, vec![], crate::ErrorCode::Verification),
+        (200, None, vec![], crate::ErrorCode::Verification),
+        (
+            200,
+            None,
+            vec![0; crate::artwork_image::MAX_ORIGINAL_BYTES as usize + 1],
+            crate::ErrorCode::Verification,
+        ),
+    ] {
+        let mut fixture = listing();
+        fixture.image = (status, retry, body);
+        let error = fetch_candidate(&fixture, KEY, 42, DestinationArtworkRole::PortraitCover, 1)
+            .unwrap_err();
+        assert_eq!(error.code, code, "status {status}");
+        if status == 429 {
+            assert_eq!(
+                error.details.get("retry_after_seconds").map(String::as_str),
+                Some("12")
+            );
+        }
+        assert!(!error.message.contains(KEY));
+    }
+}
+
+#[test]
+fn author_names_are_bounded_clean_and_never_empty() {
+    assert_eq!(author_name("  Name\n  "), "Name");
+    assert_eq!(author_name("\u{1b}\u{7}  "), UNKNOWN_AUTHOR);
+    assert_eq!(author_name(&"x".repeat(150)).chars().count(), 100);
+}
+
 /// Owner-authorized live exercise (#527, 2026-11-12). Run explicitly with
 /// `cargo test -p portcove-core steamgriddb_live -- --ignored`; the session's
 /// proxy supplies the owner's key, so the placeholder below is replaced in transit.
@@ -244,5 +337,36 @@ fn steamgriddb_live_search_and_candidates() {
                 "image/png" | "image/jpeg"
             ));
         }
+    }
+}
+
+/// Owner-authorized live exercise of the choose fetch path (#527, 2026-11-12):
+/// re-resolve one candidate per role and fetch it from the CDN without the key,
+/// then check that the shared decode matches the listing. No library is written.
+#[test]
+#[ignore = "live SteamGridDB call; requires an authorized key"]
+fn steamgriddb_live_fetch_matches_listing() {
+    let key = "proxyinjectedplaceholder00000000";
+    let games = search_games(&HttpTransport, key, "Super Mario 64").unwrap();
+    for role in [
+        DestinationArtworkRole::PortraitCover,
+        DestinationArtworkRole::HeroBanner,
+    ] {
+        let listed = role_candidates(&HttpTransport, key, games[0].id, role).unwrap();
+        let first = listed.first().expect("no candidates");
+        let fetched = fetch_candidate(&HttpTransport, key, games[0].id, role, first.id).unwrap();
+        let decoded = crate::artwork_image::decode(&fetched.bytes).unwrap();
+        eprintln!(
+            "live fetch {role:?}: image {} {} bytes {}x{} {:?}",
+            first.id,
+            fetched.bytes.len(),
+            decoded.width,
+            decoded.height,
+            decoded.format
+        );
+        assert_eq!(
+            (decoded.width, decoded.height),
+            (fetched.candidate.width, fetched.candidate.height)
+        );
     }
 }
