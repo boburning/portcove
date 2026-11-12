@@ -14001,6 +14001,869 @@
     "title": "Array_of_GameFileRoot",
     "type": "array"
   },
+  "game_file_scan_match_page": {
+    "$defs": {
+      "DigestScope": {
+        "enum": [
+          "original-file",
+          "original-container",
+          "normalized-content",
+          "canonical-n64-big-endian",
+          "archive-member",
+          "gamecube-normalized-iso",
+          "psx-normalized-track-set",
+          "file-set-member",
+          "disc-set-member"
+        ],
+        "type": "string"
+      },
+      "GameFileScanMatchKind": {
+        "enum": [
+          "exact",
+          "preliminary"
+        ],
+        "type": "string"
+      },
+      "ObservedSourceComponent": {
+        "properties": {
+          "digests": {
+            "items": {
+              "$ref": "#/$defs/ObservedSourceDigest"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/SourceComponentKind"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "track_count": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "volume_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "digests",
+          "size",
+          "track_count",
+          "volume_id"
+        ],
+        "type": "object"
+      },
+      "ObservedSourceDigest": {
+        "properties": {
+          "algorithm": {
+            "$ref": "#/$defs/SourceDigestAlgorithm"
+          },
+          "scope": {
+            "$ref": "#/$defs/DigestScope"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "algorithm",
+          "scope",
+          "value",
+          "size"
+        ],
+        "type": "object"
+      },
+      "ObservedSourceIdentity": {
+        "description": "Durable, catalog-independent facts observed when a source registration is written.\nClassification and admission are intentionally recomputed from the active catalog.",
+        "properties": {
+          "archive_member_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "components": {
+            "items": {
+              "$ref": "#/$defs/ObservedSourceComponent"
+            },
+            "type": "array"
+          },
+          "digests": {
+            "items": {
+              "$ref": "#/$defs/ObservedSourceDigest"
+            },
+            "type": "array"
+          },
+          "schema_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "validator": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ObservedSourceValidator"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "schema_version",
+          "digests"
+        ],
+        "type": "object"
+      },
+      "ObservedSourceValidator": {
+        "properties": {
+          "contract_id": {
+            "type": "string"
+          },
+          "protocol_version": {
+            "type": "string"
+          },
+          "result": {
+            "$ref": "#/$defs/SourceValidatorResult"
+          },
+          "tool_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract_id",
+          "tool_id",
+          "protocol_version",
+          "result"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "SourceAdmission": {
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "not_evaluated",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "mode": {
+                "$ref": "#/$defs/SourceAdmissionMode"
+              },
+              "state": {
+                "const": "admitted",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "mode"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "reason": {
+                "$ref": "#/$defs/SourceRejectionReason"
+              },
+              "state": {
+                "const": "rejected",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SourceAdmissionMode": {
+        "enum": [
+          "exact_identity",
+          "structural_checks",
+          "informational_consent",
+          "upstream_validator"
+        ],
+        "type": "string"
+      },
+      "SourceAssessment": {
+        "properties": {
+          "admission": {
+            "$ref": "#/$defs/SourceAdmission"
+          },
+          "classification": {
+            "$ref": "#/$defs/SourceClassification"
+          },
+          "contract": {
+            "$ref": "#/$defs/SourceContractResult"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/$defs/SourceEvidence"
+            },
+            "type": "array"
+          },
+          "health": {
+            "$ref": "#/$defs/SourceHealth"
+          }
+        },
+        "required": [
+          "health",
+          "classification",
+          "contract",
+          "admission",
+          "evidence"
+        ],
+        "type": "object"
+      },
+      "SourceClassification": {
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "not_evaluated",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "const": "unrecognized",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "identity": {
+                "$ref": "#/$defs/SourceIdentity"
+              },
+              "state": {
+                "const": "recognized",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "identity"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "candidates": {
+                "items": {
+                  "$ref": "#/$defs/SourceIdentity"
+                },
+                "type": "array"
+              },
+              "state": {
+                "const": "ambiguous",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "candidates"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SourceComponentKind": {
+        "enum": [
+          "file_set_member",
+          "optical_disc"
+        ],
+        "type": "string"
+      },
+      "SourceContractResult": {
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "not_evaluated",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "const": "unreviewed_for_release",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "supported",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "recognized_not_listed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "known_incompatible",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "informational",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SourceDigestAlgorithm": {
+        "enum": [
+          "sha1",
+          "sha256",
+          "crc32"
+        ],
+        "type": "string"
+      },
+      "SourceEvidence": {
+        "properties": {
+          "evidence_ids": {
+            "description": "Reviewed catalog evidence IDs. A renderer must not treat these as URLs.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "kind": {
+            "$ref": "#/$defs/SourceEvidenceKind"
+          },
+          "method": {
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "outcome": {
+            "$ref": "#/$defs/SourceEvidenceOutcome"
+          },
+          "portcove_commit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "portcove_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "$ref": "#/$defs/SourceEvidenceScope"
+          }
+        },
+        "required": [
+          "scope",
+          "kind",
+          "outcome",
+          "observed_at",
+          "portcove_version",
+          "portcove_commit",
+          "method",
+          "evidence_ids"
+        ],
+        "type": "object"
+      },
+      "SourceEvidenceKind": {
+        "enum": [
+          "structural_check",
+          "automated_lifecycle",
+          "hands_on",
+          "known_failure"
+        ],
+        "type": "string"
+      },
+      "SourceEvidenceOutcome": {
+        "enum": [
+          "passed",
+          "failed",
+          "not_run",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "SourceEvidenceScope": {
+        "properties": {
+          "artifact_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "check_version": {
+            "description": "Version of the tested adapter/tool/check contract, not today's app build.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "upstream_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "variant": {
+            "$ref": "#/$defs/SourceVariantScope",
+            "default": {
+              "state": "unspecified"
+            }
+          }
+        },
+        "required": [
+          "port_id",
+          "platform",
+          "artifact_sha256",
+          "upstream_ref",
+          "contract_id",
+          "variant",
+          "check_version"
+        ],
+        "type": "object"
+      },
+      "SourceHealth": {
+        "description": "Current relationship between a registered source path and its saved storage identity.\n`Current` means the bytes are unchanged since registration; it does not strengthen the\ncatalog profile's game-revision evidence.\n`NotBaselined` means readable selected bytes have no saved identity baseline.",
+        "enum": [
+          "unregistered",
+          "current",
+          "missing",
+          "unreadable",
+          "changed",
+          "not_checked",
+          "not_baselined"
+        ],
+        "type": "string"
+      },
+      "SourceIdentity": {
+        "description": "Stable catalog identifiers, never display names or inferred hash-array pairs.",
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "representation_id": {
+            "type": "string"
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "variant_id",
+          "representation_id"
+        ],
+        "type": "object"
+      },
+      "SourceInspection": {
+        "description": "Facts returned by read-only inspection. A record is present only when the\nadmission state permits existing callers to register or use the source.",
+        "properties": {
+          "archive_member_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "assessment": {
+            "$ref": "#/$defs/SourceAssessment"
+          },
+          "components": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/ObservedSourceComponent"
+            },
+            "type": "array"
+          },
+          "message": {
+            "type": "string"
+          },
+          "observed_digests": {
+            "items": {
+              "$ref": "#/$defs/ObservedSourceDigest"
+            },
+            "type": "array"
+          },
+          "path": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "record": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "validator": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ObservedSourceValidator"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "profile_id",
+          "path",
+          "observed_digests",
+          "components",
+          "assessment",
+          "record",
+          "message"
+        ],
+        "type": "object"
+      },
+      "SourceRecord": {
+        "properties": {
+          "observed_identity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ObservedSourceIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Versioned facts observed when this registration was created. Legacy rows and\nmetadata omit this field rather than guessing a schema-2 variant."
+          },
+          "path": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "storage_sha256": {
+            "type": "string"
+          },
+          "storage_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "profile_id",
+          "path",
+          "sha256",
+          "size",
+          "storage_sha256",
+          "storage_size",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "SourceRejectionReason": {
+        "enum": [
+          "missing",
+          "unreadable",
+          "changed",
+          "known_mismatch",
+          "ambiguous_identity",
+          "missing_tool",
+          "check_failed",
+          "consent_required"
+        ],
+        "type": "string"
+      },
+      "SourceValidatorResult": {
+        "enum": [
+          "not_run",
+          "passed",
+          "failed",
+          "missing_tool"
+        ],
+        "type": "string"
+      },
+      "SourceVariantScope": {
+        "description": "Missing legacy scope is explicit, not a wildcard for a newly selected variant.",
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "unspecified",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "identity": {
+                "$ref": "#/$defs/SourceIdentity"
+              },
+              "state": {
+                "const": "exact",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "identity"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "candidates": {
+        "items": {
+          "$ref": "#/$defs/SourceRecord"
+        },
+        "type": "array"
+      },
+      "kind": {
+        "$ref": "#/$defs/GameFileScanMatchKind"
+      },
+      "next_offset": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "offset": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "preliminary_selections": {
+        "items": {
+          "$ref": "#/$defs/SourceInspection"
+        },
+        "type": "array"
+      },
+      "scan_id": {
+        "description": "Absent when the current report keeps every match inline.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "total": {
+        "description": "Matches of this kind (inside `root_id`, when given).",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "scan_id",
+      "kind",
+      "offset",
+      "total",
+      "candidates",
+      "preliminary_selections",
+      "next_offset"
+    ],
+    "title": "GameFileScanMatchPage",
+    "type": "object"
+  },
+  "game_file_scan_match_query": {
+    "$defs": {
+      "GameFileScanMatchKind": {
+        "enum": [
+          "exact",
+          "preliminary"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "One page of the current saved-folder scan's retained matches.",
+    "properties": {
+      "kind": {
+        "$ref": "#/$defs/GameFileScanMatchKind"
+      },
+      "limit": {
+        "description": "1 to 512 matches.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "offset": {
+        "default": 0,
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "root_id": {
+        "description": "Only matches inside this saved folder.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "scan_id": {
+        "description": "The scan the caller is paging; a different current scan is a conflict.",
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "kind",
+      "offset",
+      "limit"
+    ],
+    "title": "GameFileScanMatchQuery",
+    "type": "object"
+  },
   "game_file_scan_snapshot": {
     "$defs": {
       "DigestScope": {
@@ -14132,6 +14995,35 @@
         ],
         "type": "string"
       },
+      "GameFileScanMatchSummary": {
+        "description": "Totals for one saved-folder scan's retained matches. The preview in the\nreport holds the first matches in page order, exact matches first.",
+        "properties": {
+          "exact_matches": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "preliminary_selections": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "preview_complete": {
+            "description": "Whether the report's preview holds every retained match.",
+            "type": "boolean"
+          },
+          "scan_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scan_id",
+          "exact_matches",
+          "preliminary_selections",
+          "preview_complete"
+        ],
+        "type": "object"
+      },
       "GameFileScanSnapshot": {
         "properties": {
           "catalog_sha256": {
@@ -14170,6 +15062,17 @@
               }
             ],
             "default": null
+          },
+          "matches": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GameFileScanMatchSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where the scan's retained matches live. When present, the report's\n`candidates` and `preliminary_selections` are only a bounded preview\nand every match is read in pages. Absent means every match is inline\nin the report (older formats)."
           },
           "report": {
             "$ref": "#/$defs/SourceDiscoveryReport"

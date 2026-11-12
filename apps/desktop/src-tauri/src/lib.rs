@@ -1393,6 +1393,20 @@ async fn scan_game_file_roots(
     .await
 }
 
+/// One page of the current saved-folder scan's recorded matches. Paging a
+/// scan that has since been replaced is a conflict, so the view reloads.
+#[tauri::command]
+async fn get_game_file_scan_matches(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    query: portcove_core::GameFileScanMatchQuery,
+) -> DesktopResult<portcove_core::GameFileScanMatchPage> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.game_file_scan_matches(&query).map_err(Into::into)
+    })
+    .await
+}
+
 #[tauri::command]
 async fn get_game_file_scan_snapshot(
     state: tauri::State<'_, DesktopState>,
@@ -3276,6 +3290,7 @@ pub fn run() -> std::process::ExitCode {
             remove_game_file_root,
             scan_game_file_roots,
             get_game_file_scan_snapshot,
+            get_game_file_scan_matches,
             refresh_game_file_query,
             discover_sources,
             open_source_inbox,
