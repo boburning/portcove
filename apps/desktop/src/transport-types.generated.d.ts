@@ -928,12 +928,19 @@ export type MaintenanceOutcome =
   | "demonstrated-regression-handling"
   | "demonstrated-continuity-and-succession";
 export type ReconcileAction = "up_to_date" | "notify" | "staged" | "activated";
+/**
+ * What the player can usefully do next with a selected save folder.
+ */
+export type SaveFolderNextStep =
+  "up-to-date" | "unavailable" | "blocked" | "incomplete" | "push" | "pull" | "choose-progress";
 export type SourceImportMode = "copy" | "move" | "use_current_location";
 export type SourceImportOutcome =
   "copied" | "moved" | "reused_existing" | "registered_current_location" | "copied_original_retained";
 export type SourceInboxResolutionState =
   "registered" | "exact_match" | "approval_required" | "unresolved" | "conflict" | "incomplete";
 export type SourceReuseCompatibility = "listed_identity" | "potential" | "incompatible" | "unavailable";
+export type OutputSteamgriddbCandidates = SteamGridDbCandidate[];
+export type OutputSteamgriddbGames = SteamGridDbGame[];
 export type OutputDesktopAdoptionBatchResult = AdoptionBatchResult | null;
 export type OutputDesktopApplicationUpdateCheckPhase = "checking" | "acquiring-and-verifying" | "staged" | "complete";
 export type ApplicationChannel = "preview" | "stable";
@@ -1199,6 +1206,8 @@ export interface TransportOutputs {
   retained_build_removal_preview: OutputRetainedBuildRemovalPreview;
   retained_build_resolution: RetainedBuildResolution;
   retained_build_retirement_preview: OutputRetainedBuildRetirementPreview;
+  save_folder_push_result: OutputSaveFolderPushResult;
+  save_folder_status: OutputSaveFolderStatus;
   setup_launch_targets: OutputSetupLaunchTargets;
   signed_catalog_envelope: OutputSignedCatalogEnvelope;
   signed_catalog_payload: OutputSignedCatalogPayload;
@@ -1222,6 +1231,9 @@ export interface TransportOutputs {
   source_reuse_review: OutputSourceReuseReview;
   source_verification: SourceVerification;
   status: PortStatus;
+  steamgriddb_candidates: OutputSteamgriddbCandidates;
+  steamgriddb_games: OutputSteamgriddbGames;
+  steamgriddb_key_status: OutputSteamgriddbKeyStatus;
   storage: StorageSummary;
   update_batch_outcome: OutputUpdateBatchOutcome;
   update_check: UpdateCheck;
@@ -5264,6 +5276,62 @@ export interface OutputRetainedBuildRetirementPreview {
   setup_id: string;
   [k: string]: unknown;
 }
+export interface OutputSaveFolderPushResult {
+  /**
+   * The same saves were already in the folder; nothing was written.
+   */
+  already_present: boolean;
+  base_sha256?: string | null;
+  content_sha256: string;
+  path: string;
+  [k: string]: unknown;
+}
+export interface OutputSaveFolderStatus {
+  available: boolean;
+  /**
+   * False when the folder exceeded review limits; history is then unknown.
+   */
+  complete: boolean;
+  entries: SaveFolderEntry[];
+  folder: string;
+  local_content_sha256?: string | null;
+  local_published: boolean;
+  /**
+   * Another device set this device's current saves aside.
+   */
+  local_set_aside: boolean;
+  next_step: SaveFolderNextStep;
+  port_id: string;
+  /**
+   * Files in the folder that were ignored, with the reason.
+   */
+  problems: string[];
+  [k: string]: unknown;
+}
+export interface SaveFolderEntry {
+  /**
+   * This device's progress already includes these saves.
+   */
+  already_included_here: boolean;
+  base_sha256?: string | null;
+  /**
+   * Same qualified game version and platform contract as this device.
+   */
+  compatible: boolean;
+  content_sha256: string;
+  files: PortableSaveFile[];
+  /**
+   * Latest on its branch: no other saves in the folder continue from it.
+   */
+  head: boolean;
+  relation: PortableSaveRelation;
+  source: PortableSaveIdentity;
+  /**
+   * Set aside by an explicit choice; still kept and importable.
+   */
+  superseded: boolean;
+  [k: string]: unknown;
+}
 export interface OutputSetupLaunchTargets {
   candidates: SetupLaunchTarget[];
   complete: boolean;
@@ -5471,6 +5539,40 @@ export interface SourceReuseApplication {
 export interface SourceRegistrationReference {
   profile_id: string;
   reference_sha256: string;
+}
+/**
+ * A proposed static image for one role, with attribution. Not a selection.
+ */
+export interface SteamGridDbCandidate {
+  author: SteamGridDbAuthor;
+  height: number;
+  id: number;
+  mime: string;
+  role: DestinationArtworkRole;
+  score: number;
+  style: string;
+  thumb: string;
+  url: string;
+  width: number;
+  [k: string]: unknown;
+}
+export interface SteamGridDbAuthor {
+  name: string;
+  steam64: string | null;
+  [k: string]: unknown;
+}
+export interface SteamGridDbGame {
+  id: number;
+  name: string;
+  verified: boolean;
+  [k: string]: unknown;
+}
+export interface OutputSteamgriddbKeyStatus {
+  /**
+   * Whether a player key is stored; the key itself is never returned.
+   */
+  configured: boolean;
+  [k: string]: unknown;
 }
 export interface OutputUpdateBatchOutcome {
   error: FailureReport | null;

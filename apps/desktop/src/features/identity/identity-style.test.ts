@@ -7,10 +7,12 @@ import palette from "./platform-palette.json";
 
 it("keeps the 54 supplied identity colors separate from release and readiness", () => {
   expect(Object.keys(palette)).toHaveLength(54);
-  expect(identityStyle("stable", true)).toEqual({ "--identity-base": "#22C55E" });
-  expect(identityStyle("beta", true)).toEqual({ "--identity-base": "#F59E0B" });
-  expect(identityStyle("rolling", true)).toEqual({ "--identity-base": "#3B82F6" });
-  expect(identityStyle("alpha", true)).toBeUndefined();
+  // Channels are neutral so green stays readiness and blue stays selection (#5058 V2).
+  for (const channel of ["stable", "beta", "rolling", "alpha"])
+    expect(identityStyle(channel, true)).toBeUndefined();
+  // A system or platform with the same ID keeps its identity color.
+  expect(identityStyle("windows", true)).toBeUndefined();
+  expect(identityStyle("windows")).toBeDefined();
   expect(identityLabel("not-specified")).toBe("Not specified");
 });
 

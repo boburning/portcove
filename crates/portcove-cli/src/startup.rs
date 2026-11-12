@@ -62,6 +62,12 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | ArtworkCommand::HandoffBytes { .. }
             | ArtworkCommand::Show { .. }
             | ArtworkCommand::Unused => ReadOnly,
+            ArtworkCommand::Steamgriddb { command } => match command {
+                SteamGridDbCommand::Status
+                | SteamGridDbCommand::Search { .. }
+                | SteamGridDbCommand::Candidates { .. } => ReadOnly,
+                SteamGridDbCommand::SetKey { .. } | SteamGridDbCommand::ClearKey => Recovering,
+            },
             ArtworkCommand::Import { .. }
             | ArtworkCommand::Reset { .. }
             | ArtworkCommand::ClearCache
@@ -85,8 +91,15 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             GameSettingsCommand::Apply { .. } => Recovering,
         },
         Commands::Saves { command } => match command {
-            SavesCommand::ExportPreview { .. } | SavesCommand::ImportPreview { .. } => ReadOnly,
-            SavesCommand::Export { .. } | SavesCommand::Import { .. } => Recovering,
+            SavesCommand::ExportPreview { .. }
+            | SavesCommand::ImportPreview { .. }
+            | SavesCommand::FolderStatus { .. }
+            | SavesCommand::FolderPullPreview { .. } => ReadOnly,
+            SavesCommand::Export { .. }
+            | SavesCommand::Import { .. }
+            | SavesCommand::FolderPush { .. }
+            | SavesCommand::FolderPull { .. }
+            | SavesCommand::FolderSetAside { .. } => Recovering,
         },
         Commands::Catalog { command } => match command {
             CatalogCommand::Compare { .. }
@@ -374,6 +387,9 @@ mod tests {
             "artwork handoff-bytes p --role portrait-cover --expected-library-id l --expected-revision 1 --expected-asset-sha256 a",
             "artwork show p",
             "artwork unused",
+            "artwork steamgriddb status",
+            "artwork steamgriddb search name",
+            "artwork steamgriddb candidates 1 --role portrait-cover",
             "auth status",
             "backup list p",
             "catalog list",
@@ -417,6 +433,8 @@ mod tests {
             "artwork reset p",
             "artwork clear-cache",
             "artwork remove-unused hash",
+            "artwork steamgriddb set-key --stdin",
+            "artwork steamgriddb clear-key",
             "auth login",
             "auth set-token --stdin",
             "auth logout",

@@ -322,7 +322,7 @@ it("names exact port choices from their visible identity and readiness inside gr
   expect(document.querySelectorAll("[data-discover-port-ids]")).toHaveLength(11);
   await expect
     .element(page.getByRole("status", { name: "Search results", exact: true }))
-    .toHaveTextContent("1 game + 10 ungrouped projects · 12 matching ports");
+    .toHaveTextContent("11 games");
   await userEvent.click(group.querySelector<HTMLButtonElement>(".discover-game-identity")!);
   const dialog = page.getByRole("dialog", { name: "Super Mario 64", exact: true });
   await expect.element(dialog).toBeVisible();
@@ -811,7 +811,7 @@ it.each([
       24,
       0,
     );
-    expect(getComputedStyle(title).fontWeight).toBe("580");
+    expect(getComputedStyle(title).fontWeight).toBe("600");
     expect(getComputedStyle(art).borderRadius).toBe("10px");
     const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
     expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);

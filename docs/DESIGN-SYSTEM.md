@@ -19,7 +19,7 @@ explicit; the host retains apply authorization and preimage checks.
 ## Library and Discover covers and compact rows
 
 Library and Discover default independently to Covers; Compact rows uses the same entries and authoritative
-local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library defaults to Title A–Z only when no saved sort exists and also offers Catalog order, Title Z–A and Recently played using recorded launch history; Discover offers Catalog order, Title A–Z, Title Z–A and In library first. With an observed device target, Catalog order is labeled Library & device to describe the existing deterministic library/device ranking; its explanation remains visible. No subjective recommendation or quality score is implied. Library counts entries, including separate ports for one game; Discover names reviewed game groups and matching independent ports separately.
+local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library defaults to Title A–Z only when no saved sort exists and also offers Catalog order, Title Z–A and Recently played using recorded launch history; Discover defaults to Title A–Z when no sort is saved and offers Catalog order, Title A–Z, Title Z–A and In library first (#5058 F4; a tested-first shelf waits for a native look at the real catalog). With an observed device target, Catalog order is labeled Library & device to describe the existing deterministic library/device ranking; its explanation remains visible. No subjective recommendation or quality score is implied. Library counts entries, including separate ports for one game; the Discover header counts the cards it shows as games, and port counts stay on each game's comparison (#5058 F3).
 Search, named Readiness, independent Favorites and declared filters share the
 retrieval area. Quick views keep their own navigation row above the search/filter
 toolbar and deliberately reflow at narrow or enlarged-text widths; no hidden
@@ -42,9 +42,9 @@ width. Below 760px the preferred minimum is 10rem; 360–480px windows use two
 flexible columns with a 12px gap and no artwork cap, while narrower windows use
 one column. Available width and interface size still determine readable text and
 control wrapping. Library covers use 10px artwork corners, a 24px effective art-to-title gap and
-580 title weight; compact rows and Discover keep their own geometry.
+600 title weight; compact rows and Discover keep their own geometry.
 Cover cards reserve two readable lines for both title and project (the project reserves one line in desktop windows up to 760px high and expands on hover and keyboard focus), aligning chips and actions across mixed-length identities. Both expand on keyboard focus. Full identity wraps below
-40em. Footer actions stay beside the dominant status without overlapping it. A ready card's Play pairs a triangle with a compact signature-red labeled button, so the primary action is recognizable on arrival; its accessible name adds the game and project ("Play: Title · Project"), as do View task and the setup/review actions. Readiness stays a compact text-and-icon cue, and updates remain secondary while the game is playable. Routine Stable is omitted from Library card chips; a non-Stable channel or a channel that differs from the selected one stays visible. Discover cards likewise omit the chip when Stable is the only offered channel and the selected channel is Stable or unset; Preview, Rolling and mixed channels stay, and the comparison dialog shows every offered channel. (Supersedes the quiet bordered repeated Play; see #5058 L4–L5.) Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
+40em. Footer actions stay beside the dominant status without overlapping it. A ready card's Play pairs a triangle with a compact signature-red labeled button, so the primary action is recognizable on arrival; its accessible name adds the game and project ("Play: Title · Project"), as do View task and the setup/review actions. Readiness stays a compact text-and-icon cue, and updates remain secondary while the game is playable. Routine Stable is omitted from Library card chips; a non-Stable channel or a channel that differs from the selected one stays visible. Discover cards likewise omit the chip when Stable is the only offered channel and the selected channel is Stable or unset; Preview, Rolling and mixed channels stay, and the comparison dialog shows every offered channel. With an observed device target, Discover cards omit platform chips and show “Not available for Platform” only when a port lists platforms that exclude this device; without a device target the platforms stay listed. The single-port “Why this port?” view omits setup, file and update rows and the “No platform/update channel is listed” lines when they have no value; several ports keep every row aligned for comparison (#5058 F3, F5). Release-channel and platform chips and filter options are neutral: semantic green means ready to play and blue means selection or a link, so a kept update is a neutral status with its icon; original-system identity colors remain (#5058 V2). “Update saved for later” stays, because a kept version may reuse local bytes without a download. (Supersedes the quiet bordered repeated Play; see #5058 L4–L5.) Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
 The quick views read as underlined navigation above the search/filter toolbar.
 Artwork remains contained; neither a crop nor a provider mapping is inferred.
 
@@ -275,6 +275,8 @@ build targets, operating-system minima or publication qualification.
 - `html[data-theme]` is the runtime theme marker and activates Tailwind `dark:` variants. `html[lang]`, `html[dir]`, and Base UI's `DirectionProvider` are now driven together by the [desktop localization owner](LOCALIZATION.md), including for portaled controls. New layout rules use logical properties and mixed-direction technical values keep an explicit direction.
 - Shared Button intent is explicit: neutral `default`, signature-red `primary` for the dominant Play/Install/Apply action, blue `selected`, and danger-semantic `destructive`. All retain the shared gold focus signal and 36px compact and 40px ordinary/large minimum heights. Dialog owns the semantic scrim without backdrop blur; Dialog and Select use logical positioning and spacing where direction matters.
 - Graphite and warm controller-gray surfaces carry most of the interface. In the light theme, navigation is darker than the warm workspace and elevated surfaces are brighter. Blue means selected or interactive, yellow means keyboard/controller focus or rare emphasis, green means healthy or complete, and red is reserved for Portcove's signature and dangerous or critical action.
+- Text uses four sizes: 13px for metadata and chips (`--text-2xs`/`--text-xs`), 14px for body (`--text-sm`), 16px for card and game titles (`--text-md`), plus the page and section heading sizes; weights are 400 and 600 (#5058 V1).
+- Single-select strips, including Library quick views, Activity sections and detail tabs, share the selected treatment: selection fill plus an underline in the current color; option cards such as the theme picker keep their outline and tick (#5058 V3).
 - Selected state and focus are deliberately different: shared selected buttons use blue fill and a bottom-line marker with a transparent border; destination and Settings category navigation use the fill and current-page semantics. A gold outline communicates the current keyboard or controller target independently. Selecting an ordinary control preserves its regular font weight and geometry; forced colors retain a visible state cue. Current destination and Settings-category controls keep a leading system-color border in forced colors, independently of the keyboard focus outline.
 - Depth comes from borders, tonal steps, restrained inset treatment, and small shadows. Portcove does not use decorative gradients, glass, blur, neon glow, scanlines, or pixel-interface typography. Hero artwork uses the shared directional opacity mask solely to protect foreground readability.
 - The bundled Geist variable font is the intended default interface typeface, with an intentional monospace stack for technical content and offline system/script fallbacks coordinated with #203. The desktop must not make a network request to render its interface.
@@ -966,10 +968,20 @@ reset and filtering controls; hiding first-use tools must not clear preferences.
 
 Library's heading Add games action and empty-state primary action open the
 same in-flow workspace. Keep source choice, current port identity and the next
-review action together. Start with three intentions: choose a game or port,
-find games in a folder, or use an existing installation. Show only the selected
-route's actual inputs and requirements. Files are checked against an explicitly
-selected port; folder search supplies bounded recognition. Retain ambiguous/unsupported and
+review action together. Start with three routes: Browse games (opens Discover,
+where choosing a game always happens), Scan a folder, or use an existing
+installation. Show only the selected route's actual inputs and requirements. In
+Add games, "Choose folder to scan" saves the chosen folder and scans the saved
+folders; Settings keeps "Add folder" without scanning. Files are checked against the
+port chosen on its game page; folder search supplies bounded recognition (#5058 F2).
+When setup or install finishes and current readiness, including Core's launch
+assessment, reports the game ready with nothing left to confirm, the completion
+notice reads "Title is ready to play." with a primary "Play: Title" and Dismiss;
+external runtimes and every other outcome keep the factual "Action · Title:
+finished." notice. A successful launch shows no visible notice; its announcement
+remains. On the game page one Cancel serves running setup: the Game files control
+omits its own when the page's cancellation covers the operation, and the review
+dialog keeps its own (#5058 S3, S4). Retain ambiguous/unsupported and
 unknown evidence in existing review treatments. Detail/setup completion uses the
 shared primary/recovery and focus contracts. Save drafts during normal navigation;
 opening another destination must not imply cancellation or task completion.

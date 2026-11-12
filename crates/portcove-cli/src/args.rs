@@ -537,6 +537,50 @@ impl From<DestinationArtworkRoleArg> for portcove_core::DestinationArtworkRole {
 }
 
 #[derive(Debug, Subcommand)]
+pub(crate) enum SteamGridDbCommand {
+    /// Show whether a SteamGridDB API key is saved; the key itself is never shown.
+    Status,
+    /// Save your SteamGridDB API key in this host's secure credential store.
+    #[command(
+        after_help = "With --non-interactive, artwork steamgriddb set-key requires --stdin. Never place a key in command-line arguments."
+    )]
+    SetKey {
+        #[arg(
+            long,
+            help = "Read the key from standard input without placing it in argv"
+        )]
+        stdin: bool,
+    },
+    /// Remove the saved SteamGridDB API key from this host.
+    ClearKey,
+    /// Search SteamGridDB games by name; matches are proposals, not identities.
+    Search {
+        /// Game name to search for, up to 120 characters.
+        term: String,
+    },
+    /// List proposed static images for one SteamGridDB game and destination role.
+    Candidates {
+        /// SteamGridDB game ID from `artwork steamgriddb search`.
+        game_id: u64,
+        /// Destination image role to propose images for.
+        #[arg(long, value_enum)]
+        role: DestinationArtworkRoleArg,
+    },
+}
+
+impl SteamGridDbCommand {
+    pub(crate) fn name(&self) -> &'static str {
+        match self {
+            Self::Status => "artwork.steamgriddb.status",
+            Self::SetKey { .. } => "artwork.steamgriddb.set-key",
+            Self::ClearKey => "artwork.steamgriddb.clear-key",
+            Self::Search { .. } => "artwork.steamgriddb.search",
+            Self::Candidates { .. } => "artwork.steamgriddb.candidates",
+        }
+    }
+}
+
+#[derive(Debug, Subcommand)]
 pub(crate) enum ArtworkCommand {
     /// Observe a semantic destination role without fetching or writing artwork.
     Handoff {
@@ -599,6 +643,14 @@ pub(crate) enum ArtworkCommand {
     ClearCache,
     /// List imported artwork assets no longer referenced by a port.
     Unused,
+    /// Look up proposed artwork on SteamGridDB with your own API key.
+    #[command(
+        after_help = "SteamGridDB lookups use only your own API key from steamgriddb.com/profile/preferences/api. Portcove never ships a key. Results are proposals with author attribution; they choose no artwork and write nothing to Steam."
+    )]
+    Steamgriddb {
+        #[command(subcommand)]
+        command: SteamGridDbCommand,
+    },
     /// Delete one unreferenced imported asset after confirmation.
     RemoveUnused {
         /// Full SHA-256 of an unused imported asset from `artwork unused`; referenced assets cannot be removed.
@@ -617,6 +669,7 @@ impl ArtworkCommand {
             Self::Show { .. } => "artwork.show",
             Self::Import { .. } => "artwork.import",
             Self::Reset { .. } => "artwork.reset",
+            Self::Steamgriddb { command } => command.name(),
             Self::ClearCache => "artwork.clear-cache",
             Self::Unused => "artwork.unused",
             Self::RemoveUnused { .. } => "artwork.remove-unused",
@@ -1023,6 +1076,69 @@ pub(crate) enum SavesCommand {
         file: PathBuf,
         #[command(flatten)]
         choices: SaveImportChoiceArgs,
+    },
+    /// Show this game's saves in a folder you chose for moving saves between devices.
+    FolderStatus {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Existing folder you chose (removable drive, share or synced folder).
+        #[arg(long)]
+        folder: PathBuf,
+    },
+    /// Copy this device's reviewed saves into the folder. Never replaces files there.
+    FolderPush {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Existing folder you chose (removable drive, share or synced folder).
+        #[arg(long)]
+        folder: PathBuf,
+        /// `content_sha256` from `saves export-preview`; changed saves refuse.
+        #[arg(long)]
+        expected_content: String,
+    },
+    /// Review using one set of saves from the folder on this device.
+    FolderPullPreview {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Existing folder you chose (removable drive, share or synced folder).
+        #[arg(long)]
+        folder: PathBuf,
+        /// `content_sha256` of the saves, from `saves folder-status`.
+        #[arg(long)]
+        content: String,
+        #[command(flatten)]
+        choices: SaveImportChoiceArgs,
+    },
+    /// Use one reviewed set of saves from the folder after confirmation.
+    FolderPull {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Existing folder you chose (removable drive, share or synced folder).
+        #[arg(long)]
+        folder: PathBuf,
+        /// `content_sha256` of the saves, from `saves folder-status`.
+        #[arg(long)]
+        content: String,
+        #[command(flatten)]
+        choices: SaveImportChoiceArgs,
+        /// `preview_sha256` from `saves folder-pull-preview`; changed inputs refuse.
+        #[arg(long)]
+        expected_preview: String,
+        /// Confirm without prompting.
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Keep this device's progress and stop offering another set of saves.
+    /// The other saves stay in the folder and can still be used later.
+    FolderSetAside {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Existing folder you chose (removable drive, share or synced folder).
+        #[arg(long)]
+        folder: PathBuf,
+        /// `content_sha256` of the saves, from `saves folder-status`.
+        #[arg(long)]
+        content: String,
     },
     /// Import a reviewed portable save file after confirmation.
     Import {
