@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
@@ -69,6 +70,31 @@ void test("repository migrations are contiguous and the plan refuses drift or un
   assert.match(newer.problems.join(), /unknown to this checkout/u);
   assert.match(migrationTransaction(files[0]), /pg_advisory_xact_lock/u);
   assert.match(migrationTransaction(files[0]), /is not the next pending migration/u);
+});
+
+void test("an explicit env file supplies only the selected database URL", (context) => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-maintenance-env-"));
+  context.after(() => rmSync(directory, { recursive: true, force: true }));
+  const file = path.join(directory, ".env.local");
+  writeFileSync(
+    file,
+    'DATABASE_URL="postgresql://user:password@pooled.test/store?sslmode=require"\n' +
+      'DATABASE_URL_UNPOOLED="postgresql://user:password@direct.test/store?sslmode=require"\n' +
+      "NODE_OPTIONS=--inspect\n",
+  );
+  const base = { DATABASE_URL: "postgresql://user@other.test/other" };
+  const pooled = connectionFromEnvironment("DATABASE_URL", base, file);
+  assert.equal(pooled.PGHOST, "pooled.test");
+  assert.equal(pooled.PGSSLMODE, "require");
+  assert.equal(pooled.DATABASE_URL, undefined);
+  assert.equal(pooled.DATABASE_URL_UNPOOLED, undefined);
+  assert.equal(pooled.NODE_OPTIONS, undefined);
+  assert.equal(connectionFromEnvironment("DATABASE_URL_UNPOOLED", {}, file).PGHOST, "direct.test");
+  assert.throws(() => connectionFromEnvironment("DATABASE_URL", base, file + ".missing"), /load/u);
+  assert.throws(
+    () => connectionFromEnvironment("MISSING_URL", { MISSING_URL: base.DATABASE_URL }, file),
+    /Set MISSING_URL/u,
+  );
 });
 
 const server = postgresServer();

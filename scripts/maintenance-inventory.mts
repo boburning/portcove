@@ -1825,6 +1825,7 @@ commands:
 
 options:
   --database-env NAME   environment variable holding the database URL (default ${defaultDatabaseEnvironment})
+  --database-env-file PATH   read that variable from an env file
 
 PORTCOVE_MAINTENANCE_RUNNER optionally names the runner recorded with each collection run.`;
 
@@ -1837,6 +1838,8 @@ export async function main(argv = process.argv.slice(2)) {
   }
   const environment = connectionFromEnvironment(
     option(args, "--database-env") ?? defaultDatabaseEnvironment,
+    process.env,
+    option(args, "--database-env-file"),
   );
   const cli = option(args, "--cli");
   const sample = option(args, "--sample");
