@@ -1,0 +1,50 @@
+{
+  "copy": {
+    "activation": "Copiar el comando de activación",
+    "arguments": "Copiar la matriz de argumentos",
+    "copied": "Copiado",
+    "folderCheck": "Copiar el comando de comprobación de carpeta",
+    "launch": "Copiar el comando de inicio",
+    "launchReview": "Copiar el comando de revisión de inicio",
+    "program": "Copiar la ruta del programa",
+    "setup": "Copiar el comando de configuración",
+    "template": "Copiar la plantilla de comando",
+    "unavailable": "El portapapeles no está disponible. Selecciona y copia el texto de arriba.",
+    "useInPlace": "Copiar la plantilla de comando de uso en el lugar"
+  },
+  "disclosure": {
+    "folder": "Prepara tú mismo la versión necesaria. Reemplaza <folder/> con la ruta de su carpeta, compruébala y guarda la ubicación después de revisarla. Portcove no descarga, copia, actualiza, respalda ni elimina estos archivos.",
+    "installed": "La CLI comprueba esta instalación antes de iniciarla. Esto no instala ni actualiza el juego.",
+    "setup": "Ejecutar este comando puede descargar e instalar la versión seleccionada. Los archivos necesarios del juego se comprueban antes de usarlos.",
+    "staged": "La CLI comprueba la versión preparada conservada antes de activarla. Esto no descarga una nueva versión ni registra una instalación externa.",
+    "userSelected": "Completa la configuración original y luego reemplaza <executable/> y <workdir/> con las rutas que seleccionaste. Agrega los argumentos documentados con un <arg/> por argumento en ambos comandos. Tú o el iniciador original administran la configuración y las actualizaciones; Portcove no ha autenticado los bytes seleccionados como un paquete oficial."
+  },
+  "finding": "Buscando la aplicación de línea de comandos…",
+  "followUp": {
+    "folder": "Cuando la comprobación de la carpeta sea correcta, revisa y guarda esta instalación. Sus archivos permanecen donde están.",
+    "userSelected": "Después de revisar el ejecutable, el directorio de trabajo y cualquier valor de <arg/>, reemplaza <review/> con la huella de revisión devuelta y guarda los mismos detalles de inicio. Todos los archivos externos permanecen donde están."
+  },
+  "interpreter": {
+    "powershellCommand": "Comando de PowerShell 7",
+    "powershellTemplate": "Plantilla de PowerShell 7",
+    "shCommand": "Comando de sh / bash",
+    "shTemplate": "Plantilla de sh / bash"
+  },
+  "invalidPaths": "Quita los caracteres no válidos de las rutas seleccionadas antes de copiar un comando.",
+  "library": "Usa esta biblioteca: <path/>",
+  "previewBeta": "El comando usa beta para el canal Vista previa. No se ha verificado la compatibilidad de la CLI seleccionada con la entrada de vista previa, así que el comando copiado conserva beta por compatibilidad.",
+  "retry": "Reintentar los detalles del comando",
+  "separate": {
+    "explanation": "Para integraciones que aceptan una ruta de programa y una matriz de argumentos. El comando de shell de arriba es para una terminal.",
+    "summary": "Programa y argumentos por separado"
+  },
+  "template": {
+    "replace": "Plantilla: reemplaza <names/>.",
+    "replaceAndInstall": "Plantilla: reemplaza <names/>. Instala primero la CLI independiente de Portcove o localiza su ejecutable."
+  },
+  "title": {
+    "installed": "Iniciar desde otra aplicación",
+    "setup": "Configurar desde la línea de comandos",
+    "staged": "Usar la versión preparada"
+  }
+}
