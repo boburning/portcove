@@ -78,6 +78,29 @@ heuristic: it never fails the job, selects no validation and is not a merge
 prerequisite. A new route shape or contract legitimately needs Rust; otherwise the
 named files show a test or code path that still keys on a specific port.
 
+### Single required status transition
+
+The five required contexts are jobs that must run even when their run is cancelled,
+so a superseded run keeps needing runners after it stops mattering. The replacement
+is one required commit status, `ci`, and it arrives in three steps so merge is never
+ungated.
+
+1. `.github/workflows/ci-required-status.yml` posts `ci` on the pull request head
+   when that head's `CI` run completes: `success` for a successful run, `failure`
+   for a failed, timed-out or unstartable one, and nothing for a cancelled one. It
+   runs the default branch's copy, checks out nothing and executes no pull request
+   content. While the five contexts remain required, `ci` is informational.
+2. The owner changes the `main` ruleset to require `ci` in place of the five
+   contexts, together with `.github/repository-ruleset.json`, the protected-context
+   list in `.github/qualification-coverage.json` and the delivery readers that
+   consume them. This step needs explicit owner authority.
+3. The five aggregate jobs become one result job that a cancelled run skips, pull
+   request runs return to built-in per-pull-request cancellation, and the cancelling
+   half of the supersede workflow is removed.
+
+A later attempt on the same head overwrites the status with its own outcome. A
+missing status blocks merge once `ci` is required; a skipped job cannot satisfy it.
+
 ### Review scope
 
 Independent non-writing review is required for substantive behavior and higher
