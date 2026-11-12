@@ -36,6 +36,8 @@ export default defineConfig({
       "src/components/ExternalLink.tsx",
       "src/components/AuthoredSetupWarnings.tsx",
       "src/components/InvocationAnnouncements.tsx",
+      "src/features/browsing/ImplementationChoice.tsx",
+      "src/features/browsing/ListingMaintenanceFacts.tsx",
     ],
     ignore: ["src/**/*.test.{ts,tsx}", "src/**/*.generated.d.ts", "src/design-compatibility/**"],
     output: "src/locales/{{language}}/{{namespace}}.json",

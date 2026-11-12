@@ -1,4 +1,14 @@
 {
+  "implementation": {
+    "choose": "اختيار <name/>",
+    "preferred": "المفضّل: <name/>",
+    "refresh": "تحديث الخيارات",
+    "unconfirmed": "تعذر على Portcove تأكيد حفظ اختيارك. حدّث الخيارات للتحقق."
+  },
+  "maintenance": {
+    "offer": "العرض المُدار الحالي",
+    "reconsider": "إعادة النظر عندما: <condition/>"
+  },
   "search": {
     "clear": "مسح البحث",
     "discover": "البحث في الاكتشاف",

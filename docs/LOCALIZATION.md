@@ -136,10 +136,12 @@ unless the copy change is intended and reviewed.
 | External link failure                                           | `components/ExternalLink.tsx`                              | `common`            |
 | Setup-warning heading (warnings stay authored data)             | `components/AuthoredSetupWarnings.tsx`                     | `common`            |
 | Task-update live region label                                   | `components/InvocationAnnouncements.tsx`                   | `common`            |
+| Preferred implementation choice                                 | `features/browsing/ImplementationChoice.tsx`               | `browsing`          |
+| Listing maintenance facts (reasons stay authored data)          | `features/browsing/ListingMaintenanceFacts.tsx`            | `browsing`          |
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-12 it
-reported 1,539 findings in 64 of 216 analyzed files, measured after the
+reported 1,540 findings in 62 of 216 analyzed files, measured after the
 migrations listed above and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
 and are migrated with the surface that renders them. The count is a work

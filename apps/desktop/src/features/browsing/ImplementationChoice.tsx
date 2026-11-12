@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { Trans } from "react-i18next";
 import { Button } from "../../components/ui/button";
+import { useAppTranslation } from "../../localization";
 import { gameProjectLabel } from "../../port-identity";
 import type { Organization } from "../organization/OrganizationControls";
 import type { CatalogEntry } from "./catalog-entry";
@@ -24,6 +26,7 @@ export function ImplementationChoice({
   onSelected: (trigger: HTMLButtonElement) => void;
 }) {
   const [failedSnapshot, setFailedSnapshot] = useState<Organization["snapshot"]>();
+  const { t } = useAppTranslation("browsing");
   const mounted = useRef(false);
   const pending = useRef(false);
   useEffect(() => {
@@ -37,6 +40,7 @@ export function ImplementationChoice({
   const snapshot = organization?.snapshot;
   const selected = snapshot?.preferred_port_by_game?.[game.id] === port.id;
   const failed = failedSnapshot !== undefined && failedSnapshot === snapshot;
+  const projectName = gameProjectLabel(port) || port.name;
   return (
     <div className="grid justify-items-start gap-2">
       <Button
@@ -67,14 +71,18 @@ export function ImplementationChoice({
           })();
         }}
       >
-        {selected ? "Preferred: " : "Choose "}
-        {gameProjectLabel(port) || port.name}
+        {/* The project name is an exact value, never interpolated. */}
+        {selected ? (
+          <Trans
+            t={t}
+            i18nKey="implementation.preferred"
+            components={{ name: <>{projectName}</> }}
+          />
+        ) : (
+          <Trans t={t} i18nKey="implementation.choose" components={{ name: <>{projectName}</> }} />
+        )}
       </Button>
-      {failed && (
-        <p role="alert">
-          Portcove couldn’t confirm that your choice was saved. Refresh choices to check.
-        </p>
-      )}
+      {failed && <p role="alert">{t("implementation.unconfirmed")}</p>}
       {(failed || organization?.failure === "read") && organization && (
         <Button
           variant="ghost"
@@ -86,7 +94,7 @@ export function ImplementationChoice({
             });
           }}
         >
-          Refresh choices
+          {t("implementation.refresh")}
         </Button>
       )}
     </div>
