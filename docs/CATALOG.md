@@ -882,13 +882,16 @@ An indexed definition that declares `runtime_disc_image` must require
 `staged-source-portable` capability version 30, so older readers refuse it instead of
 misreading it ([definition delivery](DEFINITION-DELIVERY.md)); a definition bundled
 with the application ships with the build that understands it. `ace-combat-6-recomp`
-is the first shipped declaration. It remains Cataloged at its existing `beta` tier with
-no Supported claim, accepts only the one reviewed image identity recorded in
+is the first shipped declaration, and it uses an [optional game
+source](#optional-game-source): a player can keep using `AC6.iso` beside the executable
+or hand-extracted files in `assets` without choosing a disc image, and nothing is asked
+of them; choosing the one reviewed image unpacks it into `assets` and replaces the
+folder's contents. It remains Cataloged at its existing `beta` tier with no Supported
+claim, accepts only the one reviewed image identity recorded in
 [its dated evidence](qualification/ace-combat-6-owner-image-disc-reader-2026-11-11.md),
-and keeps `assets` and its other declared persistent paths, so an existing install
-that already holds `AC6.iso` or extracted `assets` is not rewritten until the player
-chooses a disc image; an install recorded under its earlier definition keeps that
-recorded definition until it is updated.
+and keeps `assets` and its other declared persistent paths. An install recorded under
+its earlier definition keeps that recorded definition, so it is not rewritten and gets
+no prompt; a disc image the player chooses is used from the next runtime update.
 
 A persistent disc-image destination is carried to the next version together with its
 unpack marker (`assets.portcove-source.json`), and only for a port that declares a disc

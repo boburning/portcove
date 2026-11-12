@@ -17707,23 +17707,90 @@ fn main() {
         assert_eq!(fs::read(user_settings).unwrap(), b"preserve-me");
     }
 
-    /// Every shipped definition keeps its source requirements exactly as they were: none is
-    /// optional, and each still blocks setup while unregistered.
+    /// Exactly one shipped definition offers its source as optional (`ace-combat-6-recomp`);
+    /// every other keeps its source requirements exactly as they were: none is optional, and
+    /// each still blocks setup while unregistered.
     #[test]
-    fn no_shipped_port_declares_an_optional_game_source() {
+    fn only_ace_combat_6_declares_an_optional_game_source() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let service = PortcoveService::new(library).unwrap();
+        let mut optional_ports = Vec::new();
         let mut requirements = 0;
         for port in service.catalog.ports() {
-            assert!(!port.optional_game_source, "{}", port.id);
+            if port.optional_game_source {
+                optional_ports.push(port.id.clone());
+            }
             for requirement in service.install_source_requirements(port).unwrap() {
-                assert!(!requirement.optional, "{}", port.id);
-                assert_eq!(requirement.blocks_setup(), !requirement.registered);
+                // Only the game source of an optional port is optional.
+                assert_eq!(
+                    requirement.optional,
+                    port.optional_game_source
+                        && requirement.role == SourceRequirementRole::GameSource,
+                    "{}",
+                    port.id
+                );
+                assert_eq!(
+                    requirement.blocks_setup(),
+                    !requirement.registered && !requirement.optional
+                );
                 requirements += 1;
             }
         }
+        assert_eq!(optional_ports, ["ace-combat-6-recomp"]);
         assert!(requirements > 100);
+    }
+
+    /// The shipped Ace Combat 6 entry (the real definition; only the host is declared): with
+    /// no disc image registered, the plan lists the source as optional and neither setup, the
+    /// Install action nor launch readiness holds on it.
+    #[test]
+    fn the_shipped_ace_combat_6_entry_never_blocks_on_an_unregistered_source() {
+        const ID: &str = "ace-combat-6-recomp";
+        let catalog = crate::test_fixture::host_declared_embedded_catalog(&[ID]);
+        let port = catalog.port(ID).unwrap().clone();
+        assert!(port.optional_game_source);
+
+        // Not installed: the plan and the Install action.
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let mut service = PortcoveService::new(library).unwrap();
+        service.replace_catalog_for_test(catalog.clone());
+        let requirements = service.install_source_requirements(&port).unwrap();
+        assert_eq!(requirements.len(), 1);
+        assert!(requirements[0].optional && !requirements[0].registered);
+        assert!(!requirements[0].blocks_setup());
+        let status = service.status(ID).unwrap();
+        let install = status
+            .port_actions
+            .iter()
+            .find(|action| action.action == crate::PortAction::Install)
+            .unwrap();
+        assert!(
+            !(install.availability == crate::PortActionAvailability::Waiting
+                && install.reason == crate::PortActionReason::MissingSource),
+            "{install:?}"
+        );
+
+        // Installed (an install that already uses the manual route): launch readiness.
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let root = library.versions_dir().join(ID).join("v1");
+        fs::create_dir_all(&root).unwrap();
+        write_host_test_executable(&root, ID);
+        let artifact = ArtifactIdentity {
+            asset_name: format!("{ID}-v1.zip"),
+            sha256: hex::encode(Sha256::digest(format!("{ID}:v1"))),
+            size: 4,
+        };
+        register_existing_test_artifact_with_port(&library, &port, "v1", &root, artifact, true);
+        let mut service = PortcoveService::new(library).unwrap();
+        service.replace_catalog_for_test(catalog);
+        let blockers = service.status(ID).unwrap().readiness.unwrap().blockers;
+        assert!(
+            !blockers.contains(&LaunchBlocker::MissingSource),
+            "{blockers:?}"
+        );
     }
 
     #[test]
@@ -18018,6 +18085,9 @@ fn main() {
         let catalog = crate::Catalog::from_document(document).unwrap();
         let port = catalog.port(ID).unwrap().clone();
         assert!(port.persistent_paths.iter().any(|path| path == "assets"));
+        // The shipped entry offers the disc image as an optional source; choosing one still
+        // follows the unpack route exercised below.
+        assert!(port.optional_game_source);
 
         let mut roots = Vec::new();
         for (version, active) in [("v1", true), ("v2", false)] {

@@ -5217,6 +5217,8 @@ mod tests {
             port.runtime_source_materialization,
             Some(RuntimeSourceMaterialization::XdvdfsDirectory)
         );
+        // The manual route keeps working: the disc image is an optional source.
+        assert!(port.optional_game_source);
         let image = port.runtime_disc_image.as_ref().unwrap();
         assert_eq!(image.format, crate::DiscImageFormat::Xdvdfs);
         assert_eq!(image.product_codes, ["4E4D07D1"]);
