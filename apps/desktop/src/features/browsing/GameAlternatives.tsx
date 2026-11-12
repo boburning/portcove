@@ -1,4 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
+import { Trans } from "react-i18next";
+import { useAppTranslation } from "../../localization";
 import { Button } from "../../components/ui/button";
 import { gameProjectLabel } from "../../port-identity";
 import { platformLabel } from "../../view-model";
@@ -15,31 +17,69 @@ export function ImplementationFacts({
   port: CatalogEntry;
   status?: PortStatus | undefined;
 }) {
+  const { t } = useAppTranslation("browsing");
   const editions = originalGame(port)?.source_editions ?? [];
   return (
     <div className="grid gap-1 text-xs text-pc-muted-foreground">
       <p>{port.summary}</p>
+      {/* Lists, requirement labels, edition titles and versions are exact values. */}
       <p>
-        Runs on:{" "}
-        {port.platforms.length ? port.platforms.map(platformLabel).join(", ") : "Not recorded"}
+        {port.platforms.length ? (
+          <Trans
+            t={t}
+            i18nKey="alternatives.runsOn"
+            components={{ platforms: <>{port.platforms.map(platformLabel).join(", ")}</> }}
+          />
+        ) : (
+          t("alternatives.runsOnUnknown")
+        )}
       </p>
       <p>
-        Original files:{" "}
-        {port.presentation?.source_requirements
-          ?.map((requirement) => requirement.label)
-          .join("; ") || "Check project setup instructions"}
+        {port.presentation?.source_requirements?.length ? (
+          <Trans
+            t={t}
+            i18nKey="alternatives.originalFiles"
+            components={{
+              files: (
+                <>
+                  {port.presentation.source_requirements
+                    .map((requirement) => requirement.label)
+                    .join("; ")}
+                </>
+              ),
+            }}
+          />
+        ) : (
+          t("alternatives.originalFilesUnknown")
+        )}
       </p>
       {editions.length > 0 && (
-        <p>Source editions: {editions.map((edition) => edition.title).join("; ")}</p>
+        <p>
+          <Trans
+            t={t}
+            i18nKey="alternatives.sourceEditions"
+            components={{ editions: <>{editions.map((edition) => edition.title).join("; ")}</> }}
+          />
+        </p>
       )}
       <p>
-        {status?.active
-          ? `Managed installation · ${status.active.version}`
-          : status?.external_runtime
-            ? `External installation · ${status.external_runtime.version}`
-            : status
-              ? "Not installed"
-              : "Installation state unavailable"}
+        {status?.active ? (
+          <Trans
+            t={t}
+            i18nKey="alternatives.managed"
+            components={{ version: <bdi>{status.active.version}</bdi> }}
+          />
+        ) : status?.external_runtime ? (
+          <Trans
+            t={t}
+            i18nKey="alternatives.external"
+            components={{ version: <bdi>{status.external_runtime.version}</bdi> }}
+          />
+        ) : status ? (
+          t("alternatives.notInstalled")
+        ) : (
+          t("alternatives.stateUnavailable")
+        )}
       </p>
     </div>
   );
@@ -59,6 +99,7 @@ export function GameAlternatives({
   organization: Organization;
   onSelect: (portId: string, originKey?: string) => void;
 }) {
+  const { t } = useAppTranslation("browsing");
   const root = useRef<HTMLDetailsElement>(null);
   const binding = JSON.stringify([port.id, ports.map((entry) => entry.id)]);
   const current = useRef<string | undefined>(binding);
@@ -72,18 +113,22 @@ export function GameAlternatives({
   return (
     <details ref={root} className="min-w-0 basis-full text-sm">
       <summary data-focusable className="cursor-pointer py-2">
-        Other ports for this game ({ports.length})
+        {t("alternatives.heading", { total: ports.length })}
       </summary>
-      <p className="mb-2 text-xs text-pc-muted-foreground">
-        Each project keeps its own files and installation. Choosing one does not transfer saves or
-        choose a release.
-      </p>
+      <p className="mb-2 text-xs text-pc-muted-foreground">{t("alternatives.independence")}</p>
       <div className="grid gap-3">
         {ports.map((candidate) => (
           <div key={candidate.id} className="grid gap-2 rounded-pc-md border border-pc-border p-3">
             <strong>
-              {gameProjectLabel(candidate) || candidate.name}
-              {candidate.id === port.id ? " · Viewing" : ""}
+              {candidate.id === port.id ? (
+                <Trans
+                  t={t}
+                  i18nKey="alternatives.viewing"
+                  components={{ name: <bdi>{gameProjectLabel(candidate) || candidate.name}</bdi> }}
+                />
+              ) : (
+                <bdi>{gameProjectLabel(candidate) || candidate.name}</bdi>
+              )}
             </strong>
             <ImplementationFacts port={candidate} status={statuses.get(candidate.id)} />
             <ImplementationChoice
@@ -101,7 +146,11 @@ export function GameAlternatives({
               data-detail-origin={`detail:alternative:${candidate.id}`}
               onClick={() => onSelect(candidate.id, `detail:alternative:${candidate.id}`)}
             >
-              View {gameProjectLabel(candidate) || candidate.name}
+              <Trans
+                t={t}
+                i18nKey="alternatives.view"
+                components={{ name: <bdi>{gameProjectLabel(candidate) || candidate.name}</bdi> }}
+              />
             </Button>
           </div>
         ))}

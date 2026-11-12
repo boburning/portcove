@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Trans } from "react-i18next";
+import { useAppTranslation } from "../../localization";
 import type { CatalogQueryResult } from "./catalog-query";
 import {
   platformLabel,
@@ -28,6 +30,7 @@ export function BrowsingMatchDetails({
     portId: string;
     contextId: string;
   }>();
+  const { t } = useAppTranslation("browsing");
   if (!result || !binding) return null;
   const contexts = result.matchingContexts.get(portId) ?? [];
   const current =
@@ -47,30 +50,29 @@ export function BrowsingMatchDetails({
     (observed.route_instance_sha256 ?? null) === choice.instance_sha256
       ? observed
       : undefined;
+  // A data list of independent labels; each part is a complete label or exact value.
   const label = (fact: (typeof contexts)[number]) =>
-    `${fact.member_context ? "Installed build" : "Setup"} · ${fact.platform ? platformLabel(fact.platform) : "Platform unknown"} · ${fact.channel ? releaseChannelPresentation(fact.channel).label : "Channel unknown"}${fact.release_version ? ` · ${fact.release_version}` : ""}`;
+    [
+      fact.member_context ? t("match.installedBuild") : t("match.setup"),
+      fact.platform ? platformLabel(fact.platform) : t("match.platformUnknown"),
+      fact.channel ? releaseChannelPresentation(fact.channel).label : t("match.channelUnknown"),
+      ...(fact.release_version ? [fact.release_version] : []),
+    ].join(" · ");
   return (
-    <section aria-label="Matching browsing contexts" className="my-4 space-y-2">
-      <h2>Matching versions for your filters</h2>
+    <section aria-label={t("match.label")} className="my-4 space-y-2">
+      <h2>{t("match.heading")}</h2>
       {result.state !== "matched" ? (
-        <p>
-          These filter results are unavailable. Return to Filters to update your choices or check
-          again.
-        </p>
+        <p>{t("match.unavailable")}</p>
       ) : contexts.length === 0 ? (
         <p>
           {result.ports.some((port) => port.id === portId)
-            ? "This game matches your filters. Version details are unavailable; Portcove checks requirements before setup or launch."
-            : "This port no longer matches your filters."}
+            ? t("match.noDetails")
+            : t("match.noLongerMatches")}
         </p>
       ) : (
         <>
-          {lostChoice && (
-            <p>Your previous choice is no longer current. Choose a matching version to inspect.</p>
-          )}
-          {!lostChoice && contexts.length > 1 && (
-            <p>Choose a version to inspect. Each choice matches all selected filters.</p>
-          )}
+          {lostChoice && <p>{t("match.lostChoice")}</p>}
+          {!lostChoice && contexts.length > 1 && <p>{t("match.choose")}</p>}
           {contexts.map((fact) => (
             <Button
               data-focusable
@@ -85,14 +87,36 @@ export function BrowsingMatchDetails({
           ))}
           {choice && (
             <p>
-              {choice.installation_method
-                ? installationMethodLabels[choice.installation_method]
-                : "Saved setup method unknown"}
-              .{" "}
-              {choice.member_context
-                ? "This is your matching saved installation."
-                : "This setup option matches your filters."}{" "}
-              Portcove checks the current requirements again before setup or launch.
+              {/* The method label follows the shared view-model migration. */}
+              {choice.member_context ? (
+                <Trans
+                  t={t}
+                  i18nKey="match.savedInstallation"
+                  components={{
+                    method: (
+                      <>
+                        {choice.installation_method
+                          ? installationMethodLabels[choice.installation_method]
+                          : t("match.methodUnknown")}
+                      </>
+                    ),
+                  }}
+                />
+              ) : (
+                <Trans
+                  t={t}
+                  i18nKey="match.setupOption"
+                  components={{
+                    method: (
+                      <>
+                        {choice.installation_method
+                          ? installationMethodLabels[choice.installation_method]
+                          : t("match.methodUnknown")}
+                      </>
+                    ),
+                  }}
+                />
+              )}
             </p>
           )}
           {choice &&
@@ -102,7 +126,7 @@ export function BrowsingMatchDetails({
                 context={{ ...gameFiles, byPort: new Map([[portId, matchingObservation]]) }}
               />
             ) : (
-              <p>No current game-file check for this version. Check again.</p>
+              <p>{t("match.noCheck")}</p>
             ))}
         </>
       )}
