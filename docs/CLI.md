@@ -1389,10 +1389,12 @@ takes the disc count from the installation's retained contract and reports it
 as `readiness.selectable_discs` in `status`; that field is absent for every
 other route. Core records the choice as the game's own `[disc] selected`
 setting just before the start, so it also becomes the game's saved disc and its
-save states are kept for that disc. No argument is added for the game. It
-refuses an out-of-range number (`usage`), another route or external
-registration (`unsupported`), and a missing materialized disc or settings it
-cannot edit exactly (`launch`). Without `--disc` the game starts its saved disc.
+save states are kept for that disc, even if the start then fails. No argument
+is added for the game. It refuses an out-of-range number (`usage`), another
+route or external registration (`unsupported`), a missing materialized disc or
+settings it cannot edit exactly (`launch`), a linked settings path (`conflict`)
+and a settings file that is not a regular file of at most 256 KiB
+(`verification`). Without `--disc` the game starts its saved disc.
 
 External launchers can supply a fresh UUID before starting the raw-stream CLI and
 observe it from another process:

@@ -168,7 +168,8 @@ impl PortcoveService {
 
     /// As `prepare_launch_for_install`, also delivering the launch activity's
     /// preparation events (currently disc-image unpacking phases) to `events`.
-    /// `disc` appends the literal managed PS1 disc choice; `None` adds nothing.
+    /// `disc` records a managed PS1 disc choice as the game's selected disc;
+    /// `None` writes nothing.
     pub(super) fn prepare_launch_for_install_observed(
         &self,
         port: &PortDefinition,
@@ -250,7 +251,8 @@ impl PortcoveService {
             // Last, after every refusal: the count comes from the retained
             // contract, and the disc files were hash-checked with the other
             // critical paths by `verify_critical` above. The choice lands in the
-            // restored settings, so a failed start is undone by the next restore.
+            // restored settings; if the game then fails to start, the next
+            // preparation collects it, so it still becomes the saved disc.
             crate::adapter::record_managed_psx_disc_choice(&catalog, port, &spec, disc)?;
         }
         if let (true, Some(operation), Some(events)) = (disc_reported.get(), operation, events) {

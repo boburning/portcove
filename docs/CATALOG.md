@@ -2401,13 +2401,16 @@ managed PS1 adapter, a runtime subdirectory and a persistent `settings.toml`.
 The retained source profile's disc count is then the launch disc choice that
 `status` reports as `readiness.selectable_discs`. A choice is written as that
 setting in the restored settings after every other launch check, changing only
-the `selected` value or adding that one line, and is captured with the session
+the `selected` value or adding that one line or a `[disc]` table, and is
+captured with the session
 like a choice made in the upstream launcher. Settings the editor cannot place
 exactly refuse the choice and leave the file unchanged. Portcove never passes
 `--disc`: the runtime then mounts that disc but keeps the previous save-state
 disc scope. Desktop's detail Play defaults to **Saved disc**, which sends no
 choice. Without the declaration, as for Final Fantasy VII whose prebuilt
-runtime has no reviewed source, no choice is offered.
+runtime has no reviewed source, no choice is offered. Because the field joins
+the retained operational identity, an existing installation keeps its retained
+definition and offers the choice only after it is reinstalled or updated.
 
 Reuse the PSX adapter’s preparation, preservation, and recovery evidence where
 the kit uses `psxrecomp/psxrecomp_cli.py` and the `psx-runtime` target, the same

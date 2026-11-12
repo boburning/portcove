@@ -7577,6 +7577,51 @@ mod tests {
     }
 
     #[test]
+    fn psx_settings_disc_choice_requires_a_managed_set_with_persistent_settings() {
+        let embedded = Catalog::embedded().unwrap();
+        let declared = embedded
+            .document
+            .ports
+            .iter()
+            .filter(|port| port.launch_disc_choice.is_some())
+            .map(|port| port.id.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            declared,
+            [
+                "alexbeav-ace-combat-3-electrosphere-recomp",
+                "alexbeav-armored-core-master-of-arena-recomp",
+                "alexbeav-fear-effect-2-retro-helix-recomp",
+            ]
+        );
+        let arena = "alexbeav-armored-core-master-of-arena-recomp";
+        let broken: [(&str, fn(&mut PortDefinition)); 3] = [
+            // Any other adapter or source materialization.
+            ("dr-mario-64-recomp", |port| {
+                port.launch_disc_choice = Some(LaunchDiscChoice::PsxSettingsSelected);
+            }),
+            (arena, |port| port.runtime_subdirectory = None),
+            (arena, |port| {
+                port.persistent_paths.retain(|path| path != "settings.toml");
+            }),
+        ];
+        for (id, breakage) in broken {
+            let mut catalog = Catalog::embedded().unwrap();
+            let port = Arc::make_mut(&mut catalog.document)
+                .ports
+                .iter_mut()
+                .find(|port| port.id == id)
+                .unwrap();
+            breakage(port);
+            let error = catalog.validate().unwrap_err();
+            assert!(
+                error.to_string().contains("PS1 settings disc choice"),
+                "{id}: {error}"
+            );
+        }
+    }
+
+    #[test]
     fn single_file_runtime_hashes_bind_the_exact_destination() {
         let mut catalog = Catalog::embedded().unwrap();
         let port = Arc::make_mut(&mut catalog.document)

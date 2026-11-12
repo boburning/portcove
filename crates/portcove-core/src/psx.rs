@@ -803,7 +803,7 @@ pub(crate) fn select_settings_disc(settings: &Path, disc: u32) -> Result<()> {
 
 fn settings_error(reason: &str) -> PortcoveError {
     PortcoveError::launch(
-        "Portcove could not record the disc choice in this game's settings. Choose Saved disc, or let the game rewrite its settings, then try again.",
+        "Portcove could not record the disc choice in this game's settings file. Start the game without a disc choice, or open the game once so it rewrites the file, then try again.",
     )
     .detail("settings_disc_reason", reason)
 }
