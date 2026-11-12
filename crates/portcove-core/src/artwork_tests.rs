@@ -3082,3 +3082,46 @@ fn provider_provenance_requires_metadata_schema_eight_and_valid_records() {
     let artwork = service.export_library_metadata().unwrap().artwork.unwrap();
     assert!(artwork.providers.is_empty() && artwork.provider_only_assets.is_empty());
 }
+
+#[test]
+fn schema_eight_library_import_restores_provider_attribution_and_origins() {
+    use crate::DestinationArtworkRole as Role;
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("library");
+    let service = open_service(&root);
+    let port = service.artwork_port("zelda64-recomp").unwrap();
+    let chosen = service
+        .choose_fetched_artwork(
+            &port,
+            ArtworkSlot::Cover,
+            42,
+            provider_candidate(
+                7,
+                Role::PortraitCover,
+                12,
+                24,
+                "image/png",
+                encoded(12, 24, image::ImageFormat::Png),
+            ),
+            0,
+        )
+        .unwrap();
+    let export = temp.path().join("export.json");
+    service.write_library_metadata(&export).unwrap();
+    let destination = temp.path().join("imported");
+    let plan = PortcoveService::plan_library_import(&export, &root, &destination).unwrap();
+    assert_eq!(plan.metadata.schema_version, 8);
+    PortcoveService::import_library(&export, &root, &destination, &plan.plan_sha256).unwrap();
+    let imported = open_service(&destination);
+    let state = imported
+        .artwork("zelda64-recomp", ArtworkSlot::Cover)
+        .unwrap();
+    assert_eq!(state.choice, chosen.choice);
+    assert_eq!(state.attribution, chosen.attribution);
+    assert_eq!(state.availability, ArtworkAvailability::Available);
+    let artwork = imported.export_library_metadata().unwrap().artwork.unwrap();
+    assert_eq!(
+        artwork.provider_only_assets,
+        vec![chosen.selection.unwrap().sha256]
+    );
+}

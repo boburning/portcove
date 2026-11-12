@@ -755,7 +755,8 @@ asset removes its provenance. Library metadata that carries provenance uses sche
 which older readers refuse; a same-user export copies provider originals like every
 other original. `artwork_state` and the handoff expose the credits. Withdrawal
 handling and a Desktop picker are later #527 slices. The CLI's `artwork steamgriddb`
-commands are thin adapters; the blocking client runs off the async runtime.
+commands are thin adapters: lookups run on a blocking task, and `choose` runs Core's
+fetch and ingestion in place on a runtime worker thread (`block_in_place`).
 
 Core owns independent cover/detail choices, copied local originals, deterministic
 generated fallbacks, bounded raster decoding and disposable thumbnails. SQLite

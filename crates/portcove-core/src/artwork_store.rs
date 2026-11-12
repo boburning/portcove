@@ -13,6 +13,10 @@ const MAX_TOTAL_BYTES: u64 = 1024 * 1024 * 1024;
 /// several provider images keep one record each.
 const MAX_PROVIDER_RECORDS: usize = 16384;
 const MAX_AUTHOR_CHARS: usize = 100;
+/// Distinct provider images recorded for one asset; read, write and import agree.
+const MAX_PROVIDER_RECORDS_PER_ASSET: usize = 64;
+/// Fetch times may sit at most a day ahead of this host's clock.
+const MAX_FETCHED_AT_SKEW_SECONDS: i64 = 24 * 60 * 60;
 
 /// Library migration 52: provider provenance beside, never inside, asset payloads,
 /// so assets imported locally keep their stored form byte-for-byte.
@@ -46,6 +50,8 @@ pub(crate) fn validate_attribution(attribution: &ArtworkAttribution) -> Result<(
         })
         || !crate::artwork::steamgriddb::is_image_url(&attribution.source_url)
         || attribution.fetched_at <= 0
+        || attribution.fetched_at
+            > crate::Library::now().saturating_add(MAX_FETCHED_AT_SKEW_SECONDS)
     {
         return Err(PortcoveError::verification(
             "invalid artwork provider attribution",
@@ -213,6 +219,21 @@ pub(crate) fn write_provider(
 ) -> Result<()> {
     validate_hash(&record.asset_sha256)?;
     validate_attribution(&record.attribution)?;
+    let (recorded, total): (u64, u64) = connection.query_row(
+        "SELECT (SELECT COUNT(*) FROM artwork_asset_providers WHERE asset_sha256=?1 AND NOT (provider=?2 AND asset_id=?3)),
+                (SELECT COUNT(*) FROM artwork_asset_providers)",
+        params![
+            record.asset_sha256,
+            record.attribution.provider.key(),
+            record.attribution.asset_id
+        ],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
+    if recorded >= MAX_PROVIDER_RECORDS_PER_ASSET as u64 || total >= MAX_PROVIDER_RECORDS as u64 {
+        return Err(PortcoveError::conflict(
+            "artwork provenance storage is full; remove unused images before choosing more",
+        ));
+    }
     connection.execute(
         "INSERT INTO artwork_asset_providers(asset_sha256,provider,asset_id,record_json) VALUES (?1,?2,?3,?4)
          ON CONFLICT(asset_sha256,provider,asset_id) DO NOTHING",
@@ -248,21 +269,33 @@ pub(crate) fn record_local_origin(connection: &Connection, id: &str) -> Result<(
 pub(crate) fn attributions(connection: &Connection, id: &str) -> Result<Vec<ArtworkAttribution>> {
     validate_hash(id)?;
     let mut statement = connection.prepare(
-        "SELECT record_json FROM artwork_asset_providers WHERE asset_sha256=?1 ORDER BY provider,asset_id LIMIT 65",
+        "SELECT provider,asset_id,record_json FROM artwork_asset_providers WHERE asset_sha256=?1 ORDER BY provider,asset_id LIMIT 65",
     )?;
     let records = statement
-        .query_map([id], |row| row.get::<_, String>(0))?
+        .query_map([id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, u64>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })?
         .collect::<std::result::Result<Vec<_>, _>>()?;
-    if records.len() > 64 {
+    if records.len() > MAX_PROVIDER_RECORDS_PER_ASSET {
         return Err(PortcoveError::verification(
             "artwork asset has too many provider records",
         ));
     }
     records
         .iter()
-        .map(|json| {
+        .map(|(provider, asset_id, json)| {
             let attribution: ArtworkAttribution = serde_json::from_str(json)?;
             validate_attribution(&attribution)?;
+            // The key columns and the stored record must agree.
+            if attribution.provider.key() != provider || attribution.asset_id != *asset_id {
+                return Err(PortcoveError::verification(
+                    "artwork provider record differs from its key",
+                ));
+            }
             Ok(attribution)
         })
         .collect()
@@ -351,19 +384,30 @@ pub(crate) fn snapshot(connection: &Connection) -> Result<ArtworkMetadata> {
         })
         .collect::<Result<Vec<_>>>()?;
     let mut statement = connection.prepare(&format!(
-        "SELECT asset_sha256,record_json FROM artwork_asset_providers ORDER BY asset_sha256,provider,asset_id LIMIT {}",
+        "SELECT asset_sha256,provider,asset_id,record_json FROM artwork_asset_providers ORDER BY asset_sha256,provider,asset_id LIMIT {}",
         MAX_PROVIDER_RECORDS + 1
     ))?;
     let providers = statement
         .query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, u64>(2)?,
+                row.get::<_, String>(3)?,
+            ))
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?
         .into_iter()
-        .map(|(asset_sha256, json)| {
+        .map(|(asset_sha256, provider, asset_id, json)| {
+            let attribution: ArtworkAttribution = serde_json::from_str(&json)?;
+            if attribution.provider.key() != provider || attribution.asset_id != asset_id {
+                return Err(PortcoveError::verification(
+                    "artwork provider record differs from its key",
+                ));
+            }
             Ok(ArtworkProviderRecord {
                 asset_sha256,
-                attribution: serde_json::from_str(&json)?,
+                attribution,
             })
         })
         .collect::<Result<Vec<_>>>()?;
@@ -395,7 +439,15 @@ fn validate_provenance(metadata: &ArtworkMetadata, ids: &BTreeSet<&String>) -> R
         ));
     }
     let mut records = BTreeSet::new();
+    let mut per_asset = std::collections::BTreeMap::<&String, usize>::new();
     for record in &metadata.providers {
+        let count = per_asset.entry(&record.asset_sha256).or_default();
+        *count += 1;
+        if *count > MAX_PROVIDER_RECORDS_PER_ASSET {
+            return Err(PortcoveError::verification(
+                "artwork asset has too many provider records",
+            ));
+        }
         validate_hash(&record.asset_sha256)?;
         validate_attribution(&record.attribution)?;
         if !ids.contains(&record.asset_sha256)
