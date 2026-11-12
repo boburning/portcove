@@ -5,6 +5,7 @@ import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import { failureReport, portDefinition } from "../test-fixtures";
 import type { InstallRecord, ManagedRouteChangePreview } from "../types";
+import { gameIdentityLabel } from "../port-identity";
 import { ManagedRouteChangeControl } from "./ManagedRouteChange";
 
 const port = { ...portDefinition(), adapter: "native-portable" as const };
@@ -232,6 +233,7 @@ it("reviews the managed copy in the current language with exact paths", async ()
     await expect.element(page.getByRole("dialog")).toBeVisible();
     await expect.element(page.getByRole("button", { name: "إنشاء نسخة مُدارة" })).toBeVisible();
     expect(document.body.textContent).toContain("مجلد التثبيت الجديد: E:/Portcove/versions/sample");
+    expect(document.querySelector("[role=dialog] bdi")?.textContent).toBe(gameIdentityLabel(port));
     const codes = [...document.querySelectorAll("[role=dialog] code")].map((n) => n.textContent);
     expect(codes).toContain("C:/{{path}}/Sample");
     expect(document.body.textContent).not.toContain("Create managed copy");
