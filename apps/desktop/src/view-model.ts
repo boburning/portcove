@@ -111,11 +111,12 @@ export function progressPresentation(
   const unknown = {
     label: presentation.label,
     detail:
-      unit === "bytes"
+      presentation.explanation ??
+      (unit === "bytes"
         ? "Total size not yet known."
         : unit === "ports"
           ? "Port total not yet known."
-          : "Progress total not yet known.",
+          : "Progress total not yet known."),
   };
   if (operation?.type === "message")
     return { label: presentation.label, detail: operation.message };
@@ -139,6 +140,8 @@ type ProgressUnit = "bytes" | "ports" | "items";
 type OperationPresentation = {
   label: string;
   indeterminate: string;
+  /** Shown for a step that has no countable total, after the label states what is happening. */
+  explanation?: string;
 };
 
 function operationPresentation(value: string): OperationPresentation {
@@ -147,6 +150,27 @@ function operationPresentation(value: string): OperationPresentation {
     download_package: { label: "Downloading upstream package" },
     copy: { label: "Copying game files" },
     "psx-toolchain-download": { label: "Downloading preparation tools" },
+    "disc.identify": {
+      label: "Checking your disc image",
+      explanation: "Making sure it is the right game and region.",
+    },
+    "disc.plan": {
+      label: "Reading the disc contents",
+      explanation: "Listing the files on the disc before unpacking.",
+    },
+    "disc.free-space": {
+      label: "Checking free space",
+      explanation: "Making sure there is room for the unpacked files.",
+    },
+    "disc.extract": { label: "Unpacking game files" },
+    "disc.verify": {
+      label: "Verifying game files",
+      explanation: "Checking that the unpacked files are intact.",
+    },
+    "disc.activate": {
+      label: "Finishing game file setup",
+      explanation: "Switching to the unpacked files.",
+    },
     "Checking installed ports": { label: "Checking installed ports" },
     "Applying update policies": { label: "Applying update settings" },
     settings_change: { label: "Saving game setting" },

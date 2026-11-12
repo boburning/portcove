@@ -849,13 +849,26 @@ port, each phase is shown on stderr as player-readable progress ("Checking your 
 image", "Reading the disc contents", "Checking free space", "Unpacking game files"
 with bytes completed, "Verifying game files", "Finishing game file setup") before
 the game starts; the game's own streams are untouched, and a port that does not
-unpack a disc prints nothing extra. The same phases are the stable operation-event
-ids `disc.identify`, `disc.plan`, `disc.free-space`, `disc.extract` (unit `bytes`,
-`completed` and `total`), `disc.verify` and `disc.activate`, delivered by core to a
-caller of `supervise_launch_observed`. `exec` rejects `--json` and `--jsonl`
-because it inherits the game's streams, so these events are not JSONL output of
-any CLI command, and the Desktop launch supervisor does not yet forward them
-(issue #4959). Stable error codes (`failure.code` in structured errors) are
+unpack a disc prints nothing extra. The same phases are the stable operation-event ids `disc.identify`, `disc.plan`,
+`disc.free-space`, `disc.extract` (unit `bytes`, `completed` and `total`, reported
+when the whole percent changes) and `disc.verify`, `disc.activate`, followed by a
+closing `launch` step once preparation is done, delivered by core to a caller of
+`supervise_launch_observed`. Ports that do not unpack a disc emit none of them.
+
+Desktop receives the same events. Its launch supervisor runs in a separate process,
+so that process leaves the latest event in an ephemeral
+`launch-requests/<request id>.progress.json` beside the request and response files
+(reporting only, never a launch decision), and Desktop's launch observer relays each
+newer event as the ordinary operation event for that launch, which the Activity view
+shows as "Checking your disc image", "Reading the disc contents", "Checking free
+space", "Unpacking game files" with bytes completed, "Verifying game files" and
+"Finishing game file setup". The closing `launch` step replaces the last unpacking
+step so it is not shown while the game runs.
+
+The CLI offers no JSONL form of these events. `exec` rejects `--json` and `--jsonl`
+because it inherits the game's streams, and no other command prepares a port for
+launch (`launch show` and `launch recover` only report on or recover existing
+sessions), so adding a JSONL command would only duplicate `exec`. Stable error codes (`failure.code` in structured errors) are
 `disc_image_unsupported`, `disc_image_limit`, `disc_product_mismatch` (details
 `found` and `expected`) and `disc_space_insufficient` (details `required_bytes` and
 `available_bytes`). A wrong game is refused before any extraction, and a failure or

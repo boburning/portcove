@@ -12,6 +12,7 @@ pub(crate) fn phase_name(phase: &str) -> &'static str {
         "disc.extract" => "Unpacking game files",
         "disc.verify" => "Verifying game files",
         "disc.activate" => "Finishing game file setup",
+        "launch" => "Starting the game",
         "verify" => "Checking file identity",
         "copy" => "Copying game files",
         "psx-toolchain-download" => "Downloading PlayStation build tools",
@@ -118,6 +119,7 @@ mod tests {
         unique.dedup();
         assert_eq!(unique.len(), names.len());
         assert_eq!(phase_name("disc.identify"), "Checking your disc image");
+        assert_eq!(phase_name("launch"), "Starting the game");
     }
 
     #[test]
