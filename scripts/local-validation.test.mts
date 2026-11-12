@@ -706,6 +706,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
     "scripts/ui-test-selection.test.mts",
     "scripts/updater-historical-inputs.test.mts",
     "scripts/installed-game-data-fixture.test.mts",
+    "scripts/maintenance-handoffs.test.mts",
     "scripts/windows-installed-game-data.test.mts",
     "scripts/windows-historical-bootstrap.test.mts",
   ];
@@ -781,6 +782,7 @@ void test("fixture module closure edits retain all independent policy and constr
     "scripts/desktop-boundary-wiring.test.mts",
     "scripts/desktop-staged-layout.test.mts",
     "scripts/fixture-module-closure.test.mts",
+    "scripts/maintenance-handoffs.test.mts",
     "scripts/precommit-check.test.mts",
     "scripts/production-aggregate-steps.test.mts",
     "scripts/release-control-inputs.test.mts",
