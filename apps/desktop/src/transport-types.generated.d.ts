@@ -5300,12 +5300,21 @@ export interface PortMaintenance {
    * A newer release the last check found on this channel, if any.
    */
   available_version?: string | null;
+  /**
+   * An update download or an install, update or data change for this game
+   * is in progress or must still recover; maintenance waits for it.
+   */
+  busy?: boolean;
   channel: ReleaseChannel;
   /**
    * When updates were last checked for this install on this channel;
    * `None` means not yet.
    */
   checked_at?: number | null;
+  /**
+   * The retained earlier version a rollback would restore, if any.
+   */
+  previous_version?: string | null;
   staged_version?: string | null;
   update_policy: UpdatePolicy;
   [k: string]: unknown;

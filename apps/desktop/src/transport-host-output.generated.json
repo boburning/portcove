@@ -8209,6 +8209,10 @@
               "null"
             ]
           },
+          "busy": {
+            "description": "An update download or an install, update or data change for this game\nis in progress or must still recover; maintenance waits for it.",
+            "type": "boolean"
+          },
           "channel": {
             "$ref": "#/$defs/ReleaseChannel"
           },
@@ -8217,6 +8221,13 @@
             "format": "int64",
             "type": [
               "integer",
+              "null"
+            ]
+          },
+          "previous_version": {
+            "description": "The retained earlier version a rollback would restore, if any.",
+            "type": [
+              "string",
               "null"
             ]
           },
@@ -13348,6 +13359,10 @@
               "null"
             ]
           },
+          "busy": {
+            "description": "An update download or an install, update or data change for this game\nis in progress or must still recover; maintenance waits for it.",
+            "type": "boolean"
+          },
           "channel": {
             "$ref": "#/$defs/ReleaseChannel"
           },
@@ -13356,6 +13371,13 @@
             "format": "int64",
             "type": [
               "integer",
+              "null"
+            ]
+          },
+          "previous_version": {
+            "description": "The retained earlier version a rollback would restore, if any.",
+            "type": [
+              "string",
               "null"
             ]
           },

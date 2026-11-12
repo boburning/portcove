@@ -120,6 +120,13 @@ pub struct PortMaintenance {
     /// Identity of that release, used to announce it once.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub available_sha256: Option<String>,
+    /// The retained earlier version a rollback would restore, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub previous_version: Option<String>,
+    /// An update download or an install, update or data change for this game
+    /// is in progress or must still recover; maintenance waits for it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub busy: bool,
     /// When updates were last checked for this install on this channel;
     /// `None` means not yet.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -537,6 +544,15 @@ impl PortcoveService {
                     available_sha256: available
                         .map(|snapshot| snapshot.check.release.asset.sha256.clone()),
                     checked_at: current.map(|snapshot| snapshot.checked_at),
+                    previous_version: status
+                        .previous
+                        .as_ref()
+                        .map(|previous| previous.version.clone()),
+                    busy: status.acquisition.is_some()
+                        || self
+                            .library
+                            .has_unfinished_lifecycle(port_id)
+                            .unwrap_or(true),
                 }),
                 install_id: active.id,
             }
@@ -1288,6 +1304,8 @@ mod tests {
         };
         assert_eq!(maintenance.active_version, "v1");
         assert!(maintenance.available_version.is_none());
+        assert!(!maintenance.busy);
+        assert!(maintenance.previous_version.is_none());
         assert!(!assessed.assessments[0].newly_ready);
         // A check finds a newer release on the game's channel.
         let status = service.status(PORT).unwrap();
@@ -1366,6 +1384,26 @@ mod tests {
                 .batches
                 .is_empty()
         );
+        // Unfinished lifecycle work marks the installed game busy.
+        let now = Library::now();
+        service
+            .library()
+            .connection()
+            .unwrap()
+            .execute(
+                "INSERT INTO lifecycle_operations(id,kind,port_id,phase,created_at,updated_at)
+                 VALUES ('pending-update','update',?1,'prepared',?2,?2)",
+                params![PORT, now],
+            )
+            .unwrap();
+        let PortReadiness::Installed {
+            maintenance: Some(maintenance),
+            ..
+        } = &service.assess_port_intents().await.unwrap().assessments[0].readiness
+        else {
+            panic!("expected installed");
+        };
+        assert!(maintenance.busy);
     }
 
     #[tokio::test]
