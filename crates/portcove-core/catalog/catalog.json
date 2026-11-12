@@ -322,6 +322,16 @@
         "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/revelations-persona-recompiled-windows-reinstall-2026-09-15.md"
       },
       {
+        "id": "revelations-persona-recompiled-v011-linux-static-contract",
+        "role": "upstream_support",
+        "authority": "NJH-1001/RevPRecompile",
+        "authority_ref": "38fa6f4cf49a9a03244a64d2a12762074ed23348",
+        "reviewed_at": "2026-11-12",
+        "claim": "Exact v0.1.1 Linux x64 kit (28,066,719 bytes) matches the provider SHA-256 and passed Core package-layout inspection. After line-ending normalization, its game, CMake, setup CLI, runtime, UI and mod files match the accepted Windows owned-input kit; only README-SETUP.txt and native ELF emitters and setup host differ. The kit keeps the same USA SLUS-00339 game configuration and normalized Track 1 contract. Its Linux emitters and host need glibc 2.38 and GLIBCXX 3.4.32. The runtime keeps saves and settings beside the generated player. Linux generation, native operation and gameplay were not observed.",
+        "immutable_url": "https://github.com/NJH-1001/RevPRecompile/blob/38fa6f4cf49a9a03244a64d2a12762074ed23348/game.toml",
+        "live_url": null
+      },
+      {
         "id": "dr-mario-64-recompiled-windows-2026-09-15",
         "role": "portcove_qualification",
         "authority": "boburning/portcove",
@@ -12795,7 +12805,8 @@
         "evidence_ids": [
           "alpha1-schema1-source-contracts",
           "revelations-persona-recompiled-windows-2026-09-15",
-          "revelations-persona-recompiled-windows-reinstall-2026-09-15"
+          "revelations-persona-recompiled-windows-reinstall-2026-09-15",
+          "revelations-persona-recompiled-v011-linux-static-contract"
         ],
         "authority_ref": "ffee8733e4448b8fbc8fe357ebdf77252a6260e8",
         "reviewed_at": "2026-09-15",
@@ -12806,6 +12817,10 @@
           {
             "upstream_ref": "v0.1.1",
             "artifact_sha256": "f4336030ba9c0e032061ad6892aa5ce9ff01c4cedcbaf3a5355428e6d728158a"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "b4cb5d74027689465ac4778fd5d71e7f6244f39e2a43b8fe4d7a89dd959b5f70"
           }
         ],
         "aliases": [],
@@ -22358,7 +22373,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "psx-recomp-managed",
       "release": {
@@ -22366,6 +22382,9 @@
         "asset_hints": {
           "windows-x86-64": [
             "windows-x86_64-owned-input"
+          ],
+          "linux-x86-64": [
+            "linux-x64"
           ]
         }
       },
@@ -22373,6 +22392,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Revelations__Persona_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Revelations__Persona_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -22405,6 +22427,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own Revelations: Persona (USA) disc. Portcove builds the player on Windows or Linux before first Play. On Linux, the setup tools need glibc 2.38 or later. Linux generation, gameplay and save behavior are untested.",
         "original_game_title": "Revelations: Persona",
         "artwork": {
           "game_id": 11452,
@@ -39006,14 +39029,15 @@
     {
       "id": "blast-corps-power-dozer",
       "name": "Blast Corps (Power Dozer)",
-      "summary": "A native Blast Corps player using your own USA revision 1 cartridge dump. Portcove manages the official Windows x64 package and preserves its default local game data; upstream owns original-game import.",
+      "summary": "A native Blast Corps player using your own USA revision 1 cartridge dump. Portcove manages the official Windows x64 and Linux x86-64 packages and preserves their default local game data; upstream owns original-game import.",
       "project_url": "https://github.com/djultra64/Power-Dozer",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -39022,12 +39046,19 @@
           "windows-x86-64": [
             "power-dozer-",
             "-windows-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "power-dozer-",
+            "-linux-x86_64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "power-dozer.exe"
+        ],
+        "linux-x86-64": [
+          "power-dozer"
         ]
       },
       "persistent_paths": [
@@ -39040,7 +39071,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Choose your own Blast Corps USA revision 1 dump through the upstream in-process selector. It accepts .z64, .v64, .n64 or a single-ROM ZIP and checks normalized SHA-1 483f7161aea39de8b45c9fbc70a2c3883c4dea8c. The game stores its own normalized copy under data/cache/rom.z64. Core does not acquire or authenticate your cartridge dump; keep the original separately and do not share a data backup containing it. The official v0.84 Windows ZIP is an experimental beta despite its stable release stream. Keep power-dozer.exe, its matching DLLs and notices together. Windows x64 needs SSSE3/SSE4.1, Vulkan drivers and the Microsoft Visual C++ x64 runtime linked in the packaged README. No game compiler, installer or command wrapper is required for the normal native entry. Other platforms remain upstream-owned. For the managed Windows route, Portcove sets BLASTCORPS_DATA_DIR=data with the executable directory as working directory. It preserves the complete local data folder across compatible package updates and rollback, including cached original, EEPROM, committed Controller Pak data, settings, controls, backups and interrupted temporary files. A rollback does not rewind saves or guarantee that an older runtime reads newer state. In-progress Controller Pak game transactions follow upstream commit markers; this is not a guarantee of unsaved gameplay recovery. The separate %LOCALAPPDATA%/blastcorps-feasibility RT64 diagnostics and ImGui profile remain external and outside Portcove backup/removal. Keep a separate backup of actual custom --data-dir, capture or debug paths; Portcove does not import or migrate them. Close the actual player before deliberate external changes. Use Portcove for the managed copy and upstream/player ownership for separately registered installations. Existing external copies and custom profile paths retain their own update and preservation responsibility. Package integrity and first-party fixtures do not establish gameplay, real-save restoration or every graphics device.",
+        "manual_preparation": "Choose your own Blast Corps USA revision 1 dump through the upstream in-process selector. It accepts .z64, .v64, .n64 or a single-ROM ZIP and checks normalized SHA-1 483f7161aea39de8b45c9fbc70a2c3883c4dea8c. The game stores its own normalized copy under data/cache/rom.z64. Core does not acquire or authenticate your cartridge dump; keep the original separately and do not share a data backup containing it. The official v0.84 Windows ZIP and Linux x86-64 archive are experimental betas despite their stable release stream. Keep power-dozer.exe, its matching DLLs and notices together. Windows x64 needs SSSE3/SSE4.1, Vulkan drivers and the Microsoft Visual C++ x64 runtime linked in the packaged README. On Linux, keep power-dozer with its lib and licenses folders; it needs SSSE3/SSE4.1, glibc 2.38 or later, libz, Vulkan drivers, X11 or XWayland and a desktop file chooser. Portcove starts power-dozer directly, so the bundled Run Power Dozer.sh script is not needed. No game compiler or installer is required. Other platforms remain upstream-owned. For the managed Windows and Linux routes, Portcove sets BLASTCORPS_DATA_DIR=data with the executable directory as working directory. It preserves the complete local data folder across compatible package updates and rollback, including cached original, EEPROM, committed Controller Pak data, settings, controls, backups and interrupted temporary files. A rollback does not rewind saves or guarantee that an older runtime reads newer state. In-progress Controller Pak game transactions follow upstream commit markers; this is not a guarantee of unsaved gameplay recovery. The separate RT64 diagnostics and ImGui profile remain external and outside Portcove backup/removal: %LOCALAPPDATA%/blastcorps-feasibility on Windows, and ~/.config/.blastcorps-feasibility on Linux, or ~/.blastcorps-feasibility when ~/.config does not exist. Keep a separate backup of actual custom --data-dir, capture or debug paths; Portcove does not import or migrate them. Close the actual player before deliberate external changes. Use Portcove for the managed copy and upstream/player ownership for separately registered installations. Existing external copies and custom profile paths retain their own update and preservation responsibility. Package integrity and first-party fixtures do not establish gameplay, real-save restoration or every graphics device.",
         "original_game_title": "Blast Corps",
         "manual_setup": {
           "steps": [
@@ -39049,12 +39080,12 @@
               "instruction": "Choose your own Blast Corps USA revision 1 dump through the upstream in-process selector. It accepts .z64, .v64, .n64 or a single-ROM ZIP and checks normalized SHA-1 483f7161aea39de8b45c9fbc70a2c3883c4dea8c. The game stores its own normalized copy under data/cache/rom.z64. Core does not acquire or authenticate your cartridge dump; keep the original separately and do not share a data backup containing it."
             },
             {
-              "title": "Use the complete Windows package",
-              "instruction": "The official v0.84 Windows ZIP is an experimental beta despite its stable release stream. Keep power-dozer.exe, its matching DLLs and notices together. Windows x64 needs SSSE3/SSE4.1, Vulkan drivers and the Microsoft Visual C++ x64 runtime linked in the packaged README. No game compiler, installer or command wrapper is required for the normal native entry. Other platforms remain upstream-owned."
+              "title": "Use the complete Windows or Linux package",
+              "instruction": "The official v0.84 Windows ZIP and Linux x86-64 archive are experimental betas despite their stable release stream. Keep power-dozer.exe, its matching DLLs and notices together. Windows x64 needs SSSE3/SSE4.1, Vulkan drivers and the Microsoft Visual C++ x64 runtime linked in the packaged README. On Linux, keep power-dozer with its lib and licenses folders; it needs SSSE3/SSE4.1, glibc 2.38 or later, libz, Vulkan drivers, X11 or XWayland and a desktop file chooser. Portcove starts power-dozer directly, so the bundled Run Power Dozer.sh script is not needed. No game compiler or installer is required. Other platforms remain upstream-owned."
             },
             {
               "title": "Preserve game data and external diagnostics",
-              "instruction": "For the managed Windows route, Portcove sets BLASTCORPS_DATA_DIR=data with the executable directory as working directory. It preserves the complete local data folder across compatible package updates and rollback, including cached original, EEPROM, committed Controller Pak data, settings, controls, backups and interrupted temporary files. A rollback does not rewind saves or guarantee that an older runtime reads newer state. In-progress Controller Pak game transactions follow upstream commit markers; this is not a guarantee of unsaved gameplay recovery. The separate %LOCALAPPDATA%/blastcorps-feasibility RT64 diagnostics and ImGui profile remain external and outside Portcove backup/removal. Keep a separate backup of actual custom --data-dir, capture or debug paths; Portcove does not import or migrate them. Close the actual player before deliberate external changes."
+              "instruction": "For the managed Windows and Linux routes, Portcove sets BLASTCORPS_DATA_DIR=data with the executable directory as working directory. It preserves the complete local data folder across compatible package updates and rollback, including cached original, EEPROM, committed Controller Pak data, settings, controls, backups and interrupted temporary files. A rollback does not rewind saves or guarantee that an older runtime reads newer state. In-progress Controller Pak game transactions follow upstream commit markers; this is not a guarantee of unsaved gameplay recovery. The separate RT64 diagnostics and ImGui profile remain external and outside Portcove backup/removal: %LOCALAPPDATA%/blastcorps-feasibility on Windows, and ~/.config/.blastcorps-feasibility on Linux, or ~/.blastcorps-feasibility when ~/.config does not exist. Keep a separate backup of actual custom --data-dir, capture or debug paths; Portcove does not import or migrate them. Close the actual player before deliberate external changes."
             },
             {
               "title": "Keep one replacement owner",
