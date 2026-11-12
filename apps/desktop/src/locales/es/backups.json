@@ -26,6 +26,31 @@
     "summary_many": "{{count}} archivos · {{size}}",
     "summary_other": "{{count}} archivos · {{size}}"
   },
+  "ghostship": {
+    "activates": "Esto activa un nuevo derivado de la instalación heredada conservada y reemplaza los datos guardados canónicos por la instantánea seleccionada.",
+    "cancel": "Cancelar",
+    "checking": "Comprobando si esta instantánea cumple los requisitos para la recuperación heredada…",
+    "conditions": "El juego debe estar cerrado. Los cambios en los datos de entrada requieren una nueva revisión. El trabajo interrumpido conserva la evidencia de recuperación; revisa los avisos de recuperación antes de otro intento. La recuperación no inicia el juego ni demuestra la compatibilidad del juego ni de las partidas.",
+    "description": "Recupera juntos la instalación heredada que cumple los requisitos y sus datos guardados. Una restauración normal de copia de seguridad solo cambia los datos guardados.",
+    "failure": "La recuperación heredada no terminó. Actualiza la instalación y el historial de copias de seguridad, y revisa los avisos de recuperación antes de volver a intentarlo.",
+    "field": {
+      "current": "Instalación actual",
+      "legacy": "Instalación heredada conservada",
+      "library": "Biblioteca",
+      "original": "Original",
+      "snapshot": "Instantánea seleccionada que cumple los requisitos",
+      "space": "Espacio libre necesario"
+    },
+    "open": "Revisar la recuperación heredada",
+    "planLabel": "Cambios de la recuperación heredada y datos conservados",
+    "planMismatch": "El plan de recuperación no coincide con esta copia de seguridad. Revísalo de nuevo.",
+    "recover": "Recuperar la instalación heredada y los datos",
+    "recovering": "Recuperando la instalación heredada y los datos…",
+    "remains": "Ambas instalaciones existentes, las demás instalaciones preparadas y la copia de seguridad seleccionada se conservan. Copias de seguridad independientes conservan los datos canónicos actuales y las partidas y ajustes del motor más reciente.",
+    "reviewAgain": "Volver a revisar",
+    "safetyCopy": "La copia de seguridad del motor se guarda junto a su copia de seguridad canónica. La restauración normal usa solo los datos canónicos. Eliminar esa copia de seguridad también elimina su copia del motor.",
+    "title": "Revisar la recuperación heredada de Ghostship"
+  },
   "history": {
     "checksum": "SHA-256 {{sha256}}",
     "deleteLabel": "Eliminar la copia de seguridad del {{time}}",
