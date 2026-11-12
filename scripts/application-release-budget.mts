@@ -16,6 +16,7 @@ import {
   failedBootstrapRecovery,
   retainedServedRenewal,
   retainedServedRenewalFeed,
+  retainedV8RenewalDraft,
   retainedR55Renewal,
   retainedR56FeedRecovery,
   isEmptyApplicationBootstrapCustody,
@@ -520,6 +521,86 @@ export function permitsRetainedServedRenewalContinuation(
   );
 }
 
+/** A single continuation for the source refusal before draft registration. The
+ * previous three provider runs still count and all their charges are reread. */
+export function permitsRetainedV8SourceRefusalContinuation(
+  runs: readonly Record<string, unknown>[],
+  execution: ReturnType<typeof inspectApplicationReleaseExecution>,
+  opportunity: string,
+  purpose: unknown,
+  executionPath: unknown,
+  owner: ApplicationBudgetContext | undefined,
+) {
+  const retained = retainedV8RenewalDraft;
+  const custody = owner?.custody;
+  if (
+    opportunity !== retained.opportunity ||
+    purpose !== "metadata-renewal" ||
+    executionPath !== "metadata-maintenance" ||
+    execution.ref !== retained.next_ref ||
+    execution.run_attempt !== 1 ||
+    owner?.release_id !== retained.release_id ||
+    custody?.opportunity !== opportunity ||
+    custody.source !== retained.source ||
+    custody.source_tree !== retained.source_tree ||
+    custody.preparation !== null ||
+    custody.budget !== undefined ||
+    runs.length !== retained.predecessors.length + 1
+  )
+    return false;
+
+  const current = {
+    id: execution.run_id,
+    control_commit: execution.source,
+    control_ref: execution.ref,
+  };
+  const observed = new Map(runs.map((row) => [row.id, row]));
+  const prior = retained.predecessors.slice(0, 2);
+  const contexts = custody.metadata_contexts ?? [];
+  const next = contexts[prior.length];
+  const matches = (
+    actor: ApplicationBudgetContext["custody"]["runs"][number],
+    status: "completed" | "in_progress",
+    conclusion?: "failure" | "cancelled",
+  ) => {
+    const row = observed.get(Number(actor.id));
+    return (
+      row?.head_sha === actor.control_commit &&
+      row.head_branch === actor.control_ref.slice("refs/tags/".length) &&
+      row.run_attempt === 1 &&
+      row.status === status &&
+      row.conclusion === (status === "in_progress" ? null : conclusion)
+    );
+  };
+  return (
+    observed.size === runs.length &&
+    matches(current, "in_progress") &&
+    retained.predecessors.every((actor) => matches(actor, "completed", actor.conclusion)) &&
+    isDeepStrictEqual(custody.runs, [
+      ...prior.map(({ id, control_commit, control_ref }) => ({ id, control_commit, control_ref })),
+      current,
+    ]) &&
+    prior.every((actor, index) => {
+      const context = contexts[index];
+      return (
+        context?.opportunity === opportunity &&
+        context.run_id === actor.id &&
+        context.run_attempt === 1 &&
+        context.control_commit === actor.control_commit &&
+        context.control_ref === actor.control_ref &&
+        context.context_sha256 === retained.context_sha256[index]
+      );
+    }) &&
+    contexts.length <= prior.length + 1 &&
+    (next === undefined ||
+      (next.opportunity === opportunity &&
+        next.run_id === current.id &&
+        next.run_attempt === 1 &&
+        next.control_commit === current.control_commit &&
+        next.control_ref === current.control_ref))
+  );
+}
+
 const retainedBootstrapRuns = [
   ...emptyBootstrapContinuation.predecessors,
   {
@@ -849,9 +930,17 @@ export async function readApplicationJobBudget(
     executionPath,
     owner,
   );
+  const sourceRefusalContinuation = permitsRetainedV8SourceRefusalContinuation(
+    runs,
+    execution,
+    opportunity,
+    purpose,
+    executionPath,
+    owner,
+  );
   const maximumAttempts = servedRenewalContinuation
     ? servedRenewalPredecessors.length + 1
-    : continuation
+    : continuation || sourceRefusalContinuation
       ? 4
       : 3;
   const retainedDiagnostics =
@@ -912,6 +1001,34 @@ export async function readApplicationJobBudget(
       current || budgetedBootstrap ? purpose : "application-release",
       current ? executionPath : "ordinary",
     );
+    if (sourceRefusalContinuation && !current) {
+      const prior = retainedV8RenewalDraft.predecessors.find(
+        (actor) => actor.id === String(run.id),
+      );
+      assert.ok(prior);
+      assert.equal(result.actual_milliseconds, prior.milliseconds, "retained renewal cost changed");
+      assert.deepEqual(result.feed_executions, []);
+      if (prior.id === retainedV8RenewalDraft.predecessors[2].id) {
+        const jobs = observations[0]?.jobs;
+        assert.ok(isRecord(jobs) && Array.isArray(jobs.jobs));
+        const history: unknown[] = jobs.jobs;
+        assert.deepEqual(
+          history.flatMap((job) => {
+            assert.ok(isRecord(job));
+            const { id, name, conclusion } = job;
+            return conclusion === "skipped" ? [] : [{ id, name, conclusion }];
+          }),
+          [
+            {
+              id: retainedV8RenewalDraft.refused_source_job,
+              name: "source",
+              conclusion: "failure",
+            },
+          ],
+          "retained source refusal ran beyond source admission",
+        );
+      }
+    }
     if (recoverR56 && !current) assertRetainedR56FeedBudget(String(run.id), result);
     if ((continuation || budgetedBootstrap) && !current) {
       const prior = retainedBootstrapRuns.find(({ id }) => id === run.id);

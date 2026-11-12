@@ -40,6 +40,7 @@ import {
   retainedServedRenewal,
   retainedServedRenewalFeed,
   retainedR55Renewal,
+  retainedV8RenewalDraft,
   retainedR56FeedRecovery,
   immutableApplicationBootstrap,
   isEmptyApplicationBootstrapCustody,
@@ -755,18 +756,6 @@ async function recoverImmutableBootstrapFeed() {
   await applicationOutput("source_attempt", execution.run_attempt);
   await applicationOutput("known_runs", JSON.stringify(registration.known_run_ids));
 }
-
-// Both native runs settled before any role was signed. Their empty draft and
-// both context reservations stay attached to the same opportunity.
-const retainedV8RenewalDraft = {
-  opportunity: "7db3dcbe2c276d6240e6ec6dccfcd813b4877fc51243d0487314849dbd0138c4",
-  release_id: 442923418,
-  notes_sha256: "0b7159577fdff2740f6c9a40a7d51d8a3727cfb27f613add86a4f92491bfef50",
-  context_sha256: [
-    "a4fc2d5fafae213cf0398e9a6808a4309dd05e725e046072cad89afc90329cf8",
-    "2f6e2e0a4937bede19cda858589874d9f57674092f39c5929297a21e99999e28",
-  ],
-} as const;
 
 async function renewPublishedMetadata() {
   const execution = inspectApplicationReleaseExecution(process.env);

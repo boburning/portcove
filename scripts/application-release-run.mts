@@ -354,6 +354,45 @@ export const failedBootstrapRecovery = {
 } as const;
 
 /** One exact continuation of the already charged served-metadata renewal. */
+// Both native runs settled before any role was signed. Their empty draft and
+// both context reservations stay attached to the same opportunity.
+export const retainedV8RenewalDraft = {
+  opportunity: "7db3dcbe2c276d6240e6ec6dccfcd813b4877fc51243d0487314849dbd0138c4",
+  release_id: 442923418,
+  notes_sha256: "0b7159577fdff2740f6c9a40a7d51d8a3727cfb27f613add86a4f92491bfef50",
+  source: "e0598d4d82e24633e20bbdaaa5652b5fbcf63a9d",
+  source_tree: "0cf8c1604d220979e47aef233a96162034a4b942",
+  next_ref: "refs/tags/portcove-production-controller-windows-20261112r84",
+  predecessors: [
+    {
+      id: "43218696774",
+      control_commit: "e0598d4d82e24633e20bbdaaa5652b5fbcf63a9d",
+      control_ref: "refs/tags/portcove-production-controller-windows-20261112r81",
+      conclusion: "failure",
+      milliseconds: 386_000,
+    },
+    {
+      id: "43246536950",
+      control_commit: "5573b969db17d9f088cd2336e44644ffadc819e6",
+      control_ref: "refs/tags/portcove-production-controller-windows-20261112r82",
+      conclusion: "cancelled",
+      milliseconds: 875_000,
+    },
+    {
+      id: "43276692496",
+      control_commit: "1d387a0e57c9456d4fa5dcee4be6e674677d300b",
+      control_ref: "refs/tags/portcove-production-controller-windows-20261112r83",
+      conclusion: "failure",
+      milliseconds: 39_000,
+    },
+  ],
+  refused_source_job: 131386872240,
+  context_sha256: [
+    "a4fc2d5fafae213cf0398e9a6808a4309dd05e725e046072cad89afc90329cf8",
+    "2f6e2e0a4937bede19cda858589874d9f57674092f39c5929297a21e99999e28",
+  ],
+} as const;
+
 export const retainedServedRenewal = {
   opportunity: "c4cb09d9e84f80cc4a4c1bb8468ae074a80eeefb46e9cb72fb202b625cb826f3",
   release_id: 437990696,
