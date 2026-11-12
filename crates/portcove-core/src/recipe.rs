@@ -595,6 +595,29 @@ impl PortcoveService {
                 })
             })
             .collect::<Result<Vec<_>>>()?;
+        // The game must be able to load the enabled packages unambiguously, as for
+        // any new revision.
+        if crate::native_mod_list::contract(&recipe.port_id).is_some() {
+            let enabled = recipe
+                .packages
+                .iter()
+                .filter(|package| package.enabled)
+                .map(|package| package.native_id.as_str())
+                .collect::<Vec<_>>();
+            if let Some(name) = enabled
+                .iter()
+                .find(|name| crate::native_mod_list::require_listable(name).is_err())
+            {
+                holds.push(format!(
+                    "the game's mod list cannot name {name}; ask for a recipe without it"
+                ));
+            }
+            if let Some((first, second)) = crate::native_mod_list::identity_collision(enabled) {
+                holds.push(format!(
+                    "{first} and {second} would load as the same mod; ask for a recipe with one of them turned off"
+                ));
+            }
+        }
         let mut plan = RecipeImportPlan {
             recipe: recipe.clone(),
             runtime,

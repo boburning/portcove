@@ -338,3 +338,45 @@ async fn discarding_a_plan_whose_digest_was_changed_deletes_nothing() {
     w.service.discard_provider_install(&plan).unwrap();
     assert!(!staged.exists());
 }
+
+#[tokio::test]
+async fn a_new_extension_for_the_same_mod_is_planned_as_a_replacement_and_ambiguous_files_refuse() {
+    let w = world();
+    let scratch = w._temporary.path().join("scratch");
+    fs::create_dir_all(&scratch).unwrap();
+    let local = scratch.join("HD Link.otr");
+    fs::write(&local, o2r(&[("objects/link.bin", b"old")])).unwrap();
+    w.service
+        .install_mod_package("starship", &w.profile, &local, 1)
+        .unwrap();
+    let payload = zip_bytes(&[("HD Link.o2r", &o2r(&[("objects/link.bin", b"new")]))]);
+    let (root, server) = serve(777, "pack.zip", &payload);
+    let client = GameBananaClient::with_roots(&root, None).unwrap();
+    let plan = w
+        .service
+        .plan_provider_install_with(&client, "starship", &w.profile, 42, 10)
+        .await
+        .unwrap();
+    server.join().unwrap();
+    assert_eq!(plan.replaces, ["HD Link.otr"]);
+    assert!(plan.conflicts.is_empty(), "{:?}", plan.conflicts);
+    let authorization = w.service.authorize_provider_install(&plan).unwrap();
+    w.service
+        .apply_provider_install(&plan, &authorization.token)
+        .unwrap();
+    assert_eq!(live_mods(&w), ["HD Link.o2r"]);
+
+    let ambiguous = zip_bytes(&[
+        ("a.o2r", &o2r(&[("x", b"1")])),
+        ("A.otr", &o2r(&[("y", b"2")])),
+    ]);
+    let (root, server) = serve(777, "pack.zip", &ambiguous);
+    let client = GameBananaClient::with_roots(&root, None).unwrap();
+    let error = w
+        .service
+        .plan_provider_install_with(&client, "starship", &w.profile, 42, 10)
+        .await
+        .unwrap_err();
+    server.join().unwrap();
+    assert!(error.message.contains("same mod"), "{}", error.message);
+}

@@ -735,6 +735,8 @@ export type CapabilityFeature =
   | "save-compatibility";
 export type PendingSetupState = "downloaded" | "attention-required";
 export type OutputListingStatuses = PortListingStatus[];
+export type RetainedBuildAvailability = "verified" | "missing" | "changed" | "held" | "unavailable";
+export type OriginalAvailability = "verified" | "missing" | "changed";
 /**
  * Versioned best-effort progress envelope. Durable activity history remains
  * authoritative after reconnect or restart.
@@ -800,8 +802,6 @@ export type OutputDestinationOwnership =
   | "invalid"
   | "unknown";
 export type OutputPendingSetups = PendingSetupRecord[];
-export type RetainedBuildAvailability = "verified" | "missing" | "changed" | "held" | "unavailable";
-export type OriginalAvailability = "verified" | "missing" | "changed";
 /**
  * How current an observation is. A confirmed empty result is `Fresh`; an outage
  * that falls back to earlier data is `Stale`, never an empty list.
@@ -1079,9 +1079,10 @@ export interface TransportOutputs {
   library_selection: LibrarySelection;
   listing_delivery_status: OutputListingDeliveryStatus;
   listing_statuses: OutputListingStatuses;
-  live_mods: OutputLiveMods;
+  live_mods: LiveMods;
   managed_route_change_preview: OutputManagedRouteChangePreview;
   managed_route_change_result: OutputManagedRouteChangeResult;
+  mod_setups_view: OutputModSetupsView;
   official_catalog_review: OfficialCatalogReview;
   official_catalog_setup: OutputOfficialCatalogSetup;
   operation_event: OutputOperationEvent;
@@ -1098,7 +1099,7 @@ export interface TransportOutputs {
   preparation_cleanup_preview: OutputPreparationCleanupPreview;
   preparation_options: PreparationOptions;
   preparation_plan: OutputPreparationPlan;
-  profile_inventory: OutputProfileInventory;
+  profile_inventory: ProfileInventory;
   profile_recipe: ProfileRecipe;
   profile_revision: ProfileRevision;
   provider_install_plan: OutputProviderInstallPlan;
@@ -4192,11 +4193,43 @@ export interface PortCapabilityFeature {
   next_step: string;
   [k: string]: unknown;
 }
-export interface OutputLiveMods {
+export interface LiveMods {
   /**
    * Installed files whose bytes changed outside Portcove; never overwritten.
    */
   changed_owned: string[];
+  /**
+   * The game's own enabled-mods list compared with the selected revision.
+   */
+  native_list:
+    | {
+        state: "not-applicable";
+        [k: string]: unknown;
+      }
+    | {
+        state: "in-sync";
+        [k: string]: unknown;
+      }
+    | {
+        state: "not-written";
+        [k: string]: unknown;
+      }
+    | {
+        native_order: string[];
+        state: "reordered";
+        [k: string]: unknown;
+      }
+    | {
+        missing: string[];
+        state: "differs";
+        unexpected: string[];
+        [k: string]: unknown;
+      }
+    | {
+        reason: string;
+        state: "unreadable";
+        [k: string]: unknown;
+      };
   profile_id: string | null;
   revision: number | null;
   /**
@@ -4221,6 +4254,45 @@ export interface OutputManagedRouteChangeResult {
   external_files_preserved: boolean;
   installation: InstallRecord;
   previous_registration: ExternalRuntimeRecord;
+  [k: string]: unknown;
+}
+/**
+ * Everything a game-level mods view needs in one read: whether the game has a
+ * reviewed mod contract, its setups and what is live now. Read-only.
+ */
+export interface OutputModSetupsView {
+  /**
+   * None until the installed game has its default setup.
+   */
+  inventory: ProfileInventory | null;
+  live: LiveMods | null;
+  /**
+   * Package file types the game loads, such as `o2r`.
+   */
+  package_types: string[];
+  port_id: string;
+  /**
+   * False when the game has no reviewed mod package contract; nothing else is
+   * offered then.
+   */
+  supported: boolean;
+  [k: string]: unknown;
+}
+export interface ProfileInventory {
+  port_id: string;
+  profiles: ProfileView[];
+  [k: string]: unknown;
+}
+export interface ProfileView {
+  build_availability: RetainedBuildAvailability;
+  originals: OriginalStatus[];
+  profile: Profile;
+  revision: ProfileRevision;
+  [k: string]: unknown;
+}
+export interface OriginalStatus {
+  availability: OriginalAvailability;
+  binding: OriginalBinding;
   [k: string]: unknown;
 }
 export interface OfficialCatalogReview {
@@ -4501,23 +4573,6 @@ export interface SourceInspectionProblem {
   tool_id?: string | null;
   [k: string]: unknown;
 }
-export interface OutputProfileInventory {
-  port_id: string;
-  profiles: ProfileView[];
-  [k: string]: unknown;
-}
-export interface ProfileView {
-  build_availability: RetainedBuildAvailability;
-  originals: OriginalStatus[];
-  profile: Profile;
-  revision: ProfileRevision;
-  [k: string]: unknown;
-}
-export interface OriginalStatus {
-  availability: OriginalAvailability;
-  binding: OriginalBinding;
-  [k: string]: unknown;
-}
 export interface ProfileRecipe {
   format: number;
   /**
@@ -4583,7 +4638,8 @@ export interface OutputProviderInstallPlan {
   project_name: string;
   provider: ProviderPackageRef;
   /**
-   * Installed packages with the same native ID but different bytes.
+   * Installed packages this plan replaces: the same native ID with different
+   * bytes, or a package the game loads as the same mod under another extension.
    */
   replaces: string[];
   /**

@@ -481,3 +481,23 @@ fn acquirable_detail_names_the_canonical_provider_file() {
     assert_eq!(plan.packages[0].status, RecipeInputStatus::Acquirable);
     assert!(plan.packages[0].detail.contains("project 1, file 2"));
 }
+
+#[test]
+fn a_recipe_enabling_two_packages_the_game_loads_as_one_mod_is_held() {
+    let w = world();
+    let mut recipe = w
+        .service
+        .export_profile_recipe("starship", &w.profile, None)
+        .unwrap();
+    let mut twin = recipe.packages[0].clone();
+    twin.native_id = "HD-LINK.otr".into();
+    recipe.packages.push(twin);
+    recipe.orderings.clear();
+    let plan = w.service.plan_recipe_import(&sealed(recipe)).unwrap();
+    assert!(!plan.can_apply);
+    assert!(
+        plan.holds.iter().any(|hold| hold.contains("same mod")),
+        "{:?}",
+        plan.holds
+    );
+}
