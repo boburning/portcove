@@ -1,4 +1,9 @@
 {
+  "hero": {
+    "continueLabel": "{{title}}, jugado recientemente",
+    "credits": "Créditos de las imágenes",
+    "detailLabel": "Detalles del juego {{title}}"
+  },
   "implementation": {
     "choose": "Elegir <name/>",
     "preferred": "Preferida: <name/>",

@@ -1,4 +1,7 @@
 {
+  "brand": {
+    "mascot": "Mascota cangrejo de Portcove"
+  },
   "browserFailed": "No se pudo abrir el navegador: <detail/>",
   "close": "Cerrar",
   "filter": {

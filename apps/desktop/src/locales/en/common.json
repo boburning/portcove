@@ -1,4 +1,7 @@
 {
+  "brand": {
+    "mascot": "Portcove crab mascot"
+  },
   "browserFailed": "Couldn’t open the browser: <detail/>",
   "close": "Close",
   "filter": {

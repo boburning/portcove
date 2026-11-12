@@ -38,6 +38,9 @@ export default defineConfig({
       "src/components/InvocationAnnouncements.tsx",
       "src/features/browsing/ImplementationChoice.tsx",
       "src/features/browsing/ListingMaintenanceFacts.tsx",
+      "src/components/GameHero.tsx",
+      "src/components/Brand.tsx",
+      "src/features/identity/IdentityIcon.tsx",
     ],
     ignore: ["src/**/*.test.{ts,tsx}", "src/**/*.generated.d.ts", "src/design-compatibility/**"],
     output: "src/locales/{{language}}/{{namespace}}.json",
@@ -53,7 +56,7 @@ export default defineConfig({
   },
   lint: {
     ignore: ["src/localization.tsx"],
-    // Technical design-system, ARIA-reference and ARIA-state literals, never player copy.
+    // Technical design-system, ARIA and HTML/SVG rendering-hint literals, never player copy.
     ignoredAttributes: [
       "align",
       "aria-live",
@@ -66,7 +69,9 @@ export default defineConfig({
       "data-backup-action",
       "data-settings-control",
       "data-slot",
+      "decoding",
       "dir",
+      "focusable",
       "intent",
       "positionMethod",
       "reviewSize",
