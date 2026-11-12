@@ -4325,7 +4325,7 @@
           },
           "observations_reused": {
             "default": 0,
-            "description": "Files whose saved identity was reused because their recorded\nmetadata and inspector version still match. Never admission.",
+            "description": "File identities (one per file and representation) reused because the\nrecorded metadata and inspector version still match. Never admission.",
             "format": "uint32",
             "minimum": 0,
             "type": "integer"
