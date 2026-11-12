@@ -62,7 +62,9 @@ export function useStandingSetupCatchUp(
       ]);
       if (folders.length || intents.some((intent) => intent.mode === "set_up_when_ready")) {
         const result = await desktopApi.runStandingSetup(expected, () => undefined);
-        if (result.batches.length && current.current === expected) await changed.current();
+        const updated = (result.mod_updates ?? []).some((update) => update.outcome === "applied");
+        if ((result.batches.length || updated) && current.current === expected)
+          await changed.current();
         // Another window or the CLI is running a pass; check again after it.
         if (result.already_running) again.current = true;
       }

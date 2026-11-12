@@ -373,6 +373,32 @@ fn require_distinct_native_names(layout: &Layout, revision: &ProfileRevision) ->
     require_projectable(&layout.port_id(), revision)
 }
 
+/// The revision's enabled packages in `asset-override` order, as deployed: each
+/// keeps its place when replaced, and packages the ordering does not name follow.
+pub(crate) fn enabled_in_override_order(revision: &ProfileRevision) -> Vec<&ResolvedPackage> {
+    let mut ordered = revision
+        .orderings
+        .iter()
+        .find(|ordering| ordering.domain == OVERRIDE_DOMAIN)
+        .map(|ordering| {
+            ordering
+                .native_ids
+                .iter()
+                .filter_map(|id| enabled(revision).find(|package| &package.native_id == id))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    for package in enabled(revision) {
+        if !ordered
+            .iter()
+            .any(|seen| seen.native_id == package.native_id)
+        {
+            ordered.push(package);
+        }
+    }
+    ordered
+}
+
 /// The revision's enabled packages as the loader names them, in the
 /// `asset-override` order (last wins, matching the native list).
 pub(crate) fn native_projection(revision: &ProfileRevision) -> Vec<String> {

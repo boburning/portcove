@@ -962,6 +962,42 @@ export type OutputDesktopPortIntents = PortIntent[];
 export type OutputDesktopRootSetupConsent = RootSetupConsent | null;
 export type RootSetupEnrollment = "existing_and_future" | "future_only";
 export type OutputDesktopRootSetupConsents = RootSetupConsent[];
+/**
+ * What one standing pass did about one installed provider file.
+ */
+export type ProviderAutoUpdate = {
+  /**
+   * The setup's packages from the provider file this outcome is about; empty
+   * when the whole setup could not be checked.
+   */
+  native_ids: string[];
+  port_id: string;
+  profile_id: string;
+  profile_name: string;
+  [k: string]: unknown;
+} & ProviderAutoUpdate1;
+export type ProviderAutoUpdate1 =
+  | {
+      file_id: string;
+      outcome: "applied";
+      revision: number;
+      [k: string]: unknown;
+    }
+  | {
+      outcome: "held";
+      reason: string;
+      [k: string]: unknown;
+    }
+  | {
+      outcome: "deferred";
+      reason: string;
+      [k: string]: unknown;
+    }
+  | {
+      outcome: "unavailable";
+      reason: string;
+      [k: string]: unknown;
+    };
 export type SteamArtworkRoleAction =
   "write" | "replace" | "preserve" | "unchanged" | "unavailable" | "remove" | "preserve_modified" | "absent";
 /**
@@ -5544,6 +5580,10 @@ export interface OutputDesktopStandingSetup {
    * Games that could not start; the others were not affected.
    */
   failures: StandingSetupFailure[];
+  /**
+   * Provider updates for mod setups whose policy allows unattended updates.
+   */
+  mod_updates?: ProviderAutoUpdate[];
   not_assessed: number;
   /**
    * Matched files in folders with automatic setup that wait for a person
