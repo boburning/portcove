@@ -1398,27 +1398,8 @@ mod tests {
                 .batches
                 .is_empty()
         );
-        // A retained, finished update download alone is not busy.
-        let now = Library::now();
-        service
-            .library()
-            .connection()
-            .unwrap()
-            .execute(
-                "INSERT INTO lifecycle_operations(id,kind,port_id,phase,created_at,updated_at)
-                 VALUES ('kept-download','acquire_update',?1,'acquired',?2,?2)",
-                params![PORT, now],
-            )
-            .unwrap();
-        let PortReadiness::Installed {
-            maintenance: Some(maintenance),
-            ..
-        } = &service.assess_port_intents().await.unwrap().assessments[0].readiness
-        else {
-            panic!("expected installed");
-        };
-        assert!(!maintenance.busy);
         // Unfinished lifecycle work marks the installed game busy.
+        let now = Library::now();
         service
             .library()
             .connection()
@@ -1437,6 +1418,33 @@ mod tests {
             panic!("expected installed");
         };
         assert!(maintenance.busy);
+    }
+
+    #[test]
+    fn a_retained_update_download_is_not_unfinished_work() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let now = Library::now();
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "INSERT INTO lifecycle_operations(id,kind,port_id,phase,created_at,updated_at)
+                 VALUES ('kept-download','acquire_update',?1,'acquired',?2,?2)",
+                params![PORT, now],
+            )
+            .unwrap();
+        assert!(!library.has_unfinished_lifecycle(PORT).unwrap());
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "INSERT INTO lifecycle_operations(id,kind,port_id,phase,created_at,updated_at)
+                 VALUES ('pending-install','install',?1,'prepared',?2,?2)",
+                params![PORT, now],
+            )
+            .unwrap();
+        assert!(library.has_unfinished_lifecycle(PORT).unwrap());
     }
 
     #[tokio::test]
