@@ -1635,7 +1635,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 mode,
                 "games.batch-cancel",
                 service.cancel_install_batch(&batch_id)?,
-                |record| human::install_batch(record),
+                human::install_batch,
             )?,
             GamesCommand::BatchShow { batch_id } => render_read_success(
                 mode,
@@ -1644,7 +1644,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     PortcoveError::not_found("install batch does not exist")
                         .detail("batch_id", &batch_id)
                 })?,
-                |record| human::install_batch(record),
+                human::install_batch,
             )?,
             GamesCommand::Intent {
                 port_id,
@@ -1653,7 +1653,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 mode,
                 "games.intent",
                 service.set_port_intent(&port_id, intent_mode.into())?,
-                |intent| human::port_intent(intent),
+                human::port_intent,
             )?,
             GamesCommand::Intents => {
                 let assessed = service.assess_port_intents().await?;
