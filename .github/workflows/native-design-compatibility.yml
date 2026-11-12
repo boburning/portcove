@@ -837,8 +837,8 @@ jobs:
               $data = @{}; ([xml]$_.ToXml()).Event.EventData.Data | ForEach-Object { $data[$_.Name] = $_.'#text' }
               [pscustomobject]@{ Time = $_.TimeCreated.ToString('o'); Pid = [Convert]::ToInt32($data.NewProcessId, 16); ParentPid = [Convert]::ToInt32($data.ProcessId, 16); Image = $data.NewProcessName; Parent = $data.ParentProcessName; CommandLine = $data.CommandLine }
             } |
-            Where-Object { "$($_.Image) $($_.Parent) $($_.CommandLine)" -match 'msedgewebview2|msedgedriver|tauri-driver|Portcove-Retained-Evidence|portcove' } |
-            Sort-Object Time | Select-Object -First 60 |
+            Where-Object { "$($_.Image)|$($_.Parent)" -match '\\msedgewebview2\.exe|\\msedgedriver\.exe|tauri-driver|Portcove-Retained-Evidence' -and "$($_.Image)" -notmatch '\\conhost\.exe$' } |
+            Sort-Object Time | Select-Object -Last 80 |
             ForEach-Object { "$($_.Time) pid=$($_.Pid) parent=$($_.ParentPid) $($_.Image) <- $($_.Parent)`n    $("$($_.CommandLine)".Substring(0, [Math]::Min(700, "$($_.CommandLine)".Length)))" }
           "==== Windows Application log errors since job start"
           Get-WinEvent -FilterHashtable @{ LogName = 'Application'; Level = 1, 2; StartTime = (Get-Date).AddHours(-2) } -MaxEvents 30 -ErrorAction SilentlyContinue |
