@@ -131,7 +131,7 @@ it("retains concurrent input blockers when invalid installation takes precedence
   expect(observation.concurrentBlockers).toContain("Required game files are missing.");
 });
 
-it("presents an optional game source as optional, but a blocked one as still needing attention", () => {
+it("presents an installed optional game source as optional, and a mandatory one as before", () => {
   const optional = {
     ...port,
     source_profile: "optional-disc",
@@ -143,18 +143,45 @@ it("presents an optional game source as optional, but a blocked one as still nee
       source_requirements: [],
     },
   };
-  // Nothing registered and nothing blocking: not required.
+  const mandatory = { ...optional, optional_game_source: false };
+  const installed = (
+    source: "unregistered" | "current" | "changed" | "unreadable",
+    blockers: ("missing_source" | "changed_source" | "unreadable_source")[] = [],
+  ) =>
+    installedLaunchStatus({
+      launchable: blockers.length === 0,
+      pending_setup: false,
+      blockers,
+      source,
+      source_assessment: {
+        ...confirmedSourceAssessment(),
+        health: source === "current" ? "current" : source,
+      },
+    });
+  // Installed, optional, nothing registered: the optional copy wins; the card does not ask
+  // for files to be checked while Play and Install are allowed.
+  expect(gameFilesPresentation(optional, installed("unregistered")).title).toBe(
+    "Game files are optional",
+  );
   expect(gameFilesPresentation(optional, undefined).title).toBe("Game files are optional");
-  // The same port as a required source is not described as optional.
+  // Installed, optional, registered and changed or unreadable: still needs checking.
+  expect(gameFilesPresentation(optional, installed("changed", ["changed_source"])).title).toBe(
+    "Files need checking",
+  );
   expect(
-    gameFilesPresentation({ ...optional, optional_game_source: false }, undefined).title,
-  ).not.toBe("Game files are optional");
-  // A registered optional source that changed still needs attention.
-  const changed = {
-    ...healthy,
-    readiness: { launchable: false, pending_setup: false, blockers: ["changed_source" as const] },
-  };
-  expect(gameFilesPresentation(optional, changed).title).toBe("Files need checking");
+    gameFilesPresentation(optional, installed("unreadable", ["unreadable_source"])).title,
+  ).toBe("Files need checking");
+  expect(gameFilesPresentation(optional, installed("changed")).title).toBe("Files need checking");
+  // Installed, optional, registered and current: connected, as for any source.
+  expect(gameFilesPresentation(optional, installed("current")).title).toBe("Files connected");
+  // Installed, mandatory, nothing registered: unchanged.
+  expect(gameFilesPresentation(mandatory, installed("unregistered")).title).toBe(
+    "Files need checking",
+  );
+  expect(
+    gameFilesPresentation(mandatory, installed("unregistered", ["missing_source"])).title,
+  ).toBe("Setup needed");
+  expect(gameFilesPresentation(mandatory, undefined).title).not.toBe("Game files are optional");
 });
 
 it("does not turn legacy file blockers or saved paths into a connected/no-input claim", () => {

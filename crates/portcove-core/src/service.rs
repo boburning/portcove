@@ -17843,16 +17843,19 @@ fn main() {
             // Running as a user that bypasses file permissions cannot make a file unreadable.
             assert!(readable || blocked, "an unreadable optional source blocks");
 
-            // A permission failure on the path is not "gone"; only NotFound is.
+            // A permission failure on the path is not "gone"; only NotFound is. (A user that
+            // bypasses file permissions, such as root, cannot produce the failure: skip then.)
             let folder = temporary.path().join("sealed");
             fs::create_dir_all(&folder).unwrap();
             fs::write(folder.join("image.iso"), b"x").unwrap();
             fs::set_permissions(&folder, fs::Permissions::from_mode(0o000)).unwrap();
-            let denied = !super::source_file_is_gone(&folder.join("image.iso"));
-            let denied_is_error = fs::metadata(folder.join("image.iso")).is_err();
+            let probe = fs::metadata(folder.join("image.iso"));
+            let gone = super::source_file_is_gone(&folder.join("image.iso"));
             fs::set_permissions(&folder, fs::Permissions::from_mode(0o755)).unwrap();
-            assert!(denied, "a permission error is not a vanished source");
-            let _ = denied_is_error;
+            if let Err(error) = probe {
+                assert_eq!(error.kind(), std::io::ErrorKind::PermissionDenied);
+                assert!(!gone, "a permission error is not a vanished source");
+            }
         }
         assert!(super::source_file_is_gone(
             &temporary.path().join("never-existed.iso")
