@@ -204,3 +204,96 @@ it("offers to read again when the view cannot be refreshed after a change", asyn
   expect(read).toHaveBeenCalledTimes(3);
   expect(button(host, "Use Clean").disabled).toBe(false);
 });
+
+it("presents setups, counts and the reordered list in the active locale", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    const base = view();
+    vi.spyOn(desktopApi, "modSetups").mockResolvedValue(
+      view({
+        live: {
+          ...base.live!,
+          native_list: { state: "reordered", native_order: ["sfx.otr", "hd.o2r"] },
+        },
+      }),
+    );
+    const host = await render();
+    expect(host.querySelector("h3")?.textContent).toBe("ملفات التعريف والتعديلات");
+    expect(host.querySelector("ul")?.getAttribute("aria-label")).toBe("ملفات التعريف");
+    expect(host.textContent).toContain("تعديل واحد مُشغّل");
+    expect(host.textContent).toContain("لا توجد تعديلات مُشغّلة");
+    expect(host.textContent).toContain("قيد الاستخدام");
+    expect(host.textContent).toContain("أعدت ترتيب التعديلات في اللعبة (sfx.otr، hd.o2r).");
+    expect(host.querySelector("h4")?.textContent).toBe("التعديلات في Default");
+    expect(button(host, "استخدام Clean")).toBeTruthy();
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
+
+it("isolates mod identifiers and uses plural forms in the active locale", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    const base = view();
+    const many = setup("many", "Many", 1, [
+      ["a.o2r", true],
+      ["b.o2r", true],
+      ["c.o2r", true],
+    ]);
+    const two = setup("two", "Two", 1, [
+      ["a.o2r", true],
+      ["b.o2r", true],
+    ]);
+    const first = base.inventory!.profiles[0]!;
+    const provided = {
+      ...first,
+      revision: {
+        ...first.revision,
+        packages: first.revision.packages!.map((item, index) =>
+          index === 0 ? { ...item, provider: { provider: "gamebanana" } } : item,
+        ),
+      },
+    };
+    vi.spyOn(desktopApi, "modSetups").mockResolvedValue(
+      view({
+        inventory: {
+          ...base.inventory!,
+          profiles: [provided, two, many],
+        },
+      } as Partial<ModSetupsView>),
+    );
+    const host = await render();
+    expect(host.textContent).toContain("تعديلان مُشغّلان");
+    expect(host.textContent).toContain("3 تعديلات مُشغّلة");
+    const label = [...host.querySelectorAll("label")].find((item) =>
+      item.textContent?.includes("gamebanana"),
+    );
+    expect(label?.textContent).toBe("hd.o2r (من gamebanana)");
+    expect([...(label?.querySelectorAll("bdi") ?? [])].map((item) => item.textContent)).toEqual([
+      "hd.o2r",
+      "gamebanana",
+    ]);
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
+
+it("translates the game-changed mismatch while keeping Core failures verbatim", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view({ port_id: "other" }));
+    const host = await render();
+    expect(host.querySelector("[role=alert]")?.textContent).toBe(
+      "تغيّرت هذه اللعبة. حدّث تفاصيلها قبل تغيير التعديلات.",
+    );
+    expect(button(host, "قراءة ملفات التعريف مرة أخرى")).toBeTruthy();
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
