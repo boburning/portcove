@@ -1,8 +1,7 @@
-name: Beta feedback
+name: Feedback
 description: Tell us where Portcove was hard, slow or confusing, or what you wanted it to do.
 title: "[Feedback] "
 labels:
-  - beta-feedback
   - needs-triage
 projects:
   - boburning/1

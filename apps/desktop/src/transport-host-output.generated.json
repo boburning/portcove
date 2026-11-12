@@ -1738,11 +1738,42 @@
           "value"
         ],
         "type": "object"
+      },
+      "ReportChoice": {
+        "description": "A dropdown from the issue form. Its value travels as a field with the same id\nand must be one of `options`.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "options"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "description": "The exact text that will appear in the issue form, after redaction.",
     "properties": {
+      "choices": {
+        "default": [],
+        "description": "Dropdowns the player picks; empty for a bug report.",
+        "items": {
+          "$ref": "#/$defs/ReportChoice"
+        },
+        "type": "array"
+      },
       "fields": {
         "items": {
           "$ref": "#/$defs/BugReportField"
@@ -1751,7 +1782,8 @@
       }
     },
     "required": [
-      "fields"
+      "fields",
+      "choices"
     ],
     "title": "BugReportDraft",
     "type": "object"
@@ -15480,6 +15512,26 @@
     "title": "Array_of_string",
     "type": "array"
   },
+  "submitted_report": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "An issue GitHub created from a submitted report.",
+    "properties": {
+      "number": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "url": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "number",
+      "url"
+    ],
+    "title": "SubmittedReport",
+    "type": "object"
+  },
   "support_bundle_export": {
     "$defs": {
       "SupportBundleLimits": {
@@ -20214,6 +20266,10 @@
               "string",
               "null"
             ]
+          },
+          "windows_tracked_handoff": {
+            "description": "Reviewed Windows tracked handoff: the game can restart into a successor\nfrom its own process tree, so the session also waits for job members\nwhose image lies in the install root. Without it, the original process\nis the whole session.",
+            "type": "boolean"
           }
         },
         "required": [

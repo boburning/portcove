@@ -985,6 +985,31 @@ fn legacy_signed_catalog_cannot_supply_shipwright_persistence() {
 }
 
 #[test]
+fn legacy_signed_catalog_cannot_supply_a_windows_tracked_handoff() {
+    let now = 1_800_000_000;
+    let mut payload = fixture(1, now);
+    let trust = crate::CatalogTrustKey::from_public_key(&hex::encode(
+        signing_key().verifying_key().as_bytes(),
+    ))
+    .unwrap();
+    let verified =
+        signed_catalog::verify(&sign(&payload), std::slice::from_ref(&trust), now).unwrap();
+    assert!(
+        verified
+            .catalog
+            .ports()
+            .iter()
+            .all(|port| !port.windows_tracked_handoff)
+    );
+    payload.catalog.ports[0].windows_tracked_handoff = true;
+    let result = signed_catalog::verify(&sign(&payload), &[trust], now);
+    assert!(matches!(
+        result,
+        Err(error) if error.message.contains("cannot deliver a Windows tracked handoff")
+    ));
+}
+
+#[test]
 fn legacy_signed_catalog_keeps_compiled_empty_middle_patterns() {
     let now = 1_800_000_000;
     let mut payload = fixture(1, now);

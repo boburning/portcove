@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 52;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 53;
 
 struct Migration {
     version: i64,
@@ -331,13 +331,19 @@ const MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 52,
-        name: "game-file observation reuse",
+        name: "artwork provider provenance",
         apply: migration_52,
         verify: verify_migration_52,
     },
+    Migration {
+        version: 53,
+        name: "game-file observation reuse",
+        apply: migration_53,
+        verify: verify_migration_53,
+    },
 ];
 
-fn migration_52(transaction: &Transaction<'_>) -> Result<()> {
+fn migration_53(transaction: &Transaction<'_>) -> Result<()> {
     // Local, rebuildable provenance for saved-folder scans. A row only lets a
     // scan skip rehashing an unchanged file; it never admits a source.
     transaction.execute_batch(
@@ -352,10 +358,10 @@ fn migration_52(transaction: &Transaction<'_>) -> Result<()> {
             PRIMARY KEY(path_key, representation)
         );",
     )?;
-    verify_migration_52(transaction)
+    verify_migration_53(transaction)
 }
 
-fn verify_migration_52(connection: &Connection) -> Result<()> {
+fn verify_migration_53(connection: &Connection) -> Result<()> {
     require_columns(
         connection,
         "game_file_observations",
@@ -368,6 +374,26 @@ fn verify_migration_52(connection: &Connection) -> Result<()> {
             "identity_json",
             "observed_at",
         ],
+    )
+}
+
+fn migration_52(transaction: &Transaction<'_>) -> Result<()> {
+    // Who made a provider image and where it came from; never a selection,
+    // credential or permission record.
+    crate::artwork_store::migrate_providers(transaction)?;
+    verify_migration_52(transaction)
+}
+
+fn verify_migration_52(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "artwork_asset_providers",
+        &["asset_sha256", "provider", "asset_id", "record_json"],
+    )?;
+    require_columns(
+        connection,
+        "artwork_provider_only_assets",
+        &["asset_sha256"],
     )
 }
 
@@ -3104,6 +3130,7 @@ mod tests {
         schema_49: 49,
         schema_50: 50,
         schema_51: 51,
+        schema_52: 52,
     }
 
     #[test]

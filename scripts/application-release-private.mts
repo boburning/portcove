@@ -354,8 +354,11 @@ async function waitForMetadataProtectionConsumer(
 async function waitForMetadataProtectionArtifact(
   current: ReturnType<typeof execution>,
   name: string,
+  phase: keyof typeof metadataProtectionConsumers,
 ) {
-  const options = applicationWorkerControlOptions(190000);
+  // Preview's protected observer can reach its worker after four minutes of
+  // provider queue skew. Only artifact discovery gets this allowance.
+  const options = applicationWorkerControlOptions(phase === "metadata-preview" ? 300000 : 190000);
   const provider = await createReleaseCustodyProvider({
     ...options,
     beforeDispatch: options.guard,
@@ -491,7 +494,7 @@ async function guard(
       }
       await receiveApplicationData(directory, {
         id: waitsForObservation
-          ? await waitForMetadataProtectionArtifact(current, name)
+          ? await waitForMetadataProtectionArtifact(current, name, phase)
           : Number(artifact),
         name,
         source: current.source,

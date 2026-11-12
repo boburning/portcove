@@ -1660,6 +1660,70 @@ it("uses core root mutations for chosen folders and relinks the same root identi
   await captureParityState("game-files-root-relinked-fixture");
 });
 
+it("names the folders Portcove scans and only saves a chosen folder in Settings", async () => {
+  expect(document.querySelector("h2")?.textContent).toBe("Folders Portcove scans");
+  expect(() => button("Choose folder to scan")).toThrow("Missing button: Choose folder to scan");
+  const add = vi.spyOn(desktopApi, "addGameFileRoot").mockResolvedValue({
+    ...saved,
+    id: "root-2",
+    path: "E:/More Games",
+  });
+  await click("Add folder");
+  expect(add).toHaveBeenCalledExactlyOnceWith("E:/More Games", 1);
+  expect(document.body.textContent).toContain("Folder saved.");
+  expect(desktopApi.scanGameFileRoots).not.toHaveBeenCalled();
+});
+
+it("scans the saved folders once after a chosen folder is saved when adding means scanning", async () => {
+  const added: GameFileRoot = { ...saved, id: "root-2", path: "E:/More Games" };
+  vi.mocked(desktopApi.gameFileRoots)
+    .mockResolvedValueOnce([saved])
+    .mockResolvedValue([saved, added]);
+  const add = vi.spyOn(desktopApi, "addGameFileRoot").mockResolvedValue(added);
+  await root.rerender(
+    <GameFileLibraries generation={1} key="scan-after-add" scanAfterAdd ports={[]} profiles={[]} />,
+  );
+  expect(document.querySelector("h2")?.textContent).toBe("Folders Portcove scans");
+  expect(() => button("Add folder")).toThrow("Missing button: Add folder");
+  expect(desktopApi.scanGameFileRoots).not.toHaveBeenCalled();
+  await click("Choose folder to scan");
+  expect(picker.pickGameFileFolder).toHaveBeenCalledWith("");
+  expect(add).toHaveBeenCalledExactlyOnceWith(added.path, 1);
+  await vi.waitFor(() => expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce());
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(
+    expect.objectContaining({ max_entries: 10_000, max_candidates: 64 }),
+    1,
+    expect.any(Function),
+  );
+  expect(add.mock.invocationCallOrder[0]).toBeLessThan(
+    vi.mocked(desktopApi.scanGameFileRoots).mock.invocationCallOrder[0]!,
+  );
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
+it.each([
+  ["the folder choice is cancelled", null, undefined],
+  ["saving the folder fails", "E:/More Games", new Error("save failed")],
+] as const)("does not scan when %s", async (_case, chosen, failure) => {
+  vi.mocked(picker.pickGameFileFolder).mockResolvedValue(chosen);
+  const add = vi.spyOn(desktopApi, "addGameFileRoot");
+  if (failure) add.mockRejectedValue(failure);
+  await root.rerender(
+    <GameFileLibraries
+      generation={1}
+      key="scan-after-add-refused"
+      scanAfterAdd
+      ports={[]}
+      profiles={[]}
+    />,
+  );
+  await click("Choose folder to scan");
+  expect(add).toHaveBeenCalledTimes(failure ? 1 : 0);
+  expect(document.body.textContent?.includes("save failed")).toBe(Boolean(failure));
+  expect(button("Choose folder to scan").disabled).toBe(false);
+  expect(desktopApi.scanGameFileRoots).not.toHaveBeenCalled();
+});
+
 it("does not offer review from a snapshot whose inputs changed", async () => {
   vi.spyOn(desktopApi, "gameFileScanSnapshot").mockResolvedValue({
     ...snapshot,

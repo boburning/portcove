@@ -19,7 +19,7 @@ for current integration development. A local candidate is not a public release.
 | Move games from GitHub Launcher or Quiver           | [Move from another launcher](#move-from-another-launcher)                                                                                                     |
 | Keep an exact local build for a stable setup        | [Retained builds and setup references](#retained-builds-and-setup-references)                                                                                 |
 | Export metadata and restore copied library content  | [Export and restore](#export-and-restore-a-library)                                                                                                           |
-| Continue a qualified game's saves on another device | [Portable saves](#portable-saves)                                                                                                                             |
+| Continue a qualified game's saves on another device | [Portable saves](#portable-saves) and the optional [save folder](#save-folder-transport)                                                                      |
 | Move a library or recover a transfer                | [Move](#move-a-library) and [interrupted transfers](#recover-an-interrupted-transfer)                                                                         |
 | Request cancellation and establish the outcome      | [Cancel work safely](#cancel-work-safely)                                                                                                                     |
 | Resolve disc-tool prerequisites or GitHub access    | [Disc tools](#disc-formats-and-optional-tools) and [authentication](#github-authentication)                                                                   |
@@ -381,7 +381,7 @@ The CLI API schema version is independent of the Portcove release version.
 
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
 current or retained listing. `capabilities` advertises `port_capability_schema`
-and `listing_formats` independently from API schema 88 and event schema 3.
+and `listing_formats` independently from API schema 89 and event schema 3.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -666,7 +666,7 @@ Authentication is optional. Anonymous operation remains supported, while a GitHu
 portcove auth login
 ```
 
-`auth login` uses GitHub's device authorization flow with Portcove's public GitHub App client ID. `PORTCOVE_GITHUB_CLIENT_ID` can override it at runtime or build time; an explicitly empty override disables device login. Its polling wait is asynchronous, follows GitHub's pending and slowdown intervals, reports expiry or denial as typed errors, and can be cancelled with Ctrl-C. Authentication calls fail after ten seconds without a connection, fifteen seconds without response progress, or sixty seconds overall; a retry starts a new intent, so an older delayed token or device completion cannot replace it or a later logout.
+`auth login` uses GitHub's device authorization flow with Portcove's public GitHub App client ID. Desktop can use this sign-in, or a configured token, to submit a reviewed bug report or feedback as an issue on `boburning/portcove` under the signed-in account, only when the player chooses Submit. `PORTCOVE_GITHUB_CLIENT_ID` can override it at runtime or build time; an explicitly empty override disables device login. Its polling wait is asynchronous, follows GitHub's pending and slowdown intervals, reports expiry or denial as typed errors, and can be cancelled with Ctrl-C. Authentication calls fail after ten seconds without a connection, fifteen seconds without response progress, or sixty seconds overall; a retry starts a new intent, so an older delayed token or device completion cannot replace it or a later logout.
 
 #### Supply a token
 
@@ -1068,7 +1068,7 @@ Exact-hash original-file, cartridge-ZIP and complete schema-2 directory/ZIP-file
 
 Saved scan snapshots add optional `coverage` and opaque, internally validated `continuation` fields without changing API schema 57, request fields or discovery-report fields. Coverage reports cumulative batches, this batch's examined entries, re-listed entries, metadata checks, prior-batch file-set member rehashes, pending directories and whether continuation is available. Remaining entries are unknown until a frontier is exhausted without limits or issues; zero never promises coverage for unavailable or omitted inputs. Re-listing and metadata checks have a separate 100,000-work ceiling per batch. Continuations retain at most 16,384 observed paths and a conservative 4 MiB construction charge within the existing 8 MiB snapshot ceiling. After each validated batch the cursor keeps metadata only for the unfinished directory frontier, its listed entries and the retained match paths. A batch also ends, resumably, after a finished folder once the cursor passes half of either bound, so a large tree continues across batches; a single folder whose own entries exceed the bound remains terminal partial coverage; Reaching a continuation storage or work bound publishes the current report as terminal partial coverage, discards the cursor, and requires narrower folders for further progress. Prior file-set hashes are never persisted as admission authority: prior-batch members are rehashed against the current batch hash allowance when their directory completes.
 
-Saved-folder scans keep a local, rebuildable observation cache in the library database (schema 52). After hashing a regular file or ZIP selection, the scan records its identity facts under an exact metadata key: the representation (the profile extension group and the file-size limit), the identity inspector version, and the file's kind, size, modified and created times plus a platform change identity (device, inode and change time on Unix; volume serial, 128-bit file identifier and NTFS change time on Windows). It records only when that key did not change while the file was hashed, and never on a platform or filesystem without a change identity. A later saved scan reuses those facts instead of hashing only when every part of the key matches; any difference, an unreadable row or a newer inspector version inspects the file again. Reused facts only decide which candidates to show: matching still runs against the current catalog, so an unrelated catalog edit rehashes nothing, and every candidate is re-verified from current bytes before registration or setup. When that verification disagrees, the file's saved facts are forgotten so the next scan inspects it again. Files listed in the same batch, including complete file-set members, may use saved facts; prior-batch file-set members are still rehashed. Coverage reports `observations_reused`, one per reused file identity and representation. At the end of each scan, up to 20,000 saved files (oldest first) are checked: rows for files that no longer exist in an available saved folder are forgotten, an unavailable folder keeps its rows, and removing a saved folder forgets its rows. The cache is best effort: a full or unreadable store, or an oversized fact such as a very long ZIP member name, only means the file is hashed again, never a failed scan. One-off `source discover` neither reads nor writes the cache.
+Saved-folder scans keep a local, rebuildable observation cache in the library database (schema 53). After hashing a regular file or ZIP selection, the scan records its identity facts under an exact metadata key: the representation (the profile extension group and the file-size limit), the identity inspector version, and the file's kind, size, modified and created times plus a platform change identity (device, inode and change time on Unix; volume serial, 128-bit file identifier and NTFS change time on Windows). It records only when that key did not change while the file was hashed, and never on a platform or filesystem without a change identity. A later saved scan reuses those facts instead of hashing only when every part of the key matches; any difference, an unreadable row or a newer inspector version inspects the file again. Reused facts only decide which candidates to show: matching still runs against the current catalog, so an unrelated catalog edit rehashes nothing, and every candidate is re-verified from current bytes before registration or setup. When that verification disagrees, the file's saved facts are forgotten so the next scan inspects it again. Files listed in the same batch, including complete file-set members, may use saved facts; prior-batch file-set members are still rehashed. Coverage reports `observations_reused`, one per reused file identity and representation. At the end of each scan, up to 20,000 saved files (oldest first) are checked: rows for files that no longer exist in an available saved folder are forgotten, an unavailable folder keeps its rows, and removing a saved folder forgets its rows. The cache is best effort: a full or unreadable store, or an oversized fact such as a very long ZIP member name, only means the file is hashed again, never a failed scan. One-off `source discover` neither reads nor writes the cache.
 
 Saved-folder records, catalog, limits, platform, output ownership, or recorded filesystem metadata changes refuse the continuation and preserve the prior report with `restart_required`; the next explicit scan starts fresh. Invalid cursor data follows the same refusal path. Snapshot publication compares the previous raw checkpoint, saved-root records and managed-output registry in one transaction, so concurrent writers cannot overwrite each other's progress. Metadata checks detect recorded changes to the frontier and to each retained match's own path (not the members of a finished file set); a finished non-matching entry that changes later is seen by the next scan, as after a completed scan, but neither continuation nor snapshot readback proves current file bytes; accepting a candidate still revalidates it through the normal source path. Symlinks and entries outside the selected canonical roots are skipped. Equal profile contracts share hashing; both normalized ZIP payload and original container bytes count toward the budget. Accepting a candidate with `--expected-sha256` checks the current profile and reviewed content under the normal source locks before registration. Settings → Sources → Find source files exposes the same search, cancellation, and explicit acceptance.
 
@@ -1189,6 +1189,46 @@ bytes. Catalog defaults, a non-wide Detail image and the unprovided landscape ro
 remain explicitly unavailable, without provider requests or disposable-cache export.
 See the [destination contract](INTEGRATION-AUTHOR.md#destination-artwork-handoff)
 for commands, strict schemas, byte validation and destination preview obligations.
+
+### SteamGridDB artwork suggestions
+
+```text
+portcove artwork steamgriddb set-key
+portcove --json --non-interactive artwork steamgriddb set-key --stdin
+portcove --json artwork steamgriddb status
+portcove --json artwork steamgriddb search "<game name>"
+portcove --json artwork steamgriddb candidates <game-id> --role portrait-cover
+portcove --json artwork steamgriddb choose <port-id> --slot cover --game <game-id> --candidate <image-id> --expected-revision <revision>
+portcove --json artwork steamgriddb clear-key
+```
+
+SteamGridDB lookups use only your own API key, created at
+steamgriddb.com/profile/preferences/api. Portcove ships no key. `set-key` prompts
+without echo, or reads standard input with `--stdin`. `--non-interactive` requires
+`--stdin`, and the key is never accepted as an argument or environment variable.
+Core keeps the key in this host's secure credential store and sends it only to the
+fixed SteamGridDB API origin. `status`, `set-key` and `clear-key` return only
+`configured`; the key is never shown.
+
+`search` returns up to 50 matching games. `candidates` returns up to 50 static PNG
+or JPEG images for `portrait-cover`, `landscape-cover` or `hero-banner`, each with
+its CDN URL, size, style and author attribution. Both are suggestions: they choose
+no artwork, establish no game identity, download no image bytes and write nothing
+to Steam. Results flagged as adult, humor or epilepsy-risk are excluded. A missing
+key or a rejected key is a usage error, and a missing game is not-found. Rate
+limiting reports `retry_after_seconds` when SteamGridDB provides it, and an
+unavailable service is a network error. Malformed responses fail verification.
+`choose` copies one listed image into your library for a port's `cover` (portrait
+images) or `detail` (hero images) slot and returns `artwork_state`. Core looks the image
+up again with your key, downloads it from SteamGridDB's image server without your key,
+and keeps it only if it decodes as a static PNG or JPEG matching its listed type and
+size. The artist credit is stored with the copy and shown in `artwork_state.attribution`
+and the destination handoff. An image no longer on the game's first listing page is
+not-found, and a changed choice revision is a conflict; in both cases the current
+artwork is kept. The copy is library artwork like a local import: `reset` returns to
+the default and `remove-unused` deletes it once nothing selects it. Library exports
+that contain chosen SteamGridDB images use metadata schema 8.
+See [the provider client limits](ARCHITECTURE.md#local-artwork-ownership).
 
 ## Export and restore a library
 
@@ -1674,6 +1714,62 @@ Automated tests cover classification, file integrity, version and game
 blockers, conflicts, deletion choices, changed input, a running game and
 interruption recovery. They do not show that the game loads moved saves; that
 remains a separate qualification for the exact device pair.
+
+### Save folder transport
+
+A save folder is an optional, player-chosen location for moving the same
+classified saves between devices: a removable drive, a network share, or a
+folder another sync tool already mirrors. Portcove adds no account, service or
+background syncing, and connecting a folder grants nothing: every push and pull
+is a separate request that names the folder.
+
+```bash
+portcove --library <path> --json saves folder-status <port-id> --folder <dir>
+portcove --library <path> --json saves folder-push <port-id> --folder <dir> --expected-content <content_sha256>
+portcove --library <path> --json saves folder-pull-preview <port-id> --folder <dir> --content <sha256> [choices]
+portcove --library <path> --json saves folder-pull <port-id> --folder <dir> --content <sha256> [choices] --expected-preview <preview_sha256> --yes
+portcove --library <path> --json saves folder-set-aside <port-id> --folder <dir> --content <sha256>
+```
+
+The folder must already exist and must be outside the library; a missing or
+unreadable folder is reported as unavailable. Portcove writes only under
+`portcove-saves/v1/<port-id>/`: each push adds one immutable saves file named by
+its content digest. Pushing the same saves again, including at the same moment
+from another device, writes nothing, so retries and duplicate copies made by other
+sync tools are harmless. Portcove never overwrites or deletes files in the
+folder. Temporary files from interrupted copies are ignored; saves files that are
+damaged or do not match their name are ignored and listed under `problems`, and
+a damaged file under this device's own name is kept for inspection and the push
+is refused. Portcove reviews at most 256 saves files and 256 set-aside records per
+game and at most 256 MiB of saves files at once; beyond that `complete` is false,
+`next_step` is `incomplete`, and pulls from the folder are refused until older
+files are moved out (a saves file can still be imported directly).
+
+`folder-status` is read-only. It lists every saves file with its source version
+and platform, whether it matches this device's qualified game version
+(`compatible`), whether it is the latest on its branch (`head`), whether it was
+set aside, whether this device already includes it, and its relation to this
+device's saves. `next_step` is `unavailable` (folder not connected; local play and
+backups are unaffected), `blocked`, `incomplete`, `up-to-date`, `push`, `pull` or
+`choose-progress`. Only compatible heads are offered. Relations follow each
+file's recorded history in the folder, so progress that continued over several
+sessions on another device still reads as `continues`. That history is recorded
+by whichever device wrote each file and is not proof: the pull review still lists
+every file it would replace, with the safety backup behind it.
+
+`folder-pull-preview` and `folder-pull` are the [portable save import](#portable-saves)
+review and apply for one file in the folder, with the same consent, locking,
+safety backup and recovery; a changed or missing folder after review refuses.
+When a pull from different progress actually replaces or removes saves on this
+device, this device's own branch in the folder (its current saves or its last
+pushed saves) is set aside; a pull that only adds slots sets nothing aside.
+`folder-set-aside` sets aside another device's saves when you keep this device's
+progress. Setting aside only adds an empty marker under `superseded/`; the saves
+file stays in the folder and can still be pulled explicitly. A device whose
+current saves were set aside elsewhere reports `local_set_aside` and
+`choose-progress`, never `up-to-date`, so mutual choices cannot hide a difference.
+Deleting slots on one device never deletes them elsewhere unless
+`--remove-local-only-saves` is chosen on the pulling device.
 
 ### Concurrency and failure-isolated batches
 

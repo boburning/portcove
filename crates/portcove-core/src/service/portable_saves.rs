@@ -87,6 +87,12 @@ impl PortcoveService {
         })
     }
 
+    /// This device's last synchronization point for the game, if recorded.
+    pub(super) fn portable_lineage(&self, port_id: &str) -> Option<String> {
+        let contract = portable_saves::contract_for(port_id)?;
+        portable_saves::read_lineage(contract, &self.library.user_dir(port_id))
+    }
+
     fn port_busy(&self, port_id: &str) -> Result<bool> {
         Ok(self.library.try_probe_port_lock(port_id)?.is_none())
     }
@@ -124,10 +130,26 @@ impl PortcoveService {
         destination: &Path,
         expected_content_sha256: &str,
     ) -> Result<PortableSaveExportResult> {
-        super::validate_reviewed_fingerprint("portable save export", expected_content_sha256)?;
         self.catalog.port(port_id)?;
         let destination = self.export_destination(destination)?;
-        let destination = destination.as_path();
+        self.export_portable_saves_with(port_id, expected_content_sha256, &|encoded, _| {
+            crate::path::refuse_symlink_ancestors(&destination)?;
+            crate::durability::write_bytes_atomically(&destination, encoded, false)?;
+            Ok(destination.clone())
+        })
+    }
+
+    /// Shared export: lock, collect, recheck the reviewed content, then let the
+    /// caller publish the encoded bundle (given its content digest) before the
+    /// lineage record advances. A publication failure leaves lineage unchanged.
+    pub(super) fn export_portable_saves_with(
+        &self,
+        port_id: &str,
+        expected_content_sha256: &str,
+        publish: &dyn Fn(&[u8], &str) -> Result<std::path::PathBuf>,
+    ) -> Result<PortableSaveExportResult> {
+        super::validate_reviewed_fingerprint("portable save export", expected_content_sha256)?;
+        self.catalog.port(port_id)?;
         let _operation = self
             .library
             .try_lock_port(port_id, "export-portable-saves")?;
@@ -161,8 +183,7 @@ impl PortcoveService {
             &local.bytes,
             preview.base_sha256.clone(),
         )?;
-        crate::path::refuse_symlink_ancestors(destination)?;
-        crate::durability::write_bytes_atomically(destination, &encoded, false)?;
+        let path = publish(&encoded, &content_sha256)?;
         // The exported content is now this device's known synchronization point.
         // The record lives with the data, so backups and restores carry it too.
         if local.lineage.as_deref() != Some(content_sha256.as_str()) {
@@ -176,7 +197,7 @@ impl PortcoveService {
             )?;
         }
         Ok(PortableSaveExportResult {
-            path: destination.to_path_buf(),
+            path,
             identity,
             files: preview.files,
             content_sha256,
@@ -212,6 +233,7 @@ impl PortcoveService {
         bundle: &Bundle,
         options: PortableSaveImportOptions,
         busy: bool,
+        ancestors: &[String],
     ) -> Result<PortableSaveImportPreview> {
         let local = self.portable_local_state(port_id, busy)?;
         let mut blockers = local.blockers.clone();
@@ -240,7 +262,9 @@ impl PortcoveService {
             Some(current) if *current == bundle.content_sha256 => {
                 PortableSaveRelation::AlreadyCurrent
             }
-            Some(current) if bundle.base_sha256.as_ref() == Some(current) => {
+            Some(current)
+                if bundle.base_sha256.as_ref() == Some(current) || ancestors.contains(current) =>
+            {
                 PortableSaveRelation::Continues
             }
             Some(_) => PortableSaveRelation::Diverged,
@@ -303,6 +327,7 @@ impl PortcoveService {
         let installed = self.status_without_rollback_assessment(port_id)?.active;
         let preview_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
             &bundle.document_sha256,
+            ancestors,
             port_id,
             &local.identity,
             installed
@@ -339,8 +364,18 @@ impl PortcoveService {
         options: PortableSaveImportOptions,
     ) -> Result<PortableSaveImportPreview> {
         let bundle = portable_saves::read_bundle(bundle_path)?;
+        self.preview_bundle_import(port_id, &bundle, &[], options)
+    }
+
+    pub(super) fn preview_bundle_import(
+        &self,
+        port_id: &str,
+        bundle: &Bundle,
+        ancestors: &[String],
+        options: PortableSaveImportOptions,
+    ) -> Result<PortableSaveImportPreview> {
         let busy = self.port_busy(port_id)?;
-        self.portable_import_review(port_id, &bundle, options, busy)
+        self.portable_import_review(port_id, bundle, options, busy, ancestors)
     }
 
     /// Issue one-use consent bound to the reviewed import and current data.
@@ -351,8 +386,20 @@ impl PortcoveService {
         options: PortableSaveImportOptions,
         expected_preview_sha256: &str,
     ) -> Result<DestructiveAuthorization> {
+        let bundle = portable_saves::read_bundle(bundle_path)?;
+        self.authorize_bundle_import(port_id, &bundle, &[], options, expected_preview_sha256)
+    }
+
+    pub(super) fn authorize_bundle_import(
+        &self,
+        port_id: &str,
+        bundle: &Bundle,
+        ancestors: &[String],
+        options: PortableSaveImportOptions,
+        expected_preview_sha256: &str,
+    ) -> Result<DestructiveAuthorization> {
         super::validate_reviewed_fingerprint("portable save import", expected_preview_sha256)?;
-        let preview = self.preview_portable_save_import(port_id, bundle_path, options)?;
+        let preview = self.preview_bundle_import(port_id, bundle, ancestors, options)?;
         if let Some(blocker) = preview.blockers.first() {
             return Err(blocked("import", *blocker));
         }
@@ -378,6 +425,17 @@ impl PortcoveService {
         authorization_token: &str,
     ) -> Result<PortableSaveImportResult> {
         let bundle = portable_saves::read_bundle(bundle_path)?;
+        self.import_bundle(port_id, &bundle, &[], options, authorization_token)
+    }
+
+    pub(super) fn import_bundle(
+        &self,
+        port_id: &str,
+        bundle: &Bundle,
+        ancestors: &[String],
+        options: PortableSaveImportOptions,
+        authorization_token: &str,
+    ) -> Result<PortableSaveImportResult> {
         let (snapshot, restore_token) = {
             let _operation = self
                 .library
@@ -390,11 +448,12 @@ impl PortcoveService {
                 &import_authorization_target(port_id),
                 || {
                     Ok(self
-                        .portable_import_review(port_id, &bundle, options, false)?
+                        .portable_import_review(port_id, bundle, options, false, ancestors)?
                         .preview_sha256)
                 },
             )?;
-            let reviewed = self.portable_import_review(port_id, &bundle, options, false)?;
+            let reviewed =
+                self.portable_import_review(port_id, bundle, options, false, ancestors)?;
             if let Some(blocker) = reviewed.blockers.first() {
                 return Err(blocked("import", *blocker));
             }
@@ -402,7 +461,7 @@ impl PortcoveService {
             // anything the player reviewed, stop before any snapshot is made.
             self.collect_active_user_data_if_launched(port_id)?;
             if self
-                .portable_import_review(port_id, &bundle, options, false)?
+                .portable_import_review(port_id, bundle, options, false, ancestors)?
                 .preview_sha256
                 != reviewed.preview_sha256
             {
@@ -426,7 +485,7 @@ impl PortcoveService {
                 std::fs::create_dir_all(&user_root)?;
             }
             let snapshot = self.create_overlay_backup_locked(port_id, &|copy| {
-                portable_saves::apply_to_copy(contract, copy, &bundle, &removals)
+                portable_saves::apply_to_copy(contract, copy, bundle, &removals)
             })?;
             // Bind restore consent while the port is still locked, so any later
             // change to live data refuses the restore instead of being replaced.
@@ -446,7 +505,7 @@ impl PortcoveService {
         Ok(PortableSaveImportResult {
             import_snapshot: restored.restored_backup,
             safety_backup: restored.safety_backup,
-            content_sha256: bundle.content_sha256,
+            content_sha256: bundle.content_sha256.clone(),
         })
     }
 }

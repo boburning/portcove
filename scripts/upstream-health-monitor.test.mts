@@ -135,6 +135,14 @@ void test("inconclusive failures retain missing-incident history without reporti
     options({ now: () => epoch + 3000 }),
   );
   assert.ok(recovered.report.collection.resolved_incidents.includes(original.key));
+  const receipt = recovered.report.recovery_evidence.find(
+    (entry) => entry.incident.key === original.key,
+  );
+  assert.equal(receipt?.kind, "endpoint");
+  assert.equal(receipt?.incident.first_seen, original.first_seen);
+  assert.equal(receipt?.incident.occurrences, 2);
+  assert.equal(receipt?.recovered_observed_at, new Date(epoch + 3000).toISOString());
+  assert.equal(receipt?.reused_observation, false);
   assert.deepEqual(recovered.checkpoint?.incident_history[0]?.canonical_incidents, []);
 });
 
@@ -215,6 +223,10 @@ void test("changed provider pin identities stay visible and metadata recovery do
   assert.equal(recovered.exitCode, 0);
   assert.deepEqual(recovered.report.collection.resolved_incidents, []);
   assert.equal(recovered.report.collection.assessment_recovered_incidents.length, 1);
+  assert.deepEqual(
+    recovered.report.recovery_evidence.map((entry) => entry.kind),
+    ["provider-metadata"],
+  );
   assert.match(
     recovered.summary,
     /\*\*0 endpoint recoveries\*\*, \*\*1 metadata assessments recovered\*\*/u,

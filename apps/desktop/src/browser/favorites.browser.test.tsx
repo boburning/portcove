@@ -120,7 +120,10 @@ it.each(["dark", "light"])(
       has: page.getByRole("heading", { name: "One independent port", exact: true }),
     });
     await expect.element(details).toHaveAccessibleName(/^One independent port/);
-    await expect.element(details).toHaveAccessibleDescription(/Can't check setup right now/);
+    // Unknown setup stays named as unknown on both the details action and its card.
+    await expect
+      .element(details)
+      .toHaveAccessibleDescription(/Managed setup: Can't check setup right now/);
     await expect
       .element(details.element().closest("article")!)
       .toHaveAccessibleName(/^One independent port.*Can't check right now/);

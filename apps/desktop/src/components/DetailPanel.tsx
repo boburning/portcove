@@ -78,7 +78,11 @@ import { GameFileQueryControl } from "./GameFileQuery";
 import { GameFileFilterObservation } from "./GameFileFilterObservation";
 import type { GameFileFilterContext } from "../features/browsing/game-file-query-context";
 import { OutputLocationControl } from "./OutputLocation";
-import { PreparationControl, type RunPreparation } from "./Preparation";
+import {
+  PreparationCancellationShown,
+  PreparationControl,
+  type RunPreparation,
+} from "./Preparation";
 import {
   BIOS_BLOCKERS,
   SOURCE_BLOCKERS,
@@ -404,7 +408,16 @@ export function DetailPanel(props: DetailPanelProps) {
       openLibraryStorage={props.openLibraryStorage}
     />
   );
-  return renderDetailBody();
+  const heroCancellationIds = new Set(
+    props.cancellableActivities
+      ?.filter((activity) => !(installReviewVisible && activity.operation === "install"))
+      .map((activity) => activity.id),
+  );
+  return (
+    <PreparationCancellationShown value={(id) => heroCancellationIds.has(id)}>
+      {renderDetailBody()}
+    </PreparationCancellationShown>
+  );
 }
 
 interface DetailState {
@@ -2762,8 +2775,8 @@ function MaintenanceActions({
         </ManagementRow>
       )}
       <ManagementRow
-        title="Report a problem"
-        description="Review a pre-filled GitHub bug report before anything is sent."
+        title="Report a problem or send feedback"
+        description="Tell us when something broke, or when something was hard or confusing. You review the pre-filled text before anything is sent."
       >
         <ReportProblem portId={port.id} generation={libraryGeneration} />
       </ManagementRow>

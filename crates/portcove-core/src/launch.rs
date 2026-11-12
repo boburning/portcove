@@ -1,13 +1,204 @@
-use std::{process::Child, time::Duration};
+use std::{
+    path::Path,
+    process::{Child, ExitStatus},
+    time::Duration,
+};
 
 use crate::{LaunchSignal, PortcoveError, Result};
+
+#[cfg(windows)]
+mod session_job;
+
+/// Native-portable capability version whose readers enforce
+/// `windows_tracked_handoff`. Delivered definitions declaring the field must
+/// require it whatever their adapter, so older readers refuse them instead of
+/// dropping the field.
+pub(crate) const TRACKED_HANDOFF_NATIVE_CAPABILITY: u32 = 28;
+
+/// Windows `CREATE_NEW_PROCESS_GROUP`: every supervised game leads its own
+/// console process group so a forwarded console break reaches only it.
+#[cfg(windows)]
+const SUPERVISED_GAME_CREATION_FLAGS: u32 = 0x0000_0200;
+
+/// The kernel object name of one launch session's Windows process job. Only
+/// plain identifier characters are accepted, so a session ID can never address
+/// another namespace or object.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn session_job_name(session_id: &str) -> Option<String> {
+    let plain = !session_id.is_empty()
+        && session_id.len() <= 64
+        && session_id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-');
+    plain.then(|| format!("Local\\Portcove.LaunchSession.{session_id}"))
+}
+
+/// Normalizes a Win32 path for a case-insensitive containment comparison:
+/// verbatim prefixes are removed, separators unified and trailing separators
+/// dropped. It never touches the filesystem.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn comparable_windows_path(path: &str) -> String {
+    let path = path.replace('/', "\\");
+    // `\\?\` verbatim prefix; `\\?\UNC\server\share` becomes `\\server\share`.
+    let path = match path.strip_prefix("\\\\?\\") {
+        Some(verbatim) => match verbatim.strip_prefix("UNC\\") {
+            Some(unc) => format!("\\\\{unc}"),
+            None => verbatim.to_owned(),
+        },
+        None => path,
+    };
+    path.trim_end_matches('\\').to_lowercase()
+}
+
+/// Whether a session job member keeps a tracked-handoff session running. Only
+/// a process whose image lies inside the session's install root holds it; a
+/// browser, launcher client or editor the game opened elsewhere does not. An
+/// unreadable image fails closed and holds the session.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn member_holds_session(image: Option<&str>, install_root: &str) -> bool {
+    let Some(image) = image else {
+        return true;
+    };
+    let root = comparable_windows_path(install_root);
+    let image = comparable_windows_path(image);
+    !root.is_empty()
+        && image
+            .strip_prefix(&root)
+            .is_some_and(|rest| rest.starts_with('\\') && rest.len() > 1)
+}
+
+/// One session process that still holds a tracked-handoff session.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct SessionMember {
+    pub(crate) pid: u32,
+    /// The image file name; `None` when Windows would not report it.
+    pub(crate) image_name: Option<String>,
+}
+
+/// Player-facing explanation retained on a running session while it waits for
+/// game processes that outlived the original child.
+pub(crate) fn waiting_message(members: &[SessionMember]) -> String {
+    let names = members
+        .iter()
+        .map(|member| {
+            format!(
+                "{} (process {})",
+                member
+                    .image_name
+                    .as_deref()
+                    .unwrap_or("an unidentified program"),
+                member.pid
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    let close = if members.len() == 1 { "it" } else { "them" };
+    format!(
+        "The game is still running as {names}. Close {close} to finish this play session; updates and backups wait until then."
+    )
+}
+
+/// The processes of one supervised game session.
+///
+/// Without a reviewed Windows tracked handoff, and on Unix, the original child
+/// is the whole session: an exec-based restart keeps its PID on Unix. With the
+/// handoff, a Windows game starts inside the session's named job object and
+/// the session also waits for job members whose image lies in its install root.
+pub(crate) struct SessionProcesses {
+    #[cfg(windows)]
+    job: Option<session_job::SessionJob>,
+}
+
+impl SessionProcesses {
+    /// Whether this session tracks successors in a Windows session job.
+    pub(crate) fn is_tracked(&self) -> bool {
+        #[cfg(windows)]
+        return self.job.is_some();
+        #[cfg(not(windows))]
+        false
+    }
+
+    /// Waits for the original child. A tracked session keeps sharing its job
+    /// handle with in-install members meanwhile, for recovery coverage.
+    pub(crate) fn wait_for_child(&mut self, child: &mut Child) -> std::io::Result<ExitStatus> {
+        #[cfg(windows)]
+        if let Some(job) = self.job.as_mut() {
+            return job.wait_for_child(child);
+        }
+        child.wait()
+    }
+
+    /// Waits until no tracked in-install process remains. `on_waiting` receives
+    /// each changed set of processes that still hold the session.
+    pub(crate) fn wait_for_successors(
+        &mut self,
+        on_waiting: &mut dyn FnMut(&[SessionMember]),
+    ) -> Result<()> {
+        #[cfg(windows)]
+        if let Some(job) = self.job.as_mut() {
+            job.wait_until_released(on_waiting).map_err(|error| {
+                PortcoveError::launch(format!(
+                    "could not observe the game's remaining processes: {error}"
+                ))
+            })?;
+        }
+        let _ = on_waiting;
+        Ok(())
+    }
+
+    /// Reopens a recorded session's processes after its supervisor exited.
+    /// `None` means no tracked job is reachable (always without a tracked
+    /// handoff and on Unix), so only the recorded child remains to wait for.
+    pub(crate) fn reopen(session_id: &str, install_root: &Path) -> Result<Option<Self>> {
+        #[cfg(windows)]
+        {
+            session_job::SessionJob::open(session_id, install_root)
+                .map(|job| job.map(|job| Self { job: Some(job) }))
+                .map_err(|error| {
+                    PortcoveError::conflict(format!(
+                        "could not inspect the recorded game processes: {error}"
+                    ))
+                    .detail("launch_session_id", session_id)
+                    .detail("recovery_action", "manual_review")
+                })
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = (session_id, install_root);
+            Ok(None)
+        }
+    }
+}
+
+/// Starts a configured supervised game. With `tracked_install_root` on
+/// Windows, the game's process tree belongs to the session job; otherwise the
+/// launch is unchanged. The original child is returned for status and identity.
+pub(crate) fn spawn_supervised_game(
+    command: &mut std::process::Command,
+    session_id: &str,
+    tracked_install_root: Option<&Path>,
+) -> std::io::Result<(Child, SessionProcesses)> {
+    #[cfg(windows)]
+    {
+        if let Some(root) = tracked_install_root {
+            let (child, job) = session_job::SessionJob::spawn(command, session_id, root)?;
+            return Ok((child, SessionProcesses { job: Some(job) }));
+        }
+        let _ = session_id;
+        Ok((command.spawn()?, SessionProcesses { job: None }))
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (session_id, tracked_install_root);
+        Ok((command.spawn()?, SessionProcesses {}))
+    }
+}
 
 pub(crate) fn configure_supervised_game(command: &mut std::process::Command) {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
-        const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
-        command.creation_flags(CREATE_NEW_PROCESS_GROUP);
+        command.creation_flags(SUPERVISED_GAME_CREATION_FLAGS);
     }
     #[cfg(unix)]
     {
@@ -591,6 +782,151 @@ pub(crate) mod child_diagnostic {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn session_job_names_accept_only_plain_session_ids() {
+        let id = "0f8fad5b-d9cb-469f-a165-70867728950e";
+        assert_eq!(
+            session_job_name(id).as_deref(),
+            Some("Local\\Portcove.LaunchSession.0f8fad5b-d9cb-469f-a165-70867728950e")
+        );
+        for refused in [
+            "",
+            "..\\Global\\x",
+            "Global\\name",
+            "a/b",
+            "id with space",
+            "é",
+            &"a".repeat(65),
+        ] {
+            assert_eq!(session_job_name(refused), None, "{refused:?}");
+        }
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn unix_sessions_have_no_separate_successor_tracking() {
+        let id = "0f8fad5b-d9cb-469f-a165-70867728950e";
+        let root = Path::new("/");
+        for tracked in [None, Some(root)] {
+            let mut command = std::process::Command::new("/bin/sh");
+            command.args(["-c", "exit 3"]);
+            let (mut child, mut processes) =
+                spawn_supervised_game(&mut command, id, tracked).unwrap();
+            assert_eq!(
+                processes.wait_for_child(&mut child).unwrap().code(),
+                Some(3)
+            );
+            let mut waited = Vec::new();
+            processes
+                .wait_for_successors(&mut |members| waited.push(members.to_vec()))
+                .unwrap();
+            assert!(waited.is_empty());
+        }
+        assert!(SessionProcesses::reopen(id, root).unwrap().is_none());
+    }
+
+    #[test]
+    fn only_members_inside_the_install_root_hold_a_tracked_session() {
+        // Paths are joined from segments so no literal spells a host path.
+        fn win(segments: &[&str]) -> String {
+            segments.join("\\")
+        }
+        const VERBATIM: &str = "\\\\?\\";
+        let install = [
+            "C:", "Users", "Player", "Portcove", "versions", "yakumo", "abc",
+        ];
+        let root = win(&install);
+        let inside_of = |rest: &[&str]| win(&[&install[..], rest].concat());
+        for inside in [
+            inside_of(&["Yakumo.exe"]),
+            win(&[
+                "c:", "users", "player", "portcove", "VERSIONS", "Yakumo", "ABC", "bin", "game.exe",
+            ]),
+            format!("{VERBATIM}{}", inside_of(&["Yakumo.exe"])),
+            inside_of(&["Yakumo.exe"]).replace('\\', "/"),
+        ] {
+            assert!(member_holds_session(Some(&inside), &root), "{inside}");
+            assert!(
+                member_holds_session(Some(&inside), &format!("{VERBATIM}{root}\\")),
+                "{inside}"
+            );
+        }
+        for outside in [
+            win(&[
+                "C:",
+                "Program Files",
+                "Google",
+                "Chrome",
+                "Application",
+                "chrome.exe",
+            ]),
+            win(&["C:", "Program Files (x86)", "Steam", "steam.exe"]),
+            win(&["C:", "Windows", "System32", "notepad.exe"]),
+            win(&[
+                "C:",
+                "Users",
+                "Player",
+                "Portcove",
+                "versions",
+                "yakumo",
+                "abcdef",
+                "Yakumo.exe",
+            ]),
+            root.clone(),
+            format!("{root}\\"),
+            win(&[
+                "D:",
+                "Users",
+                "Player",
+                "Portcove",
+                "versions",
+                "yakumo",
+                "abc",
+                "Yakumo.exe",
+            ]),
+        ] {
+            assert!(!member_holds_session(Some(&outside), &root), "{outside}");
+        }
+        let share = |segments: &[&str]| format!("\\\\{}", win(segments));
+        assert!(member_holds_session(
+            Some(&share(&[
+                "server",
+                "share",
+                "Games",
+                "Yakumo",
+                "Yakumo.exe"
+            ])),
+            &format!(
+                "{VERBATIM}UNC\\{}",
+                win(&["server", "share", "games", "yakumo"])
+            )
+        ));
+        // An unreadable image fails closed.
+        assert!(member_holds_session(None, &root));
+        assert!(!member_holds_session(
+            Some(&win(&["C:", "Game", "a.exe"])),
+            ""
+        ));
+    }
+
+    #[test]
+    fn waiting_message_names_each_remaining_process() {
+        let message = waiting_message(&[
+            SessionMember {
+                pid: 42,
+                image_name: Some("Yakumo.exe".into()),
+            },
+            SessionMember {
+                pid: 7,
+                image_name: None,
+            },
+        ]);
+        assert_eq!(
+            message,
+            "The game is still running as Yakumo.exe (process 42), an unidentified program (process 7). Close them to finish this play session; updates and backups wait until then."
+        );
+    }
 
     #[test]
     fn current_and_impossible_process_ids_are_distinguished() {

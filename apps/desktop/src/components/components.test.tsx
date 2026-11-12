@@ -218,7 +218,10 @@ describe("desktop components", () => {
       html.indexOf('data-settings-group="game-files"'),
     );
     expect(libraryStorage).toContain("Snapshot saved data before version changes");
-    expect(html.indexOf("Game-file libraries")).toBeLessThan(html.indexOf("Game files and BIOS"));
+    expect(html).toContain("Folders Portcove scans");
+    expect(html.indexOf("Folders Portcove scans")).toBeLessThan(
+      html.indexOf("Game files and BIOS"),
+    );
     expect(html.indexOf("Game files and BIOS")).toBeLessThan(html.indexOf("Disc tools"));
     expect(html.indexOf("Portcove updates")).toBeLessThan(html.indexOf("Official catalog updates"));
     expect(html.indexOf("Official catalog updates")).toBeLessThan(html.indexOf("Game catalog"));
@@ -226,7 +229,7 @@ describe("desktop components", () => {
       advanced.indexOf(">Create a support report</button>"),
     );
     expect(advanced).toContain("Original game files stay local");
-    expect(advanced).toContain("Report a problem");
+    expect(advanced).toContain("Report a problem or send feedback");
     const about = html.slice(html.indexOf('data-settings-group="about"'));
     expect(about).toContain("Open project repository");
     expect(about).toContain("Licensed under MIT or Apache-2.0.");

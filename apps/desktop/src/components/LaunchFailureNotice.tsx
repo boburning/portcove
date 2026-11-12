@@ -92,7 +92,7 @@ export function LaunchFailureNotice({
         >
           {copied ? t("failure.copied") : t("failure.copyExitCode")}
         </Button>
-        <ReportProblem portId={portId} generation={generation} />
+        <ReportProblem portId={portId} generation={generation} problemOnly />
         {openActivity && (
           <Button variant="outline" onClick={openActivity}>
             {t("failure.openActivity")}

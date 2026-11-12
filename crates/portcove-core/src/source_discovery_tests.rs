@@ -5919,3 +5919,205 @@ fn a_changed_size_limit_or_failed_verification_inspects_the_file_again() {
     let (healed, _) = scan_to_end(&catalog, &library, &limits);
     assert_eq!(healed.report.files_hashed, 1);
 }
+
+// Synthetic large-library fixtures: ordinary-looking trees with many unrelated
+// entries and a known number of real matches, spread over many folders.
+fn write_large_library(root: &std::path::Path, matching: usize, noise: usize, payload: &[u8]) {
+    for index in 0..matching {
+        let folder = root.join(format!("roms-{:03}", index % 50));
+        fs::create_dir_all(&folder).unwrap();
+        fs::write(folder.join(format!("game-{index:05}.z64")), payload).unwrap();
+    }
+    for index in 0..noise {
+        let folder = root.join(format!("misc-{:03}", index % 100));
+        fs::create_dir_all(&folder).unwrap();
+        fs::write(folder.join(format!("note-{index:05}.txt")), b"unrelated").unwrap();
+    }
+}
+
+fn candidate_pairs(report: &SourceDiscoveryReport) -> Vec<(String, std::path::PathBuf)> {
+    report
+        .candidates
+        .iter()
+        .map(|candidate| (candidate.profile_id.clone(), candidate.path.clone()))
+        .collect()
+}
+
+#[test]
+fn a_library_larger_than_one_entry_budget_resumes_to_completion_without_silent_truncation() {
+    const MATCHING: usize = 20;
+    const NOISE: usize = 2_980;
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported large-library source";
+    write_large_library(&root, MATCHING, NOISE, payload);
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1_000,
+        ..Default::default()
+    };
+
+    // One processing budget cannot cover the library. The first batch stays
+    // within it and says the scan can continue.
+    let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert!(first.report.entries_examined <= limits.max_entries);
+    assert!(
+        first.coverage.as_ref().unwrap().can_resume,
+        "first batch: entries={} limits={:?} coverage={:?} issues={:?}",
+        first.report.entries_examined,
+        first.report.limits_reached,
+        first.coverage,
+        first.report.issues,
+    );
+    assert!(first.report.entries_examined < (MATCHING + NOISE) as u32);
+
+    // Continuing finishes the whole collection, reaching every match.
+    let mut snapshot = first;
+    let mut batches = 1;
+    while snapshot.coverage.as_ref().unwrap().can_resume {
+        snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        batches += 1;
+        assert!(batches <= 12, "scan did not converge");
+    }
+    assert!(batches >= 2);
+    let coverage = snapshot.coverage.as_ref().unwrap();
+    assert!(
+        coverage.frontier_exhausted,
+        "coverage={coverage:?} issues={:?}",
+        snapshot.report.issues
+    );
+    assert_eq!(coverage.remaining_entries, Some(0));
+    assert!(snapshot.continuation.is_none());
+    assert!(snapshot.report.limits_reached.is_empty());
+    assert!(snapshot.report.entries_examined >= (MATCHING + NOISE) as u32);
+
+    // Two profiles accept these bytes, so each of the 20 files is two candidates;
+    // more than 16 distinct eligible files are retained, below the candidate budget.
+    let pairs = candidate_pairs(&snapshot.report);
+    assert_eq!(pairs.len(), 2 * MATCHING);
+    let files = pairs
+        .iter()
+        .map(|(_, path)| path.clone())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(files.len(), MATCHING);
+    assert!(files.len() > 16);
+    // Only extension-matching candidates are hashed; the unrelated files are
+    // never read, so resumed batches do not rehash earlier work.
+    assert_eq!(snapshot.report.files_hashed, MATCHING as u32);
+    assert_eq!(
+        snapshot.report.hash_bytes,
+        (MATCHING * payload.len()) as u64
+    );
+}
+
+#[test]
+fn a_very_wide_library_either_completes_or_stops_with_an_explicit_narrower_folder_instruction() {
+    // More entries than one bounded continuation may retain: following the scan
+    // to its end must never present an examined prefix as the whole library.
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported large-library source";
+    write_large_library(&root, 20, 0, payload);
+    // Long names enlarge each retained continuation record.
+    let padding = "n".repeat(120);
+    for index in 0..10_240 {
+        let folder = root.join(format!("misc-{:03}", index % 100));
+        fs::create_dir_all(&folder).unwrap();
+        fs::write(folder.join(format!("{padding}-{index:05}.txt")), b"x").unwrap();
+    }
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits::default();
+    let mut snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    let mut batches = 1;
+    while snapshot.coverage.as_ref().unwrap().can_resume {
+        snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        batches += 1;
+        assert!(batches <= 40, "scan did not converge");
+    }
+    // Where the capacity falls depends on path length, so assert the invariant:
+    // a scan that stops resuming is either complete with nothing remaining or
+    // says why it stopped. It never ends silently with work left.
+    let coverage = snapshot.coverage.as_ref().unwrap();
+    let explicit = snapshot
+        .report
+        .issues
+        .iter()
+        .any(|issue| issue.message.contains("select narrower folders"));
+    let complete = coverage.frontier_exhausted && coverage.remaining_entries == Some(0);
+    assert!(
+        complete || explicit,
+        "silent stop: coverage={coverage:?} limits={:?} issues={:?}",
+        snapshot.report.limits_reached,
+        snapshot.report.issues
+    );
+    if !complete {
+        assert!(!coverage.frontier_exhausted);
+        assert_ne!(coverage.remaining_entries, Some(0));
+    }
+}
+
+#[test]
+fn more_matches_than_the_retained_candidate_budget_stop_with_an_explicit_limit() {
+    const MATCHING: usize = 80; // 160 candidates against the default budget of 64
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported large-library source";
+    write_large_library(&root, MATCHING, 0, payload);
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits::default();
+    let snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    // The retained set is bounded and the report says it is partial: a full
+    // retained-candidate budget never reads as "no other matches exist".
+    assert!(snapshot.report.candidates.len() <= limits.max_candidates as usize);
+    assert!(
+        snapshot
+            .report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::Candidates)
+    );
+    let coverage = snapshot.coverage.as_ref().unwrap();
+    assert!(!coverage.frontier_exhausted);
+    assert_ne!(coverage.remaining_entries, Some(0));
+}
+
+#[test]
+fn overlapping_saved_roots_do_not_duplicate_candidates() {
+    // Two profiles accept these bytes, so 30 files are 60 candidates: under the
+    // default retained budget of 64, so only duplication could change the count.
+    const MATCHING: usize = 30;
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported large-library source";
+    write_large_library(&root, MATCHING, 200, payload);
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    // A second saved root nested inside the first re-covers some of the same files.
+    library.add_game_file_root(&root.join("roms-000")).unwrap();
+    let mut snapshot =
+        publish_saved_batch(&catalog, &library, &SourceDiscoveryLimits::default()).unwrap();
+    let mut batches = 1;
+    while snapshot.coverage.as_ref().unwrap().can_resume {
+        snapshot =
+            publish_saved_batch(&catalog, &library, &SourceDiscoveryLimits::default()).unwrap();
+        batches += 1;
+        assert!(batches <= 8, "scan did not converge");
+    }
+    let pairs = candidate_pairs(&snapshot.report);
+    let unique = pairs
+        .iter()
+        .cloned()
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(pairs.len(), unique.len(), "overlap duplicated a candidate");
+    assert_eq!(pairs.len(), 2 * MATCHING);
+}

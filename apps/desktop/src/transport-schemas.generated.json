@@ -3345,6 +3345,57 @@
   },
   "artwork_state": {
     "$defs": {
+      "ArtworkAttribution": {
+        "additionalProperties": false,
+        "description": "Where a provider image came from and who made it. Recorded per origin, never\nreplaced by a later identical import, and shown wherever the image is credited.",
+        "properties": {
+          "asset_id": {
+            "description": "The provider's identity for this image.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "author_name": {
+            "type": "string"
+          },
+          "author_steam64": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fetched_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "game_id": {
+            "description": "The provider's game the image was listed under; a proposal, not port identity.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider": {
+            "$ref": "#/$defs/ArtworkProvider"
+          },
+          "role": {
+            "$ref": "#/$defs/DestinationArtworkRole"
+          },
+          "source_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "asset_id",
+          "game_id",
+          "role",
+          "author_name",
+          "author_steam64",
+          "source_url",
+          "fetched_at"
+        ],
+        "type": "object"
+      },
       "ArtworkAvailability": {
         "enum": [
           "fallback",
@@ -3386,6 +3437,13 @@
         "enum": [
           "png",
           "jpeg"
+        ],
+        "type": "string"
+      },
+      "ArtworkProvider": {
+        "description": "A remote provider an image was chosen from; a local import has none.",
+        "enum": [
+          "steamgriddb"
         ],
         "type": "string"
       },
@@ -3446,6 +3504,14 @@
         "enum": [
           "cover",
           "detail"
+        ],
+        "type": "string"
+      },
+      "DestinationArtworkRole": {
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner"
         ],
         "type": "string"
       },
@@ -3569,6 +3635,13 @@
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
+      "attribution": {
+        "description": "Provider credits for the selected image; empty for a purely local import.",
+        "items": {
+          "$ref": "#/$defs/ArtworkAttribution"
+        },
+        "type": "array"
+      },
       "availability": {
         "$ref": "#/$defs/ArtworkAvailability"
       },
@@ -3604,7 +3677,8 @@
       "availability",
       "reason",
       "resolved_source",
-      "generated_fallback"
+      "generated_fallback",
+      "attribution"
     ],
     "title": "ArtworkState",
     "type": "object"
@@ -6281,6 +6355,10 @@
               "string",
               "null"
             ]
+          },
+          "windows_tracked_handoff": {
+            "description": "Reviewed Windows tracked handoff: the game can restart into a successor\nfrom its own process tree, so the session also waits for job members\nwhose image lies in the install root. Without it, the original process\nis the whole session.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -10747,6 +10825,57 @@
   },
   "destination_artwork_bytes": {
     "$defs": {
+      "ArtworkAttribution": {
+        "additionalProperties": false,
+        "description": "Where a provider image came from and who made it. Recorded per origin, never\nreplaced by a later identical import, and shown wherever the image is credited.",
+        "properties": {
+          "asset_id": {
+            "description": "The provider's identity for this image.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "author_name": {
+            "type": "string"
+          },
+          "author_steam64": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fetched_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "game_id": {
+            "description": "The provider's game the image was listed under; a proposal, not port identity.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider": {
+            "$ref": "#/$defs/ArtworkProvider"
+          },
+          "role": {
+            "$ref": "#/$defs/DestinationArtworkRole"
+          },
+          "source_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "asset_id",
+          "game_id",
+          "role",
+          "author_name",
+          "author_steam64",
+          "source_url",
+          "fetched_at"
+        ],
+        "type": "object"
+      },
       "ArtworkChoice": {
         "additionalProperties": false,
         "properties": {
@@ -10780,6 +10909,13 @@
         "enum": [
           "png",
           "jpeg"
+        ],
+        "type": "string"
+      },
+      "ArtworkProvider": {
+        "description": "A remote provider an image was chosen from; a local import has none.",
+        "enum": [
+          "steamgriddb"
         ],
         "type": "string"
       },
@@ -10832,6 +10968,13 @@
         "additionalProperties": false,
         "description": "An observation, never provider permission, destination ownership or write consent.\nPortrait exposes the validated local cover original; hero banner exposes the\nvalidated local detail original only when it is wider than tall. Catalog\ndefaults and the landscape role remain explicit unavailable states; nothing is\nsynthesized, cropped or resized from another role or cache.",
         "properties": {
+          "attribution": {
+            "description": "Provider credits for the selected local image, shown by a destination that\npresents the image; empty for a purely local import and every other source.",
+            "items": {
+              "$ref": "#/$defs/ArtworkAttribution"
+            },
+            "type": "array"
+          },
           "choice": {
             "anyOf": [
               {
@@ -10847,8 +10990,8 @@
           },
           "handoff_schema": {
             "format": "uint32",
-            "maximum": 2,
-            "minimum": 2,
+            "maximum": 3,
+            "minimum": 3,
             "type": "integer"
           },
           "library": {
@@ -10878,7 +11021,8 @@
           "choice",
           "source",
           "selected_asset_sha256",
-          "content"
+          "content",
+          "attribution"
         ],
         "type": "object"
       },
@@ -11104,6 +11248,57 @@
   },
   "destination_artwork_handoff": {
     "$defs": {
+      "ArtworkAttribution": {
+        "additionalProperties": false,
+        "description": "Where a provider image came from and who made it. Recorded per origin, never\nreplaced by a later identical import, and shown wherever the image is credited.",
+        "properties": {
+          "asset_id": {
+            "description": "The provider's identity for this image.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "author_name": {
+            "type": "string"
+          },
+          "author_steam64": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fetched_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "game_id": {
+            "description": "The provider's game the image was listed under; a proposal, not port identity.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider": {
+            "$ref": "#/$defs/ArtworkProvider"
+          },
+          "role": {
+            "$ref": "#/$defs/DestinationArtworkRole"
+          },
+          "source_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "asset_id",
+          "game_id",
+          "role",
+          "author_name",
+          "author_steam64",
+          "source_url",
+          "fetched_at"
+        ],
+        "type": "object"
+      },
       "ArtworkChoice": {
         "additionalProperties": false,
         "properties": {
@@ -11137,6 +11332,13 @@
         "enum": [
           "png",
           "jpeg"
+        ],
+        "type": "string"
+      },
+      "ArtworkProvider": {
+        "description": "A remote provider an image was chosen from; a local import has none.",
+        "enum": [
+          "steamgriddb"
         ],
         "type": "string"
       },
@@ -11385,6 +11587,13 @@
     "additionalProperties": false,
     "description": "An observation, never provider permission, destination ownership or write consent.\nPortrait exposes the validated local cover original; hero banner exposes the\nvalidated local detail original only when it is wider than tall. Catalog\ndefaults and the landscape role remain explicit unavailable states; nothing is\nsynthesized, cropped or resized from another role or cache.",
     "properties": {
+      "attribution": {
+        "description": "Provider credits for the selected local image, shown by a destination that\npresents the image; empty for a purely local import and every other source.",
+        "items": {
+          "$ref": "#/$defs/ArtworkAttribution"
+        },
+        "type": "array"
+      },
       "choice": {
         "anyOf": [
           {
@@ -11400,8 +11609,8 @@
       },
       "handoff_schema": {
         "format": "uint32",
-        "maximum": 2,
-        "minimum": 2,
+        "maximum": 3,
+        "minimum": 3,
         "type": "integer"
       },
       "library": {
@@ -11431,7 +11640,8 @@
       "choice",
       "source",
       "selected_asset_sha256",
-      "content"
+      "content",
+      "attribution"
     ],
     "title": "DestinationArtworkHandoff",
     "type": "object"
@@ -19066,6 +19276,57 @@
         ],
         "type": "object"
       },
+      "ArtworkAttribution": {
+        "additionalProperties": false,
+        "description": "Where a provider image came from and who made it. Recorded per origin, never\nreplaced by a later identical import, and shown wherever the image is credited.",
+        "properties": {
+          "asset_id": {
+            "description": "The provider's identity for this image.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "author_name": {
+            "type": "string"
+          },
+          "author_steam64": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fetched_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "game_id": {
+            "description": "The provider's game the image was listed under; a proposal, not port identity.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider": {
+            "$ref": "#/$defs/ArtworkProvider"
+          },
+          "role": {
+            "$ref": "#/$defs/DestinationArtworkRole"
+          },
+          "source_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "asset_id",
+          "game_id",
+          "role",
+          "author_name",
+          "author_steam64",
+          "source_url",
+          "fetched_at"
+        ],
+        "type": "object"
+      },
       "ArtworkChoice": {
         "additionalProperties": false,
         "properties": {
@@ -19116,11 +19377,48 @@
               "$ref": "#/$defs/ArtworkChoice"
             },
             "type": "array"
+          },
+          "provider_only_assets": {
+            "description": "Assets that exist only because a provider image was chosen; no local import\nof the same bytes was made. Present only under library metadata schema 8.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "providers": {
+            "description": "Provider provenance; present only under library metadata schema 8.",
+            "items": {
+              "$ref": "#/$defs/ArtworkProviderRecord"
+            },
+            "type": "array"
           }
         },
         "required": [
           "assets",
           "choices"
+        ],
+        "type": "object"
+      },
+      "ArtworkProvider": {
+        "description": "A remote provider an image was chosen from; a local import has none.",
+        "enum": [
+          "steamgriddb"
+        ],
+        "type": "string"
+      },
+      "ArtworkProviderRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_sha256": {
+            "type": "string"
+          },
+          "attribution": {
+            "$ref": "#/$defs/ArtworkAttribution"
+          }
+        },
+        "required": [
+          "asset_sha256",
+          "attribution"
         ],
         "type": "object"
       },
@@ -19237,6 +19535,14 @@
           "provenance"
         ],
         "type": "object"
+      },
+      "DestinationArtworkRole": {
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner"
+        ],
+        "type": "string"
       },
       "DigestScope": {
         "enum": [
@@ -19472,7 +19778,7 @@
             "type": "array"
           },
           "library_memberships": {
-            "description": "Explicit add-only Library entries; present only under metadata schema 7, so\nan older reader refuses the export instead of silently dropping them.",
+            "description": "Explicit add-only Library entries; present only under metadata schema 7 or 8,\nso an older reader refuses the export instead of silently dropping them.",
             "items": {
               "$ref": "#/$defs/LibraryMembership"
             },
@@ -19498,7 +19804,7 @@
             ]
           },
           "profiles": {
-            "description": "Local profiles and revisions; present only under metadata schema 6.",
+            "description": "Local profiles and revisions; present only under metadata schema 6 or later.",
             "items": {
               "$ref": "#/$defs/LibraryProfile"
             },
@@ -20587,6 +20893,57 @@
         ],
         "type": "object"
       },
+      "ArtworkAttribution": {
+        "additionalProperties": false,
+        "description": "Where a provider image came from and who made it. Recorded per origin, never\nreplaced by a later identical import, and shown wherever the image is credited.",
+        "properties": {
+          "asset_id": {
+            "description": "The provider's identity for this image.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "author_name": {
+            "type": "string"
+          },
+          "author_steam64": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fetched_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "game_id": {
+            "description": "The provider's game the image was listed under; a proposal, not port identity.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider": {
+            "$ref": "#/$defs/ArtworkProvider"
+          },
+          "role": {
+            "$ref": "#/$defs/DestinationArtworkRole"
+          },
+          "source_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "asset_id",
+          "game_id",
+          "role",
+          "author_name",
+          "author_steam64",
+          "source_url",
+          "fetched_at"
+        ],
+        "type": "object"
+      },
       "ArtworkChoice": {
         "additionalProperties": false,
         "properties": {
@@ -20637,11 +20994,48 @@
               "$ref": "#/$defs/ArtworkChoice"
             },
             "type": "array"
+          },
+          "provider_only_assets": {
+            "description": "Assets that exist only because a provider image was chosen; no local import\nof the same bytes was made. Present only under library metadata schema 8.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "providers": {
+            "description": "Provider provenance; present only under library metadata schema 8.",
+            "items": {
+              "$ref": "#/$defs/ArtworkProviderRecord"
+            },
+            "type": "array"
           }
         },
         "required": [
           "assets",
           "choices"
+        ],
+        "type": "object"
+      },
+      "ArtworkProvider": {
+        "description": "A remote provider an image was chosen from; a local import has none.",
+        "enum": [
+          "steamgriddb"
+        ],
+        "type": "string"
+      },
+      "ArtworkProviderRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_sha256": {
+            "type": "string"
+          },
+          "attribution": {
+            "$ref": "#/$defs/ArtworkAttribution"
+          }
+        },
+        "required": [
+          "asset_sha256",
+          "attribution"
         ],
         "type": "object"
       },
@@ -20758,6 +21152,14 @@
           "provenance"
         ],
         "type": "object"
+      },
+      "DestinationArtworkRole": {
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner"
+        ],
+        "type": "string"
       },
       "DigestScope": {
         "enum": [
@@ -21906,7 +22308,7 @@
         "type": "array"
       },
       "library_memberships": {
-        "description": "Explicit add-only Library entries; present only under metadata schema 7, so\nan older reader refuses the export instead of silently dropping them.",
+        "description": "Explicit add-only Library entries; present only under metadata schema 7 or 8,\nso an older reader refuses the export instead of silently dropping them.",
         "items": {
           "$ref": "#/$defs/LibraryMembership"
         },
@@ -21932,7 +22334,7 @@
         ]
       },
       "profiles": {
-        "description": "Local profiles and revisions; present only under metadata schema 6.",
+        "description": "Local profiles and revisions; present only under metadata schema 6 or later.",
         "items": {
           "$ref": "#/$defs/LibraryProfile"
         },
@@ -22085,6 +22487,57 @@
         ],
         "type": "object"
       },
+      "ArtworkAttribution": {
+        "additionalProperties": false,
+        "description": "Where a provider image came from and who made it. Recorded per origin, never\nreplaced by a later identical import, and shown wherever the image is credited.",
+        "properties": {
+          "asset_id": {
+            "description": "The provider's identity for this image.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "author_name": {
+            "type": "string"
+          },
+          "author_steam64": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fetched_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "game_id": {
+            "description": "The provider's game the image was listed under; a proposal, not port identity.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider": {
+            "$ref": "#/$defs/ArtworkProvider"
+          },
+          "role": {
+            "$ref": "#/$defs/DestinationArtworkRole"
+          },
+          "source_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "asset_id",
+          "game_id",
+          "role",
+          "author_name",
+          "author_steam64",
+          "source_url",
+          "fetched_at"
+        ],
+        "type": "object"
+      },
       "ArtworkChoice": {
         "additionalProperties": false,
         "properties": {
@@ -22135,11 +22588,48 @@
               "$ref": "#/$defs/ArtworkChoice"
             },
             "type": "array"
+          },
+          "provider_only_assets": {
+            "description": "Assets that exist only because a provider image was chosen; no local import\nof the same bytes was made. Present only under library metadata schema 8.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "providers": {
+            "description": "Provider provenance; present only under library metadata schema 8.",
+            "items": {
+              "$ref": "#/$defs/ArtworkProviderRecord"
+            },
+            "type": "array"
           }
         },
         "required": [
           "assets",
           "choices"
+        ],
+        "type": "object"
+      },
+      "ArtworkProvider": {
+        "description": "A remote provider an image was chosen from; a local import has none.",
+        "enum": [
+          "steamgriddb"
+        ],
+        "type": "string"
+      },
+      "ArtworkProviderRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_sha256": {
+            "type": "string"
+          },
+          "attribution": {
+            "$ref": "#/$defs/ArtworkAttribution"
+          }
+        },
+        "required": [
+          "asset_sha256",
+          "attribution"
         ],
         "type": "object"
       },
@@ -22256,6 +22746,14 @@
           "provenance"
         ],
         "type": "object"
+      },
+      "DestinationArtworkRole": {
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner"
+        ],
+        "type": "string"
       },
       "DigestScope": {
         "enum": [
@@ -22491,7 +22989,7 @@
             "type": "array"
           },
           "library_memberships": {
-            "description": "Explicit add-only Library entries; present only under metadata schema 7, so\nan older reader refuses the export instead of silently dropping them.",
+            "description": "Explicit add-only Library entries; present only under metadata schema 7 or 8,\nso an older reader refuses the export instead of silently dropping them.",
             "items": {
               "$ref": "#/$defs/LibraryMembership"
             },
@@ -22517,7 +23015,7 @@
             ]
           },
           "profiles": {
-            "description": "Local profiles and revisions; present only under metadata schema 6.",
+            "description": "Local profiles and revisions; present only under metadata schema 6 or later.",
             "items": {
               "$ref": "#/$defs/LibraryProfile"
             },
@@ -32926,6 +33424,10 @@
           "string",
           "null"
         ]
+      },
+      "windows_tracked_handoff": {
+        "description": "Reviewed Windows tracked handoff: the game can restart into a successor\nfrom its own process tree, so the session also waits for job members\nwhose image lies in the install root. Without it, the original process\nis the whole session.",
+        "type": "boolean"
       }
     },
     "required": [
@@ -44765,6 +45267,267 @@
     "title": "RetainedBuildRetirementPreview",
     "type": "object"
   },
+  "save_folder_push_result": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "already_present": {
+        "description": "The same saves were already in the folder; nothing was written.",
+        "type": "boolean"
+      },
+      "base_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "content_sha256": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "content_sha256",
+      "path",
+      "already_present"
+    ],
+    "title": "SaveFolderPushResult",
+    "type": "object"
+  },
+  "save_folder_status": {
+    "$defs": {
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "PortableSaveFile": {
+        "properties": {
+          "path": {
+            "description": "Relative path inside the game's player-data folder, `/` separated.",
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "PortableSaveIdentity": {
+        "description": "Exact identity of one side of a portable-save transfer.",
+        "properties": {
+          "contract_id": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "version": {
+            "description": "Installed game version that produced or will read the progress.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "contract_id",
+          "version",
+          "platform"
+        ],
+        "type": "object"
+      },
+      "PortableSaveRelation": {
+        "description": "How incoming progress relates to this device's progress, by content only.",
+        "oneOf": [
+          {
+            "enum": [
+              "no-local-progress",
+              "already-current"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "continues",
+            "description": "The incoming progress continued from exactly what this device has.",
+            "type": "string"
+          },
+          {
+            "const": "diverged",
+            "description": "Both sides changed, or their history is unknown. Timestamps never decide.",
+            "type": "string"
+          }
+        ]
+      },
+      "SaveFolderEntry": {
+        "properties": {
+          "already_included_here": {
+            "description": "This device's progress already includes these saves.",
+            "type": "boolean"
+          },
+          "base_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "compatible": {
+            "description": "Same qualified game version and platform contract as this device.",
+            "type": "boolean"
+          },
+          "content_sha256": {
+            "type": "string"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/$defs/PortableSaveFile"
+            },
+            "type": "array"
+          },
+          "head": {
+            "description": "Latest on its branch: no other saves in the folder continue from it.",
+            "type": "boolean"
+          },
+          "relation": {
+            "$ref": "#/$defs/PortableSaveRelation"
+          },
+          "source": {
+            "$ref": "#/$defs/PortableSaveIdentity"
+          },
+          "superseded": {
+            "description": "Set aside by an explicit choice; still kept and importable.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "content_sha256",
+          "source",
+          "files",
+          "head",
+          "superseded",
+          "already_included_here",
+          "compatible",
+          "relation"
+        ],
+        "type": "object"
+      },
+      "SaveFolderNextStep": {
+        "description": "What the player can usefully do next with a selected save folder.",
+        "oneOf": [
+          {
+            "enum": [
+              "up-to-date"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "unavailable",
+            "description": "The folder is not connected; local play and saves are unaffected.",
+            "type": "string"
+          },
+          {
+            "const": "blocked",
+            "description": "Moving saves is not available for this game here (see export blockers).",
+            "type": "string"
+          },
+          {
+            "const": "incomplete",
+            "description": "The folder holds more than Portcove reviews; its history is unknown.",
+            "type": "string"
+          },
+          {
+            "const": "push",
+            "description": "This device has progress the folder does not have yet.",
+            "type": "string"
+          },
+          {
+            "const": "pull",
+            "description": "One newer set of saves continues from this device's progress.",
+            "type": "string"
+          },
+          {
+            "const": "choose-progress",
+            "description": "Devices have different progress; the player chooses which to keep.",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "available": {
+        "type": "boolean"
+      },
+      "complete": {
+        "description": "False when the folder exceeded review limits; history is then unknown.",
+        "type": "boolean"
+      },
+      "entries": {
+        "items": {
+          "$ref": "#/$defs/SaveFolderEntry"
+        },
+        "type": "array"
+      },
+      "folder": {
+        "type": "string"
+      },
+      "local_content_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "local_published": {
+        "type": "boolean"
+      },
+      "local_set_aside": {
+        "description": "Another device set this device's current saves aside.",
+        "type": "boolean"
+      },
+      "next_step": {
+        "$ref": "#/$defs/SaveFolderNextStep"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "problems": {
+        "description": "Files in the folder that were ignored, with the reason.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "port_id",
+      "folder",
+      "available",
+      "complete",
+      "local_published",
+      "local_set_aside",
+      "entries",
+      "problems",
+      "next_step"
+    ],
+    "title": "SaveFolderStatus",
+    "type": "object"
+  },
   "setup_launch_targets": {
     "$defs": {
       "SetupLaunchTarget": {
@@ -46556,6 +47319,10 @@
               "string",
               "null"
             ]
+          },
+          "windows_tracked_handoff": {
+            "description": "Reviewed Windows tracked handoff: the game can restart into a successor\nfrom its own process tree, so the session also waits for job members\nwhose image lies in the install root. Without it, the original process\nis the whole session.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -63681,6 +64448,142 @@
       "successful_launches"
     ],
     "title": "PortStatus",
+    "type": "object"
+  },
+  "steamgriddb_candidates": {
+    "$defs": {
+      "DestinationArtworkRole": {
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner"
+        ],
+        "type": "string"
+      },
+      "SteamGridDbAuthor": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "steam64": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "steam64"
+        ],
+        "type": "object"
+      },
+      "SteamGridDbCandidate": {
+        "description": "A proposed static image for one role, with attribution. Not a selection.",
+        "properties": {
+          "author": {
+            "$ref": "#/$defs/SteamGridDbAuthor"
+          },
+          "height": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "mime": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/$defs/DestinationArtworkRole"
+          },
+          "score": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "style": {
+            "type": "string"
+          },
+          "thumb": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "width": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "url",
+          "thumb",
+          "mime",
+          "width",
+          "height",
+          "style",
+          "score",
+          "author"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "$ref": "#/$defs/SteamGridDbCandidate"
+    },
+    "title": "Array_of_SteamGridDbCandidate",
+    "type": "array"
+  },
+  "steamgriddb_games": {
+    "$defs": {
+      "SteamGridDbGame": {
+        "properties": {
+          "id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "verified": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "verified"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "$ref": "#/$defs/SteamGridDbGame"
+    },
+    "title": "Array_of_SteamGridDbGame",
+    "type": "array"
+  },
+  "steamgriddb_key_status": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "configured": {
+        "description": "Whether a player key is stored; the key itself is never returned.",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "configured"
+    ],
+    "title": "SteamGridDbKeyStatus",
     "type": "object"
   },
   "storage": {

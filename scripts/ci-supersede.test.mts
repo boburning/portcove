@@ -214,3 +214,43 @@ void test("the classifier records deferral as the marker step the supersede scri
   const step = workflowStep("classify", deferralMarkerStep);
   assert.equal(step.if, "steps.plan.outputs.windows_tests_deferred == 'true'");
 });
+
+void test("the required ci status is posted from trusted code and never for a cancelled run", () => {
+  const workflow = readFileSync(
+    new URL("../.github/workflows/ci-required-status.yml", import.meta.url),
+    "utf8",
+  );
+  // Default-branch code only: no pull request trigger, no checkout and no action or script from the candidate.
+  assert.match(
+    workflow,
+    /^on:\n {2}workflow_run:\n {4}workflows: \[CI\]\n {4}types: \[completed\]\n/mu,
+  );
+  assert.doesNotMatch(
+    workflow,
+    /pull_request_target|^ {2}pull_request:|^\s+(?:- )?uses:|node |pnpm /mu,
+  );
+  assert.match(workflow, /^permissions: \{\}$/mu);
+  assert.match(workflow, /permissions:\n {6}actions: read\n {6}statuses: write\n/u);
+  assert.equal(workflow.split("permissions:").length - 1, 2);
+  // Only a pull request run of ci.yml, and only a decided conclusion.
+  assert.match(workflow, /github\.event\.workflow_run\.event == 'pull_request'/u);
+  assert.match(workflow, /github\.event\.workflow_run\.path == '\.github\/workflows\/ci\.yml'/u);
+  // One post at a time per head, and only from the run's current attempt.
+  assert.match(
+    workflow,
+    /group: ci-required-status-\$\{\{ github\.event\.workflow_run\.head_sha \}\}\n {2}cancel-in-progress: false/u,
+  );
+  assert.match(
+    workflow,
+    /--jq \.run_attempt\)"\n\s+if \[\[ "\$current" != "\$PORTCOVE_RUN_ATTEMPT" \]\]; then/u,
+  );
+  assert.match(
+    workflow,
+    /fromJSON\('\["success","failure","timed_out","startup_failure"\]'\), github\.event\.workflow_run\.conclusion/u,
+  );
+  // Event values reach the shell through the environment, and only success posts success.
+  assert.doesNotMatch(workflow.slice(workflow.indexOf("run: |")), /\$\{\{/u);
+  assert.match(workflow, /\[\[ "\$PORTCOVE_CONCLUSION" == "success" \]\]; then\n\s+state=success/u);
+  assert.match(workflow, /=~ \^\[0-9a-f\]\{40\}\$/u);
+  assert.match(workflow, /-f context=ci /u);
+});

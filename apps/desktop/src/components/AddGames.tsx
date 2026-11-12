@@ -1,15 +1,11 @@
 import { useState } from "react";
 import type { PortDefinition, PortStatus, SourceProfile, SourceRecord } from "../types";
-import { gameIdentityLabel, gameTitle, gameProjectLabel } from "../port-identity";
-import { useSetupReviewSelection } from "../features/game-file-discovery/setup-review-selection";
 import { GameFileLibraries } from "./GameFileLibraries";
 import { RegisteredSourceSetup } from "./RegisteredSourceSetup";
 import type { Perform } from "../features/operations/use-operation-state";
 import { Button } from "./ui/button";
-import { SearchChoice } from "./ui/combobox";
 import { ArrowRight, FolderInput, FolderSearch, Gamepad2 } from "lucide-react";
 import { Icon } from "./ui";
-import { ArtworkImage } from "./Artwork";
 
 export function AddGames({
   active,
@@ -22,7 +18,6 @@ export function AddGames({
   perform,
   onAdded,
   onOpenPort,
-  onCheckFiles,
   onBrowseCatalog,
   onCopyInstallation,
   setupSource,
@@ -38,23 +33,14 @@ export function AddGames({
   perform: Perform;
   onAdded: () => Promise<unknown>;
   onOpenPort: (id: string, origin: string) => void;
-  onCheckFiles: (id: string, profileId: string) => void;
   onBrowseCatalog: () => void;
   onCopyInstallation: () => void;
   setupSource?: SourceRecord | undefined;
   setSetupSource: (source?: SourceRecord) => void;
 }) {
-  const [mode, setMode] = useState<"choose" | "files" | "folders" | "existing">("choose");
+  // Choosing a game always happens in Discover, where artwork and details help.
+  const [mode, setMode] = useState<"choose" | "folders" | "existing">("choose");
   const [foldersVisited, setFoldersVisited] = useState(false);
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState("");
-  const { requestReview } = useSetupReviewSelection();
-  const port = ports.find((candidate) => candidate.id === selected);
-  const status = port ? statuses.get(port.id) : undefined;
-  const candidates = ports.filter((candidate) =>
-    gameIdentityLabel(candidate).toLocaleLowerCase().includes(query.toLocaleLowerCase()),
-  );
-  const profile = profiles.find((candidate) => candidate.id === port?.source_profile);
   return (
     <section
       hidden={!active}
@@ -82,18 +68,17 @@ export function AddGames({
         aria-label="Ways to add games"
       >
         <Button
-          variant={mode === "files" ? "selected" : "outline"}
+          variant="outline"
           className="add-route-choice"
-          aria-label="Choose a game"
+          aria-label="Browse games"
           aria-describedby="add-game-description"
-          aria-pressed={mode === "files"}
-          onClick={() => setMode("files")}
+          onClick={onBrowseCatalog}
         >
           <Icon glyph={Gamepad2} />
           <span>
-            <strong className="block">Choose a game</strong>
+            <strong className="block">Browse games</strong>
             <span id="add-game-description" className="add-route-description">
-              Find its requirements and choose your original files.
+              Pick a game in Discover, then see what you need to play it.
             </span>
           </span>
           <Icon glyph={ArrowRight} size="sm" className="add-route-arrow" />
@@ -101,7 +86,7 @@ export function AddGames({
         <Button
           variant={mode === "folders" ? "selected" : "outline"}
           className="add-route-choice"
-          aria-label="Find games in a folder"
+          aria-label="Scan a folder"
           aria-describedby="add-folder-description"
           aria-pressed={mode === "folders"}
           onClick={() => {
@@ -111,9 +96,9 @@ export function AddGames({
         >
           <Icon glyph={FolderSearch} />
           <span>
-            <strong className="block">Find games in a folder</strong>
+            <strong className="block">Scan a folder</strong>
             <span id="add-folder-description" className="add-route-description">
-              Check folders you choose for supported original files.
+              Choose a folder of your game files; Portcove finds the supported ones.
             </span>
           </span>
           <Icon glyph={ArrowRight} size="sm" className="add-route-arrow" />
@@ -162,104 +147,16 @@ export function AddGames({
               options. For this option, you’ll handle updates and backups.
             </p>
           </div>
-          <Button variant="outline" onClick={() => setMode("files")}>
-            Choose a game
+          <Button variant="outline" onClick={onBrowseCatalog}>
+            Browse games
             <Icon glyph={ArrowRight} size="sm" />
           </Button>
         </div>
       </section>
-      <section
-        hidden={mode !== "files"}
-        className="add-route-panel"
-        aria-label="Selected game-file check"
-      >
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg">Choose the game and port</h2>
-          <Button variant="link" onClick={onBrowseCatalog}>
-            Open Discover
-          </Button>
-        </div>
-        <p>
-          File checks use the chosen port’s requirements. Folder search can recognize multiple
-          games; Portcove will ask you to check files it can’t identify.
-        </p>
-        <SearchChoice
-          label="Game and port"
-          id={active && mode === "files" ? "port-search" : undefined}
-          options={ports.map((candidate) => ({
-            id: candidate.id,
-            label: gameIdentityLabel(candidate),
-            description: `Port project: ${candidate.name} · ${candidate.id}`,
-          }))}
-          query={query}
-          onQueryChange={setQuery}
-          value={selected}
-          onChange={setSelected}
-          disabled={ports.length === 0}
-        />
-        {candidates.length === 0 && (
-          <p role="status">
-            No game or port matches this search. Change the search or open Discover.
-          </p>
-        )}
-        {port && (
-          <>
-            <div className="add-selected-game">
-              <ArtworkImage port={port} quietFallback className="add-selected-artwork" />
-              <div>
-                <strong>{gameTitle(port)}</strong>
-                <span>{gameProjectLabel(port)}</span>
-              </div>
-            </div>
-            {!candidates.includes(port) && (
-              <p className="text-sm text-pc-muted-foreground">
-                This game is still selected, even though it doesn’t match your search.
-              </p>
-            )}
-            {profile ? (
-              <Button
-                id="add-games-check-files"
-                variant="primary"
-                disabled={refreshFailed}
-                onClick={() => onCheckFiles(port.id, profile.id)}
-              >
-                Choose files to check…
-                <Icon glyph={ArrowRight} size="sm" />
-              </Button>
-            ) : (
-              <p>
-                No original game files are listed here. Check this game’s setup instructions before
-                continuing.
-              </p>
-            )}
-            <p>
-              Review this port's requirements and current setup action. Before anything runs, the
-              review explains which files are used and what will change.
-            </p>
-            <Button
-              variant="outline"
-              data-detail-origin="add-games:selected-setup"
-              onClick={() => {
-                if (
-                  !refreshFailed &&
-                  status?.channel &&
-                  status.port_actions?.some(
-                    (action) => action.action === "install" && action.availability === "allowed",
-                  )
-                )
-                  requestReview(port.id, status.channel);
-                onOpenPort(port.id, "add-games:selected-setup");
-              }}
-            >
-              Review setup for {gameIdentityLabel(port)}
-              <Icon glyph={ArrowRight} size="sm" />
-            </Button>
-          </>
-        )}
-      </section>
       {foldersVisited && (
-        <div hidden={mode !== "folders"}>
+        <div hidden={mode !== "folders"} className="add-route-panel">
           <GameFileLibraries
+            scanAfterAdd
             instanceId="add-games-folders"
             generation={generation}
             ports={ports}
@@ -274,10 +171,6 @@ export function AddGames({
           />
         </div>
       )}
-      <p className="add-games-retained-note">
-        You can leave this workspace and keep browsing. Your choices stay here; running tasks remain
-        in Activity.
-      </p>
     </section>
   );
 }

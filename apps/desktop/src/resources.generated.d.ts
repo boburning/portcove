@@ -457,7 +457,8 @@ export default interface Resources {
         "unavailable": "Installation ownership is unavailable. Check the project instructions."
       },
       "separateProjects_one": "{{count}} separate port project",
-      "separateProjects_other": "{{count}} separate port projects"
+      "separateProjects_other": "{{count}} separate port projects",
+      "unavailableFor": "Not available for {{platform}}"
     },
     "hero": {
       "continueLabel": "{{title}} recently played",
@@ -1900,16 +1901,44 @@ export default interface Resources {
     "uninstallPort": "Uninstall {{name}}"
   },
   "report": {
+    "choice": {
+      "description": "Choose what you want to tell us. You review everything before you send it.",
+      "feedback": "Something was hard or confusing, or I have an idea",
+      "open": "Report a problem or send feedback",
+      "preparing": "Preparing…",
+      "problem": "Something broke or didn't work as it should",
+      "title": "Report a problem or send feedback"
+    },
+    "copy": {
+      "button": "Copy text",
+      "copied": "The text was copied. Paste it into a new GitHub issue, or send it to the Portcove team another way.",
+      "failed": "The text could not be copied automatically. Select and copy it below.",
+      "openFailed": "The form could not be opened. Your text is still here; try again or copy it."
+    },
+    "feedback": {
+      "copied": "This feedback is too long for a link, so it was copied instead. Open the feedback form on GitHub and paste it in.",
+      "copyFailed": "This feedback is too long for a link and could not be copied automatically. Select and copy the text below, then paste it into the feedback form on GitHub.",
+      "description": "This is everything that will go into a GitHub feedback issue. Choose what you were trying to do and how far you got, then describe what happened in your own words. Nothing is sent until you choose how to send it, and folder paths and your user name are replaced.",
+      "title": "Send feedback"
+    },
     "problem": {
       "cancel": "Cancel",
       "close": "Close",
       "copied": "This report is too long for a link, so it was copied instead. Open a new bug report on GitHub and paste it in.",
       "copyFailed": "This report is too long for a link and could not be copied automatically. Select and copy the text below, then paste it into a new bug report on GitHub.",
-      "description": "This is everything that will be filled into a GitHub bug report. Portcove sends nothing itself: you review it here, then submit it on GitHub. Folder paths and your user name are replaced.",
+      "description": "This is everything that will go into a GitHub bug report. Nothing is sent until you choose how to send it: from your GitHub account if you're signed in, on GitHub, or as copied text. Folder paths and your user name are replaced.",
       "open": "Report a problem",
       "prepareFailed": "The report could not be prepared. Try again.",
       "submit": "Open on GitHub",
       "title": "Report a problem"
+    },
+    "send": {
+      "button": "Submit as {{login}}",
+      "choose": "Choose an answer",
+      "done": "Sent as issue #{{number}} from your GitHub account. Replies will appear there.",
+      "failed": "The report may not have been sent. Check GitHub for your new issue before trying again. Your text is still here, and you can also open it on GitHub or copy it.",
+      "needs": "To submit, answer each question and describe what happened.",
+      "view": "View on GitHub"
     }
   },
   "settings": {

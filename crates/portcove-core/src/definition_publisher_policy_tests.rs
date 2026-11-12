@@ -2388,11 +2388,11 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     // first copied 15.33s after installer start, beyond its 15s latch. Give
     // only that Intel variant the same finite 30s setup headroom; every
     // barrier, refusal and drain assertion and the outer case limit remain.
-    // CI 43313631994/1 Windows partition 3 (#5227): CancelRestore's installer
-    // started 20.00s into setup and its 15s latch expired at 35.00s on both
-    // attempts before any partial copy. Give Windows CancelRestore the same
-    // finite 30s setup headroom as CancelRetain; the barrier, refusal, drain
-    // assertions and the outer case limit are unchanged.
+    // Windows CI 43292133248/1 (PR 5220) partition 3: CancelRestore missed its
+    // 15s latch on both hosted attempts (installer start 17.44s, latch expired
+    // 32.47s with six requests and no copy). Extend the same finite 30s setup
+    // headroom to that Windows variant; the intervention, incomplete-copy,
+    // refusal and drain assertions and the outer case limit are unchanged.
     let extended_retention_setup = (cfg!(target_os = "windows")
         && matches!(
             intervention,
