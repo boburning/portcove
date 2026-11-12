@@ -4,6 +4,48 @@
     "heading": "Resultados del filtro de archivos del juego",
     "scope": "Los filtros del catálogo usan estos resultados. La configuración y el inicio hacen sus propias comprobaciones."
   },
+  "folderSetup": {
+    "chooseGame": "Elige un juego",
+    "existingAndFuture": {
+      "detail": "Portcove instala cada juego apto cuando sus archivos y requisitos están listos. Nunca inicia un juego.",
+      "label": "Configurar los juegos aptos que ya están aquí y los que se añadan después"
+    },
+    "failed_one": "<game/> no terminó de configurarse tras {{count}} intento: <reason/>. Portcove lo vuelve a intentar cuando cambian los archivos o la configuración del juego.",
+    "failed_many": "<game/> no terminó de configurarse tras {{count}} intentos: <reason/>. Portcove lo vuelve a intentar cuando cambian los archivos o la configuración del juego.",
+    "failed_other": "<game/> no terminó de configurarse tras {{count}} intentos: <reason/>. Portcove lo vuelve a intentar cuando cambian los archivos o la configuración del juego.",
+    "futureOnly": {
+      "detail": "Portcove recuerda ahora todos los archivos de esta carpeta y deja esos juegos tal cual, aunque los reconozca después.",
+      "label": "Configurar solo los juegos que se añadan después"
+    },
+    "legend": "Configuración automática desde esta carpeta",
+    "off": {
+      "detail": "Portcove solo muestra lo que encuentra aquí.",
+      "label": "No configurar automáticamente los juegos de esta carpeta"
+    },
+    "sharedFiles": "Más de un juego puede usar algunos archivos de aquí. Elige cuál configurar; hasta que lo hagas, Portcove espera."
+  },
+  "intent": {
+    "discoverOnly": {
+      "detail": "Portcove no te avisa sobre este juego ni lo instala.",
+      "label": "Mostrarlo solo en Descubrir"
+    },
+    "failed": "La última configuración automática no terminó: <reason/>. Portcove lo vuelve a intentar cuando cambian los archivos del juego, el catálogo o los requisitos.",
+    "ignored": {
+      "detail": "Portcove no sugiere, no avisa ni configura este juego.",
+      "label": "Ignorar este juego"
+    },
+    "legend": "Cuando los archivos de este juego estén listos",
+    "notify": {
+      "detail": "Portcove te avisa cuando se puede instalar, y de nuevo solo si cambia su configuración. No se instala nada.",
+      "label": "Avisarme cuando esté listo"
+    },
+    "setUpWhenReady": {
+      "detail": "Portcove lo instala sin volver a preguntar cuando sus archivos y requisitos están listos. Nunca inicia el juego. Elige otra opción para detenerlo.",
+      "label": "Configurarlo cuando esté listo"
+    },
+    "uninstalled": "Desinstalaste este juego, así que Portcove no lo configurará ni te avisará sobre él hasta que vuelvas a elegir una opción.",
+    "useAgain": "Volver a usar «{{choice}}»"
+  },
   "preliminary": {
     "check": "Comprobar estos archivos",
     "description": "Estos archivos no coinciden exactamente. La validación no se ha ejecutado y la compatibilidad no está confirmada. Revisa una selección antes de decidir si guardar su ubicación.",
@@ -11,5 +53,15 @@
     "inconsistent": "Los detalles de la selección no están disponibles o son incoherentes. Vuelve a buscar antes de revisar este archivo.",
     "label": "Selecciones preliminares de archivos del juego",
     "notValidated": "La validación no se ha ejecutado."
+  },
+  "ready": {
+    "dismiss": "Descartar <game/>",
+    "heading": "Listos para ti",
+    "installable": "<game/> está listo para instalarse.",
+    "label": "Juegos listos para ti",
+    "reviewSetup": "Revisar la configuración de <game/>",
+    "reviewUpdate": "Revisar la actualización de <game/>",
+    "update": "<game/> tiene una actualización disponible: <version/>. No se descargó ni cambió nada.",
+    "updateUnknownVersion": "<game/> tiene una actualización disponible: una versión más reciente. No se descargó ni cambió nada."
   }
 }

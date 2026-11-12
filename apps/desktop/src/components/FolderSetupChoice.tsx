@@ -1,4 +1,6 @@
+import type { TFunction } from "i18next";
 import { useEffect, useId, useRef, useState } from "react";
+import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
 import type {
   GameFileRoot,
@@ -7,6 +9,7 @@ import type {
   RootSetupEnrollment,
   SourceRecord,
 } from "../types";
+import { useAppTranslation } from "../localization";
 import { errorText } from "../view-model";
 import {
   onStandingSetupPass,
@@ -18,25 +21,25 @@ type Choice = RootSetupEnrollment | "off";
 /** Core stops retrying a game at this many failures with the same plan or file. */
 const maxAttempts = 3;
 
-const choices: { value: Choice; label: string; detail: string }[] = [
-  {
-    value: "off",
-    label: "Don't set up games from this folder automatically",
-    detail: "Portcove only shows what it finds here.",
-  },
-  {
-    value: "existing_and_future",
-    label: "Set up eligible games already here and any added later",
-    detail:
-      "Portcove installs each eligible game once its files and requirements are ready. It never starts a game.",
-  },
-  {
-    value: "future_only",
-    label: "Only set up games added later",
-    detail:
-      "Portcove remembers every file in this folder now and leaves those games alone, even if it recognizes them later.",
-  },
-];
+const choices: readonly Choice[] = ["off", "existing_and_future", "future_only"];
+
+/** Each choice's label and explanation by static key, so extraction keeps every form. */
+function choiceCopy(t: TFunction<"gameFiles">, choice: Choice) {
+  switch (choice) {
+    case "off":
+      return { label: t("folderSetup.off.label"), detail: t("folderSetup.off.detail") };
+    case "existing_and_future":
+      return {
+        label: t("folderSetup.existingAndFuture.label"),
+        detail: t("folderSetup.existingAndFuture.detail"),
+      };
+    case "future_only":
+      return {
+        label: t("folderSetup.futureOnly.label"),
+        detail: t("folderSetup.futureOnly.detail"),
+      };
+  }
+}
 
 /**
  * The player's automatic-setup choice for one saved folder. Core stores the
@@ -58,6 +61,7 @@ export function FolderSetupChoice({
   disabled?: boolean | undefined;
 }) {
   const name = useId();
+  const { t } = useAppTranslation("gameFiles");
   const [consent, setConsent] = useState<RootSetupConsent | null>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
@@ -109,38 +113,40 @@ export function FolderSetupChoice({
 
   return (
     <fieldset className="mt-3 grid gap-2 text-sm" aria-busy={busy || consent === undefined}>
-      <legend>Automatic setup from this folder</legend>
-      {choices.map((choice) => (
-        <label
-          key={choice.value}
-          className="flex cursor-pointer items-start gap-3"
-          aria-label={choice.label}
-        >
-          <input
-            aria-describedby={`${name}-${choice.value}`}
-            type="radio"
-            name={name}
-            value={choice.value}
-            checked={current === choice.value}
-            disabled={consent === undefined || busy || disabled}
-            onChange={() =>
-              void save(() =>
-                desktopApi.setRootSetupConsent(
-                  root.id,
-                  choice.value === "off" ? null : choice.value,
-                  generation,
-                ),
-              )
-            }
-          />
-          <span>
-            <strong>{choice.label}</strong>
-            <span id={`${name}-${choice.value}`} className="block text-pc-muted-foreground">
-              {choice.detail}
+      <legend>{t("folderSetup.legend")}</legend>
+      {choices
+        .map((value) => ({ value, ...choiceCopy(t, value) }))
+        .map((choice) => (
+          <label
+            key={choice.value}
+            className="flex cursor-pointer items-start gap-3"
+            aria-label={choice.label}
+          >
+            <input
+              aria-describedby={`${name}-${choice.value}`}
+              type="radio"
+              name={name}
+              value={choice.value}
+              checked={current === choice.value}
+              disabled={consent === undefined || busy || disabled}
+              onChange={() =>
+                void save(() =>
+                  desktopApi.setRootSetupConsent(
+                    root.id,
+                    choice.value === "off" ? null : choice.value,
+                    generation,
+                  ),
+                )
+              }
+            />
+            <span>
+              <strong>{choice.label}</strong>
+              <span id={`${name}-${choice.value}`} className="block text-pc-muted-foreground">
+                {choice.detail}
+              </span>
             </span>
-          </span>
-        </label>
-      ))}
+          </label>
+        ))}
       {consent &&
         shared.map(({ profileId, games }) => {
           const chosen = consent.implementations?.find(
@@ -148,10 +154,7 @@ export function FolderSetupChoice({
           )?.port_id;
           return (
             <label key={profileId} className="grid gap-1">
-              <span>
-                More than one game can use some files here. Choose which one to set up; until you
-                do, Portcove waits.
-              </span>
+              <span>{t("folderSetup.sharedFiles")}</span>
               <select
                 value={chosen ?? ""}
                 disabled={busy || disabled}
@@ -163,7 +166,7 @@ export function FolderSetupChoice({
                     );
                 }}
               >
-                <option value="">Choose a game</option>
+                <option value="">{t("folderSetup.chooseGame")}</option>
                 {games.map((game) => (
                   <option key={game.id} value={game.id}>
                     {game.name}
@@ -177,9 +180,20 @@ export function FolderSetupChoice({
         ?.filter((failure) => failure.attempts >= maxAttempts)
         .map((failure) => (
           <p key={failure.port_id}>
-            {ports.find((port) => port.id === failure.port_id)?.name ?? failure.port_id} didn't
-            finish setting up after {failure.attempts} tries: {failure.reason}. Portcove tries again
-            when the game's files or setup change.
+            {/* The game name and Core's reason are exact values, never interpolated. */}
+            <Trans
+              t={t}
+              i18nKey="folderSetup.failed"
+              count={failure.attempts}
+              components={{
+                game: (
+                  <bdi>
+                    {ports.find((port) => port.id === failure.port_id)?.name ?? failure.port_id}
+                  </bdi>
+                ),
+                reason: <>{failure.reason}</>,
+              }}
+            />
           </p>
         ))}
       {error && <p role="alert">{error}</p>}
