@@ -110,7 +110,7 @@ matched) was published on `rolling-pre-release`, tag commit
 `618736413eee139800d92d66525af8ada3e31552`. It passed Core layout inspection.
 After the lone wrapper is removed, the player is `bin/3sx` and its SDL3 version
 links resolve inside `lib/`. The player has `RUNPATH=$ORIGIN/../lib` and needs
-glibc 2.38, libz and OpenGL. The exact source keeps its profile at
+glibc 2.38, libz and OpenGL. As with Power Dozer, a non-empty inherited `LD_LIBRARY_PATH` is searched before the RUNPATH and could shadow the bundled SDL3. The exact source keeps its profile at
 `SDL_GetPrefPath("CrowdedStreet", "3SX")`, which is external on Linux under XDG
 data, just as AppData stays external on Windows. The existing empty persistence
 contract applies. The corpus covers a synthetic replacement at the same rolling
