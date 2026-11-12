@@ -6079,6 +6079,13 @@ export interface RootSetupConsent {
    * until one is chosen; Portcove never sets up every fork.
    */
   implementations?: RootSetupImplementation[];
+  /**
+   * Copy each matched game's required files into Portcove's game-file
+   * folder instead of using them in place, so games that read their
+   * originals at launch don't need this folder connected. The originals
+   * are never moved. Off by default.
+   */
+  keep_local_copy?: boolean;
   root_id: string;
   updated_at: number;
   [k: string]: unknown;

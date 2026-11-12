@@ -147,6 +147,30 @@ export function FolderSetupChoice({
             </span>
           </label>
         ))}
+      {consent && (
+        <label
+          className="flex cursor-pointer items-start gap-3"
+          aria-label="Keep a copy of each game's files on this computer"
+        >
+          <input
+            type="checkbox"
+            aria-describedby={`${name}-copy`}
+            checked={consent.keep_local_copy ?? false}
+            disabled={busy || disabled}
+            onChange={(event) => {
+              const keep = event.target.checked;
+              void save(() => desktopApi.setRootSetupLocalCopy(root.id, keep, generation));
+            }}
+          />
+          <span>
+            <strong>Keep a copy of each game's files on this computer</strong>
+            <span id={`${name}-copy`} className="block text-pc-muted-foreground">
+              Use this for a network or removable drive. Only the files each game needs are copied;
+              nothing in this folder is moved or deleted.
+            </span>
+          </span>
+        </label>
+      )}
       {consent &&
         shared.map(({ profileId, games }) => {
           const chosen = consent.implementations?.find(

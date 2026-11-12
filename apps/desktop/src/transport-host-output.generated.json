@@ -9818,6 +9818,10 @@
             },
             "type": "array"
           },
+          "keep_local_copy": {
+            "description": "Copy each matched game's required files into Portcove's game-file\nfolder instead of using them in place, so games that read their\noriginals at launch don't need this folder connected. The originals\nare never moved. Off by default.",
+            "type": "boolean"
+          },
           "root_id": {
             "type": "string"
           },
@@ -9940,6 +9944,10 @@
               "$ref": "#/$defs/RootSetupImplementation"
             },
             "type": "array"
+          },
+          "keep_local_copy": {
+            "description": "Copy each matched game's required files into Portcove's game-file\nfolder instead of using them in place, so games that read their\noriginals at launch don't need this folder connected. The originals\nare never moved. Off by default.",
+            "type": "boolean"
           },
           "root_id": {
             "type": "string"

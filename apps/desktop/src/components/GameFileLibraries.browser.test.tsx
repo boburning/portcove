@@ -2054,3 +2054,41 @@ it("asks which game to set up when several games can use a folder's files", asyn
   });
   expect(desktopApi.setRootSetupImplementation).toHaveBeenCalledWith(saved.id, "game", "second", 1);
 });
+
+it("offers keeping a local copy only once automatic setup is on, and saves the choice", async () => {
+  const consent = {
+    format_version: 1,
+    root_id: saved.id,
+    enrollment: "existing_and_future" as const,
+    enabled_at: 2,
+    updated_at: 2,
+    existing_files: 0,
+  };
+  const label = "Keep a copy of each game's files on this computer";
+  const copyBox = () =>
+    [...document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].find((input) =>
+      input.closest("label")?.textContent?.includes(label),
+    );
+  await act(async () => {});
+  expect(copyBox()).toBeUndefined();
+  vi.mocked(desktopApi.rootSetupConsents).mockResolvedValue([consent]);
+  vi.spyOn(desktopApi, "setRootSetupLocalCopy").mockResolvedValue({
+    ...consent,
+    keep_local_copy: true,
+  });
+  vi.spyOn(desktopApi, "runStandingSetup").mockResolvedValue({
+    already_running: false,
+    assessments: [],
+    not_assessed: 0,
+    batches: [],
+    failures: [],
+  });
+  await root.rerender(null);
+  await root.rerender(<GameFileLibraries generation={1} ports={[]} profiles={[]} />);
+  await act(async () => {});
+  expect(copyBox()?.checked).toBe(false);
+  await act(async () => copyBox()?.click());
+  expect(desktopApi.setRootSetupLocalCopy).toHaveBeenCalledWith(saved.id, true, 1);
+  expect(copyBox()?.checked).toBe(true);
+  expect(document.body.textContent).toContain("nothing in this folder is moved or deleted");
+});

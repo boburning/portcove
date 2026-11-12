@@ -1265,6 +1265,23 @@ async fn set_root_setup_implementation(
     .await
 }
 
+/// Chooses whether a folder's automatic setup keeps a local copy of each
+/// game's required files.
+#[tauri::command]
+async fn set_root_setup_local_copy(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    root_id: String,
+    keep_local_copy: bool,
+) -> DesktopResult<portcove_core::RootSetupConsent> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .set_root_setup_local_copy(&root_id, keep_local_copy)
+            .map_err(Into::into)
+    })
+    .await
+}
+
 #[tauri::command]
 async fn get_root_setup_consents(
     state: tauri::State<'_, DesktopState>,
@@ -3250,6 +3267,7 @@ pub fn run() -> std::process::ExitCode {
             run_standing_setup,
             set_root_setup_consent,
             set_root_setup_implementation,
+            set_root_setup_local_copy,
             get_root_setup_consents,
             cancel_install_batch,
             get_install_batch,

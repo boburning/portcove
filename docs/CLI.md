@@ -880,8 +880,13 @@ continue. For each matched file in the folder, Portcove:
   until you run `games folder-setup-choose ROOT_ID --files PROFILE_ID --game PORT_ID`.
   It never sets up every fork or switches implementations on its own;
 - registers a file that is not yet registered where it is, after checking its
-  current bytes, and only inside the folder. It never replaces a different copy
-  you already use;
+  current bytes, and only inside the folder. With `games folder-setup-copy
+  ROOT_ID on`, it instead copies only that game's required files (the exact
+  file, ZIP or file set the source contract admits) into Portcove's game-file
+  folder and registers the copy, so games that read their originals at launch
+  don't need this folder connected. Originals are never moved or deleted; the
+  choice is off by default, survives boundary changes and applies to later
+  registrations. It never replaces a different copy you already use;
 - then installs the game with an ordinary one-game batch that re-plans and
   freshly authorizes it. It never launches a game.
 
@@ -893,7 +898,13 @@ changes. Each pass checks or plans at most 32 folder files. Turning automatic
 setup off takes effect before the next file is registered or installed, even
 during a pass. An unavailable folder waits and keeps its setting. Removing a folder ends its automatic setup.
 `games folder-setups` lists folders with automatic setup turned on, their
-implementation choices and recent failures, and changes nothing.
+implementation choices, local-copy choice and recent failures, and changes nothing.
+
+Self-contained installations (sealed source-only preparations, prepared
+upstream/Libultraship outputs, managed PS1 raw sets and retained cartridge
+builds) launch from their verified installed data without their registered
+original, which is needed only to repair, rebuild or prepare again. Games that
+read their original at launch still need it present and unchanged.
 
 ### Register and inspect
 

@@ -1726,6 +1726,12 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 Some(service.set_root_setup_implementation(&root_id, &profile_id, &port_id)?),
                 |value| human::root_setup_consent(value.as_ref()),
             )?,
+            GamesCommand::FolderSetupCopy { root_id, copy } => render_read_success(
+                mode,
+                "games.folder-setup-copy",
+                Some(service.set_root_setup_local_copy(&root_id, copy == FolderSetupCopy::On)?),
+                |value| human::root_setup_consent(value.as_ref()),
+            )?,
             GamesCommand::FolderSetups => render_read_success(
                 mode,
                 "games.folder-setups",
@@ -3690,6 +3696,7 @@ fn command_name(command: &Commands) -> &'static str {
             GamesCommand::SetupReady => "games.setup-ready",
             GamesCommand::FolderSetup { .. } => "games.folder-setup",
             GamesCommand::FolderSetupChoose { .. } => "games.folder-setup-choose",
+            GamesCommand::FolderSetupCopy { .. } => "games.folder-setup-copy",
             GamesCommand::FolderSetups => "games.folder-setups",
         },
         Commands::Launch { command } => match command {

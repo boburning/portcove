@@ -88,6 +88,12 @@ pub struct RootSetupConsent {
     pub implementations: Vec<RootSetupImplementation>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub failures: Vec<RootSetupFailure>,
+    /// Copy each matched game's required files into Portcove's game-file
+    /// folder instead of using them in place, so games that read their
+    /// originals at launch don't need this folder connected. The originals
+    /// are never moved. Off by default.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub keep_local_copy: bool,
 }
 
 /// An eligible-looking file in a consented folder that is waiting for a person
@@ -444,12 +450,12 @@ impl PortcoveService {
         let now = Library::now();
         // Changing the boundary is a new decision: earlier failures are
         // forgotten, while implementation choices are kept.
-        let implementations = self
+        let (implementations, keep_local_copy) = self
             .library
             .root_setup_consent(&root.id)
             .ok()
             .flatten()
-            .map(|consent| consent.implementations)
+            .map(|consent| (consent.implementations, consent.keep_local_copy))
             .unwrap_or_default();
         let consent = RootSetupConsent {
             format_version: ROOT_SETUP_FORMAT_VERSION,
@@ -466,6 +472,7 @@ impl PortcoveService {
             .unwrap_or(u32::MAX),
             implementations,
             failures: Vec::new(),
+            keep_local_copy,
         };
         self.library
             .replace_root_setup_consent(&consent, &baseline)?;
@@ -498,6 +505,25 @@ impl PortcoveService {
                     profile_id: profile_id.to_owned(),
                     port_id: port_id.to_owned(),
                 });
+            })?
+            .map(|(consent, ())| consent)
+            .ok_or_else(|| {
+                PortcoveError::usage("turn on automatic setup for this folder first")
+                    .detail("root_id", root_id)
+            })
+    }
+
+    /// Chooses whether automatic setup from this folder copies each matched
+    /// game's required files into Portcove's game-file folder. It applies to
+    /// later registrations; files already registered stay where they are.
+    pub fn set_root_setup_local_copy(
+        &self,
+        root_id: &str,
+        keep_local_copy: bool,
+    ) -> Result<RootSetupConsent> {
+        self.library
+            .update_root_setup_consent(root_id, |consent| {
+                consent.keep_local_copy = keep_local_copy;
             })?
             .map(|(consent, ())| consent)
             .ok_or_else(|| {
@@ -818,6 +844,23 @@ impl PortcoveService {
         Ok(RootSetupOutcome::Started(record))
     }
 
+    /// How a folder's matched files are registered: in place, or as a local
+    /// copy when the player chose that. A copy never moves the original and
+    /// is verified against the same reviewed plan before it is registered.
+    fn folder_import_mode(&self, root_id: &str) -> Result<SourceImportMode> {
+        Ok(
+            if self
+                .library
+                .root_setup_consent(root_id)?
+                .is_some_and(|consent| consent.keep_local_copy)
+            {
+                SourceImportMode::Copy
+            } else {
+                SourceImportMode::UseCurrentLocation
+            },
+        )
+    }
+
     /// Registers a matched file where it is, after checking its current bytes,
     /// only while it is inside the folder and still enrolled.
     fn register_in_folder(
@@ -826,11 +869,8 @@ impl PortcoveService {
         root_path: &Path,
         candidate: &SourceRecord,
     ) -> Result<()> {
-        let plan = self.plan_source_import(
-            &candidate.profile_id,
-            &candidate.path,
-            SourceImportMode::UseCurrentLocation,
-        )?;
+        let mode = self.folder_import_mode(root_id)?;
+        let plan = self.plan_source_import(&candidate.profile_id, &candidate.path, mode)?;
         let inside = |path: &Path| {
             std::fs::canonicalize(path)
                 .ok()
@@ -843,7 +883,9 @@ impl PortcoveService {
                 "these files changed since the last scan; scan again",
             ));
         }
-        if !inside(&plan.source.path) {
+        if !inside(&candidate.path)
+            || mode == SourceImportMode::UseCurrentLocation && !inside(&plan.source.path)
+        {
             return Err(PortcoveError::conflict(
                 "these files are no longer inside the folder; scan again",
             ));
@@ -856,7 +898,7 @@ impl PortcoveService {
         self.import_source(
             &candidate.profile_id,
             &candidate.path,
-            SourceImportMode::UseCurrentLocation,
+            mode,
             &plan.plan_sha256,
             None,
         )?;
@@ -1088,6 +1130,45 @@ mod tests {
         assert_eq!(
             folder.service.status(PORT).unwrap().active.unwrap().id,
             installed
+        );
+    }
+
+    #[tokio::test]
+    async fn keeping_a_local_copy_is_an_explicit_lasting_folder_choice() {
+        let folder = folder();
+        assert!(
+            folder
+                .service
+                .set_root_setup_local_copy(&folder.root_id, true)
+                .is_err(),
+            "the folder needs automatic setup first"
+        );
+        let consent = folder.consent(RootSetupEnrollment::ExistingAndFuture);
+        assert!(!consent.keep_local_copy, "off by default");
+        assert_eq!(
+            folder.service.folder_import_mode(&folder.root_id).unwrap(),
+            SourceImportMode::UseCurrentLocation
+        );
+        assert!(
+            folder
+                .service
+                .set_root_setup_local_copy(&folder.root_id, true)
+                .unwrap()
+                .keep_local_copy
+        );
+        // The choice survives a boundary change, and copies, never moves.
+        folder.consent(RootSetupEnrollment::FutureOnly);
+        assert_eq!(
+            folder.service.folder_import_mode(&folder.root_id).unwrap(),
+            SourceImportMode::Copy
+        );
+        folder
+            .service
+            .set_root_setup_local_copy(&folder.root_id, false)
+            .unwrap();
+        assert_eq!(
+            folder.service.folder_import_mode(&folder.root_id).unwrap(),
+            SourceImportMode::UseCurrentLocation
         );
     }
 
