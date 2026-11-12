@@ -280,7 +280,7 @@ function applicationWorkerControlOptions(waitMs = 120000) {
     deadline: Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + waitMs),
     guard: () => assertTrustedDirectNode("fixed application worker controls"),
     maxBytes: 8 * 1024 ** 2,
-    requestTimeoutMs: 30000,
+    requestTimeoutMs: 30000 as const,
   };
 }
 
@@ -342,7 +342,7 @@ async function waitForMetadataProtectionConsumers(
     beforeDispatch: options.guard,
   });
   while (performance.now() < options.deadline) {
-    const { body, next } = await provider.jobs(Number(current.run_id), current.run_attempt, 1);
+    const { body, next } = await provider.jobs(current.run_id, current.run_attempt, 1);
     if (metadataProtectionConsumersReady(current, phase, body, next)) return;
     await pause(2000);
   }
@@ -359,19 +359,22 @@ async function waitForMetadataProtectionArtifact(
     beforeDispatch: options.guard,
   });
   while (performance.now() < options.deadline) {
-    const body = await provider.runArtifacts(Number(current.run_id), 1);
+    const body = await provider.runArtifacts(current.run_id, 1);
     assert.ok(
       isRecord(body) &&
         Array.isArray(body.artifacts) &&
         body.artifacts.length < 100 &&
         body.total_count === body.artifacts.length,
     );
-    const matches = body.artifacts.filter((row: unknown) => isRecord(row) && row.name === name);
+    const artifacts: unknown[] = body.artifacts;
+    const matches = artifacts.filter(
+      (row): row is Record<string, unknown> => isRecord(row) && row.name === name,
+    );
     assert.ok(matches.length <= 1, "duplicate metadata protection artifact");
     if (matches.length === 1) {
-      const { id } = matches[0];
-      assert.ok(Number.isSafeInteger(id) && id > 0);
-      return id as number;
+      const { id } = matches[0]!;
+      assert.ok(typeof id === "number" && Number.isSafeInteger(id) && id > 0);
+      return id;
     }
     await pause(2000);
   }
