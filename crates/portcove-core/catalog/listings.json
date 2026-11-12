@@ -32539,7 +32539,8 @@
       "original_game_title": "Knuckles' Chaotix",
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-aarch64"
       ]
     },
     {

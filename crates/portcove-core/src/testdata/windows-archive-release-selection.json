@@ -1574,6 +1574,22 @@
         "openreliant-v1.0.0-macos-aarch64.tar.gz",
         "openreliant-v1.0.1-macos-aarch64.tar.gz"
       ]
+    },
+    "knuckles-chaotix-recompiled": {
+      "inventory": "chaotix",
+      "repository_id": 1384460165,
+      "selected_assets": [
+        "ChaotixRecompiled-0.15.20-windows-x64.zip",
+        "ChaotixRecompiled-0.15.21-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "ChaotixRecompiled-0.15.20-linux-x64.tar.gz",
+        "ChaotixRecompiled-0.15.21-linux-x64.tar.gz"
+      ],
+      "macos_aarch64_selected_assets": [
+        "ChaotixRecompiled-0.15.20-macos-arm64.zip",
+        "ChaotixRecompiled-0.15.21-macos-arm64.zip"
+      ]
     }
   },
   "inventories": {
@@ -9383,6 +9399,110 @@
             "browser_download_url": "https://downloads.example.invalid/v1.0.1/openreliant-v1.0.1-windows-x86_64.zip",
             "size": 10143749,
             "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      }
+    ],
+    "chaotix": [
+      {
+        "id": 439942063,
+        "tag_name": "v0.15.20",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-10T04:20:39Z",
+        "assets": [
+          {
+            "id": 730079190,
+            "name": "ChaotixRecompiled-0.15.20-android-armeabi-v7a.apk",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.20/ChaotixRecompiled-0.15.20-android-armeabi-v7a.apk",
+            "size": 12169997,
+            "digest": "sha256:d6efbf29507c53fd5c7bd7421eca5b057d720497232b12f16c6641389dac455b"
+          },
+          {
+            "id": 730079126,
+            "name": "ChaotixRecompiled-0.15.20-android.apk",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.20/ChaotixRecompiled-0.15.20-android.apk",
+            "size": 33101080,
+            "digest": "sha256:37a9d5e71df3f70f60c50f54d3d4f11b2f2832a5ef4778f66b8a034f0882b830"
+          },
+          {
+            "id": 730079124,
+            "name": "ChaotixRecompiled-0.15.20-ios-arm64.ipa",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.20/ChaotixRecompiled-0.15.20-ios-arm64.ipa",
+            "size": 6108404,
+            "digest": "sha256:f672adc3af416d0c45c37b2a95d25c1f4080d5e64cd55c4de5035a1e1dc51a53"
+          },
+          {
+            "id": 730079123,
+            "name": "ChaotixRecompiled-0.15.20-linux-x64.tar.gz",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.20/ChaotixRecompiled-0.15.20-linux-x64.tar.gz",
+            "size": 5360095,
+            "digest": "sha256:227ce9d1a65abc21bc90ba4bde10e6088f0bb1fd994def3b2915e7141ea17e0a"
+          },
+          {
+            "id": 730079143,
+            "name": "ChaotixRecompiled-0.15.20-macos-arm64.zip",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.20/ChaotixRecompiled-0.15.20-macos-arm64.zip",
+            "size": 5220589,
+            "digest": "sha256:d8c35b31c487454c8cdb8bb6dd3c92c33a141570b48fe53b2aa2a73027e9025f"
+          },
+          {
+            "id": 730079144,
+            "name": "ChaotixRecompiled-0.15.20-windows-x64.zip",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.20/ChaotixRecompiled-0.15.20-windows-x64.zip",
+            "size": 9878125,
+            "digest": "sha256:f9366e19ee50f425dd294bf07e2f205ab224a25226cb0fc7c63a9d164414394b"
+          }
+        ]
+      },
+      {
+        "id": 440133970,
+        "tag_name": "v0.15.21",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-10T09:00:45Z",
+        "assets": [
+          {
+            "id": 730772336,
+            "name": "ChaotixRecompiled-0.15.21-android-armeabi-v7a.apk",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.21/ChaotixRecompiled-0.15.21-android-armeabi-v7a.apk",
+            "size": 12174901,
+            "digest": "sha256:6ecb63881cef7cb64c574c1b0065b9197aa43170c2a609612bd6b842c30e5c74"
+          },
+          {
+            "id": 730772119,
+            "name": "ChaotixRecompiled-0.15.21-android.apk",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.21/ChaotixRecompiled-0.15.21-android.apk",
+            "size": 33108680,
+            "digest": "sha256:f4548de6661920666c8b31015fe97aade824d25aa139062ee168b2297fcbea41"
+          },
+          {
+            "id": 730772126,
+            "name": "ChaotixRecompiled-0.15.21-ios-arm64.ipa",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.21/ChaotixRecompiled-0.15.21-ios-arm64.ipa",
+            "size": 6111095,
+            "digest": "sha256:0fa8b5d7dd21afa59ed52f2648d27994c0493f0612a511a722afe9462e5c49b3"
+          },
+          {
+            "id": 730772118,
+            "name": "ChaotixRecompiled-0.15.21-linux-x64.tar.gz",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.21/ChaotixRecompiled-0.15.21-linux-x64.tar.gz",
+            "size": 5363811,
+            "digest": "sha256:6ab47d7ac0597385a5dc1456bc6ee21986040a2bc8f670efbd9514aae8e63842"
+          },
+          {
+            "id": 730772125,
+            "name": "ChaotixRecompiled-0.15.21-macos-arm64.zip",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.21/ChaotixRecompiled-0.15.21-macos-arm64.zip",
+            "size": 5223881,
+            "digest": "sha256:60570154e64b71e306674d1d4416615f02d75eb29c1a2367ef87243c89577acc"
+          },
+          {
+            "id": 730772124,
+            "name": "ChaotixRecompiled-0.15.21-windows-x64.zip",
+            "browser_download_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.15.21/ChaotixRecompiled-0.15.21-windows-x64.zip",
+            "size": 9882286,
+            "digest": "sha256:cbd6a5192ad6f10651bf973f883f763df1bd8a115e6a0570079097bda5adbf22"
           }
         ]
       }
