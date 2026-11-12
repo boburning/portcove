@@ -771,7 +771,9 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
           stop_sha256: partitionScope.continuation_stop_sha256,
           manifest_path: path.join(
             path.dirname(configurationPath),
-            "application-proposal-prefix.json",
+            partitionScope.retry_stop_sha256
+              ? "application-proposal-prefix.json"
+              : `application-proposal-prefix-${partitionScope.request_id}.json`,
           ),
           sha256: partitionScope.continuation_prefix_sha256,
         }
