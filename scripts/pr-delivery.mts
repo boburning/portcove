@@ -326,14 +326,47 @@ export class PullRequestDeliveryClient {
   }
   private sdk: Octokit;
   private scope: GitHubClientOptions;
-  constructor(sdk: Octokit, scope: GitHubClientOptions) {
+  private admitRepositoryId: (id: number) => void;
+  private repositoryId: Promise<number> | undefined;
+  constructor(
+    sdk: Octokit,
+    scope: GitHubClientOptions,
+    admitRepositoryId: (id: number) => void = () => {},
+  ) {
     this.sdk = sdk;
     this.scope = scope;
+    this.admitRepositoryId = admitRepositoryId;
+  }
+
+  /** GitHub may link later pages through `/repositories/{id}/`. The id is bound
+   * once from an authenticated read of this repository, never from `Link`. */
+  private async bindRepositoryId() {
+    this.repositoryId ??= (async () => {
+      const body: unknown = (await this.request("GET", `repos/${repository}`)).data;
+      if (
+        !isRecord(body) ||
+        typeof body.id !== "number" ||
+        !Number.isSafeInteger(body.id) ||
+        body.id < 1 ||
+        typeof body.full_name !== "string" ||
+        body.full_name.toLowerCase() !== repository
+      )
+        throw new Error("Repository identity is incomplete or differs");
+      this.admitRepositoryId(body.id);
+      return body.id;
+    })();
+    try {
+      return await this.repositoryId;
+    } catch (error) {
+      this.repositoryId = undefined;
+      throw error;
+    }
   }
 
   static async connect(options: Partial<GitHubClientOptions> = {}, observationRequired = false) {
     const deadline = options.deadline ?? performance.now() + 30 * 60000;
     let bytes = 0;
+    let repositoryId: number | undefined;
     const scope: GitHubClientOptions = {
       credential: options.credential ?? localDeveloperCredential({ deadline }),
       deadline,
@@ -350,7 +383,12 @@ export class PullRequestDeliveryClient {
       ...options,
       allowRequest: (method, url) =>
         ((method === "POST" && url.pathname === "/graphql") ||
-          (method === "GET" && url.pathname.startsWith(`/repos/${repository}/`)) ||
+          (method === "GET" &&
+            (url.pathname === `/repos/${repository}` ||
+              url.pathname.startsWith(`/repos/${repository}/`))) ||
+          (method === "GET" &&
+            repositoryId !== undefined &&
+            url.pathname.startsWith(`/repositories/${repositoryId}/`)) ||
           (method === "PUT" &&
             new RegExp(`^/repos/${repository}/pulls/[1-9][0-9]*/merge$`, "u").test(
               url.pathname,
@@ -358,7 +396,9 @@ export class PullRequestDeliveryClient {
         options.allowRequest?.(method, url) !== false,
     };
     const sdk = await createGitHubClient({ ...scope, environmentProxy: true });
-    const client = new PullRequestDeliveryClient(sdk, scope);
+    const client = new PullRequestDeliveryClient(sdk, scope, (id) => {
+      repositoryId = id;
+    });
     if (observationRequired) client.observationDeadline = 0;
     return client;
   }
@@ -390,6 +430,9 @@ export class PullRequestDeliveryClient {
     for await (const response of iterateGitHubPages(this.sdk, {
       url: `https://api.github.com/${endpoint}`,
       deadline: Math.min(this.scope.deadline, this.observationDeadline),
+      prepareRequest: async (url) => {
+        if (new URL(url).pathname.startsWith("/repositories/")) await this.bindRepositoryId();
+      },
     })) {
       const body: unknown = response.data;
       const values: unknown = collectionKey && isRecord(body) ? body[collectionKey] : body;

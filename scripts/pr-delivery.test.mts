@@ -68,6 +68,7 @@ type QueueOverrides = Omit<Partial<DeliveryQueueSnapshot>, "pull"> & {
 
 const required = ["catalog", "dependency-review", "frontend", "rust", "rust-quality"];
 const head = "a".repeat(40);
+const repository = "boburning/portcove";
 const base = "b".repeat(40);
 const merge = "c".repeat(40);
 
@@ -959,6 +960,59 @@ void test("watcher rejects green checks from another run/attempt or incomplete j
     ),
     /job readback failed/,
   );
+});
+
+void test("check-run pagination admits only this repository's bound numeric-id Link path", async () => {
+  const repositoryId = 1354613114;
+  const runs = successfulRuns();
+  const split = Math.ceil(runs.length / 2);
+  const pagePath = (id: number) =>
+    `/repositories/${id}/commits/${head}/check-runs?filter=all&per_page=100&page=2`;
+  const scenario = async (linkedId: number, boundId = repositoryId, fullName = repository) => {
+    const requests: string[] = [];
+    const client = await PullRequestDeliveryClient.connect({
+      credential: { kind: "anonymous" },
+      deadline: performance.now() + 60000,
+      fetch: async (input) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        requests.push(url.pathname + url.search);
+        if (url.pathname === `/repos/${repository}`)
+          return Response.json({ id: boundId, full_name: fullName });
+        if (url.pathname.startsWith("/repositories/"))
+          return Response.json({ total_count: runs.length, check_runs: runs.slice(split) });
+        assert.equal(url.pathname, `/repos/${repository}/commits/${head}/check-runs`);
+        return Response.json(
+          { total_count: runs.length, check_runs: runs.slice(0, split) },
+          { headers: { link: `<https://api.github.com${pagePath(linkedId)}>; rel="next"` } },
+        );
+      },
+    });
+    return { client, requests };
+  };
+  const admitted = await scenario(repositoryId);
+  assert.equal((await admitted.client.checkRuns(head)).length, runs.length);
+  assert.deepEqual(admitted.requests, [
+    `/repos/${repository}/commits/${head}/check-runs?filter=all&per_page=100`,
+    `/repos/${repository}`,
+    pagePath(repositoryId),
+  ]);
+  // The identity is bound once per client; later collections reuse it.
+  admitted.requests.length = 0;
+  await admitted.client.checkRuns(head);
+  assert.equal(admitted.requests.filter((path) => path === `/repos/${repository}`).length, 0);
+
+  for (const [linked, bound, fullName] of [
+    [repositoryId + 1, repositoryId, repository],
+    [repositoryId, repositoryId + 1, repository],
+    [repositoryId, repositoryId, "other/repo"],
+  ] as const) {
+    const refused = await scenario(linked, bound, fullName);
+    await assert.rejects(
+      refused.client.checkRuns(head),
+      /outside the admitted scope|identity is incomplete or differs/u,
+    );
+    assert.ok(!refused.requests.some((path) => path.startsWith("/repositories/")));
+  }
 });
 
 void test("workflow attempt job inventory follows pagination and rejects incomplete totals", async () => {
