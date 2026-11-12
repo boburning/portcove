@@ -47,7 +47,7 @@ closure, titles or tags. Those rules stay in Core.
 - `handoff:<kind>:<source subject>`: one [executor handoff](#executor-handoffs)
   of a registered attention kind for one source subject, for example
   `handoff:hosted-intake-blocked:intake:123` or
-  `handoff:core-assessment-change:port:<id>@<platform>`.
+  `handoff:release-health-relocation:port:<id>`.
 
 An observation's `scope` binds the applicable artifact, source, platform, route,
 operation and check/policy version. Evidence applies only where its whole scope
@@ -525,25 +525,36 @@ kind in code; it is never stored. Each entry names:
 - the original receipt that counts;
 - `dispatch: disabled` with the exact reason and the resume condition.
 
-| Kind                          | Existing action and invocation                                                                                                | Authority  | Receipt that counts                                                 |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------- |
-| `release-health-relocation`   | `gh workflow run upstream-relocation-evidence.yml --ref main -f requests="<OWNER/NAME[@TAG]>"`, then a reviewed rename        | Owner only | The next scheduled main `upstream-health` report no longer shows it |
-| `release-health-condition`    | The monitor's recorded resume condition and an accounting or fix PR; `gh workflow run upstream-health.yml --ref main`         | Routine    | The next scheduled main report                                      |
-| `upstream-observer-exception` | The observer's recorded rule and resume condition and a fix PR; `gh workflow run configured-upstream-observer.yml --ref main` | Routine    | The next completed checkpoint snapshot                              |
-| `hosted-intake-blocked`       | `status --request <id> --json`, then an owner reconciliation comment on #177 ([details](DAILY-PORT-DISCOVERY.md))             | Owner only | A new bot receipt on #177                                           |
-| `hosted-intake-holds`         | `gh workflow run hosted-discovery-intake.yml --ref main -f mode=process`                                                      | Owner only | A new bot receipt on #177                                           |
-| `core-assessment-change`      | The canonical port issue, then the `portcove-port-qualification` skill                                                        | Routine    | The merged commit and the next Core assessment                      |
+| Kind                          | Existing action and invocation                                                                                                                                    | Authority  | Receipt that counts                                                 |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------- |
+| `release-health-relocation`   | `gh workflow run upstream-relocation-evidence.yml --ref main -f requests="<OWNER/NAME[@TAG]>"`, then a reviewed rename                                            | Owner only | The next scheduled main `upstream-health` report no longer shows it |
+| `release-health-condition`    | The monitor's recorded resume condition, then an accounting or fix PR; no dispatch is offered                                                                     | Routine    | The next scheduled main report                                      |
+| `upstream-observer-exception` | The observer's recorded rule and resume condition and a fix PR; `gh workflow run configured-upstream-observer.yml --ref main`                                     | Routine    | The next completed checkpoint snapshot                              |
+| `hosted-intake-blocked`       | `status --request <id> --json`; an owner reconciliation only when primary evidence changed, otherwise owner `process` dispatch ([route](DAILY-PORT-DISCOVERY.md)) | Owner only | A new bot receipt on #177                                           |
+| `hosted-intake-holds`         | `gh workflow run hosted-discovery-intake.yml --ref main -f mode=process`                                                                                          | Owner only | A new bot receipt on #177                                           |
 
 A test parses every referenced workflow and checks its name, trigger and input
-names against the registry. Relocation conditions are release-health conditions
-whose rule is one of the relocation helper's own `candidateRules`
-(`scripts/upstream-relocation-candidates.mts`). Definition publication (#246)
-is protected and gets no handoff.
+names against the registry.
+
+- **Relocation:** a release-health condition is a relocation only when its
+  provider is `github` and its rule is one of the monitor's own
+  `originalLocationReasons` (`provider-redirect`, `inaccessible-or-missing`,
+  exported by `scripts/check-catalog-repositories.mts`). Every other condition,
+  including transient `transport` and non-GitHub locations, is
+  `release-health-condition`.
+- **Scheduled receipt:** `readReleaseHealth` accepts only scheduled `main`
+  reports, so the release-health entries offer no `upstream-health.yml`
+  dispatch; a dispatched run would never count as the receipt.
+- **No handoff:** definition publication (#246) is protected. Core
+  `port-capabilities` changes are not handoffs either: Core owns the
+  assessment, and a change is reported (the digest and the report's Core and
+  Changes columns), not reinterpreted as attention.
 
 **Recording.** `collect --all` records handoffs in the collection transaction,
-and only after a `complete` run of the deciding source. That source is the
-release-health, upstream-observation or hosted-intake run, or the Core run of
-the collecting host platform.
+and only after a `complete` run of the deciding source: the release-health,
+upstream-observation or hosted-intake run. While that run is `partial` or
+`failed`, no handoff of its kinds is recorded, changed or cleared, even for
+subjects it did observe.
 
 - Each attention subject gets an assessment `handoff:<kind>:<source subject>`
   with state `needs-attention`. Its input digest covers the kind, the source
@@ -556,17 +567,16 @@ the collecting host platform.
     Partial-progress stops are excluded.
   - Hosted intake: the receipt comment, reconciliation and blocker code, or each
     held candidate's index, port key, repository ID, HTTP status and resume.
-  - Core: the change itself. A current transition after the baseline to a result
-    the subject never had before needs attention. A return to an earlier result
-    clears.
 - The assessment, transition and notification statements are the store's
   ordinary ones, so the existing guards apply. An unchanged condition resolves to
   the same assessment and records nothing. A changed condition is a new
   transition. A return to an earlier condition is flagged.
 - A subject that never needed attention gets no row. A `needs-attention` subject
   whose condition is gone in a complete run transitions to `clear`.
-- A `partial` or `failed` run, a sample collection, and another platform's Core
-  run neither record nor clear handoffs.
+- A `partial` or `failed` run and a sample collection neither record nor clear
+  handoffs.
+- An open handoff of a kind no longer in the registry clears on the next complete
+  run of any handoff source, so a removed kind never lingers as open work.
 - Unlike source subjects, a handoff's first transition is a pending notification,
   because a handoff appearing is itself the change.
 
@@ -661,7 +671,8 @@ stub Core CLI, using the collector and report roles. It checks:
 - executor handoffs: one planned operation per appearance, quiet unchanged reruns
   and replays, no clearing by partial or failed runs, `clear` and
   `planned` to `abandoned` after a complete run, supersession and return
-  detection, Core changes per platform, stale-fence refusal and role boundaries;
+  detection, no handoff from Core changes, clearing of unregistered kinds,
+  stale-fence refusal and role boundaries;
 - report output and HTML escaping. The
   cases need non-root PostgreSQL 16+ server binaries and are a declared
   prerequisite skip elsewhere. These are fixture results. Hosted provider, backup

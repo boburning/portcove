@@ -18,7 +18,7 @@ import {
   upstreamHandoffs,
   withoutHandoff,
 } from "./maintenance-handoffs.mts";
-import { candidateRules } from "./upstream-relocation-candidates.mts";
+import { originalLocationReasons } from "./check-catalog-repositories.mts";
 import { isRecord } from "./runtime-values.mts";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -32,7 +32,6 @@ void test("every attention kind has one disabled registry entry with an exact re
       "upstream-observer-exception",
       "hosted-intake-blocked",
       "hosted-intake-holds",
-      "core-assessment-change",
     ],
   );
   for (const entry of handoffRegistry) {
@@ -58,7 +57,7 @@ void test("every attention kind has one disabled registry entry with an exact re
   assert.ok(!handoffRegistry.some(({ kind }) => kind.includes("publication")));
   assert.deepEqual(
     withoutHandoff.map(([source]) => source),
-    ["definition-publication"],
+    ["definition-publication", "core-port-capabilities"],
   );
   assert.ok(disabledCapabilities.some((capability) => capability.startsWith("executor dispatch")));
 });
@@ -81,7 +80,7 @@ void test("every referenced workflow exists with the registry's name, trigger an
         [...entry.workflow.inputs],
         `${basename} declares every registry input`,
       );
-      assert.ok(entry.invocation.startsWith(`gh workflow run ${basename} `), entry.kind);
+      assert.ok(entry.invocation.includes(`gh workflow run ${basename} --ref main`), entry.kind);
       // The invocation passes exactly the registry's inputs.
       assert.deepEqual(
         [...entry.invocation.matchAll(/ -f ([a-z_]+)=/gu)].map((match) => match[1]),
@@ -92,7 +91,12 @@ void test("every referenced workflow exists with the registry's name, trigger an
       for (const [name, input] of Object.entries(inputs))
         if (isRecord(input) && input.required === true && input.default === undefined)
           assert.ok(entry.workflow.inputs.includes(name), `${entry.kind} passes required ${name}`);
-    } else assert.ok(entry.invocation.includes("#177"), entry.kind);
+    } else {
+      // A scheduled report is the receipt; no dispatch invocation is offered.
+      assert.equal(entry.workflow.trigger, "schedule", entry.kind);
+      assert.ok(!entry.invocation.includes("gh workflow run"), entry.kind);
+      assert.match(entry.receipt, /scheduled main/u, entry.kind);
+    }
     assert.equal(entry.executor, basename, entry.kind);
   }
   // The owner-only relocation evidence job is gated on the owner as actor and triggering actor.
@@ -105,17 +109,17 @@ void test("every referenced workflow exists with the registry's name, trigger an
 });
 
 void test("subject keys and operation identities are deterministic and within the store's checks", () => {
-  const subject = handoffSubject("core-assessment-change", "port:alpha@linux-x86-64");
-  assert.equal(subject, "handoff:core-assessment-change:port:alpha@linux-x86-64");
+  const subject = handoffSubject("upstream-observer-exception", "port:alpha@linux-x86-64");
+  assert.equal(subject, "handoff:upstream-observer-exception:port:alpha@linux-x86-64");
   assert.match(subject, /^[a-z][a-z0-9-]{0,31}:[!-~]+$/u);
   assert.deepEqual(parseHandoffSubject(subject), {
-    kind: "core-assessment-change",
+    kind: "upstream-observer-exception",
     source: "port:alpha@linux-x86-64",
   });
   assert.equal(parseHandoffSubject("port:alpha@linux-x86-64"), null);
   assert.equal(
-    handoffOperationId("core-assessment-change", "port:alpha@linux-x86-64", 3),
-    "handoff.core-assessment-change.port:alpha.linux-x86-64.3",
+    handoffOperationId("upstream-observer-exception", "port:alpha@linux-x86-64", 3),
+    "handoff.upstream-observer-exception.port:alpha.linux-x86-64.3",
   );
   const long = handoffOperationId("release-health-condition", `port:${"a".repeat(190)}`, 12);
   assert.match(long, /^handoff\.release-health-condition\.sha256-[0-9a-f]{40}\.12$/u);
@@ -124,7 +128,7 @@ void test("subject keys and operation identities are deterministic and within th
     assert.match(id, /^[A-Za-z0-9._:-]{1,200}$/u);
 });
 
-void test("release health splits relocation rules from other visible conditions", () => {
+void test("release health sends only GitHub original-location rules to relocation evidence", () => {
   const condition = (key: string, rule: string, overrides = {}) => ({
     key,
     material_sha256: "m",
@@ -148,10 +152,16 @@ void test("release health splits relocation rules from other visible conditions"
         {
           freshness: "fresh-complete",
           conditions: [
-            condition("k2", "provider-redirect"),
-            condition("k1", "repository-unavailable"),
+            // The monitor's own rules (check-catalog-repositories statusReason).
+            condition("k1", "provider-redirect", { http_status: 301 }),
+            condition("k2", "inaccessible-or-missing"),
+            // A transient transport failure is a condition, never a relocation.
+            condition("k3", "transport", { http_status: null }),
+            // Non-GitHub original locations are not GitHub relocations.
+            condition("k4", "inaccessible-or-missing", { provider: "gitlab" }),
+            condition("k5", "transport", { provider: "direct-manifest", http_status: null }),
             // Routine accounted provider conditions stay quiet, as in the report.
-            condition("k3", "provider-rate-limit", {
+            condition("k6", "rate-limit", {
               accounted_for: true,
               classification: "provider-reported-outage",
             }),
@@ -161,7 +171,7 @@ void test("release health splits relocation rules from other visible conditions"
       ["port:beta", { freshness: "fresh-complete", conditions: [] }],
     ]),
   );
-  assert.ok(candidateRules.has("repository-unavailable"));
+  assert.deepEqual([...originalLocationReasons], ["provider-redirect", "inaccessible-or-missing"]);
   assert.deepEqual(
     handoffs.map(({ kind, source, condition: value }) => [
       kind,
@@ -169,8 +179,8 @@ void test("release health splits relocation rules from other visible conditions"
       (value.conditions as { key: string }[]).map(({ key }) => key),
     ]),
     [
-      ["release-health-relocation", "port:alpha", ["k1"]],
-      ["release-health-condition", "port:alpha", ["k2"]],
+      ["release-health-relocation", "port:alpha", ["k1", "k2"]],
+      ["release-health-condition", "port:alpha", ["k3", "k4", "k5"]],
     ],
   );
   // Observation clocks and HTTP status are not part of the condition.

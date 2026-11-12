@@ -18,7 +18,7 @@ import { MaintenanceStoreError, runSql } from "./maintenance-store.mts";
 import { attentionConditions } from "./maintenance-release-health.mts";
 import { upstreamExceptions } from "./maintenance-upstream.mts";
 import { hostedIntakeAttention, type HostedIntakeFact } from "./maintenance-hosted-intake.mts";
-import { candidateRules } from "./upstream-relocation-candidates.mts";
+import { originalLocationReasons } from "./check-catalog-repositories.mts";
 
 /** Stored as each handoff assessment's policy version. */
 export const handoffPolicyVersion = "maintenance-handoffs/1";
@@ -28,11 +28,10 @@ export type HandoffKind =
   | "release-health-condition"
   | "upstream-observer-exception"
   | "hosted-intake-blocked"
-  | "hosted-intake-holds"
-  | "core-assessment-change";
+  | "hosted-intake-holds";
 
 /** The collection source whose complete run decides a kind. */
-export type HandoffSource = "release-health" | "upstream-observations" | "hosted-intake" | "core";
+export type HandoffSource = "release-health" | "upstream-observations" | "hosted-intake";
 
 export interface HandoffEntry {
   kind: HandoffKind;
@@ -47,7 +46,7 @@ export interface HandoffEntry {
   workflow: {
     file: string;
     name: string;
-    trigger: "workflow_dispatch" | "issue_comment";
+    trigger: "workflow_dispatch" | "issue_comment" | "schedule";
     inputs: readonly string[];
   } | null;
   /** The original executor receipt that counts as done. */
@@ -62,7 +61,7 @@ export const handoffRegistry: readonly HandoffEntry[] = [
     kind: "release-health-relocation",
     source: "release-health",
     action:
-      "Read bounded relocation evidence for the moved or unavailable repository, then propose any rename in a reviewed catalog change.",
+      "Read bounded relocation evidence for the redirected or missing GitHub repository, then propose any rename in a reviewed catalog change.",
     invocation:
       'gh workflow run upstream-relocation-evidence.yml --ref main -f requests="<OWNER/NAME[@TAG]>"',
     authority: "owner-only",
@@ -85,19 +84,20 @@ export const handoffRegistry: readonly HandoffEntry[] = [
     source: "release-health",
     action:
       "Follow the monitor's recorded resume condition; account for an expected provider condition, or fix the cause, in a reviewed PR.",
-    invocation: "gh workflow run upstream-health.yml --ref main",
+    invocation:
+      "The condition's recorded resume_condition, then a reviewed accounting or fix PR; the next scheduled run of upstream-health.yml on main reports the result",
     authority: "routine",
     executor: "upstream-health.yml",
     workflow: {
       file: ".github/workflows/upstream-health.yml",
       name: "Upstream health",
-      trigger: "workflow_dispatch",
+      trigger: "schedule",
       inputs: [],
     },
     receipt: "The next scheduled main upstream-health report no longer shows the condition.",
     dispatch: "disabled",
     disabled_reason:
-      "The remedy is a reviewed repository change and only a scheduled main report counts; no executor is authorized to open or merge that change unattended.",
+      "The remedy is a reviewed repository change and only a scheduled main report counts (a dispatched run is never read as the receipt); no executor is authorized to open or merge that change unattended.",
     resume_condition:
       "A named executor is authorized to deliver accounting or fix PRs through the normal guarded merge route, with the next scheduled main report as its receipt.",
   },
@@ -126,23 +126,23 @@ export const handoffRegistry: readonly HandoffEntry[] = [
     kind: "hosted-intake-blocked",
     source: "hosted-intake",
     action:
-      "Owner reconciliation on #177: withdraw the blocked request and resubmit the identical batch with a reconcile object.",
+      "Follow the recorded blocker on #177: when primary evidence changed, the owner withdraws the request and submits an explicit reconciliation; any other blocker resumes through owner process dispatch of the same queue.",
     invocation:
-      "node scripts/hosted-discovery-intake.mts status --request <request_comment> --json; then an owner comment on #177 starting with <!-- portcove-hosted-intake:v1 --> that carries the reconcile object (docs/DAILY-PORT-DISCOVERY.md)",
+      "node scripts/hosted-discovery-intake.mts status --request <request_comment> --json; then either an owner reconciliation comment on #177 (docs/DAILY-PORT-DISCOVERY.md) or gh workflow run hosted-discovery-intake.yml --ref main -f mode=process",
     authority: "owner-only",
     executor: "hosted-discovery-intake.yml",
     workflow: {
       file: ".github/workflows/hosted-discovery-intake.yml",
       name: "Hosted discovery intake",
-      trigger: "issue_comment",
-      inputs: [],
+      trigger: "workflow_dispatch",
+      inputs: ["mode"],
     },
-    receipt: "A new bot receipt on #177 for the reconciliation request.",
+    receipt: "A new bot receipt on #177 for the request or its reconciliation.",
     dispatch: "disabled",
     disabled_reason:
-      "Intake starts only from an owner-authored #177 request; no executor may author owner requests.",
+      "Intake runs only from an owner-authored #177 request or owner process dispatch; no executor may author owner requests and no delegated dispatch credential exists.",
     resume_condition:
-      "The owner explicitly delegates #177 request authorship to a named executor; until then the owner posts the reconciliation.",
+      "The owner delegates #177 reconciliation authorship or process dispatch to a named executor that revalidates the blocker and records the new bot receipt.",
   },
   {
     kind: "hosted-intake-holds",
@@ -165,23 +165,6 @@ export const handoffRegistry: readonly HandoffEntry[] = [
     resume_condition:
       "The owner delegates process dispatch to a named executor that revalidates each hold's resume condition and records the new bot receipt.",
   },
-  {
-    kind: "core-assessment-change",
-    source: "core",
-    action:
-      "Record the change on the canonical port issue, then requalify the port with exact upstream, source and artifact evidence.",
-    invocation:
-      "Canonical port issue (<!-- portcove-catalog-id: <port-id> --> marker), then the portcove-port-qualification skill for <port-id>",
-    authority: "routine",
-    executor: "portcove-port-qualification",
-    workflow: null,
-    receipt: "The merged commit and the next Core port-capabilities assessment.",
-    dispatch: "disabled",
-    disabled_reason:
-      "Qualification needs exact evidence and a reviewed PR; no executor is authorized to run it unattended.",
-    resume_condition:
-      "A named executor is authorized for scoped qualification PRs through the normal guarded merge route, with the next Core assessment as its receipt.",
-  },
 ];
 
 /** Sources that deliberately have no handoff, with the reason. */
@@ -189,6 +172,10 @@ export const withoutHandoff = [
   [
     "definition-publication",
     "Definition publication (#246) is protected owner authority; the inventory only reports main versus published facts.",
+  ],
+  [
+    "core-port-capabilities",
+    "Core owns the assessment; a change is reported, not reinterpreted as attention.",
   ],
 ] as const;
 
@@ -246,17 +233,19 @@ const byText = (left: unknown, right: unknown) =>
 
 /**
  * Release-health attention per port, as the report shows it: the monitor's
- * visible conditions, split into relocation candidates (the relocation
- * helper's own `candidateRules`) and every other condition.
+ * visible conditions, split into GitHub original-location conditions (the
+ * monitor's own `originalLocationReasons`: a redirect or a missing repository),
+ * which go to relocation evidence, and every other condition.
  */
 export function releaseHealthHandoffs(facts: ReadonlyMap<string, unknown>): HandoffCondition[] {
+  const relocationRules: readonly unknown[] = originalLocationReasons;
+  const relocates = (condition: Record<string, unknown>) =>
+    condition.provider === "github" && relocationRules.includes(condition.rule);
   const result: HandoffCondition[] = [];
   for (const [source, payload] of facts) {
     const visible = attentionConditions(payload).map((condition) =>
       Object.fromEntries(releaseConditionFields.map((field) => [field, condition[field] ?? null])),
     );
-    const relocates = (condition: Record<string, unknown>) =>
-      typeof condition.rule === "string" && candidateRules.has(condition.rule);
     const relocation = visible.filter(relocates);
     const other = visible.filter((condition) => !relocates(condition));
     for (const [kind, conditions] of [
@@ -348,44 +337,48 @@ const digestSql = (text: string) => `encode(sha256(convert_to(${text}, 'UTF8')),
  * complete run of its source, in the store's ordinary pattern: the input digest
  * covers the kind, source subject and stable condition (normalized `jsonb`
  * text); an unchanged condition resolves to the same assessment and records
- * nothing; a previously `needs-attention` subject in `scope` whose condition is
- * gone transitions to `clear`. A subject that never needed attention gets no
+ * nothing; a previously `needs-attention` subject of the kind whose condition
+ * is gone transitions to `clear`. A subject that never needed attention gets no
  * row. Unlike source subjects, the first transition is a notification: a
  * handoff appearing is itself the change.
+ *
+ * With `retired`, the statements instead clear every open handoff whose kind is
+ * no longer registered, so a removed kind never lingers as open work.
  */
-export function handoffCollectionSql(input: {
-  kind: HandoffKind;
-  run: string;
-  /** Literal conditions, or a SELECT yielding (key, source, condition). */
-  conditions: readonly HandoffCondition[] | string;
-  /** Extra SQL predicate on `c.subject_key` limiting which handoffs this run may clear. */
-  clearScope?: string;
-}) {
-  const prefix = handoffPrefix(input.kind);
+export function handoffCollectionSql(
+  input:
+    | { kind: HandoffKind; run: string; conditions: readonly HandoffCondition[] }
+    | { retired: true; run: string },
+) {
   const conditions =
-    typeof input.conditions === "string"
+    "kind" in input && input.conditions.length
       ? input.conditions
-      : input.conditions.length
-        ? input.conditions
-            .map(
-              ({ kind, source, condition }) =>
-                `SELECT ${literal(handoffSubject(kind, source))}::text AS key, ${literal(source)}::text AS source, ${literal(JSON.stringify(condition))}::jsonb AS condition`,
-            )
-            .join("\n  UNION ALL ")
-        : "SELECT NULL::text AS key, NULL::text AS source, NULL::jsonb AS condition WHERE false";
+          .map(
+            ({ kind, source, condition }) =>
+              `SELECT ${literal(handoffSubject(kind, source))}::text AS key, ${literal(kind)}::text AS kind, ${literal(source)}::text AS source, ${literal(JSON.stringify(condition))}::jsonb AS condition`,
+          )
+          .join("\n  UNION ALL ")
+      : "SELECT NULL::text AS key, NULL::text AS kind, NULL::text AS source, NULL::jsonb AS condition WHERE false";
+  // The current handoff subjects this run decides.
+  const decided = (column: string) =>
+    "kind" in input
+      ? `starts_with(${column}, ${literal(handoffPrefix(input.kind))})`
+      : `starts_with(${column}, 'handoff:') AND split_part(${column}, ':', 2) NOT IN (${handoffRegistry
+          .map(({ kind }) => literal(kind))
+          .join(", ")})`;
   const target = `WITH cond AS (${conditions}),
   target AS (
     SELECT key, 'needs-attention'::text AS state,
-           ${digestSql(`${literal(input.kind)} || E'\\t' || source || E'\\t' || condition::text`)} AS input_digest,
-           jsonb_build_object('handoff', ${literal(input.kind)}, 'source_subject', source, 'condition', condition) AS explanation
+           ${digestSql(`kind || E'\\t' || source || E'\\t' || condition::text`)} AS input_digest,
+           jsonb_build_object('handoff', kind, 'source_subject', source, 'condition', condition) AS explanation
       FROM cond
     UNION ALL
     SELECT c.subject_key, 'clear', ${digestSql(`'clear' || E'\\t' || c.subject_key`)},
-           jsonb_build_object('handoff', ${literal(input.kind)}, 'source_subject', substring(c.subject_key FROM ${prefix.length + 1}))
+           jsonb_build_object('handoff', split_part(c.subject_key, ':', 2), 'source_subject',
+             substring(c.subject_key FROM length(split_part(c.subject_key, ':', 2)) + 10))
       FROM portcove_maintenance.subject_current c
       JOIN portcove_maintenance.assessments a ON a.assessment_id = c.assessment_id
-     WHERE starts_with(c.subject_key, ${literal(prefix)}) AND a.state = 'needs-attention'
-       AND ${input.clearScope ?? "true"}
+     WHERE ${decided("c.subject_key")} AND a.state = 'needs-attention'
        AND c.subject_key NOT IN (SELECT key FROM cond)
   )`;
   const policy = literal(handoffPolicyVersion);
@@ -408,25 +401,9 @@ INSERT INTO portcove_maintenance.subject_transitions (subject_key, sequence, ass
          t.subject_key, t.sequence, statement_timestamp()
     FROM portcove_maintenance.subject_transitions t
     JOIN portcove_maintenance.subject_current c ON c.subject_key = t.subject_key AND c.sequence = t.sequence
-   WHERE starts_with(t.subject_key, ${literal(prefix)})
+   WHERE ${decided("t.subject_key")}
   ON CONFLICT (notification_key) DO NOTHING;`,
   ];
-}
-
-/**
- * Core assessment changes from one complete Core run: a subject whose current
- * transition is a change (sequence > 1) to a result it never had before. A
- * return to an earlier result is not new and clears the handoff.
- */
-export function coreChangeConditions(subjects: readonly string[]) {
-  const keys = subjects.length ? subjects.map(literal).join(", ") : "NULL";
-  return `SELECT ${literal(handoffPrefix("core-assessment-change"))} || c.subject_key AS key, c.subject_key AS source,
-       jsonb_build_object('sequence', t.sequence, 'previous_state', p.state, 'state', t.state,
-                          'previous_result_digest', t.previous_result_digest, 'result_digest', t.result_digest) AS condition
-  FROM portcove_maintenance.subject_current c
-  JOIN portcove_maintenance.subject_transitions t ON t.subject_key = c.subject_key AND t.sequence = c.sequence
-  JOIN portcove_maintenance.subject_transitions p ON p.subject_key = t.subject_key AND p.sequence = t.sequence - 1
- WHERE c.subject_key IN (${keys}) AND NOT t.returns_to_earlier_result`;
 }
 
 /** Open handoffs and each one's newest open operation, as one JSON value. */

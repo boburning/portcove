@@ -1339,22 +1339,51 @@ void test(
       /cannot move from abandoned to planned/u,
     );
 
-    // Core changes: a new result needs attention; a return to an earlier result clears it.
-    // Another platform's run and a partial Core run never clear this platform's handoff.
-    const coreKey = "handoff:core-assessment-change:port:2ship2harkinian@linux-x86-64";
+    // Core owns its assessment: a Core change is a reported transition, never a handoff.
     const steady = [request(10), blocked(20), held(40, "second resume")];
     respond(report("manual"));
     await collectWith(steady);
     respond(report("automatic"));
     await collectWith(steady, "windows-x86-64");
-    respond("network");
+    assert.equal(
+      runSql(
+        store.owner,
+        `SELECT state FROM portcove_maintenance.subject_transitions
+           WHERE subject_key = 'port:2ship2harkinian@linux-x86-64' ORDER BY sequence DESC LIMIT 1;`,
+      ).trim(),
+      "managed-setup.manual",
+    );
+    assert.ok(
+      states().every(({ subject }) => /^handoff:hosted-intake-(blocked|holds):/u.test(subject)),
+      "Core transitions create no handoff",
+    );
+
+    // A kind no longer in the registry (here, an older store's row) clears only on a
+    // complete handoff source run.
+    const retiredKey = "handoff:retired-kind:port:2ship2harkinian@linux-x86-64";
+    runSql(
+      store.owner,
+      `INSERT INTO portcove_maintenance.assessments (subject_key, policy_version, input_digest, state, result_digest, explanation, assessed_at)
+         VALUES ('${retiredKey}', 'maintenance-handoffs/0', '${"1".repeat(64)}', 'needs-attention', '${"2".repeat(64)}',
+                 '{"handoff": "retired-kind"}', now());
+       INSERT INTO portcove_maintenance.subject_transitions (subject_key, sequence, assessment_id)
+         SELECT subject_key, 1, assessment_id FROM portcove_maintenance.assessments WHERE subject_key = '${retiredKey}';`,
+    );
+    await collectWith(new Error("credential unavailable"));
+    assert.deepEqual(
+      states()
+        .filter(({ subject }) => subject === retiredKey)
+        .map(({ state }) => state),
+      ["needs-attention"],
+    );
     await collectWith(steady);
     assert.deepEqual(
       states()
-        .filter(({ subject }) => subject.startsWith("handoff:core-assessment-change:"))
-        .map(({ subject, state }) => [subject, state]),
-      [[coreKey, "needs-attention"]],
+        .filter(({ subject }) => subject === retiredKey)
+        .map(({ state }) => state),
+      ["needs-attention", "clear"],
     );
+
     const inventory = buildReport(reader);
     assert.ok(
       !(inventory.subjects as { subject_key: string }[]).some(({ subject_key }) =>
@@ -1368,7 +1397,6 @@ void test(
         operation?.operation_id ?? null,
       ]),
       [
-        [coreKey, null],
         [blockedKey, "handoff.hosted-intake-blocked.intake:20.3"],
         [heldKey, "handoff.hosted-intake-holds.intake:40.2"],
       ],
@@ -1380,15 +1408,7 @@ void test(
       /gh workflow run hosted-discovery-intake\.yml --ref main -f mode=process\. Authority: owner-only\. Dispatch disabled: /u,
     );
     assert.match(page, /operation handoff\.hosted-intake-holds\.intake:40\.2 planned at fence 2/u);
-    assert.match(page, /"next_actions":\["core-assessment-change: Record the change/u);
-    respond(report("automatic"));
-    await collectWith(steady);
-    assert.deepEqual(
-      states()
-        .filter(({ subject }) => subject === coreKey)
-        .map(({ state }) => state),
-      ["needs-attention", "clear"],
-    );
+    assert.match(page, /"next_actions":\[\]/u);
     // The changes-only digest carries handoff transitions with the registry action.
     const digest = buildDigest(reader);
     assert.ok(digest.entries.some(({ subject_key }) => subject_key === heldKey));

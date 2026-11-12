@@ -52,7 +52,6 @@ import {
 } from "./maintenance-hosted-intake.mts";
 import type { HostedStatusAll } from "./hosted-discovery-intake.mts";
 import {
-  coreChangeConditions,
   disabledCapabilities,
   handoffCollectionSql,
   handoffRegistry,
@@ -944,7 +943,7 @@ export function collectionSql(input: {
     );
   }
   // Handoffs follow only a complete run of their source over the complete universe:
-  // a partial or failed run neither records nor clears attention.
+  // a partial or failed run neither records nor clears attention. Core has no handoff.
   if (input.mode === "all") {
     const complete = new Map<HandoffSource, { run: string; conditions: HandoffCondition[] }>();
     if (input.releaseHealth && !input.releaseHealth.gaps.length)
@@ -963,21 +962,6 @@ export function collectionSql(input: {
         conditions: hostedIntakeHandoffs(input.hostedIntake.facts),
       });
     for (const entry of handoffRegistry) {
-      if (entry.source === "core") {
-        if (coreCoverage !== "complete") continue;
-        lines.push(
-          ...handoffCollectionSql({
-            kind: entry.kind,
-            run: coreRun,
-            conditions: coreChangeConditions(
-              input.subjects.map(({ id }) => assessmentSubject(id, input.platform)),
-            ),
-            // Each host platform's Core run decides only its own platform's handoffs.
-            clearScope: `c.subject_key LIKE ${literal(`%@${input.platform}`)}`,
-          }),
-        );
-        continue;
-      }
       const source = complete.get(entry.source);
       if (source)
         lines.push(
@@ -988,6 +972,9 @@ export function collectionSql(input: {
           }),
         );
     }
+    // A kind no longer in the registry clears on any complete handoff source run.
+    const first = [...complete.values()][0];
+    if (first) lines.push(...handoffCollectionSql({ retired: true, run: first.run }));
   }
   return lines.join("\n");
 }
