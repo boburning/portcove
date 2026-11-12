@@ -166,16 +166,26 @@ impl PortcoveService {
         source_override: Option<&Path>,
         operation: Option<&OperationCoordinator>,
     ) -> Result<crate::LaunchSpec> {
-        self.prepare_launch_for_install_observed(port, active, source_override, operation, None)
+        self.prepare_launch_for_install_observed(
+            port,
+            active,
+            source_override,
+            None,
+            operation,
+            None,
+        )
     }
 
     /// As `prepare_launch_for_install`, also delivering the launch activity's
     /// preparation events (currently disc-image unpacking phases) to `events`.
+    /// `disc` records a managed PS1 disc choice as the game's selected disc;
+    /// `None` writes nothing.
     pub(super) fn prepare_launch_for_install_observed(
         &self,
         port: &PortDefinition,
         active: &InstallRecord,
         source_override: Option<&Path>,
+        disc: Option<u32>,
         operation: Option<&OperationCoordinator>,
         events: Option<&dyn Fn(crate::OperationEvent)>,
     ) -> Result<crate::LaunchSpec> {
@@ -247,6 +257,14 @@ impl PortcoveService {
         self.refresh_upstream_setup_manifest(port, active, &spec.working_directory)?;
         crate::preparation::require_manual_setup(port, active)?;
         checkpoint()?;
+        if let Some(disc) = disc {
+            // Last, after every refusal: the count comes from the retained
+            // contract, and the disc files were hash-checked with the other
+            // critical paths by `verify_critical` above. The choice lands in the
+            // restored settings; if the game then fails to start, the next
+            // preparation collects it, so it still becomes the saved disc.
+            crate::adapter::record_managed_psx_disc_choice(&catalog, port, &spec, disc)?;
+        }
         if let (true, Some(operation), Some(events)) = (disc_reported.get(), operation, events) {
             // Preparation is over and the game starts next: supersede the last
             // unpacking step so an observer does not keep showing it while the

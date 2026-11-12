@@ -32,6 +32,7 @@ mod human_adapters;
 mod profile;
 mod progress;
 mod retained_build_human;
+mod saves;
 use progress::HumanProgress;
 mod schema;
 mod setup;
@@ -132,7 +133,7 @@ fn main() -> ExitCode {
 }
 
 fn command_is_observation(command: &Commands) -> bool {
-    startup::startup_mode(command) == startup::StartupMode::ReadOnly
+    crate::startup::startup_mode(command) == crate::startup::StartupMode::ReadOnly
 }
 
 #[tokio::main]
@@ -976,6 +977,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         Commands::GameSettings { command } => {
             game_settings::execute(command, &service, mode)?;
         }
+        Commands::Saves { command } => {
+            saves::execute(command, &service, mode, cli.non_interactive)?;
+        }
         Commands::Catalog { command } => {
             catalog::execute(command, &service, mode, cli.non_interactive).await?;
         }
@@ -1631,7 +1635,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 mode,
                 "games.batch-cancel",
                 service.cancel_install_batch(&batch_id)?,
-                |record| human::install_batch(record),
+                human::install_batch,
             )?,
             GamesCommand::BatchShow { batch_id } => render_read_success(
                 mode,
@@ -1640,7 +1644,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     PortcoveError::not_found("install batch does not exist")
                         .detail("batch_id", &batch_id)
                 })?,
-                |record| human::install_batch(record),
+                human::install_batch,
             )?,
             GamesCommand::Intent {
                 port_id,
@@ -1649,7 +1653,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 mode,
                 "games.intent",
                 service.set_port_intent(&port_id, intent_mode.into())?,
-                |intent| human::port_intent(intent),
+                human::port_intent,
             )?,
             GamesCommand::Intents => {
                 let assessed = service.assess_port_intents().await?;
@@ -3139,6 +3143,7 @@ async fn exec_game(service: &PortcoveService, args: ExecArgs) -> Result<ExitCode
                 source_override: args.source.as_deref(),
                 arguments: &args.game_args,
                 stdio: LaunchStdio::Inherit,
+                disc: args.disc,
             },
             &|event| write_progress(progress.borrow_mut().render(&event)),
             |session| {
@@ -3622,6 +3627,7 @@ fn command_name(command: &Commands) -> &'static str {
             BackupCommand::Restore { .. } => "backup.restore",
         },
         Commands::GameSettings { command } => game_settings::name(command),
+        Commands::Saves { command } => saves::name(command),
         Commands::Catalog { command } => command.name(),
         Commands::Source { command } => match command {
             SourceCommand::Add { .. } => "source.add",
@@ -3767,6 +3773,17 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::Capabilities => "capabilities",
         Commands::Schema { .. } => "schema.export",
     }
+}
+
+/// Parses one reviewed `PORT_ID=PLAN_SHA256` batch item; Core validates the digest.
+fn parse_batch_item(value: &str) -> Result<portcove_core::InstallBatchRequestItem> {
+    let (port_id, digest) = value.split_once('=').ok_or_else(|| {
+        PortcoveError::usage("write each batch item as PORT_ID=PLAN_SHA256 from `games batch-plan`")
+    })?;
+    Ok(portcove_core::InstallBatchRequestItem {
+        port_id: port_id.to_owned(),
+        expected_plan_sha256: digest.to_owned(),
+    })
 }
 
 #[cfg(test)]
@@ -4346,6 +4363,22 @@ mod tests {
     }
 
     #[test]
+    fn exec_accepts_a_one_based_disc_choice() {
+        let cli = Cli::try_parse_from(["portcove", "exec", "lighthouse", "--disc", "2"]).unwrap();
+        let Commands::Exec(args) = cli.command else {
+            panic!("expected exec command");
+        };
+        assert_eq!(args.disc, Some(2));
+        assert!(args.game_args.is_empty());
+        assert!(Cli::try_parse_from(["portcove", "exec", "lighthouse", "--disc", "0"]).is_err());
+        let default = Cli::try_parse_from(["portcove", "exec", "lighthouse"]).unwrap();
+        let Commands::Exec(args) = default.command else {
+            panic!("expected exec command");
+        };
+        assert_eq!(args.disc, None);
+    }
+
+    #[test]
     fn exec_forwards_arguments_after_the_separator() {
         let cli = Cli::try_parse_from([
             "portcove",
@@ -4580,6 +4613,63 @@ mod tests {
         let cli = Cli::try_parse_from(["portcove", "about"]).unwrap();
         assert!(matches!(cli.command, Commands::About));
         assert_eq!(super::command_name(&cli.command), "about");
+    }
+
+    #[test]
+    fn saves_commands_require_reviewed_identities() {
+        let export = Cli::try_parse_from([
+            "portcove",
+            "saves",
+            "export",
+            "shipwright",
+            "--output",
+            "saves.json",
+            "--expected-content",
+            &"a".repeat(64),
+        ])
+        .unwrap();
+        assert_eq!(super::command_name(&export.command), "saves.export");
+        assert_eq!(
+            crate::startup::startup_mode(&export.command),
+            crate::startup::StartupMode::Recovering
+        );
+        assert!(
+            Cli::try_parse_from(["portcove", "saves", "export", "shipwright", "--output", "x"])
+                .is_err()
+        );
+        let import = Cli::try_parse_from([
+            "portcove",
+            "saves",
+            "import",
+            "shipwright",
+            "saves.json",
+            "--replace-diverged-progress",
+            "--expected-preview",
+            &"b".repeat(64),
+            "--yes",
+        ])
+        .unwrap();
+        assert!(matches!(
+            import.command,
+            Commands::Saves {
+                command: crate::args::SavesCommand::Import { ref port_id, ref choices, yes, .. }
+            } if port_id == "shipwright"
+                && choices.replace_diverged_progress
+                && !choices.remove_local_only_saves
+                && yes
+        ));
+        let preview = Cli::try_parse_from([
+            "portcove",
+            "saves",
+            "import-preview",
+            "shipwright",
+            "saves.json",
+        ])
+        .unwrap();
+        assert_eq!(
+            crate::startup::startup_mode(&preview.command),
+            crate::startup::StartupMode::ReadOnly
+        );
     }
 
     #[test]
@@ -5064,6 +5154,11 @@ mod tests {
         assert!(capabilities.commands.contains(&"doctor".to_owned()));
         assert!(capabilities.commands.contains(&"backup".to_owned()));
         for name in [
+            "saves",
+            "saves.export-preview",
+            "saves.export",
+            "saves.import-preview",
+            "saves.import",
             "game-settings",
             "game-settings.list",
             "game-settings.review",
@@ -5184,15 +5279,4 @@ mod tests {
                 .contains("Unknown expiry (invalid timestamp)")
         );
     }
-}
-
-/// Parses one reviewed `PORT_ID=PLAN_SHA256` batch item; Core validates the digest.
-fn parse_batch_item(value: &str) -> Result<portcove_core::InstallBatchRequestItem> {
-    let (port_id, digest) = value.split_once('=').ok_or_else(|| {
-        PortcoveError::usage("write each batch item as PORT_ID=PLAN_SHA256 from `games batch-plan`")
-    })?;
-    Ok(portcove_core::InstallBatchRequestItem {
-        port_id: port_id.to_owned(),
-        expected_plan_sha256: digest.to_owned(),
-    })
 }

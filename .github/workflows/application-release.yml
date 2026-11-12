@@ -603,7 +603,7 @@ jobs:
       tools_artifact: ${{ needs.tools.outputs.artifact }}
       tools_attempt: ${{ needs.tools.outputs.attempt }}
       known_runs: ${{ needs.source.outputs.known_runs }}
-  renewal_protection_metadata:
+  renewal_protection_releases:
     if: ${{ always() && !cancelled() && (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' }}
     needs: [source, tools, context]
     permissions:
@@ -615,7 +615,47 @@ jobs:
       PORTCOVE_PROTECTION_APP_PRIVATE_KEY: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
     with:
       operation: observe
-      phase: metadata
+      phase: metadata-releases
+      timeout_minutes: 6
+      opportunity: ${{ inputs.opportunity }}
+      source_artifact: ${{ needs.source.outputs.artifact }}
+      source_attempt: ${{ needs.source.outputs.source_attempt }}
+      tools_artifact: ${{ needs.tools.outputs.artifact }}
+      tools_attempt: ${{ needs.tools.outputs.attempt }}
+      known_runs: ${{ needs.source.outputs.known_runs }}
+  renewal_protection_preview:
+    if: ${{ always() && !cancelled() && (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' }}
+    needs: [source, tools, context]
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    uses: ./.github/workflows/application-release-private.yml
+    secrets:
+      PORTCOVE_PROTECTION_APP_PRIVATE_KEY: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+    with:
+      operation: observe
+      phase: metadata-preview
+      timeout_minutes: 6
+      opportunity: ${{ inputs.opportunity }}
+      source_artifact: ${{ needs.source.outputs.artifact }}
+      source_attempt: ${{ needs.source.outputs.source_attempt }}
+      tools_artifact: ${{ needs.tools.outputs.artifact }}
+      tools_attempt: ${{ needs.tools.outputs.attempt }}
+      known_runs: ${{ needs.source.outputs.known_runs }}
+  renewal_protection_stable:
+    if: ${{ always() && !cancelled() && (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' }}
+    needs: [source, tools, context]
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    uses: ./.github/workflows/application-release-private.yml
+    secrets:
+      PORTCOVE_PROTECTION_APP_PRIVATE_KEY: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+    with:
+      operation: observe
+      phase: metadata-stable
       timeout_minutes: 6
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
@@ -635,7 +675,7 @@ jobs:
       PORTCOVE_TUF_RELEASES_KEY: ${{ secrets.PORTCOVE_TUF_RELEASES_KEY }}
     with:
       operation: role-releases
-      phase: metadata
+      phase: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 'metadata-releases' || 'metadata' }}
       timeout_minutes: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 5 || 2 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
@@ -660,7 +700,7 @@ jobs:
       PORTCOVE_TUF_PREVIEW_KEY: ${{ secrets.PORTCOVE_TUF_PREVIEW_KEY }}
     with:
       operation: role-preview
-      phase: metadata
+      phase: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 'metadata-preview' || 'metadata' }}
       timeout_minutes: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 5 || 2 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
@@ -685,7 +725,7 @@ jobs:
       PORTCOVE_TUF_STABLE_KEY: ${{ secrets.PORTCOVE_TUF_STABLE_KEY }}
     with:
       operation: role-stable
-      phase: metadata
+      phase: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 'metadata-stable' || 'metadata' }}
       timeout_minutes: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 5 || 2 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}

@@ -1929,6 +1929,41 @@ describe("desktop components", () => {
     );
   });
 
+  it.each([
+    [undefined, false],
+    [1, false],
+    [2, true],
+  ] as const)(
+    "offers a starting disc beside Play for %s selectable discs: %s",
+    (selectableDiscs, offered) => {
+      const status: PortStatus = {
+        ...portStatus(),
+        port_id: port.id,
+        active: installRecord(),
+        readiness: {
+          launchable: true,
+          blockers: [],
+          pending_setup: false,
+          ...(selectableDiscs === undefined ? {} : { selectable_discs: selectableDiscs }),
+        },
+      };
+      const html = renderToStaticMarkup(
+        <DetailPanel
+          port={{ ...port, source_profile: null }}
+          status={status}
+          sourcePath=""
+          setSourcePath={vi.fn()}
+          actions={actions}
+        />,
+      );
+      const picker = html.indexOf("Disc to start");
+      expect(html).toContain("data-launch-action");
+      expect(picker > -1).toBe(offered);
+      expect(html.includes("Saved disc")).toBe(offered);
+      expect(picker < html.indexOf("data-launch-action")).toBe(true);
+    },
+  );
+
   it.each(["missing_runtime", "invalid_installation"] as const)(
     "keeps staged activation reachable when %s blocks Play",
     (blocker) => {

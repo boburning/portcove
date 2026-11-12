@@ -56,6 +56,10 @@ pub(crate) enum ProfileCommand {
         source_profile_id: String,
         /// Name shown for the new profile.
         name: String,
+        /// Use the game's current installation instead of the source profile's
+        /// build; the source profile keeps its own build and progress.
+        #[arg(long)]
+        current_build: bool,
     },
     /// Show every immutable revision of one profile, oldest first.
     Revisions {
@@ -85,6 +89,11 @@ pub(crate) enum ProfileCommand {
         /// Revision you reviewed; a newer revision makes the install stale.
         #[arg(long)]
         expected_revision: u64,
+        /// Allow a mod that runs its own code inside the game, for exactly the
+        /// package with this SHA-256 (shown when the install is refused). Records
+        /// your choice; it does not establish that the code is safe.
+        #[arg(long, value_name = "SHA256")]
+        allow_mod_code: Option<String>,
     },
     /// Enable or disable an installed package as a new revision.
     SetPackage {
@@ -670,10 +679,15 @@ pub(crate) async fn execute(
             port_id,
             source_profile_id,
             name: display,
+            current_build,
         } => render_read_success(
             mode,
             name,
-            service.copy_profile(&port_id, &source_profile_id, &display)?,
+            if current_build {
+                service.copy_profile_onto_current_build(&port_id, &source_profile_id, &display)?
+            } else {
+                service.copy_profile(&port_id, &source_profile_id, &display)?
+            },
             |profile| summary("Profile created with its own progress", profile),
         ),
         ProfileCommand::Revisions {
@@ -706,10 +720,22 @@ pub(crate) async fn execute(
             profile_id,
             file,
             expected_revision,
+            allow_mod_code,
         } => render_read_success(
             mode,
             name,
-            service.install_mod_package(&port_id, &profile_id, &file, expected_revision)?,
+            match allow_mod_code {
+                Some(sha256) => service.install_mod_package_allowing_code(
+                    &port_id,
+                    &profile_id,
+                    &file,
+                    expected_revision,
+                    &sha256,
+                )?,
+                None => {
+                    service.install_mod_package(&port_id, &profile_id, &file, expected_revision)?
+                }
+            },
             |revision| format!("Package installed\n{}", revision_line(revision)),
         ),
         ProfileCommand::SetPackage {

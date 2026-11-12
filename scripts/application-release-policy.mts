@@ -132,7 +132,15 @@ export function applicationReleaseRemainingMinutes(
           .filter(([name]) => !payloadWork.has(name))
           .flatMap(([name, minutes]) => {
             // Old observer names remain readable for charged historical runs.
-            if (/^protection_(metadata|snapshot|timestamp) \/ execute$/u.test(name))
+            if (name === "protection_metadata / execute")
+              return [
+                [name, 0],
+                ["renewal_protection_metadata / execute", 0],
+                ["renewal_protection_releases / execute", 6],
+                ["renewal_protection_preview / execute", 6],
+                ["renewal_protection_stable / execute", 6],
+              ];
+            if (/^protection_(snapshot|timestamp) \/ execute$/u.test(name))
               return [
                 [name, 0],
                 [`renewal_${name}`, 6],

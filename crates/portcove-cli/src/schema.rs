@@ -36,6 +36,30 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "portable_save_export_preview",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::PortableSaveExportPreview,
+                >(contract)),
+            ),
+            (
+                "portable_save_export_result",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::PortableSaveExportResult>(contract)
+                ),
+            ),
+            (
+                "portable_save_import_preview",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::PortableSaveImportPreview,
+                >(contract)),
+            ),
+            (
+                "portable_save_import_result",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::PortableSaveImportResult>(contract)
+                ),
+            ),
+            (
                 "game_settings_contract",
                 serde_json::json!(schema_for_contract::<portcove_core::GameSettingsContract>(
                     contract
@@ -736,6 +760,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
             (
                 "mod_setups_view",
                 serde_json::json!(schema_for_contract::<portcove_core::ModSetupsView>(
+                    contract
+                )),
+            ),
+            (
+                "mod_code_review",
+                serde_json::json!(schema_for_contract::<portcove_core::ModCodeReview>(
                     contract
                 )),
             ),

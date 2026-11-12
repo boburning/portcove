@@ -112,6 +112,8 @@ fn entry_with_reference(document: &Value, reference: &str, port_index: usize) ->
         } else {
             crate::runtime::GENERATED_CACHE_TAR_XZ_CAPABILITY
         }
+    } else if !typed.runtime_subdirectory_by_platform.is_empty() {
+        crate::runtime::N64_PLATFORM_RUNTIME_SUBDIRECTORY_CAPABILITY
     } else if typed.release.grant_declared_executable {
         crate::test_fixture::grant_declared_executable_capability(&typed)
     } else if typed.portable_marker_file.is_some() {

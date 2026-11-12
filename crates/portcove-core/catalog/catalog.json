@@ -2101,6 +2101,86 @@
         "immutable_url": "https://redump.info/disc/5649",
         "live_url": null,
         "claim": "Redump Wipeout XL (USA), SCUS-94351, has 12 tracks. Track 1 size 86045568, SHA-1 5694008c30fa9896d17afdd6281e4bebb9f63953, MD5 bee4ab5e4835235ccf6f16bc8caea5e6 and CRC32 18ebdeb3 agree with the kit. Core binds the first data track and count."
+      },
+      {
+        "id": "alexbeav-armored-core-master-of-arena-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/armored-core-master-of-arena-recomp",
+        "authority_ref": "d39c6cbae60acb545d52f99ad0b4509cf8ea3d5c",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp/blob/d39c6cbae60acb545d52f99ad0b4509cf8ea3d5c/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.1.0 Windows (27058386 bytes, SHA-256 d99a7e67b49aa7f88a4f932d5ee487463d8fa2e476b9b7a5ca7a1469115b35d2) and Linux x64 (24984747 bytes, SHA-256 b14c8dcd2752720d42257607a25f496a012922ae5e74c07296eae82c4243ba58) setup kits match provider SHA-256 and pass Core package-layout inspection; the Linux kit has no case-colliding paths. Both carry the same game.toml: SLUS-01030, a 2-disc discs roster with disc 1 data track SHA-1 96f5fcc9513ca47b19fd44bd72ee51c65a55cd43, and the SCPH1001 BIOS configuration; README-SETUP requires a retail SCPH-1001 BIOS. The kits pin PSXRecomp 5420458ad90a81ca73d8128ebe719d8e1d3e9e2b, the reviewed Future Cop split-mods framework, ship mods/bundled and mods/preloaded and set EXE_NAME Armored_Core_Master_of_Arena. The runtime mounts the disc selected at launch and accepts --disc; swapping mid-session is not implemented. Native generation, gameplay and saves remain unobserved."
+      },
+      {
+        "id": "alexbeav-armored-core-master-of-arena-recomp-disc-1-redump-2487",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/2487",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://redump.info/disc/2487",
+        "live_url": null,
+        "claim": "Redump Armored Core: Master of Arena (USA) (Disc 1), SLUS-01030, has one data track: SHA-1 96f5fcc9513ca47b19fd44bd72ee51c65a55cd43, MD5 4d5774c4baa65d6eaf281db59ee8e945 and CRC32 446ae06c. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-armored-core-master-of-arena-recomp-disc-2-redump-2488",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/2488",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://redump.info/disc/2488",
+        "live_url": null,
+        "claim": "Redump Armored Core: Master of Arena (USA) (Disc 2), SLUS-01081, has one data track: SHA-1 c9ca14a6f25d663b0aec66df096205b9cb1bc3cc, MD5 809f240cfecf2b90ade1322cba61c013 and CRC32 9afeb2c5. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-fear-effect-2-retro-helix-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp",
+        "authority_ref": "4757d9853ab7c5f1ba4769702741bfa0c1030181",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp/blob/4757d9853ab7c5f1ba4769702741bfa0c1030181/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.1.0 Windows (27060603 bytes, SHA-256 2abab823b7954679670d5bebfa8609e9106e2b9798567641c24478af9e99690d) and Linux x64 (24986108 bytes, SHA-256 57456d4d897bfc077d51243a6bc019ed4af3b76e5d01d102ff2f02b5acc32826) setup kits match provider SHA-256 and pass Core package-layout inspection; the Linux kit has no case-colliding paths. Both carry the same game.toml: SLUS-01266, a 4-disc discs roster with disc 1 data track SHA-1 86a470f414de3f7af60c06fdc065f4f32015650c, and the SCPH1001 BIOS configuration; README-SETUP requires a retail SCPH-1001 BIOS. The kits pin PSXRecomp 5420458ad90a81ca73d8128ebe719d8e1d3e9e2b, the reviewed Future Cop split-mods framework, ship mods/bundled and mods/preloaded and set EXE_NAME Fear_Effect_2_Retro_Helix. The runtime mounts the disc selected at launch and accepts --disc; swapping mid-session is not implemented. Native generation, gameplay and saves remain unobserved."
+      },
+      {
+        "id": "alexbeav-fear-effect-2-retro-helix-recomp-disc-1-redump-31449",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/31449",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://redump.info/disc/31449",
+        "live_url": null,
+        "claim": "Redump Fear Effect 2: Retro Helix (USA) (Disc 1) (Rev 1), SLUS-01266, has one data track: SHA-1 86a470f414de3f7af60c06fdc065f4f32015650c, MD5 0258657dd944a139fdddc81345a6d9ee and CRC32 156bfdb4. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-fear-effect-2-retro-helix-recomp-disc-2-redump-31450",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/31450",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://redump.info/disc/31450",
+        "live_url": null,
+        "claim": "Redump Fear Effect 2: Retro Helix (USA) (Disc 2) (Rev 1), SLUS-01275, has one data track: SHA-1 c80cf3589ef9f05afa19db9a003eeb061ac947e8, MD5 74d55be5e2a322a0124efff6fd1f86f2 and CRC32 746ad7c9. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-fear-effect-2-retro-helix-recomp-disc-3-redump-31451",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/31451",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://redump.info/disc/31451",
+        "live_url": null,
+        "claim": "Redump Fear Effect 2: Retro Helix (USA) (Disc 3) (Rev 1), SLUS-01276, has one data track: SHA-1 2ea416bcb6692a178dfde0c36df0ac949d488a1f, MD5 5523b1309cbcca233544d9a7b4663543 and CRC32 fc16649d. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-fear-effect-2-retro-helix-recomp-disc-4-redump-31452",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/31452",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://redump.info/disc/31452",
+        "live_url": null,
+        "claim": "Redump Fear Effect 2: Retro Helix (USA) (Disc 4) (Rev 1), SLUS-01277, has one data track: SHA-1 1665f4c71e1c399f5a6f4b9c33a979ee0cad8afd, MD5 7302dbf75f570466e1453b1337fd5a79 and CRC32 8d9b31eb. A Redump search for that SHA-1 resolves only to this disc."
       }
     ],
     "identities": [
@@ -12305,6 +12385,190 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-armored-core-master-of-arena-recomp-usa-psx",
+        "label": "Armored Core: Master of Arena (USA) two-disc set",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Armored Core: Master of Arena (USA) two-disc set",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-01030",
+              "SLUS-01081"
+            ],
+            "representations": [
+              {
+                "id": "disc-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "multi-disc-set",
+                "discs": [
+                  {
+                    "id": "disc-1",
+                    "label": "Armored Core: Master of Arena Disc 1",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "96f5fcc9513ca47b19fd44bd72ee51c65a55cd43",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-2",
+                    "label": "Armored Core: Master of Arena Disc 2",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "c9ca14a6f25d663b0aec66df096205b9cb1bc3cc",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-armored-core-master-of-arena-recomp-v010-static-contract",
+                  "alexbeav-armored-core-master-of-arena-recomp-disc-1-redump-2487",
+                  "alexbeav-armored-core-master-of-arena-recomp-disc-2-redump-2488"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-armored-core-master-of-arena-recomp-v010-static-contract",
+              "alexbeav-armored-core-master-of-arena-recomp-disc-1-redump-2487",
+              "alexbeav-armored-core-master-of-arena-recomp-disc-2-redump-2488"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-fear-effect-2-retro-helix-recomp-usa-rev-1-psx",
+        "label": "Fear Effect 2: Retro Helix (USA) (Rev 1) four-disc set",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa-rev-1",
+            "title": "Fear Effect 2: Retro Helix (USA) (Rev 1) four-disc set",
+            "region": "USA",
+            "revision": "Rev 1",
+            "product_codes": [
+              "SLUS-01266",
+              "SLUS-01275",
+              "SLUS-01276",
+              "SLUS-01277"
+            ],
+            "representations": [
+              {
+                "id": "disc-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "multi-disc-set",
+                "discs": [
+                  {
+                    "id": "disc-1",
+                    "label": "Fear Effect 2: Retro Helix Disc 1",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "86a470f414de3f7af60c06fdc065f4f32015650c",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-2",
+                    "label": "Fear Effect 2: Retro Helix Disc 2",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "c80cf3589ef9f05afa19db9a003eeb061ac947e8",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-3",
+                    "label": "Fear Effect 2: Retro Helix Disc 3",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "2ea416bcb6692a178dfde0c36df0ac949d488a1f",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-4",
+                    "label": "Fear Effect 2: Retro Helix Disc 4",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "1665f4c71e1c399f5a6f4b9c33a979ee0cad8afd",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-fear-effect-2-retro-helix-recomp-v010-static-contract",
+                  "alexbeav-fear-effect-2-retro-helix-recomp-disc-1-redump-31449",
+                  "alexbeav-fear-effect-2-retro-helix-recomp-disc-2-redump-31450",
+                  "alexbeav-fear-effect-2-retro-helix-recomp-disc-3-redump-31451",
+                  "alexbeav-fear-effect-2-retro-helix-recomp-disc-4-redump-31452"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-fear-effect-2-retro-helix-recomp-v010-static-contract",
+              "alexbeav-fear-effect-2-retro-helix-recomp-disc-1-redump-31449",
+              "alexbeav-fear-effect-2-retro-helix-recomp-disc-2-redump-31450",
+              "alexbeav-fear-effect-2-retro-helix-recomp-disc-3-redump-31451",
+              "alexbeav-fear-effect-2-retro-helix-recomp-disc-4-redump-31452"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -18702,6 +18966,136 @@
         ],
         "aliases": [],
         "tombstones": []
+      },
+      {
+        "id": "alexbeav-armored-core-master-of-arena-recomp-game-source",
+        "port_id": "alexbeav-armored-core-master-of-arena-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-armored-core-master-of-arena-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-armored-core-master-of-arena-recomp-v010-static-contract",
+          "alexbeav-armored-core-master-of-arena-recomp-disc-1-redump-2487",
+          "alexbeav-armored-core-master-of-arena-recomp-disc-2-redump-2488"
+        ],
+        "authority_ref": "d39c6cbae60acb545d52f99ad0b4509cf8ea3d5c",
+        "reviewed_at": "2026-11-12",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp/blob/d39c6cbae60acb545d52f99ad0b4509cf8ea3d5c/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "d99a7e67b49aa7f88a4f932d5ee487463d8fa2e476b9b7a5ca7a1469115b35d2"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "b14c8dcd2752720d42257607a25f496a012922ae5e74c07296eae82c4243ba58"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-armored-core-master-of-arena-recomp-bios-source",
+        "port_id": "alexbeav-armored-core-master-of-arena-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-armored-core-master-of-arena-recomp-v010-static-contract"
+        ],
+        "authority_ref": "d39c6cbae60acb545d52f99ad0b4509cf8ea3d5c",
+        "reviewed_at": "2026-11-12",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp/blob/d39c6cbae60acb545d52f99ad0b4509cf8ea3d5c/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "d99a7e67b49aa7f88a4f932d5ee487463d8fa2e476b9b7a5ca7a1469115b35d2"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "b14c8dcd2752720d42257607a25f496a012922ae5e74c07296eae82c4243ba58"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-fear-effect-2-retro-helix-recomp-game-source",
+        "port_id": "alexbeav-fear-effect-2-retro-helix-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-fear-effect-2-retro-helix-recomp-usa-rev-1-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-rev-1"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-fear-effect-2-retro-helix-recomp-v010-static-contract",
+          "alexbeav-fear-effect-2-retro-helix-recomp-disc-1-redump-31449",
+          "alexbeav-fear-effect-2-retro-helix-recomp-disc-2-redump-31450",
+          "alexbeav-fear-effect-2-retro-helix-recomp-disc-3-redump-31451",
+          "alexbeav-fear-effect-2-retro-helix-recomp-disc-4-redump-31452"
+        ],
+        "authority_ref": "4757d9853ab7c5f1ba4769702741bfa0c1030181",
+        "reviewed_at": "2026-11-12",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp/blob/4757d9853ab7c5f1ba4769702741bfa0c1030181/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "2abab823b7954679670d5bebfa8609e9106e2b9798567641c24478af9e99690d"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "57456d4d897bfc077d51243a6bc019ed4af3b76e5d01d102ff2f02b5acc32826"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-fear-effect-2-retro-helix-recomp-bios-source",
+        "port_id": "alexbeav-fear-effect-2-retro-helix-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-fear-effect-2-retro-helix-recomp-v010-static-contract"
+        ],
+        "authority_ref": "4757d9853ab7c5f1ba4769702741bfa0c1030181",
+        "reviewed_at": "2026-11-12",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp/blob/4757d9853ab7c5f1ba4769702741bfa0c1030181/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "2abab823b7954679670d5bebfa8609e9106e2b9798567641c24478af9e99690d"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "57456d4d897bfc077d51243a6bc019ed4af3b76e5d01d102ff2f02b5acc32826"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
       }
     ],
     "validators": [
@@ -23069,7 +23463,8 @@
         "rolling"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "n64-recomp-portable",
       "automated_tested_platforms": [
@@ -23085,6 +23480,10 @@
           "windows-x86-64": [
             "BeetleRecomp",
             "Windows-x64"
+          ],
+          "linux-x86-64": [
+            "BeetleRecomp",
+            "Linux-x64"
           ]
         }
       },
@@ -23092,6 +23491,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "BeetleRecomp.exe"
+        ],
+        "linux-x86-64": [
+          "BeetleRecomp"
         ]
       },
       "persistent_paths": [
@@ -23105,9 +23507,23 @@
         "BeetleRecomp-Windows-x64/input.json",
         "BeetleRecomp-Windows-x64/input.json.bak",
         "BeetleRecomp-Windows-x64/cheats.cfg",
-        "BeetleRecomp-Windows-x64/bar.n64.us.z64"
+        "BeetleRecomp-Windows-x64/bar.n64.us.z64",
+        "BeetleRecomp-Linux-x64/mods",
+        "BeetleRecomp-Linux-x64/mod_config",
+        "BeetleRecomp-Linux-x64/saves",
+        "BeetleRecomp-Linux-x64/mods.json",
+        "BeetleRecomp-Linux-x64/mods.json.bak",
+        "BeetleRecomp-Linux-x64/graphics.json",
+        "BeetleRecomp-Linux-x64/graphics.json.bak",
+        "BeetleRecomp-Linux-x64/input.json",
+        "BeetleRecomp-Linux-x64/input.json.bak",
+        "BeetleRecomp-Linux-x64/cheats.cfg",
+        "BeetleRecomp-Linux-x64/bar.n64.us.z64"
       ],
       "runtime_subdirectory": "BeetleRecomp-Windows-x64",
+      "runtime_subdirectory_by_platform": {
+        "linux-x86-64": "BeetleRecomp-Linux-x64"
+      },
       "runtime_source_filename": "bar.n64.us.z64",
       "presentation": {
         "installation_method": "portable-recompilation",
@@ -28741,7 +29157,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching single-track CHDs in Disc 1 SLPS-02020 then Disc 2 SLPS-02021 order and legally obtained retail SCPH-1001 BIOS. This route uses Portcove’s registered Python/build toolchain and skips the upstream setup launcher when playing. Generation, runtime, disc switching, lifecycle, minimum-host compatibility and gameplay are untested on both declared platforms. Preserve GPL-3.0-only project, PolyForm Noncommercial framework and MIT UI notices; no rights to retail game data or generated retail content are inferred.",
+        "manual_preparation": "Provide your own matching single-track CHDs in Disc 1 SLPS-02020 then Disc 2 SLPS-02021 order and legally obtained retail SCPH-1001 BIOS. This route uses Portcove’s registered Python/build toolchain and skips the upstream setup launcher when playing. To play Disc 2, choose it in the disc choice beside Play; the kit cannot swap discs during play, so quit and choose Play again when the game asks for the next disc. Generation, runtime, disc switching, lifecycle, minimum-host compatibility and gameplay are untested on both declared platforms. Preserve GPL-3.0-only project, PolyForm Noncommercial framework and MIT UI notices; no rights to retail game data or generated retail content are inferred.",
         "original_game_title": "Ace Combat 3: Electrosphere",
         "variant_label": "Japan · two discs",
         "manual_setup": {
@@ -28781,6 +29197,7 @@
       },
       "bios_source_profile": "psx-scph-1001-bios",
       "runtime_source_filename": "runtime-discs",
+      "launch_disc_choice": "psx-settings-selected",
       "runtime_source_materialization": "psx-raw-set"
     },
     {
@@ -31694,6 +32111,154 @@
       }
     },
     {
+      "id": "alexbeav-armored-core-master-of-arena-recomp",
+      "name": "Armored Core: Master of Arena / Alexbeav PSXRecomp",
+      "summary": "Build and play Armored Core: Master of Arena on Windows or Linux with your own matching USA two-disc set and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/armored-core-master-of-arena-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "armoredcoremasterofarena-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "armoredcoremasterofarena-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-armored-core-master-of-arena-recomp-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Armored_Core_Master_of_Arena.exe"
+        ],
+        "linux-x86-64": [
+          "Armored_Core_Master_of_Arena"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods/installed",
+        "mods/packages",
+        "mods/.staging",
+        "mods/state.toml",
+        "mods/state.toml.tmp",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-armored-core-master-of-arena-recomp-usa-psx",
+            "label": "Armored Core: Master of Arena (USA) two-disc set",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-1001-bios",
+            "label": "PlayStation SCPH-1001 BIOS",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own single-track CHDs for SLUS-01030, SLUS-01081 in disc order and retail SCPH-1001 BIOS. Portcove verifies each disc's data track and builds a private player with its registered toolchain, retaining its declared saves, settings and installed mods. Choose the disc when you choose Play; the kit cannot swap discs during play, so quit and choose Play again with the next disc. Bundled mods belong to the runtime version. Windows and Linux package and source fit were statically inspected. Native build, disc switching, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Armored Core: Master of Arena",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original files",
+              "instruction": "Use your own Armored Core: Master of Arena (USA) two-disc set (SLUS-01030, SLUS-01081), each disc with its single data track, and your own retail SCPH-1001 BIOS."
+            },
+            {
+              "title": "Set up the managed Windows or Linux player",
+              "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play; to change discs, quit the game and choose Play with the next disc."
+            },
+            {
+              "title": "Prepare a separate Mac copy",
+              "instruction": "Choose the official Mac ZIP from the upstream releases: -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon, and extract it. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            },
+            {
+              "title": "Build and add the completed Mac player",
+              "instruction": "Run Armored_Core_Master_of_Arena from the kit folder, assign every disc in Disc Selection and choose Generate & rebuild. In Portcove, select build-release/Armored_Core_Master_of_Arena as the player and build-release as its start folder."
+            }
+          ],
+          "warnings": [
+            "Portcove checks each disc's data track and track count. Keep every disc intact.",
+            "The kit cannot swap discs during play. Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp#readme",
+          "references": [
+            {
+              "title": "Keep the original files and your data",
+              "instruction": "Keep your discs and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 19424,
+          "cover_id": 178349,
+          "image_id": "co3tm5",
+          "image_sha256": "68e6ca1e489d4fd6c637fe82d7021f4563d120f375acda1a1b519921e4bd7327",
+          "game_slug": "armored-core-master-of-arena",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-1001-bios",
+      "runtime_source_filename": "runtime-discs",
+      "launch_disc_choice": "psx-settings-selected",
+      "runtime_source_materialization": "psx-raw-set"
+    },
+    {
       "id": "alexbeav-armored-core-project-phantasma-recomp",
       "name": "Armored Core: Project Phantasma / Alexbeav PSXRecomp",
       "summary": "Build a native Armored Core: Project Phantasma player from your matching original PlayStation disc and BIOS.",
@@ -33226,6 +33791,154 @@
         }
       },
       "bios_source_profile": "psx-scph-5552-bios"
+    },
+    {
+      "id": "alexbeav-fear-effect-2-retro-helix-recomp",
+      "name": "Fear Effect 2: Retro Helix / Alexbeav PSXRecomp",
+      "summary": "Build and play Fear Effect 2: Retro Helix on Windows or Linux with your own matching USA four-disc set and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "feareffect2retrohelix-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "feareffect2retrohelix-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-fear-effect-2-retro-helix-recomp-usa-rev-1-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Fear_Effect_2_Retro_Helix.exe"
+        ],
+        "linux-x86-64": [
+          "Fear_Effect_2_Retro_Helix"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods/installed",
+        "mods/packages",
+        "mods/.staging",
+        "mods/state.toml",
+        "mods/state.toml.tmp",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-fear-effect-2-retro-helix-recomp-usa-rev-1-psx",
+            "label": "Fear Effect 2: Retro Helix (USA) (Rev 1) four-disc set",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-1001-bios",
+            "label": "PlayStation SCPH-1001 BIOS",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own single-track CHDs for SLUS-01266, SLUS-01275, SLUS-01276, SLUS-01277 in disc order and retail SCPH-1001 BIOS. Portcove verifies each disc's data track and builds a private player with its registered toolchain, retaining its declared saves, settings and installed mods. Choose the disc when you choose Play; the kit cannot swap discs during play, so quit and choose Play again with the next disc. Bundled mods belong to the runtime version. Windows and Linux package and source fit were statically inspected. Native build, disc switching, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Fear Effect 2: Retro Helix",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original files",
+              "instruction": "Use your own Fear Effect 2: Retro Helix (USA) (Rev 1) four-disc set (SLUS-01266, SLUS-01275, SLUS-01276, SLUS-01277), each disc with its single data track, and your own retail SCPH-1001 BIOS."
+            },
+            {
+              "title": "Set up the managed Windows or Linux player",
+              "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play; to change discs, quit the game and choose Play with the next disc."
+            },
+            {
+              "title": "Prepare a separate Mac copy",
+              "instruction": "Choose the official Mac ZIP from the upstream releases: -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon, and extract it. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            },
+            {
+              "title": "Build and add the completed Mac player",
+              "instruction": "Run Fear_Effect_2_Retro_Helix from the kit folder, assign every disc in Disc Selection and choose Generate & rebuild. In Portcove, select build-release/Fear_Effect_2_Retro_Helix as the player and build-release as its start folder."
+            }
+          ],
+          "warnings": [
+            "Portcove checks each disc's data track and track count. Keep every disc intact.",
+            "The kit cannot swap discs during play. Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp#readme",
+          "references": [
+            {
+              "title": "Keep the original files and your data",
+              "instruction": "Keep your discs and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 8601,
+          "cover_id": 126643,
+          "image_id": "co2ppv",
+          "image_sha256": "304f1d6d5eebe507e647a58f7c5b9f82a0c78d4870a6fe727acc7cde479c686f",
+          "game_slug": "fear-effect-2-retro-helix",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-1001-bios",
+      "runtime_source_filename": "runtime-discs",
+      "launch_disc_choice": "psx-settings-selected",
+      "runtime_source_materialization": "psx-raw-set"
     },
     {
       "id": "alexbeav-future-cop-lapd-recomp",
@@ -49335,7 +50048,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -49344,20 +50058,28 @@
           "windows-x86-64": [
             "openomf_",
             "_windows.zip"
+          ],
+          "linux-x86-64": [
+            "openomf-",
+            "-x86_64.appimage"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "openomf.exe"
+        ],
+        "linux-x86-64": [
+          "OpenOMF.AppImage"
         ]
       },
+      "external_profile_policy": "openomf-linux-v1",
       "persistent_paths": [],
       "presentation": {
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "The official archive includes the freeware One Must Fall 2097 resources and the native OpenOMF player. Choose Play after installation; no commercial source files or generation step are needed. The package also includes an ARM64 player; this route uses openomf.exe for x86-64. OpenOMF resolves writable settings, saves, scores, screenshots, recordings and user mods through its OpenOMF user-preference directory, normally AppData/OpenOMF on Windows. That external data remains outside Portcove backups. Package resources and bundled mods remain version-owned; no in-folder player-data paths are declared. Use an external registration for custom OPENOMF_* storage overrides. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_preparation": "The official packages include the freeware One Must Fall 2097 resources. Choose Play after installation. The Windows ZIP includes an ARM64 player alongside the managed x86-64 executable. The managed Linux route uses the stable x86-64 AppImage and its bundled resources. OpenOMF keeps configuration and state in its external profile, normally AppData/OpenOMF on Windows or ~/.local/share/OpenOMF on Linux. On Linux, explicit XDG_CONFIG_HOME and XDG_STATE_HOME select their own absolute locations, and XDG_DATA_HOME can change the SDL preference root. Back up settings, saves, scores, screenshots, recordings and user mods separately. Use a separately prepared copy for custom OpenOMF overrides or alternate resources. Package resources and bundled mods stay with their installed version.",
         "original_game_title": "One Must Fall: 2097",
         "manual_setup": {
           "steps": [
@@ -49366,8 +50088,8 @@
               "instruction": "The official archive includes the freeware One Must Fall 2097 resources and the native OpenOMF player. Choose Play after installation; no commercial source files or generation step are needed. The package also includes an ARM64 player; this route uses openomf.exe for x86-64."
             },
             {
-              "title": "Open the upstream Linux AppImage",
-              "instruction": "Choose the stable x86-64 AppImage and use your Linux system’s AppImage support. Keep it executable. It includes the freeware resources and its own SDL2 libraries."
+              "title": "Start the managed Linux AppImage",
+              "instruction": "Install the stable x86-64 AppImage in Portcove and choose Play. Your Linux system needs AppImage support. The package includes the freeware resources and its own SDL2 libraries. For a custom OpenOMF override or alternate resource set, keep a separately prepared copy."
             },
             {
               "title": "Prepare the upstream Apple Silicon package",
@@ -49375,13 +50097,13 @@
             }
           ],
           "warnings": [
-            "You and upstream maintain the Linux and Mac packages. Back up the configuration and state folders your copy actually uses before replacement. An explicit OPENOMF_CONFIG_PATH or OPENOMF_STATE_PATH can change those locations."
+            "Portcove manages the selected Windows and Linux runtime packages. You and upstream maintain independently prepared copies, including the Mac package. Back up the actual configuration and state folders separately. An explicit OPENOMF_CONFIG_PATH or OPENOMF_STATE_PATH can change those locations."
           ],
           "help_url": "https://github.com/omf2097/openomf/blob/master/PATHS.md",
           "references": [
             {
               "title": "Check the inspected stable packages",
-              "instruction": "The 0.8.6 AppImage player needs glibc 2.34 or later. The separate 0.8.6 Linux TAR.GZ needs glibc 2.43 and system libraries. The loose 0.8.6 Apple Silicon ZIP needs macOS 14 and Homebrew libepoxy, confuse, enet, sdl2_mixer, libxmp, libpng, opusfile, miniupnpc, libnatpmp and sdl2-compat. The binary loads specific library versions from /opt/homebrew. The macOS 15 app layout was observed on the separate rolling channel."
+              "instruction": "The inspected 0.8.6 AppImage needs glibc 2.38 or later for its bundled libraries. The separate 0.8.6 Linux TAR.GZ needs glibc 2.43 and system libraries. The loose 0.8.6 Apple Silicon ZIP needs macOS 14 and Homebrew libepoxy, confuse, enet, sdl2_mixer, libxmp, libpng, opusfile, miniupnpc, libnatpmp and sdl2-compat. The binary loads specific library versions from /opt/homebrew. The macOS 15 app layout was observed on the separate rolling channel."
             },
             {
               "title": "Find the effective OpenOMF profile",

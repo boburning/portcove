@@ -174,8 +174,13 @@ jobs:
           assert.ok(['observe','payload','assemble','role-targets','role-releases','role-preview','role-stable','role-snapshot','role-timestamp'].includes(process.env.PORTCOVE_OPERATION));
           if (process.env.PORTCOVE_OPERATION.startsWith('role-')) assert.equal(process.env.PORTCOVE_OPERATION,'role-'+process.env.PORTCOVE_ROLE);
           else assert.equal(process.env.PORTCOVE_ROLE,'');
-          if (process.env.PORTCOVE_OPERATION === 'observe') assert.ok(['payload','metadata','snapshot','timestamp','draft-recovery','publication','feed'].includes(process.env.PORTCOVE_PROTECTION_PHASE));
-          else assert.equal(process.env.PORTCOVE_PROTECTION_PHASE,process.env.PORTCOVE_OPERATION === 'payload' ? 'payload' : process.env.PORTCOVE_OPERATION === 'role-snapshot' ? 'snapshot' : process.env.PORTCOVE_OPERATION === 'role-timestamp' ? 'timestamp' : 'metadata');
+          if (process.env.PORTCOVE_OPERATION === 'observe') assert.ok(['payload','metadata','metadata-releases','metadata-preview','metadata-stable','snapshot','timestamp','draft-recovery','publication','feed'].includes(process.env.PORTCOVE_PROTECTION_PHASE));
+          else {
+            const role = process.env.PORTCOVE_ROLE;
+            const phase = process.env.PORTCOVE_PROTECTION_PHASE;
+            if (['releases','preview','stable'].includes(role)) assert.ok(phase === 'metadata' || phase === 'metadata-'+role);
+            else assert.equal(phase,process.env.PORTCOVE_OPERATION === 'payload' ? 'payload' : role === 'snapshot' || role === 'timestamp' ? role : 'metadata');
+          }
           JS
       - name: Install existing hash-pinned attestation verifier
         shell: bash

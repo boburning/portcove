@@ -1764,7 +1764,7 @@ void test("private reusable jobs pass only their own protected environment secre
     assert.deepEqual(job.secrets, { [key]: "$" + "{{ secrets." + key + " }}" });
     checked++;
   }
-  assert.equal(checked, 16);
+  assert.equal(checked, 18);
 });
 
 void test("metadata jobs explicitly require each direct producer despite optional skipped ancestors", async () => {
@@ -1804,7 +1804,9 @@ void test("metadata renewal traverses existing protected metadata jobs while exc
     "source",
     "tools",
     "context",
-    "renewal_protection_metadata",
+    "renewal_protection_releases",
+    "renewal_protection_preview",
+    "renewal_protection_stable",
     "releases",
     "preview",
     "stable",
@@ -1839,6 +1841,20 @@ void test("metadata renewal traverses existing protected metadata jobs while exc
       isRecord(job) && typeof job.if === "string" && !job.if.includes("inputs.mode == 'renew'"),
       name,
     );
+  }
+  for (const role of ["releases", "preview", "stable"] as const) {
+    const observer: unknown = workflow.jobs[`renewal_protection_${role}`];
+    const signer: unknown = workflow.jobs[role];
+    assert.ok(isRecord(observer) && isRecord(observer.with) && isRecord(observer.secrets));
+    assert.ok(isRecord(signer) && isRecord(signer.with) && isRecord(signer.secrets));
+    assert.equal(observer.with.phase, `metadata-${role}`);
+    assert.equal(observer.with.operation, "observe");
+    assert.deepEqual(Object.keys(observer.secrets), ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"]);
+    assert.equal(signer.with.operation, `role-${role}`);
+    assert.ok(String(signer.with.phase).includes(`&& 'metadata-${role}' || 'metadata'`));
+    assert.deepEqual(Object.keys(signer.secrets), [`PORTCOVE_TUF_${role.toUpperCase()}_KEY`]);
+    assert.deepEqual(observer.needs, ["source", "tools", "context"]);
+    assert.deepEqual(signer.needs, ["source", "tools", "context", "protection_metadata"]);
   }
   const context = workflow.jobs.context,
     publisher = workflow.jobs.publication,

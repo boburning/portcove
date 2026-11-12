@@ -614,6 +614,7 @@ async fn launch_during_stalled_acquisition_and_finish_while_game_runs() {
                 source_override: None,
                 arguments: &args,
                 stdio: LaunchStdio::Null,
+                disc: None,
             },
             |_| {},
             |_| {
@@ -685,6 +686,7 @@ async fn immutable_acquisition_can_start_after_verified_game_is_already_running(
                 source_override: None,
                 arguments: &args,
                 stdio: LaunchStdio::Null,
+                disc: None,
             },
             |_| {},
             |_| {

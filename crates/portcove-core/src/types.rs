@@ -295,6 +295,17 @@ impl AdapterKind {
     ];
 }
 
+/// How a managed multi-disc runtime accepts a launch-time disc choice.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum LaunchDiscChoice {
+    /// The PSXRecomp runtime reads the 1-based `[disc] selected` entry from
+    /// the `settings.toml` beside its player and derives both the mounted disc
+    /// and the save-state disc scope from it. Older engines ignore the field
+    /// and offer no choice.
+    PsxSettingsSelected,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum RuntimeSourceMaterialization {
@@ -727,6 +738,7 @@ pub enum ExternalProfilePolicy {
     RecompDirectV1,
     Doom3LinuxV1,
     OpenjkUnixV1,
+    OpenomfLinuxV1,
 }
 
 /// Preserve complete mod package versions without replacing packaged defaults.
@@ -848,6 +860,11 @@ pub struct PortDefinition {
     pub launch_arguments: Vec<String>,
     #[serde(default)]
     pub runtime_subdirectory: Option<String>,
+    /// Per-platform runtime subdirectories for packages whose wrapper folder is named differently
+    /// on each platform; a listed platform replaces `runtime_subdirectory`. Requires
+    /// n64-recomp-portable capability 6.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub runtime_subdirectory_by_platform: BTreeMap<Platform, String>,
     #[serde(default)]
     pub runtime_source_filename: Option<String>,
     #[serde(default)]
@@ -866,6 +883,10 @@ pub struct PortDefinition {
     pub optional_game_source: bool,
     #[serde(default)]
     pub runtime_source_set: Vec<RuntimeSourceTarget>,
+    /// Reviewed way a managed multi-disc runtime accepts the disc to start.
+    /// Without it, Portcove offers no disc choice at launch.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub launch_disc_choice: Option<LaunchDiscChoice>,
     #[serde(default)]
     pub launch_from_install_root: bool,
     #[serde(default)]
@@ -889,6 +910,21 @@ pub struct PortDefinition {
     pub reviewed_package_layouts: BTreeMap<Platform, ReviewedPackageLayout>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub presentation: Option<PortPresentation>,
+}
+
+impl PortDefinition {
+    /// The runtime subdirectory that applies to `platform`: its own entry, else the default.
+    pub fn runtime_subdirectory_for(&self, platform: Platform) -> Option<&str> {
+        self.runtime_subdirectory_by_platform
+            .get(&platform)
+            .or(self.runtime_subdirectory.as_ref())
+            .map(String::as_str)
+    }
+
+    /// Whether any platform declares a runtime subdirectory.
+    pub fn declares_runtime_subdirectory(&self) -> bool {
+        self.runtime_subdirectory.is_some() || !self.runtime_subdirectory_by_platform.is_empty()
+    }
 }
 
 /// The parts of an extracted package whose change signals changed runtime
@@ -2107,6 +2143,10 @@ pub struct LaunchReadiness {
     pub source_assessment: Option<crate::SourceAssessment>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bios_assessment: Option<crate::SourceAssessment>,
+    /// Discs a player may choose at launch, from the effective contract of a
+    /// Portcove-managed multi-disc installation. Absent for every other route.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selectable_discs: Option<u32>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -2331,6 +2371,11 @@ impl CapabilityDocument {
                 "backup".into(),
                 "backup.ghostship-legacy-plan".into(),
                 "backup.ghostship-legacy-recover".into(),
+                "saves".into(),
+                "saves.export-preview".into(),
+                "saves.export".into(),
+                "saves.import-preview".into(),
+                "saves.import".into(),
                 "game-settings".into(),
                 "game-settings.list".into(),
                 "game-settings.review".into(),

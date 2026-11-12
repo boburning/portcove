@@ -219,9 +219,18 @@ void test("bootstrap and renewal observer jobs reserve setup and upload time aro
     const job = name.split(" / ")[0]!;
     if (["protection_metadata", "protection_snapshot", "protection_timestamp"].includes(job)) {
       assert.equal(renewal[name], 0);
-      assert.equal(renewal[`renewal_${name}`], 6);
       assert.equal(workflow.getIn(["jobs", job, "with", "timeout_minutes"]), 3);
-      assert.equal(workflow.getIn(["jobs", `renewal_${job}`, "with", "timeout_minutes"]), 6);
+      if (job === "protection_metadata") {
+        assert.equal(renewal[`renewal_${name}`], 0);
+        for (const role of ["releases", "preview", "stable"]) {
+          const observer = `renewal_protection_${role}`;
+          assert.equal(renewal[`${observer} / execute`], 6);
+          assert.equal(workflow.getIn(["jobs", observer, "with", "timeout_minutes"]), 6);
+        }
+      } else {
+        assert.equal(renewal[`renewal_${name}`], 6);
+        assert.equal(workflow.getIn(["jobs", `renewal_${job}`, "with", "timeout_minutes"]), 6);
+      }
       continue;
     }
     assert.equal(renewal[name], 3);

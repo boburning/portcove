@@ -464,7 +464,7 @@ lease system or reporting framework. Short-lived non-writing reviewers are allow
 
 Choose worthwhile port work from the entire backlog independently of release
 commitment. Start with the Port Pipeline and current canonical issue evidence.
-Consider player value and observed demand, attributable usable upstream artifacts,
+Consider player value and observed demand (including [beta feedback](ROADMAP.md#beta-feedback-and-triage) linked to an owning issue), attributable usable upstream artifacts,
 supported managed routes, reuse across integrations, shared gaps worth closing,
 actual investigation and maintenance costs, and concrete acquisition,
 compatibility, process and preservation holds. Retain uncertainty where evidence

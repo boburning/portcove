@@ -294,12 +294,19 @@ export const desktopApi = {
     invoke<import("./types").ModSetupsView>("get_mod_setups", { portId, generation }),
   createDefaultModSetup: (portId: string, generation: number) =>
     invoke<import("./types").ModSetup>("create_default_mod_setup", { portId, generation }),
-  copyModSetup: (portId: string, profileId: string, displayName: string, generation: number) =>
+  copyModSetup: (
+    portId: string,
+    profileId: string,
+    displayName: string,
+    generation: number,
+    currentBuild = false,
+  ) =>
     invoke<import("./types").ModSetup>("copy_mod_setup", {
       portId,
       profileId,
       displayName,
       generation,
+      currentBuild,
     }),
   useModSetup: (portId: string, profileId: string, generation: number) =>
     invoke<import("./types").ModSetupRevision>("use_mod_setup", {
@@ -374,12 +381,20 @@ export const desktopApi = {
     path: string,
     expectedRevision: number,
     generation: number,
+    allowCodeSha256: string | null = null,
   ) =>
     invoke<import("./types").ModSetupRevision>("add_mod_package", {
       portId,
       profileId,
       path,
       expectedRevision,
+      generation,
+      allowCodeSha256,
+    }),
+  reviewModPackageCode: (portId: string, path: string, generation: number) =>
+    invoke<import("./types").ModCodeReview | null>("review_mod_package_code", {
+      portId,
+      path,
       generation,
     }),
   resetArtwork: (portId: string, slot: ArtworkSlot, expectedRevision: number, generation: number) =>
@@ -1143,12 +1158,13 @@ export const desktopApi = {
       expectedPreview,
       generation,
     }),
-  launch: (portId: string, source: string, generation: number) =>
+  launch: (portId: string, source: string, generation: number, disc?: number) =>
     invoke<LaunchResult>("launch_port", {
       portId,
       generation,
       source: source || null,
       arguments: [],
+      disc: disc ?? null,
     }),
   automaticSnapshots: (generation: number) =>
     invoke<boolean>("get_automatic_snapshots", { generation }),

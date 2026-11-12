@@ -5,8 +5,8 @@ use std::{
 };
 
 use crate::{
-    AdapterKind, CatalogDocument, PortDefinition, PortcoveError, ReleaseChannel, ReleaseSource,
-    Result, RuntimeSourceMaterialization, SourceKind, SourceProfile,
+    AdapterKind, CatalogDocument, LaunchDiscChoice, PortDefinition, PortcoveError, ReleaseChannel,
+    ReleaseSource, Result, RuntimeSourceMaterialization, SourceKind, SourceProfile,
 };
 
 mod listings;
@@ -1029,7 +1029,7 @@ impl Catalog {
                     }
                 }
                 ReleaseSource::UserPrepared => {
-                    if port.runtime_subdirectory.is_some()
+                    if port.declares_runtime_subdirectory()
                         && port.adapter != AdapterKind::StagedSourcePortable
                     {
                         return Err(PortcoveError::usage(format!(
@@ -1091,7 +1091,7 @@ impl Catalog {
                         }
                         if runtime.settings_contract.is_some()
                             && (*platform != crate::Platform::WindowsX86_64
-                                || port.runtime_subdirectory.is_some()
+                                || port.declares_runtime_subdirectory()
                                 || !port.launch_arguments.is_empty())
                         {
                             return Err(PortcoveError::usage(
@@ -1299,11 +1299,29 @@ impl Catalog {
                 }
                 runtime_file_patterns.push(pattern);
             }
-            if let Some(directory) = &port.runtime_subdirectory
-                && (directory.is_empty()
-                    || Path::new(directory)
-                        .components()
-                        .any(|component| !matches!(component, Component::Normal(_))))
+            if !port.runtime_subdirectory_by_platform.is_empty()
+                && (port.adapter != AdapterKind::N64RecompPortable
+                    || port
+                        .runtime_subdirectory_by_platform
+                        .keys()
+                        .any(|platform| !port.platforms.contains(platform)))
+            {
+                return Err(PortcoveError::usage(format!(
+                    "{} declares platform runtime subdirectories outside an N64 recompilation \
+                     definition's own platforms",
+                    port.id
+                )));
+            }
+            if let Some(directory) = port
+                .runtime_subdirectory
+                .iter()
+                .chain(port.runtime_subdirectory_by_platform.values())
+                .find(|directory| {
+                    directory.is_empty()
+                        || Path::new(directory)
+                            .components()
+                            .any(|component| !matches!(component, Component::Normal(_)))
+                })
             {
                 return Err(PortcoveError::usage(format!(
                     "{} has unsafe runtime subdirectory: {directory}",
@@ -1339,17 +1357,18 @@ impl Catalog {
                 let materialization = port
                     .runtime_source_materialization
                     .unwrap_or(RuntimeSourceMaterialization::N64BigEndian);
-                let expected = port
-                    .runtime_subdirectory
-                    .as_deref()
-                    .map(Path::new)
-                    .unwrap_or_else(|| Path::new(""))
-                    .join(filename);
-                let source_is_persistent = port.persistent_paths.iter().any(|path| {
-                    let persistent = Path::new(path);
-                    persistent == expected
-                        || (persistent.components().next().is_some()
-                            && expected.starts_with(persistent))
+                let source_is_persistent = port.platforms.iter().all(|platform| {
+                    let expected = port
+                        .runtime_subdirectory_for(*platform)
+                        .map(Path::new)
+                        .unwrap_or_else(|| Path::new(""))
+                        .join(filename);
+                    port.persistent_paths.iter().any(|path| {
+                        let persistent = Path::new(path);
+                        persistent == expected
+                            || (persistent.components().next().is_some()
+                                && expected.starts_with(persistent))
+                    })
                 });
                 let valid = match materialization {
                     RuntimeSourceMaterialization::N64BigEndian => {
@@ -1486,6 +1505,21 @@ impl Catalog {
                         port.id
                     )));
                 }
+            }
+            if port.launch_disc_choice == Some(LaunchDiscChoice::PsxSettingsSelected)
+                && !(port.adapter == AdapterKind::PsxRecompManaged
+                    && port.runtime_source_materialization
+                        == Some(RuntimeSourceMaterialization::PsxRawSet)
+                    && port.runtime_subdirectory.is_some()
+                    && port
+                        .persistent_paths
+                        .iter()
+                        .any(|path| path == "settings.toml"))
+            {
+                return Err(PortcoveError::usage(format!(
+                    "{} declares a PS1 settings disc choice without a managed multi-disc set and persistent settings.toml",
+                    port.id
+                )));
             }
             if port.runtime_disc_image.is_some()
                 && port
@@ -3563,6 +3597,29 @@ mod tests {
                     .insert(*platform, vec![executable.into()]);
             }
         }
+        {
+            // Beetle's reviewed Linux route is a later addition beside its frozen Windows route.
+            let port = expected_ports
+                .iter_mut()
+                .find(|port| port.id == "beetle-recomp")
+                .unwrap();
+            assert_eq!(port.platforms, [Platform::WindowsX86_64]);
+            port.platforms.push(Platform::LinuxX86_64);
+            port.release.asset_hints.insert(
+                Platform::LinuxX86_64,
+                vec!["BeetleRecomp".into(), "Linux-x64".into()],
+            );
+            port.executable_hints
+                .insert(Platform::LinuxX86_64, vec!["BeetleRecomp".into()]);
+            let linux_paths = port
+                .persistent_paths
+                .iter()
+                .map(|path| path.replace("Windows", "Linux"))
+                .collect::<Vec<_>>();
+            port.persistent_paths.extend(linux_paths);
+            port.runtime_subdirectory_by_platform
+                .insert(Platform::LinuxX86_64, "BeetleRecomp-Linux-x64".into());
+        }
         for id in ["opengoal-jak1", "opengoal-jak2", "opengoal-jak3"] {
             let port = expected_ports
                 .iter_mut()
@@ -5347,6 +5404,56 @@ mod tests {
 
         let error = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap_err();
         assert!(error.to_string().contains("unsafe runtime subdirectory"));
+    }
+
+    #[test]
+    fn beetle_resolves_a_runtime_subdirectory_for_each_declared_platform() {
+        let catalog = Catalog::from_json(EMBEDDED_CATALOG).expect("embedded catalog");
+        let port = catalog.port("beetle-recomp").unwrap();
+        assert_eq!(
+            port.runtime_subdirectory_for(Platform::WindowsX86_64),
+            Some("BeetleRecomp-Windows-x64")
+        );
+        assert_eq!(
+            port.runtime_subdirectory_for(Platform::LinuxX86_64),
+            Some("BeetleRecomp-Linux-x64")
+        );
+    }
+
+    #[test]
+    fn platform_runtime_subdirectories_are_n64_only_declared_and_safe() {
+        let mutate = |id: &str, change: &dyn Fn(&mut serde_json::Value)| {
+            let mut document: serde_json::Value =
+                serde_json::from_str(EMBEDDED_CATALOG).expect("embedded JSON should parse");
+            let port = document["ports"]
+                .as_array_mut()
+                .unwrap()
+                .iter_mut()
+                .find(|port| port["id"] == id)
+                .unwrap();
+            change(port);
+            Catalog::from_json(&serde_json::to_string(&document).unwrap())
+        };
+        let error = mutate("beetle-recomp", &|port| {
+            port["runtime_subdirectory_by_platform"] =
+                serde_json::json!({"macos-aarch64": "wrapper"});
+        })
+        .unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("platform runtime subdirectories")
+        );
+        let error = mutate("beetle-recomp", &|port| {
+            port["runtime_subdirectory_by_platform"] =
+                serde_json::json!({"linux-x86-64": "../outside"});
+        })
+        .unwrap_err();
+        assert!(error.to_string().contains("unsafe runtime subdirectory"));
+        let error = mutate("moshferatu-zombies-ate-my-neighbors-pc-port", &|port| {
+            port["runtime_subdirectory_by_platform"] = serde_json::json!({"linux-x86-64": "zamn"});
+        });
+        assert!(error.is_err());
     }
 
     #[test]
@@ -7603,6 +7710,51 @@ mod tests {
             .persistent_paths
             .push("rom".into());
         catalog.validate().unwrap();
+    }
+
+    #[test]
+    fn psx_settings_disc_choice_requires_a_managed_set_with_persistent_settings() {
+        let embedded = Catalog::embedded().unwrap();
+        let declared = embedded
+            .document
+            .ports
+            .iter()
+            .filter(|port| port.launch_disc_choice.is_some())
+            .map(|port| port.id.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            declared,
+            [
+                "alexbeav-ace-combat-3-electrosphere-recomp",
+                "alexbeav-armored-core-master-of-arena-recomp",
+                "alexbeav-fear-effect-2-retro-helix-recomp",
+            ]
+        );
+        let arena = "alexbeav-armored-core-master-of-arena-recomp";
+        let broken: [(&str, fn(&mut PortDefinition)); 3] = [
+            // Any other adapter or source materialization.
+            ("dr-mario-64-recomp", |port| {
+                port.launch_disc_choice = Some(LaunchDiscChoice::PsxSettingsSelected);
+            }),
+            (arena, |port| port.runtime_subdirectory = None),
+            (arena, |port| {
+                port.persistent_paths.retain(|path| path != "settings.toml");
+            }),
+        ];
+        for (id, breakage) in broken {
+            let mut catalog = Catalog::embedded().unwrap();
+            let port = Arc::make_mut(&mut catalog.document)
+                .ports
+                .iter_mut()
+                .find(|port| port.id == id)
+                .unwrap();
+            breakage(port);
+            let error = catalog.validate().unwrap_err();
+            assert!(
+                error.to_string().contains("PS1 settings disc choice"),
+                "{id}: {error}"
+            );
+        }
     }
 
     #[test]

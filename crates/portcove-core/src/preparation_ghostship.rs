@@ -74,7 +74,7 @@ pub(super) fn execution_contract(
             .selected_executable
             .to_str()
             .is_some_and(|path| path.eq_ignore_ascii_case("Ghostship.exe"))
-        || port.runtime_subdirectory.is_some()
+        || port.declares_runtime_subdirectory()
         || !port.setup_output_paths.is_empty()
         || port.setup_marker.is_some()
         || !port.setup_executable_hints.is_empty()

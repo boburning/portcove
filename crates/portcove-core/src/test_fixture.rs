@@ -312,6 +312,8 @@ impl<'a> IndexedCatalogFixture<'a> {
             } else {
                 crate::runtime::GENERATED_CACHE_TAR_XZ_CAPABILITY
             }
+        } else if !port.runtime_subdirectory_by_platform.is_empty() {
+            crate::runtime::N64_PLATFORM_RUNTIME_SUBDIRECTORY_CAPABILITY
         } else if port.release.grant_declared_executable {
             crate::test_fixture::grant_declared_executable_capability(port)
         } else if port.portable_marker_file.is_some() {

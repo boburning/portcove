@@ -408,9 +408,11 @@ The same run timed out `reviewed_archive_transition_sonic_populated_install` at 
 360-second exact budget in a 862-second partition. That case has taken from
 149 to 300+ seconds on hosted Windows runners, so its exact override is now the
 600 seconds its family already has; its MMX2 and Super Metroid siblings stay at 420.
-MMX2 then reached that 420-second limit on both attempts of CI run 43253506018
-partition 6 (421.056 and 421.100 seconds, zero retries), so its exact override
-is now 600 seconds as well; Super Metroid stays at 420.
+Run 43244946189 attempt 1 then terminated
+`reviewed_archive_transition_mmx2_populated_install` at its 420-second exact
+budget (421.091 seconds, no failed assertion) in an 898-second Windows partition
+6, so MMX2 now also has 600 seconds (5s × 120) with zero retries; Super Metroid
+stays at 420. Every phase and assertion is unchanged.
 
 `service::native_portable::tests::ready_staged_archive_observed_lifecycle_cases`
 has an exact Windows override that went from 270 seconds (5s × 54) to

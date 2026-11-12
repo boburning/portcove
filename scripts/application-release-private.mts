@@ -285,22 +285,24 @@ function applicationWorkerControlOptions(waitMs = 120000) {
 }
 
 const metadataProtectionConsumers = {
-  metadata: ["releases / execute", "preview / execute", "stable / execute"],
-  snapshot: ["snapshot / execute"],
-  timestamp: ["timestamp / execute"],
+  "metadata-releases": "releases",
+  "metadata-preview": "preview",
+  "metadata-stable": "stable",
+  snapshot: "snapshot",
+  timestamp: "timestamp",
 } as const;
 
 function metadataProtectionPhase(phase: string): phase is keyof typeof metadataProtectionConsumers {
   return Object.hasOwn(metadataProtectionConsumers, phase);
 }
 
-export function metadataProtectionConsumersReady(
+export function metadataProtectionConsumerReady(
   current: ReturnType<typeof execution>,
   phase: keyof typeof metadataProtectionConsumers,
   body: unknown,
   next: string | null,
 ) {
-  const expected: readonly string[] = metadataProtectionConsumers[phase];
+  const expected = `${metadataProtectionConsumers[phase]} / execute`;
   assert.ok(
     !next &&
       isRecord(body) &&
@@ -309,14 +311,14 @@ export function metadataProtectionConsumersReady(
       body.total_count === body.jobs.length,
   );
   const seen = new Set<string>();
-  const ready = new Set<string>();
+  let ready = false;
   for (const job of body.jobs) {
     assert.ok(isRecord(job) && typeof job.name === "string" && !seen.has(job.name));
     seen.add(job.name);
     assert.equal(job.run_id, Number(current.run_id));
     assert.equal(job.run_attempt, current.run_attempt);
     assert.equal(job.head_sha, current.source);
-    if (!expected.includes(job.name)) continue;
+    if (job.name !== expected) continue;
     assert.notEqual(job.status, "completed", "metadata consumer settled before protection");
     assert.ok(Array.isArray(job.steps));
     if (
@@ -327,12 +329,12 @@ export function metadataProtectionConsumersReady(
           step.status === "in_progress",
       )
     )
-      ready.add(job.name);
+      ready = true;
   }
-  return ready.size === expected.length;
+  return ready;
 }
 
-async function waitForMetadataProtectionConsumers(
+async function waitForMetadataProtectionConsumer(
   current: ReturnType<typeof execution>,
   phase: keyof typeof metadataProtectionConsumers,
 ) {
@@ -343,7 +345,7 @@ async function waitForMetadataProtectionConsumers(
   });
   while (performance.now() < options.deadline) {
     const { body, next } = await provider.jobs(current.run_id, current.run_attempt, 1);
-    if (metadataProtectionConsumersReady(current, phase, body, next)) return;
+    if (metadataProtectionConsumerReady(current, phase, body, next)) return;
     await pause(2000);
   }
   throw new Error("metadata protection consumer wait exhausted");
@@ -453,6 +455,9 @@ async function guard(
       [
         "payload",
         "metadata",
+        "metadata-releases",
+        "metadata-preview",
+        "metadata-stable",
         "snapshot",
         "timestamp",
         "draft-recovery",
@@ -460,6 +465,14 @@ async function guard(
         "feed",
       ].includes(phase),
     );
+    if (phase.startsWith("metadata-")) {
+      assert.ok(
+        metadataProtectionPhase(phase) &&
+          source.purpose === "metadata-renewal" &&
+          source.execution_path === "metadata-maintenance" &&
+          process.argv[2] === `role-${metadataProtectionConsumers[phase]}`,
+      );
+    }
     const directory = path.resolve("work/application-protection");
     const name = `application-protection-${phase}-${current.run_id}-${attempt}`;
     const artifact = process.env.PORTCOVE_PROTECTION_ARTIFACT;
@@ -471,7 +484,7 @@ async function guard(
         source.purpose === "metadata-renewal" &&
         source.execution_path === "metadata-maintenance" &&
         metadataProtectionPhase(phase) &&
-        onlineRoles.some((role) => process.argv[2] === `role-${role}`);
+        process.argv[2] === `role-${metadataProtectionConsumers[phase]}`;
       if (waitsForObservation) {
         assert.equal(attempt, current.run_attempt);
         markStage?.("protection-receive");
@@ -3103,6 +3116,9 @@ async function observe() {
       [
         "payload",
         "metadata",
+        "metadata-releases",
+        "metadata-preview",
+        "metadata-stable",
         "snapshot",
         "timestamp",
         "draft-recovery",
@@ -3112,13 +3128,12 @@ async function observe() {
     );
     const token = process.env.PORTCOVE_OBSERVER_TOKEN;
     assert.ok(token && !/[\r\n\0]/u.test(token) && token.length <= 16384);
-    if (
-      source.purpose === "metadata-renewal" &&
-      source.execution_path === "metadata-maintenance" &&
-      metadataProtectionPhase(phase)
-    ) {
+    const renewalMaintenance =
+      source.purpose === "metadata-renewal" && source.execution_path === "metadata-maintenance";
+    if (phase.startsWith("metadata-")) assert.ok(renewalMaintenance);
+    if (renewalMaintenance && metadataProtectionPhase(phase)) {
       stage = "metadata-consumer-admission";
-      await waitForMetadataProtectionConsumers(current, phase);
+      await waitForMetadataProtectionConsumer(current, phase);
     }
     const observer = await createApplicationProtectionObservationReader({
       refToken: fixedReleaseReaderToken(),

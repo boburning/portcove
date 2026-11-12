@@ -313,6 +313,16 @@ wrapper, refuses archive links, and checks the selected Mach-O architecture.
 Launch and declared player data use the installed folder beside the app.
 Windows and Linux routes keep their creating working-directory contracts.
 
+Native portable capability 27 covers the stable OpenOMF Linux x86-64
+AppImage through `openomf-linux-v1`. Core checks the provider asset and keeps
+the AppImage intact under one stable executable name. The Linux launch checks
+the temporary mount and the actual OpenOMF configuration and state writers
+outside the managed library. It preserves the SDL preference fallback and
+checks only the OpenOMF leaves under explicit XDG roots. Paths must fit
+the player's fixed buffer, including the mount and generated filenames. Custom OpenOMF
+overrides or alternate resource sets use a separate prepared copy.
+The Windows route keeps its existing package and profile contract.
+
 Native portable capability 10 supports official sibling packages on an
 original-bound Native6 definition with `windows_temp_directory`. Every platform
 keeps the same verified original-file mapping and private profile namespace.
@@ -1940,6 +1950,10 @@ cross-version update/rollback, or non-Windows behavior. The exact identities,
 methods, and remaining boundaries are recorded in
 [`docs/qualification/dr-mario-64-recompiled-windows-2026-09-15.md`](qualification/dr-mario-64-recompiled-windows-2026-09-15.md).
 
+An N64 recompilation package whose wrapper folder differs by platform keeps the shared
+`runtime_subdirectory` for the platforms that use it and lists the others in
+`runtime_subdirectory_by_platform` (capability 6 of its adapter).
+
 Native portable archives normally derive the working directory from the unique
 exact declared player filename. Do not repeat an incidental dated wrapper in
 `runtime_subdirectory` when the player’s parent is the reviewed runtime root.
@@ -2438,6 +2452,26 @@ writes the `build-portcove` working coordinates, `--no-launcher`, overlay
 environment, owned save/settings/mod paths, and disposable diagnostic paths.
 It refuses duplicate fields. A different writer layout or setup contract
 needs the explicit form and applicable qualification.
+
+A `psx-raw-set` integration may declare `launch_disc_choice:
+"psx-settings-selected"` after source review shows that its runtime reads the
+1-based `[disc] selected` entry of the `settings.toml` beside the player and
+derives both the mounted disc and the save-state disc scope from it, as the
+PSXRecomp runtime documents for external launchers. The declaration needs the
+managed PS1 adapter, a runtime subdirectory and a persistent `settings.toml`.
+The retained source profile's disc count is then the launch disc choice that
+`status` reports as `readiness.selectable_discs`. A choice is written as that
+setting in the restored settings after every other launch check, changing only
+the `selected` value or adding that one line or a `[disc]` table, and is
+captured with the session
+like a choice made in the upstream launcher. Settings the editor cannot place
+exactly refuse the choice and leave the file unchanged. Portcove never passes
+`--disc`: the runtime then mounts that disc but keeps the previous save-state
+disc scope. Desktop's detail Play defaults to **Saved disc**, which sends no
+choice. Without the declaration, as for Final Fantasy VII whose prebuilt
+runtime has no reviewed source, no choice is offered. Because the field joins
+the retained operational identity, an existing installation keeps its retained
+definition and offers the choice only after it is reinstalled or updated.
 
 Reuse the PSX adapter’s preparation, preservation, and recovery evidence where
 the kit uses `psxrecomp/psxrecomp_cli.py` and the `psx-runtime` target, the same

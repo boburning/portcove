@@ -1,10 +1,14 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
+import * as picker from "../file-picker";
 import type { ModSetupsView } from "../types";
 import { ModSetupsControl } from "./ModSetupsControl";
 import "../styles/index.css";
+
+vi.mock("../file-picker", { spy: true });
 
 const mounted: { root: Root; host: HTMLElement }[] = [];
 afterEach(async () => {
@@ -386,4 +390,128 @@ it("words held updates with the locale's plural forms", async () => {
   } finally {
     await localization.changeLanguage("en");
   }
+});
+
+it("offers a copy on the current version only for a customized setup on another version", async () => {
+  const onBuild = (entry: ReturnType<typeof setup>, install_id: string) => ({
+    ...entry,
+    revision: { ...entry.revision, build: { install_id } },
+  });
+  const customized = view({
+    current_install_id: "v2",
+    inventory: {
+      port_id: "shipwright",
+      profiles: [
+        onBuild(setup("default", "Default", 3, [["hd.o2r", true]]), "v1"),
+        onBuild(setup("custom", "Custom", 2, [["hd.o2r", true]]), "v1"),
+      ],
+    },
+    live: {
+      profile_id: "custom",
+      revision: 2,
+      unmanaged: [],
+      changed_owned: [],
+      native_list: { state: "in-sync" },
+    },
+  } as unknown as Partial<ModSetupsView>);
+  const read = vi.spyOn(desktopApi, "modSetups").mockResolvedValue(customized);
+  const copy = vi
+    .spyOn(desktopApi, "copyModSetup")
+    .mockResolvedValue({} as Awaited<ReturnType<typeof desktopApi.copyModSetup>>);
+  const host = await render();
+  expect(host.textContent).toContain("stays on the game version it was made with");
+  await page.getByRole("textbox", { name: "New setup name" }).fill("Custom updated");
+  await act(async () => button(host, "Copy onto the current version").click());
+  expect(copy).toHaveBeenCalledWith("shipwright", "custom", "Custom updated", 7, true);
+  expect(host.querySelector("[role=status]")?.textContent).toContain(
+    "Created Custom updated on the game’s current version",
+  );
+
+  // The default setup follows updates, and a setup already on the current
+  // version needs no upgraded copy.
+  for (const live of ["default", "custom"]) {
+    read.mockResolvedValue({
+      ...customized,
+      current_install_id: live === "custom" ? "v1" : "v2",
+      live: { ...customized.live!, profile_id: live },
+    });
+    const again = await render();
+    expect(again.textContent).not.toContain("stays on the game version");
+    expect(
+      [...again.querySelectorAll("button")].some(
+        (candidate) => candidate.textContent === "Copy onto the current version",
+      ),
+    ).toBe(false);
+  }
+});
+
+it("asks before adding a mod that runs code and binds the choice to the reviewed file", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view({ package_types: ["nrm"] }));
+  vi.mocked(picker.pickModPackagePath).mockResolvedValue("/mods/timer.nrm");
+  const review = vi.spyOn(desktopApi, "reviewModPackageCode").mockResolvedValue({
+    native_id: "speedrun_timer",
+    display_name: "Speedrun Timer",
+    runs: ["recompiled_code"],
+    sha256: "b".repeat(64),
+    already_allowed: false,
+  });
+  const add = vi
+    .spyOn(desktopApi, "addModPackage")
+    .mockResolvedValue({} as Awaited<ReturnType<typeof desktopApi.addModPackage>>);
+  const host = await render();
+  await act(async () => button(host, "Add mod file…").click());
+  expect(review).toHaveBeenCalledWith("shipwright", "/mods/timer.nrm", 7);
+  expect(add).not.toHaveBeenCalled();
+  expect(host.textContent).toContain(
+    "Speedrun Timer (speedrun_timer) runs its own code inside the game",
+  );
+  expect(host.textContent).toContain("(speedrun_timer)");
+  expect([...host.querySelectorAll("code[dir=ltr]")].map((code) => code.textContent)).toContain(
+    "b".repeat(64),
+  );
+
+  // Declining adds nothing.
+  await act(async () => button(host, "Don’t add").click());
+  expect(add).not.toHaveBeenCalled();
+  expect(host.textContent).not.toContain("runs its own code");
+
+  await act(async () => button(host, "Add mod file…").click());
+  await act(async () => button(host, "Allow its code and add").click());
+  expect(add).toHaveBeenCalledWith(
+    "shipwright",
+    "default",
+    "/mods/timer.nrm",
+    3,
+    7,
+    "b".repeat(64),
+  );
+});
+
+it("adds a mod without code, or code allowed before, without asking", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view({ package_types: ["nrm"] }));
+  vi.mocked(picker.pickModPackagePath).mockResolvedValue("/mods/ui.nrm");
+  const review = vi.spyOn(desktopApi, "reviewModPackageCode").mockResolvedValue(null);
+  const add = vi
+    .spyOn(desktopApi, "addModPackage")
+    .mockResolvedValue({} as Awaited<ReturnType<typeof desktopApi.addModPackage>>);
+  const host = await render();
+  await act(async () => button(host, "Add mod file…").click());
+  expect(add).toHaveBeenLastCalledWith("shipwright", "default", "/mods/ui.nrm", 3, 7, null);
+  review.mockResolvedValue({
+    native_id: "speedrun_timer",
+    display_name: "Speedrun Timer",
+    runs: ["recompiled_code"],
+    sha256: "c".repeat(64),
+    already_allowed: true,
+  });
+  await act(async () => button(host, "Add mod file…").click());
+  expect(add).toHaveBeenLastCalledWith(
+    "shipwright",
+    "default",
+    "/mods/ui.nrm",
+    3,
+    7,
+    "c".repeat(64),
+  );
+  expect(host.textContent).not.toContain("runs its own code");
 });

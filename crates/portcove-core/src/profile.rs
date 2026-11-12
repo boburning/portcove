@@ -244,6 +244,16 @@ impl PortcoveService {
         source_profile_id: &str,
         display_name: &str,
     ) -> Result<Profile> {
+        self.copy_profile_with(port_id, source_profile_id, display_name, false)
+    }
+
+    fn copy_profile_with(
+        &self,
+        port_id: &str,
+        source_profile_id: &str,
+        display_name: &str,
+        onto_current_build: bool,
+    ) -> Result<Profile> {
         let _guard = self.library.try_lock_port(port_id, "copy-profile")?;
         let connection = self.library.connection()?;
         let source = profile_from(&connection, port_id, source_profile_id)?;
@@ -253,16 +263,36 @@ impl PortcoveService {
                 "this port has the maximum number of profiles",
             ));
         }
+        let install_id = if onto_current_build {
+            active_install_id(&connection, port_id)?.ok_or_else(|| {
+                PortcoveError::state("the game has no current installation to copy the setup onto")
+            })?
+        } else {
+            revision.build.install_id.clone()
+        };
         let mut profile = new_profile(port_id, display_name, false);
         profile.intent = source.intent.clone();
         self.publish_new_profile(
             &profile,
-            &revision.build.install_id,
-            self.verified_retained_build(port_id, &revision.build.install_id)?,
+            &install_id,
+            self.verified_retained_build(port_id, &install_id)?,
             revision.originals.clone(),
             Some(&revision),
             None,
         )
+    }
+
+    /// Like [`Self::copy_profile`], but the copy uses the game's current build.
+    /// A customized setup stays on its exact build; this upgraded copy lets the
+    /// player try the same mods on the newer build without changing or losing
+    /// the original, which keeps its build, revisions and progress.
+    pub fn copy_profile_onto_current_build(
+        &self,
+        port_id: &str,
+        source_profile_id: &str,
+        display_name: &str,
+    ) -> Result<Profile> {
+        self.copy_profile_with(port_id, source_profile_id, display_name, true)
     }
 
     /// Appends a successor revision. Stale callers, missing builds and unreviewed
@@ -323,6 +353,10 @@ impl PortcoveService {
         };
         // A revision the game could not load unambiguously is never recorded.
         crate::profile_deploy::require_projectable(port_id, &next)?;
+        // Mod code the player has not allowed is never recorded as a setup to run.
+        if let Ok(layout) = self.deploy_layout(port_id) {
+            crate::profile_deploy::require_code_allowed(&layout, &next)?;
+        }
         seal(&mut next)?;
         let mut connection = self.library.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -925,7 +959,7 @@ pub(crate) fn verify_migration(connection: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn active_install_id(connection: &Connection, port_id: &str) -> Result<Option<String>> {
+pub(crate) fn active_install_id(connection: &Connection, port_id: &str) -> Result<Option<String>> {
     Ok(connection
         .query_row(
             "SELECT active_install_id FROM port_settings WHERE port_id=?1",

@@ -10,6 +10,10 @@
 
 Use these exact strings when an engineering skill names a triage role.
 
+The `beta-feedback` label marks a player friction report from the beta feedback
+form. It is a report type, not a triage role; triage follows
+[beta feedback and triage](../ROADMAP.md#beta-feedback-and-triage).
+
 Labels are supplementary annotations. Missing labels do not establish missing
 triage or unfinished work. `ready-for-agent` describes specification completeness;
 execution still follows the live Project and [pickup contract](../PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).

@@ -248,7 +248,7 @@ impl InstallQualification {
             requires_tar_xz: port.release.requires_tar_xz(platform),
             native_mac_bundle_tar_xz: crate::runtime::native_mac_bundle_tar_xz(port, platform),
             executable_hints,
-            runtime_subdirectory: port.runtime_subdirectory.clone(),
+            runtime_subdirectory: port.runtime_subdirectory_for(platform).map(str::to_owned),
             external_profile_policy: port.external_profile_policy,
             persistent_paths: crate::persistence::declared_paths(port, platform).to_vec(),
             persistent_file_patterns: port.persistent_file_patterns.clone(),
@@ -1326,7 +1326,8 @@ impl Installer {
             }
             if let Some(
                 policy @ (crate::ExternalProfilePolicy::CorsixthLinuxV1
-                | crate::ExternalProfilePolicy::OpenlocoUnixV1),
+                | crate::ExternalProfilePolicy::OpenlocoUnixV1
+                | crate::ExternalProfilePolicy::OpenomfLinuxV1),
             ) = port.external_profile_policy
                 && crate::native_external_profile::applies_to(
                     policy,

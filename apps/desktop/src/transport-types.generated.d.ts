@@ -340,7 +340,8 @@ export type ExternalProfilePolicy =
   | "z2rs-desktop-v1"
   | "recomp-direct-v1"
   | "doom3-linux-v1"
-  | "openjk-unix-v1";
+  | "openjk-unix-v1"
+  | "openomf-linux-v1";
 export type GameSettingsFormat = "json" | "ini";
 export type GameSettingType =
   | {
@@ -366,6 +367,10 @@ export type GameSettingType =
       default: unknown;
       kind: "enum";
     };
+/**
+ * How a managed multi-disc runtime accepts a launch-time disc choice.
+ */
+export type LaunchDiscChoice = "psx-settings-selected";
 /**
  * Closed initialization recipes, never catalog-supplied scripts or file contents.
  */
@@ -735,6 +740,10 @@ export type CapabilityFeature =
   | "save-compatibility";
 export type PendingSetupState = "downloaded" | "attention-required";
 export type OutputListingStatuses = PortListingStatus[];
+/**
+ * What the package would run on the player's machine if enabled.
+ */
+export type RecompExecution = "recompiled_code" | "native_libraries" | "external_code";
 export type RetainedBuildAvailability = "verified" | "missing" | "changed" | "held" | "unavailable";
 export type OriginalAvailability = "verified" | "missing" | "changed";
 /**
@@ -802,6 +811,37 @@ export type OutputDestinationOwnership =
   | "invalid"
   | "unknown";
 export type OutputPendingSetups = PendingSetupRecord[];
+/**
+ * Why an export or import cannot proceed as reviewed.
+ */
+export type PortableSaveBlocker =
+  | "unqualified"
+  | "not-installed"
+  | "unsupported-version"
+  | "unsupported-platform"
+  | "version-mismatch"
+  | "different-game"
+  | "busy"
+  | "no-portable-progress"
+  | "conflict-needs-choice"
+  | "already-current";
+/**
+ * Role of one entry in a canonical player-data root.
+ */
+export type PersistentDataRole =
+  | "mods"
+  | "portable-progress"
+  | "device-configuration"
+  | "generated-content"
+  | "original-derived"
+  | "local-player-data"
+  | "portcove-metadata"
+  | "unknown";
+export type PortableSaveFileEffect = ("add" | "replace" | "unchanged") | "remove" | "keep-local";
+/**
+ * How incoming progress relates to this device's progress, by content only.
+ */
+export type PortableSaveRelation = ("no-local-progress" | "already-current") | "continues" | "diverged";
 /**
  * How current an observation is. A confirmed empty result is `Fresh`; an outage
  * that falls back to earlier data is `Stale`, never an empty list.
@@ -1119,6 +1159,7 @@ export interface TransportOutputs {
   live_mods: LiveMods;
   managed_route_change_preview: OutputManagedRouteChangePreview;
   managed_route_change_result: OutputManagedRouteChangeResult;
+  mod_code_review: OutputModCodeReview;
   mod_setups_view: OutputModSetupsView;
   official_catalog_review: OfficialCatalogReview;
   official_catalog_setup: OutputOfficialCatalogSetup;
@@ -1133,6 +1174,10 @@ export interface TransportOutputs {
   port_output_location: PortOutputLocation;
   port_paths: OutputPortPaths;
   port_removal_preview: OutputPortRemovalPreview;
+  portable_save_export_preview: OutputPortableSaveExportPreview;
+  portable_save_export_result: OutputPortableSaveExportResult;
+  portable_save_import_preview: OutputPortableSaveImportPreview;
+  portable_save_import_result: OutputPortableSaveImportResult;
   preparation_cleanup_preview: OutputPreparationCleanupPreview;
   preparation_options: PreparationOptions;
   preparation_plan: OutputPreparationPlan;
@@ -1624,6 +1669,11 @@ export interface LaunchReadiness {
    */
   required_source_extension?: string | null;
   /**
+   * Discs a player may choose at launch, from the effective contract of a
+   * Portcove-managed multi-disc installation. Absent for every other route.
+   */
+  selectable_discs?: number | null;
+  /**
    * Mechanical explanation from the effective (possibly retained) contract.
    */
   setup_contract?: SetupExplanation | null;
@@ -1998,6 +2048,11 @@ export interface PortDefinition {
   game_settings?: GameSettingsContract | null;
   id: string;
   launch_arguments: string[];
+  /**
+   * Reviewed way a managed multi-disc runtime accepts the disc to start.
+   * Without it, Portcove offers no disc choice at launch.
+   */
+  launch_disc_choice?: LaunchDiscChoice | null;
   launch_environment: {
     [k: string]: string;
   };
@@ -2076,6 +2131,17 @@ export interface PortDefinition {
   runtime_source_materialization: RuntimeSourceMaterialization | null;
   runtime_source_set: RuntimeSourceTarget[];
   runtime_subdirectory: string | null;
+  /**
+   * Per-platform runtime subdirectories for packages whose wrapper folder is named differently
+   * on each platform; a listed platform replaces `runtime_subdirectory`. Requires
+   * n64-recomp-portable capability 6.
+   */
+  runtime_subdirectory_by_platform?: {
+    "linux-x86-64"?: string;
+    "macos-aarch64"?: string;
+    "macos-x86-64"?: string;
+    "windows-x86-64"?: string;
+  };
   setup_arguments: string[];
   setup_executable_hints: {
     "linux-x86-64"?: string[];
@@ -4312,10 +4378,38 @@ export interface OutputManagedRouteChangeResult {
   [k: string]: unknown;
 }
 /**
+ * What a mod package would run, shown before the player allows its code.
+ */
+export interface OutputModCodeReview {
+  /**
+   * True when these bytes were already allowed in this library.
+   */
+  already_allowed: boolean;
+  /**
+   * The name the mod gives itself; a claim, not verified.
+   */
+  display_name: string;
+  /**
+   * The loader's identity for the mod.
+   */
+  native_id: string;
+  runs: RecompExecution[];
+  /**
+   * The exact bytes any consent covers.
+   */
+  sha256: string;
+  [k: string]: unknown;
+}
+/**
  * Everything a game-level mods view needs in one read: whether the game has a
  * reviewed mod contract, its setups and what is live now. Read-only.
  */
 export interface OutputModSetupsView {
+  /**
+   * The game's current installation. A setup whose build differs stays on
+   * its own build; an upgraded copy can use this one.
+   */
+  current_install_id?: string | null;
   /**
    * Unattended provider updates waiting for the player's review, for each
    * setup's current revision.
@@ -4504,6 +4598,127 @@ export interface OutputPortRemovalPreview {
   persistent_data_will_be_preserved: boolean;
   port_id: string;
   preview_sha256: string;
+  [k: string]: unknown;
+}
+export interface OutputPortableSaveExportPreview {
+  base_sha256?: string | null;
+  blockers: PortableSaveBlocker[];
+  content_sha256?: string | null;
+  /**
+   * Exactly the files the export would contain.
+   */
+  files: PortableSaveFile[];
+  identity?: PortableSaveIdentity | null;
+  port_id: string;
+  /**
+   * Everything else in the game's player-data folder, which stays here.
+   */
+  stays_local: LocalDataEntry[];
+  [k: string]: unknown;
+}
+export interface PortableSaveFile {
+  /**
+   * Relative path inside the game's player-data folder, `/` separated.
+   */
+  path: string;
+  sha256: string;
+  size: number;
+  [k: string]: unknown;
+}
+/**
+ * Exact identity of one side of a portable-save transfer.
+ */
+export interface PortableSaveIdentity {
+  contract_id: string;
+  platform: Platform;
+  port_id: string;
+  /**
+   * Installed game version that produced or will read the progress.
+   */
+  version: string;
+  [k: string]: unknown;
+}
+/**
+ * An entry that stays on this device, with the reason it does not move.
+ */
+export interface LocalDataEntry {
+  directory: boolean;
+  path: string;
+  role: PersistentDataRole;
+  [k: string]: unknown;
+}
+export interface OutputPortableSaveExportResult {
+  base_sha256?: string | null;
+  content_sha256: string;
+  files: PortableSaveFile[];
+  identity: PortableSaveIdentity;
+  path: string;
+  [k: string]: unknown;
+}
+export interface OutputPortableSaveImportPreview {
+  blockers: PortableSaveBlocker[];
+  changes: PortableSaveFileChange[];
+  destination?: PortableSaveIdentity | null;
+  incoming_content_sha256: string;
+  local_content_sha256?: string | null;
+  options: PortableSaveImportOptions;
+  port_id: string;
+  preview_sha256: string;
+  relation: PortableSaveRelation;
+  /**
+   * Current player data is copied to a backup before anything changes.
+   */
+  safety_backup_will_be_created: boolean;
+  source: PortableSaveIdentity;
+  stays_local: LocalDataEntry[];
+  [k: string]: unknown;
+}
+export interface PortableSaveFileChange {
+  effect: PortableSaveFileEffect;
+  incoming?: PortableSaveFile | null;
+  local?: PortableSaveFile | null;
+  path: string;
+  [k: string]: unknown;
+}
+/**
+ * Explicit player choices bound into the reviewed import.
+ */
+export interface PortableSaveImportOptions {
+  /**
+   * Remove local save slots that are absent from the incoming progress.
+   */
+  remove_local_only_saves: boolean;
+  /**
+   * Replace diverged local progress. Local progress is still kept in the
+   * safety backup and the incoming progress in its own snapshot.
+   */
+  replace_diverged_progress: boolean;
+  [k: string]: unknown;
+}
+export interface OutputPortableSaveImportResult {
+  content_sha256: string;
+  import_snapshot: BackupRecord1;
+  /**
+   * Snapshot of this device's data from immediately before the import.
+   */
+  safety_backup?: BackupRecord | null;
+  [k: string]: unknown;
+}
+/**
+ * Snapshot holding the imported state; restorable like any backup.
+ */
+export interface BackupRecord1 {
+  /**
+   * Present only for snapshots Portcove took automatically.
+   */
+  automatic?: AutomaticSnapshotLabel | null;
+  created_at: number;
+  file_count: number;
+  id: string;
+  path: string;
+  port_id: string;
+  sha256: string;
+  size: number;
   [k: string]: unknown;
 }
 /**

@@ -21,7 +21,7 @@ pub(crate) fn validate_shipwright_persistence(port: &PortDefinition) -> Result<(
             || !port.release.user_prepared.is_empty()
             || !port.release.managed_build.is_empty()
             || crate::preparation::managed(port)
-            || port.runtime_subdirectory.is_some()
+            || port.declares_runtime_subdirectory()
             || port.launch_from_install_root
             || !port.launch_arguments.is_empty()
             || !port.launch_environment.is_empty()
@@ -251,12 +251,14 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         launch_environment,
         launch_arguments,
         runtime_subdirectory,
+        runtime_subdirectory_by_platform,
         runtime_source_filename,
         runtime_source_materialization,
         runtime_source_hashes,
         runtime_disc_image,
         optional_game_source,
         runtime_source_set,
+        launch_disc_choice,
         launch_from_install_root,
         setup_executable_hints,
         setup_arguments,
@@ -299,6 +301,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         "launch_environment": launch_environment,
         "launch_arguments": launch_arguments,
         "runtime_subdirectory": runtime_subdirectory,
+        "runtime_subdirectory_by_platform": runtime_subdirectory_by_platform,
         "runtime_source_filename": runtime_source_filename,
         "runtime_source_materialization": runtime_source_materialization,
         "runtime_source_hashes": runtime_source_hashes,
@@ -319,6 +322,10 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
     // Likewise, disc-image unpacking limits and game identifiers join only when declared.
     if let Some(image) = runtime_disc_image {
         compatibility["runtime_disc_image"] = serde_json::json!(image);
+    }
+    // A launch disc choice changes what launch writes, so it joins when declared.
+    if let Some(choice) = launch_disc_choice {
+        compatibility["launch_disc_choice"] = serde_json::json!(choice);
     }
     if *optional_game_source {
         compatibility["optional_game_source"] = serde_json::json!(true);
