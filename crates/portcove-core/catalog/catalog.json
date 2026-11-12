@@ -40082,7 +40082,8 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -40093,6 +40094,9 @@
           ],
           "linux-x86-64": [
             "opencmr2-linux-x86_64.tar.gz"
+          ],
+          "macos-aarch64": [
+            "opencmr2-macos-arm64.zip"
           ]
         }
       },
@@ -40101,6 +40105,9 @@
           "opencmr2.exe"
         ],
         "linux-x86-64": [
+          "opencmr2"
+        ],
+        "macos-aarch64": [
           "opencmr2"
         ]
       },
@@ -40114,7 +40121,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Select your installed original Colin McRae Rally 2.0 game folder when OpenCMR2 asks on first launch. The supported original files can stay outside the managed runtime. An optional Data folder beside the executable is carried between compatible versions. OpenCMR2 normally keeps saves, settings and logs in AppData/OpenCMR2, outside Portcove backups. Declared Data and in-folder fallback opencmr2.ini/opencmr2.log are retained when present. The upstream game owns edition checks and its storage resolver; Portcove replaces the package only. Existing external installations keep their files and update ownership. Play has not been tested through Portcove. The declared SaveGame folder also preserves the upstream user-directory fallback. If preference storage fails or custom launch paths create other files in the runtime, keep the current copy and review those exact paths before replacement; use external registration for custom storage. Linux normally uses ~/.local/share/OpenCMR2. Keep the packaged libSDL3.so.0 beside opencmr2; the game needs that companion library. Play has not been tested through Portcove on Linux.",
+        "manual_preparation": "Select your installed original Colin McRae Rally 2.0 game folder when OpenCMR2 asks on first launch. The supported original files can stay outside the managed runtime. An optional Data folder beside the executable is carried between compatible versions. OpenCMR2 normally keeps saves, settings and logs in AppData/OpenCMR2 on Windows, or in its SDL preference folder (~/Library/Application Support/OpenCMR2 on a Mac), outside Portcove backups. The Apple silicon player needs macOS 11 or later and keeps its libSDL3 library beside it. Declared Data and in-folder fallback opencmr2.ini/opencmr2.log are retained when present. The upstream game owns edition checks and its storage resolver; Portcove replaces the package only. Existing external installations keep their files and update ownership. Play has not been tested through Portcove. The declared SaveGame folder also preserves the upstream user-directory fallback. If preference storage fails or custom launch paths create other files in the runtime, keep the current copy and review those exact paths before replacement; use external registration for custom storage. Linux normally uses ~/.local/share/OpenCMR2. Keep the packaged libSDL3.so.0 beside opencmr2; the game needs that companion library. Play has not been tested through Portcove on Linux.",
         "original_game_title": "Colin McRae Rally 2.0",
         "manual_setup": {
           "steps": [
@@ -52646,7 +52653,9 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -52659,6 +52668,14 @@
           "linux-x86-64": [
             "openreliant-",
             "-linux-x86_64.tar.gz"
+          ],
+          "macos-x86-64": [
+            "openreliant-",
+            "-macos-x86_64.tar.gz"
+          ],
+          "macos-aarch64": [
+            "openreliant-",
+            "-macos-aarch64.tar.gz"
           ]
         }
       },
@@ -52667,6 +52684,12 @@
           "openreliant.exe"
         ],
         "linux-x86-64": [
+          "openreliant"
+        ],
+        "macos-x86-64": [
+          "openreliant"
+        ],
+        "macos-aarch64": [
           "openreliant"
         ]
       },
@@ -52677,7 +52700,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Follow the linked installation guide to run openreliant.exe install StarLancer yourself from the player folder, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration. The declared StarLancer folder contains original game assets, campaign saves, starlancer.ini and openreliant.log. It is retained during compatible runtime replacement and backup. Keep another copy of the original media. A game installed elsewhere or custom launch arguments can use external registration; such external data is outside Portcove backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. On Linux, run ./openreliant install StarLancer yourself from the player folder with your own discs/images and upstream’s --from options. Play finds the resulting declared StarLancer folder. sltool is a helper, not the player. External or custom installed data remains outside backup. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
+        "manual_preparation": "Follow the linked installation guide to run openreliant.exe install StarLancer (./openreliant install StarLancer on Linux or a Mac) yourself from the player folder, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration. The Mac players need macOS 15 or later. The declared StarLancer folder contains original game assets, campaign saves, starlancer.ini and openreliant.log. It is retained during compatible runtime replacement and backup. Keep another copy of the original media. A game installed elsewhere or custom launch arguments can use external registration; such external data is outside Portcove backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. On Linux, run ./openreliant install StarLancer yourself from the player folder with your own discs/images and upstream’s --from options. Play finds the resulting declared StarLancer folder. sltool is a helper, not the player. External or custom installed data remains outside backup. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
         "original_game_title": "Starlancer",
         "manual_setup": {
           "steps": [
