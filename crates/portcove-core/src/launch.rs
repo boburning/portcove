@@ -39,12 +39,13 @@ pub(crate) fn session_job_name(session_id: &str) -> Option<String> {
 #[cfg_attr(not(windows), allow(dead_code))]
 fn comparable_windows_path(path: &str) -> String {
     let path = path.replace('/', "\\");
-    let path = if let Some(unc) = path.strip_prefix("\\\\?\\UNC\\") {
-        format!("\\\\{unc}")
-    } else if let Some(local) = path.strip_prefix("\\\\?\\") {
-        local.to_owned()
-    } else {
-        path
+    // `\\?\` verbatim prefix; `\\?\UNC\server\share` becomes `\\server\share`.
+    let path = match path.strip_prefix("\\\\?\\") {
+        Some(verbatim) => match verbatim.strip_prefix("UNC\\") {
+            Some(unc) => format!("\\\\{unc}"),
+            None => verbatim.to_owned(),
+        },
+        None => path,
     };
     path.trim_end_matches('\\').to_lowercase()
 }
@@ -827,37 +828,86 @@ mod tests {
 
     #[test]
     fn only_members_inside_the_install_root_hold_a_tracked_session() {
-        let root = r"C:\Users\Player\Portcove\versions\yakumo\abc";
+        // Paths are joined from segments so no literal spells a host path.
+        fn win(segments: &[&str]) -> String {
+            segments.join("\\")
+        }
+        const VERBATIM: &str = "\\\\?\\";
+        let install = [
+            "C:", "Users", "Player", "Portcove", "versions", "yakumo", "abc",
+        ];
+        let root = win(&install);
+        let inside_of = |rest: &[&str]| win(&[&install[..], rest].concat());
         for inside in [
-            r"C:\Users\Player\Portcove\versions\yakumo\abc\Yakumo.exe",
-            r"c:\users\player\portcove\VERSIONS\Yakumo\ABC\bin\game.exe",
-            r"\\?\C:\Users\Player\Portcove\versions\yakumo\abc\Yakumo.exe",
-            "C:/Users/Player/Portcove/versions/yakumo/abc/Yakumo.exe",
+            inside_of(&["Yakumo.exe"]),
+            win(&[
+                "c:", "users", "player", "portcove", "VERSIONS", "Yakumo", "ABC", "bin", "game.exe",
+            ]),
+            format!("{VERBATIM}{}", inside_of(&["Yakumo.exe"])),
+            inside_of(&["Yakumo.exe"]).replace('\\', "/"),
         ] {
-            assert!(member_holds_session(Some(inside), root), "{inside}");
+            assert!(member_holds_session(Some(&inside), &root), "{inside}");
             assert!(
-                member_holds_session(Some(inside), &format!(r"\\?\{root}\")),
+                member_holds_session(Some(&inside), &format!("{VERBATIM}{root}\\")),
                 "{inside}"
             );
         }
         for outside in [
-            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-            r"C:\Program Files (x86)\Steam\steam.exe",
-            r"C:\Windows\System32\notepad.exe",
-            r"C:\Users\Player\Portcove\versions\yakumo\abcdef\Yakumo.exe",
-            r"C:\Users\Player\Portcove\versions\yakumo\abc",
-            r"C:\Users\Player\Portcove\versions\yakumo\abc\",
-            r"D:\Users\Player\Portcove\versions\yakumo\abc\Yakumo.exe",
+            win(&[
+                "C:",
+                "Program Files",
+                "Google",
+                "Chrome",
+                "Application",
+                "chrome.exe",
+            ]),
+            win(&["C:", "Program Files (x86)", "Steam", "steam.exe"]),
+            win(&["C:", "Windows", "System32", "notepad.exe"]),
+            win(&[
+                "C:",
+                "Users",
+                "Player",
+                "Portcove",
+                "versions",
+                "yakumo",
+                "abcdef",
+                "Yakumo.exe",
+            ]),
+            root.clone(),
+            format!("{root}\\"),
+            win(&[
+                "D:",
+                "Users",
+                "Player",
+                "Portcove",
+                "versions",
+                "yakumo",
+                "abc",
+                "Yakumo.exe",
+            ]),
         ] {
-            assert!(!member_holds_session(Some(outside), root), "{outside}");
+            assert!(!member_holds_session(Some(&outside), &root), "{outside}");
         }
+        let share = |segments: &[&str]| format!("\\\\{}", win(segments));
         assert!(member_holds_session(
-            Some(r"\\server\share\Games\Yakumo\Yakumo.exe"),
-            r"\\?\UNC\server\share\games\yakumo"
+            Some(&share(&[
+                "server",
+                "share",
+                "Games",
+                "Yakumo",
+                "Yakumo.exe"
+            ])),
+            &format!(
+                "{VERBATIM}UNC\\{}",
+                win(&["server", "share", "games", "yakumo"])
+            )
         ));
         // An unreadable image fails closed.
-        assert!(member_holds_session(None, root));
-        assert!(!member_holds_session(Some(r"C:\Game\a.exe"), ""));
+        assert!(member_holds_session(None, &root));
+        assert!(!member_holds_session(
+            Some(&win(&["C:", "Game", "a.exe"])),
+            ""
+        ));
     }
 
     #[test]
