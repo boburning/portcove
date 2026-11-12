@@ -2195,7 +2195,7 @@ function installedPlayPresentation(launchReady: boolean, trial: boolean, pending
   };
 }
 
-/** The disc choice that adds no `--disc` override. */
+/** The disc choice that keeps the game's saved disc. */
 const SAVED_DISC = "saved";
 
 function InstalledPlayActions({
@@ -2221,8 +2221,8 @@ function InstalledPlayActions({
   busy?: string | undefined;
   actions: DetailActions;
 }) {
-  // Ephemeral per-view choice: Core receives it with this launch only. The
-  // default sends no disc, so the game starts the disc it saved itself.
+  // Per-view choice: Core records it as the game's own saved disc when this
+  // launch starts. The default sends no disc, so the game starts its saved disc.
   const [disc, setDisc] = useState(SAVED_DISC);
   const offerDiscs = selectableDiscs > 1;
   const discChoice =

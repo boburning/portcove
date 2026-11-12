@@ -1753,7 +1753,7 @@ struct LaunchSupervisorRequest {
     port_id: String,
     source: Option<PathBuf>,
     arguments: Vec<String>,
-    /// Ephemeral managed multi-disc choice; Core validates it.
+    /// Managed multi-disc choice; Core validates and records it.
     #[serde(default)]
     disc: Option<u32>,
 }

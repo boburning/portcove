@@ -1384,14 +1384,15 @@ A port may transactionally materialize a catalog-declared runtime source through
 `exec` forwards arguments after `--` literally only to native executables. A cataloged Windows `.bat` or `.cmd` launcher crosses an implicit `cmd.exe` boundary, so Portcove rejects caller-supplied arguments for that launch kind and permits only fixed catalog arguments that pass the batch metacharacter policy. The same core process policy removes GitHub and credential-shaped environment variables from games and every third-party setup, validation, conversion, and builder process while retaining the reviewed host/session variables required for graphics, audio, locale, profile paths, Steam/Proton, Wine, and executable discovery. Native games run in a supervised process group. Ctrl-C, plus SIGTERM on Unix, is forwarded to that group; the CLI keeps supervising until the child exits and exact-install save collection finishes.
 
 `exec --disc N` starts disc N (1-based) of a Portcove-managed multi-disc PS1
-installation for this launch only. Core takes the disc count from the
-installation's retained contract and reports it as `readiness.selectable_discs`
-in `status`; that field is absent for every other route. Core appends the
-literal `--disc <absolute runtime-discs/disc-NN.cue>` pair after the fixed
-launch arguments. It refuses an out-of-range number (`usage`), another route or
-external registration (`unsupported`) and a missing materialized disc
-(`launch`). Without `--disc` nothing is added and the runtime starts its
-saved disc. The choice is not stored.
+installation whose definition declares a reviewed launch disc choice. Core
+takes the disc count from the installation's retained contract and reports it
+as `readiness.selectable_discs` in `status`; that field is absent for every
+other route. Core records the choice as the game's own `[disc] selected`
+setting just before the start, so it also becomes the game's saved disc and its
+save states are kept for that disc. No argument is added for the game. It
+refuses an out-of-range number (`usage`), another route or external
+registration (`unsupported`), and a missing materialized disc or settings it
+cannot edit exactly (`launch`). Without `--disc` the game starts its saved disc.
 
 External launchers can supply a fresh UUID before starting the raw-stream CLI and
 observe it from another process:

@@ -225,17 +225,6 @@ impl PortcoveService {
             },
             &checkpoint,
         )?;
-        if let Some(disc) = disc {
-            // Count from the retained contract; the disc files were hash-checked
-            // with the other critical paths by `verify_critical` above.
-            spec.arguments
-                .extend(crate::adapter::managed_psx_disc_arguments(
-                    &catalog,
-                    port,
-                    &spec.working_directory,
-                    disc,
-                )?);
-        }
         if active.port_id == "ghostship" && active.version == "2.0.0" && !spec.arguments.is_empty()
         {
             return Err(PortcoveError::verification(
@@ -257,6 +246,13 @@ impl PortcoveService {
         self.refresh_upstream_setup_manifest(port, active, &spec.working_directory)?;
         crate::preparation::require_manual_setup(port, active)?;
         checkpoint()?;
+        if let Some(disc) = disc {
+            // Last, after every refusal: the count comes from the retained
+            // contract, and the disc files were hash-checked with the other
+            // critical paths by `verify_critical` above. The choice lands in the
+            // restored settings, so a failed start is undone by the next restore.
+            crate::adapter::record_managed_psx_disc_choice(&catalog, port, &spec, disc)?;
+        }
         if let (true, Some(operation), Some(events)) = (disc_reported.get(), operation, events) {
             // Preparation is over and the game starts next: supersede the last
             // unpacking step so an observer does not keep showing it while the

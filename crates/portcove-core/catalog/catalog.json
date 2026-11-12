@@ -29175,6 +29175,7 @@
       },
       "bios_source_profile": "psx-scph-1001-bios",
       "runtime_source_filename": "runtime-discs",
+      "launch_disc_choice": "psx-settings-selected",
       "runtime_source_materialization": "psx-raw-set"
     },
     {
@@ -32232,6 +32233,7 @@
       },
       "bios_source_profile": "psx-scph-1001-bios",
       "runtime_source_filename": "runtime-discs",
+      "launch_disc_choice": "psx-settings-selected",
       "runtime_source_materialization": "psx-raw-set"
     },
     {
@@ -33913,6 +33915,7 @@
       },
       "bios_source_profile": "psx-scph-1001-bios",
       "runtime_source_filename": "runtime-discs",
+      "launch_disc_choice": "psx-settings-selected",
       "runtime_source_materialization": "psx-raw-set"
     },
     {

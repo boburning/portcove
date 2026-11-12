@@ -2392,12 +2392,22 @@ environment, owned save/settings/mod paths, and disposable diagnostic paths.
 It refuses duplicate fields. A different writer layout or setup contract
 needs the explicit form and applicable qualification.
 
-For a `psx-raw-set` source, the retained source profile's disc count is the
-launch disc choice that `status` reports as `readiness.selectable_discs`. A
-one-launch choice appends `--disc` with the absolute `runtime-discs/disc-NN.cue`
-beneath `build-portcove`; omitting it keeps `--no-launcher` and the runtime's
-saved disc unchanged. Desktop's detail Play defaults to **Saved disc**, which
-sends no choice, and offers each disc as an explicit override.
+A `psx-raw-set` integration may declare `launch_disc_choice:
+"psx-settings-selected"` after source review shows that its runtime reads the
+1-based `[disc] selected` entry of the `settings.toml` beside the player and
+derives both the mounted disc and the save-state disc scope from it, as the
+PSXRecomp runtime documents for external launchers. The declaration needs the
+managed PS1 adapter, a runtime subdirectory and a persistent `settings.toml`.
+The retained source profile's disc count is then the launch disc choice that
+`status` reports as `readiness.selectable_discs`. A choice is written as that
+setting in the restored settings after every other launch check, changing only
+the `selected` value or adding that one line, and is captured with the session
+like a choice made in the upstream launcher. Settings the editor cannot place
+exactly refuse the choice and leave the file unchanged. Portcove never passes
+`--disc`: the runtime then mounts that disc but keeps the previous save-state
+disc scope. Desktop's detail Play defaults to **Saved disc**, which sends no
+choice. Without the declaration, as for Final Fantasy VII whose prebuilt
+runtime has no reviewed source, no choice is offered.
 
 Reuse the PSX adapter’s preparation, preservation, and recovery evidence where
 the kit uses `psxrecomp/psxrecomp_cli.py` and the `psx-runtime` target, the same

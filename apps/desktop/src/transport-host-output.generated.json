@@ -18573,6 +18573,16 @@
         ],
         "type": "string"
       },
+      "LaunchDiscChoice": {
+        "description": "How a managed multi-disc runtime accepts a launch-time disc choice.",
+        "oneOf": [
+          {
+            "const": "psx-settings-selected",
+            "description": "The PSXRecomp runtime reads the 1-based `[disc] selected` entry from\nthe `settings.toml` beside its player and derives both the mounted disc\nand the save-state disc scope from it. Older engines ignore the field\nand offer no choice.",
+            "type": "string"
+          }
+        ]
+      },
       "LaunchReadiness": {
         "properties": {
           "bios": {
@@ -19826,6 +19836,17 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "launch_disc_choice": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LaunchDiscChoice"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Reviewed way a managed multi-disc runtime accepts the disc to start.\nWithout it, Portcove offers no disc choice at launch."
           },
           "launch_environment": {
             "additionalProperties": {

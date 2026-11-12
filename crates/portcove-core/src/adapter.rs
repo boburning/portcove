@@ -1531,13 +1531,14 @@ fn managed_psx_materialized_discs(
 /// profile, never from the install directory: the catalog admits a
 /// `psx-raw-set` managed route only with at least two single-track discs, and
 /// installation materializes exactly one `disc-NN` pair per profile disc.
-/// Other routes, including single-disc sources, have no selectable discs.
+/// Only definitions with a reviewed `launch_disc_choice` offer a choice.
 pub(crate) fn managed_psx_selectable_discs(
     catalog: &crate::Catalog,
     port: &PortDefinition,
 ) -> Option<u32> {
     if port.adapter != AdapterKind::PsxRecompManaged
         || port.runtime_source_materialization != Some(RuntimeSourceMaterialization::PsxRawSet)
+        || port.launch_disc_choice != Some(crate::LaunchDiscChoice::PsxSettingsSelected)
     {
         return None;
     }
@@ -1571,29 +1572,45 @@ pub(crate) fn require_managed_psx_disc_selection(
     Ok(())
 }
 
-/// The literal `--disc <cue>` pair for a selected disc. The PSXRecomp runtime
-/// uses it in place of the disc saved in its settings. The path is the same
-/// absolute spelling written into the generated runtime config, so it does
-/// not depend on how the runtime resolves relative paths.
-pub(crate) fn managed_psx_disc_arguments(
+/// Records a chosen disc as the PSXRecomp runtime's own `[disc] selected`
+/// setting beside the prepared player, the route its settings document for an
+/// external launcher. The runtime then mounts that disc from the generated
+/// roster and scopes save states to it. A `--disc` override is not used: it
+/// mounts the disc but keeps the previously saved save-state scope.
+///
+/// The settings file is restored player data; the choice persists like a
+/// choice made in the upstream launcher and is captured with the session.
+pub(crate) fn record_managed_psx_disc_choice(
     catalog: &crate::Catalog,
     port: &PortDefinition,
-    working_directory: &Path,
+    spec: &LaunchSpec,
     disc: u32,
-) -> Result<Vec<String>> {
+) -> Result<()> {
     require_managed_psx_disc_selection(catalog, port, disc)?;
-    let discs = managed_psx_materialized_discs(port, working_directory).ok();
-    let cue = usize::try_from(disc - 1)
-        .ok()
-        .zip(discs.as_ref())
-        .and_then(|(index, discs)| discs.get(index))
-        .ok_or_else(|| {
+    let present = managed_psx_materialized_discs(port, &spec.working_directory)
+        .map_err(|error| {
             PortcoveError::launch(format!(
                 "Disc {disc} of {} is missing from the installed game. Repair the game, then try again.",
                 port.name
             ))
+            .detail("disc_materialization", error.message)
+        })?
+        .len();
+    if usize::try_from(disc).map_or(true, |disc| disc > present) {
+        return Err(PortcoveError::launch(format!(
+            "Disc {disc} of {} is missing from the installed game. Repair the game, then try again.",
+            port.name
+        )));
+    }
+    // The runtime reads settings.toml beside its own executable.
+    let player_directory = spec
+        .executable
+        .parent()
+        .filter(|parent| *parent == spec.working_directory)
+        .ok_or_else(|| {
+            PortcoveError::state("managed PS1 player is not in its runtime directory")
         })?;
-    Ok(vec!["--disc".into(), psx_launch_path(cue)?])
+    crate::psx::select_settings_disc(&player_directory.join("settings.toml"), disc)
 }
 
 fn prepare_managed_psx_runtime_config(
@@ -5430,47 +5447,49 @@ mod tests {
                 )
             );
         }
-        // An ephemeral disc choice appends one literal pair after the fixed
-        // arguments, naming the same absolute CUE as the generated config.
+        // A disc choice becomes the runtime's own `[disc] selected` setting
+        // beside the player; launch arguments stay fixed, with no `--disc`.
         assert_eq!(managed_psx_selectable_discs(&catalog, port), Some(2));
-        let mut chosen = spec.arguments.clone();
-        chosen.extend(
-            managed_psx_disc_arguments(&catalog, port, &spec.working_directory, 2).unwrap(),
-        );
-        let disc_two = psx_launch_path(&raw_set.join("disc-02.cue")).unwrap();
+        let settings = runtime.join("settings.toml");
+        assert!(!settings.exists());
+        record_managed_psx_disc_choice(&catalog, port, &spec, 2).unwrap();
         assert_eq!(
-            chosen,
-            [
-                "--no-launcher".to_owned(),
-                "--game".into(),
-                psx_launch_path(&runtime.join(MANAGED_PSX_RUNTIME_CONFIG)).unwrap(),
-                "--memcard-dir".into(),
-                psx_launch_path(&runtime.join("saves")).unwrap(),
-                "--bios".into(),
-                psx_launch_path(&bios.path).unwrap(),
-                "--disc".into(),
-                disc_two.clone(),
-            ]
+            std::fs::read_to_string(&settings).unwrap(),
+            "[disc]\nselected = 2\n"
         );
-        assert!(Path::new(&disc_two).is_absolute());
-        assert_eq!(Path::new(&disc_two), raw_set.join("disc-02.cue"));
+        assert!(!spec.arguments.iter().any(|argument| argument == "--disc"));
+        std::fs::write(
+            &settings,
+            "# kept\r\n[video]\r\nrenderer = \"opengl\"\r\n\r\n[disc]\r\npath = \"C:/old/disc-02.cue\"\r\nselected = 2 # kept\r\n",
+        )
+        .unwrap();
+        record_managed_psx_disc_choice(&catalog, port, &spec, 1).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&settings).unwrap(),
+            "# kept\r\n[video]\r\nrenderer = \"opengl\"\r\n\r\n[disc]\r\npath = \"C:/old/disc-02.cue\"\r\nselected = 1 # kept\r\n"
+        );
         for refused in [0, 3] {
-            let error =
-                managed_psx_disc_arguments(&catalog, port, &spec.working_directory, refused)
-                    .unwrap_err();
+            let error = record_managed_psx_disc_choice(&catalog, port, &spec, refused).unwrap_err();
             assert_eq!(error.code, crate::ErrorCode::Usage, "{error}");
             assert!(error.to_string().contains("Choose a disc from 1 to 2"));
         }
         std::fs::remove_file(raw_set.join("disc-02.bin")).unwrap();
-        let error =
-            managed_psx_disc_arguments(&catalog, port, &spec.working_directory, 2).unwrap_err();
+        let error = record_managed_psx_disc_choice(&catalog, port, &spec, 2).unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Launch, "{error}");
         assert!(error.to_string().starts_with("Disc 2 of "), "{error}");
+        assert!(error.details.contains_key("disc_materialization"));
+        assert!(
+            std::fs::read_to_string(&settings)
+                .unwrap()
+                .contains("selected = 1 # kept")
+        );
         std::fs::write(raw_set.join("disc-02.bin"), [2]).unwrap();
         for other in [
             "zelda64-recomp",
             "alexbeav-alundra-recomp",
             "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp",
+            // Multi-disc, but its runtime's disc setting is not source-reviewed.
+            "final-fantasy-vii-recompiled",
         ] {
             let other = catalog.port(other).unwrap();
             assert_eq!(managed_psx_selectable_discs(&catalog, other), None);

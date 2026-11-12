@@ -778,6 +778,137 @@ pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<(
     Ok(())
 }
 
+/// Record a launch-time disc choice as PSXRecomp's own `[disc] selected`
+/// setting. The runtime derives both the mounted disc and its save-state disc
+/// scope from that 1-based index; a `--disc` override would mount the disc but
+/// keep the previous scope. Only the `selected` value span changes, or one line
+/// is added, so the player's other settings, comments and line endings remain.
+/// Representations this editor cannot place exactly are refused.
+pub(crate) fn select_settings_disc(settings: &Path, disc: u32) -> Result<()> {
+    crate::path::refuse_symlink_ancestors(settings)?;
+    let body = if settings.try_exists()? {
+        let bytes = crate::path::read_bounded_regular(settings, 256 * 1024)?;
+        String::from_utf8(bytes).map_err(|_| settings_error("it is not UTF-8"))?
+    } else {
+        String::new()
+    };
+    let output = settings_with_selected_disc(&body, disc)?;
+    crate::durability::write_bytes_atomically_with_prefix(
+        settings,
+        output.as_bytes(),
+        true,
+        Some(".portcove-settings-"),
+    )
+}
+
+fn settings_error(reason: &str) -> PortcoveError {
+    PortcoveError::launch(
+        "Portcove could not record the disc choice in this game's settings. Choose Saved disc, or let the game rewrite its settings, then try again.",
+    )
+    .detail("settings_disc_reason", reason)
+}
+
+fn settings_with_selected_disc(body: &str, disc: u32) -> Result<String> {
+    let (tokens, _) = config_tokens(body).map_err(|_| settings_error("it is not valid TOML"))?;
+    let newline = if body.contains("\r\n") { "\r\n" } else { "\n" };
+    let mut section = Vec::new();
+    let mut header_end = None;
+    let mut selected = None;
+    let mut cursor = 0;
+    while cursor < tokens.len() {
+        if tokens[cursor].kind == ConfigTokenKind::Newline {
+            cursor += 1;
+            continue;
+        }
+        if tokens[cursor].kind == ConfigTokenKind::Symbol(b'[') {
+            let end = tokens[cursor..]
+                .iter()
+                .position(|token| token.kind == ConfigTokenKind::Newline)
+                .map_or(tokens.len(), |offset| cursor + offset);
+            let array = tokens
+                .get(cursor + 1)
+                .is_some_and(|token| token.kind == ConfigTokenKind::Symbol(b'['));
+            let delimiters = if array { 2 } else { 1 };
+            if end <= cursor + delimiters * 2
+                || !tokens[end - delimiters..end]
+                    .iter()
+                    .all(|token| token.kind == ConfigTokenKind::Symbol(b']'))
+            {
+                return Err(settings_error("a table header is invalid"));
+            }
+            section = config_key(body, &tokens[cursor + delimiters..end - delimiters])
+                .map_err(|_| settings_error("a table name is invalid"))?;
+            if section == ["disc"] {
+                if array || header_end.is_some() {
+                    return Err(settings_error("the disc table is ambiguous"));
+                }
+                header_end = Some(tokens.get(end).map_or(body.len(), |token| token.span.end));
+            } else if section.first().is_some_and(|name| name == "disc")
+                && (array || section.get(1).is_some_and(|name| name == "selected"))
+            {
+                return Err(settings_error("the disc table is ambiguous"));
+            }
+            cursor = end;
+            continue;
+        }
+        let start = cursor;
+        while cursor < tokens.len()
+            && !matches!(
+                tokens[cursor].kind,
+                ConfigTokenKind::Symbol(b'=') | ConfigTokenKind::Newline
+            )
+        {
+            cursor += 1;
+        }
+        if tokens
+            .get(cursor)
+            .is_none_or(|token| token.kind != ConfigTokenKind::Symbol(b'='))
+        {
+            return Err(settings_error("a setting has no value"));
+        }
+        let key = config_key(body, &tokens[start..cursor])
+            .map_err(|_| settings_error("a setting name is invalid"))?;
+        cursor += 1;
+        let value_start = cursor;
+        cursor = bios_config_value_end(&tokens, cursor)
+            .map_err(|_| settings_error("a setting value is invalid"))?;
+        if section.is_empty() && key.first().is_some_and(|name| name == "disc") {
+            return Err(settings_error("the disc table is not a plain table"));
+        }
+        if section != ["disc"] || key.first().is_none_or(|name| name != "selected") {
+            continue;
+        }
+        if key.len() != 1 || selected.is_some() {
+            return Err(settings_error("the selected disc is ambiguous"));
+        }
+        selected = Some(tokens[value_start].span.start..tokens[cursor - 1].span.end);
+    }
+
+    let mut output = body.to_owned();
+    let value = disc.to_string();
+    match (selected, header_end) {
+        (Some(span), _) => output.replace_range(span, &value),
+        (None, Some(end)) => {
+            let separator = if body[..end].ends_with('\n') {
+                ""
+            } else {
+                newline
+            };
+            output.insert_str(end, &format!("{separator}selected = {value}{newline}"));
+        }
+        (None, None) => {
+            if !output.is_empty() {
+                if !output.ends_with('\n') {
+                    output.push_str(newline);
+                }
+                output.push_str(newline);
+            }
+            output.push_str(&format!("[disc]{newline}selected = {value}{newline}"));
+        }
+    }
+    Ok(output)
+}
+
 #[derive(Clone, Copy, PartialEq)]
 enum ConfigTokenKind {
     Text,
@@ -1956,6 +2087,66 @@ pub(crate) fn bios_launch_fixture(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn settings_disc_choice_changes_only_the_selected_index() {
+        use super::settings_with_selected_disc as select;
+        assert_eq!(select("", 2).unwrap(), "[disc]\nselected = 2\n");
+        assert_eq!(
+            select("[video]\nrenderer = \"opengl\"", 3).unwrap(),
+            "[video]\nrenderer = \"opengl\"\n\n[disc]\nselected = 3\n"
+        );
+        assert_eq!(
+            select("[disc] # chosen\r\npath = \"a/disc-01.cue\"\r\n", 2).unwrap(),
+            "[disc] # chosen\r\nselected = 2\r\npath = \"a/disc-01.cue\"\r\n"
+        );
+        assert_eq!(select("[disc]", 2).unwrap(), "[disc]\nselected = 2\n");
+        assert_eq!(
+            select("[disc]\nselected = 1 # last\n[bios]\npath = \"x\"\n", 4).unwrap(),
+            "[disc]\nselected = 4 # last\n[bios]\npath = \"x\"\n"
+        );
+        // Another table's `selected`, or a dotted name under it, is not the disc.
+        assert_eq!(
+            select("[mods]\nselected = 9\n[disc.extra]\nselected = 8\n", 2).unwrap(),
+            "[mods]\nselected = 9\n[disc.extra]\nselected = 8\n\n[disc]\nselected = 2\n"
+        );
+        for refused in [
+            "disc = { selected = 1 }\n",
+            "disc.selected = 1\n",
+            "[[disc]]\nselected = 1\n",
+            "[disc]\n[disc]\n",
+            "[disc]\nselected = 1\nselected = 2\n",
+            "[disc]\nselected.x = 1\n",
+            "[disc.selected]\n",
+            "[disc\n",
+            "[disc]\nselected = \"unterminated\n",
+            "[disc]\nselected\n",
+        ] {
+            let error = select(refused, 2).unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Launch, "{refused:?}");
+            assert!(
+                error.details.contains_key("settings_disc_reason"),
+                "{refused:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn settings_disc_choice_is_written_atomically_beside_the_player() {
+        let temporary = tempfile::tempdir().unwrap();
+        let settings = temporary.path().join("settings.toml");
+        super::select_settings_disc(&settings, 2).unwrap();
+        super::select_settings_disc(&settings, 1).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&settings).unwrap(),
+            "[disc]\nselected = 1\n"
+        );
+        assert_eq!(std::fs::read_dir(temporary.path()).unwrap().count(), 1);
+        std::fs::write(&settings, [0xff, 0xfe]).unwrap();
+        let error = super::select_settings_disc(&settings, 2).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Launch);
+        assert_eq!(std::fs::read(&settings).unwrap(), [0xff, 0xfe]);
+    }
+
     #[test]
     fn builder_error_mapping_preserves_bounded_proof_without_other_details() {
         let error = super::builder_supervision_error(

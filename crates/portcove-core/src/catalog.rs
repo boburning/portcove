@@ -5,8 +5,8 @@ use std::{
 };
 
 use crate::{
-    AdapterKind, CatalogDocument, PortDefinition, PortcoveError, ReleaseChannel, ReleaseSource,
-    Result, RuntimeSourceMaterialization, SourceKind, SourceProfile,
+    AdapterKind, CatalogDocument, LaunchDiscChoice, PortDefinition, PortcoveError, ReleaseChannel,
+    ReleaseSource, Result, RuntimeSourceMaterialization, SourceKind, SourceProfile,
 };
 
 mod listings;
@@ -1486,6 +1486,21 @@ impl Catalog {
                         port.id
                     )));
                 }
+            }
+            if port.launch_disc_choice == Some(LaunchDiscChoice::PsxSettingsSelected)
+                && !(port.adapter == AdapterKind::PsxRecompManaged
+                    && port.runtime_source_materialization
+                        == Some(RuntimeSourceMaterialization::PsxRawSet)
+                    && port.runtime_subdirectory.is_some()
+                    && port
+                        .persistent_paths
+                        .iter()
+                        .any(|path| path == "settings.toml"))
+            {
+                return Err(PortcoveError::usage(format!(
+                    "{} declares a PS1 settings disc choice without a managed multi-disc set and persistent settings.toml",
+                    port.id
+                )));
             }
             if port.runtime_disc_image.is_some()
                 && port

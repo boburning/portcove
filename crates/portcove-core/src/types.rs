@@ -295,6 +295,17 @@ impl AdapterKind {
     ];
 }
 
+/// How a managed multi-disc runtime accepts a launch-time disc choice.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum LaunchDiscChoice {
+    /// The PSXRecomp runtime reads the 1-based `[disc] selected` entry from
+    /// the `settings.toml` beside its player and derives both the mounted disc
+    /// and the save-state disc scope from it. Older engines ignore the field
+    /// and offer no choice.
+    PsxSettingsSelected,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum RuntimeSourceMaterialization {
@@ -858,6 +869,10 @@ pub struct PortDefinition {
     pub runtime_disc_image: Option<DiscImageProfile>,
     #[serde(default)]
     pub runtime_source_set: Vec<RuntimeSourceTarget>,
+    /// Reviewed way a managed multi-disc runtime accepts the disc to start.
+    /// Without it, Portcove offers no disc choice at launch.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub launch_disc_choice: Option<LaunchDiscChoice>,
     #[serde(default)]
     pub launch_from_install_root: bool,
     #[serde(default)]

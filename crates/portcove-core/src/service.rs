@@ -303,8 +303,8 @@ pub struct IdentifiedLaunchRequest<'a> {
     pub source_override: Option<&'a Path>,
     pub arguments: &'a [String],
     pub stdio: LaunchStdio,
-    /// Ephemeral 1-based disc choice for a managed multi-disc PS1 install.
-    /// `None` keeps the runtime's own saved disc and adds no arguments.
+    /// 1-based disc choice for a managed multi-disc PS1 install, recorded as
+    /// the game's own selected disc. `None` keeps the game's saved disc.
     pub disc: Option<u32>,
 }
 

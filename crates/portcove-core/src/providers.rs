@@ -199,6 +199,7 @@ mod tests {
             runtime_subdirectory: None,
             runtime_source_filename: None,
             runtime_source_materialization: None,
+            launch_disc_choice: None,
             runtime_source_hashes: BTreeMap::new(),
             runtime_disc_image: None,
             runtime_source_set: Vec::new(),
