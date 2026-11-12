@@ -63,7 +63,8 @@ success-output = "immediate"
 
 # The populated Super Metroid fixture hit the 300s limit in 42563344846/1
 # and both 42579655658 attempts. It passed 42563344846/2 in 228.124s.
-# Match the exact MMX2 counterpart's 420s Windows budget.
+# It keeps the 420s Windows budget its MMX2 counterpart had at the time,
+# on its own evidence; MMX2 later moved to 600s.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_super_metroid_populated_install$/)'
