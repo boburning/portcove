@@ -1518,13 +1518,21 @@ async function readRetainedProposalSegment(
   start: number,
 ) {
   const suffix = start > 0;
-  const bridge = !suffix && path.basename(outputParent) === "technical-2";
+  const attempt = path.basename(outputParent);
+  const providerContinuation = suffix && attempt === "technical-3";
+  const bridge = !suffix && (attempt === "technical-2" || attempt === "technical-3");
   if (
     path.basename(path.dirname(outputParent)) !== `request-${requestId}` ||
     retained.previous_attempt !==
       path.join(
         path.dirname(outputParent),
-        suffix ? "technical-4" : bridge ? "technical-1" : "technical-3",
+        providerContinuation
+          ? "technical-2"
+          : suffix
+            ? "technical-4"
+            : bridge
+              ? "technical-1"
+              : "technical-3",
       )
   )
     throw new Error("retained proposal prefix is outside the appointed attempt");
@@ -1554,9 +1562,9 @@ async function readRetainedProposalSegment(
   if (
     !isRecord(manifest) ||
     Object.keys(manifest).sort().join(",") !==
-      (suffix
+      (suffix && !providerContinuation
         ? "lanes,refusal_sha256,refused_events_sha256,request_id,schema_version,stop_sha256"
-        : bridge
+        : bridge || providerContinuation
           ? "bridge_failure_sha256,lanes,refusal_sha256,request_id,schema_version,stop_sha256"
           : "lanes,refusal_sha256,request_id,schema_version,stop_sha256") ||
     manifest.schema_version !== 1 ||
@@ -1570,7 +1578,7 @@ async function readRetainedProposalSegment(
     !Array.isArray(manifest.lanes) ||
     manifest.lanes.length < 1 ||
     start + manifest.lanes.length >= plan.lanes.length ||
-    manifest.lanes.length !== stop.invocations.length - 1
+    manifest.lanes.length !== stop.invocations.length - (providerContinuation ? 0 : 1)
   )
     throw new Error(
       "retained proposal prefix is not the complete positive prefix of the exact stop",
@@ -1601,7 +1609,7 @@ async function readRetainedProposalSegment(
     typeof failed.root !== "string" ||
     path.dirname(failed.root) !== retained.previous_attempt ||
     !/^r-[A-Za-z0-9_-]+$/u.test(path.basename(failed.root)) ||
-    roots.has(path.basename(failed.root))
+    roots.has(path.basename(failed.root)) !== providerContinuation
   )
     throw new Error("retained proposal prefix includes the failed invocation");
   await requirePrivateRetainedDirectory(failed.root);
@@ -1613,7 +1621,7 @@ async function readRetainedProposalSegment(
   const refused: unknown = JSON.parse(refusedBytes.toString("utf8"));
   if (sha(refusedBytes) !== manifest.refusal_sha256 || !isRecord(refused))
     throw new Error("retained proposal prefix has a different terminal refusal");
-  if (bridge) {
+  if (bridge || providerContinuation) {
     requireLinuxSemanticSettlement(refused);
     const log = await readBoundedPublicBuildInputFile(
       retained.previous_attempt,
@@ -1628,7 +1636,11 @@ async function readRetainedProposalSegment(
       terminal.phase !== "stopped-retain-state-no-retry" ||
       terminal.request_id !== requestId ||
       !isRecord(terminal.evidence) ||
-      terminal.evidence.message !== "spawnSync wsl.exe ETIMEDOUT"
+      terminal.evidence.message !==
+        (providerContinuation
+          ? "GitHub API subprocess collection timed out (ETIMEDOUT)"
+          : "spawnSync wsl.exe ETIMEDOUT") ||
+      (providerContinuation && terminal.evidence.category !== "GitHubApiError")
     )
       throw new Error("retained proposal has a different bridge failure");
   } else if (suffix) {
@@ -1677,7 +1689,7 @@ async function readRetainedProposalSegment(
   return (manifest.lanes as RetainedProposalLane[]).map((row) => ({
     row,
     attempt: retained.previous_attempt,
-    ordinal: bridge,
+    ordinal: bridge || providerContinuation,
   }));
 }
 
@@ -1689,9 +1701,9 @@ async function readRetainedProposalPrefix(
   if (!scope.resume_prefix && !scope.resume_suffix) return [];
   if (
     !scope.resume_prefix ||
-    !(scope.resume_suffix ? ["technical-5"] : ["technical-2", "technical-4"]).includes(
-      path.basename(outputParent),
-    )
+    !(
+      scope.resume_suffix ? ["technical-3", "technical-5"] : ["technical-2", "technical-4"]
+    ).includes(path.basename(outputParent))
   )
     throw new Error("retained proposal prefix is outside the appointed attempt");
   const prefix = await readRetainedProposalSegment(
