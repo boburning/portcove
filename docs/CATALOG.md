@@ -846,7 +846,9 @@ for player workflow, persistence boundaries and the removal recovery hold.
 PSP, ISO or CHD) unpack a player's original disc image into the runtime directory
 named by `runtime_source_filename`, following the same staged-source pattern as
 `stfs-directory`. They are valid only on `staged-source-portable` ports whose
-destination has no extension and appears in `runtime_mutable_paths`, with a
+destination has no extension and is declared either in `persistent_paths` (kept
+across updates, the better fit for multi-gigabyte output) or in
+`runtime_mutable_paths` (regenerated), with a
 `source_profile` of kind `file` that carries exact whole-image SHA-1 or SHA-256
 identities (for example Redump). Core reads the image read-only; it never modifies,
 locks, trims or rebuilds it.
@@ -884,8 +886,33 @@ cannot do without. Total directory-table bytes read while planning are bounded.
 ISO 9660 records may carry well-formed system-use data (CD-XA or Rock Ridge/SUSP
 entries); it is accepted but not interpreted, so alternate names are ignored and
 symbolic links are not followed. The 16 GiB image bound applies to an explicitly
-added source; source discovery and batch import still stop at 2 GiB. A definition using these values must also gate older engines with a
-staged-source capability, as other new materializations do; none ships yet.
+added source; source discovery and batch import still stop at 2 GiB.
+
+An indexed definition that declares `runtime_disc_image` must require
+`staged-source-portable` capability version 30, so older readers refuse it instead of
+misreading it ([definition delivery](DEFINITION-DELIVERY.md)); a definition bundled
+with the application ships with the build that understands it. `ace-combat-6-recomp`
+is the first shipped declaration, and it uses an [optional game
+source](#optional-game-source): a player can keep using `AC6.iso` beside the executable
+or hand-extracted files in `assets` without choosing a disc image, and nothing is asked
+of them; choosing the one reviewed image unpacks it into `assets` and replaces the
+folder's contents. It remains Cataloged at its existing `beta` tier with no Supported
+claim, accepts only the one reviewed image identity recorded in
+[its dated evidence](qualification/ace-combat-6-owner-image-disc-reader-2026-11-11.md),
+and keeps `assets` and its other declared persistent paths. An install recorded under
+its earlier definition keeps that recorded definition, so it is not rewritten and gets
+no prompt; a disc image the player chooses is used from the next runtime update.
+
+A persistent disc-image destination is carried to the next version together with its
+unpack marker (`assets.portcove-source.json`), and only for a port that declares a disc
+image; every other port's persistent entries are unchanged. The marker is verified
+exactly as before: an unchanged registered source whose marker matches and whose anchor
+files re-verify is a no-op, so a runtime update neither unpacks again nor replaces
+files already in the folder. A changed or removed source, a missing folder or a failed
+anchor still unpacks again and replaces the folder transactionally, which discards
+anything the player added to it by hand. `max_image_bytes` is a Portcove policy bound
+chosen above the observed image size (9 GiB against 7,835,492,352 bytes), not an
+evidence value.
 
 ### Optional game source
 

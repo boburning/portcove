@@ -1391,6 +1391,11 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             // branch first: a later capability chain that matched earlier would silently
             // skip the requirement.
             31
+        } else if port.runtime_disc_image.is_some() {
+            // Disc-image unpacking needs staged-source capability version 30. Keep this branch
+            // directly after the optional-source one (version 31) and before every other chain:
+            // a later chain that matched first would silently skip the requirement.
+            30
         } else if port.linux_portable_data_directory.is_some() {
             crate::native_portable_data::NATIVE_CAPABILITY
         } else if !port.release.tar_xz_platforms.is_empty() {

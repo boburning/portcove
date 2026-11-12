@@ -17708,23 +17708,90 @@ fn main() {
         assert_eq!(fs::read(user_settings).unwrap(), b"preserve-me");
     }
 
-    /// Every shipped definition keeps its source requirements exactly as they were: none is
-    /// optional, and each still blocks setup while unregistered.
+    /// Exactly one shipped definition offers its source as optional (`ace-combat-6-recomp`);
+    /// every other keeps its source requirements exactly as they were: none is optional, and
+    /// each still blocks setup while unregistered.
     #[test]
-    fn no_shipped_port_declares_an_optional_game_source() {
+    fn only_ace_combat_6_declares_an_optional_game_source() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let service = PortcoveService::new(library).unwrap();
+        let mut optional_ports = Vec::new();
         let mut requirements = 0;
         for port in service.catalog.ports() {
-            assert!(!port.optional_game_source, "{}", port.id);
+            if port.optional_game_source {
+                optional_ports.push(port.id.clone());
+            }
             for requirement in service.install_source_requirements(port).unwrap() {
-                assert!(!requirement.optional, "{}", port.id);
-                assert_eq!(requirement.blocks_setup(), !requirement.registered);
+                // Only the game source of an optional port is optional.
+                assert_eq!(
+                    requirement.optional,
+                    port.optional_game_source
+                        && requirement.role == SourceRequirementRole::GameSource,
+                    "{}",
+                    port.id
+                );
+                assert_eq!(
+                    requirement.blocks_setup(),
+                    !requirement.registered && !requirement.optional
+                );
                 requirements += 1;
             }
         }
+        assert_eq!(optional_ports, ["ace-combat-6-recomp"]);
         assert!(requirements > 100);
+    }
+
+    /// The shipped Ace Combat 6 entry (the real definition; only the host is declared): with
+    /// no disc image registered, the plan lists the source as optional and neither setup, the
+    /// Install action nor launch readiness holds on it.
+    #[test]
+    fn the_shipped_ace_combat_6_entry_never_blocks_on_an_unregistered_source() {
+        const ID: &str = "ace-combat-6-recomp";
+        let catalog = crate::test_fixture::host_declared_embedded_catalog(&[ID]);
+        let port = catalog.port(ID).unwrap().clone();
+        assert!(port.optional_game_source);
+
+        // Not installed: the plan and the Install action.
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let mut service = PortcoveService::new(library).unwrap();
+        service.replace_catalog_for_test(catalog.clone());
+        let requirements = service.install_source_requirements(&port).unwrap();
+        assert_eq!(requirements.len(), 1);
+        assert!(requirements[0].optional && !requirements[0].registered);
+        assert!(!requirements[0].blocks_setup());
+        let status = service.status(ID).unwrap();
+        let install = status
+            .port_actions
+            .iter()
+            .find(|action| action.action == crate::PortAction::Install)
+            .unwrap();
+        assert!(
+            !(install.availability == crate::PortActionAvailability::Waiting
+                && install.reason == crate::PortActionReason::MissingSource),
+            "{install:?}"
+        );
+
+        // Installed (an install that already uses the manual route): launch readiness.
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let root = library.versions_dir().join(ID).join("v1");
+        fs::create_dir_all(&root).unwrap();
+        write_host_test_executable(&root, ID);
+        let artifact = ArtifactIdentity {
+            asset_name: format!("{ID}-v1.zip"),
+            sha256: hex::encode(Sha256::digest(format!("{ID}:v1"))),
+            size: 4,
+        };
+        register_existing_test_artifact_with_port(&library, &port, "v1", &root, artifact, true);
+        let mut service = PortcoveService::new(library).unwrap();
+        service.replace_catalog_for_test(catalog);
+        let blockers = service.status(ID).unwrap().readiness.unwrap().blockers;
+        assert!(
+            !blockers.contains(&LaunchBlocker::MissingSource),
+            "{blockers:?}"
+        );
     }
 
     #[test]
@@ -17990,6 +18057,169 @@ fn main() {
                 "nothing is unpacked"
             );
         }
+    }
+
+    /// A persistent disc-image destination is carried to the next version with its
+    /// unpack marker, so an unchanged disc image is recognised and the verified folder
+    /// is not unpacked again (which would also replace files the player added by hand).
+    /// Uses the shipped Ace Combat 6 definition with a synthetic image's identifiers.
+    #[test]
+    fn a_persistent_disc_destination_keeps_its_unpack_marker_through_a_version_change() {
+        use crate::disc_filesystem::fixtures::{file, xex, xiso};
+        const TITLE: u32 = 0x4D53_07E6;
+        const ID: &str = "ace-combat-6-recomp";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let mut document = crate::test_fixture::host_declared_embedded_catalog(&[ID])
+            .document()
+            .clone();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == ID)
+            .unwrap();
+        port.runtime_source_hashes = std::collections::BTreeMap::from([(
+            "default.xex".to_owned(),
+            hex::encode(Sha256::digest(xex(TITLE))),
+        )]);
+        port.runtime_disc_image.as_mut().unwrap().product_codes = vec![format!("{TITLE:08X}")];
+        let catalog = crate::Catalog::from_document(document).unwrap();
+        let port = catalog.port(ID).unwrap().clone();
+        assert!(port.persistent_paths.iter().any(|path| path == "assets"));
+        // The shipped entry offers the disc image as an optional source; choosing one still
+        // follows the unpack route exercised below.
+        assert!(port.optional_game_source);
+
+        let mut roots = Vec::new();
+        for (version, active) in [("v1", true), ("v2", false)] {
+            let root = library.versions_dir().join(ID).join(version);
+            fs::create_dir_all(&root).unwrap();
+            write_host_test_executable(&root, ID);
+            let artifact = ArtifactIdentity {
+                asset_name: format!("{ID}-{version}.zip"),
+                sha256: hex::encode(Sha256::digest(format!("{ID}:{version}"))),
+                size: 4,
+            };
+            register_existing_test_artifact_with_port(
+                &library, &port, version, &root, artifact, active,
+            );
+            roots.push(root);
+        }
+        let (first, second) = (roots[0].clone(), roots[1].clone());
+        let mut service = PortcoveService::new(library).unwrap();
+        service.replace_catalog_for_test(catalog);
+
+        let source = temporary.path().join("fixture.iso");
+        xiso(
+            0,
+            vec![
+                file("default.xex", &xex(TITLE)),
+                file("data.bin", b"payload"),
+            ],
+        )
+        .write_to(&source);
+        let unpack = |destination: &Path| {
+            let phases = std::cell::RefCell::new(Vec::new());
+            let report = |phase, _, _| phases.borrow_mut().push(phase);
+            crate::adapter::prepare_disc_runtime_source(
+                &source,
+                destination,
+                port.runtime_source_materialization.unwrap(),
+                &port.runtime_source_hashes,
+                None,
+                &crate::adapter::DiscUnpack {
+                    profile: port.runtime_disc_image.as_ref().unwrap(),
+                    report: &report,
+                },
+                &|| Ok(()),
+            )
+            .unwrap();
+            phases.into_inner().len()
+        };
+
+        // Version one unpacks the disc; the player adds a file of their own.
+        assert!(unpack(&first.join("assets")) > 0);
+        let marker = "assets.portcove-source.json";
+        assert!(first.join(marker).is_file());
+        fs::write(first.join("assets/extra.file"), b"added by the player").unwrap();
+
+        // A version change collects the first install's data and restores it to the second.
+        service.collect_user_data_from(&port, &first).unwrap();
+        service.restore_user_data_to(&port, &second).unwrap();
+
+        // Record every observation first, then assert, so a failure shows the whole picture.
+        let marker_carried = second.join(marker).is_file();
+        let assets_carried = second.join("assets/default.xex").is_file();
+        let extra_carried = second.join("assets/extra.file").is_file();
+        let phases_on_second = unpack(&second.join("assets"));
+        let extra_after = fs::read(second.join("assets/extra.file")).ok();
+        eprintln!(
+            "OBSERVED marker_carried={marker_carried} assets_carried={assets_carried} \
+             extra_carried={extra_carried} unpack_phases_on_next_version={phases_on_second} \
+             extra_survives={}",
+            extra_after.as_deref() == Some(b"added by the player".as_slice())
+        );
+        assert!(
+            assets_carried && extra_carried,
+            "the destination itself is carried"
+        );
+        assert!(
+            marker_carried,
+            "the unpack marker must travel with its persistent destination"
+        );
+        // The same disc image is recognised: nothing is unpacked again and nothing is replaced.
+        assert_eq!(phases_on_second, 0);
+        assert_eq!(
+            extra_after.as_deref(),
+            Some(b"added by the player".as_slice())
+        );
+
+        // The carried marker never replaces verification: each of these still unpacks again,
+        // transactionally replacing the folder (and so the player's extra file).
+        let destination = second.join("assets");
+        let reset = || fs::write(destination.join("extra.file"), b"added by the player").unwrap();
+        reset();
+        // A tampered anchor file.
+        fs::write(destination.join("default.xex"), b"tampered").unwrap();
+        assert!(
+            unpack(&destination) > 0,
+            "a tampered anchor must unpack again"
+        );
+        assert_eq!(
+            fs::read(destination.join("default.xex")).unwrap(),
+            xex(TITLE)
+        );
+        assert!(!destination.join("extra.file").exists());
+        // A removed destination.
+        fs::remove_dir_all(&destination).unwrap();
+        assert!(
+            unpack(&destination) > 0,
+            "a missing folder must unpack again"
+        );
+        // A changed disc image at the same path is a new source, never reused by size or path.
+        reset();
+        assert_eq!(
+            unpack(&destination),
+            0,
+            "the unchanged image is a no-op again"
+        );
+        xiso(
+            0,
+            vec![
+                file("default.xex", &xex(TITLE)),
+                file("data.bin", b"changed payload"),
+            ],
+        )
+        .write_to(&source);
+        assert!(
+            unpack(&destination) > 0,
+            "a changed disc image must unpack again"
+        );
+        assert_eq!(
+            fs::read(destination.join("data.bin")).unwrap(),
+            b"changed payload"
+        );
+        assert!(!destination.join("extra.file").exists());
     }
 
     #[test]
