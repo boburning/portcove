@@ -58,22 +58,45 @@ fn destination_handoff_preserves_original_identity_and_separate_roles_after_cach
         )
         .unwrap();
     assert_eq!(retained.original, bytes.original);
-    for role in [Role::LandscapeCover, Role::HeroBanner] {
-        let missing = reopened
-            .destination_artwork("zelda64-recomp", role)
-            .unwrap();
-        assert_eq!(
-            missing.source,
-            crate::DestinationArtworkSource::UnassignedRole
-        );
-        assert_eq!(
-            missing.content,
-            DestinationArtworkContent::Unavailable {
-                reason: crate::DestinationArtworkUnavailableReason::RoleNotProvided,
-            }
-        );
-        assert!(missing.choice.is_none());
-    }
+    // The wide detail import is the hero banner, bound to the detail choice.
+    let hero = reopened
+        .destination_artwork("zelda64-recomp", Role::HeroBanner)
+        .unwrap();
+    let detail_choice = reopened
+        .artwork("zelda64-recomp", ArtworkSlot::Detail)
+        .unwrap()
+        .choice;
+    assert_eq!(hero.handoff_schema, 2);
+    assert_eq!(hero.choice.as_ref(), Some(&detail_choice));
+    assert!(matches!(
+        hero.content,
+        DestinationArtworkContent::Available { .. }
+    ));
+    let hero_bytes = reopened
+        .destination_artwork_bytes(
+            "zelda64-recomp",
+            Role::HeroBanner,
+            &snapshot.library.id,
+            detail_choice.revision,
+            detail_choice.asset_sha256.as_deref().unwrap(),
+        )
+        .unwrap();
+    assert_eq!(hero_bytes.original, fs::read(&detail).unwrap());
+    assert_ne!(hero_bytes.original, bytes.original);
+    let missing = reopened
+        .destination_artwork("zelda64-recomp", Role::LandscapeCover)
+        .unwrap();
+    assert_eq!(
+        missing.source,
+        crate::DestinationArtworkSource::UnassignedRole
+    );
+    assert_eq!(
+        missing.content,
+        DestinationArtworkContent::Unavailable {
+            reason: crate::DestinationArtworkUnavailableReason::RoleNotProvided,
+        }
+    );
+    assert!(missing.choice.is_none());
     assert!(image.is_file());
     assert!(detail.is_file());
 }
@@ -202,7 +225,8 @@ fn destination_handoff_reader_refuses_unknown_or_contradictory_consequential_val
         assert!(serde_json::from_value::<DestinationArtworkHandoff>(changed).is_err());
     }
     for (field, invalid) in [
-        ("handoff_schema", serde_json::json!(2)),
+        ("handoff_schema", serde_json::json!(1)),
+        ("handoff_schema", serde_json::json!(3)),
         ("role", serde_json::json!("animated_logo")),
         ("role", serde_json::json!("hero_banner")),
         ("source", serde_json::json!({"kind":"future_provider"})),
@@ -303,7 +327,7 @@ fn destination_handoff_catalog_defaults_remain_observations_without_cache_or_pro
             .is_err()
     );
     let mut legacy = serde_json::to_value(crate::CapabilityDocument::current()).unwrap();
-    assert_eq!(legacy["artwork_handoff_schema"], 1);
+    assert_eq!(legacy["artwork_handoff_schema"], 2);
     legacy
         .as_object_mut()
         .unwrap()
@@ -314,6 +338,115 @@ fn destination_handoff_catalog_defaults_remain_observations_without_cache_or_pro
             .artwork_handoff_schema
             .is_none()
     );
+}
+
+#[test]
+fn destination_hero_handoff_offers_only_a_wide_detail_import() {
+    use crate::{
+        DestinationArtworkContent, DestinationArtworkHandoff, DestinationArtworkRole as Role,
+        DestinationArtworkSource, DestinationArtworkUnavailableReason as Reason,
+    };
+    let temporary = tempfile::tempdir().unwrap();
+    let service = open_service(&temporary.path().join("library"));
+    // No detail import: unavailable, never a catalog default or generated art.
+    let empty = service
+        .destination_artwork("zelda64-recomp", Role::HeroBanner)
+        .unwrap();
+    assert_eq!(empty.source, DestinationArtworkSource::UnassignedRole);
+    assert_eq!(
+        empty.content,
+        DestinationArtworkContent::Unavailable {
+            reason: Reason::NoLocalOriginal
+        }
+    );
+    assert!(empty.choice.is_some());
+    // A tall detail import is reported, not cropped into a wide role.
+    let tall = temporary.path().join("tall.png");
+    image::RgbImage::from_pixel(12, 40, image::Rgb([10, 20, 30]))
+        .save(&tall)
+        .unwrap();
+    let selected = service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Detail, &tall, 0)
+        .unwrap();
+    let refused = service
+        .destination_artwork("zelda64-recomp", Role::HeroBanner)
+        .unwrap();
+    assert_eq!(
+        refused.content,
+        DestinationArtworkContent::Unavailable {
+            reason: Reason::SelectedImageNotWide
+        }
+    );
+    assert!(
+        service
+            .destination_artwork_bytes(
+                "zelda64-recomp",
+                Role::HeroBanner,
+                &refused.library.id,
+                selected.choice.revision,
+                selected.choice.asset_sha256.as_deref().unwrap(),
+            )
+            .is_err()
+    );
+    // A forged wide claim for the tall asset is refused by the reader.
+    let mut forged = serde_json::to_value(&refused).unwrap();
+    forged["content"] = serde_json::json!({
+        "availability": "available",
+        "asset": forged["source"]["asset"].clone(),
+    });
+    assert!(serde_json::from_value::<DestinationArtworkHandoff>(forged).is_err());
+    // A cover choice can never be presented as the hero role.
+    service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &tall, 0)
+        .unwrap();
+    let mut portrait = serde_json::to_value(
+        service
+            .destination_artwork("zelda64-recomp", Role::PortraitCover)
+            .unwrap(),
+    )
+    .unwrap();
+    portrait["role"] = serde_json::json!("hero_banner");
+    assert!(serde_json::from_value::<DestinationArtworkHandoff>(portrait).is_err());
+}
+
+#[test]
+fn destination_hero_handoff_refuses_a_wide_image_rotated_by_its_orientation() {
+    use crate::{
+        DestinationArtworkContent, DestinationArtworkRole as Role,
+        DestinationArtworkUnavailableReason as Reason,
+    };
+    use image::ImageEncoder;
+    let temporary = tempfile::tempdir().unwrap();
+    let service = open_service(&temporary.path().join("library"));
+    // Stored 40x12 but tagged Orientation=6 (rotate 90): displayed tall.
+    let exif = [
+        b'M', b'M', 0, 42, 0, 0, 0, 8, 0, 1, 0x01, 0x12, 0, 3, 0, 0, 0, 1, 0, 6, 0, 0, 0, 0, 0, 0,
+    ];
+    let pixels = image::RgbImage::from_pixel(40, 12, image::Rgb([90, 40, 20]));
+    let mut bytes = Vec::new();
+    let mut encoder = image::codecs::jpeg::JpegEncoder::new(&mut bytes);
+    encoder.set_exif_metadata(exif.to_vec()).unwrap();
+    encoder
+        .write_image(pixels.as_raw(), 40, 12, image::ExtendedColorType::Rgb8)
+        .unwrap();
+    assert!(crate::artwork_image::transposes_axes(&bytes).unwrap());
+    let rotated = temporary.path().join("rotated.jpg");
+    fs::write(&rotated, &bytes).unwrap();
+    service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Detail, &rotated, 0)
+        .unwrap();
+    let hero = service
+        .destination_artwork("zelda64-recomp", Role::HeroBanner)
+        .unwrap();
+    assert_eq!(
+        hero.content,
+        DestinationArtworkContent::Unavailable {
+            reason: Reason::SelectedImageNotWide
+        }
+    );
+    // The same refusal round-trips through the strict reader.
+    let value = serde_json::to_value(&hero).unwrap();
+    assert!(serde_json::from_value::<crate::DestinationArtworkHandoff>(value).is_ok());
 }
 
 fn image_file(root: &Path, name: &str, format: image::ImageFormat) -> std::path::PathBuf {

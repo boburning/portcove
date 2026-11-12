@@ -14200,12 +14200,21 @@
         "type": "string"
       },
       "DestinationArtworkUnavailableReason": {
-        "enum": [
-          "role_not_provided",
-          "no_local_original",
-          "selected_original_unavailable"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "role_not_provided",
+              "no_local_original",
+              "selected_original_unavailable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "selected_image_not_wide",
+            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
+            "type": "string"
+          }
+        ]
       },
       "SteamArtworkRoleAction": {
         "enum": [
@@ -14321,12 +14330,21 @@
         "type": "string"
       },
       "DestinationArtworkUnavailableReason": {
-        "enum": [
-          "role_not_provided",
-          "no_local_original",
-          "selected_original_unavailable"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "role_not_provided",
+              "no_local_original",
+              "selected_original_unavailable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "selected_image_not_wide",
+            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
+            "type": "string"
+          }
+        ]
       },
       "SteamArtworkOperation": {
         "description": "Separate reviewed Steam artwork action for one owned shortcut.",
@@ -14559,12 +14577,21 @@
         "type": "string"
       },
       "DestinationArtworkUnavailableReason": {
-        "enum": [
-          "role_not_provided",
-          "no_local_original",
-          "selected_original_unavailable"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "role_not_provided",
+              "no_local_original",
+              "selected_original_unavailable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "selected_image_not_wide",
+            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
+            "type": "string"
+          }
+        ]
       },
       "SteamArtworkRoleAction": {
         "enum": [
@@ -14833,12 +14860,21 @@
         "type": "string"
       },
       "DestinationArtworkUnavailableReason": {
-        "enum": [
-          "role_not_provided",
-          "no_local_original",
-          "selected_original_unavailable"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "role_not_provided",
+              "no_local_original",
+              "selected_original_unavailable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "selected_image_not_wide",
+            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
+            "type": "string"
+          }
+        ]
       },
       "SteamArtworkRoleAction": {
         "enum": [
@@ -15035,12 +15071,21 @@
         "type": "string"
       },
       "DestinationArtworkUnavailableReason": {
-        "enum": [
-          "role_not_provided",
-          "no_local_original",
-          "selected_original_unavailable"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "role_not_provided",
+              "no_local_original",
+              "selected_original_unavailable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "selected_image_not_wide",
+            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
+            "type": "string"
+          }
+        ]
       },
       "SteamArtworkRoleAction": {
         "enum": [

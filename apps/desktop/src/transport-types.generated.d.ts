@@ -549,7 +549,7 @@ export type DestinationArtworkContent =
       reason: DestinationArtworkUnavailableReason;
     };
 export type DestinationArtworkUnavailableReason =
-  "role_not_provided" | "no_local_original" | "selected_original_unavailable";
+  ("role_not_provided" | "no_local_original" | "selected_original_unavailable") | "selected_image_not_wide";
 export type DestinationArtworkRole = "portrait_cover" | "landscape_cover" | "hero_banner";
 export type DestinationArtworkSource =
   | {
@@ -2891,8 +2891,10 @@ export interface OutputDestinationArtworkBytes {
 }
 /**
  * An observation, never provider permission, destination ownership or write consent.
- * V1 exposes validated local portrait originals. Catalog defaults and unprovided
- * wide roles remain explicit; they are never synthesized from another role/cache.
+ * Portrait exposes the validated local cover original; hero banner exposes the
+ * validated local detail original only when it is wider than tall. Catalog
+ * defaults and the landscape role remain explicit unavailable states; nothing is
+ * synthesized, cropped or resized from another role or cache.
  */
 export interface DestinationArtworkHandoff {
   choice: ArtworkChoice | null;

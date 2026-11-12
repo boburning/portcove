@@ -551,3 +551,22 @@ fn recovery_with_nothing_pending_writes_nothing_to_the_profile() {
     );
     assert!(!fixture.config.join("shortcuts.vdf.portcove-lock").exists());
 }
+
+#[test]
+fn hero_banner_is_published_under_its_own_steam_name() {
+    let fixture = Fixture::new().with_owned_shortcut();
+    let mut request = fixture.update(false, b"portrait");
+    request.roles[2].1 = available(b"wide banner");
+    let plan = plan_steam_artwork(&request).unwrap();
+    assert_eq!(plan.roles[2].action, SteamArtworkRoleAction::Write);
+    apply(&plan, &request);
+    assert_eq!(
+        fs::read(fixture.grid().join(format!("{APP_ID}_hero.png"))).unwrap(),
+        b"wide banner"
+    );
+    assert_eq!(
+        fs::read(fixture.grid().join(format!("{APP_ID}p.png"))).unwrap(),
+        b"portrait"
+    );
+    assert_eq!(read_ownership(&fixture.config).unwrap().1.len(), 2);
+}

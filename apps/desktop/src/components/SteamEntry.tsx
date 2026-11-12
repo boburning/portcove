@@ -45,12 +45,19 @@ function steamArtworkRoleName(role: SteamArtworkRole["role"]) {
   return Object.hasOwn(artworkRoleNames, role) ? artworkRoleNames[role] : "Artwork";
 }
 
-function steamArtworkUnavailableLabel(reason: SteamArtworkRole["unavailable_reason"]) {
+function steamArtworkUnavailableLabel(
+  reason: SteamArtworkRole["unavailable_reason"],
+  role: SteamArtworkRole["role"],
+) {
   switch (reason) {
     case "no_local_original":
-      return "Not available: choose an imported image for this game in Portcove first";
+      return role === "hero_banner"
+        ? "Not available: import a wide detail image for this game in Portcove first"
+        : "Not available: choose an imported image for this game in Portcove first";
     case "selected_original_unavailable":
       return "Not available: the selected image could not be read; import it again";
+    case "selected_image_not_wide":
+      return "Not available: the selected detail image is not wide, so it is not used as a banner";
     default:
       return "Not available: Portcove has no image for this role yet";
   }
@@ -67,7 +74,7 @@ function steamArtworkPlanLabel(role: SteamArtworkRole) {
     case "unchanged":
       return "Already up to date";
     case "unavailable":
-      return steamArtworkUnavailableLabel(role.unavailable_reason);
+      return steamArtworkUnavailableLabel(role.unavailable_reason, role.role);
     case "remove":
       return "Will be removed, with a backup kept";
     case "preserve_modified":

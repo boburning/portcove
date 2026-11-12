@@ -285,6 +285,9 @@ pub(crate) fn artwork_handoff(
             DestinationArtworkUnavailableReason::SelectedOriginalUnavailable => {
                 "\nThe selected local original is unavailable."
             }
+            DestinationArtworkUnavailableReason::SelectedImageNotWide => {
+                "\nThe selected detail image is not wider than tall, so it is not offered as a wide role."
+            }
         }),
     }
     output.push_str("\nThis observation does not grant destination ownership, copyright permission, or consent to write there.");
