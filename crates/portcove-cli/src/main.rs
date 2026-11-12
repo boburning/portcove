@@ -1257,6 +1257,12 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 service.game_file_scan_snapshot()?,
                 human::game_file_scan_snapshot,
             )?,
+            GameFileRootCommand::Matches(args) => render_read_success(
+                mode,
+                "source.roots.matches",
+                service.game_file_scan_matches(&args.query())?,
+                |page| human::game_file_scan_matches(page, service.catalog()),
+            )?,
             GameFileRootCommand::Add { path } => render_read_success(
                 mode,
                 "source.roots.add",
@@ -3655,6 +3661,7 @@ fn command_name(command: &Commands) -> &'static str {
                 GameFileRootCommand::List => "source.roots.list",
                 GameFileRootCommand::Scan(_) => "source.roots.scan",
                 GameFileRootCommand::Snapshot => "source.roots.snapshot",
+                GameFileRootCommand::Matches(_) => "source.roots.matches",
                 GameFileRootCommand::Add { .. } => "source.roots.add",
                 GameFileRootCommand::Relink { .. } => "source.roots.relink",
                 GameFileRootCommand::Remove { .. } => "source.roots.remove",
@@ -5149,12 +5156,9 @@ mod tests {
             capabilities.schema_version,
             portcove_core::API_SCHEMA_VERSION
         );
-        assert!(
-            capabilities
-                .commands
-                .iter()
-                .any(|command| command == "source.roots")
-        );
+        for name in ["source.roots", "source.roots.scan", "source.roots.matches"] {
+            assert!(capabilities.commands.iter().any(|command| command == name));
+        }
         assert_eq!(
             capabilities.operation_event_schema_version,
             portcove_core::OPERATION_EVENT_SCHEMA_VERSION

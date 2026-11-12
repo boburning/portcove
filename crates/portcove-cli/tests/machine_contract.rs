@@ -2271,7 +2271,7 @@ fn saved_game_file_roots_survive_unavailability_and_relink_by_stable_identity() 
         &["--json", "source", "roots", "scan", "--max-entries", "4"],
     ));
     assert_eq!(scan["command"], "source.roots.scan");
-    assert_eq!(scan["data"]["format_version"], 12);
+    assert_eq!(scan["data"]["format_version"], 13);
     assert_eq!(scan["data"]["limits"]["max_entries"], 4);
     assert_eq!(scan["data"]["limits"]["max_depth"], 6);
     assert_eq!(scan["data"]["freshness"], "inputs_match");
@@ -2282,6 +2282,36 @@ fn saved_game_file_roots_survive_unavailability_and_relink_by_stable_identity() 
         scan["data"]["report"]["limits_reached"],
         serde_json::json!([])
     );
+
+    assert_eq!(scan["data"]["matches"]["exact_matches"], 0);
+    assert_eq!(scan["data"]["matches"]["preview_complete"], true);
+    let scan_id = scan["data"]["matches"]["scan_id"].as_str().unwrap();
+    let matches = json_stdout(&portcove(
+        &library,
+        &[
+            "--json",
+            "source",
+            "roots",
+            "matches",
+            "--limit",
+            "8",
+            "--root",
+            &first_id,
+            "--scan-id",
+            scan_id,
+        ],
+    ));
+    assert_eq!(matches["command"], "source.roots.matches");
+    assert_eq!(matches["data"]["scan_id"], scan_id);
+    assert_eq!(matches["data"]["kind"], "exact");
+    assert_eq!(matches["data"]["total"], 0);
+    assert_eq!(matches["data"]["candidates"], serde_json::json!([]));
+    assert_eq!(matches["data"]["next_offset"], Value::Null);
+    let refused = portcove(
+        &library,
+        &["--json", "source", "roots", "matches", "--limit", "0"],
+    );
+    assert!(!refused.status.success(), "{refused:?}");
 
     let snapshot = json_stdout(&portcove(
         &library,
