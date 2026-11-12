@@ -140,6 +140,9 @@ it("keeps the dialog open while a reviewed import is running", async () => {
   await click("Review restore");
   await click("Restore this library");
   expect(button("Close").disabled).toBe(true);
+  expect(document.querySelector("[role=status]")?.textContent).toBe(
+    "Copying and verifying the restored library… Keep Portcove open until this finishes.",
+  );
   await captureParityState("library-restore-pending-fixture");
   await act(async () =>
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
@@ -507,6 +510,17 @@ it("presents the restore review and its recovery in the active locale", async ()
     expect(recovery?.querySelector("h2")?.textContent).toBe("إنهاء استعادة المكتبة المتوقفة");
     expect(recovery?.querySelector("bdi[dir=ltr]")?.textContent).toBe(plan.destination_root);
     expect(button("استئناف الاستعادة").disabled).toBe(false);
+    let finishRecovery!: (error: unknown) => void;
+    vi.mocked(desktopApi.recoverLibraryImport).mockReturnValue(
+      new Promise((_, reject) => {
+        finishRecovery = reject;
+      }),
+    );
+    await click("استئناف الاستعادة");
+    expect([...document.querySelectorAll("[role=status]")].map((item) => item.textContent)).toEqual(
+      ["جارٍ استرداد الاستعادة… أبقِ Portcove مفتوحًا حتى ينتهي هذا.", "جارٍ استرداد استعادة المكتبة…"],
+    );
+    await act(async () => finishRecovery({ message: "Backup disk is offline" }));
   } finally {
     await localization.changeLanguage("en");
   }
