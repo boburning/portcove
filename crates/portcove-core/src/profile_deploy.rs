@@ -1284,6 +1284,10 @@ pub struct ModSetupsView {
     /// The mod provider this game has a reviewed binding for (`gamebanana`), if any.
     #[serde(default)]
     pub provider: Option<String>,
+    /// The game's current installation. A setup whose build differs stays on
+    /// its own build; an upgraded copy can use this one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub current_install_id: Option<String>,
 }
 
 impl PortcoveService {
@@ -1299,6 +1303,7 @@ impl PortcoveService {
                 live: None,
                 held_updates: Vec::new(),
                 provider: None,
+                current_install_id: None,
             });
         };
         // Reviews abandoned without Cancel (a closed window, a changed setup)
@@ -1307,10 +1312,12 @@ impl PortcoveService {
         let inventory = self.profile_inventory(port_id)?;
         let has_profiles = !inventory.profiles.is_empty();
         let held_updates = crate::provider_auto_update::held_updates(&layout, &inventory);
+        let current_install_id = profile::active_install_id(&self.library.connection()?, port_id)?;
         Ok(ModSetupsView {
             held_updates,
             provider: crate::provider_install::gamebanana_game(port_id)
                 .map(|_| crate::gamebanana::PROVIDER.to_owned()),
+            current_install_id,
             port_id: port_id.into(),
             supported: true,
             later_mods_take_priority: matches!(

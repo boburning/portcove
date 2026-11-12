@@ -28474,6 +28474,13 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "description": "Everything a game-level mods view needs in one read: whether the game has a\nreviewed mod contract, its setups and what is live now. Read-only.",
     "properties": {
+      "current_install_id": {
+        "description": "The game's current installation. A setup whose build differs stays on\nits own build; an upgraded copy can use this one.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "held_updates": {
         "default": [],
         "description": "Unattended provider updates waiting for the player's review, for each\nsetup's current revision.",

@@ -294,12 +294,19 @@ export const desktopApi = {
     invoke<import("./types").ModSetupsView>("get_mod_setups", { portId, generation }),
   createDefaultModSetup: (portId: string, generation: number) =>
     invoke<import("./types").ModSetup>("create_default_mod_setup", { portId, generation }),
-  copyModSetup: (portId: string, profileId: string, displayName: string, generation: number) =>
+  copyModSetup: (
+    portId: string,
+    profileId: string,
+    displayName: string,
+    generation: number,
+    currentBuild = false,
+  ) =>
     invoke<import("./types").ModSetup>("copy_mod_setup", {
       portId,
       profileId,
       displayName,
       generation,
+      currentBuild,
     }),
   useModSetup: (portId: string, profileId: string, generation: number) =>
     invoke<import("./types").ModSetupRevision>("use_mod_setup", {

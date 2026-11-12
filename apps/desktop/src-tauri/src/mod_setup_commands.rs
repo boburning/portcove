@@ -46,12 +46,17 @@ pub(crate) async fn copy_mod_setup(
     port_id: String,
     profile_id: String,
     display_name: String,
+    current_build: bool,
 ) -> DesktopResult<Profile> {
     let state = state.inner().clone();
     blocking_worker(move || {
-        service_at_generation(&state, generation)?
-            .copy_profile(&port_id, &profile_id, &display_name)
-            .map_err(Into::into)
+        let service = service_at_generation(&state, generation)?;
+        if current_build {
+            service.copy_profile_onto_current_build(&port_id, &profile_id, &display_name)
+        } else {
+            service.copy_profile(&port_id, &profile_id, &display_name)
+        }
+        .map_err(Into::into)
     })
     .await
 }
