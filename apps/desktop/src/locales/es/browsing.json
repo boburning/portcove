@@ -63,6 +63,28 @@
     "setupOption": "<method/>. Esta opción de configuración coincide con tus filtros. Portcove vuelve a comprobar los requisitos actuales antes de la configuración o el inicio.",
     "unavailable": "Estos resultados de filtro no están disponibles. Vuelve a Filtros para actualizar tus elecciones o comprobar de nuevo."
   },
+  "media": {
+    "captionUnavailable": "<caption/> · Imagen no disponible",
+    "choose": "Elige una captura",
+    "creditOriginal": "Versión original · <edition/> · <credit/>",
+    "creditPort": "Imagen de la adaptación · <credit/>",
+    "enlarge": "Ampliar la captura {{number, number}}: {{caption}}",
+    "exactPort": "Captura de esta adaptación exacta.",
+    "fromOriginal": "De la versión original; esta adaptación puede verse diferente.",
+    "igdbTerms": "Términos de IGDB",
+    "loading": "Cargando imagen…",
+    "loadingScreenshot": "Cargando captura…",
+    "next": "Siguiente",
+    "openOriginal": "Abrir la imagen original",
+    "position": "Vista previa de imagen · Captura {{number, number}} de {{total, number}}",
+    "previous": "Anterior",
+    "retry": "Reintentar imagen",
+    "retryScreenshot": "Reintentar captura {{number, number}}",
+    "screenshots": "Capturas de pantalla",
+    "show": "Mostrar la captura {{number, number}}: {{caption}}",
+    "source": "Fuente",
+    "unavailable": "Imagen no disponible"
+  },
   "observations": {
     "available": "Actualización disponible en la última comprobación",
     "channel": "Canal de actualización seleccionado: <channel/>",

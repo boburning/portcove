@@ -61,6 +61,28 @@
     "setupOption": "<method/>. This setup option matches your filters. Portcove checks the current requirements again before setup or launch.",
     "unavailable": "These filter results are unavailable. Return to Filters to update your choices or check again."
   },
+  "media": {
+    "captionUnavailable": "<caption/> · Image unavailable",
+    "choose": "Choose a screenshot",
+    "creditOriginal": "Original release · <edition/> · <credit/>",
+    "creditPort": "Port image · <credit/>",
+    "enlarge": "Enlarge screenshot {{number, number}}: {{caption}}",
+    "exactPort": "Screenshot of this exact port.",
+    "fromOriginal": "From the original release; this port may look different.",
+    "igdbTerms": "IGDB terms",
+    "loading": "Loading image…",
+    "loadingScreenshot": "Loading screenshot…",
+    "next": "Next",
+    "openOriginal": "Open original image",
+    "position": "Image preview · Screenshot {{number, number}} of {{total, number}}",
+    "previous": "Previous",
+    "retry": "Retry image",
+    "retryScreenshot": "Retry screenshot {{number, number}}",
+    "screenshots": "Screenshots",
+    "show": "Show screenshot {{number, number}}: {{caption}}",
+    "source": "Source",
+    "unavailable": "Image unavailable"
+  },
   "observations": {
     "available": "Update available at last check",
     "channel": "Selected update channel: <channel/>",
