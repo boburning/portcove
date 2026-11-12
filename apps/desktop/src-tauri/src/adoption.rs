@@ -187,26 +187,70 @@ fn batch_disclosure(preview: &AdoptionBatchPreview, names: &[String]) -> String 
         .iter()
         .take(SHOWN_ITEMS)
         .zip(names)
-        .map(|(item, name)| format!("- {name}: {} files", item.copy_plan.files.len()))
+        .map(|(item, name)| format!("- {name}: {}", files(item.copy_plan.files.len())))
         .collect::<Vec<_>>()
         .join("\n");
-    let more = preview.items.len().saturating_sub(SHOWN_ITEMS);
-    let more = match more {
+    let more = match preview.items.len().saturating_sub(SHOWN_ITEMS) {
         0 => String::new(),
         1 => "\n- and 1 more installation".to_owned(),
-        _ => format!("\n- and {more} more installations"),
+        more => format!("\n- and {more} more installations"),
     };
-    let saved = match preview.items_replacing_saved_files {
+    let importing = preview
+        .items
+        .iter()
+        .filter(|item| {
+            item.destination
+                .as_ref()
+                .is_some_and(|destination| !destination.imported_user_data_paths.is_empty())
+        })
+        .count();
+    let imported = match importing {
+        0 => "No saved files are copied in.".to_owned(),
+        1 => "Saved files are copied in for 1 game.".to_owned(),
+        count => format!("Saved files are copied in for {count} games."),
+    };
+    let replaced = match preview.items_replacing_saved_files {
         0 => "No saved files already in Portcove are replaced.".to_owned(),
         1 => "For 1 game, matching saved files already in Portcove are replaced. Portcove does not create a backup first, and removing the copy later does not restore them.".to_owned(),
         count => format!("For {count} games, matching saved files already in Portcove are replaced. Portcove does not create a backup first, and removing a copy later does not restore them."),
     };
+    let skipped = preview
+        .items
+        .iter()
+        .map(|item| item.copy_plan.skipped_entries.len())
+        .sum::<usize>();
+    let installations = match preview.items.len() {
+        1 => "1 installation".to_owned(),
+        count => format!("{count} installations"),
+    };
     format!(
-        "Copy {} installations ({} files, {} bytes) into Portcove?\n\n{listed}{more}\n\n{saved}\n\nEach installation is checked again just before it is copied; one that changed is held, not copied. Each copy becomes that game's active version; existing versions and backups remain. The original folders are not modified.",
-        preview.items.len(),
-        preview.total_files,
-        preview.total_bytes,
+        "Copy {installations} ({}, {}) into Portcove?\n\n{listed}{more}\n\n{imported} {replaced}\n\n{}\n\nStop the games before copying. Each installation is checked again just before it is copied; one that changed is held, not copied. Each copy becomes that game's active version; existing versions and backups remain. The original folders are not modified.",
+        files(preview.total_files),
+        iec_bytes(preview.total_bytes),
+        unsupported_items_disclosure(skipped),
     )
+}
+
+fn files(count: usize) -> String {
+    match count {
+        1 => "1 file".to_owned(),
+        count => format!("{count} files"),
+    }
+}
+
+/// Human byte quantity in IEC units, as the content-design contract asks.
+fn iec_bytes(bytes: u64) -> String {
+    const UNITS: [&str; 4] = ["KiB", "MiB", "GiB", "TiB"];
+    if bytes < 1024 {
+        return format!("{bytes} B");
+    }
+    let mut value = bytes as f64 / 1024.0;
+    let mut unit = 0;
+    while value >= 1024.0 && unit < UNITS.len() - 1 {
+        value /= 1024.0;
+        unit += 1;
+    }
+    format!("{value:.1} {}", UNITS[unit])
 }
 
 fn saved_data_disclosure(paths: &[PathBuf]) -> String {
@@ -304,9 +348,12 @@ mod batch_tests {
             .map(|index| format!("Game {index} (g{index})"))
             .collect::<Vec<_>>();
         let none = batch_disclosure(&preview(2, 0), &names[..2]);
-        assert!(none.starts_with("Copy 2 installations (3 files, 10 bytes)"));
+        assert!(none.starts_with("Copy 2 installations (3 files, 10 B)"));
         assert!(none.contains("- Game 0 (g0): 0 files\n- Game 1 (g1): 0 files"));
+        assert!(none.contains("No saved files are copied in."));
         assert!(none.contains("No saved files already in Portcove are replaced."));
+        assert!(none.contains("No unsupported items were found"));
+        assert!(none.contains("Stop the games before copying."));
         assert!(none.contains("The original folders are not modified."));
         let one = batch_disclosure(&preview(2, 1), &names[..2]);
         assert!(one.contains("For 1 game, matching saved files already in Portcove are replaced"));
@@ -315,5 +362,14 @@ mod batch_tests {
         assert!(many.contains("For 3 games"));
         assert!(many.contains("- and 2 more installations"));
         assert!(!many.contains("Game 8"));
+    }
+
+    #[test]
+    fn batch_sizes_use_complete_counts_and_iec_units() {
+        assert_eq!(super::files(1), "1 file");
+        assert_eq!(super::files(2), "2 files");
+        assert_eq!(super::iec_bytes(512), "512 B");
+        assert_eq!(super::iec_bytes(2048), "2.0 KiB");
+        assert_eq!(super::iec_bytes(5 * 1024 * 1024), "5.0 MiB");
     }
 }

@@ -68,6 +68,7 @@ async function render(
   items: LauncherBatchSelection[],
   reviewBatch = vi.fn(async () => preview),
   copyBatch = vi.fn(async (): Promise<AdoptionBatchResult | null> => result),
+  copied = vi.fn(),
 ) {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const container = document.createElement("div");
@@ -80,12 +81,16 @@ async function render(
         disabled={false}
         reviewBatch={reviewBatch}
         copyBatch={copyBatch}
+        copied={copied}
+        gameName={(portId) => `Catalog ${portId.toUpperCase()} (${portId})`}
       />,
     ),
   );
   return {
+    root,
     reviewBatch,
     copyBatch,
+    copied,
     cleanup: async () => {
       await act(async () => root.unmount());
       container.remove();
@@ -93,11 +98,14 @@ async function render(
   };
 }
 
-it("needs two apps before offering a several-app review", async () => {
+it("needs two apps before offering a several-app review, with readable guidance", async () => {
   const view = await render(selection.slice(0, 1));
   try {
     await expect
-      .element(page.getByRole("button", { name: "Select two or more apps to copy them together" }))
+      .element(page.getByText(/^1 app selected\. Select at least one more/))
+      .toBeVisible();
+    await expect
+      .element(page.getByRole("button", { name: "Review copying the selected apps" }))
       .toBeDisabled();
   } finally {
     await view.cleanup();
@@ -107,13 +115,14 @@ it("needs two apps before offering a several-app review", async () => {
 it("reviews the selected apps once, discloses consequences, then reports each outcome", async () => {
   const view = await render(selection);
   try {
-    await page.getByRole("button", { name: "Review copying 2 apps" }).click();
+    await page.getByRole("button", { name: "Review copying the selected apps" }).click();
     expect(view.reviewBatch).toHaveBeenCalledWith(selection.map(({ item }) => item));
     await expect
-      .element(page.getByText(/2 apps · 12 files · .* will be copied into the managed library/))
+      .element(page.getByText(/2 apps · 12 files · .* to copy into Portcove/))
       .toBeVisible();
+    await expect.element(page.getByText(/^Game A → Catalog A \(a\)/)).toBeVisible();
     await expect
-      .element(page.getByText("Game A — becomes the active version; 1.0 stays installed"))
+      .element(page.getByText("Becomes the active version; 1.0 stays installed."))
       .toBeVisible();
     await expect
       .element(page.getByText(/For 1 game, matching saved files already in Portcove are replaced/))
@@ -124,6 +133,9 @@ it("reviews the selected apps once, discloses consequences, then reports each ou
       preview.batch_sha256,
     );
     await expect.element(page.getByText("Copied 1 app of 2.")).toBeVisible();
+    // Focus moves to the result, and the parent clears the selection so nothing is copied twice.
+    await expect.poll(() => document.activeElement?.textContent).toBe("Copied 1 app of 2.");
+    expect(view.copied).toHaveBeenCalledOnce();
     await expect.element(page.getByText(/^Game B: Changed after review; not copied/)).toBeVisible();
     await expect.element(page.getByText("The folder changed after review.")).toBeVisible();
   } finally {
@@ -138,10 +150,32 @@ it("keeps the review when the native confirmation is declined", async () => {
     vi.fn(async (): Promise<AdoptionBatchResult | null> => null),
   );
   try {
-    await page.getByRole("button", { name: "Review copying 2 apps" }).click();
+    await page.getByRole("button", { name: "Review copying the selected apps" }).click();
     await page.getByRole("button", { name: "Continue to copy confirmation" }).click();
-    await expect.element(page.getByText(/will be copied into the managed library/)).toBeVisible();
+    await expect.element(page.getByText(/to copy into Portcove/)).toBeVisible();
     expect(page.getByText(/^Copied/).elements()).toHaveLength(0);
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it("hides a review once the selection changes", async () => {
+  const view = await render(selection);
+  try {
+    await page.getByRole("button", { name: "Review copying the selected apps" }).click();
+    await expect.element(page.getByText(/to copy into Portcove/)).toBeVisible();
+    await act(async () =>
+      view.root.render(
+        <LauncherBatchCopy
+          selection={[...selection, { item: { source: "C:/Apps/C", port_id: "c" }, label: "C" }]}
+          disabled={false}
+          reviewBatch={view.reviewBatch}
+          copyBatch={view.copyBatch}
+          copied={view.copied}
+        />,
+      ),
+    );
+    expect(page.getByText(/to copy into Portcove/).elements()).toHaveLength(0);
   } finally {
     await view.cleanup();
   }

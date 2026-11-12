@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FolderInput } from "lucide-react";
 import { formatBytes } from "../view-model";
 import { Icon } from "./ui";
@@ -7,15 +7,21 @@ import type { AdoptionBatchItem, AdoptionBatchPreview, AdoptionBatchResult } fro
 
 export type LauncherBatchSelection = { item: AdoptionBatchItem; label: string };
 
+/** Core refuses larger batches; the list keeps selections within it. */
+export const LAUNCHER_BATCH_LIMIT = 32;
+
 const OUTCOME_LABELS: Record<AdoptionBatchResult["items"][number]["outcome"], string> = {
   copied: "Copied",
   changed: "Changed after review; not copied",
   failed: "Not copied",
 };
 
-/** Complete per-count message; English suffixes are never appended. */
+/** Complete per-count messages; English suffixes are never appended. */
 function apps(count: number) {
   return count === 1 ? "1 app" : `${count} apps`;
+}
+function files(count: number) {
+  return count === 1 ? "1 file" : `${count} files`;
 }
 
 /**
@@ -27,6 +33,8 @@ export function LauncherBatchCopy({
   disabled,
   reviewBatch,
   copyBatch,
+  copied,
+  gameName = (portId) => portId,
 }: {
   selection: readonly LauncherBatchSelection[];
   disabled: boolean;
@@ -35,10 +43,17 @@ export function LauncherBatchCopy({
     items: AdoptionBatchItem[],
     batchSha256: string,
   ) => Promise<AdoptionBatchResult | null | undefined>;
+  /** Called after a copy ran, so copied apps are not offered again. */
+  copied: () => void;
+  gameName?: (portId: string) => string;
 }) {
   const [preview, setPreview] = useState<AdoptionBatchPreview>();
-  const [result, setResult] = useState<AdoptionBatchResult>();
-  const [working, setWorking] = useState(false);
+  const [result, setResult] = useState<{
+    value: AdoptionBatchResult;
+    labels: ReadonlyMap<string, string>;
+  }>();
+  const [phase, setPhase] = useState<"idle" | "reviewing" | "copying">("idle");
+  const resultRef = useRef<HTMLParagraphElement>(null);
   // A review belongs to exactly the selection it was made for.
   const key = selection.map(({ item }) => `${item.source}\n${item.port_id}`).join("\n--\n");
   const [reviewedKey, setReviewedKey] = useState<string>();
@@ -46,28 +61,37 @@ export function LauncherBatchCopy({
   const label = (source: string) =>
     selection.find(({ item }) => item.source === source)?.label ?? source;
   const items = selection.map(({ item }) => item);
+  const busy = disabled || phase !== "idle";
+  useEffect(() => {
+    if (result) resultRef.current?.focus();
+  }, [result]);
   return (
     <section aria-label="Copy several apps" className="mt-3">
+      <p className="text-[var(--color-text-secondary)]">
+        {selection.length === 0
+          ? "Select apps above to copy several at once."
+          : selection.length === 1
+            ? "1 app selected. Select at least one more to copy them together, or review it on its own above."
+            : `${apps(selection.length)} selected.`}
+      </p>
       <Button
         data-focusable
         type="button"
         variant="outline"
-        disabled={disabled || working || selection.length < 2}
+        disabled={busy || selection.length < 2}
         onClick={() => {
-          setWorking(true);
+          setPhase("reviewing");
           setResult(undefined);
           void reviewBatch(items)
             .then((reviewed) => {
               setPreview(reviewed);
               setReviewedKey(reviewed ? key : undefined);
             })
-            .finally(() => setWorking(false));
+            .finally(() => setPhase("idle"));
         }}
       >
         <Icon glyph={FolderInput} />
-        {selection.length < 2
-          ? "Select two or more apps to copy them together"
-          : `Review copying ${apps(selection.length)}`}
+        {phase === "reviewing" ? "Reviewing…" : "Review copying the selected apps"}
       </Button>
       {current && (
         <div
@@ -76,16 +100,38 @@ export function LauncherBatchCopy({
           role="group"
         >
           <p>
-            <strong>{apps(current.items.length)}</strong> ·{" "}
-            {current.total_files === 1 ? "1 file" : `${current.total_files} files`} ·{" "}
-            {formatBytes(current.total_bytes)} will be copied into the managed library.
+            <strong>{apps(current.items.length)}</strong> · {files(current.total_files)} ·{" "}
+            {formatBytes(current.total_bytes)} to copy into Portcove.
           </p>
           <ul className="ps-5">
             {current.items.map((item) => (
               <li key={item.source}>
-                {label(item.source)}
-                {item.destination?.active_install &&
-                  ` — becomes the active version; ${item.destination.active_install.version} stays installed`}
+                {label(item.source)} → {gameName(item.selected_port_id ?? "")}
+                {item.destination?.active_install && (
+                  <>
+                    <br />
+                    <small>
+                      Becomes the active version; {item.destination.active_install.version} stays
+                      installed.
+                    </small>
+                  </>
+                )}
+                {(item.destination?.imported_user_data_paths.length ?? 0) > 0 && (
+                  <>
+                    <br />
+                    <small>Saved files are copied in.</small>
+                  </>
+                )}
+                {item.copy_plan.skipped_entries.length > 0 && (
+                  <>
+                    <br />
+                    <small className="text-[var(--color-warning-text)]">
+                      {item.copy_plan.skipped_entries.length === 1
+                        ? "1 unsupported item stays only in the original folder."
+                        : `${item.copy_plan.skipped_entries.length} unsupported items stay only in the original folder.`}
+                    </small>
+                  </>
+                )}
               </li>
             ))}
           </ul>
@@ -106,35 +152,43 @@ export function LauncherBatchCopy({
             data-focusable
             type="button"
             variant="primary"
-            disabled={disabled || working}
+            disabled={busy}
             onClick={() => {
-              setWorking(true);
+              const labels = new Map(selection.map(({ item, label }) => [item.source, label]));
+              setPhase("copying");
               void copyBatch(items, current.batch_sha256)
-                .then((copied) => {
-                  if (copied) {
-                    setResult(copied);
+                .then((value) => {
+                  if (value) {
+                    setResult({ value, labels });
                     setPreview(undefined);
+                    copied();
                   }
                 })
-                .finally(() => setWorking(false));
+                .finally(() => setPhase("idle"));
             }}
           >
             <Icon glyph={FolderInput} />
-            {working ? "Copying…" : "Continue to copy confirmation"}
+            {phase === "copying"
+              ? "Waiting for confirmation or copying…"
+              : "Continue to copy confirmation"}
           </Button>
         </div>
       )}
       <div aria-live="polite">
         {result && (
           <div className="mt-3" role="group" aria-label="Several apps copy result">
-            <p>
-              Copied {apps(result.items.filter((item) => item.outcome === "copied").length)} of{" "}
-              {result.items.length}.
+            <p
+              ref={resultRef}
+              tabIndex={-1}
+              className="rounded-sm focus:outline-2 focus:outline-offset-2 focus:outline-pc-ring"
+            >
+              Copied {apps(result.value.items.filter((item) => item.outcome === "copied").length)}{" "}
+              of {result.value.items.length}.
             </p>
             <ul className="ps-5">
-              {result.items.map((item) => (
+              {result.value.items.map((item) => (
                 <li key={item.source}>
-                  {label(item.source)}: {OUTCOME_LABELS[item.outcome]}
+                  {result.labels.get(item.source) ?? item.source}: {OUTCOME_LABELS[item.outcome]}
                   {item.message && (
                     <>
                       <br />

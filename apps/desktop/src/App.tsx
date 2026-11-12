@@ -2014,6 +2014,10 @@ function AdoptionOverlay({
             }
           }}
           choose={(entry) => launcher.choose(entry, setPath)}
+          gameName={(portId) => {
+            const port = ports.find((candidate) => candidate.id === portId);
+            return port ? `${gameIdentityLabel(port)} (${portId})` : portId;
+          }}
           reviewBatch={(items) =>
             operations.perform(
               "review several launcher apps",
@@ -2029,7 +2033,6 @@ function AdoptionOverlay({
                     label: "Selected launcher apps",
                   },
                   libraryGeneration,
-                  "library",
                 ),
               },
             )

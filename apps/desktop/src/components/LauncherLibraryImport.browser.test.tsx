@@ -272,11 +272,54 @@ it("selects launcher apps for a several-app copy with accessible checkboxes", as
     await page.getByRole("button", { name: "List apps", exact: true }).click();
     await page.getByRole("checkbox", { name: "Select Game to copy with others" }).click();
     await page.getByRole("checkbox", { name: "Select Second to copy with others" }).click();
-    await page.getByRole("button", { name: "Review copying 2 apps" }).click();
+    await page.getByRole("button", { name: "Review copying the selected apps" }).click();
     expect(reviewBatch).toHaveBeenCalledWith([
       { source: "C:\\Apps\\Game", port_id: "game" },
       { source: "C:\\Apps\\Second", port_id: "second" },
     ]);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
+it("never offers two launcher apps for the same game in one copy", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const sameGame: LauncherLibraryInventory = {
+    ...inventory,
+    entries: [
+      entry({}),
+      entry({
+        index: 1,
+        name: "Nightly",
+        folder_name: "Nightly",
+        install_path: "C:\\Apps\\Nightly",
+      }),
+    ],
+    skipped_entries: [],
+  };
+  try {
+    await act(async () =>
+      root.render(
+        <LauncherLibraryImport
+          disabled={false}
+          inspect={async () => sameGame}
+          choose={vi.fn()}
+          reviewBatch={vi.fn(async () => undefined)}
+          copyBatch={vi.fn(async () => null)}
+        />,
+      ),
+    );
+    await page.getByText("Moving from GitHub Launcher or Quiver?").click();
+    await userEvent.fill(page.getByLabelText("GitHub Launcher data folder"), "C:\\GHL");
+    await page.getByRole("button", { name: "List apps", exact: true }).click();
+    await page.getByRole("checkbox", { name: "Select Game to copy with others" }).click();
+    await expect
+      .element(page.getByRole("checkbox", { name: "Select Nightly to copy with others" }))
+      .toBeDisabled();
   } finally {
     await act(async () => root.unmount());
     container.remove();

@@ -4,7 +4,11 @@ import { Icon } from "./ui";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Checkbox } from "./ui/checkbox";
-import { LauncherBatchCopy, type LauncherBatchSelection } from "./LauncherBatchCopy";
+import {
+  LAUNCHER_BATCH_LIMIT,
+  LauncherBatchCopy,
+  type LauncherBatchSelection,
+} from "./LauncherBatchCopy";
 import type {
   AdoptionBatchItem,
   AdoptionBatchPreview,
@@ -58,6 +62,7 @@ export function LauncherLibraryImport({
   choose,
   reviewBatch,
   copyBatch,
+  gameName,
 }: {
   disabled: boolean;
   inspect: (
@@ -72,6 +77,8 @@ export function LauncherLibraryImport({
     items: AdoptionBatchItem[],
     batchSha256: string,
   ) => Promise<AdoptionBatchResult | null | undefined>;
+  /** Catalog display name for a port ID, shown in the several-app review. */
+  gameName?: (portId: string) => string;
 }) {
   const id = useId();
   const [launcher, setLauncher] = useState<LauncherKind>("github-launcher");
@@ -79,6 +86,15 @@ export function LauncherLibraryImport({
   const [appsRoot, setAppsRoot] = useState("");
   const [inventory, setInventory] = useState<LauncherLibraryInventory>();
   const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
+  // Core copies one installation per game and at most a fixed number per batch, so
+  // the list never offers a selection Core would refuse.
+  const canSelect = (entry: LauncherLibraryEntry) => {
+    const chosen = (inventory?.entries ?? []).filter((other) => selected.has(other.index));
+    return (
+      chosen.length < LAUNCHER_BATCH_LIMIT &&
+      !chosen.some((other) => other.adopt_port_id === entry.adopt_port_id)
+    );
+  };
   const [listing, setListing] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const request = useRef(0);
@@ -270,7 +286,7 @@ export function LauncherLibraryImport({
                     className="me-2 align-middle"
                     aria-label={`Select ${entry.name || entry.folder_name} to copy with others`}
                     checked={selected.has(entry.index)}
-                    disabled={disabled}
+                    disabled={disabled || (!selected.has(entry.index) && !canSelect(entry))}
                     onCheckedChange={(checked) =>
                       setSelected((previous) => {
                         const next = new Set(previous);
@@ -335,6 +351,8 @@ export function LauncherLibraryImport({
                 disabled={disabled}
                 reviewBatch={reviewBatch}
                 copyBatch={copyBatch}
+                copied={() => setSelected(new Set())}
+                {...(gameName ? { gameName } : {})}
               />
             )}
         </section>
