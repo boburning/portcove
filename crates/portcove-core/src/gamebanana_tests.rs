@@ -1,6 +1,8 @@
 use super::*;
 use crate::test_http::serve_http;
+use crate::{ProviderFreshness, provider_http::download_deadline};
 use serde_json::json;
+use std::time::Duration;
 
 const WEB: &str = "https://gamebanana.com";
 

@@ -96,6 +96,7 @@ mod profile;
 mod profile_deploy;
 mod provider_auto_update;
 mod provider_browse;
+mod provider_http;
 mod provider_install;
 mod provider_update;
 mod psx;
@@ -136,6 +137,7 @@ mod support_bundle_stage;
 mod test_fixture;
 #[cfg(test)]
 mod test_http;
+mod thunderstore;
 mod tool_process;
 mod transfer_copy;
 mod transfer_journal;
@@ -401,6 +403,7 @@ pub use support_bundle_export::{
     SupportBundleSectionKind, SupportBundleSectionStatus, export_support_bundle,
     prepare_support_log_directory,
 };
+pub use thunderstore::ThunderstoreClient;
 pub use types::*;
 
 // Private parked 58/59/64 contracts remain unclaimed. Public 65 adds game-file queries.
