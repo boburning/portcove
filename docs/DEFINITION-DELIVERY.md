@@ -177,6 +177,14 @@ Linux packages published as one inner ZIP or TAR.GZ inside the downloaded ZIP. I
 bound for fresh and retained reads; older readers refuse them, and no other adapter
 accepts the declaration.
 
+N64 recomp version 6 consumes `runtime_subdirectory_by_platform`, a map from a declared
+platform to the package wrapper folder that replaces `runtime_subdirectory` for that
+platform alone. It is accepted only on N64 recompilation definitions and only for their own
+platforms; each folder follows the `runtime_subdirectory` safety rules, and the declared
+source file must be a persistent path under every platform's folder. Indexed entries with the
+map require an N64 version 6 lower bound for fresh and retained reads; older readers refuse
+them. See [`docs/qualification/beetle-linux-managed-2026-11-12.md`](qualification/beetle-linux-managed-2026-11-12.md).
+
 Native portable version 14 consumes `release.archive_file_links` for a package
 whose archive relies on file links, such as versioned shared-library names. Core
 extracts each link as a regular copy of the file it names, following at most eight

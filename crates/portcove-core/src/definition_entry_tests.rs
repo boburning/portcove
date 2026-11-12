@@ -554,6 +554,41 @@ fn reviewed_package_layouts_require_a_capable_native_reader() {
 }
 
 #[test]
+fn n64_platform_runtime_subdirectories_require_version_6_and_are_n64_only() {
+    let mut port = fixture_catalog().ports()[0].clone();
+    port.adapter = crate::AdapterKind::N64RecompPortable;
+    port.runtime_subdirectory_by_platform
+        .insert(crate::Platform::LinuxX86_64, "wrapper-linux".into());
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["minimum_version"] = json!(5);
+    entry["required_capabilities"][0]["maximum_version"] = json!(6);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(
+        inspect(&entry)
+            .unwrap_err()
+            .message
+            .contains("platform runtime subdirectories require n64-recomp-portable")
+    );
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap_err()
+            .message
+            .contains("version 6")
+    );
+    entry["required_capabilities"][0]["minimum_version"] = json!(6);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap()
+            .capabilities()
+            .compatible
+    );
+}
+
+#[test]
 fn n64_archive_file_links_require_n64_version_5_and_other_adapters_refuse_the_flag() {
     let mut port = fixture_catalog().ports()[0].clone();
     port.adapter = crate::AdapterKind::N64RecompPortable;
@@ -1324,6 +1359,8 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             } else {
                 crate::runtime::GENERATED_CACHE_TAR_XZ_CAPABILITY
             }
+        } else if !port.runtime_subdirectory_by_platform.is_empty() {
+            crate::runtime::N64_PLATFORM_RUNTIME_SUBDIRECTORY_CAPABILITY
         } else if port.release.grant_declared_executable {
             crate::test_fixture::grant_declared_executable_capability(port)
         } else if port.portable_marker_file.is_some() {

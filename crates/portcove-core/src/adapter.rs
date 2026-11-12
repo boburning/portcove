@@ -146,7 +146,7 @@ pub(crate) fn launch_working_directory(
     executable: &Path,
     platform: Platform,
 ) -> Result<PathBuf> {
-    if let Some(relative) = &port.runtime_subdirectory {
+    if let Some(relative) = port.runtime_subdirectory_for(platform) {
         let directory = install_root.join(relative);
         if !directory.is_dir() || !executable.starts_with(&directory) {
             return Err(PortcoveError::launch(format!(

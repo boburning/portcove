@@ -6158,6 +6158,25 @@
               "null"
             ]
           },
+          "runtime_subdirectory_by_platform": {
+            "additionalProperties": false,
+            "description": "Per-platform runtime subdirectories for packages whose wrapper folder is named differently\non each platform; a listed platform replaces `runtime_subdirectory`. Requires\nn64-recomp-portable capability 6.",
+            "properties": {
+              "linux-x86-64": {
+                "type": "string"
+              },
+              "macos-aarch64": {
+                "type": "string"
+              },
+              "macos-x86-64": {
+                "type": "string"
+              },
+              "windows-x86-64": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
           "setup_arguments": {
             "default": [],
             "items": {
@@ -32716,6 +32735,25 @@
           "null"
         ]
       },
+      "runtime_subdirectory_by_platform": {
+        "additionalProperties": false,
+        "description": "Per-platform runtime subdirectories for packages whose wrapper folder is named differently\non each platform; a listed platform replaces `runtime_subdirectory`. Requires\nn64-recomp-portable capability 6.",
+        "properties": {
+          "linux-x86-64": {
+            "type": "string"
+          },
+          "macos-aarch64": {
+            "type": "string"
+          },
+          "macos-x86-64": {
+            "type": "string"
+          },
+          "windows-x86-64": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "setup_arguments": {
         "default": [],
         "items": {
@@ -45502,6 +45540,25 @@
               "string",
               "null"
             ]
+          },
+          "runtime_subdirectory_by_platform": {
+            "additionalProperties": false,
+            "description": "Per-platform runtime subdirectories for packages whose wrapper folder is named differently\non each platform; a listed platform replaces `runtime_subdirectory`. Requires\nn64-recomp-portable capability 6.",
+            "properties": {
+              "linux-x86-64": {
+                "type": "string"
+              },
+              "macos-aarch64": {
+                "type": "string"
+              },
+              "macos-x86-64": {
+                "type": "string"
+              },
+              "windows-x86-64": {
+                "type": "string"
+              }
+            },
+            "type": "object"
           },
           "setup_arguments": {
             "default": [],

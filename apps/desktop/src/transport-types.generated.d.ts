@@ -2090,6 +2090,17 @@ export interface PortDefinition {
   runtime_source_materialization: RuntimeSourceMaterialization | null;
   runtime_source_set: RuntimeSourceTarget[];
   runtime_subdirectory: string | null;
+  /**
+   * Per-platform runtime subdirectories for packages whose wrapper folder is named differently
+   * on each platform; a listed platform replaces `runtime_subdirectory`. Requires
+   * n64-recomp-portable capability 6.
+   */
+  runtime_subdirectory_by_platform?: {
+    "linux-x86-64"?: string;
+    "macos-aarch64"?: string;
+    "macos-x86-64"?: string;
+    "windows-x86-64"?: string;
+  };
   setup_arguments: string[];
   setup_executable_hints: {
     "linux-x86-64"?: string[];
