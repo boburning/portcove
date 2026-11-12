@@ -466,3 +466,90 @@ it("keeps the copy plan wording exact and presents it in the active locale", asy
     vi.unstubAllGlobals();
   }
 });
+
+it("names unselected matches and the active version with isolated values", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const port = portDefinition();
+  const base = {
+    source: "D:/Existing",
+    application_files_will_be_copied: true,
+    original_will_be_modified: false,
+    copy_plan: {
+      directories: [],
+      files: [{ relative_path: "game.exe", sha256: "a".repeat(64), size: 1024 }],
+      skipped_entries: [],
+      total_bytes: 1024,
+    },
+    plan_sha256: "d".repeat(64),
+  };
+  const render = (preview: AdoptionPreview) =>
+    act(async () =>
+      root.render(
+        <AdoptionModal
+          path="D:/Existing"
+          setPath={vi.fn()}
+          preview={preview}
+          ports={[port]}
+          close={vi.fn()}
+          review={vi.fn()}
+          adopt={vi.fn()}
+        />,
+      ),
+    );
+  try {
+    await render({
+      ...base,
+      detected_port_ids: [port.id, "other-port"],
+      selected_port_id: null,
+      destination: null,
+    });
+    expect(document.body.textContent).toMatch(
+      /1 file · .+ found\. Choose a port to review the exact destination before copying\./u,
+    );
+    const reviewButtons = [
+      ...document.querySelectorAll("[aria-label='Detected ports'] button"),
+    ].map((button) => button.textContent);
+    expect(reviewButtons).toEqual([
+      `Review ${port.name} — Catalog ID: ${port.id}`,
+      "Review Unknown catalog port — Catalog ID: other-port",
+    ]);
+    expect(document.querySelector("[aria-label='Detected ports'] code[dir=ltr]")?.textContent).toBe(
+      port.id,
+    );
+    await render({
+      ...base,
+      detected_port_ids: [port.id],
+      selected_port_id: port.id,
+      destination: {
+        output_location: {
+          port_id: port.id,
+          library_root: "D:/Library",
+          default_output_directory: "D:/Library/versions/sample",
+          configured_output_directory: null,
+          effective_output_directory: "D:/Library/versions/sample",
+          selection_source: "library_default",
+          user_data_root: "D:/Library/user/sample",
+        },
+        active_install: { version: "1.2", path: "D:/Library/versions/sample/1.2" },
+        imported_user_data_paths: [],
+        current_user_data_files: 0,
+        current_user_data_sha256: "c".repeat(64),
+      },
+    } as unknown as AdoptionPreview);
+    const paragraphs = [...document.querySelectorAll("[role=dialog] p")].map(
+      (item) => item.textContent,
+    );
+    expect(paragraphs).toContain("Current active version: 1.2D:/Library/versions/sample/1.2");
+    expect(paragraphs).toContain(
+      "No catalog-selected saved-data paths will be imported from this folder.",
+    );
+    expect(document.querySelector("#adopt-port-identity code")?.textContent).toBe(port.id);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    vi.unstubAllGlobals();
+  }
+});

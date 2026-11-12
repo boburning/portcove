@@ -173,10 +173,14 @@ export function AdoptionModal({
                           review(port.id);
                         }}
                       >
-                        {t("adoption.reviewPort", {
-                          name: port.name ?? t("adoption.unknownPort"),
-                          id: port.id,
-                        })}
+                        <Trans
+                          t={t}
+                          i18nKey="adoption.reviewPort"
+                          components={{
+                            name: <bdi>{port.name ?? t("adoption.unknownPort")}</bdi>,
+                            id: <code dir="ltr">{port.id}</code>,
+                          }}
+                        />
                       </Button>
                     </li>
                   ))}

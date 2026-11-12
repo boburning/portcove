@@ -35,7 +35,7 @@
     },
     "review": "Revisar el plan de copia",
     "reviewing": "Revisando…",
-    "reviewPort": "Revisar {{name}} — ID del catálogo: {{id}}",
+    "reviewPort": "Revisar <name /> — ID del catálogo: <id />",
     "savedDestination_one": "<strong>Destino de los datos guardados:</strong> <path /><br />{{count}} archivo existente.",
     "savedDestination_many": "<strong>Destino de los datos guardados:</strong> <path /><br />{{count}} archivos existentes.",
     "savedDestination_other": "<strong>Destino de los datos guardados:</strong> <path /><br />{{count}} archivos existentes.",

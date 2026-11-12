@@ -1435,7 +1435,7 @@ export default interface Resources {
         "text": "Matching saved files in Portcove will be replaced. Portcove does not create a backup before this copy. Other saved files remain."
       },
       "review": "Review copy plan",
-      "reviewPort": "Review {{name}} — Catalog ID: {{id}}",
+      "reviewPort": "Review <name /> — Catalog ID: <id />",
       "reviewing": "Reviewing…",
       "savedDestination_one": "<strong>Saved-data destination:</strong> <path /><br />{{count}} existing file.",
       "savedDestination_other": "<strong>Saved-data destination:</strong> <path /><br />{{count}} existing files.",

@@ -33,7 +33,7 @@
     },
     "review": "Review copy plan",
     "reviewing": "Reviewing…",
-    "reviewPort": "Review {{name}} — Catalog ID: {{id}}",
+    "reviewPort": "Review <name /> — Catalog ID: <id />",
     "savedDestination_one": "<strong>Saved-data destination:</strong> <path /><br />{{count}} existing file.",
     "savedDestination_other": "<strong>Saved-data destination:</strong> <path /><br />{{count}} existing files.",
     "skipped_one": "{{count}} unsupported item will remain only in the original folder",
