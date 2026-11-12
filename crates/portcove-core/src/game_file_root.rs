@@ -55,6 +55,10 @@ pub struct GameFileScanCoverage {
     pub entries_relisted: u32,
     pub metadata_checks: u32,
     pub prior_member_rechecks: u32,
+    /// Files whose saved identity was reused because their recorded
+    /// metadata and inspector version still match. Never admission.
+    #[serde(default)]
+    pub observations_reused: u32,
     pub pending_directories: u32,
     pub remaining_entries: Option<u64>,
     pub frontier_exhausted: bool,
@@ -293,6 +297,77 @@ impl Library {
             .transpose()
     }
 
+    /// Saved observations are a cache keyed by exact file metadata; callers
+    /// still match and re-verify every result.
+    pub(crate) fn record_game_file_observations(
+        &self,
+        rows: &[crate::source_discovery::ObservationRow],
+    ) -> Result<()> {
+        if rows.is_empty() {
+            return Ok(());
+        }
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        {
+            let mut statement = transaction.prepare(
+                "INSERT INTO game_file_observations(path_key,representation,path,stamp_json,inspector_version,identity_json,observed_at)
+                 VALUES (?1,?2,?3,?4,?5,?6,?7)
+                 ON CONFLICT(path_key,representation) DO UPDATE SET path=excluded.path,
+                 stamp_json=excluded.stamp_json,inspector_version=excluded.inspector_version,
+                 identity_json=excluded.identity_json,observed_at=excluded.observed_at",
+            )?;
+            let now = Self::now();
+            for row in rows {
+                statement.execute(rusqlite::params![
+                    path_key(&row.path),
+                    row.representation,
+                    row.path,
+                    row.stamp_json,
+                    crate::source_file::IDENTITY_INSPECTOR_VERSION,
+                    row.identity_json,
+                    now,
+                ])?;
+            }
+        }
+        transaction.commit()?;
+        Ok(())
+    }
+
+    /// After complete coverage of the available saved folders, forget rows for
+    /// files that no longer exist there and for folders no longer saved. Rows
+    /// under an unavailable folder are kept: unseen is not deleted.
+    pub(crate) fn prune_game_file_observations(&self, roots: &[GameFileRoot]) -> Result<u32> {
+        let connection = self.connection()?;
+        let rows = {
+            let mut statement =
+                connection.prepare("SELECT DISTINCT path_key,path FROM game_file_observations")?;
+            statement
+                .query_map([], |row| {
+                    Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+                })?
+                .collect::<std::result::Result<Vec<_>, _>>()?
+        };
+        let mut removed = 0;
+        for (key, path) in rows {
+            let path_buf = PathBuf::from(&path);
+            let owner = roots.iter().find(|root| path_buf.starts_with(&root.path));
+            let gone = match owner {
+                None => true,
+                Some(root) if root.availability == GameFileRootAvailability::Available => {
+                    std::fs::symlink_metadata(&path_buf).is_err()
+                }
+                Some(_) => false,
+            };
+            if gone {
+                removed += connection.execute(
+                    "DELETE FROM game_file_observations WHERE path_key=?1",
+                    [key],
+                )? as u32;
+            }
+        }
+        Ok(removed)
+    }
+
     pub(crate) fn stored_game_file_scan_payload(&self) -> Result<Option<String>> {
         let payload: Option<String> = self
             .connection()?
@@ -330,7 +405,7 @@ fn require_available_root(path: &Path) -> Result<PathBuf> {
     Ok(path)
 }
 
-fn path_key(path: &str) -> String {
+pub(crate) fn path_key(path: &str) -> String {
     if cfg!(windows) {
         path.to_lowercase()
     } else {

@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 51;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 52;
 
 struct Migration {
     version: i64,
@@ -329,7 +329,47 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_51,
         verify: verify_migration_51,
     },
+    Migration {
+        version: 52,
+        name: "game-file observation reuse",
+        apply: migration_52,
+        verify: verify_migration_52,
+    },
 ];
+
+fn migration_52(transaction: &Transaction<'_>) -> Result<()> {
+    // Local, rebuildable provenance for saved-folder scans. A row only lets a
+    // scan skip rehashing an unchanged file; it never admits a source.
+    transaction.execute_batch(
+        "CREATE TABLE game_file_observations (
+            path_key TEXT NOT NULL CHECK(length(path_key) BETWEEN 1 AND 32768),
+            representation TEXT NOT NULL CHECK(length(representation)<=4096),
+            path TEXT NOT NULL CHECK(length(path) BETWEEN 1 AND 32768),
+            stamp_json TEXT NOT NULL CHECK(length(stamp_json)<=4096),
+            inspector_version INTEGER NOT NULL,
+            identity_json TEXT NOT NULL CHECK(length(identity_json)<=16384),
+            observed_at INTEGER NOT NULL,
+            PRIMARY KEY(path_key, representation)
+        );",
+    )?;
+    verify_migration_52(transaction)
+}
+
+fn verify_migration_52(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "game_file_observations",
+        &[
+            "path_key",
+            "representation",
+            "path",
+            "stamp_json",
+            "inspector_version",
+            "identity_json",
+            "observed_at",
+        ],
+    )
+}
 
 fn migration_51(transaction: &Transaction<'_>) -> Result<()> {
     // Consent policy for automatic setup from one saved folder, with its

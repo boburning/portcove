@@ -46,7 +46,13 @@ impl HashBudget<'_> {
     }
 }
 
-#[derive(Clone)]
+/// Version of the file and ZIP identity facts below. Bump it whenever hashing,
+/// ZIP member selection or canonical normalization changes, so saved
+/// observations from an older inspector are never reused.
+pub(crate) const IDENTITY_INSPECTOR_VERSION: i64 = 1;
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct FileIdentity {
     pub sha256: String,
     pub sha1: String,

@@ -5726,3 +5726,115 @@ fn public_fresh_saved_root_scan_recovers_malformed_prior_payload() {
         Some("not json")
     );
 }
+
+fn observation_rows(library: &crate::Library) -> i64 {
+    library
+        .connection()
+        .unwrap()
+        .query_row("SELECT count(*) FROM game_file_observations", [], |row| {
+            row.get(0)
+        })
+        .unwrap()
+}
+
+#[test]
+fn unchanged_rescans_reuse_saved_identities_without_hashing_and_changes_rehash_only_those_files() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    for name in ["one.z64", "two.z64", "three.z64"] {
+        fs::write(root.join(name), payload).unwrap();
+    }
+    fs::write(root.join("other.z64"), b"unrelated bytes").unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits::default();
+    let mut catalog = catalog(payload);
+    let (first, _) = scan_to_end(&catalog, &library, &limits);
+    assert_eq!(first.report.files_hashed, 4);
+    assert_eq!(first.coverage.as_ref().unwrap().observations_reused, 0);
+    assert_eq!(observation_rows(&library), 4);
+
+    // Unchanged files: identities are reused and nothing is hashed.
+    let (second, _) = scan_to_end(&catalog, &library, &limits);
+    assert_eq!(second.report.files_hashed, 0);
+    assert_eq!(second.report.hash_bytes, 0);
+    assert_eq!(second.coverage.as_ref().unwrap().observations_reused, 4);
+    assert_eq!(
+        second.report.candidates.len(),
+        first.report.candidates.len()
+    );
+
+    // An unrelated catalog edit restarts the scan but rehashes nothing.
+    let mut document = catalog.document().clone();
+    document.ports[0].summary.push_str(" changed");
+    catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let (edited, _) = scan_to_end(&catalog, &library, &limits);
+    assert_eq!(edited.report.files_hashed, 0);
+    assert_eq!(
+        edited.report.candidates.len(),
+        first.report.candidates.len()
+    );
+
+    // A changed file is inspected again; the others are still reused.
+    fs::write(root.join("two.z64"), b"changed source bytes!").unwrap();
+    let (changed, _) = scan_to_end(&catalog, &library, &limits);
+    assert_eq!(changed.report.files_hashed, 1);
+    assert_eq!(changed.coverage.as_ref().unwrap().observations_reused, 3);
+    assert_eq!(
+        changed.report.candidates.len(),
+        first.report.candidates.len() - 2
+    );
+
+    // Identities from another inspector version are never reused.
+    library
+        .connection()
+        .unwrap()
+        .execute("UPDATE game_file_observations SET inspector_version=0", [])
+        .unwrap();
+    let (reinspected, _) = scan_to_end(&catalog, &library, &limits);
+    assert_eq!(reinspected.report.files_hashed, 4);
+    assert_eq!(
+        reinspected.coverage.as_ref().unwrap().observations_reused,
+        0
+    );
+}
+
+#[test]
+fn complete_coverage_forgets_deleted_files_but_an_unavailable_folder_keeps_its_observations() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    for name in ["one.z64", "two.z64"] {
+        fs::write(root.join(name), payload).unwrap();
+    }
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits::default();
+    let catalog = catalog(payload);
+    scan_to_end(&catalog, &library, &limits);
+    assert_eq!(observation_rows(&library), 2);
+
+    fs::remove_file(root.join("two.z64")).unwrap();
+    let (after_delete, _) = scan_to_end(&catalog, &library, &limits);
+    assert_eq!(
+        after_delete.coverage.as_ref().unwrap().remaining_entries,
+        Some(0)
+    );
+    assert_eq!(observation_rows(&library), 1);
+
+    // Disconnecting the folder is not deletion.
+    let parked = temporary.path().join("parked");
+    fs::rename(&root, &parked).unwrap();
+    let _ = publish_saved_batch(&catalog, &library, &limits);
+    assert_eq!(observation_rows(&library), 1);
+    fs::rename(&parked, &root).unwrap();
+    let (reconnected, _) = scan_to_end(&catalog, &library, &limits);
+    assert_eq!(reconnected.report.files_hashed, 0);
+    assert_eq!(
+        reconnected.coverage.as_ref().unwrap().observations_reused,
+        1
+    );
+}
