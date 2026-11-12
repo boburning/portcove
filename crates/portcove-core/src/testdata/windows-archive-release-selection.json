@@ -1689,6 +1689,14 @@
         "wipeoutxl-0.2.0-linux-x64.zip",
         "wipeoutxl-999.123.456-linux-x64.zip"
       ]
+    },
+    "monster-hunter-portable-3rd-hd-yakumo": {
+      "inventory": "yakumo",
+      "repository_id": 1375755928,
+      "selected_assets": [
+        "yakumo-0.7.5-windows-x86_64-portable.zip",
+        "yakumo-0.7.6-windows-x86_64-portable.zip"
+      ]
     }
   },
   "inventories": {
@@ -9985,6 +9993,145 @@
           }
         ]
       }
+    ],
+    "yakumo": [
+      {
+        "id": 411105161,
+        "tag_name": "v0.7.5",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-13T03:23:39Z",
+        "assets": [
+          {
+            "id": 635739454,
+            "name": "SHA256SUMS",
+            "size": 777,
+            "digest": "sha256:638729c255a8a61e1d6cc8a370b01ac81deaa8bb9740799252e141427474ed39",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/SHA256SUMS"
+          },
+          {
+            "id": 635557890,
+            "name": "SHA256SUMS-android.txt",
+            "size": 97,
+            "digest": "sha256:89f55e16b6d9e1241a3209dc393a65fb00b6c694276906952b91ba4d7e08b3f5",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/SHA256SUMS-android.txt"
+          },
+          {
+            "id": 635509665,
+            "name": "SHA256SUMS-linux.txt",
+            "size": 285,
+            "digest": "sha256:385310564ca5cfec1422d03229ef002e77f8262b2013bbd8993ad410085b80c1",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/SHA256SUMS-linux.txt"
+          },
+          {
+            "id": 635485787,
+            "name": "SHA256SUMS-macos.txt",
+            "size": 190,
+            "digest": "sha256:bd464fd54c88cfff9af48325ea04a7f3451380678daaf17ae6753f13ab0a1a49",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/SHA256SUMS-macos.txt"
+          },
+          {
+            "id": 635479497,
+            "name": "SHA256SUMS-windows.txt",
+            "size": 207,
+            "digest": "sha256:07043ab18aeeedcb5065357c089fdb30d8417de5c024c106d81705009c8a7076",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/SHA256SUMS-windows.txt"
+          },
+          {
+            "id": 635509567,
+            "name": "ffmpeg-7.1.5.tar.xz",
+            "size": 11050340,
+            "digest": "sha256:de668509caf9e35e3cd162473441fdb29538c6d96ed080292b3cf9e6fc5d558f",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/ffmpeg-7.1.5.tar.xz"
+          },
+          {
+            "id": 635556983,
+            "name": "yakumo-0.7.5-android-arm64.apk",
+            "size": 203370327,
+            "digest": "sha256:75b90649a419336d1fa8d9b6d88c9f2226ab1506975f931dad5ac9d53c9bb7aa",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/yakumo-0.7.5-android-arm64.apk"
+          },
+          {
+            "id": 635508988,
+            "name": "yakumo-0.7.5-linux-x86_64.flatpak",
+            "size": 100104488,
+            "digest": "sha256:9a048b957da2b60cada6591e7d02365ee432f6db015c4e435bf9b6d04498be62",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/yakumo-0.7.5-linux-x86_64.flatpak"
+          },
+          {
+            "id": 635508010,
+            "name": "yakumo-0.7.5-linux-x86_64.tar.gz",
+            "size": 225155035,
+            "digest": "sha256:9c867fe280657dae757ebe2a7c6aa3f8d1989a4bb74ff3a1c29df6531ee406af",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/yakumo-0.7.5-linux-x86_64.tar.gz"
+          },
+          {
+            "id": 635484019,
+            "name": "yakumo-0.7.5-macos-arm64.dmg",
+            "size": 111792623,
+            "digest": "sha256:dddf9eec6e208324066c4a2075d7c2a8364f27ea2992cb481dce434c74f86092",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/yakumo-0.7.5-macos-arm64.dmg"
+          },
+          {
+            "id": 635484644,
+            "name": "yakumo-0.7.5-macos-arm64.zip",
+            "size": 202846463,
+            "digest": "sha256:28749ee93895a11d778107db74fc69818e474f409f4922f5c64009eec9c3641f",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/yakumo-0.7.5-macos-arm64.zip"
+          },
+          {
+            "id": 635475842,
+            "name": "yakumo-0.7.5-windows-x86_64-portable.zip",
+            "size": 220399914,
+            "digest": "sha256:7927e3f1e30afcd6f908038ced4a9c99ca58c92510920ec9f36a7b2b1d2ed69c",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/yakumo-0.7.5-windows-x86_64-portable.zip"
+          },
+          {
+            "id": 635477804,
+            "name": "yakumo-0.7.5-windows-x86_64.zip",
+            "size": 220392646,
+            "digest": "sha256:0b792af0fb627831da88a88d90c117fd15f59fb6d940e47054f6e83a703717dd",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/yakumo-0.7.5-windows-x86_64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999112000,
+        "tag_name": "v0.7.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-12T00:00:00Z",
+        "assets": [
+          {
+            "id": 999112001,
+            "name": "SHA256SUMS",
+            "browser_download_url": "https://downloads.example.invalid/SHA256SUMS",
+            "size": 220400000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999112002,
+            "name": "yakumo-0.7.6-linux-x86_64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/yakumo-0.7.6-linux-x86_64.tar.gz",
+            "size": 220400001,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999112003,
+            "name": "yakumo-0.7.6-windows-x86_64-portable.zip",
+            "browser_download_url": "https://downloads.example.invalid/yakumo-0.7.6-windows-x86_64-portable.zip",
+            "size": 220400002,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999112004,
+            "name": "yakumo-0.7.6-windows-x86_64.zip",
+            "browser_download_url": "https://downloads.example.invalid/yakumo-0.7.6-windows-x86_64.zip",
+            "size": 220400003,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      }
     ]
   },
   "other_zip_assets": [
@@ -11152,6 +11299,21 @@
       "inventory": "njh-1001-wipeout2k97xl",
       "release_index": 0,
       "asset": "wipeoutxl-0.2.0-macos-x64.zip"
+    },
+    {
+      "inventory": "yakumo",
+      "release_index": 0,
+      "asset": "yakumo-0.7.5-macos-arm64.zip"
+    },
+    {
+      "inventory": "yakumo",
+      "release_index": 0,
+      "asset": "yakumo-0.7.5-windows-x86_64.zip"
+    },
+    {
+      "inventory": "yakumo",
+      "release_index": 1,
+      "asset": "yakumo-0.7.6-windows-x86_64.zip"
     }
   ]
 }
