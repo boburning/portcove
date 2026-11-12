@@ -598,6 +598,13 @@
       ]
     },
     {
+      "file": "scripts/browser-shard-balance.test.mts",
+      "memberships": [
+        ["catalog-full-2", 5003],
+        ["repository-tools-2", 603]
+      ]
+    },
+    {
       "file": "scripts/ci-supersede.test.mts",
       "memberships": [
         ["catalog-full-2", 5002],

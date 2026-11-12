@@ -325,6 +325,18 @@ wrong flag therefore cannot omit coverage. Sharding changes where the same tests
 not what is required, and it adds runner jobs per full run, so queue time still
 counts toward latency.
 
+In the hosted shard jobs, which set `PORTCOVE_BROWSER_SHARD`, the root Vitest
+sequencer in `scripts/browser-shard-balance.mts` assigns shards by recorded file
+duration instead of path hash: longest file first, onto the lightest shard, with
+ties broken by the hash of project and path. Every current spec still lands in
+exactly one shard. Other runs, including the seeded `shuffled` diagnostic, keep
+Vitest's default sequencer. `.config/browser-test-weights.json` holds scheduling estimates only. A file
+without a weight gets the median weight, and a missing or malformed weights file
+fails the shard run instead of falling back. Regenerate the weights from a Vitest
+JSON report of the three browser projects with
+`node scripts/browser-shard-balance.mts --report <report.json> --source <description>`.
+Stale weights can only make the shards uneven; they cannot drop a file.
+
 A draft pull request defers the eight Windows Rust test partitions. When a fast plan
 selects Rust that the run would execute itself, the classifier reads the pull
 request's current draft state from the API and sets `windows_tests_deferred`; an
@@ -393,6 +405,17 @@ The same run timed out `reviewed_archive_transition_sonic_populated_install` at 
 360-second exact budget in a 862-second partition. That case has taken from
 149 to 300+ seconds on hosted Windows runners, so its exact override is now the
 600 seconds its family already has; its MMX2 and Super Metroid siblings stay at 420.
+
+`service::native_portable::tests::ready_staged_archive_observed_lifecycle_cases`
+has an exact Windows override that went from 270 seconds (5s × 54) to
+420 seconds (5s × 84) with zero retries, in `6e3e7688`. Under the 270-second
+budget, hosted partition 3 terminated it on both nextest tries in seven job
+attempts between 2026-11-10T23:58Z and 2026-11-11T01:18Z (runs 42926560343
+attempts 1 and 2, 42926658303, 42926762535, 42926803942 attempts 1 and 2, and
+42936437670 attempt 1). Each try stopped at about 270.6 seconds; no assertion
+failed. Since the change it has passed in 214 to 300 seconds in runs 42956417507, 43043569577, 43044023613, 43053534370 and
+43053961839. A budget of 300 seconds or more keeps zero retries, so a hang uses
+the cutoff once. The case's phases and assertions are unchanged.
 
 The October 2026 test audit calibrated the three maintained Node suites that
 contain fixed Linux Python child wrappers from a 30-second default to
