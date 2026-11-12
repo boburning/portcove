@@ -359,6 +359,16 @@ export default interface Resources {
     }
   },
   "browsing": {
+    "implementation": {
+      "choose": "Choose <name/>",
+      "preferred": "Preferred: <name/>",
+      "refresh": "Refresh choices",
+      "unconfirmed": "Portcove couldn’t confirm that your choice was saved. Refresh choices to check."
+    },
+    "maintenance": {
+      "offer": "Current managed offer",
+      "reconsider": "Reconsider when: <condition/>"
+    },
     "search": {
       "clear": "Clear search",
       "discover": "Search Discover",

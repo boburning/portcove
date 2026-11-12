@@ -1,4 +1,14 @@
 {
+  "implementation": {
+    "choose": "Elegir <name/>",
+    "preferred": "Preferida: <name/>",
+    "refresh": "Actualizar las opciones",
+    "unconfirmed": "Portcove no pudo confirmar que se guardó tu elección. Actualiza las opciones para comprobarlo."
+  },
+  "maintenance": {
+    "offer": "Oferta administrada actual",
+    "reconsider": "Reconsiderar cuando: <condition/>"
+  },
   "search": {
     "clear": "Borrar la búsqueda",
     "discover": "Buscar en Descubrir",
