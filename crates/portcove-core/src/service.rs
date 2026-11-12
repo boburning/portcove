@@ -99,6 +99,7 @@ pub use capabilities::{
     CapabilityFeature, CapabilityMode, PortCapabilityFeature, PortCapabilityReport,
     PortCapabilityRoute,
 };
+mod portable_save_folder;
 mod portable_saves;
 mod psx_mod_data;
 pub(crate) use psx_mod_data::metadata_name as psx_data_metadata_name;
