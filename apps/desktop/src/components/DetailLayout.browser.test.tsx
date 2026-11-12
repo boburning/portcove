@@ -318,3 +318,36 @@ it("shows the selected channel in the hero and keeps supporting evidence after t
   await userEvent.click(evidence);
   await expect.element(page.getByText("Retained evidence", { exact: true })).toBeVisible();
 });
+
+it("labels the detail shell in the current language", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    await render(
+      <DetailLayout
+        port={portDefinition()}
+        projectUrl="https://github.com/example/project"
+        openSupport={vi.fn()}
+        initialSection="overview"
+        readiness="Ready"
+        installation="Managed installation"
+        close={vi.fn()}
+        action={() => <button>Play</button>}
+      >
+        {() => ({ overview: null, files: null, saves: null, versions: null })}
+      </DetailLayout>,
+    );
+    await expect.element(page.getByRole("tablist", { name: "أقسام تفاصيل اللعبة" })).toBeVisible();
+    await expect.element(page.getByRole("tab", { name: "ملفات اللعبة" })).toBeVisible();
+    await expect
+      .element(page.getByRole("heading", { name: "المتطلبات", exact: true }))
+      .toBeVisible();
+    await expect.element(page.getByRole("link", { name: "موقع المشروع" })).toBeVisible();
+    await expect.element(page.getByRole("group", { name: "هوية اللعبة والمنفذ" })).toBeVisible();
+    await expect.element(page.getByRole("button", { name: /^إجراءات إضافية لـ / })).toBeVisible();
+    expect(document.body.textContent).not.toContain("Game files");
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});

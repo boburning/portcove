@@ -165,6 +165,7 @@ unless the copy change is intended and reviewed.
 | Saved game-file reuse: selection, check and repair actions, port choices and app-owned reuse errors as typed codes (paths, port names and profile labels stay exact; Core inspection, application and failure text stays verbatim)                                                   | `components/RegisteredSourceSetup.tsx`                     | `gameFiles`         |
 | Screenshot gallery, preview dialog and media credits (captions, edition titles, attributions and license identifiers stay exact; only the IGDB terms link label is translated)                                                                                                       | `components/CatalogMedia.tsx`                              | `browsing`          |
 | Earlier test results on game details: legacy coverage, recorded observation headings, kind and outcome labels, field labels and notes (`testResults.*` keys; recorded methods, editions, releases, contracts, hashes and platform labels stay exact data)                            | `components/DetailQualificationSummary.tsx`                | `gameFiles`         |
+| Game detail shell: section tabs, identity chip labels, more-actions menu, requirements and project/support sidebar (system, platform and channel names stay shared view-model labels; project names and the readiness and installation facts come from callers)                      | `components/DetailLayout.tsx`                              | `detail`            |
 | Discover card observations (readiness, acquisition and setup-route text follow their producers' migrations)                                                                                                                                                                          | `features/port-actions/BrowsePortObservations.tsx`         | `browsing`          |
 | Navigation hints (keyboard key names stay literal)                                                                                                                                                                                                                                   | `components/ui.tsx`                                        | `common`            |
 | Failure technical details (codes, phases, messages and context values stay verbatim)                                                                                                                                                                                                 | `components/FailureDetails.tsx`                            | `common`            |
@@ -172,7 +173,7 @@ unless the copy change is intended and reviewed.
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-12 it
-reported 1,322 findings in 35 of 218 analyzed files, measured after the
+reported 1,304 findings in 34 of 218 analyzed files, measured after the
 migrations listed above and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
 and are migrated with the surface that renders them. The count is a work
@@ -180,11 +181,11 @@ inventory, not a coverage claim.
 
 Narrow technical-literal exclusions: the lint ignores the `align`, `aria-live`,
 `aria-atomic`, `aria-autocomplete`, `aria-describedby`, `aria-hidden`, `aria-labelledby`, `aria-relevant`, `data-backup-action`, `data-settings-control`,
-`data-slot`, `decoding`, `loading`, `dir`, `direction`, `focusable`, `intent`, `positionMethod`, `reviewSize`, `size`, `triggerId` and `variant`
+`data-slot`, `decoding`, `loading`, `dir`, `direction`, `focusable`, `intent`, `positionMethod`, `side`, `reviewSize`, `size`, `triggerId` and `variant`
 attributes, which carry design-system tokens, element ids, ARIA references, ARIA state tokens or HTML/SVG rendering hints,
 never player copy. `dir` and `direction` carry only the `ltr`/`rtl` direction token (for example
 the `DirectionProvider` in `main.tsx`); a component whose `direction` prop carried visible text
-would need a different prop name rather than this exclusion.
+would need a different prop name rather than this exclusion. Likewise, `side` carries only Base UI positioning tokens; a text-valued `side` prop would need a different name.
 Thrown `Error` messages that are caught and never displayed, stable state codes,
 keyboard key names and product names remain literals.
 

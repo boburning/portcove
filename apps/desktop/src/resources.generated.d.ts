@@ -749,6 +749,40 @@ export default interface Resources {
     "updates_unknown": "Update count unavailable",
     "updates_zero": "No updates available"
   },
+  "detail": {
+    "actions": {
+      "artwork": "Change artwork",
+      "more": "More actions for {{name}}",
+      "project": "Upstream project",
+      "steam": "Steam shortcut"
+    },
+    "identity": {
+      "label": "Game and port identity",
+      "offeredChannel": "Offered update channel",
+      "originalSystem": "Original system",
+      "originalSystemUnspecified": "Original system not specified",
+      "runsOn": "Runs on",
+      "selectedChannel": "Selected update channel"
+    },
+    "requirements": {
+      "fallback": "Review Game files and the upstream instructions for this port’s requirements.",
+      "heading": "Requirements"
+    },
+    "resources": {
+      "heading": "Project & support",
+      "support": "Create support report",
+      "supportNote": "Save and review a sanitized report locally before choosing to share it.",
+      "website": "Project website"
+    },
+    "section": {
+      "files": "Game files",
+      "label": "Game detail sections",
+      "manage": "Manage",
+      "overview": "Overview",
+      "saves": "Saves & backups",
+      "versions": "Versions & updates"
+    }
+  },
   "gameFiles": {
     "controls": {
       "cancel": "Cancel game-file filter check",
