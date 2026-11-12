@@ -358,6 +358,14 @@ export default interface Resources {
       "unavailable": "Backup history unavailable"
     }
   },
+  "browsing": {
+    "search": {
+      "clear": "Clear search",
+      "discover": "Search Discover",
+      "library": "Search your library",
+      "placeholder": "Game or port name"
+    }
+  },
   "catalogUpdates": {
     "catalog": {
       "cancel": "Cancel catalog refresh",

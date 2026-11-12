@@ -1,0 +1,8 @@
+{
+  "search": {
+    "clear": "Borrar la búsqueda",
+    "discover": "Buscar en Descubrir",
+    "library": "Buscar en tu biblioteca",
+    "placeholder": "Nombre del juego o del port"
+  }
+}
