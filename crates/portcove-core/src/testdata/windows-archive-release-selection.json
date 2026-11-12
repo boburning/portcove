@@ -1609,6 +1609,65 @@
         "quake-ii-recomp-0.1.2-linux-x64.zip",
         "quake-ii-recomp-999.123.456-linux-x64.zip"
       ]
+    },
+    "alexbeav-suikoden-recomp": {
+      "inventory": "alexbeav-suikoden-recomp",
+      "selected_assets": ["suikoden-0.1.1-windows-x64.zip", "suikoden-999.123.456-windows-x64.zip"],
+      "managed_psx": {
+        "serial": "SLUS-00292",
+        "revision": "Rev 1",
+        "track_sha1": "409453aaedfb6bb7d5bb8a228cce5f04b7c35ee0",
+        "track_sha256": null,
+        "generated_executable": "Suikoden_Recompiled.exe",
+        "track_count": 1,
+        "bios_profile": "psx-scph-5552-bios",
+        "crash_diagnostic": true
+      },
+      "linux_selected_assets": [
+        "suikoden-0.1.1-linux-x64.zip",
+        "suikoden-999.123.456-linux-x64.zip"
+      ]
+    },
+    "alexbeav-silent-bomber-recomp": {
+      "inventory": "alexbeav-silent-bomber-recomp",
+      "selected_assets": [
+        "silent-bomber-0.1.1-windows-x64.zip",
+        "silent-bomber-999.123.456-windows-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLES-02792",
+        "track_sha1": "c9293c685b16321c08e8f4f5cf4f93f21cf8df27",
+        "track_sha256": null,
+        "generated_executable": "Silent_Bomber_Recompiled.exe",
+        "track_count": 1,
+        "bios_profile": "psx-scph-5552-bios",
+        "crash_diagnostic": true
+      },
+      "linux_selected_assets": [
+        "silent-bomber-0.1.1-linux-x64.zip",
+        "silent-bomber-999.123.456-linux-x64.zip"
+      ]
+    },
+    "alexbeav-mortal-kombat-trilogy-recomp": {
+      "inventory": "alexbeav-mortal-kombat-trilogy-recomp",
+      "selected_assets": [
+        "mortal-kombat-trilogy-0.1.1-windows-x64.zip",
+        "mortal-kombat-trilogy-999.123.456-windows-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00330",
+        "revision": "Rev 1",
+        "track_sha1": "aa9b7e1716bd8790bca25d651c280f7a2a48b884",
+        "track_sha256": null,
+        "generated_executable": "Mortal_Kombat_Trilogy_Recompiled.exe",
+        "track_count": 30,
+        "bios_profile": "psx-scph-5552-bios",
+        "crash_diagnostic": true
+      },
+      "linux_selected_assets": [
+        "mortal-kombat-trilogy-0.1.1-linux-x64.zip",
+        "mortal-kombat-trilogy-999.123.456-linux-x64.zip"
+      ]
     }
   },
   "inventories": {
@@ -9587,6 +9646,234 @@
           }
         ]
       }
+    ],
+    "alexbeav-suikoden-recomp": [
+      {
+        "id": 399982168,
+        "tag_name": "v0.1.1",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-30T11:33:56Z",
+        "assets": [
+          {
+            "id": 600772323,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2678,
+            "digest": "sha256:d9d111e9dcec2b0086abe51cd071ca2e66785892b6a23c64dcb6e794a6d0d45b",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/releases/download/v0.1.1/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 600772340,
+            "name": "SHA256SUMS.txt",
+            "size": 384,
+            "digest": "sha256:0ee9237879195bbcacf75800e328ecdfb064c1a599ba7095cbf1590724fca48c",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/releases/download/v0.1.1/SHA256SUMS.txt"
+          },
+          {
+            "id": 600772321,
+            "name": "suikoden-0.1.1-linux-x64.zip",
+            "size": 24178522,
+            "digest": "sha256:3909192ab327f60b953973a201a984492d6531b813ae4b5fd67b058ce0c0e54b",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/releases/download/v0.1.1/suikoden-0.1.1-linux-x64.zip"
+          },
+          {
+            "id": 600772318,
+            "name": "suikoden-0.1.1-macos-arm64.zip",
+            "size": 22989957,
+            "digest": "sha256:7978e78362d3649e3dffa2d60b8aaa2aeff2b06f016746d48cb3a377a0de3c2b",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/releases/download/v0.1.1/suikoden-0.1.1-macos-arm64.zip"
+          },
+          {
+            "id": 600772316,
+            "name": "suikoden-0.1.1-macos-x64.zip",
+            "size": 23588161,
+            "digest": "sha256:aa979cbae74c1e5d2a87519026652d3e454d36af4212752ac7007ad825413a03",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/releases/download/v0.1.1/suikoden-0.1.1-macos-x64.zip"
+          },
+          {
+            "id": 600772320,
+            "name": "suikoden-0.1.1-windows-x64.zip",
+            "size": 26205124,
+            "digest": "sha256:51ac6d1446e429f55af5edbdc8d053cf3f2e76186142dd40f11bb5f77a4ce0f3",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/releases/download/v0.1.1/suikoden-0.1.1-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999700490,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-12T00:00:00Z",
+        "assets": [
+          {
+            "id": 999700491,
+            "name": "suikoden-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/suikoden-999.123.456-windows-x64.zip",
+            "size": 26200000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999700492,
+            "name": "suikoden-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/suikoden-999.123.456-linux-x64.zip",
+            "size": 24100000,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-silent-bomber-recomp": [
+      {
+        "id": 399986069,
+        "tag_name": "v0.1.1",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-30T11:39:27Z",
+        "assets": [
+          {
+            "id": 600782493,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2723,
+            "digest": "sha256:6f99678aac325cc75c82feb5837443d80a71425a99bfd86a1ccd1512bff9ee6d",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/releases/download/v0.1.1/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 600782525,
+            "name": "SHA256SUMS.txt",
+            "size": 404,
+            "digest": "sha256:50be502e95f33b89bff88717781c73976d97456f15411fb2881f63795fc7a836",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/releases/download/v0.1.1/SHA256SUMS.txt"
+          },
+          {
+            "id": 600782492,
+            "name": "silent-bomber-0.1.1-linux-x64.zip",
+            "size": 24180676,
+            "digest": "sha256:cca1c12b83ae016920e12c842fc835a39a6a31e1b6fb067ed0322e6e8b294a48",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/releases/download/v0.1.1/silent-bomber-0.1.1-linux-x64.zip"
+          },
+          {
+            "id": 600782494,
+            "name": "silent-bomber-0.1.1-macos-arm64.zip",
+            "size": 22993395,
+            "digest": "sha256:4c06a6e12eb8cd53a3debbfac73b4841e07d2f25716482ddbe7878b10d2bc6d5",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/releases/download/v0.1.1/silent-bomber-0.1.1-macos-arm64.zip"
+          },
+          {
+            "id": 600782497,
+            "name": "silent-bomber-0.1.1-macos-x64.zip",
+            "size": 23589933,
+            "digest": "sha256:3b3a9165cf684e8f014afb0a8db41339875b38334ae0c7614dfe97835ad21ab8",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/releases/download/v0.1.1/silent-bomber-0.1.1-macos-x64.zip"
+          },
+          {
+            "id": 600782495,
+            "name": "silent-bomber-0.1.1-windows-x64.zip",
+            "size": 26207167,
+            "digest": "sha256:f846b3e99aa7769ad8fb0fa786bd5566a220f97833325c69ba0b16658ecbd124",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/releases/download/v0.1.1/silent-bomber-0.1.1-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999700493,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-12T00:00:00Z",
+        "assets": [
+          {
+            "id": 999700494,
+            "name": "silent-bomber-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/silent-bomber-999.123.456-windows-x64.zip",
+            "size": 26200000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999700495,
+            "name": "silent-bomber-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/silent-bomber-999.123.456-linux-x64.zip",
+            "size": 24100000,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-mortal-kombat-trilogy-recomp": [
+      {
+        "id": 399981222,
+        "tag_name": "v0.1.1",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-30T11:32:36Z",
+        "assets": [
+          {
+            "id": 600769993,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2795,
+            "digest": "sha256:3ef647cf99dd4bada4cf0e4632a51d0cb1019b3a330438775f2112a52774200f",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp/releases/download/v0.1.1/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 600770020,
+            "name": "SHA256SUMS.txt",
+            "size": 436,
+            "digest": "sha256:c0fc6009c85dd5c2b5706a2911a37fd2011ee49d228dba679047522c2070072f",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp/releases/download/v0.1.1/SHA256SUMS.txt"
+          },
+          {
+            "id": 600769995,
+            "name": "mortal-kombat-trilogy-0.1.1-linux-x64.zip",
+            "size": 24179638,
+            "digest": "sha256:89e6f5b36adeb06be73c18831abf0cfdb5a3cc8e2436192140cd24faa6a74a38",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp/releases/download/v0.1.1/mortal-kombat-trilogy-0.1.1-linux-x64.zip"
+          },
+          {
+            "id": 600769988,
+            "name": "mortal-kombat-trilogy-0.1.1-macos-arm64.zip",
+            "size": 22992173,
+            "digest": "sha256:2abac605c1790e683c9df1b2b09b4c0a2058adca783fb8b16efa58b399516a03",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp/releases/download/v0.1.1/mortal-kombat-trilogy-0.1.1-macos-arm64.zip"
+          },
+          {
+            "id": 600769990,
+            "name": "mortal-kombat-trilogy-0.1.1-macos-x64.zip",
+            "size": 23589129,
+            "digest": "sha256:223df89fa2b75d6fc0a6af767b36da221be6bd96c2f66b884929efd628e720d6",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp/releases/download/v0.1.1/mortal-kombat-trilogy-0.1.1-macos-x64.zip"
+          },
+          {
+            "id": 600769991,
+            "name": "mortal-kombat-trilogy-0.1.1-windows-x64.zip",
+            "size": 26207141,
+            "digest": "sha256:37087bb39cb7d9ee5283dc008883b25353b9e85a9a2dc5cc2ce5780ed3e9257d",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp/releases/download/v0.1.1/mortal-kombat-trilogy-0.1.1-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999700496,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-12T00:00:00Z",
+        "assets": [
+          {
+            "id": 999700497,
+            "name": "mortal-kombat-trilogy-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/mortal-kombat-trilogy-999.123.456-windows-x64.zip",
+            "size": 26200000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999700498,
+            "name": "mortal-kombat-trilogy-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/mortal-kombat-trilogy-999.123.456-linux-x64.zip",
+            "size": 24100000,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
     ]
   },
   "other_zip_assets": [
@@ -10714,6 +11001,36 @@
       "inventory": "alexbeav-quake-ii-recomp",
       "release_index": 0,
       "asset": "quake-ii-recomp-0.1.2-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-suikoden-recomp",
+      "release_index": 0,
+      "asset": "suikoden-0.1.1-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-suikoden-recomp",
+      "release_index": 0,
+      "asset": "suikoden-0.1.1-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-silent-bomber-recomp",
+      "release_index": 0,
+      "asset": "silent-bomber-0.1.1-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-silent-bomber-recomp",
+      "release_index": 0,
+      "asset": "silent-bomber-0.1.1-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-mortal-kombat-trilogy-recomp",
+      "release_index": 0,
+      "asset": "mortal-kombat-trilogy-0.1.1-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-mortal-kombat-trilogy-recomp",
+      "release_index": 0,
+      "asset": "mortal-kombat-trilogy-0.1.1-macos-x64.zip"
     }
   ]
 }

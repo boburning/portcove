@@ -8774,7 +8774,8 @@
     {
       "id": "alexbeav-mortal-kombat-trilogy-recomp",
       "name": "Mortal Kombat Trilogy / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play Mortal Kombat Trilogy on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-5552 BIOS. You can also use a separately prepared upstream copy.",
+      "original_game_title": "Mortal Kombat Trilogy",
       "project_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp",
       "issue_number": 468,
       "listed_at": "2026-10-23",
@@ -8798,7 +8799,7 @@
         "steps": [
           {
             "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
           },
           {
             "title": "Supply the matching original files",
@@ -8806,7 +8807,7 @@
           },
           {
             "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Mortal_Kombat_Trilogy_Recompiled as the program and build-release as the start folder."
           }
         ],
         "warnings": [
@@ -9641,7 +9642,8 @@
     {
       "id": "alexbeav-silent-bomber-recomp",
       "name": "Silent Bomber / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play Silent Bomber on Windows or Linux with your own matching Europe PlayStation disc and retail SCPH-5552 BIOS. You can also use a separately prepared upstream copy.",
+      "original_game_title": "Silent Bomber",
       "project_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp",
       "issue_number": 478,
       "listed_at": "2026-10-23",
@@ -9665,7 +9667,7 @@
         "steps": [
           {
             "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
           },
           {
             "title": "Supply the matching original files",
@@ -9673,7 +9675,7 @@
           },
           {
             "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Silent_Bomber_Recompiled as the program and build-release as the start folder."
           }
         ],
         "warnings": [
@@ -10075,7 +10077,8 @@
     {
       "id": "alexbeav-suikoden-recomp",
       "name": "Suikoden / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play Suikoden on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-5552 BIOS. You can also use a separately prepared upstream copy.",
+      "original_game_title": "Suikoden",
       "project_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp",
       "issue_number": 481,
       "listed_at": "2026-10-23",
@@ -10099,7 +10102,7 @@
         "steps": [
           {
             "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
           },
           {
             "title": "Supply the matching original files",
@@ -10107,7 +10110,7 @@
           },
           {
             "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Suikoden_Recompiled as the program and build-release as the start folder."
           }
         ],
         "warnings": [
