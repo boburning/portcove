@@ -169,7 +169,9 @@ Narrow technical-literal exclusions: the lint ignores the `align`, `aria-live`,
 `aria-atomic`, `aria-autocomplete`, `aria-describedby`, `aria-hidden`, `aria-labelledby`, `aria-relevant`, `data-backup-action`, `data-settings-control`,
 `data-slot`, `decoding`, `dir`, `direction`, `focusable`, `intent`, `positionMethod`, `reviewSize`, `size`, `triggerId` and `variant`
 attributes, which carry design-system tokens, element ids, ARIA references, ARIA state tokens or HTML/SVG rendering hints,
-never player copy.
+never player copy. `dir` and `direction` carry only the `ltr`/`rtl` direction token (for example
+the `DirectionProvider` in `main.tsx`); a component whose `direction` prop carried visible text
+would need a different prop name rather than this exclusion.
 Thrown `Error` messages that are caught and never displayed, stable state codes,
 keyboard key names and product names remain literals.
 

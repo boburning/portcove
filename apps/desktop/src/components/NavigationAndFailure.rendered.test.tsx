@@ -31,16 +31,16 @@ async function inArabicPreview(render: () => string): Promise<string> {
 describe("navigation hints and technical details localization", () => {
   it("keeps keyboard key names literal while translating the actions", async () => {
     const english = renderToStaticMarkup(<NavigationHints workspace />);
-    expect(english).toContain(`${arrowKeysName}: Move`);
-    expect(english).toContain(`${enterKeyName}: Select`);
-    expect(english).toContain(`${escapeKeyName}: Menu`);
+    expect(english).toContain(`<bdi>${arrowKeysName}</bdi>: Move`);
+    expect(english).toContain(`<bdi>${enterKeyName}</bdi>: Select`);
+    expect(english).toContain(`<bdi>${escapeKeyName}</bdi>: Menu`);
 
     const markup = await inArabicPreview(() => renderToStaticMarkup(<NavigationHints />));
     expect(markup).toContain("مساعدة التنقل");
     expect(markup).toContain('aria-label="اختصارات التنقل"');
-    expect(markup).toContain(`${arrowKeysName}: تحريك`);
-    expect(markup).toContain(`${enterKeyName}: تحديد`);
-    expect(markup).toContain(`${escapeKeyName}: رجوع`);
+    expect(markup).toContain(`<bdi>${arrowKeysName}</bdi>: تحريك`);
+    expect(markup).toContain(`<bdi>${enterKeyName}</bdi>: تحديد`);
+    expect(markup).toContain(`<bdi>${escapeKeyName}</bdi>: رجوع`);
     expect(markup).not.toContain("Navigation help");
   });
 

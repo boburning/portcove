@@ -134,16 +134,28 @@ export function NavigationHints({
         {controller && <strong>{controller}</strong>}
         <span className="keyboard-navigation-hint in-data-[input-mode=controller]:hidden">
           {/* Keyboard key names stay literal; only the action is copy. */}
-          <Trans t={t} i18nKey="navigation.move" components={{ key: <>{arrowKeysName}</> }} />
+          <Trans t={t} i18nKey="navigation.move" components={{ key: <bdi>{arrowKeysName}</bdi> }} />
         </span>
         <span className="keyboard-navigation-hint in-data-[input-mode=controller]:hidden">
-          <Trans t={t} i18nKey="navigation.select" components={{ key: <>{enterKeyName}</> }} />
+          <Trans
+            t={t}
+            i18nKey="navigation.select"
+            components={{ key: <bdi>{enterKeyName}</bdi> }}
+          />
         </span>
         <span className="keyboard-navigation-hint in-data-[input-mode=controller]:hidden">
           {workspace ? (
-            <Trans t={t} i18nKey="navigation.menu" components={{ key: <>{escapeKeyName}</> }} />
+            <Trans
+              t={t}
+              i18nKey="navigation.menu"
+              components={{ key: <bdi>{escapeKeyName}</bdi> }}
+            />
           ) : (
-            <Trans t={t} i18nKey="navigation.back" components={{ key: <>{escapeKeyName}</> }} />
+            <Trans
+              t={t}
+              i18nKey="navigation.back"
+              components={{ key: <bdi>{escapeKeyName}</bdi> }}
+            />
           )}
         </span>
         <span className="gamepad-navigation-hint hidden in-data-[input-mode=controller]:inline">
