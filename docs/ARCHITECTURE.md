@@ -861,8 +861,10 @@ artwork lock, also removes cached IGDB and catalog-media originals that no
 currently resolvable port references: the current catalog plus retained
 installed, registered and unfinished-setup identities. Local-import thumbnails
 and interrupted staging keep their own repair paths. If those references cannot
-be established, every existing entry is retained and only the 64 MiB size bound
-applies. Provider terms and image withdrawal
+be established, or an entry cannot be removed, it is retained and only the
+64 MiB size bound applies. Each service judges references from its own catalog
+snapshot, so processes holding different catalogs may refetch each other's
+covers; that costs network only, never a local choice. Provider terms and image withdrawal
 remain separate from local file integrity and executable trust.
 
 The [independent definition delivery contract](DEFINITION-DELIVERY.md) keeps

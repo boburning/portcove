@@ -2572,3 +2572,52 @@ fn retained_registration_keeps_its_cached_cover_after_directory_removal() {
         .is_empty()
     );
 }
+
+#[test]
+fn reference_retention_covers_catalog_media_and_keeps_local_thumbnails() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let cache = library.root().join("artwork-cache");
+    fs::create_dir_all(&cache).unwrap();
+    let digest = |label: &str| crate::signed_catalog::digest(label.as_bytes());
+    let (stale, current, published, local) = (
+        digest("stale"),
+        digest("current"),
+        digest("published"),
+        digest("local"),
+    );
+    for (name, bytes) in [
+        (format!("{stale}.image"), b"withdrawn media".as_slice()),
+        (format!("{stale}.jpg"), b"withdrawn cover".as_slice()),
+        (format!("{current}.image"), b"current media".as_slice()),
+        (format!("{local}.png"), b"local thumbnail".as_slice()),
+        (
+            "pending-catalog-media-original".into(),
+            b"staging".as_slice(),
+        ),
+    ] {
+        fs::write(cache.join(name), bytes).unwrap();
+    }
+    let referenced = std::collections::BTreeSet::from([current.clone()]);
+    crate::artwork::publish_cache_file(
+        &library,
+        &cache.join(format!("{published}.image")),
+        "pending-catalog-media-original",
+        crate::artwork_image::MAX_ORIGINAL_BYTES,
+        b"verified media",
+        Some(&referenced),
+    )
+    .unwrap();
+    let mut names = fs::read_dir(&cache)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+        .collect::<Vec<_>>();
+    names.sort();
+    let mut expected = vec![
+        format!("{current}.image"),
+        format!("{local}.png"),
+        format!("{published}.image"),
+    ];
+    expected.sort();
+    assert_eq!(names, expected);
+}

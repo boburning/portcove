@@ -229,7 +229,16 @@ impl PortcoveService {
         pending_name: &str,
         bytes: &[u8],
     ) -> Result<()> {
-        let referenced = self.referenced_remote_originals().ok();
+        let referenced = match self.referenced_remote_originals() {
+            Ok(referenced) => Some(referenced),
+            Err(error) => {
+                tracing::warn!(
+                    code = ?error.code,
+                    "artwork cache retained every remote original: references unavailable"
+                );
+                None
+            }
+        };
         publish_cache_file(
             self.library(),
             path,
@@ -650,9 +659,11 @@ pub(crate) fn publish_cache_file(
                 .file_stem()
                 .and_then(|stem| stem.to_str())
                 .is_some_and(|stem| !referenced.contains(stem));
-            if remote && unreferenced && existing != path {
-                fs::remove_file(&existing)?;
-            } else {
+            // A stale entry that cannot be removed now (for example, held open
+            // by another process) stays for a later publication or the size
+            // bound; it never fails this verified publication.
+            if !(remote && unreferenced && existing != path) || fs::remove_file(&existing).is_err()
+            {
                 kept.push((existing, size));
             }
         }
