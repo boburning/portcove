@@ -319,3 +319,28 @@ describe("detail qualification history", () => {
     },
   );
 });
+
+describe("earlier test results localization", () => {
+  it("translates labels while recorded editions and methods stay exact", async () => {
+    const { initializeLocalization } = await import("../localization");
+    const localization = initializeLocalization(["en-US"]);
+    try {
+      await localization.changeLanguage("ar-XB");
+      const markup = renderToStaticMarkup(
+        <DetailQualificationSummary
+          port={{ ...snap64, automated_tested_platforms: ["linux-x86-64"] }}
+          sourceInspection={report()}
+        />,
+      );
+      expect(markup).toContain("اختبارات آلية سابقة");
+      expect(markup).toContain("Linux · غير مسجل: Windows");
+      expect(markup).toContain("فحص بنيوي · نجح");
+      expect(markup).toContain('aria-label="فحوصات ملفات اللعبة المسجلة"');
+      expect(markup).toContain("Pokemon Snap · USA · Rev 0");
+      expect(markup).not.toContain("Earlier automated tests");
+      expect(markup).not.toContain("Recorded platform");
+    } finally {
+      await localization.changeLanguage("en");
+    }
+  });
+});

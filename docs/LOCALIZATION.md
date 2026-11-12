@@ -164,6 +164,7 @@ unless the copy change is intended and reviewed.
 | Self-service setup from upstream: Play, saved-download states, existing-installation and website links, and the launch details heading (download paths stay exact; Core pending and launch-hold reasons stay verbatim; the operation context action stays an English activity label) | `components/SelfServiceSetup.tsx`                          | `installation`      |
 | Saved game-file reuse: selection, check and repair actions, port choices and app-owned reuse errors as typed codes (paths, port names and profile labels stay exact; Core inspection, application and failure text stays verbatim)                                                   | `components/RegisteredSourceSetup.tsx`                     | `gameFiles`         |
 | Screenshot gallery, preview dialog and media credits (captions, edition titles, attributions and license identifiers stay exact; only the IGDB terms link label is translated)                                                                                                       | `components/CatalogMedia.tsx`                              | `browsing`          |
+| Earlier test results on game details: legacy coverage, recorded observation headings, kind and outcome labels, field labels and notes (`testResults.*` keys; recorded methods, editions, releases, contracts, hashes and platform labels stay exact data)                            | `components/DetailQualificationSummary.tsx`                | `gameFiles`         |
 | Discover card observations (readiness, acquisition and setup-route text follow their producers' migrations)                                                                                                                                                                          | `features/port-actions/BrowsePortObservations.tsx`         | `browsing`          |
 | Navigation hints (keyboard key names stay literal)                                                                                                                                                                                                                                   | `components/ui.tsx`                                        | `common`            |
 | Failure technical details (codes, phases, messages and context values stay verbatim)                                                                                                                                                                                                 | `components/FailureDetails.tsx`                            | `common`            |
@@ -171,7 +172,7 @@ unless the copy change is intended and reviewed.
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-12 it
-reported 1,337 findings in 36 of 218 analyzed files, measured after the
+reported 1,322 findings in 35 of 218 analyzed files, measured after the
 migrations listed above and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
 and are migrated with the surface that renders them. The count is a work

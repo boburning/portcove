@@ -161,5 +161,53 @@
     "selectedHistory": "Historial de comprobaciones de la ruta seleccionada",
     "selectedScope": "Adaptación seleccionada",
     "waiting": "Esperando a que termine la comprobación anterior."
+  },
+  "testResults": {
+    "detailsAvailable": "Los detalles de descarga y de prueba están disponibles en Detalles técnicos.",
+    "detailsMissing": "No se registró la descarga probada ni la versión de prueba.",
+    "earlierAutomated": "Pruebas automáticas anteriores",
+    "earlierHandsOn": "Pruebas manuales anteriores",
+    "earlierNote": "Estos son resultados de pruebas anteriores. Superar las comprobaciones automáticas no confirma que el juego funcione correctamente. Estos resultados por plataforma no identifican la descarga, la edición ni el formato de archivo exactos que se probaron.",
+    "field": {
+      "artifact": "SHA-256 del artefacto registrado",
+      "checkVersion": "Versión de comprobación registrada",
+      "contract": "Contrato registrado",
+      "edition": "Edición y formato registrados",
+      "observed": "Fecha de observación (UTC)",
+      "platform": "Plataforma registrada",
+      "release": "Versión registrada"
+    },
+    "heading": {
+      "bios": "Observaciones registradas de BIOS",
+      "game": "Observaciones registradas de archivos del juego"
+    },
+    "kind": {
+      "automated": "Ciclo de vida automatizado",
+      "handsOn": "Observación manual",
+      "knownFailure": "Fallo conocido",
+      "structural": "Comprobación estructural",
+      "unknown": "Tipo de comprobación desconocido"
+    },
+    "kindOutcome": "{{kind}} · {{outcome}}",
+    "methodNotRecorded": "Método no registrado",
+    "noEarlierTests": "No hay pruebas de plataforma anteriores registradas",
+    "noRecords": "Este informe no aporta observaciones registradas coincidentes.",
+    "notConfirmed": "No hemos confirmado si estos resultados de prueba se aplican a tus archivos, tu versión del juego o tu dispositivo.",
+    "notRecorded": "Sin registrar",
+    "outcome": {
+      "failed": "Fallida",
+      "notRun": "No ejecutada",
+      "passed": "Superada",
+      "unknown": "Resultado desconocido"
+    },
+    "partialCoverage": "<recorded/> · Sin registrar: <missing/>",
+    "reportUnavailable": "El informe de comprobación de archivos no está disponible para este requisito. Puede que aún exista evidencia del catálogo.",
+    "section": {
+      "bios": "Comprobaciones registradas de BIOS",
+      "game": "Comprobaciones registradas de archivos del juego",
+      "technicalBios": "Comprobaciones técnicas registradas de BIOS",
+      "technicalGame": "Comprobaciones técnicas registradas de archivos del juego"
+    },
+    "unverifiedScopes": "No se pudieron verificar algunos ámbitos registrados para este requisito."
   }
 }
