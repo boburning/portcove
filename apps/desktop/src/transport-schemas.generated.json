@@ -3345,6 +3345,57 @@
   },
   "artwork_state": {
     "$defs": {
+      "ArtworkAttribution": {
+        "additionalProperties": false,
+        "description": "Where a provider image came from and who made it. Recorded per origin, never\nreplaced by a later identical import, and shown wherever the image is credited.",
+        "properties": {
+          "asset_id": {
+            "description": "The provider's identity for this image.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "author_name": {
+            "type": "string"
+          },
+          "author_steam64": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fetched_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "game_id": {
+            "description": "The provider's game the image was listed under; a proposal, not port identity.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider": {
+            "$ref": "#/$defs/ArtworkProvider"
+          },
+          "role": {
+            "$ref": "#/$defs/DestinationArtworkRole"
+          },
+          "source_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "asset_id",
+          "game_id",
+          "role",
+          "author_name",
+          "author_steam64",
+          "source_url",
+          "fetched_at"
+        ],
+        "type": "object"
+      },
       "ArtworkAvailability": {
         "enum": [
           "fallback",
@@ -3386,6 +3437,13 @@
         "enum": [
           "png",
           "jpeg"
+        ],
+        "type": "string"
+      },
+      "ArtworkProvider": {
+        "description": "A remote provider an image was chosen from; a local import has none.",
+        "enum": [
+          "steamgriddb"
         ],
         "type": "string"
       },
@@ -3446,6 +3504,14 @@
         "enum": [
           "cover",
           "detail"
+        ],
+        "type": "string"
+      },
+      "DestinationArtworkRole": {
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner"
         ],
         "type": "string"
       },
@@ -3569,6 +3635,13 @@
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
+      "attribution": {
+        "description": "Provider credits for the selected image; empty for a purely local import.",
+        "items": {
+          "$ref": "#/$defs/ArtworkAttribution"
+        },
+        "type": "array"
+      },
       "availability": {
         "$ref": "#/$defs/ArtworkAvailability"
       },
@@ -3604,7 +3677,8 @@
       "availability",
       "reason",
       "resolved_source",
-      "generated_fallback"
+      "generated_fallback",
+      "attribution"
     ],
     "title": "ArtworkState",
     "type": "object"
@@ -10751,6 +10825,57 @@
   },
   "destination_artwork_bytes": {
     "$defs": {
+      "ArtworkAttribution": {
+        "additionalProperties": false,
+        "description": "Where a provider image came from and who made it. Recorded per origin, never\nreplaced by a later identical import, and shown wherever the image is credited.",
+        "properties": {
+          "asset_id": {
+            "description": "The provider's identity for this image.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "author_name": {
+            "type": "string"
+          },
+          "author_steam64": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fetched_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "game_id": {
+            "description": "The provider's game the image was listed under; a proposal, not port identity.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider": {
+            "$ref": "#/$defs/ArtworkProvider"
+          },
+          "role": {
+            "$ref": "#/$defs/DestinationArtworkRole"
+          },
+          "source_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "asset_id",
+          "game_id",
+          "role",
+          "author_name",
+          "author_steam64",
+          "source_url",
+          "fetched_at"
+        ],
+        "type": "object"
+      },
       "ArtworkChoice": {
         "additionalProperties": false,
         "properties": {
@@ -10784,6 +10909,13 @@
         "enum": [
           "png",
           "jpeg"
+        ],
+        "type": "string"
+      },
+      "ArtworkProvider": {
+        "description": "A remote provider an image was chosen from; a local import has none.",
+        "enum": [
+          "steamgriddb"
         ],
         "type": "string"
       },
@@ -10836,6 +10968,13 @@
         "additionalProperties": false,
         "description": "An observation, never provider permission, destination ownership or write consent.\nPortrait exposes the validated local cover original; hero banner exposes the\nvalidated local detail original only when it is wider than tall. Catalog\ndefaults and the landscape role remain explicit unavailable states; nothing is\nsynthesized, cropped or resized from another role or cache.",
         "properties": {
+          "attribution": {
+            "description": "Provider credits for the selected local image, shown by a destination that\npresents the image; empty for a purely local import and every other source.",
+            "items": {
+              "$ref": "#/$defs/ArtworkAttribution"
+            },
+            "type": "array"
+          },
           "choice": {
             "anyOf": [
               {
@@ -10851,8 +10990,8 @@
           },
           "handoff_schema": {
             "format": "uint32",
-            "maximum": 2,
-            "minimum": 2,
+            "maximum": 3,
+            "minimum": 3,
             "type": "integer"
           },
           "library": {
@@ -10882,7 +11021,8 @@
           "choice",
           "source",
           "selected_asset_sha256",
-          "content"
+          "content",
+          "attribution"
         ],
         "type": "object"
       },
@@ -11108,6 +11248,57 @@
   },
   "destination_artwork_handoff": {
     "$defs": {
+      "ArtworkAttribution": {
+        "additionalProperties": false,
+        "description": "Where a provider image came from and who made it. Recorded per origin, never\nreplaced by a later identical import, and shown wherever the image is credited.",
+        "properties": {
+          "asset_id": {
+            "description": "The provider's identity for this image.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "author_name": {
+            "type": "string"
+          },
+          "author_steam64": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fetched_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "game_id": {
+            "description": "The provider's game the image was listed under; a proposal, not port identity.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider": {
+            "$ref": "#/$defs/ArtworkProvider"
+          },
+          "role": {
+            "$ref": "#/$defs/DestinationArtworkRole"
+          },
+          "source_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "asset_id",
+          "game_id",
+          "role",
+          "author_name",
+          "author_steam64",
+          "source_url",
+          "fetched_at"
+        ],
+        "type": "object"
+      },
       "ArtworkChoice": {
         "additionalProperties": false,
         "properties": {
@@ -11141,6 +11332,13 @@
         "enum": [
           "png",
           "jpeg"
+        ],
+        "type": "string"
+      },
+      "ArtworkProvider": {
+        "description": "A remote provider an image was chosen from; a local import has none.",
+        "enum": [
+          "steamgriddb"
         ],
         "type": "string"
       },
@@ -11389,6 +11587,13 @@
     "additionalProperties": false,
     "description": "An observation, never provider permission, destination ownership or write consent.\nPortrait exposes the validated local cover original; hero banner exposes the\nvalidated local detail original only when it is wider than tall. Catalog\ndefaults and the landscape role remain explicit unavailable states; nothing is\nsynthesized, cropped or resized from another role or cache.",
     "properties": {
+      "attribution": {
+        "description": "Provider credits for the selected local image, shown by a destination that\npresents the image; empty for a purely local import and every other source.",
+        "items": {
+          "$ref": "#/$defs/ArtworkAttribution"
+        },
+        "type": "array"
+      },
       "choice": {
         "anyOf": [
           {
@@ -11404,8 +11609,8 @@
       },
       "handoff_schema": {
         "format": "uint32",
-        "maximum": 2,
-        "minimum": 2,
+        "maximum": 3,
+        "minimum": 3,
         "type": "integer"
       },
       "library": {
@@ -11435,7 +11640,8 @@
       "choice",
       "source",
       "selected_asset_sha256",
-      "content"
+      "content",
+      "attribution"
     ],
     "title": "DestinationArtworkHandoff",
     "type": "object"
@@ -19062,6 +19268,57 @@
         ],
         "type": "object"
       },
+      "ArtworkAttribution": {
+        "additionalProperties": false,
+        "description": "Where a provider image came from and who made it. Recorded per origin, never\nreplaced by a later identical import, and shown wherever the image is credited.",
+        "properties": {
+          "asset_id": {
+            "description": "The provider's identity for this image.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "author_name": {
+            "type": "string"
+          },
+          "author_steam64": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fetched_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "game_id": {
+            "description": "The provider's game the image was listed under; a proposal, not port identity.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider": {
+            "$ref": "#/$defs/ArtworkProvider"
+          },
+          "role": {
+            "$ref": "#/$defs/DestinationArtworkRole"
+          },
+          "source_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "asset_id",
+          "game_id",
+          "role",
+          "author_name",
+          "author_steam64",
+          "source_url",
+          "fetched_at"
+        ],
+        "type": "object"
+      },
       "ArtworkChoice": {
         "additionalProperties": false,
         "properties": {
@@ -19112,11 +19369,48 @@
               "$ref": "#/$defs/ArtworkChoice"
             },
             "type": "array"
+          },
+          "provider_only_assets": {
+            "description": "Assets that exist only because a provider image was chosen; no local import\nof the same bytes was made. Present only under library metadata schema 8.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "providers": {
+            "description": "Provider provenance; present only under library metadata schema 8.",
+            "items": {
+              "$ref": "#/$defs/ArtworkProviderRecord"
+            },
+            "type": "array"
           }
         },
         "required": [
           "assets",
           "choices"
+        ],
+        "type": "object"
+      },
+      "ArtworkProvider": {
+        "description": "A remote provider an image was chosen from; a local import has none.",
+        "enum": [
+          "steamgriddb"
+        ],
+        "type": "string"
+      },
+      "ArtworkProviderRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_sha256": {
+            "type": "string"
+          },
+          "attribution": {
+            "$ref": "#/$defs/ArtworkAttribution"
+          }
+        },
+        "required": [
+          "asset_sha256",
+          "attribution"
         ],
         "type": "object"
       },
@@ -19233,6 +19527,14 @@
           "provenance"
         ],
         "type": "object"
+      },
+      "DestinationArtworkRole": {
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner"
+        ],
+        "type": "string"
       },
       "DigestScope": {
         "enum": [
@@ -19468,7 +19770,7 @@
             "type": "array"
           },
           "library_memberships": {
-            "description": "Explicit add-only Library entries; present only under metadata schema 7, so\nan older reader refuses the export instead of silently dropping them.",
+            "description": "Explicit add-only Library entries; present only under metadata schema 7 or 8,\nso an older reader refuses the export instead of silently dropping them.",
             "items": {
               "$ref": "#/$defs/LibraryMembership"
             },
@@ -19494,7 +19796,7 @@
             ]
           },
           "profiles": {
-            "description": "Local profiles and revisions; present only under metadata schema 6.",
+            "description": "Local profiles and revisions; present only under metadata schema 6 or later.",
             "items": {
               "$ref": "#/$defs/LibraryProfile"
             },
@@ -20583,6 +20885,57 @@
         ],
         "type": "object"
       },
+      "ArtworkAttribution": {
+        "additionalProperties": false,
+        "description": "Where a provider image came from and who made it. Recorded per origin, never\nreplaced by a later identical import, and shown wherever the image is credited.",
+        "properties": {
+          "asset_id": {
+            "description": "The provider's identity for this image.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "author_name": {
+            "type": "string"
+          },
+          "author_steam64": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fetched_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "game_id": {
+            "description": "The provider's game the image was listed under; a proposal, not port identity.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider": {
+            "$ref": "#/$defs/ArtworkProvider"
+          },
+          "role": {
+            "$ref": "#/$defs/DestinationArtworkRole"
+          },
+          "source_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "asset_id",
+          "game_id",
+          "role",
+          "author_name",
+          "author_steam64",
+          "source_url",
+          "fetched_at"
+        ],
+        "type": "object"
+      },
       "ArtworkChoice": {
         "additionalProperties": false,
         "properties": {
@@ -20633,11 +20986,48 @@
               "$ref": "#/$defs/ArtworkChoice"
             },
             "type": "array"
+          },
+          "provider_only_assets": {
+            "description": "Assets that exist only because a provider image was chosen; no local import\nof the same bytes was made. Present only under library metadata schema 8.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "providers": {
+            "description": "Provider provenance; present only under library metadata schema 8.",
+            "items": {
+              "$ref": "#/$defs/ArtworkProviderRecord"
+            },
+            "type": "array"
           }
         },
         "required": [
           "assets",
           "choices"
+        ],
+        "type": "object"
+      },
+      "ArtworkProvider": {
+        "description": "A remote provider an image was chosen from; a local import has none.",
+        "enum": [
+          "steamgriddb"
+        ],
+        "type": "string"
+      },
+      "ArtworkProviderRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_sha256": {
+            "type": "string"
+          },
+          "attribution": {
+            "$ref": "#/$defs/ArtworkAttribution"
+          }
+        },
+        "required": [
+          "asset_sha256",
+          "attribution"
         ],
         "type": "object"
       },
@@ -20754,6 +21144,14 @@
           "provenance"
         ],
         "type": "object"
+      },
+      "DestinationArtworkRole": {
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner"
+        ],
+        "type": "string"
       },
       "DigestScope": {
         "enum": [
@@ -21902,7 +22300,7 @@
         "type": "array"
       },
       "library_memberships": {
-        "description": "Explicit add-only Library entries; present only under metadata schema 7, so\nan older reader refuses the export instead of silently dropping them.",
+        "description": "Explicit add-only Library entries; present only under metadata schema 7 or 8,\nso an older reader refuses the export instead of silently dropping them.",
         "items": {
           "$ref": "#/$defs/LibraryMembership"
         },
@@ -21928,7 +22326,7 @@
         ]
       },
       "profiles": {
-        "description": "Local profiles and revisions; present only under metadata schema 6.",
+        "description": "Local profiles and revisions; present only under metadata schema 6 or later.",
         "items": {
           "$ref": "#/$defs/LibraryProfile"
         },
@@ -22081,6 +22479,57 @@
         ],
         "type": "object"
       },
+      "ArtworkAttribution": {
+        "additionalProperties": false,
+        "description": "Where a provider image came from and who made it. Recorded per origin, never\nreplaced by a later identical import, and shown wherever the image is credited.",
+        "properties": {
+          "asset_id": {
+            "description": "The provider's identity for this image.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "author_name": {
+            "type": "string"
+          },
+          "author_steam64": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fetched_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "game_id": {
+            "description": "The provider's game the image was listed under; a proposal, not port identity.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider": {
+            "$ref": "#/$defs/ArtworkProvider"
+          },
+          "role": {
+            "$ref": "#/$defs/DestinationArtworkRole"
+          },
+          "source_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "asset_id",
+          "game_id",
+          "role",
+          "author_name",
+          "author_steam64",
+          "source_url",
+          "fetched_at"
+        ],
+        "type": "object"
+      },
       "ArtworkChoice": {
         "additionalProperties": false,
         "properties": {
@@ -22131,11 +22580,48 @@
               "$ref": "#/$defs/ArtworkChoice"
             },
             "type": "array"
+          },
+          "provider_only_assets": {
+            "description": "Assets that exist only because a provider image was chosen; no local import\nof the same bytes was made. Present only under library metadata schema 8.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "providers": {
+            "description": "Provider provenance; present only under library metadata schema 8.",
+            "items": {
+              "$ref": "#/$defs/ArtworkProviderRecord"
+            },
+            "type": "array"
           }
         },
         "required": [
           "assets",
           "choices"
+        ],
+        "type": "object"
+      },
+      "ArtworkProvider": {
+        "description": "A remote provider an image was chosen from; a local import has none.",
+        "enum": [
+          "steamgriddb"
+        ],
+        "type": "string"
+      },
+      "ArtworkProviderRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_sha256": {
+            "type": "string"
+          },
+          "attribution": {
+            "$ref": "#/$defs/ArtworkAttribution"
+          }
+        },
+        "required": [
+          "asset_sha256",
+          "attribution"
         ],
         "type": "object"
       },
@@ -22252,6 +22738,14 @@
           "provenance"
         ],
         "type": "object"
+      },
+      "DestinationArtworkRole": {
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner"
+        ],
+        "type": "string"
       },
       "DigestScope": {
         "enum": [
@@ -22487,7 +22981,7 @@
             "type": "array"
           },
           "library_memberships": {
-            "description": "Explicit add-only Library entries; present only under metadata schema 7, so\nan older reader refuses the export instead of silently dropping them.",
+            "description": "Explicit add-only Library entries; present only under metadata schema 7 or 8,\nso an older reader refuses the export instead of silently dropping them.",
             "items": {
               "$ref": "#/$defs/LibraryMembership"
             },
@@ -22513,7 +23007,7 @@
             ]
           },
           "profiles": {
-            "description": "Local profiles and revisions; present only under metadata schema 6.",
+            "description": "Local profiles and revisions; present only under metadata schema 6 or later.",
             "items": {
               "$ref": "#/$defs/LibraryProfile"
             },

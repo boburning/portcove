@@ -26,6 +26,16 @@ renaming; this history does not deliver future commands or migrate stored data.
 
 ## Documented API changes
 
+API89 adds `attribution` to `artwork_state`: provider credits for the selected
+image, empty for purely local imports. The optional destination artwork handoff
+moves to schema 3 with the same required `attribution` array; schema-2 readers must
+refuse it. The new `artwork.steamgriddb.*` commands are advertised separately. The
+Library database moves to writer schema 52 (`artwork_asset_providers` and
+`artwork_provider_only_assets`); older writers refuse the upgraded library. Library
+metadata exports that carry provider provenance use metadata schema 8, which older
+readers refuse; exports without it keep their earlier schema. Consumers that show
+artwork should show its credit and must not treat it as redistribution permission.
+
 API83 adds the shared game comparison request/result and optional named-outcome
 recommendation metadata. Local organization state adds explicit followed projects
 and deduplicated observed-release acknowledgments. Missing/future optional metadata

@@ -558,6 +558,26 @@ pub(crate) enum SteamGridDbCommand {
         /// Game name to search for, up to 120 characters.
         term: String,
     },
+    /// Choose one SteamGridDB image for a port's cover or detail image.
+    #[command(
+        after_help = "Cover uses portrait images and detail uses hero images. Portcove looks the image up again with your key, downloads it without sending your key, and keeps the artist credit with the copy in your library. The previous choice is replaced only if the image is valid and the choice revision has not changed."
+    )]
+    Choose {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Artwork slot to change; cover is the library image and detail is the detail view image.
+        #[arg(long, value_enum, default_value = "cover")]
+        slot: ArtworkSlotArg,
+        /// SteamGridDB game ID from `artwork steamgriddb search`.
+        #[arg(long)]
+        game: u64,
+        /// SteamGridDB image ID from `artwork steamgriddb candidates`.
+        #[arg(long)]
+        candidate: u64,
+        /// Require the artwork revision to match the value previously read.
+        #[arg(long)]
+        expected_revision: Option<u64>,
+    },
     /// List proposed static images for one SteamGridDB game and destination role.
     Candidates {
         /// SteamGridDB game ID from `artwork steamgriddb search`.
@@ -576,6 +596,7 @@ impl SteamGridDbCommand {
             Self::ClearKey => "artwork.steamgriddb.clear-key",
             Self::Search { .. } => "artwork.steamgriddb.search",
             Self::Candidates { .. } => "artwork.steamgriddb.candidates",
+            Self::Choose { .. } => "artwork.steamgriddb.choose",
         }
     }
 }

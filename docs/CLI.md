@@ -381,7 +381,7 @@ The CLI API schema version is independent of the Portcove release version.
 
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
 current or retained listing. `capabilities` advertises `port_capability_schema`
-and `listing_formats` independently from API schema 88 and event schema 3.
+and `listing_formats` independently from API schema 89 and event schema 3.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -1196,6 +1196,7 @@ portcove --json --non-interactive artwork steamgriddb set-key --stdin
 portcove --json artwork steamgriddb status
 portcove --json artwork steamgriddb search "<game name>"
 portcove --json artwork steamgriddb candidates <game-id> --role portrait-cover
+portcove --json artwork steamgriddb choose <port-id> --slot cover --game <game-id> --candidate <image-id> --expected-revision <revision>
 portcove --json artwork steamgriddb clear-key
 ```
 
@@ -1215,6 +1216,16 @@ to Steam. Results flagged as adult, humor or epilepsy-risk are excluded. A missi
 key or a rejected key is a usage error, and a missing game is not-found. Rate
 limiting reports `retry_after_seconds` when SteamGridDB provides it, and an
 unavailable service is a network error. Malformed responses fail verification.
+`choose` copies one listed image into your library for a port's `cover` (portrait
+images) or `detail` (hero images) slot and returns `artwork_state`. Core looks the image
+up again with your key, downloads it from SteamGridDB's image server without your key,
+and keeps it only if it decodes as a static PNG or JPEG matching its listed type and
+size. The artist credit is stored with the copy and shown in `artwork_state.attribution`
+and the destination handoff. An image no longer on the game's first listing page is
+not-found, and a changed choice revision is a conflict; in both cases the current
+artwork is kept. The copy is library artwork like a local import: `reset` returns to
+the default and `remove-unused` deletes it once nothing selects it. Library exports
+that contain chosen SteamGridDB images use metadata schema 8.
 See [the provider client limits](ARCHITECTURE.md#local-artwork-ownership).
 
 ## Export and restore a library

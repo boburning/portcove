@@ -903,7 +903,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         }
         Commands::Artwork {
             command: ArtworkCommand::Steamgriddb { command },
-        } => steamgriddb::execute(command, mode, cli.non_interactive).await?,
+        } => steamgriddb::execute(command, &service, mode, cli.non_interactive).await?,
         Commands::Artwork { command } => {
             execute_artwork(&service, command, mode, cli.non_interactive)?
         }
@@ -5166,6 +5166,7 @@ mod tests {
             "artwork.steamgriddb.clear-key",
             "artwork.steamgriddb.search",
             "artwork.steamgriddb.candidates",
+            "artwork.steamgriddb.choose",
             "saves",
             "saves.export-preview",
             "saves.export",

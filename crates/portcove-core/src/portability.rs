@@ -25,11 +25,11 @@ pub struct LibraryMetadata {
     pub launch_history: Vec<LibraryLaunchHistory>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub retained_build_references: Vec<crate::RetainedBuildReference>,
-    /// Local profiles and revisions; present only under metadata schema 6.
+    /// Local profiles and revisions; present only under metadata schema 6 or later.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub profiles: Vec<crate::LibraryProfile>,
-    /// Explicit add-only Library entries; present only under metadata schema 7, so
-    /// an older reader refuses the export instead of silently dropping them.
+    /// Explicit add-only Library entries; present only under metadata schema 7 or 8,
+    /// so an older reader refuses the export instead of silently dropping them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub library_memberships: Vec<crate::LibraryMembership>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

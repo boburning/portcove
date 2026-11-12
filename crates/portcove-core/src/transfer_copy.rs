@@ -268,8 +268,8 @@ pub(crate) fn verify_metadata(
     metadata.original_root = expected.original_root.clone();
     metadata.exported_at = 0;
     expected.exported_at = 0;
-    if matches!(expected.schema_version, 5..=7) {
-        // Schema 5-7 can carry an empty set. A fresh export keeps using schema 3/4
+    if matches!(expected.schema_version, 5..=8) {
+        // Schema 5-8 can carry an empty set. A fresh export keeps using schema 3/4
         // when nothing requires the newer reader contract.
         metadata.schema_version = expected.schema_version;
     }

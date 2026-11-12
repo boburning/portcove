@@ -256,6 +256,11 @@ export type SourceVerificationMethod = "catalog-identity" | "upstream-validator"
 export type UpdatePolicy = "notify" | "stage" | "automatic";
 export type ArtworkImageFormat = "png" | "jpeg";
 export type OutputArtworkAssets = LocalArtworkAsset[];
+/**
+ * A remote provider an image was chosen from; a local import has none.
+ */
+export type ArtworkProvider = "steamgriddb";
+export type DestinationArtworkRole = "portrait_cover" | "landscape_cover" | "hero_banner";
 export type ArtworkAvailability = "fallback" | "available" | "unavailable";
 export type ArtworkSlot = "cover" | "detail";
 /**
@@ -555,7 +560,6 @@ export type DestinationArtworkContent =
     };
 export type DestinationArtworkUnavailableReason =
   ("role_not_provided" | "no_local_original" | "selected_original_unavailable") | "selected_image_not_wide";
-export type DestinationArtworkRole = "portrait_cover" | "landscape_cover" | "hero_banner";
 export type DestinationArtworkSource =
   | {
       asset: LocalArtworkAsset;
@@ -1816,6 +1820,10 @@ export interface OutputArtworkCacheClear {
   [k: string]: unknown;
 }
 export interface OutputArtworkState {
+  /**
+   * Provider credits for the selected image; empty for a purely local import.
+   */
+  attribution: ArtworkAttribution[];
   availability: ArtworkAvailability;
   choice: ArtworkChoice;
   generated_fallback: GeneratedArtworkFallback;
@@ -1823,6 +1831,26 @@ export interface OutputArtworkState {
   resolved_source: ArtworkResolvedSource;
   selection: LocalArtworkAsset | null;
   [k: string]: unknown;
+}
+/**
+ * Where a provider image came from and who made it. Recorded per origin, never
+ * replaced by a later identical import, and shown wherever the image is credited.
+ */
+export interface ArtworkAttribution {
+  /**
+   * The provider's identity for this image.
+   */
+  asset_id: number;
+  author_name: string;
+  author_steam64: string | null;
+  fetched_at: number;
+  /**
+   * The provider's game the image was listed under; a proposal, not port identity.
+   */
+  game_id: number;
+  provider: ArtworkProvider;
+  role: DestinationArtworkRole;
+  source_url: string;
 }
 export interface ArtworkChoice {
   asset_sha256: string | null;
@@ -3027,6 +3055,11 @@ export interface OutputDestinationArtworkBytes {
  * synthesized, cropped or resized from another role or cache.
  */
 export interface DestinationArtworkHandoff {
+  /**
+   * Provider credits for the selected local image, shown by a destination that
+   * presents the image; empty for a purely local import and every other source.
+   */
+  attribution: ArtworkAttribution[];
   choice: ArtworkChoice | null;
   content: DestinationArtworkContent;
   handoff_schema: number;
@@ -3978,15 +4011,15 @@ export interface LibraryMetadata {
   exported_at: number;
   launch_history: LibraryLaunchHistory[];
   /**
-   * Explicit add-only Library entries; present only under metadata schema 7, so
-   * an older reader refuses the export instead of silently dropping them.
+   * Explicit add-only Library entries; present only under metadata schema 7 or 8,
+   * so an older reader refuses the export instead of silently dropping them.
    */
   library_memberships?: LibraryMembership[];
   original_root: string;
   port_settings: LibraryPortSettings[];
   portability_authority?: PortabilityAuthority | null;
   /**
-   * Local profiles and revisions; present only under metadata schema 6.
+   * Local profiles and revisions; present only under metadata schema 6 or later.
    */
   profiles?: LibraryProfile[];
   retained_build_references?: RetainedBuildReference[];
@@ -3997,6 +4030,19 @@ export interface LibraryMetadata {
 export interface ArtworkMetadata {
   assets: LocalArtworkAsset[];
   choices: ArtworkChoice[];
+  /**
+   * Assets that exist only because a provider image was chosen; no local import
+   * of the same bytes was made. Present only under library metadata schema 8.
+   */
+  provider_only_assets?: string[];
+  /**
+   * Provider provenance; present only under library metadata schema 8.
+   */
+  providers?: ArtworkProviderRecord[];
+}
+export interface ArtworkProviderRecord {
+  asset_sha256: string;
+  attribution: ArtworkAttribution;
 }
 export interface LibraryContentRoot {
   kind: LibraryContentKind;
