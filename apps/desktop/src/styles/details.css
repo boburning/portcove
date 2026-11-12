@@ -326,7 +326,7 @@
   }
   .detail-evidence summary {
     cursor: pointer;
-    font-weight: 400;
+    font-weight: 600;
   }
   .detail-evidence details[open] > :not(summary) {
     margin-block-start: 1rem;

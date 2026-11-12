@@ -32,9 +32,9 @@ export function identityLabel(id: string): string {
   return Object.hasOwn(identities, id) ? identities[id]!.label : id.replaceAll("-", " ");
 }
 export function identityStyle(id: string, channel = false): CSSProperties | undefined {
-  // Release channels areexport function identityStyle(id: string, channel = false): CSSProperties | undefined {
   // Release channels are neutral: green means ready to play and blue means selection
-  // or a link (#5058 V2). Only original-system and platform identities carry color.
+  // or a link (#5058 V2). Callers keep platform chips neutral; system identities keep
+  // their colors.
   if (channel) return undefined;
   id = canonicalIdentityId(id);
   const color = Object.hasOwn(identities, id) ? identities[id]!.color : undefined;

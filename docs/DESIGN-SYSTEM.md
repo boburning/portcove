@@ -44,7 +44,7 @@ one column. Available width and interface size still determine readable text and
 control wrapping. Library covers use 10px artwork corners, a 24px effective art-to-title gap and
 600 title weight; compact rows and Discover keep their own geometry.
 Cover cards reserve two readable lines for both title and project (the project reserves one line in desktop windows up to 760px high and expands on hover and keyboard focus), aligning chips and actions across mixed-length identities. Both expand on keyboard focus. Full identity wraps below
-40em. Footer actions stay beside the dominant status without overlapping it. A ready card's Play pairs a triangle with a compact signature-red labeled button, so the primary action is recognizable on arrival; its accessible name adds the game and project ("Play: Title · Project"), as do View task and the setup/review actions. Readiness stays a compact text-and-icon cue, and updates remain secondary while the game is playable. Routine Stable is omitted from Library card chips; a non-Stable channel or a channel that differs from the selected one stays visible. Discover cards likewise omit the chip when Stable is the only offered channel and the selected channel is Stable or unset; Preview, Rolling and mixed channels stay, and the comparison dialog shows every offered channel. With an observed device target, Discover cards omit platform chips and show “Not available for Platform” only when a port lists platforms that exclude this device; without a device target the platforms stay listed. The single-port “Why this port?” view omits setup, file and update rows that have no value; several ports keep every row aligned for comparison (#5058 F3, F5). Release-channel and platform chips and filter options are neutral: semantic green means ready to play and blue means selection or a link, so a kept update is a neutral status with its icon; original-system identity colors remain (#5058 V2). “Update saved for later” stays, because a kept version may reuse local bytes without a download. (Supersedes the quiet bordered repeated Play; see #5058 L4–L5.) Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
+40em. Footer actions stay beside the dominant status without overlapping it. A ready card's Play pairs a triangle with a compact signature-red labeled button, so the primary action is recognizable on arrival; its accessible name adds the game and project ("Play: Title · Project"), as do View task and the setup/review actions. Readiness stays a compact text-and-icon cue, and updates remain secondary while the game is playable. Routine Stable is omitted from Library card chips; a non-Stable channel or a channel that differs from the selected one stays visible. Discover cards likewise omit the chip when Stable is the only offered channel and the selected channel is Stable or unset; Preview, Rolling and mixed channels stay, and the comparison dialog shows every offered channel. With an observed device target, Discover cards omit platform chips and show “Not available for Platform” only when a port lists platforms that exclude this device; without a device target the platforms stay listed. The single-port “Why this port?” view omits setup, file and update rows and the “No platform/update channel is listed” lines when they have no value; several ports keep every row aligned for comparison (#5058 F3, F5). Release-channel and platform chips and filter options are neutral: semantic green means ready to play and blue means selection or a link, so a kept update is a neutral status with its icon; original-system identity colors remain (#5058 V2). “Update saved for later” stays, because a kept version may reuse local bytes without a download. (Supersedes the quiet bordered repeated Play; see #5058 L4–L5.) Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
 The quick views read as underlined navigation above the search/filter toolbar.
 Artwork remains contained; neither a crop nor a provider mapping is inferred.
 
@@ -968,10 +968,20 @@ reset and filtering controls; hiding first-use tools must not clear preferences.
 
 Library's heading Add games action and empty-state primary action open the
 same in-flow workspace. Keep source choice, current port identity and the next
-review action together. Start with three intentions: choose a game or port,
-find games in a folder, or use an existing installation. Show only the selected
-route's actual inputs and requirements. Files are checked against an explicitly
-selected port; folder search supplies bounded recognition. Retain ambiguous/unsupported and
+review action together. Start with three routes: Browse games (opens Discover,
+where choosing a game always happens), Scan a folder, or use an existing
+installation. Show only the selected route's actual inputs and requirements. In
+Add games, "Choose folder to scan" saves the chosen folder and scans the saved
+folders; Settings keeps "Add folder" without scanning. Files are checked against the
+port chosen on its game page; folder search supplies bounded recognition (#5058 F2).
+When setup or install finishes and current readiness, including Core's launch
+assessment, reports the game ready with nothing left to confirm, the completion
+notice reads "Title is ready to play." with a primary "Play: Title" and Dismiss;
+external runtimes and every other outcome keep the factual "Action · Title:
+finished." notice. A successful launch shows no visible notice; its announcement
+remains. On the game page one Cancel serves running setup: the Game files control
+omits its own when the page's cancellation covers the operation, and the review
+dialog keeps its own (#5058 S3, S4). Retain ambiguous/unsupported and
 unknown evidence in existing review treatments. Detail/setup completion uses the
 shared primary/recovery and focus contracts. Save drafts during normal navigation;
 opening another destination must not imply cancellation or task completion.

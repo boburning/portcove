@@ -1,3 +1,4 @@
+import { readyToPlayAfter } from "./features/operations/ready-to-play";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { ArrowLeft, Heart } from "lucide-react";
 import { gameGroupId } from "./features/browsing/original-game";
@@ -136,7 +137,6 @@ import {
   currentUpdateSnapshot,
   errorText,
   filterPorts,
-  hasUnconfirmedLaunchInput,
   indexStatuses,
   mostRecentPort,
   preparationRecoveryPort,
@@ -1076,22 +1076,8 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
                   }}
                   readyToPlay={(record) => {
                     const { target } = record.context;
-                    if (
-                      record.outcome !== "succeeded" ||
-                      target.kind !== "port" ||
-                      !readyToPlayActions.has(record.name)
-                    )
-                      return undefined;
-                    const status = model.model.statusMap.get(target.id);
                     const port = model.data.catalog?.ports.find((entry) => entry.id === target.id);
-                    // Ready only from current readback: launchable, no remaining setup and
-                    // no unconfirmed input that would make this a trial launch.
-                    if (
-                      !port ||
-                      status?.readiness?.launchable !== true ||
-                      status.readiness.pending_setup ||
-                      hasUnconfirmedLaunchInput(status, port)
-                    )
+                    if (!readyToPlayAfter(record, model.model.statusMap.get(target.id), port))
                       return undefined;
                     return () =>
                       launchKnownPort(
@@ -1365,9 +1351,6 @@ function selectedPort(
     ),
   };
 }
-
-/** Completed actions after which a launchable port is handed back to the player. */
-const readyToPlayActions = new Set(["install", "prepare game data"]);
 
 function launchKnownPort(
   portId: string,
