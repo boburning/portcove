@@ -760,7 +760,8 @@ is possible across repeated import interruptions. Staging is excluded from paylo
 exports. Originals remain until explicit unused-image removal. Thumbnail failures
 cannot prevent choosing a validated original. On-demand PNG thumbnails fit within
 384 by 576 pixels and 1 MiB each, and show the original as displayed: Core applies
-its embedded EXIF/PNG orientation to the bounded derivative only. A local asset's
+its embedded EXIF/PNG orientation to the bounded derivative only, and ignores older
+unoriented cache entries (thumbnail format version 1) so they are rebuilt. A local asset's
 recorded `width` and `height` remain the stored pixel axes of the unmodified
 original, because the destination handoff compares them with the decoded bytes;
 wide roles separately refuse an original whose orientation turns it a quarter turn. Fetched catalog-default IGDB JPEG originals

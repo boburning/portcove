@@ -1021,6 +1021,53 @@ fn imported_thumbnail_is_reused_without_a_second_decode_and_regenerates_after_cl
 }
 
 #[test]
+fn unoriented_cached_thumbnail_is_rebuilt_with_the_displayed_orientation() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_local_artwork_service(&temp.path().join("library"));
+    let rotated = temp.path().join("rotated.jpg");
+    fs::write(
+        &rotated,
+        crate::artwork_image::quarter_turn_jpeg(&image::RgbImage::from_pixel(
+            40,
+            12,
+            image::Rgb([90, 40, 20]),
+        )),
+    )
+    .unwrap();
+    let selected = service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &rotated, 0)
+        .unwrap();
+    let id = selected.choice.asset_sha256.clone().unwrap();
+    let first = service
+        .artwork_thumbnail("zelda64-recomp", ArtworkSlot::Cover, 1)
+        .unwrap();
+    let shown = image::load_from_memory(&first.png).unwrap();
+    assert!(shown.height() > shown.width());
+    // A cache entry from before orientation was applied (format version 1)
+    // is ignored and rebuilt rather than reused.
+    service
+        .library()
+        .connection()
+        .unwrap()
+        .execute(
+            "UPDATE artwork_thumbnails SET format_version=1 WHERE asset_sha256=?1",
+            [&id],
+        )
+        .unwrap();
+    let before = crate::artwork_image::decode_count();
+    let rebuilt = service
+        .artwork_thumbnail("zelda64-recomp", ArtworkSlot::Cover, 1)
+        .unwrap();
+    assert_eq!(crate::artwork_image::decode_count(), before + 1);
+    assert_eq!(rebuilt.png, first.png);
+    let reused = service
+        .artwork_thumbnail("zelda64-recomp", ArtworkSlot::Cover, 1)
+        .unwrap();
+    assert_eq!(crate::artwork_image::decode_count(), before + 1);
+    assert_eq!(reused.png, first.png);
+}
+
+#[test]
 fn failed_import_thumbnail_publication_preserves_committed_choice_and_regeneration() {
     let temp = tempfile::tempdir().unwrap();
     let service = open_local_artwork_service(&temp.path().join("library"));
