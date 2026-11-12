@@ -28415,6 +28415,10 @@
         ],
         "description": "None until the installed game has its default setup."
       },
+      "later_mods_take_priority": {
+        "description": "True when reviewed loader source shows that the later of two mods changing\nthe same asset wins. False when the order is kept but which mod wins is not\nestablished.",
+        "type": "boolean"
+      },
       "live": {
         "anyOf": [
           {
@@ -28444,6 +28448,7 @@
       "port_id",
       "supported",
       "package_types",
+      "later_mods_take_priority",
       "inventory",
       "live"
     ],

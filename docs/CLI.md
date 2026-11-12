@@ -1786,6 +1786,43 @@ and libultraship (`fdcaf633`) source; they have not yet been observed in a runni
 game. The catalog follows the latest Shipwright release, so a change to this list
 upstream needs a new review.
 
+### Zelda 64: Recompiled mods
+
+`zelda64-recomp` uses the same profile commands with a second, different loader:
+the Recomp runtime's `.nrm` packages (a zip with a `mod.json` manifest). Portcove
+reads the manifest without running anything and names the mod by its manifest mod
+ID, not its file name: the package is stored and placed in `mods` as
+`<mod ID>.nrm`, so a renamed download is still the same mod, and two packages with
+the same ID cannot both be installed. The manifest's version is recorded with the
+package.
+
+Only mods that change assets are installed. A package that carries recompiled
+code, host libraries or other executable files, or that names another game, is
+refused with nothing recorded; running mod code needs its own review first.
+
+Required dependencies become package requirements. A mod needing a mod that is not
+installed is refused, and a mod that is on cannot be left on while a mod it needs
+is turned off; turn the dependent mod off first. Dependencies on mods built into
+the runtime (`mm_recomp_dpad_builtin`) need no package. Minimum dependency and
+runtime versions are left to the runtime, which reports them when the game starts;
+Portcove does not check them yet.
+
+The runtime keeps enabled mods and their load order in `mods.json`
+(`enabled_mods` and `mod_order`, by mod ID). Portcove writes the profile's enabled
+mods and order there after every change, switch and before each launch, keeping
+other keys and entries the player owns, such as the built-in mod or their own
+mods, in place with their state. `mods.json` is one of the port's persistent
+paths, so each profile keeps its own. `profile live` reports `native_list` as for
+Ship of Harkinian: a reorder in the runtime's menu is kept as the profile's next
+revision, and a profile mod turned off in the menu is reported and turned on again
+before the next launch. Turning a mod off in Portcove removes its file. The order
+is kept, but which of two mods changing the same asset wins is not established, so
+`profile setups` reports `later_mods_take_priority: false` and Desktop says only
+that mods load in this order.
+
+These behaviors come from Zelda64Recomp `54950a10`, N64ModernRuntime `df7e820d`
+and N64Recomp `c1a6dc93` source; they have not been observed in a running game.
+
 ### Installing from GameBanana
 
 ```text

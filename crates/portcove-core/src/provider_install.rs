@@ -398,6 +398,8 @@ impl PortcoveService {
                 private: path,
                 inspection,
                 provider: Some(plan.provider.clone()),
+                native_version: None,
+                requires: Vec::new(),
             });
         }
         let revision = self.install_staged_locked(

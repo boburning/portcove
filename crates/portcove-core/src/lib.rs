@@ -101,6 +101,7 @@ mod psx;
 mod qualification_checkpoint;
 mod recipe;
 mod recomp_mod;
+mod recomp_mod_list;
 mod recovery;
 mod relative_file_set;
 mod release;

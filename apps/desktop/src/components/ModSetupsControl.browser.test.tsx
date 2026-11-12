@@ -45,6 +45,7 @@ function view(overrides: Partial<ModSetupsView> = {}): ModSetupsView {
     port_id: "shipwright",
     supported: true,
     package_types: ["o2r", "otr"],
+    later_mods_take_priority: true,
     inventory: {
       port_id: "shipwright",
       profiles: [
@@ -118,6 +119,15 @@ it("lists setups and mods in priority order and binds changes to the reviewed re
   await act(async () => button(host, "Use Clean").click());
   expect(use).toHaveBeenCalledWith("shipwright", "clean", 7);
   expect(read).toHaveBeenCalledTimes(3);
+});
+
+it("states priority only for loaders where it is established", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(
+    view({ package_types: ["nrm"], later_mods_take_priority: false }),
+  );
+  const host = await render();
+  expect(host.textContent).toContain("The game loads mods in this order.");
+  expect(host.textContent).not.toContain("take priority");
 });
 
 it("explains held changes and Core refusals without claiming success", async () => {
