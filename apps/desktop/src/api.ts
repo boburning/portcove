@@ -55,6 +55,8 @@ import type {
   ActivityDiagnostic,
   ActivityFeed,
   AdoptionPreview,
+  LauncherKind,
+  LauncherLibraryInventory,
   ApplicationUpdateChoice,
   ApplicationUpdateCheckPhase,
   ApplicationUpdateCheckResult,
@@ -87,6 +89,17 @@ import type {
   GithubDeviceLogin,
   GithubDeviceLoginResult,
   GameFileRoot,
+  InstallBatchRecord,
+  InstallBatchRequestItem,
+  InstallBatchReview,
+  PortIntent,
+  PortIntentAssessments,
+  PortIntentMode,
+  PortReadinessAcknowledgement,
+  StandingSetupResult,
+  LibraryMembership,
+  LibraryMembershipOutcome,
+  LibraryMembershipRequest,
   GameFileQueryRefreshRequest,
   GameFileQuerySnapshot,
   GameFileScanSnapshot,
@@ -633,6 +646,52 @@ export const desktopApi = {
     invoke<import("./types").SourceReuseReview>("review_source_reuse", { profileId, generation }),
   gameFileRoots: (generation: number) =>
     invoke<GameFileRoot[]>("get_game_file_roots", { generation }),
+  libraryMemberships: (generation: number) =>
+    invoke<LibraryMembership[]>("get_library_memberships", { generation }),
+  addGamesToLibrary: (requests: LibraryMembershipRequest[], generation: number) =>
+    invoke<LibraryMembershipOutcome[]>("add_games_to_library", { requests, generation }),
+  removeLibraryMembership: (portId: string, generation: number) =>
+    invoke<boolean>("remove_library_membership", { portId, generation }),
+  planInstallBatch: (portIds: string[], generation: number) =>
+    invoke<InstallBatchReview>("plan_install_batch", { portIds, generation }),
+  /** Saves the reviewed games to the Library and records them as one batch. Runs nothing. */
+  startInstallBatch: (items: InstallBatchRequestItem[], generation: number) =>
+    invoke<InstallBatchRecord>("start_install_batch", { items, generation }),
+  /** Runs unstarted games once each; finished games are never repeated. Never launches a game. */
+  runInstallBatch: (
+    batchId: string,
+    generation: number,
+    onEvent: (event: OperationEvent) => void,
+  ) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = onEvent;
+    return invoke<InstallBatchRecord>("run_install_batch", {
+      batchId,
+      generation,
+      onEvent: channel,
+    });
+  },
+  unfinishedInstallBatches: (generation: number) =>
+    invoke<InstallBatchRecord[]>("get_unfinished_install_batches", { generation }),
+  setPortIntent: (portId: string, mode: PortIntentMode, generation: number) =>
+    invoke<PortIntent>("set_port_intent", { portId, mode, generation }),
+  portIntents: (generation: number) => invoke<PortIntent[]>("get_port_intents", { generation }),
+  assessPortIntents: (generation: number) =>
+    invoke<PortIntentAssessments>("assess_port_intents", { generation }),
+  acknowledgePortReadiness: (
+    acknowledgements: PortReadinessAcknowledgement[],
+    generation: number,
+  ) => invoke<null>("acknowledge_port_readiness", { acknowledgements, generation }),
+  /** Installs ready set-up-when-ready games under the player's standing choice. Never launches. */
+  runStandingSetup: (generation: number, onEvent: (event: OperationEvent) => void) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = onEvent;
+    return invoke<StandingSetupResult>("run_standing_setup", { generation, onEvent: channel });
+  },
+  cancelInstallBatch: (batchId: string, generation: number) =>
+    invoke<InstallBatchRecord>("cancel_install_batch", { batchId, generation }),
+  installBatch: (batchId: string, generation: number) =>
+    invoke<InstallBatchRecord | null>("get_install_batch", { batchId, generation }),
   addGameFileRoot: (path: string, generation: number) =>
     invoke<GameFileRoot>("add_game_file_root", { path, generation }),
   relinkGameFileRoot: (rootId: string, path: string, generation: number) =>
@@ -987,6 +1046,18 @@ export const desktopApi = {
       path,
       generation,
       portId: portId ?? null,
+    }),
+  inspectLauncherLibrary: (
+    launcher: LauncherKind,
+    dataRoot: string,
+    generation: number,
+    appsRoot?: string,
+  ) =>
+    invoke<LauncherLibraryInventory>("inspect_launcher_library", {
+      launcher,
+      dataRoot,
+      appsRoot: appsRoot ?? null,
+      generation,
     }),
   adopt: (path: string, planSha256: string, generation: number, portId?: string) =>
     invoke<InstallRecord | null>("adopt_port", {

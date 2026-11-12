@@ -161,8 +161,8 @@ it("labels active facets and restores focus after removing chips or clearing whi
   });
   await expect.element(chip).toHaveTextContent("Update channels: Preview");
   await expect
-    .element(page.getByRole("button", { name: "Remove Target OS: Windows filter", exact: true }))
-    .toMatchTextContent("Target OS:");
+    .element(page.getByRole("button", { name: "Remove Runs on: Windows filter", exact: true }))
+    .toMatchTextContent("Runs on:");
   chip.element().focus();
   await userEvent.keyboard("{Enter}");
   await expect
@@ -253,7 +253,7 @@ it("routes active work to its owned Activity identity instead of launching", asy
       />
     </OperationPresentationProvider>,
   );
-  await page.getByRole("button", { name: "View task", exact: true }).click();
+  await page.getByRole("button", { name: /^View task: / }).click();
   expect(task).toHaveBeenCalledExactlyOnceWith("owned-task");
   expect(launch).not.toHaveBeenCalled();
   await expect

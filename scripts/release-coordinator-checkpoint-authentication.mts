@@ -79,7 +79,7 @@ export const retainedCatalogNativeAdoptionClaim = {
   original_ref: "portcove-production-controller-catalog-adoption-20261111",
   original_run: "43069742240",
   original_job: 130697078365,
-  successor_ref: "refs/tags/portcove-production-controller-catalog-adoption-resume-20261111",
+  successor_ref: "refs/tags/portcove-production-controller-catalog-adoption-settle-20261111",
 } as const;
 
 /** The r52 application claim already exists, so r53 may only settle these bytes. */

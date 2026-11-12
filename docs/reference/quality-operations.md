@@ -25,7 +25,7 @@ successful test receipts. See [development storage](../DEVELOPMENT-STORAGE.md#bo
 for portable defaults and the private strict Windows profile.
 
 `just audit` executes the canonical frontend static group, Rust, the frontend runtime group, script-lint, repository-tooling, Roadmap,
-development-tool, dependency-policy, rscheck, release-unit, and applicable
+development-tool, dependency-policy, Rust path portability, release-unit, and applicable
 Windows-qualification stages. It continues independent stages after a failure
 and returns one aggregate failure so a late problem does not hide remaining
 results. `just audit --plan` reports each run/reuse decision without executing a
@@ -132,7 +132,7 @@ Deterministic failures block: rustfmt, Cargo compilation, Clippy, tests,
 type-aware Oxlint, Oxfmt, Stylelint, Ruff, ShellCheck, actionlint,
 PSScriptAnalyzer, cargo-shear, cargo-deny security/license/source policy, the
 Cargo-metadata architecture checker, the retained whole-Desktop Fallow policy
-when selected, and rscheck's absolute-path rule outside reviewed exceptions.
+when selected, and the Rust path-portability rule outside reviewed exceptions.
 
 Oxlint uses one root configuration for the desktop TypeScript/TSX and the
 repository's maintained TypeScript tooling, tests and configuration files. Its explicit plugin list includes ESLint,
@@ -221,6 +221,27 @@ need their owner-layer presentation tests and review; this static check is not a
 proof of all rendered wording or of translation quality.
 
 Structural heuristics advise: dependency duplication, unmaintained transitive dependencies, complexity, responsibility splits, god objects, duplicate logic, dead public APIs, semantic duplication, and mutation survivors. Do not refactor simply to make an advisory number green.
+
+## Rust path portability
+
+`just rust-portability` runs the regression tests and syntax-based check over
+Git-enumerated Rust source under `crates/` and `apps/desktop/src-tauri/`. It
+reports unreviewed absolute Unix, Windows drive, and UNC string literals with
+their locations. Keep existing legitimate host paths and exact fixture values
+in the checker's policy module. The check covers string literals in parsed Rust
+syntax and preserves the previous exclusions for comments, opaque macro tokens,
+and recognized route or pattern literals. Failed source inventory or syntax
+parsing fails the gate. Required Rust quality runs the scan for Rust changes
+and both the scan and its regressions during qualification.
+
+The archived scanner's only effective blocking rule was absolute paths. Its
+complexity, duplicate-logic, responsibility-split, and god-object advisories
+are retired. They produced 180 heuristic findings in the reviewed November 11
+run and had no required response. Module qualification was informational.
+Dependency, API, and layer rules supplied no configured blocking policy.
+Existing Cargo architecture, dependency-security, Clippy, and optional
+investigation routes retain their independent roles. The replacement builds
+with the normal Cargo lockfile and adds no registry package.
 
 ## Focused Rust properties and mutation experiments
 
@@ -672,9 +693,7 @@ resolution. Repository signatures, package checksums, bounded acquisition and
 every required test remain enforced.
 
 CI installs the small prebuilt Rust tool set through the commit-pinned installer
-action, restores source-built rscheck from an exact-version cache when available,
-and verifies every exact version before running a gate. An rscheck cache miss
-falls back to the same pinned installer. Required Linux CI obtains the pinned
+action and verifies exact versions before running a gate. Required Linux CI obtains the pinned
 aqua release from its commit-pinned official action, then uses the same bootstrap
 and checksum enforcement as local development. Windows CI installs the pinned
 PSScriptAnalyzer resource through PSResourceGet. The local bootstrap scripts use

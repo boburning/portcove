@@ -318,7 +318,13 @@ checked squash message. Source/target/body drift requires fresh reconciliation.
 There is no provider atomic precondition for closing relationships or target tip.
 
 After any merge response, including an error, collect fresh readback before
-considering another mutation. `verify-merge` requires the actual single-parent
+considering another mutation. GitHub clears a workflow run's `pull_requests` once
+the pull request merges, so preparation records the `closing-inventory` check
+suite it validated (`closing_inventory_suite`). A merged readback accepts that
+run's empty `pull_requests` only for that exact suite; any other run, a
+preparation without it (including GraphQL or direct-UI preparations, which
+record none, so their readback also uses GraphQL), or an unmerged pull request
+still refuses. `verify-merge` requires the actual single-parent
 squash, expected tree/message, merged PR, target branch and unchanged closing
 inventory. A failed or unavailable readback remains an unknown outcome: inspect
 the remote state and reconcile it without automatic retry or local cleanup.
@@ -1588,7 +1594,7 @@ hosted planning does not load audit or receipt orchestration.
 
 Local receipt runs observe only runtime fields consumed by their selected reusable
 domains. Repository-only receipts need Git/just identity and do not probe Cargo,
-nextest, rscheck, Aqua, PowerShell or pnpm. Non-reusable-only plans do not collect
+nextest, Aqua, PowerShell or pnpm. Non-reusable-only plans do not collect
 receipt inventories/runtime. This changes prerequisites and setup work, not
 selection or evidence admission: fingerprints retain every applicable field,
 failed stages do not become successful, and explicit audit still inventories all
@@ -3363,10 +3369,8 @@ names those hosts instead of waiting silently. Browser tests honor an inherited
 point it at the checkout's `work/browser-cache` in the environment settings, or
 browser projects look for a revision that the bootstrap did not install there.
 The bootstrap also installs the PowerShell version and SHA-256 pinned in
-`tools/containers/build/Dockerfile`, fetches complete Git history for a shallow
-clone, and builds `rscheck-cli` from the original archived crates in
-`vendor/rscheck`, which the installer verifies against its pinned checksums
-before any mirror is tried.
+`tools/containers/build/Dockerfile` and fetches complete Git history for a shallow
+clone.
 
 Release and native fixtures deliberately refuse root, Node processes that trust
 an egress proxy's injected CA settings (`NODE_OPTIONS=--use-openssl-ca`,

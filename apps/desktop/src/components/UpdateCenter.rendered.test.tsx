@@ -241,10 +241,14 @@ describe("desktop components", () => {
       /activity-status [^"]*">(?:succeeded|failed|cancelled|unfinished|running)</,
     );
     expect(html).toContain("No completion reported");
-    expect(html).toMatch(
-      /<p class="activity-details [^"]*">This task has not reported completion\. Review its details before retrying\.<\/p>/u,
+    // An unfinished task offers a read-only look at the game before any retry.
+    // Without an interrupted liveness fact the process may still be running elsewhere.
+    expect(html).toContain(
+      "This task didn’t report whether it finished. It may still be running in another window. Check the game’s current state before trying again.",
     );
-    expect(html).not.toContain('title="This task has not reported completion');
+    expect(html).toContain('data-detail-origin="updates:activity:activity-3:check"');
+    expect(html).toMatch(/aria-label="Check game: [^"]+"[^>]*>Check game</u);
+    expect(html).not.toContain('title="This task didn’t report whether it finished');
     expect(html).not.toContain("Needs review");
     expect(html).toMatch(
       /<button[^>]*data-variant="link"[^>]*data-focusable="true"[^>]*>Sample cartridge<\/button>/u,

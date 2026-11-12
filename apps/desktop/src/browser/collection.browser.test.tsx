@@ -233,7 +233,7 @@ for (const theme of ["dark", "light"]) {
     await mount(theme);
     const entries = [...document.querySelectorAll<HTMLElement>(".collection-entry")];
     expect(document.querySelector('[aria-label="Search results"]')?.textContent).toBe(
-      "12 library entries",
+      "12 in your library",
     );
     const entryFor = (index: number) =>
       entries.find((entry) => entry.querySelector(`[data-detail-game-id="collection-${index}"]`))!;
@@ -292,7 +292,9 @@ for (const theme of ["dark", "light"]) {
     expect(entryFor(3).querySelector(".collection-actions")?.textContent).toContain("Play");
     expect(entryFor(4).textContent).toContain("Game files missing");
     expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Set up");
+    // Stable is kept here only because it differs from the selected channel.
     expect(entryFor(0).querySelector(".library-entry-chips")?.textContent).toContain("Stable");
+    expect(entryFor(1).querySelector(".library-entry-chips")?.textContent).not.toContain("Stable");
     expect(entryFor(0).querySelector(".library-entry-chips")?.textContent).not.toContain("Preview");
     expect(entryFor(0).querySelector(".collection-state")?.textContent).toContain(
       "Selected update channel: Preview",

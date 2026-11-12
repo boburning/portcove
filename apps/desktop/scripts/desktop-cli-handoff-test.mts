@@ -75,9 +75,7 @@ export async function cliHandoffScenario({
         await clickVisible(
           browser,
           await browser.findElement(
-            By.xpath(
-              '//*[@aria-label="Library quick views"]//button[text()[normalize-space(.)="All games"]]',
-            ),
+            By.xpath('//*[@aria-label="Library quick views"]//button[@data-quick-view="all"]'),
           ),
         );
         await click(By.css(`[data-detail-game-id="${port.id}"]`));

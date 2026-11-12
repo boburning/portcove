@@ -40,6 +40,14 @@ closure, titles or tags. Those rules stay in Core.
   `scripts/upstream-lineage.mts` (`url:` or `repository:` plus `target_key`), so
   distinct implementations of one game stay distinct while sharing `target_key`.
 - `issue:<number>` for canonical work without a port record.
+- `intake:<request_comment_id>`: one owner-authored hosted-intake request on
+  #177, by the immutable ID of its request comment. A withdrawn request keeps its
+  identity. Its candidates link to canonical work through `issue:<number>`; a
+  candidate `port_key` is not a catalog ID and is never keyed as `port:`.
+- `handoff:<kind>:<source subject>`: one [executor handoff](#executor-handoffs)
+  of a registered attention kind for one source subject, for example
+  `handoff:hosted-intake-blocked:intake:123` or
+  `handoff:release-health-relocation:port:<id>`.
 
 An observation's `scope` binds the applicable artifact, source, platform, route,
 operation and check/policy version. Evidence applies only where its whole scope
@@ -56,24 +64,23 @@ count from the run's retained observations when the run finishes; `complete`
 requires a known denominator equal to that count with no gaps. `partial`,
 `failed` and stale runs are unknown coverage, never absence or deletion, and the last complete observation remains visibly dated.
 
-| Source                              | Maintained owner interface                                                                                | Completeness signal                                           |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| Open/closed issues                  | `scripts/repository-issue-inventory.mts` through `node scripts/roadmap.mts doctor --json`                 | Total count, terminated pagination, before/after markers      |
-| Project items (active and archived) | `scripts/roadmap-inventory.mts` (`items`, `archivedItems`)                                                | Project revision and item totals stable across the read       |
-| Catalog, listings, lineage          | Per-ID records; `node scripts/generate-catalog.mts --check`; `portcove --json catalog export`             | Generated projections match the authored tree at one revision |
-| Offered capability per port         | `portcove --json port-capabilities PORT_ID`; `portcove --json capabilities`                               | Per port only; no catalog-wide matrix exists                  |
-| Scoped qualification                | `catalog.json` `source_catalog.qualification[]` and `evidence[]`                                          | Exact scope per record; no catalog-wide denominator           |
-| Upstream observations               | `scripts/observe-catalog-upstreams.mts` and `scripts/observe-configured-upstream.mts` checkpoints/reports | `total_sources` versus completed and pending source keys      |
-| Release health                      | `scripts/upstream-health-monitor.mts` report and `work/upstream-health/checkpoint.json`                   | Fresh complete, partial, stale and unmonitored port IDs       |
-| Hosted intake receipts              | `node scripts/hosted-discovery-intake.mts status --request ID --json`; receipt comments on #177           | Per request: delivered, existing and pending counts           |
-| Definition publication              | `portcove --json catalog inspect-definition-publication DIR`; published site readback                     | Index digest and per-target digests                           |
+| Source                              | Maintained owner interface                                                                           | Completeness signal                                           |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Open/closed issues                  | `scripts/repository-issue-inventory.mts` through `node scripts/roadmap.mts doctor --json`            | Total count, terminated pagination, before/after markers      |
+| Project items (active and archived) | `scripts/roadmap-inventory.mts` (`items`, `archivedItems`)                                           | Project revision and item totals stable across the read       |
+| Catalog, listings, lineage          | Per-ID records; `node scripts/generate-catalog.mts --check`; `portcove --json catalog export`        | Generated projections match the authored tree at one revision |
+| Offered capability per port         | `portcove --json port-capabilities PORT_ID`; `portcove --json capabilities`                          | Per port only; no catalog-wide matrix exists                  |
+| Scoped qualification                | `catalog.json` `source_catalog.qualification[]` and `evidence[]`                                     | Exact scope per record; no catalog-wide denominator           |
+| Upstream observations               | `configured-upstream-observer.yml` checkpoint recovery snapshot (`observer-checkpoint-artifact.mts`) | Per port: every serving source completed with its policy      |
+| Release health                      | `scripts/upstream-health-monitor.mts` report and `work/upstream-health/checkpoint.json`              | Fresh complete, partial, stale and unmonitored port IDs       |
+| Hosted intake receipts              | `node scripts/hosted-discovery-intake.mts status --all --json` over the receipt comments on #177     | Every marker-bearing owner request in one drift-checked read  |
+| Definition publication              | `portcove --json catalog inspect-definition-publication DIR`; published site readback                | Index digest and per-target digests                           |
 
 Known gaps stay explicit until an owner exports the fact: there is no persisted
 export of full issue rows or Project field values, no catalog-wide capability or
 route matrix, no shared schema for `docs/qualification/` files, no durable
 upstream-health history beyond cached checkpoints and short-lived artifacts, no
-aggregated hosted-intake receipt export, no maintained main-versus-published
-comparison, and route ownership is prose rather than a per-port field. Reports
+maintained main-versus-published comparison, and route ownership is prose rather than a per-port field. Reports
 publish these as unsupported or unknown sources with their exact gaps.
 
 ## Storage contract
@@ -370,8 +377,247 @@ On 2026-11-11, `main` held `official/chameleon-twist-jp-recompiled` revision 1
 (index `fd4e8154…`). The appointed site returned HTTP 404, so the definition was
 not published.
 
-Upstream observations and hosted intake receipts remain explicit unknown
-sources.
+### Upstream observations
+
+`--upstream` (with `--all`) adds the `upstream-observations` source.
+
+- **Input:** the checkpoint recovery snapshot of the newest completed
+  `configured-upstream-observer.yml` run on `main` from a natural schedule or a
+  push (`producerEvents`), with a `success` or `failure` conclusion, created in
+  the last 24 hours, that still retains its unexpired
+  `upstream-observer-checkpoint-<config_sha256>-<run>-<attempt>` artifact. Gated
+  push runs and runs whose export did not retain a snapshot are passed over.
+  - It is read through the maintained GitHub client (GET-only, at most 24
+    candidate runs and 32 requests) and the in-memory artifact transfer, bounded
+    by the observer's eight-MiB streaming snapshot limit.
+  - The configuration digest in the artifact name must equal the SHA-256 of
+    `release/upstream-observer.json` at the run's head commit, which is how the
+    workflow names its snapshot. The archive length and SHA-256 must match
+    GitHub's recorded digest, the observer's own
+    `readRecoverableObserverSnapshotArchive` decodes and validates the complete
+    snapshot under that configuration, and the snapshot producer must equal the
+    run identity, attempt and head commit.
+  - The run revision is
+    `upstream-observer-run:<run>-<attempt>@<head_sha>#sha256:<artifact digest>`;
+    the artifact digest also binds the configuration digest the snapshot
+    carries, which is recorded in each stored observation's scope.
+  - Ports are mapped with the observer's own `catalogObservationSources` over
+    `catalog.json` and `listings.json` at the producer's source commit. A commit
+    or file missing from the local checkout fails the read; nothing is guessed.
+- **Stored facts:** per `port:<id>`, one entry per observation source that serves
+  it: source key, provider, repository, repository ID, last complete facts digest,
+  last change time, exception key and rule, and the Core catalog definition digest
+  of the port's last complete policy. A served port that the observer also lists
+  as held (for example a `user-prepared` port whose listing is observed, or a
+  managed port with an unsupported listing) carries its `held_reasons`.
+  - The observer's partial-progress stops (budget, cancellation, quota) keep the
+    completed scope and are stored as no exception, so they cause no churn.
+  - Per-observation clocks and progress (freshness, completion and due times,
+    attempted sequence, retry state, provider progress and cursors), result
+    digests and policy bodies are never stored: Core and listing policies embed
+    observation clocks, so a routine re-observation stays quiet.
+- **Gaps:** a port is a fact only when every source serving it has completed
+  with a policy for it. Otherwise the run is `partial` and the port is a gap:
+  `held` (no observation source serves the port), `unobserved`
+  (its source never completed), or `scope-changed` (its source's completion was
+  reset, or does not cover the port). Gaps carry the source's exception key and
+  rule. The current-scope binding includes Core's policy identity and definition
+  digests, which the snapshot does not carry, so a completion that predates a
+  catalog or Core change is not detected here; the observer's own scope checks
+  still apply.
+- **Failures:** an unavailable, unbound or invalid snapshot makes the run
+  `failed` with one `unavailable` gap and no observations, so the last known
+  facts stay current.
+- **Report:** an "Upstream" column shows each source's facts digest and last
+  change, and the latest run's gap code. "Needs attention" lists observer
+  exceptions (`exception_key` set) with their rule, from the stored facts or from
+  a gap. The observer's own partial-progress rules (`partialProgressRules`:
+  budget, cancellation and quota stops) are routine continuation and stay quiet;
+  an exception without a recorded rule stays visible. No freshness threshold or
+  policy is applied beyond the observer's own.
+- **Authority:** this projection grants no admission, eligibility, acquisition or
+  publication authority.
+
+On 2026-11-11, none of the 24 newest completed schedule or push `main` runs from
+the previous 24 hours retained a snapshot. In scheduled runs 43058926577,
+42985430786 and 42934324534 the export step failed with "Observer snapshot
+records: compressed member exceeds reserved output envelope; checkpoints
+retained" (a 14.4 MB controller checkpoint, 27.3 MB decoded), so a live
+collection records a `failed` run until the producer retains a snapshot again.
+
+### Hosted intake
+
+`--hosted-intake` (with `--all`) adds the `hosted-intake` source.
+
+- **Input:** every owner-authored #177 request the executor selects: a comment
+  that starts with the hosted request marker, or a withdrawn request that keeps
+  exactly one marker followed by its complete original proposal. Prose that only
+  quotes the marker is not a request. They are read through the executor's own read-only
+  `node scripts/hosted-discovery-intake.mts status --all --json` route
+  ([contract](DAILY-PORT-DISCOVERY.md#hosted-investigation-and-actions-intake)).
+  - One complete comment read is bracketed by unchanged #177 node, comment count
+    and `updated_at`. Each request is classified by the executor's own request,
+    receipt and reconciliation validation and its `status()` classification:
+    `submitted`, `partial`, `blocked`, `complete` or `complete_with_holds`. No
+    comment text is parsed here.
+  - A withdrawn request keeps its exact original proposal after a prepended
+    explanation and is classified from that retained proposal.
+  - The read is GET-only to #177, its comment pages and exact comments. It needs
+    no Roadmap connection, Project scope or write credential.
+  - Its request budget comes from the observed queue. The first #177 revision
+    read is admitted. Its comment count then admits one read per 20-comment page
+    plus one, and the closing revision read. Each selected request whose proposal
+    reconciles admits two exact-comment reads. Four retries are added on top. A
+    plan over the absolute ceiling of 200 requests fails before its next request.
+    The existing per-response byte cap still applies. `status --request` uses the
+    same budget.
+  - The run revision is
+    `hosted-intake:<node_id>:<comments>@<updated_at>#sha256:<digest>`, where the
+    digest covers every sorted (comment ID, body SHA-256) pair. A revision over
+    200 characters is stored as its own SHA-256. The denominator is the number of
+    marker-bearing owner requests.
+- **Stored facts:** per `intake:<request_comment_id>`: the receipt comment,
+  `withdrawn`, the request it `reconciles`, the requests it is `superseded_by`,
+  `body_request_comment`, the status classification, the candidate, delivered,
+  existing, held and pending counts, whether a full doctor is required, the
+  doctor's status, coverage and global health, the blocker's error code, and one
+  slot per ordered candidate: index, port key, repository ID, upstream, delivery
+  status, linked issue (created issue or verified existing owner), whether it is
+  an existing owner, and a hold's HTTP status and resume condition.
+  - Receipt and diagnostic times, run, attempt, head and plan origin, hold
+    observation times, doctor receipt digests and error messages are never
+    stored, so an unchanged request stays quiet.
+- **Gaps:** an unavailable read or an exhausted budget makes the run `failed`
+  with one `unavailable` gap; queue movement during the read makes it `failed`
+  with one `inventory-changed` gap. Either way nothing is observed and the last
+  known facts stay current. A request the executor cannot validate is an
+  `invalid-receipt` gap for that request and the run is `partial`.
+- **Report:** a "Hosted intake" table lists each request's classification,
+  counts, reconciliation links and linked issues, joined to the issue facts'
+  state and Project status when `--issues` was collected. "Needs attention"
+  reuses the executor's classification: `blocked` shows the receipt's blocker
+  code and reconciliation, and `complete_with_holds` shows the owner `process`
+  resume condition. Routine `partial` continuation and `submitted` stay quiet,
+  and withdrawn requests are owner decisions that are never flagged.
+  Candidate-to-port joins need upstream-lineage key derivation and stay
+  unasserted.
+- **Authority:** this projection grants no intake, admission, Priority or support
+  authority, and writes, dispatches and runs nothing.
+
+On 2026-11-11 one live read used 18 GETs of a 23-request budget. #177 had 110 comments and 29
+marker-bearing owner requests (19 active and 10 withdrawn). The run was
+`complete` with no gaps, and an immediate repeat stored no observations. One
+active request was `blocked` and is the only attention item. One active request
+was a routine `partial`, and 17 were `complete`.
+
+## Executor handoffs
+
+Handoffs connect an attention item to the existing executor that resolves it.
+They are not a second backlog: a handoff row has no priority, owner or status
+field. Canonical work stays in its issues, Project fields and executors, and
+every dispatch is disabled.
+
+**Registry.** `scripts/maintenance-handoffs.mts` defines one entry per attention
+kind in code; it is never stored. Each entry names:
+
+- the existing action and its exact invocation template;
+- its authority (`owner-only`, `protected` or `routine`) and the executor;
+- the original receipt that counts;
+- `dispatch: disabled` with the exact reason and the resume condition.
+
+| Kind                          | Existing action and invocation                                                                                                                                    | Authority  | Receipt that counts                                                 |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------- |
+| `release-health-relocation`   | `gh workflow run upstream-relocation-evidence.yml --ref main -f requests="<OWNER/NAME[@TAG]>"`, then a reviewed rename                                            | Owner only | The next scheduled main `upstream-health` report no longer shows it |
+| `release-health-condition`    | The monitor's recorded resume condition, then an accounting or fix PR; no dispatch is offered                                                                     | Routine    | The next scheduled main report                                      |
+| `upstream-observer-exception` | The observer's recorded rule and resume condition and a fix PR; `gh workflow run configured-upstream-observer.yml --ref main`                                     | Routine    | The next completed checkpoint snapshot                              |
+| `hosted-intake-blocked`       | `status --request <id> --json`; an owner reconciliation only when primary evidence changed, otherwise owner `process` dispatch ([route](DAILY-PORT-DISCOVERY.md)) | Owner only | A new bot receipt on #177                                           |
+| `hosted-intake-holds`         | `gh workflow run hosted-discovery-intake.yml --ref main -f mode=process`                                                                                          | Owner only | A new bot receipt on #177                                           |
+
+A test parses every referenced workflow and checks its name, trigger and input
+names against the registry.
+
+- **Relocation:** a release-health condition is a relocation only when its
+  provider is `github` and its rule is one of the monitor's own
+  `originalLocationReasons` (`provider-redirect`, `inaccessible-or-missing`,
+  exported by `scripts/check-catalog-repositories.mts`). Every other condition,
+  including transient `transport` and non-GitHub locations, is
+  `release-health-condition`.
+- **Scheduled receipt:** `readReleaseHealth` accepts only scheduled `main`
+  reports, so the release-health entries offer no `upstream-health.yml`
+  dispatch; a dispatched run would never count as the receipt.
+- **No handoff:** definition publication (#246) is protected. Core
+  `port-capabilities` changes are not handoffs either: Core owns the
+  assessment, and a change is reported (the digest and the report's Core and
+  Changes columns), not reinterpreted as attention.
+
+**Recording.** `collect --all` records handoffs in the collection transaction,
+and only after a `complete` run of the deciding source: the release-health,
+upstream-observation or hosted-intake run. While that run is `partial` or
+`failed`, no handoff of its kinds is recorded, changed or cleared, even for
+subjects it did observe.
+
+- Each attention subject gets an assessment `handoff:<kind>:<source subject>`
+  with state `needs-attention`. Its input digest covers the kind, the source
+  subject and the stable condition fields, as normalized `jsonb` text. The
+  policy version is the registry version (`maintenance-handoffs/1`).
+  - Release health: the visible conditions' key, rule, operation, provider,
+    location, release reference, classification, accounting and resume
+    condition. Clocks and HTTP status are excluded.
+  - Upstream: each excepted source's key, repository, exception key and rule.
+    Partial-progress stops are excluded.
+  - Hosted intake: the receipt comment, reconciliation and blocker code, or each
+    held candidate's index, port key, repository ID, HTTP status and resume.
+- The assessment, transition and notification statements are the store's
+  ordinary ones, so the existing guards apply. An unchanged condition resolves to
+  the same assessment and records nothing. A changed condition is a new
+  transition. A return to an earlier condition is flagged.
+- A subject that never needed attention gets no row. A `needs-attention` subject
+  whose condition is gone in a complete run transitions to `clear`.
+- A `partial` or `failed` run and a sample collection neither record nor clear
+  handoffs.
+- An open handoff of a kind no longer in the registry clears on the next complete
+  run of any handoff source, so a removed kind never lingers as open work.
+- Unlike source subjects, a handoff's first transition is a pending notification,
+  because a handoff appearing is itself the change.
+
+**Operations.** No migration was added; handoffs use the existing `operations`
+table and its guard.
+
+```bash
+node scripts/maintenance-inventory.mts handoffs [--json]
+```
+
+```bash
+node scripts/maintenance-inventory.mts handoffs --record
+```
+
+- `handoffs` is read-only (report role). It lists each open handoff with its
+  registry entry, condition and newest open operation.
+- `handoffs --record` runs with the executor role against the local store only.
+  - It plans one operation `handoff.<kind>.<source>.<fence>` of kind
+    `handoff.<kind>` per open handoff. The fence is the handoff's current
+    sequence, and a replay inserts nothing (`ON CONFLICT DO NOTHING`). Characters
+    the identity check refuses (such as `@`) map to `.`. An ID over 200
+    characters replaces the source with a SHA-256 prefix.
+  - It moves each planned handoff operation whose subject has moved on (cleared
+    or a newer condition) from `planned` to `abandoned` at revision + 1.
+  - It never dispatches or completes an operation, and receipt columns stay
+    empty. The guard refuses a plan at a stale fence and any revival of an
+    abandoned plan, so a restored or stale worker cannot replay side effects or
+    overwrite newer state.
+- No dispatch command exists.
+
+**Report.** "Next action" columns in the subjects and hosted-intake tables show
+the action, invocation, authority, `dispatch disabled: <reason>; resume:
+<condition>`, the receipt, and the open operation with its fence (marked stale
+when it predates the current sequence). Handoffs are not listed as inventory
+subjects. The changes-only digest includes handoff transitions and names the
+registry action.
+
+**Explicitly disabled:** executor dispatch (every executor is owner-only or needs
+a reviewed change no executor is authorized to deliver, and no delegated
+credential exists), digest posting, schedules and publication. A kind resumes
+only when its registry resume condition holds and a reviewed change enables it.
 
 ## Changes-only digest
 
@@ -385,7 +631,8 @@ node scripts/maintenance-inventory.mts acknowledge --digest work/maintenance-dig
 
 - Each assessment transition after a subject's baseline creates one pending
   notification in the collection transaction. A first assessment is a baseline,
-  not a change, and an unchanged observation creates nothing.
+  not a change, and an unchanged observation creates nothing. A handoff's first
+  `needs-attention` transition is a change ([executor handoffs](#executor-handoffs)).
 - `digest` reads only pending notifications and writes `digest.json` and
   `digest.md` (format 1). It marks nothing delivered.
   - Each entry names the subject and its previous and new state, and flags a
@@ -406,6 +653,8 @@ every guard and role boundary. It then backs up, restores to the second cluster,
 verifies identical digests and confirms that guards, identity sequences and roles
 work on the restored store. A separate case interrupts a migration and proves
 that no partial schema remains and that resume and drift detection work.
+`scripts/maintenance-handoffs.test.mts` checks the registry, its workflows and
+inputs, identities and the per-source projections.
 `scripts/maintenance-inventory.test.mts` drives the read-only path through a
 stub Core CLI, using the collector and report roles. It checks:
 
@@ -417,6 +666,13 @@ stub Core CLI, using the collector and report roles. It checks:
 - full-versus-incremental parity;
 - per-call isolation and its removal, including under a symlinked `TMPDIR`;
 - coverage, listing and absence facts;
+- release-health, upstream-observation and hosted-intake coverage, quiet
+  recurrence, needs-attention and failed reads;
+- executor handoffs: one planned operation per appearance, quiet unchanged reruns
+  and replays, no clearing by partial or failed runs, `clear` and
+  `planned` to `abandoned` after a complete run, supersession and return
+  detection, no handoff from Core changes, clearing of unregistered kinds,
+  stale-fence refusal and role boundaries;
 - report output and HTML escaping. The
   cases need non-root PostgreSQL 16+ server binaries and are a declared
   prerequisite skip elsewhere. These are fixture results. Hosted provider, backup

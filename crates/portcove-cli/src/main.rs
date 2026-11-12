@@ -1553,6 +1553,138 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 },
             )?;
         }
+        Commands::Games { command } => match command {
+            GamesCommand::List => render_read_success(
+                mode,
+                "games.list",
+                service.library_memberships()?,
+                |entries| human::library_memberships(entries),
+            )?,
+            GamesCommand::Add { port_ids } => {
+                let requests = port_ids
+                    .iter()
+                    .map(|port_id| portcove_core::LibraryMembershipRequest {
+                        port_id: port_id.clone(),
+                        origin: portcove_core::LibraryMembershipOrigin::Manual,
+                        sources: Vec::new(),
+                    })
+                    .collect::<Vec<_>>();
+                render_read_success(
+                    mode,
+                    "games.add",
+                    service.add_games_to_library(&requests)?,
+                    |outcomes| human::library_membership_outcomes(outcomes),
+                )?;
+            }
+            GamesCommand::Remove { port_id } => {
+                let removed = service.remove_library_membership(&port_id)?;
+                render_read_success(
+                    mode,
+                    "games.remove",
+                    serde_json::json!({"port_id": port_id, "removed": removed}),
+                    |_| {
+                        format!(
+                            "Saved Library entry {}: {}\nInstallations, registrations and game files are unchanged.",
+                            if removed { "removed" } else { "not found" },
+                            human::clean(&port_id)
+                        )
+                    },
+                )?;
+            }
+            GamesCommand::BatchPlan { port_ids } => {
+                let review = service.plan_install_batch(&port_ids).await?;
+                render_read_success(mode, "games.batch-plan", review, |review| {
+                    human::install_batch_review(review)
+                })?;
+            }
+            GamesCommand::BatchRun { items, yes } => {
+                let items = items
+                    .iter()
+                    .map(|item| parse_batch_item(item))
+                    .collect::<Result<Vec<_>>>()?;
+                require_confirmation(
+                    "Save these games to the Library and install each reviewed game whose plan is unchanged?",
+                    yes,
+                    cli.non_interactive,
+                )?;
+                let batch = service
+                    .start_install_batch(&items, portcove_core::LibraryMembershipOrigin::Manual)?;
+                let mut progress = progress_renderer(mode, service.catalog());
+                let finished = service.run_install_batch(&batch.id, &mut progress).await?;
+                render_read_success(mode, "games.batch-run", finished, |record| {
+                    human::install_batch(record)
+                })?;
+            }
+            GamesCommand::BatchResume { batch_id, yes } => {
+                require_confirmation(
+                    "Continue this batch? Finished games are not repeated and each plan is checked again.",
+                    yes,
+                    cli.non_interactive,
+                )?;
+                let mut progress = progress_renderer(mode, service.catalog());
+                let finished = service.run_install_batch(&batch_id, &mut progress).await?;
+                render_read_success(mode, "games.batch-resume", finished, |record| {
+                    human::install_batch(record)
+                })?;
+            }
+            GamesCommand::BatchCancel { batch_id } => render_read_success(
+                mode,
+                "games.batch-cancel",
+                service.cancel_install_batch(&batch_id)?,
+                |record| human::install_batch(record),
+            )?,
+            GamesCommand::BatchShow { batch_id } => render_read_success(
+                mode,
+                "games.batch-show",
+                service.install_batch(&batch_id)?.ok_or_else(|| {
+                    PortcoveError::not_found("install batch does not exist")
+                        .detail("batch_id", &batch_id)
+                })?,
+                |record| human::install_batch(record),
+            )?,
+            GamesCommand::Intent {
+                port_id,
+                mode: intent_mode,
+            } => render_read_success(
+                mode,
+                "games.intent",
+                service.set_port_intent(&port_id, intent_mode.into())?,
+                |intent| human::port_intent(intent),
+            )?,
+            GamesCommand::Intents => {
+                let assessed = service.assess_port_intents().await?;
+                render_read_success(mode, "games.intents", assessed, |value| {
+                    human::port_intent_assessments(value)
+                })?;
+            }
+            GamesCommand::IntentsAcknowledge { items } => {
+                let acknowledgements = items
+                    .iter()
+                    .map(|item| {
+                        parse_batch_item(item).map(|item| {
+                            portcove_core::PortReadinessAcknowledgement {
+                                port_id: item.port_id,
+                                plan_sha256: item.expected_plan_sha256,
+                            }
+                        })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                service.acknowledge_port_readiness(&acknowledgements)?;
+                render_read_success(
+                    mode,
+                    "games.intents-acknowledge",
+                    serde_json::json!({"acknowledged": acknowledgements.len()}),
+                    |_| "Marked as seen. The same ready plan won't be reported again.".to_owned(),
+                )?;
+            }
+            GamesCommand::SetupReady => {
+                let mut progress = progress_renderer(mode, service.catalog());
+                let result = service.run_standing_setup(&mut progress).await?;
+                render_read_success(mode, "games.setup-ready", result, |value| {
+                    human::standing_setup(value)
+                })?;
+            }
+        },
         Commands::Launch {
             command: LaunchCommand::Show { .. },
         } => unreachable!("launch observation is handled before service initialization"),
@@ -3342,6 +3474,20 @@ fn command_name(command: &Commands) -> &'static str {
         } => "activity.log",
         Commands::Activity { .. } => "activity",
         Commands::Cancel { .. } => "cancel",
+        Commands::Games { command } => match command {
+            GamesCommand::List => "games.list",
+            GamesCommand::Add { .. } => "games.add",
+            GamesCommand::Remove { .. } => "games.remove",
+            GamesCommand::BatchPlan { .. } => "games.batch-plan",
+            GamesCommand::BatchRun { .. } => "games.batch-run",
+            GamesCommand::BatchResume { .. } => "games.batch-resume",
+            GamesCommand::BatchCancel { .. } => "games.batch-cancel",
+            GamesCommand::BatchShow { .. } => "games.batch-show",
+            GamesCommand::Intent { .. } => "games.intent",
+            GamesCommand::Intents => "games.intents",
+            GamesCommand::IntentsAcknowledge { .. } => "games.intents-acknowledge",
+            GamesCommand::SetupReady => "games.setup-ready",
+        },
         Commands::Launch { command } => match command {
             LaunchCommand::Show { .. } => "launch.show",
             LaunchCommand::Recover { .. } => "launch.recover",
@@ -3429,6 +3575,18 @@ fn command_name(command: &Commands) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    use super::parse_batch_item;
+
+    #[test]
+    fn batch_items_need_a_port_and_digest_pair() {
+        let item = parse_batch_item("zelda64-recomp=abc").unwrap();
+        assert_eq!(
+            (item.port_id.as_str(), item.expected_plan_sha256.as_str()),
+            ("zelda64-recomp", "abc")
+        );
+        assert!(parse_batch_item("zelda64-recomp").is_err());
+    }
+
     #[test]
     fn stderr_verbosity_keeps_existing_levels_and_excludes_host_observations() {
         use tracing_subscriber::{Layer, layer::SubscriberExt};
@@ -4647,6 +4805,23 @@ mod tests {
         ] {
             assert!(capabilities.commands.iter().any(|command| command == name));
         }
+        for name in [
+            "games",
+            "games.list",
+            "games.add",
+            "games.remove",
+            "games.batch-plan",
+            "games.batch-run",
+            "games.batch-resume",
+            "games.batch-cancel",
+            "games.batch-show",
+            "games.intent",
+            "games.intents",
+            "games.intents-acknowledge",
+            "games.setup-ready",
+        ] {
+            assert!(capabilities.commands.iter().any(|command| command == name));
+        }
         assert!(capabilities.commands.contains(&"artwork".to_owned()));
         assert!(capabilities.commands.contains(&"tool".to_owned()));
         assert!(capabilities.commands.contains(&"plan".to_owned()));
@@ -4740,4 +4915,15 @@ mod tests {
                 .contains("Unknown expiry (invalid timestamp)")
         );
     }
+}
+
+/// Parses one reviewed `PORT_ID=PLAN_SHA256` batch item; Core validates the digest.
+fn parse_batch_item(value: &str) -> Result<portcove_core::InstallBatchRequestItem> {
+    let (port_id, digest) = value.split_once('=').ok_or_else(|| {
+        PortcoveError::usage("write each batch item as PORT_ID=PLAN_SHA256 from `games batch-plan`")
+    })?;
+    Ok(portcove_core::InstallBatchRequestItem {
+        port_id: port_id.to_owned(),
+        expected_plan_sha256: digest.to_owned(),
+    })
 }

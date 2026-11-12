@@ -178,6 +178,20 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       requireArgs("get_launch_failure", args, { portId: args.portId, generation });
       return null;
     },
+    // Fixtures never run a setup batch, so none is left unfinished.
+    get_unfinished_install_batches: (args) => {
+      requireArgs("get_unfinished_install_batches", args, { generation });
+      return [];
+    },
+    // Fixtures keep no remembered game choices, so nothing is assessed or set up.
+    get_port_intents: (args) => {
+      requireArgs("get_port_intents", args, { generation });
+      return [];
+    },
+    assess_port_intents: (args) => {
+      requireArgs("assess_port_intents", args, { generation });
+      return { assessments: [], not_assessed: 0 };
+    },
     get_automatic_snapshots: (args) => {
       requireArgs("get_automatic_snapshots", args, { generation });
       return automaticSnapshots;

@@ -15,7 +15,7 @@ interface FailedProducer {
   name: string;
   result: string;
 }
-type ResultGateError = Error & { failedProducer?: FailedProducer };
+type ResultGateError = Error & { failedProducer?: FailedProducer; deferral?: true };
 export interface CiResultInputs {
   classifier?: string | undefined;
   plan: unknown;
@@ -27,6 +27,7 @@ export interface CiResultInputs {
   always?: unknown;
   reuse?: unknown;
   frontendBrowserSharded?: string | undefined;
+  windowsTestsDeferred?: string | undefined;
 }
 function isGroup(value: unknown): value is ValidationGroup {
   return fastGroups.some((group) => group === value);
@@ -63,6 +64,8 @@ function resultFailure(
 }
 
 export function formatResultGateFailure(error: unknown) {
+  if (isRecord(error) && error.deferral === true)
+    return `Deferred by draft policy, not a test failure: ${errorMessage(error)}`;
   const producer = isRecord(error) ? error.failedProducer : undefined;
   return isRecord(producer) &&
     typeof producer.name === "string" &&
@@ -94,6 +97,7 @@ export function evaluateCiResults({
   always: alwaysInput = {},
   reuse: reuseInput = null,
   frontendBrowserSharded,
+  windowsTestsDeferred,
 }: CiResultInputs) {
   if (classifier !== "success")
     throw resultFailure(`classifier result is ${classifier || "missing"}`, "classify", classifier);
@@ -134,6 +138,15 @@ export function evaluateCiResults({
     plan.mode === "fast" &&
     selected &&
     !reused;
+  if (
+    windowsTestsDeferred !== undefined &&
+    windowsTestsDeferred !== "true" &&
+    windowsTestsDeferred !== "false"
+  )
+    throw new Error("Windows test deferral flag must be true or false");
+  const deferredWindowsTests = windowsTestsDeferred === "true";
+  if (deferredWindowsTests && (group !== "rust" || plan.mode !== "fast" || !selected || reused))
+    throw new Error("Windows test deferral applies only to a selected, executed fast Rust plan");
   if (shardedFrontend && targeted?.fast_frontend_browser !== "success")
     throw resultFailure(
       `fast_frontend_browser was ${targeted?.fast_frontend_browser ?? "missing"}, expected success for sharded browser tests`,
@@ -194,6 +207,24 @@ export function evaluateCiResults({
       throw new Error(
         "ordinary Rust requires build, partition execution and live transport results",
       );
+    if (deferredWindowsTests) {
+      // The draft run still proves the build and live transport, then fails on purpose: a skipped
+      // partition must never let the required rust result pass for this head.
+      requireResults(
+        { fast_rust: fast?.fast_rust, fast_rust_transport: fast?.fast_rust_transport },
+        "success",
+        "fast",
+      );
+      if (fast?.fast_rust_tests !== "skipped")
+        throw new Error(
+          `fast_rust_tests was ${fast?.fast_rust_tests || "missing"}, expected skipped for a draft`,
+        );
+      const deferral: ResultGateError = new Error(
+        "Windows test partitions are deferred while this pull request is a draft; mark it ready for review, or re-run all jobs once it is ready, to run them",
+      );
+      deferral.deferral = true;
+      throw deferral;
+    }
     requireResults(fast, selected && !reused ? "success" : "skipped", "fast");
     if (Object.keys(targeted ?? {}).length)
       requireResults(
@@ -230,6 +261,7 @@ function main() {
       classifier: process.env.PORTCOVE_CLASSIFIER_RESULT,
       reuse: JSON.parse(process.env.PORTCOVE_REUSE_JSON ?? "null"),
       frontendBrowserSharded: process.env.PORTCOVE_FRONTEND_BROWSER_SHARDED,
+      windowsTestsDeferred: process.env.PORTCOVE_WINDOWS_TESTS_DEFERRED,
       plan,
       group: process.env.PORTCOVE_GROUP,
       prose: process.env.PORTCOVE_PROSE_RESULT,

@@ -971,10 +971,7 @@ export function assertPreparedLibrarySummary(
     assert.deepEqual(required(item.readiness).blockers, []);
     assert.ok(!item.staged, `${item.port_id} must have no prepared update`);
   }
-  assert.equal(
-    text.replace(/\s+/gu, " ").trim(),
-    `${installed.length} library ${installed.length === 1 ? "entry" : "entries"}`,
-  );
+  assert.equal(text.replace(/\s+/gu, " ").trim(), `${installed.length} in your library`);
 }
 
 /** Observe one owned Library action and retain its exact visual evidence. */
@@ -1176,9 +1173,7 @@ export async function preparationScenarios({
     await clickVisible(
       browser,
       await browser.findElement(
-        By.xpath(
-          '//*[@aria-label="Library quick views"]//button[text()[normalize-space(.)="All games"]]',
-        ),
+        By.xpath('//*[@aria-label="Library quick views"]//button[@data-quick-view="all"]'),
       ),
     );
     const card = By.xpath(`//button[@data-detail-game-id="${port.id}"]`);

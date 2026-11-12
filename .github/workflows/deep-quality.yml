@@ -116,31 +116,10 @@ jobs:
       - name: Install Linux desktop prerequisites
         timeout-minutes: 15
         run: ./scripts/install-linux-desktop-prerequisites.sh
-      - name: Restore pinned rscheck binaries
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/bin/cargo-rscheck
-            ~/.cargo/bin/rscheck
-          key: quality-rscheck-binaries-v2-ubuntu-22.04-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/quality-tools.json') }}
       - name: Install pinned prebuilt audit tools
         uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.quality-pins.outputs.required_prebuilt }}
-      - name: Check cached pinned rscheck version
-        id: rscheck-tool
-        shell: bash
-        run: |
-          if node scripts/quality-tools.mts --verify rscheck-cli; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Install pinned rscheck
-        if: steps.rscheck-tool.outputs.ready != 'true'
-        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
-        with:
-          tool: ${{ steps.quality-pins.outputs.rscheck_spec }}
       - name: Read pinned aqua version
         id: aqua-version
         shell: bash
@@ -271,10 +250,6 @@ jobs:
         uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
-      - name: Install source pinned rscheck
-        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
-        with:
-          tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin
         id: local-aqua
         working-directory: source

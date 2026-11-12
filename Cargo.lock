@@ -3746,6 +3746,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "portcove-rust-portability"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "syn 3.0.9",
+ "tempfile",
+]
+
+[[package]]
 name = "potential_utf"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

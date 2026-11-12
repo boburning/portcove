@@ -153,7 +153,7 @@ it("keeps a legacy required-input card unconfirmed when health and assessment ar
   const card = page.getByRole("article");
   await expect.element(card).toMatchTextContent("Compatibility unconfirmed");
   await expect.element(card).not.toMatchTextContent("Ready to play");
-  await userEvent.click(card.getByRole("button", { name: "Try launch", exact: true }));
+  await userEvent.click(card.getByRole("button", { name: /^Try launch: / }));
   expect(launch).toHaveBeenCalledWith(port.id);
 });
 // CI40745384613/a1 macOS producer123018113028 reached the15s case
@@ -179,9 +179,7 @@ it.each([
       await expect.element(card).toHaveAccessibleDescription(new RegExp(reason));
       await expect.element(card).toMatchTextContent("Selected update channel: Preview");
       await expect.element(card.getByText("Stable", { exact: true })).toBeVisible();
-      await expect
-        .element(card.getByRole("button", { name: "Play", exact: true }))
-        .not.toBeInTheDocument();
+      await expect.element(card.getByRole("button", { name: /^Play: / })).not.toBeInTheDocument();
       const details =
         view === "library"
           ? page.getByRole("button", {
@@ -206,7 +204,7 @@ it.each([
         name === "Staged ready" ? undefined : "Ready to play",
       );
       await expect.element(card).not.toHaveAccessibleDescription();
-      const play = card.getByRole("button", { name: "Play", exact: true });
+      const play = card.getByRole("button", { name: /^Play: / });
       await expect
         .poll(() => play.query()?.matches(":disabled") ?? null)
         .toBe(view === "library" ? false : null);

@@ -77,7 +77,18 @@ void test("catalog recovery distinguishes exact renewal claims from historical b
     ),
     undefined,
   );
+  assert.equal(
+    native.successor_ref,
+    "refs/tags/portcove-production-controller-catalog-adoption-settle-20261111",
+  );
   assert.ok(isCatalogBootstrapRecoveryRef(native.successor_ref));
+  for (const retired of [
+    "refs/tags/portcove-production-controller-catalog-adoption-resume-20261111",
+    "refs/tags/portcove-production-controller-catalog-adoption-stable-wake-20261111",
+  ]) {
+    assert.equal(selectCatalogBootstrapRecovery(retired, 1, native.previous, "native"), undefined);
+    assert.equal(isCatalogBootstrapRecoveryRef(retired), false);
+  }
   for (const [ref, attempt, parent, direction] of [
     [old.successor_ref, 1, old.previous, true],
     [forward.successor_ref, 1, forward.previous, false],
