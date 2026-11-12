@@ -98,6 +98,23 @@ export function inspectApplicationJobBudget(
         continue;
       }
       if (value.conclusion === "cancelled" && value.started_at === null) continue;
+      // GitHub also reports the enqueue time as started_at for cancelled jobs
+      // that never received a runner. Require the complete idle-runner shape.
+      if (
+        value.status === "completed" &&
+        value.conclusion === "cancelled" &&
+        value.runner_id === 0 &&
+        value.runner_name === "" &&
+        value.runner_group_id === 0 &&
+        value.runner_group_name === "" &&
+        Array.isArray(value.steps) &&
+        value.steps.length === 0 &&
+        typeof value.created_at === "string" &&
+        value.started_at === value.created_at &&
+        typeof value.completed_at === "string" &&
+        Date.parse(value.completed_at) >= Date.parse(value.created_at)
+      )
+        continue;
       assert.ok(
         Object.hasOwn(ceilings, value.name) ||
           Object.hasOwn(remainingCeilings, value.name) ||
