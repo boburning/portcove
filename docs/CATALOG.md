@@ -883,10 +883,12 @@ destination folder, so anything the game wrote into it is lost. Destination drif
 outside the declared anchors is not detected, so declare every file the runtime
 cannot do without. Total directory-table bytes read while planning are bounded.
 
-ISO 9660 records may carry well-formed system-use data (CD-XA or Rock Ridge/SUSP
-entries); it is accepted but not interpreted, so alternate names are ignored and
-symbolic links are not followed. The 16 GiB image bound applies to an explicitly
-added source; source discovery and batch import still stop at 2 GiB.
+ISO 9660 records may carry a system-use area. Well-formed CD-XA or Rock Ridge/SUSP
+data and plain zero padding (as Sony PS2 mastering writes) are accepted but not
+interpreted, so alternate names are ignored and symbolic links are not followed; any
+other bytes are refused, so a corrupted record length can never hide the records
+after it. The 16 GiB image bound applies to an explicitly added source; source
+discovery and batch import still stop at 2 GiB.
 
 An indexed definition that declares `runtime_disc_image` must require
 `staged-source-portable` capability version 30, so older readers refuse it instead of
