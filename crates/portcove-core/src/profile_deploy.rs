@@ -150,17 +150,17 @@ fn consented_code(layout: &Layout) -> Result<BTreeSet<String>> {
     if !path.try_exists()? {
         return Ok(BTreeSet::new());
     }
+    let unreadable = || {
+        PortcoveError::state("the mod code consent record is not readable; repair or remove it")
+            .detail("path", path.display().to_string())
+    };
     if fs::metadata(&path)?.len() > (MAX_CODE_CONSENTS as u64) * 80 {
-        return Err(PortcoveError::state(
-            "the mod code consent record exceeds its bound",
-        ));
+        return Err(unreadable());
     }
-    let digests: BTreeSet<String> = serde_json::from_slice(&fs::read(&path)?)
-        .map_err(|_| PortcoveError::state("the mod code consent record is not readable"))?;
+    let digests: BTreeSet<String> =
+        serde_json::from_slice(&fs::read(&path)?).map_err(|_| unreadable())?;
     if digests.len() > MAX_CODE_CONSENTS || digests.iter().any(|sha| !is_sha256(sha)) {
-        return Err(PortcoveError::state(
-            "the mod code consent record is not readable",
-        ));
+        return Err(unreadable());
     }
     Ok(digests)
 }
@@ -252,14 +252,15 @@ pub(crate) fn require_code_allowed(layout: &Layout, revision: &ProfileRevision) 
     let Some(game) = native_mod_list::recomp_game(&layout.port_id()) else {
         return Ok(());
     };
-    let mut consented = None;
+    // A readable record lets allowed bytes skip inspection; an unreadable one
+    // matters only for a package that runs code, so setups without code stay usable.
+    let recorded = consented_code(layout).ok();
     for package in enabled(revision) {
-        let consented = match &consented {
-            Some(set) => set,
-            None => consented.insert(consented_code(layout)?),
-        };
         // A recorded consent was only ever given to admissible code.
-        if consented.contains(&package.sha256) {
+        if recorded
+            .as_ref()
+            .is_some_and(|set| set.contains(&package.sha256))
+        {
             continue;
         }
         let stored = layout.package(&package.sha256, &package.native_id);
@@ -288,6 +289,10 @@ pub(crate) fn require_code_allowed(layout: &Layout, revision: &ProfileRevision) 
             continue;
         }
         require_admissible_code(&recomp)?;
+        // Read strictly here: an unreadable record never counts as consent.
+        if consented_code(layout)?.contains(&package.sha256) {
+            continue;
+        }
         return Err(code_not_allowed(&recomp));
     }
     Ok(())
@@ -954,7 +959,8 @@ impl PortcoveService {
             .ok_or_else(|| PortcoveError::usage("the package path has no file name"))?;
         let private = staging.path().join(file_name);
         fs::copy(source, &private)?;
-        let recorded = consented_code(&layout)?;
+        // An unreadable record allows nothing, and mods without code need none.
+        let recorded = consented_code(&layout).unwrap_or_default();
         let staged = inspect_for_port(
             port_id,
             private,

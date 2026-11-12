@@ -1478,9 +1478,35 @@ fn recorded_consent_is_reused_and_an_unreadable_record_fails_closed() {
     );
     let layout = w.service.deploy_layout(RECOMP).unwrap();
     fs::write(layout.code_consent(), b"not json").unwrap();
+    // A setup without code stays usable while the record is unreadable.
+    let plain = w.service.copy_profile(RECOMP, &other.id, "Plain").unwrap();
+    let request = crate::ProfileRevisionRequest {
+        expected_revision: 1,
+        packages: Some(Vec::new()),
+        orderings: Some(Vec::new()),
+        ..Default::default()
+    };
+    w.service
+        .create_profile_revision(RECOMP, &plain.id, &request)
+        .unwrap();
+    w.service.activate_profile(RECOMP, &plain.id).unwrap();
+    let asset = w.nrm("ui.nrm", "better_ui", &[], &[]);
+    w.service
+        .install_mod_package(RECOMP, &plain.id, &asset, 2)
+        .unwrap();
+    assert_eq!(w.live(), ["better_ui.nrm"]);
+    // It allows nothing: code is refused, and recording consent needs the record repaired.
     let error = w
         .service
-        .install_mod_package(RECOMP, &other.id, &code, current)
+        .install_mod_package(RECOMP, &plain.id, &code, 3)
+        .unwrap_err();
+    assert!(error.message.contains("runs its own code"), "{error:?}");
+    let error = w
+        .service
+        .install_mod_package_allowing_code(RECOMP, &plain.id, &code, 3, &sha)
         .unwrap_err();
     assert_eq!(error.code, crate::ErrorCode::State);
+    assert!(error.details.contains_key("path"));
+    let error = w.service.activate_profile(RECOMP, &other.id).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::State, "{error:?}");
 }
