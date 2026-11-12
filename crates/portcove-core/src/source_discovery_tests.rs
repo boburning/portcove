@@ -4953,6 +4953,96 @@ fn a_large_tree_with_few_matches_ends_batches_before_checkpoint_storage_fills() 
     assert_eq!(snapshot.report.candidates.len(), 12);
 }
 
+fn scan_to_end(
+    catalog: &Catalog,
+    library: &crate::Library,
+    limits: &SourceDiscoveryLimits,
+) -> (GameFileScanSnapshot, u32) {
+    let mut snapshot = publish_saved_batch(catalog, library, limits).unwrap();
+    let mut batches = 1;
+    while snapshot.coverage.as_ref().unwrap().can_resume {
+        snapshot = publish_saved_batch(catalog, library, limits).unwrap();
+        batches += 1;
+        assert!(batches <= 64, "the scan must finish");
+    }
+    (snapshot, batches)
+}
+
+#[test]
+fn a_wide_frontier_still_advances_many_folders_per_batch() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    let payload = b"supported resumable source";
+    for folder in 0..3_200 {
+        let directory = root.join(format!("one-folder-per-game-with-a-long-name-{folder:04}"));
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(directory.join("readme-for-this-game.txt"), b"x").unwrap();
+    }
+    fs::write(
+        root.join("one-folder-per-game-with-a-long-name-0000/game.z64"),
+        payload,
+    )
+    .unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_entries: 20_000,
+        ..Default::default()
+    };
+    let (snapshot, batches) = scan_to_end(&catalog(payload), &library, &limits);
+    let coverage = snapshot.coverage.as_ref().unwrap();
+    assert!(
+        snapshot.report.issues.is_empty(),
+        "{:?}",
+        snapshot.report.issues
+    );
+    assert!(coverage.frontier_exhausted, "{coverage:?}");
+    assert!(batches <= 16, "{batches} batches");
+    assert_eq!(snapshot.report.candidates.len(), 2);
+}
+
+#[test]
+fn a_folder_that_fits_a_fresh_batch_is_not_ended_by_earlier_folders_in_the_batch() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    let payload = b"supported resumable source";
+    // Each entry charges about 840 bytes of the 4 MiB checkpoint bound. The
+    // nested folder is always listed after the earlier one finishes: the
+    // earlier one stays under half the bound, both together exceed it, and
+    // the nested one alone fits a fresh batch.
+    let earlier = root.join("a-earlier-folder");
+    let nested = earlier.join("b-nested-folder");
+    for (directory, files) in [(&earlier, 2_400), (&nested, 2_900)] {
+        fs::create_dir_all(directory).unwrap();
+        for file in 0..files {
+            fs::write(
+                directory.join(format!(
+                    "unrelated-notes-file-with-a-long-name-{file:05}.txt"
+                )),
+                b"x",
+            )
+            .unwrap();
+        }
+    }
+    fs::write(nested.join("game.z64"), payload).unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_entries: 20_000,
+        ..Default::default()
+    };
+    let (snapshot, batches) = scan_to_end(&catalog(payload), &library, &limits);
+    let coverage = snapshot.coverage.as_ref().unwrap();
+    assert!(
+        snapshot.report.issues.is_empty(),
+        "{:?}",
+        snapshot.report.issues
+    );
+    assert!(coverage.frontier_exhausted, "{coverage:?}");
+    assert!(batches > 1);
+    assert_eq!(snapshot.report.candidates.len(), 2);
+}
+
 #[test]
 fn finished_folders_drop_stamps_except_matches_which_still_refuse_changes() {
     for matched in [false, true] {

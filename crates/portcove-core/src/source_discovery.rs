@@ -974,6 +974,12 @@ struct Discovery<'a> {
     batch_hash_limited: bool,
     /// Matches already retained when this batch started.
     batch_start_candidates: usize,
+    /// Checkpoint charge and records carried into this batch.
+    batch_start_storage: (usize, usize),
+    /// Folders this batch finished; their stamps are forgotten at batch end.
+    folders_finished: u32,
+    /// The batch ended to free checkpoint storage; the scan can continue.
+    storage_deferred: bool,
 }
 
 struct DiscoveryExclusion {
@@ -1221,8 +1227,14 @@ fn scan_with_continuation<'a>(
         terminal_limited: false,
         batch_hash_limited: false,
         batch_start_candidates: 0,
+        batch_start_storage: (0, 0),
+        folders_finished: 0,
+        storage_deferred: false,
     };
     discovery.batch_start_candidates = discovery.report.candidate_count();
+    discovery.batch_start_storage = discovery.continuation.as_ref().map_or((0, 0), |cursor| {
+        (cursor.retained_bytes, cursor.observed.len())
+    });
     let omitted_owned_paths = discovery
         .exclusions
         .iter()
@@ -1396,8 +1408,6 @@ impl Discovery<'_> {
         }
     }
 
-    /// Records that a match had to be dropped. For a saved scan that is the
-    /// safety ceiling, so the scan can't continue without losing matches.
     /// A full batch continues; reaching the scan ceiling ends coverage.
     fn candidate_boundary(&mut self) {
         if self.unit_full() {
@@ -1407,6 +1417,8 @@ impl Discovery<'_> {
         }
     }
 
+    /// Records that a match had to be dropped. For a saved scan that is the
+    /// safety ceiling, so the scan can't continue without losing matches.
     fn candidates_exhausted(&mut self) {
         self.reached.insert(SourceDiscoveryLimit::Candidates);
         if self.resumable() {
@@ -1743,7 +1755,9 @@ impl Discovery<'_> {
                         return Ok(());
                     };
                     if !self.remember_entry(&entry.path())? {
-                        state.complete = false;
+                        // A storage deferral resumes like an entry limit: the
+                        // unrecorded entry is listed again by the next batch.
+                        state.complete = self.storage_deferred && complete;
                         pending.push_front(state);
                         self.save_frontier(pending);
                         return Ok(());
@@ -1890,9 +1904,15 @@ impl Discovery<'_> {
             }
             // Finished folders are forgotten between batches, so ending here
             // keeps checkpoint storage bounded by the frontier, not the tree.
+            // Growth is measured from this batch's start, so a wide frontier
+            // still gets half of the remaining room each batch.
+            self.folders_finished += 1;
+            let (bytes, records) = self.batch_start_storage;
             if self.continuation.as_ref().is_some_and(|cursor| {
-                cursor.retained_bytes > MAX_CONTINUATION_BYTES / 2
-                    || cursor.observed.len() > MAX_CONTINUATION_RECORDS / 2
+                cursor.retained_bytes.saturating_sub(bytes)
+                    > MAX_CONTINUATION_BYTES.saturating_sub(bytes) / 2
+                    || cursor.observed.len().saturating_sub(records)
+                        > MAX_CONTINUATION_RECORDS.saturating_sub(records) / 2
             }) && !pending.is_empty()
             {
                 self.save_frontier(pending);
@@ -1924,6 +1944,12 @@ impl Discovery<'_> {
         match cursor.remember(path) {
             Ok(()) => Ok(true),
             Err(error) if error.details.contains_key("continuation_limit") => {
+                if self.folders_finished > 0 {
+                    // Folders finished in this batch free their stamps once it
+                    // ends, so a fresh batch has room for this entry.
+                    self.storage_deferred = true;
+                    return Ok(false);
+                }
                 self.limit_continuation(
                     "Scan continuation reached its bounded storage limit; select narrower folders.",
                 );
