@@ -322,12 +322,14 @@ it("never offers two launcher apps for the same game in one copy", async () => {
       .toBeDisabled();
     // The reason is visible and linked to the checkbox.
     await expect
-      .element(page.getByText("Another app for this game is already selected; one copy per game."))
+      .element(
+        page.getByText("Another app for this game is selected. Clear it to choose this one."),
+      )
       .toBeVisible();
     await expect
       .element(page.getByRole("checkbox", { name: "Select Nightly to copy with others" }))
       .toHaveAccessibleDescription(
-        "Another app for this game is already selected; one copy per game.",
+        "Another app for this game is selected. Clear it to choose this one.",
       );
   } finally {
     await act(async () => root.unmount());
@@ -397,13 +399,17 @@ it("caps a several-app copy at 32 apps and says why", async () => {
     await expect
       .element(page.getByRole("checkbox", { name: "Select App 32 to copy with others" }))
       .toBeDisabled();
-    await expect.element(page.getByText("One copy holds at most 32 apps.")).toBeVisible();
+    const limit = "You can copy up to 32 apps at once. Clear one to choose this one.";
+    await expect.element(page.getByText(limit)).toBeVisible();
+    await expect
+      .element(page.getByRole("checkbox", { name: "Select App 32 to copy with others" }))
+      .toHaveAccessibleDescription(limit);
   } finally {
     await cleanup();
   }
 });
 
-it("clears the selection after a copy so copied apps are not offered again", async () => {
+it("clears the selection after a copy so copied apps are not selected again", async () => {
   const entries = [
     entry({}),
     entry({

@@ -88,13 +88,18 @@ export function LauncherLibraryImport({
   const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
   // Core copies one installation per game and at most a fixed number per batch, so
   // the list never offers a selection Core would refuse.
+  // Computed once per render; each entry's check is then constant time.
+  const chosenPorts = new Set(
+    (inventory?.entries ?? [])
+      .filter((entry) => selected.has(entry.index))
+      .map((entry) => entry.adopt_port_id),
+  );
   const selectionBlock = (entry: LauncherLibraryEntry) => {
     if (selected.has(entry.index)) return undefined;
-    const chosen = (inventory?.entries ?? []).filter((other) => selected.has(other.index));
-    if (chosen.some((other) => other.adopt_port_id === entry.adopt_port_id))
-      return "Another app for this game is already selected; one copy per game.";
-    if (chosen.length >= LAUNCHER_BATCH_LIMIT)
-      return `One copy holds at most ${LAUNCHER_BATCH_LIMIT} apps.`;
+    if (chosenPorts.has(entry.adopt_port_id))
+      return "Another app for this game is selected. Clear it to choose this one.";
+    if (selected.size >= LAUNCHER_BATCH_LIMIT)
+      return `You can copy up to ${LAUNCHER_BATCH_LIMIT} apps at once. Clear one to choose this one.`;
     return undefined;
   };
   const [listing, setListing] = useState(false);
@@ -277,85 +282,86 @@ export function LauncherLibraryImport({
             </p>
           )}
           <ul className="grid gap-2 ps-0" aria-label="Launcher apps">
-            {inventory.entries.map((entry) => (
-              <li
-                key={entry.index}
-                className="list-none rounded-pc-md border border-[var(--color-border)] p-2 [overflow-wrap:anywhere]"
-              >
-                {reviewBatch && copyBatch && launcherEntryCanBeBatched(entry) && (
-                  <Checkbox
-                    data-focusable
-                    className="me-2 align-middle"
-                    aria-label={`Select ${entry.name || entry.folder_name} to copy with others`}
-                    checked={selected.has(entry.index)}
-                    disabled={disabled || selectionBlock(entry) !== undefined}
-                    {...(selectionBlock(entry)
-                      ? { "aria-describedby": `${id}-block-${entry.index}` }
-                      : {})}
-                    onCheckedChange={(checked) =>
-                      setSelected((previous) => {
-                        const next = new Set(previous);
-                        if (checked) next.add(entry.index);
-                        else next.delete(entry.index);
-                        return next;
-                      })
-                    }
-                  />
-                )}
-                <strong>{entry.name || entry.folder_name}</strong> — {STATUS_LABELS[entry.status]}
-                {reviewBatch &&
-                  copyBatch &&
-                  launcherEntryCanBeBatched(entry) &&
-                  selectionBlock(entry) && (
+            {inventory.entries.map((entry) => {
+              const block =
+                reviewBatch && copyBatch && launcherEntryCanBeBatched(entry)
+                  ? selectionBlock(entry)
+                  : undefined;
+              return (
+                <li
+                  key={entry.index}
+                  className="list-none rounded-pc-md border border-[var(--color-border)] p-2 [overflow-wrap:anywhere]"
+                >
+                  {reviewBatch && copyBatch && launcherEntryCanBeBatched(entry) && (
+                    <Checkbox
+                      data-focusable
+                      className="me-2 align-middle"
+                      aria-label={`Select ${entry.name || entry.folder_name} to copy with others`}
+                      checked={selected.has(entry.index)}
+                      disabled={disabled || block !== undefined}
+                      {...(block ? { "aria-describedby": `${id}-block-${entry.index}` } : {})}
+                      onCheckedChange={(checked) =>
+                        setSelected((previous) => {
+                          const next = new Set(previous);
+                          if (checked) next.add(entry.index);
+                          else next.delete(entry.index);
+                          return next;
+                        })
+                      }
+                    />
+                  )}
+                  <strong>{entry.name || entry.folder_name}</strong> — {STATUS_LABELS[entry.status]}
+                  {block && (
                     <>
                       <br />
                       <small
                         id={`${id}-block-${entry.index}`}
                         className="text-[var(--color-text-secondary)]"
                       >
-                        {selectionBlock(entry)}
+                        {block}
                       </small>
                     </>
                   )}
-                <br />
-                <small className="text-[var(--color-text-secondary)]">{entry.explanation}</small>
-                {entryDetails(entry).map((detail, line) => (
-                  // Each line kind appears at most once, in a fixed order.
-                  <span key={line}>
-                    <br />
-                    <small className="text-[var(--color-text-secondary)]">{detail}</small>
-                  </span>
-                ))}
-                {entry.not_carried_over.length > 0 && (
-                  <>
-                    <br />
-                    <small className="text-[var(--color-text-secondary)]">
-                      Not carried over: {entry.not_carried_over.join(", ")}
-                    </small>
-                  </>
-                )}
-                {launcherEntryCanBeReviewed(entry) && (
-                  <div>
-                    <Button
-                      data-focusable
-                      type="button"
-                      variant="outline"
-                      className="mt-2"
-                      disabled={disabled}
-                      onClick={() => {
-                        // Collapse the list so the copy review below is next; it stays available
-                        // from the summary, which keeps keyboard and controller focus.
-                        setExpanded(false);
-                        summaryRef.current?.focus();
-                        choose(entry);
-                      }}
-                    >
-                      Review copying {entry.name || entry.folder_name}
-                    </Button>
-                  </div>
-                )}
-              </li>
-            ))}
+                  <br />
+                  <small className="text-[var(--color-text-secondary)]">{entry.explanation}</small>
+                  {entryDetails(entry).map((detail, line) => (
+                    // Each line kind appears at most once, in a fixed order.
+                    <span key={line}>
+                      <br />
+                      <small className="text-[var(--color-text-secondary)]">{detail}</small>
+                    </span>
+                  ))}
+                  {entry.not_carried_over.length > 0 && (
+                    <>
+                      <br />
+                      <small className="text-[var(--color-text-secondary)]">
+                        Not carried over: {entry.not_carried_over.join(", ")}
+                      </small>
+                    </>
+                  )}
+                  {launcherEntryCanBeReviewed(entry) && (
+                    <div>
+                      <Button
+                        data-focusable
+                        type="button"
+                        variant="outline"
+                        className="mt-2"
+                        disabled={disabled}
+                        onClick={() => {
+                          // Collapse the list so the copy review below is next; it stays available
+                          // from the summary, which keeps keyboard and controller focus.
+                          setExpanded(false);
+                          summaryRef.current?.focus();
+                          choose(entry);
+                        }}
+                      >
+                        Review copying {entry.name || entry.folder_name}
+                      </Button>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
           {reviewBatch &&
             copyBatch &&
