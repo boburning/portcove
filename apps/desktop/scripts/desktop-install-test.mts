@@ -632,11 +632,17 @@ export async function installScenarios({
       observations.retry_commands = observations.commands_after_retry.slice(
         observations.commands_before_retry.length,
       );
+      // A refreshed workspace also lets the open detail re-read its own
+      // read-only views; none of these can repeat the install.
       const retryAndBackgroundCommands = new Set([
         "get_activities",
         "get_workspace_changed",
         "get_workspace_snapshot",
         "discover_orphaned_operations",
+        "get_launch_failure",
+        "get_port_capabilities",
+        "get_mod_setups",
+        "get_backups",
       ]);
       assert.ok(observations.retry_commands.includes("get_workspace_snapshot"));
       assert.ok(
