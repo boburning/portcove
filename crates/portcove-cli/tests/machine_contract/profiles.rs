@@ -161,6 +161,42 @@ fn profile_commands_migrate_default_append_revisions_and_refuse_stale_review() {
     );
     assert!(!unsupported.status.success());
     assert_eq!(json_stdout(&unsupported)["error"]["code"], "unsupported");
+    // Provider planning needs a reviewed binding; this port has none, so it refuses
+    // before any network request.
+    let no_binding = invoke(
+        root,
+        &[
+            "--json",
+            "profile",
+            "provider-plan",
+            PORT,
+            profile_id,
+            "1",
+            "2",
+        ],
+    );
+    assert!(!no_binding.status.success());
+    assert_eq!(json_stdout(&no_binding)["error"]["code"], "unsupported");
+    // Applying needs a valid plan file that matches the reviewed digest.
+    let plan = root.join("plan.json");
+    fs::write(&plan, b"{not json").unwrap();
+    let invalid = invoke(
+        root,
+        &[
+            "--json",
+            "--non-interactive",
+            "profile",
+            "provider-apply",
+            PORT,
+            profile_id,
+            plan.to_str().unwrap(),
+            "--expected-plan",
+            "abc",
+            "--yes",
+        ],
+    );
+    assert!(!invalid.status.success());
+    assert_eq!(json_stdout(&invalid)["error"]["code"], "usage");
     let live = invoke(root, &["--json", "profile", "live", PORT]);
     assert!(!live.status.success());
     assert_eq!(json_stdout(&live)["error"]["code"], "unsupported");

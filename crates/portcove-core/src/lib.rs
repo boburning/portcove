@@ -88,9 +88,13 @@ mod providers;
 pub use provider_observation::inspect_provider_observation;
 mod disc_filesystem;
 mod disc_product;
+mod gamebanana;
 mod mod_package;
+mod mod_provider;
 mod profile;
 mod profile_deploy;
+mod provider_install;
+mod provider_update;
 mod psx;
 #[cfg(feature = "qualification-fixtures")]
 mod qualification_checkpoint;
@@ -233,6 +237,7 @@ pub use game_settings::{
     GameSettingView, GameSettingsContract, GameSettingsFile, GameSettingsFileView,
     GameSettingsFormat, GameSettingsRelease, GameSettingsView, inspect_game_settings_qualification,
 };
+pub use gamebanana::GameBananaClient;
 pub use ghostship_data_store::{GhostshipRecoveryPlan, GhostshipRecoveryResult};
 pub use gitlab::GitlabReleaseProvider;
 pub use host_preferences::{
@@ -261,6 +266,9 @@ pub use library_move::LibraryMoveResult;
 pub use library_transfer::{LibraryMovePlan, LibraryTreePlan};
 pub use mod_package::{
     AssetConflict, ModPackageHold, ModPackageInspection, asset_conflicts, inspect_asset_archive,
+};
+pub use mod_provider::{
+    Observed, ProviderFileCandidate, ProviderFreshness, ProviderPage, ProviderProject,
 };
 pub use operation::{OPERATION_EVENT_SCHEMA_VERSION, OperationCoordinator};
 pub use output_relocation::{
@@ -294,6 +302,8 @@ pub use profile::{
     TypedOrdering,
 };
 pub use profile_deploy::LiveMods;
+pub use provider_install::{PlanMember, ProviderInstallPlan};
+pub use provider_update::{ProviderUpdateObservation, ProviderUpdateState};
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;
 pub use release::{

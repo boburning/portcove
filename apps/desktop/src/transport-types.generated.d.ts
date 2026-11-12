@@ -802,6 +802,12 @@ export type OutputPendingSetups = PendingSetupRecord[];
 export type RetainedBuildAvailability = "verified" | "missing" | "changed" | "held" | "unavailable";
 export type OriginalAvailability = "verified" | "missing" | "changed";
 /**
+ * How current an observation is. A confirmed empty result is `Fresh`; an outage
+ * that falls back to earlier data is `Stale`, never an empty list.
+ */
+export type ProviderFreshness = "fresh" | "revalidated" | "stale";
+export type ProviderUpdateState = "current" | "newer_files" | "installed_file_removed" | "unavailable";
+/**
  * One documented outcome in the assessed scope, not a universal judgment about a project.
  */
 export type RecommendationOutcome =
@@ -1083,6 +1089,8 @@ export interface TransportOutputs {
   preparation_plan: OutputPreparationPlan;
   profile_inventory: OutputProfileInventory;
   profile_revision: ProfileRevision;
+  provider_install_plan: OutputProviderInstallPlan;
+  provider_update_observation: OutputProviderUpdateObservation;
   recommendation_metadata: OutputRecommendationMetadata;
   reconcile_batch_outcome: OutputReconcileBatchOutcome;
   reconcile_result: ReconcileResult;
@@ -4455,6 +4463,104 @@ export interface ProfileView {
 export interface OriginalStatus {
   availability: OriginalAvailability;
   binding: OriginalBinding;
+  [k: string]: unknown;
+}
+export interface OutputProviderInstallPlan {
+  conflicts: AssetConflict[];
+  conflicts_truncated: boolean;
+  /**
+   * Computed from the actual downloaded bytes.
+   */
+  download_sha256: string;
+  download_size: number;
+  /**
+   * Profile revision this plan was reviewed against.
+   */
+  expected_revision: number;
+  file: ProviderFileCandidate;
+  /**
+   * Entries of the provider's wrapper that are not packages and were not read.
+   */
+  ignored_entries: number;
+  members: PlanMember[];
+  plan_sha256: string;
+  port_id: string;
+  profile_id: string;
+  project_name: string;
+  provider: ProviderPackageRef;
+  /**
+   * Installed packages with the same native ID but different bytes.
+   */
+  replaces: string[];
+  /**
+   * What this plan relies on without verifying.
+   */
+  unverified_claims: string[];
+  [k: string]: unknown;
+}
+/**
+ * Several packages claim the same asset path.
+ */
+export interface AssetConflict {
+  path: string;
+  /**
+   * Packages providing the path, in the supplied precedence order.
+   */
+  providers: string[];
+  /**
+   * The provider that takes effect under that order.
+   */
+  winner: string;
+  [k: string]: unknown;
+}
+/**
+ * A provider's own claims about one downloadable file. The checksum is the
+ * provider's claim; an MD5 or any provider-supplied digest never authenticates
+ * a publisher.
+ */
+export interface ProviderFileCandidate {
+  added_at: number;
+  archived: boolean;
+  claimed_md5: string | null;
+  /**
+   * Provider scan outcomes, as claimed ("clean", "infected", ...). Not an assurance.
+   */
+  claimed_scan: string | null;
+  /**
+   * Canonical download location derived from `file_id`, never a provider-supplied URL.
+   */
+  download_url: string;
+  /**
+   * Provider file identity; distinct from the project and from any version label.
+   */
+  file_id: string;
+  file_name: string;
+  size: number;
+  [k: string]: unknown;
+}
+export interface PlanMember {
+  asset_count: number;
+  file_name: string;
+  sha256: string;
+  size: number;
+  [k: string]: unknown;
+}
+export interface OutputProviderUpdateObservation {
+  freshness: ProviderFreshness | null;
+  installed_version: string | null;
+  native_id: string;
+  /**
+   * Candidates in ascending file-ID order; more than one is ambiguous.
+   */
+  newer_files: ProviderFileCandidate[];
+  observed_version: string | null;
+  provider: ProviderPackageRef;
+  reason: string | null;
+  state: ProviderUpdateState;
+  /**
+   * False with `NewerFiles` means files changed under an unchanged version label.
+   */
+  version_changed: boolean;
   [k: string]: unknown;
 }
 export interface OutputRecommendationMetadata {

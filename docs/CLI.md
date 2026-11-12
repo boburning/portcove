@@ -1633,6 +1633,37 @@ the installed build) has restored the new live data, collection is suspended so 
 stale build copy can never overwrite the selected profile or resurrect a disabled
 mod.
 
+### Installing from GameBanana
+
+```text
+portcove --library PATH --json profile provider-plan PORT_ID PROFILE_ID PROJECT_ID FILE_ID > plan.json
+portcove --library PATH --json profile provider-apply PORT_ID PROFILE_ID plan.json --expected-plan SHA256 --yes
+```
+
+`provider-plan` needs a reviewed port-to-game binding (currently Ship of Harkinian,
+GameBanana game 16121) and a current provider observation; cached data from an
+outage never produces a plan. It refuses another game's project, an obsolete or
+archived file and a file the provider's scan reports as infected, and it checks the
+file type before downloading. It downloads privately (following only the provider's
+own hosts, enforcing the declared size), unwraps only `.o2r`/`.otr` members from a
+zip wrapper, inspects them without executing anything, and reports replacements and
+asset-path conflicts against the profile's enabled packages. The plan binds the
+computed SHA-256 of the actual bytes. The provider's MD5 and scan results are shown
+as unverified claims. A displayed version label does not identify bytes; the file ID
+and computed digest do.
+
+`portcove --library PATH --json profile provider-updates PORT_ID PROFILE_ID` is
+read-only. For each installed provider package it reports `current`, `newer_files`
+(with candidate file IDs in ascending order), `installed_file_removed` or
+`unavailable`. `version_changed: false` with `newer_files` means files changed under
+an unchanged version label. Several candidates are an ambiguous choice and are never
+resolved by name; an outage reports `unavailable`, never "no update".
+
+`provider-apply` takes the saved plan and its `plan_sha256`, asks for confirmation
+(or `--yes`), and installs exactly the reviewed bytes under a one-use authorization.
+Altered staged bytes, a tampered plan or a newer profile revision refuse without
+changing anything. Reviewed-but-unapplied staging is removed after a day.
+
 Library metadata schema 6 carries profiles, revisions and the selected profile; it is
 emitted only when profiles exist and import validates each profile against its
 retained reference before writing. Precedence between packages that provide the same

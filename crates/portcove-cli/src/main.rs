@@ -623,7 +623,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
     .transpose()?;
     match cli.command {
         Commands::Profile { command } => {
-            profile::execute(command, &service, mode)?;
+            profile::execute(command, &service, mode, cli.non_interactive).await?;
         }
         Commands::Setup { command } => {
             setup::execute(command, &service, mode, cli.non_interactive).await?;
