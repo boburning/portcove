@@ -343,11 +343,11 @@ pub use service::{
     ManagedRouteChangePreview, ManagedRouteChangeResult, PORT_INTENT_FORMAT_VERSION,
     PendingSetupRecord, PendingSetupState, PlayerDataProtection, PortCapabilityFeature,
     PortCapabilityNotice, PortCapabilityReport, PortCapabilityRoute, PortIntent,
-    PortIntentAssessment, PortIntentAssessments, PortIntentMode, PortReadiness,
-    PortReadinessAcknowledgement, PortRemovalPreview, PortcoveService, ProtectionDeclaration,
-    QUIVER_FORMAT_REVISION, ROOT_SETUP_FORMAT_VERSION, RootSetupConsent, RootSetupEnrollment,
-    RootSetupFailure, RootSetupImplementation, RootSetupWaiting, SetupLaunchTarget,
-    SetupLaunchTargets, StandingSetupFailure, StandingSetupResult,
+    PortIntentAssessment, PortIntentAssessments, PortIntentMode, PortIntentSource, PortMaintenance,
+    PortReadiness, PortReadinessAcknowledgement, PortRemovalPreview, PortcoveService,
+    ProtectionDeclaration, QUIVER_FORMAT_REVISION, ROOT_SETUP_FORMAT_VERSION, RootSetupConsent,
+    RootSetupEnrollment, RootSetupFailure, RootSetupImplementation, RootSetupWaiting,
+    SetupLaunchTarget, SetupLaunchTargets, StandingSetupFailure, StandingSetupResult,
 };
 pub use signed_catalog::{
     CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope, SignedCatalogPayload,

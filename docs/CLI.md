@@ -771,12 +771,37 @@ the Library and installs it without another confirmation when it is ready.
 an authorization. Adding a folder or saving a game never chooses a mode for
 you, and choosing another mode withdraws standing setup.
 
+A notify or set-up-when-ready choice remembers the game's release channel and
+the registered copy of its own files at the moment you choose. (Shared
+prerequisites such as a BIOS are checked by the ordinary install review.) If a
+different copy is registered later, the chosen copy is removed, or the game's
+channel changes, the game waits with that reason instead of being set up from something
+you didn't choose; choosing the mode again accepts the current files and
+channel. A choice made before any files were registered uses the first files
+that arrive.
+
 `games intents` reassesses every notify or set-up-when-ready choice with the
 ordinary first-install planner and changes nothing. New or changed files,
 catalog contracts and tools are reflected without selecting the files again.
 Each game shows `installed`, `ready` with its plan digest, or `waiting` with the
 reason. `games intents-acknowledge --item PORT_ID=PLAN_SHA256` marks a ready
 game as seen. It is reported again only when its ready plan changes.
+
+For an installed game, `installed` also shows its maintenance state under its
+own saved channel and update policy: the active version, the earlier version
+Portcove keeps (whether a rollback to it is allowed is shown by the game's
+actions), whether the game is busy (running, launch recovery pending, an update
+downloading or verifying, or an unfinished install, update or data change), any
+staged version,
+and the newer release the last update check found for exactly this installed
+version, artifact and runtime on that channel, if any. A check made before an
+update, reinstall, rollback or channel change no longer counts, and a release
+that is already staged is shown as staged, not available. A notify-mode game is
+reported once per newly available release; acknowledge it
+with that release's SHA-256 as `PLAN_SHA256`. Assessing reads saved state only:
+it doesn't check for updates, download, stage or activate anything. The
+existing update check and update policy own those, and standing setup never
+updates a game.
 
 `games setup-ready` runs one standing-setup pass. Each set-up-when-ready game
 that is ready gets its own one-game batch. Before the batch starts, Portcove
@@ -785,6 +810,18 @@ authorized. It is never launched, and an installed game is never reinstalled or
 updated. A failed or interrupted attempt is not retried with the same plan; it
 becomes eligible again when the plan changes. Uninstalling a game is
 remembered, so it is not set up or reported again until you choose a mode for it.
+Each pass first settles setup batches left mid-run by an interruption, against
+committed state, before starting anything: an install that was committed counts
+as ready, and a game with nothing committed and no unfinished install or update
+journal is marked interrupted. A game whose earlier work hasn't finished
+recovering stays in progress and waits with that reason; nothing new starts for
+it and nothing is counted. Only batches whose in-progress games are all
+set-up-when-ready games are settled this way; other interrupted batches stay in
+progress for you to continue with `games batch-resume`. For a set-up-when-ready
+game an interruption counts as a failed attempt with that plan, so it is set up afresh (re-planned and freshly authorized) on the next
+pass, and repeated interruptions stop at the same three-attempt limit. Batches
+another process is still running, and games another operation holds, are left
+alone.
 The desktop app runs the same pass after a library opens, after the catalog or
 registered files change, and after a choice is saved. Only one pass runs at a
 time across windows and the CLI; a busy pass is tried again about 30 seconds

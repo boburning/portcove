@@ -938,6 +938,10 @@ export type PortIntentMode = "discover_only" | "notify" | "set_up_when_ready" | 
 export type PortReadiness =
   | {
       install_id: string;
+      /**
+       * The installed game's maintenance state under its own update policy.
+       */
+      maintenance?: PortMaintenance | null;
       state: "installed";
       [k: string]: unknown;
     }
@@ -5289,6 +5293,11 @@ export interface PortIntent {
    */
   acknowledged_plan_sha256?: string | null;
   /**
+   * The release channel chosen with this choice. A different channel later
+   * waits for the player to choose again.
+   */
+  channel?: ReleaseChannel | null;
+  /**
    * Set when the player uninstalled the game. Standing setup and
    * notifications stay quiet until the player chooses a mode again.
    */
@@ -5304,7 +5313,21 @@ export interface PortIntent {
   format_version: number;
   mode: PortIntentMode;
   port_id: string;
+  /**
+   * The registered copies of this game's files when the choice was made.
+   * A different or removed copy later waits for the player; it is never
+   * silently retargeted. Empty when no files were registered yet: the first
+   * files that arrive are used.
+   */
+  sources?: PortIntentSource[];
   updated_at: number;
+}
+/**
+ * One registered copy a remembered choice is bound to.
+ */
+export interface PortIntentSource {
+  profile_id: string;
+  sha256: string;
 }
 export interface OutputDesktopPortIntentAssessments {
   assessments: PortIntentAssessment[];
@@ -5317,7 +5340,8 @@ export interface OutputDesktopPortIntentAssessments {
 export interface PortIntentAssessment {
   mode: PortIntentMode;
   /**
-   * Ready with a plan the player has not been told about yet.
+   * Ready with a plan, or installed with an update, the player has not
+   * been told about yet.
    */
   newly_ready: boolean;
   port_id: string;
@@ -5326,6 +5350,42 @@ export interface PortIntentAssessment {
    * Why this intent will not act or notify right now, if it won't.
    */
   suppressed?: string | null;
+  [k: string]: unknown;
+}
+/**
+ * An installed game's maintenance state, read from its saved channel and
+ * update policy and its last update check. Assessing it downloads, stages or
+ * activates nothing; the existing update check and policy own that.
+ */
+export interface PortMaintenance {
+  active_version: string;
+  /**
+   * Identity of that release, used to announce it once.
+   */
+  available_sha256?: string | null;
+  /**
+   * A newer release the last check found on this channel, if any.
+   */
+  available_version?: string | null;
+  /**
+   * The game is running or its launch must recover, an update is
+   * downloading or verifying, or an install, update or data change for it
+   * is unfinished or must recover; maintenance waits for it.
+   */
+  busy?: boolean;
+  channel: ReleaseChannel;
+  /**
+   * When updates were last checked for this install on this channel;
+   * `None` means not yet.
+   */
+  checked_at?: number | null;
+  /**
+   * The earlier version Portcove keeps for this game, if any. Whether a
+   * rollback to it is allowed right now is decided by the game's actions.
+   */
+  previous_version?: string | null;
+  staged_version?: string | null;
+  update_policy: UpdatePolicy;
   [k: string]: unknown;
 }
 export interface RootSetupConsent {

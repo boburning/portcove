@@ -33,7 +33,11 @@ export function ReadyGameNotices({
           setReady(
             assessed.assessments.filter(
               (item) =>
-                item.mode === "notify" && item.newly_ready && item.readiness.state === "ready",
+                item.mode === "notify" &&
+                item.newly_ready &&
+                (item.readiness.state === "ready" ||
+                  (item.readiness.state === "installed" &&
+                    Boolean(item.readiness.maintenance?.available_sha256))),
             ),
           );
         })
@@ -47,11 +51,15 @@ export function ReadyGameNotices({
   if (!ready.length) return null;
   const name = (id: string) => ports.find((port) => port.id === id)?.name ?? id;
   const dismiss = async (items: PortIntentAssessment[]) => {
-    const acknowledgements = items.flatMap((item) =>
-      item.readiness.state === "ready"
-        ? [{ port_id: item.port_id, plan_sha256: item.readiness.plan_sha256 }]
-        : [],
-    );
+    const acknowledgements = items.flatMap((item) => {
+      const key =
+        item.readiness.state === "ready"
+          ? item.readiness.plan_sha256
+          : item.readiness.state === "installed"
+            ? item.readiness.maintenance?.available_sha256
+            : undefined;
+      return key ? [{ port_id: item.port_id, plan_sha256: key }] : [];
+    });
     try {
       await desktopApi.acknowledgePortReadiness(acknowledgements, generation);
       if (owner.current === generation)
@@ -61,19 +69,23 @@ export function ReadyGameNotices({
     }
   };
   return (
-    <section aria-label="Games ready to install" role="status" className="col-span-full">
-      <h3>Ready to install</h3>
+    <section aria-label="Games ready for you" role="status" className="col-span-full">
+      <h3>Ready for you</h3>
       <ul>
         {ready.map((item) => (
           <li key={item.port_id}>
-            <strong>{name(item.port_id)}</strong> is ready to install.{" "}
+            <strong>{name(item.port_id)}</strong>{" "}
+            {item.readiness.state === "installed"
+              ? `has an update available: ${item.readiness.maintenance?.available_version ?? "a newer version"}. Nothing was downloaded or changed.`
+              : "is ready to install."}{" "}
             {onOpenPort && (
               <Button
                 data-focusable
                 variant="link"
                 onClick={() => onOpenPort(item.port_id, "ready-game-notices")}
               >
-                Review {name(item.port_id)} setup
+                Review {name(item.port_id)}{" "}
+                {item.readiness.state === "installed" ? "update" : "setup"}
               </Button>
             )}
             <Button data-focusable variant="ghost" onClick={() => void dismiss([item])}>

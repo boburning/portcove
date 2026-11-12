@@ -1023,7 +1023,44 @@ pub(crate) fn port_intent(intent: &portcove_core::PortIntent) -> String {
 fn port_readiness_line(assessment: &portcove_core::PortIntentAssessment) -> String {
     use portcove_core::PortReadiness;
     let state = match &assessment.readiness {
-        PortReadiness::Installed { .. } => "installed".to_owned(),
+        PortReadiness::Installed { maintenance, .. } => match maintenance {
+            Some(maintenance) => {
+                let mut text = format!(
+                    "installed {} ({} channel, updates: {})",
+                    clean(&maintenance.active_version),
+                    maintenance.channel,
+                    maintenance.update_policy
+                );
+                if maintenance.busy {
+                    text.push_str(
+                        "; busy until the running game or earlier work finishes or recovers",
+                    );
+                }
+                if let Some(previous) = &maintenance.previous_version {
+                    text.push_str(&format!(
+                        "; keeps {} as the previous version",
+                        clean(previous)
+                    ));
+                }
+                if let Some(staged) = &maintenance.staged_version {
+                    text.push_str(&format!("; {} is staged", clean(staged)));
+                }
+                match (&maintenance.available_version, maintenance.checked_at) {
+                    (Some(available), _) => {
+                        text.push_str(&format!("; update {} available", clean(available)))
+                    }
+                    (None, Some(_)) if maintenance.staged_version.is_some() => {
+                        text.push_str("; the staged version is ready to apply")
+                    }
+                    (None, Some(_)) => text.push_str("; up to date at the last check"),
+                    (None, None) => {
+                        text.push_str("; updates not checked for this version and channel yet")
+                    }
+                }
+                text
+            }
+            None => "installed".to_owned(),
+        },
         PortReadiness::Ready {
             version,
             plan_sha256,
