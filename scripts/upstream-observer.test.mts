@@ -998,6 +998,31 @@ void test("deferred checkpoints honor retry clocks without requests and mismatch
   );
 });
 
+void test("unexpected observer failures retain only their error class", async () => {
+  const thrown = [
+    [new TypeError("token ghp_secret in provider text"), "TypeError"],
+    [Object.assign(new Error("aborted"), { name: "AbortError" }), "AbortError"],
+    [Object.assign(new Error("odd"), { name: "not a <name>" }), "unrecognized"],
+  ] as const;
+  for (const [error, name] of thrown) {
+    const outcome = await advanceObservation(config, null, {
+      fetch: fixture().fetch,
+      project: async () => {
+        throw error;
+      },
+    });
+    const exception: unknown = outcome.report.exception;
+    assert.ok(isRecord(exception) && typeof exception.details === "string");
+    assert.equal(exception.rule, "core-or-observer-failure");
+    assert.equal(
+      exception.details,
+      `Observation or core policy inspection failed (${name}); inspect this run's retained evidence.`,
+    );
+    assert.doesNotMatch(exception.details, /secret|provider text|aborted|odd/u);
+    assert.equal(outcome.notify_exception, true);
+  }
+});
+
 void test("live monitoring policy retains valid artifact and endpoint contract bindings", async () => {
   const policy = validateHealthAccountingPolicy(
     JSON.parse(
