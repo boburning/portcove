@@ -28,6 +28,7 @@ import englishBrowsing from "./locales/en/browsing.json";
 import englishCommands from "./locales/en/commands.json";
 import englishOperations from "./locales/en/operations.json";
 import englishCommon from "./locales/en/common.json";
+import englishGameFiles from "./locales/en/gameFiles.json";
 import englishCounts from "./locales/en/counts.json";
 import englishSettings from "./locales/en/settings.json";
 import englishShell from "./locales/en/shell.json";
@@ -43,6 +44,7 @@ import engineeringBrowsing from "./locales/ar-XB/browsing.json";
 import engineeringCommands from "./locales/ar-XB/commands.json";
 import engineeringOperations from "./locales/ar-XB/operations.json";
 import engineeringCommon from "./locales/ar-XB/common.json";
+import engineeringGameFiles from "./locales/ar-XB/gameFiles.json";
 import engineeringSettings from "./locales/ar-XB/settings.json";
 import engineeringShell from "./locales/ar-XB/shell.json";
 import type { LocalePreferenceSnapshot } from "./types";
@@ -61,6 +63,7 @@ import draftSpanishBrowsing from "./locales/es/browsing.json";
 import draftSpanishCommands from "./locales/es/commands.json";
 import draftSpanishOperations from "./locales/es/operations.json";
 import draftSpanishCommon from "./locales/es/common.json";
+import draftSpanishGameFiles from "./locales/es/gameFiles.json";
 
 const supportedLocales = ["en", "ar-XB"] as const;
 export type SupportedLocale = (typeof supportedLocales)[number];
@@ -139,6 +142,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(englishCommands, "commands");
   assertCatalog(englishOperations, "operations");
   assertCatalog(englishCommon, "common");
+  assertCatalog(englishGameFiles, "gameFiles");
   assertCatalog(engineeringSettings);
   assertCatalog(engineeringShell, "shell");
   assertCatalog(engineeringApplicationUpdate, "applicationUpdate");
@@ -153,6 +157,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(engineeringCommands, "commands");
   assertCatalog(engineeringOperations, "operations");
   assertCatalog(engineeringCommon, "common");
+  assertCatalog(engineeringGameFiles, "gameFiles");
   assertCatalog(draftSpanishSettings, "es.settings");
   assertCatalog(draftSpanishCounts, "es.counts");
   assertCatalog(draftSpanishShell, "es.shell");
@@ -168,6 +173,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(draftSpanishCommands, "es.commands");
   assertCatalog(draftSpanishOperations, "es.operations");
   assertCatalog(draftSpanishCommon, "es.common");
+  assertCatalog(draftSpanishGameFiles, "es.gameFiles");
   if (!i18next.isInitialized) {
     void i18next.use(initReactI18next).init({
       lng: resolveLocale(null, initialLocales),
@@ -189,6 +195,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
         "commands",
         "operations",
         "common",
+        "gameFiles",
       ],
       defaultNS: "settings",
       resources: {
@@ -208,6 +215,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           commands: englishCommands,
           operations: englishOperations,
           common: englishCommon,
+          gameFiles: englishGameFiles,
         },
         "ar-XB": {
           settings: engineeringSettings,
@@ -224,6 +232,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           commands: engineeringCommands,
           operations: engineeringOperations,
           common: engineeringCommon,
+          gameFiles: engineeringGameFiles,
         },
         // Unreviewed draft pilot (#1028): bundled for review and engineering
         // fixtures only. resolveLocale never selects it and the picker omits it.
@@ -243,6 +252,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           commands: draftSpanishCommands,
           operations: draftSpanishOperations,
           common: draftSpanishCommon,
+          gameFiles: draftSpanishGameFiles,
         },
       },
       initAsync: false,

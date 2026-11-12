@@ -26,7 +26,7 @@ fn text<'a>(file: &GameSettingsFile, bytes: &'a [u8]) -> Result<&'a str> {
     Ok(text)
 }
 
-fn json_document(text: &str) -> Result<Value> {
+pub(crate) fn json_document(text: &str) -> Result<Value> {
     let UniqueValue(document) = serde_json::from_str(text)
         .map_err(|_| invalid("configuration must be JSON with unique object keys"))?;
     if !document.is_object() {
@@ -37,7 +37,7 @@ fn json_document(text: &str) -> Result<Value> {
 
 // Libultraship flattens nested object keys using dots. Refuse an alternate
 // spelling of a declared key instead of writing a second competing CVar.
-fn refuse_json_aliases(document: &Value, key: &[String]) -> Result<()> {
+pub(crate) fn refuse_json_aliases(document: &Value, key: &[String]) -> Result<()> {
     fn visit(value: &Value, path: &mut Vec<String>, key: &[String]) -> Result<()> {
         if path.as_slice() != key && path.join(".") == key.join(".") {
             return Err(invalid(

@@ -91,6 +91,7 @@ mod disc_product;
 mod gamebanana;
 mod mod_package;
 mod mod_provider;
+mod native_mod_list;
 mod profile;
 mod profile_deploy;
 mod provider_install;
@@ -305,7 +306,7 @@ pub use profile::{
     ProfileUpdatePolicy, ProfileView, ProviderPackageRef, RequestedPackage, ResolvedPackage,
     TypedOrdering,
 };
-pub use profile_deploy::LiveMods;
+pub use profile_deploy::{LiveMods, ModSetupsView, NativeModListStatus};
 pub use provider_install::{PlanMember, ProviderInstallPlan};
 pub use provider_update::{ProviderUpdateObservation, ProviderUpdateState};
 pub use providers::CompositeReleaseProvider;

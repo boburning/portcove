@@ -113,6 +113,11 @@ pub(crate) enum ProfileCommand {
         /// Catalog port ID.
         port_id: String,
     },
+    /// Show whether a game supports mod setups, its setups and what is live now.
+    Setups {
+        /// Catalog port ID.
+        port_id: String,
+    },
     /// Export a profile revision as a shareable recipe: identity only, no files or saves.
     RecipeExport {
         /// Catalog port ID owning the profile.
@@ -204,6 +209,7 @@ impl ProfileCommand {
             Self::SetPackage { .. } => "profile.set-package",
             Self::Activate { .. } => "profile.activate",
             Self::Live { .. } => "profile.live",
+            Self::Setups { .. } => "profile.setups",
             Self::RecipeExport { .. } => "profile.recipe-export",
             Self::RecipeInspect { .. } => "profile.recipe-inspect",
             Self::RecipePlan { .. } => "profile.recipe-plan",
@@ -220,12 +226,63 @@ impl ProfileCommand {
             Self::List { .. }
                 | Self::Revisions { .. }
                 | Self::Live { .. }
+                | Self::Setups { .. }
                 | Self::RecipeExport { .. }
                 | Self::RecipeInspect { .. }
                 | Self::RecipePlan { .. }
                 | Self::ProviderUpdates { .. }
         )
     }
+}
+
+fn live_text(live: &portcove_core::LiveMods) -> String {
+    let native = match &live.native_list {
+        portcove_core::NativeModListStatus::NotApplicable
+        | portcove_core::NativeModListStatus::InSync => None,
+        portcove_core::NativeModListStatus::NotWritten => {
+            Some("The game's mod list is written before the next launch.".to_owned())
+        }
+        portcove_core::NativeModListStatus::Reordered { native_order } => Some(format!(
+            "Mods were reordered in the game: {}",
+            native_order
+                .iter()
+                .map(|name| clean(name))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )),
+        portcove_core::NativeModListStatus::Differs {
+            missing,
+            unexpected,
+        } => Some(format!(
+            "The game's mod list differs (missing: {}; not enabled: {}); it is rewritten before the next launch.",
+            missing
+                .iter()
+                .map(|name| clean(name))
+                .collect::<Vec<_>>()
+                .join(", "),
+            unexpected
+                .iter()
+                .map(|name| clean(name))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )),
+        portcove_core::NativeModListStatus::Unreadable { reason } => Some(format!(
+            "The game's configuration could not be read and is left unchanged: {}",
+            clean(reason)
+        )),
+    };
+    let mut lines = Vec::new();
+    if live.unmanaged.is_empty() && live.changed_owned.is_empty() {
+        lines.push("Live mods match the selected profile.".to_owned());
+    } else {
+        lines.push(format!(
+            "Unmanaged files: {}\nChanged installed files: {}",
+            live.unmanaged.join(", "),
+            live.changed_owned.join(", ")
+        ));
+    }
+    lines.extend(native);
+    lines.join("\n")
 }
 
 fn read_recipe(path: &PathBuf) -> Result<portcove_core::ProfileRecipe> {
@@ -534,16 +591,33 @@ pub(crate) async fn execute(
             |revision| format!("Profile active\n{}", revision_line(revision)),
         ),
         ProfileCommand::Live { port_id } => {
-            render_read_success(mode, name, service.observe_live_mods(&port_id)?, |live| {
-                if live.unmanaged.is_empty() && live.changed_owned.is_empty() {
-                    "Live mods match the selected profile.".into()
-                } else {
-                    format!(
-                        "Unmanaged files: {}\nChanged installed files: {}",
-                        live.unmanaged.join(", "),
-                        live.changed_owned.join(", ")
-                    )
+            render_read_success(mode, name, service.observe_live_mods(&port_id)?, live_text)
+        }
+        ProfileCommand::Setups { port_id } => {
+            render_read_success(mode, name, service.mod_setups(&port_id)?, |view| {
+                if !view.supported {
+                    return "This game has no reviewed mod support.".into();
                 }
+                let Some(inventory) = &view.inventory else {
+                    return "No setups yet; the installed game gets its default setup first."
+                        .into();
+                };
+                let mut lines = inventory
+                    .profiles
+                    .iter()
+                    .map(|entry| {
+                        format!(
+                            "{} ({}) revision {}",
+                            clean(&entry.profile.display_name),
+                            clean(&entry.profile.id),
+                            entry.profile.current_revision
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                if let Some(live) = &view.live {
+                    lines.push(live_text(live));
+                }
+                lines.join("\n")
             })
         }
         ProfileCommand::RecipeExport {

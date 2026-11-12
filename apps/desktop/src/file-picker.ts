@@ -12,6 +12,15 @@ export function pickArtworkPath() {
   });
 }
 
+export function pickModPackagePath(packageTypes: string[]) {
+  return open({
+    title: "Choose a mod file",
+    multiple: false,
+    directory: false,
+    filters: [{ name: "Mod package", extensions: packageTypes }],
+  });
+}
+
 export async function pickSourcePath(
   profile: SourceProfile,
   currentPath: string,

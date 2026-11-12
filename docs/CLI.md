@@ -1717,8 +1717,13 @@ portcove --library PATH --json profile install-package PORT_ID PROFILE_ID FILE -
 portcove --library PATH --json profile set-package PORT_ID PROFILE_ID NATIVE_ID on|off --expected-revision N
 portcove --library PATH --json profile activate PORT_ID PROFILE_ID
 portcove --library PATH --json profile live PORT_ID
+portcove --library PATH --json profile setups PORT_ID
 portcove --library PATH --json profile revise PORT_ID PROFILE_ID REQUEST.json
 ```
+
+`setups` is read-only and reports in one result whether the game has reviewed mod
+support (`supported`), the package types it loads, its profiles and what is live
+now; Desktop's Setups and mods view reads the same result.
 
 `ensure-default` gives an installed port its equivalent default profile and is safe
 to repeat; a player with one setup needs nothing else. `copy` starts a new profile
@@ -1743,6 +1748,43 @@ merging or losing either profile's data. Until launch (or an immediate refresh o
 the installed build) has restored the new live data, collection is suspended so a
 stale build copy can never overwrite the selected profile or resurrect a disabled
 mod.
+
+### The game's own mod list
+
+Ship of Harkinian keeps its enabled mods and their order in the
+`gSettings.EnabledMods` entry of `shipofharkinian.json`, naming each mod by its file
+name without the extension. At startup it enables every `.o2r`/`.otr` in `mods` that
+the list does not name, so a disabled package must be absent from the folder (which
+Portcove ensures) and the profile's order takes effect only when written into the
+list. Portcove writes that entry from the selected revision after every change,
+switch and before each launch, keeping every other key in the file. The
+`asset-override` order is the list order; the game adds archives in that order and
+the last one providing an asset wins. Only the profile's own entries are rewritten:
+entries for mods the player placed in `mods` themselves keep their positions.
+Installing a package the game would load as an installed mod (the same name without
+extension, ignoring case, such as `HD Link.o2r` for `HD Link.otr`) replaces it and
+keeps its place in the order; `provider-plan` reports it under `replaces`. Two such
+packages in one provider file, and names containing `|<>"?*`, are refused before
+anything is authorized. A revision the game could not load unambiguously is refused
+when it is created, including a new profile from a recipe (whose plan holds it), and
+a switch to an older revision with such packages refuses before anything is parked.
+
+`profile live` reports `native_list`: `in-sync`, `not-written`, `reordered`,
+`differs` (with `missing` and `unexpected` names) or `unreadable`. A reorder made in
+the game's mod menu (the same mods in another order) is kept as the profile's next
+revision when supervised play ends (or, if that cannot be recorded, at the next
+profile change or launch). A revision created this way changes only the order, so
+an install, a mod turned on or off, or a provider plan reviewed against the earlier
+revision still applies; any other newer revision makes it refuse. Any other difference among the profile's own entries, such as a mod
+disabled in the game's menu (which the game would re-enable at its next start), is
+reported and rewritten from the revision before the next launch. An unreadable or
+unexpectedly shaped configuration is never rewritten: the game itself discards a
+configuration it cannot parse.
+
+These behaviors come from Shipwright 9.2.3 (`cb71e22a`) and 9.3.1 (`f0599f96`)
+and libultraship (`fdcaf633`) source; they have not yet been observed in a running
+game. The catalog follows the latest Shipwright release, so a change to this list
+upstream needs a new review.
 
 ### Installing from GameBanana
 
@@ -1772,8 +1814,8 @@ resolved by name; an outage reports `unavailable`, never "no update".
 
 `provider-apply` takes the saved plan and its `plan_sha256`, asks for confirmation
 (or `--yes`), and installs exactly the reviewed bytes under a one-use authorization.
-Altered staged bytes, a tampered plan or a newer profile revision refuse without
-changing anything. Reviewed-but-unapplied staging is removed after a day.
+Altered staged bytes, a tampered plan or a newer profile revision that changed more
+than the mod order refuse without changing anything. Reviewed-but-unapplied staging is removed after a day.
 
 ### Recipes
 
@@ -1816,8 +1858,8 @@ recipe's identity exactly; that is not evidence of gameplay or save compatibilit
 Library metadata schema 6 carries profiles, revisions and the selected profile; it is
 emitted only when profiles exist and import validates each profile against its
 retained reference before writing. Precedence between packages that provide the same
-asset path (`asset-override` ordering) follows the supplied order, last wins; this
-is an unverified loader assumption until confirmed against the real loader.
+asset path (`asset-override` ordering) follows the supplied order, last wins (see
+[the game's own mod list](#the-games-own-mod-list)).
 
 ## Retained builds and setup references
 
