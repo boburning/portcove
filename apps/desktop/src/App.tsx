@@ -2014,6 +2014,45 @@ function AdoptionOverlay({
             }
           }}
           choose={(entry) => launcher.choose(entry, setPath)}
+          reviewBatch={(items) =>
+            operations.perform(
+              "review several launcher apps",
+              () => desktopApi.previewAdoptionBatch(items, libraryGeneration),
+              {
+                refresh: "none",
+                invalidateDiagnostics: false,
+                context: targetInvocationContext(
+                  "Review copying several apps",
+                  {
+                    kind: "source",
+                    id: items.map((item) => item.source).join("\n"),
+                    label: "Selected launcher apps",
+                  },
+                  libraryGeneration,
+                  "library",
+                ),
+              },
+            )
+          }
+          copyBatch={(items, batchSha256) =>
+            operations.perform(
+              "adopt",
+              () => desktopApi.adoptBatch(items, batchSha256, libraryGeneration),
+              {
+                cancelledResult: (value) => value === null,
+                context: targetInvocationContext(
+                  "Copy several apps",
+                  {
+                    kind: "source",
+                    id: items.map((item) => item.source).join("\n"),
+                    label: "Selected launcher apps",
+                  },
+                  libraryGeneration,
+                  "library",
+                ),
+              },
+            )
+          }
         />
       }
       review={(selectedPortId) => {

@@ -3,7 +3,8 @@ use crate::{
     DesktopResult, DesktopState, blocking_worker, confirm_destructive, service_at_generation,
 };
 use portcove_core::{
-    AdoptionPreview, InstallRecord, LauncherKind, LauncherLibraryInventory, PortcoveError,
+    AdoptionBatchItem, AdoptionBatchPreview, AdoptionBatchResult, AdoptionPreview, InstallRecord,
+    LauncherKind, LauncherLibraryInventory, PortcoveError,
 };
 use std::path::PathBuf;
 
@@ -103,6 +104,111 @@ pub(crate) async fn adopt_port(
     .await
 }
 
+/// One generation-bound review of several existing installations.
+#[tauri::command]
+pub(crate) async fn preview_adoption_batch(
+    state: tauri::State<'_, DesktopState>,
+    items: Vec<AdoptionBatchItem>,
+    generation: u64,
+) -> DesktopResult<AdoptionBatchPreview> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .preview_adoption_batch(&items)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+/// Re-reviews the batch, asks once natively, then copies each unchanged item
+/// through Core's ordinary adoption. `None` means the player declined.
+#[tauri::command]
+pub(crate) async fn adopt_batch(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, DesktopState>,
+    items: Vec<AdoptionBatchItem>,
+    generation: u64,
+    batch_sha256: String,
+) -> DesktopResult<Option<AdoptionBatchResult>> {
+    let preview = preview_adoption_batch(state.clone(), items.clone(), generation).await?;
+    if preview.batch_sha256 != batch_sha256 {
+        return Err(PortcoveError::conflict(
+            "an installation or its destination changed after review; review the batch again",
+        )
+        .into());
+    }
+    let names = {
+        let state = state.inner().clone();
+        let ids = items
+            .iter()
+            .map(|item| item.port_id.clone())
+            .collect::<Vec<_>>();
+        blocking_worker(move || {
+            let service = service_at_generation(&state, generation)?;
+            Ok(ids
+                .iter()
+                .map(|id| {
+                    service
+                        .catalog()
+                        .port(id)
+                        .map(|port| format!("{} ({id})", port.name))
+                        .unwrap_or_else(|_| id.clone())
+                })
+                .collect::<Vec<_>>())
+        })
+        .await?
+    };
+    if !confirm_destructive(
+        &app,
+        "Copy several existing installations?",
+        batch_disclosure(&preview, &names),
+        "Copy into Portcove",
+    )
+    .await
+    {
+        return Ok(None);
+    }
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        let authorization = service.authorize_adoption_batch(&items, &preview.batch_sha256)?;
+        service
+            .adopt_batch(&items, &preview, &authorization.token)
+            .map(Some)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+fn batch_disclosure(preview: &AdoptionBatchPreview, names: &[String]) -> String {
+    const SHOWN_ITEMS: usize = 8;
+    let listed = preview
+        .items
+        .iter()
+        .take(SHOWN_ITEMS)
+        .zip(names)
+        .map(|(item, name)| format!("- {name}: {} files", item.copy_plan.files.len()))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let more = preview.items.len().saturating_sub(SHOWN_ITEMS);
+    let more = match more {
+        0 => String::new(),
+        1 => "\n- and 1 more installation".to_owned(),
+        _ => format!("\n- and {more} more installations"),
+    };
+    let saved = match preview.items_replacing_saved_files {
+        0 => "No saved files already in Portcove are replaced.".to_owned(),
+        1 => "For 1 game, matching saved files already in Portcove are replaced. Portcove does not create a backup first, and removing the copy later does not restore them.".to_owned(),
+        count => format!("For {count} games, matching saved files already in Portcove are replaced. Portcove does not create a backup first, and removing a copy later does not restore them."),
+    };
+    format!(
+        "Copy {} installations ({} files, {} bytes) into Portcove?\n\n{listed}{more}\n\n{saved}\n\nEach installation is checked again just before it is copied; one that changed is held, not copied. Each copy becomes that game's active version; existing versions and backups remain. The original folders are not modified.",
+        preview.items.len(),
+        preview.total_files,
+        preview.total_bytes,
+    )
+}
+
 fn saved_data_disclosure(paths: &[PathBuf]) -> String {
     if paths.is_empty() {
         return "No catalog-selected saved-data paths will be imported from this folder."
@@ -163,5 +269,51 @@ mod tests {
             unsupported_items_disclosure(3),
             "3 unsupported items will remain only in the original folder."
         );
+    }
+}
+
+#[cfg(test)]
+mod batch_tests {
+    use super::batch_disclosure;
+    use portcove_core::AdoptionBatchPreview;
+
+    fn preview(items: usize, replacing: usize) -> AdoptionBatchPreview {
+        serde_json::from_value(serde_json::json!({
+            "items": (0..items).map(|index| serde_json::json!({
+                "source": format!("/apps/{index}"),
+                "detected_port_ids": ["p"],
+                "selected_port_id": "p",
+                "application_files_will_be_copied": true,
+                "original_will_be_modified": false,
+                "copy_plan": {"directories": [], "files": [], "skipped_entries": [], "total_bytes": 0},
+                "destination": null,
+                "plan_sha256": "0".repeat(64),
+            })).collect::<Vec<_>>(),
+            "total_files": 3,
+            "total_bytes": 10,
+            "items_replacing_saved_files": replacing,
+            "original_will_be_modified": false,
+            "batch_sha256": "0".repeat(64),
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn batch_confirmation_names_games_and_discloses_saved_file_replacement() {
+        let names = (0..10)
+            .map(|index| format!("Game {index} (g{index})"))
+            .collect::<Vec<_>>();
+        let none = batch_disclosure(&preview(2, 0), &names[..2]);
+        assert!(none.starts_with("Copy 2 installations (3 files, 10 bytes)"));
+        assert!(none.contains("- Game 0 (g0): 0 files\n- Game 1 (g1): 0 files"));
+        assert!(none.contains("No saved files already in Portcove are replaced."));
+        assert!(none.contains("The original folders are not modified."));
+        let one = batch_disclosure(&preview(2, 1), &names[..2]);
+        assert!(one.contains("For 1 game, matching saved files already in Portcove are replaced"));
+        assert!(one.contains("does not create a backup first"));
+        let many = batch_disclosure(&preview(10, 3), &names);
+        assert!(many.contains("For 3 games"));
+        assert!(many.contains("- and 2 more installations"));
+        assert!(!many.contains("Game 8"));
     }
 }

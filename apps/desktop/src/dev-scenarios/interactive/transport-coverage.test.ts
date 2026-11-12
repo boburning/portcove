@@ -17,7 +17,7 @@ const transportPath = fileURLToPath(new URL("./transport.ts", import.meta.url));
 // must NOT be listed here: give it a handler in transport.ts.
 const unsupportedByReason: Record<string, string[]> = {
   "mutation or native action the fixtures do not model; they never change the host": `
-    acquire_game_update activate_port add_game_file_root add_games_to_library add_source adopt_port
+    acquire_game_update activate_port add_game_file_root add_games_to_library add_source adopt_batch adopt_port
     apply_catalog_update apply_game_setting apply_game_update apply_steam_batch_add
     apply_steam_artwork apply_steam_entry begin_github_device_login
     cancel_application_update_check
@@ -49,7 +49,7 @@ const unsupportedByReason: Record<string, string[]> = {
   `.split(/\s+/),
   "review, plan or inspection step of a user-started flow the fixtures do not mount": `
     catalog_download_candidates check_definition_capabilities check_installed
-    check_port discover_setup_launch_targets discover_sources inspect_launcher_library
+    check_port discover_setup_launch_targets discover_sources inspect_launcher_library preview_adoption_batch
     inspect_source
     inspect_source_intake plan_catalog_update plan_game_update
     plan_game_update_acquisition plan_ghostship_legacy_recovery plan_library_import

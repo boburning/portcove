@@ -3249,6 +3249,8 @@ pub fn run() -> std::process::ExitCode {
             rollback_port,
             adoption::preview_adoption,
             adoption::inspect_launcher_library,
+            adoption::preview_adoption_batch,
+            adoption::adopt_batch,
             adoption::adopt_port,
             removal::preview_removal,
             removal::remove_port,

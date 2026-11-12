@@ -894,6 +894,7 @@ export type SourceImportOutcome =
 export type SourceInboxResolutionState =
   "registered" | "exact_match" | "approval_required" | "unresolved" | "conflict" | "incomplete";
 export type SourceReuseCompatibility = "listed_identity" | "potential" | "incompatible" | "unavailable";
+export type OutputDesktopAdoptionBatchResult = AdoptionBatchResult | null;
 export type OutputDesktopApplicationUpdateCheckPhase = "checking" | "acquiring-and-verifying" | "staged" | "complete";
 export type ApplicationChannel = "preview" | "stable";
 export type ApplicationUpdateCheckResultKind =
@@ -1010,7 +1011,7 @@ export interface TransportOutputs {
   activity: ActivityFeed;
   activity_diagnostic: OutputActivityDiagnostic;
   adoption_batch_preview: OutputAdoptionBatchPreview;
-  adoption_batch_result: OutputAdoptionBatchResult;
+  adoption_batch_result: AdoptionBatchResult;
   adoption_preview: AdoptionPreview;
   api_response_port_status: OutputApiResponsePortStatus;
   artwork_assets: OutputArtworkAssets;
@@ -1143,6 +1144,8 @@ export interface TransportOutputs {
   update_check_forecast: OutputUpdateCheckForecast;
   update_snapshot: UpdateSnapshot;
   upstream_observation_report: OutputUpstreamObservationReport;
+  desktop_adoption_batch_preview: OutputAdoptionBatchPreview;
+  desktop_adoption_batch_result: OutputDesktopAdoptionBatchResult;
   desktop_application_update_check_phase: OutputDesktopApplicationUpdateCheckPhase;
   desktop_application_update_check_result: ApplicationUpdateCheckResult;
   desktop_application_update_manual_check_result: OutputDesktopApplicationUpdateManualCheckResult;
@@ -1394,7 +1397,7 @@ export interface PortOutputLocation {
   user_data_root: string;
   [k: string]: unknown;
 }
-export interface OutputAdoptionBatchResult {
+export interface AdoptionBatchResult {
   batch_sha256: string;
   items: AdoptionBatchItemResult[];
   [k: string]: unknown;

@@ -23,6 +23,7 @@ export type InputGameSettingChange =
   | {
       action: "reset";
     };
+export type InputDesktopAdoptionBatchItems = AdoptionBatchItem[];
 export type ApplicationChannel = "preview" | "stable";
 export type ApplicationUpdateMode = "automatic" | "notify-only" | "manual";
 export type InputDesktopApplicationUpdateProductionDecision = "use-stable" | "keep-preview";
@@ -140,6 +141,7 @@ export interface TransportInputs {
   game_setting_change: InputGameSettingChange;
   source_discovery_limits: SourceDiscoveryLimits;
   source_discovery_request: InputSourceDiscoveryRequest;
+  desktop_adoption_batch_items: InputDesktopAdoptionBatchItems;
   desktop_application_update_choice: InputDesktopApplicationUpdateChoice;
   desktop_application_update_download_request: InputDesktopApplicationUpdateDownloadRequest;
   desktop_application_update_manual_check_request: InputDesktopApplicationUpdateManualCheckRequest;
@@ -211,6 +213,17 @@ export interface SourceDiscoveryLimits1 {
   max_entries: number;
   max_file_bytes: number;
   max_hash_bytes: number;
+  [k: string]: unknown;
+}
+export interface AdoptionBatchItem {
+  /**
+   * Catalog port this folder is reviewed for.
+   */
+  port_id: string;
+  /**
+   * Existing installation folder to copy; it is never modified.
+   */
+  source: string;
   [k: string]: unknown;
 }
 export interface InputDesktopApplicationUpdateChoice {

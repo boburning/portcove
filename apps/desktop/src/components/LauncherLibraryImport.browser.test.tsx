@@ -6,6 +6,7 @@ import type { LauncherLibraryEntry, LauncherLibraryInventory } from "../types";
 import {
   LauncherLibraryImport,
   entryDetails,
+  launcherEntryCanBeBatched,
   launcherEntryCanBeReviewed,
 } from "./LauncherLibraryImport";
 
@@ -223,4 +224,61 @@ it("names saves, mod records and version labels without trusting them", () => {
   expect(entryDetails(entry({ mods: { records: 0, providers: [], readable: true } }))).toEqual([
     "No launcher mod records",
   ]);
+});
+
+it("offers only single-match ready apps for a several-app copy", () => {
+  expect(launcherEntryCanBeBatched(entry({}))).toBe(true);
+  expect(launcherEntryCanBeBatched(entry({ status: "ambiguous", adopt_port_id: null }))).toBe(
+    false,
+  );
+  expect(launcherEntryCanBeBatched(entry({ install_path: null }))).toBe(false);
+  expect(launcherEntryCanBeBatched(entry({ adopt_port_id: null }))).toBe(false);
+});
+
+it("selects launcher apps for a several-app copy with accessible checkboxes", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const twoReady: LauncherLibraryInventory = {
+    ...inventory,
+    entries: [
+      entry({}),
+      entry({
+        index: 1,
+        name: "Second",
+        folder_name: "Second",
+        install_path: "C:\\Apps\\Second",
+        adopt_port_id: "second",
+      }),
+    ],
+    skipped_entries: [],
+  };
+  const reviewBatch = vi.fn(async () => undefined);
+  try {
+    await act(async () =>
+      root.render(
+        <LauncherLibraryImport
+          disabled={false}
+          inspect={async () => twoReady}
+          choose={vi.fn()}
+          reviewBatch={reviewBatch}
+          copyBatch={vi.fn(async () => null)}
+        />,
+      ),
+    );
+    await page.getByText("Moving from GitHub Launcher or Quiver?").click();
+    await userEvent.fill(page.getByLabelText("GitHub Launcher data folder"), "C:\\GHL");
+    await page.getByRole("button", { name: "List apps", exact: true }).click();
+    await page.getByRole("checkbox", { name: "Select Game to copy with others" }).click();
+    await page.getByRole("checkbox", { name: "Select Second to copy with others" }).click();
+    await page.getByRole("button", { name: "Review copying 2 apps" }).click();
+    expect(reviewBatch).toHaveBeenCalledWith([
+      { source: "C:\\Apps\\Game", port_id: "game" },
+      { source: "C:\\Apps\\Second", port_id: "second" },
+    ]);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
 });
