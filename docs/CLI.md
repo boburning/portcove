@@ -789,8 +789,11 @@ game as seen. It is reported again only when its ready plan changes.
 
 For an installed game, `installed` also shows its maintenance state under its
 own saved channel and update policy: the active version, any staged version,
-and the newer release the last update check found on that channel, if any. A
-notify-mode game is reported once per newly available release; acknowledge it
+and the newer release the last update check found for exactly this installed
+version, artifact and runtime on that channel, if any. A check made before an
+update, reinstall, rollback or channel change no longer counts, and a release
+that is already staged is shown as staged, not available. A notify-mode game is
+reported once per newly available release; acknowledge it
 with that release's SHA-256 as `PLAN_SHA256`. Assessing reads saved state only:
 it doesn't check for updates, download, stage or activate anything. The
 existing update check and update policy own those, and standing setup never

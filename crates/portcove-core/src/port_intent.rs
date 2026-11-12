@@ -120,7 +120,8 @@ pub struct PortMaintenance {
     /// Identity of that release, used to announce it once.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub available_sha256: Option<String>,
-    /// When updates were last checked; `None` means never.
+    /// When updates were last checked for this install on this channel;
+    /// `None` means not yet.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub checked_at: Option<i64>,
 }
@@ -494,9 +495,25 @@ impl PortcoveService {
 
     async fn port_readiness(&self, port_id: &str, status: crate::PortStatus) -> PortReadiness {
         if let Some(active) = status.active {
-            // Only an update for the installed copy's own channel counts.
-            let available = status.last_update_check.as_ref().filter(|snapshot| {
-                snapshot.check.update_available && snapshot.check.channel == status.channel
+            // A check counts only if it was made for exactly this install on
+            // its current channel; applying, reinstalling or rolling back
+            // makes an older check stale.
+            let current = status.last_update_check.as_ref().filter(|snapshot| {
+                snapshot.check.channel == status.channel
+                    && snapshot.check.installed_version.as_deref() == Some(active.version.as_str())
+                    && snapshot
+                        .check
+                        .installed_artifact
+                        .as_ref()
+                        .is_some_and(|artifact| artifact.sha256 == active.artifact.sha256)
+                    && snapshot.check.installed_runtime == active.runtime
+            });
+            // An update already staged is not "available"; it is staged.
+            let available = current.filter(|snapshot| {
+                snapshot.check.update_available
+                    && status.staged.as_ref().is_none_or(|staged| {
+                        staged.artifact.sha256 != snapshot.check.release.asset.sha256
+                    })
             });
             PortReadiness::Installed {
                 maintenance: Some(PortMaintenance {
@@ -508,10 +525,7 @@ impl PortcoveService {
                         .map(|snapshot| snapshot.check.release.version.clone()),
                     available_sha256: available
                         .map(|snapshot| snapshot.check.release.asset.sha256.clone()),
-                    checked_at: status
-                        .last_update_check
-                        .as_ref()
-                        .map(|snapshot| snapshot.checked_at),
+                    checked_at: current.map(|snapshot| snapshot.checked_at),
                 }),
                 install_id: active.id,
             }
@@ -556,10 +570,11 @@ impl PortcoveService {
         };
         let announced = match &readiness {
             PortReadiness::Ready { plan_sha256, .. } => Some(plan_sha256.as_str()),
+            // Only a game the player asked to hear about announces updates.
             PortReadiness::Installed {
                 maintenance: Some(maintenance),
                 ..
-            } => maintenance.available_sha256.as_deref(),
+            } if intent.mode == PortIntentMode::Notify => maintenance.available_sha256.as_deref(),
             _ => None,
         };
         let newly_ready = suppressed.is_none()
@@ -1191,18 +1206,26 @@ mod tests {
                 sha256: "2".repeat(64),
             },
         };
+        let active = status.active.clone().unwrap();
+        let check = |installed_version: &str, release: crate::ResolvedRelease| crate::UpdateCheck {
+            port_id: PORT.into(),
+            channel: status.channel,
+            installed_version: Some(installed_version.into()),
+            installed_artifact: Some(active.artifact.clone()),
+            installed_runtime: active.runtime.clone(),
+            required_runtime: None,
+            update_available: true,
+            release,
+        };
         service
             .library()
-            .store_update_snapshot(&crate::UpdateCheck {
-                port_id: PORT.into(),
-                channel: status.channel,
-                installed_version: Some("v1".into()),
-                installed_artifact: None,
-                installed_runtime: None,
-                required_runtime: None,
-                update_available: true,
-                release: release.clone(),
-            })
+            .store_update_snapshot(&check("v0", release.clone()))
+            .unwrap();
+        // A check made for another install is stale and ignored.
+        assert!(!service.assess_port_intents().await.unwrap().assessments[0].newly_ready);
+        service
+            .library()
+            .store_update_snapshot(&check("v1", release.clone()))
             .unwrap();
         let assessed = service.assess_port_intents().await.unwrap();
         let item = &assessed.assessments[0];
@@ -1231,18 +1254,22 @@ mod tests {
         release.asset.sha256 = "3".repeat(64);
         service
             .library()
-            .store_update_snapshot(&crate::UpdateCheck {
-                port_id: PORT.into(),
-                channel: status.channel,
-                installed_version: Some("v1".into()),
-                installed_artifact: None,
-                installed_runtime: None,
-                required_runtime: None,
-                update_available: true,
-                release,
-            })
+            .store_update_snapshot(&check("v1", release))
             .unwrap();
         assert!(service.assess_port_intents().await.unwrap().assessments[0].newly_ready);
+        // A set-up-when-ready game is never announced; standing setup never updates.
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        assert!(!service.assess_port_intents().await.unwrap().assessments[0].newly_ready);
+        assert!(
+            service
+                .run_standing_setup(|_| {})
+                .await
+                .unwrap()
+                .batches
+                .is_empty()
+        );
     }
 
     #[test]
