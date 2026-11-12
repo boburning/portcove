@@ -1590,6 +1590,25 @@
         "ChaotixRecompiled-0.15.20-macos-arm64.zip",
         "ChaotixRecompiled-0.15.21-macos-arm64.zip"
       ]
+    },
+    "alexbeav-quake-ii-recomp": {
+      "inventory": "alexbeav-quake-ii-recomp",
+      "selected_assets": [
+        "quake-ii-recomp-0.1.2-windows-x64.zip",
+        "quake-ii-recomp-999.123.456-windows-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00757",
+        "track_sha1": "f936e7cc477b0daf456c86eff86acc82e7f549ce",
+        "track_sha256": null,
+        "generated_executable": "Quake_II_Recompiled.exe",
+        "track_count": 2,
+        "crash_diagnostic": true
+      },
+      "linux_selected_assets": [
+        "quake-ii-recomp-0.1.2-linux-x64.zip",
+        "quake-ii-recomp-999.123.456-linux-x64.zip"
+      ]
     }
   },
   "inventories": {
@@ -9506,6 +9525,68 @@
           }
         ]
       }
+    ],
+    "alexbeav-quake-ii-recomp": [
+      {
+        "id": 382787940,
+        "tag_name": "v0.1.2",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:49:07Z",
+        "assets": [
+          {
+            "id": 544447855,
+            "name": "quake-ii-recomp-0.1.2-linux-x64.zip",
+            "size": 27797758,
+            "digest": "sha256:c3d3e196db2efd296940b25bd8fc94a11c58bbbb34e3e7ea6a00726d368711d1",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/releases/download/v0.1.2/quake-ii-recomp-0.1.2-linux-x64.zip"
+          },
+          {
+            "id": 544447941,
+            "name": "quake-ii-recomp-0.1.2-macos-arm64.zip",
+            "size": 25541224,
+            "digest": "sha256:dc6f6a0a32b1a2b29fdd27234c9c01f6a5f8fdbfd53932f547e25700bbad4fa4",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/releases/download/v0.1.2/quake-ii-recomp-0.1.2-macos-arm64.zip"
+          },
+          {
+            "id": 544448014,
+            "name": "quake-ii-recomp-0.1.2-macos-x64.zip",
+            "size": 25889027,
+            "digest": "sha256:c5d568d24db3749c5a6c5a40cfdc3588e75a52ac00ebb4c912ac9d1b4b41867c",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/releases/download/v0.1.2/quake-ii-recomp-0.1.2-macos-x64.zip"
+          },
+          {
+            "id": 544448106,
+            "name": "quake-ii-recomp-0.1.2-windows-x64.zip",
+            "size": 29903257,
+            "digest": "sha256:dd9fc377d91b0ce789308278487eb1f9bf892384e7637968f646828163e176cb",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/releases/download/v0.1.2/quake-ii-recomp-0.1.2-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999700474,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-12T00:00:00Z",
+        "assets": [
+          {
+            "id": 999700475,
+            "name": "quake-ii-recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/quake-ii-recomp-999.123.456-windows-x64.zip",
+            "size": 29700000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999700476,
+            "name": "quake-ii-recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/quake-ii-recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
     ]
   },
   "other_zip_assets": [
@@ -10623,6 +10704,16 @@
       "inventory": "openreliant",
       "release_index": 1,
       "asset": "openreliant-v1.0.1-windows-aarch64.zip"
+    },
+    {
+      "inventory": "alexbeav-quake-ii-recomp",
+      "release_index": 0,
+      "asset": "quake-ii-recomp-0.1.2-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-quake-ii-recomp",
+      "release_index": 0,
+      "asset": "quake-ii-recomp-0.1.2-macos-x64.zip"
     }
   ]
 }

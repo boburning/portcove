@@ -100,7 +100,8 @@
     "alexbeav-suikoden-ii-recomp-usa-psx",
     "alexbeav-tail-concerto-recomp-usa-psx",
     "alexbeav-team-buddies-recomp-europe-psx",
-    "alexbeav-wild-arms-recomp-usa-psx"
+    "alexbeav-wild-arms-recomp-usa-psx",
+    "alexbeav-quake-ii-recomp-usa-psx"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -393,6 +394,7 @@
     "redneck-rampage-raze",
     "shadow-warrior-raze",
     "world-war-ii-gi-raze",
-    "zdoom-gzdoom"
+    "zdoom-gzdoom",
+    "alexbeav-quake-ii-recomp"
   ]
 }
