@@ -2642,6 +2642,44 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 |inventory| human::launcher_library_inventory(inventory, service.catalog()),
             )?;
         }
+        Commands::LauncherLibrary {
+            command:
+                LauncherLibraryCommand::Adopt {
+                    launcher,
+                    data_root,
+                    apps_root,
+                    apps,
+                    yes,
+                },
+        } => {
+            let data_root = std::path::absolute(&data_root)?;
+            let apps_root = apps_root.map(std::path::absolute).transpose()?;
+            let inventory = service.inspect_launcher_library(
+                launcher.into(),
+                &data_root,
+                apps_root.as_deref(),
+            )?;
+            let items = launcher_batch_items(&inventory, &apps)?;
+            let preview = service.preview_adoption_batch(&items)?;
+            if mode == OutputMode::Human {
+                println!(
+                    "{}",
+                    human::adoption_batch_preview(&preview, service.catalog())
+                );
+            }
+            require_confirmation(
+                "Copy these installations into Portcove? Originals will be left untouched.",
+                yes,
+                cli.non_interactive,
+            )?;
+            let authorization = service.authorize_adoption_batch(&items, &preview.batch_sha256)?;
+            render_read_success(
+                mode,
+                "launcher-library.adopt",
+                service.adopt_batch(&items, &preview, &authorization.token)?,
+                |result| human::adoption_batch_result(result, service.catalog()),
+            )?;
+        }
         Commands::Channel {
             command: ChannelCommand::Set { port_id, channel },
         } => {
@@ -3182,6 +3220,63 @@ where
     render_success_with(mode, command, data, human::document)
 }
 
+/// Launcher apps to copy: every app ready to review, or exactly those named.
+fn launcher_batch_items(
+    inventory: &portcove_core::LauncherLibraryInventory,
+    names: &[String],
+) -> Result<Vec<portcove_core::AdoptionBatchItem>> {
+    let item = |entry: &portcove_core::LauncherLibraryEntry| {
+        entry
+            .install_path
+            .clone()
+            .zip(entry.adopt_port_id.clone())
+            .map(|(source, port_id)| portcove_core::AdoptionBatchItem { source, port_id })
+    };
+    if names.is_empty() {
+        let items = inventory
+            .entries
+            .iter()
+            .filter_map(item)
+            .collect::<Vec<_>>();
+        if items.is_empty() {
+            return Err(PortcoveError::not_found(
+                "no app in this launcher library is ready to review; run launcher-library inspect for details",
+            ));
+        }
+        return Ok(items);
+    }
+    names
+        .iter()
+        .map(|name| {
+            let matches = inventory
+                .entries
+                .iter()
+                .filter(|entry| {
+                    entry.name.eq_ignore_ascii_case(name)
+                        || entry.folder_name.eq_ignore_ascii_case(name)
+                })
+                .collect::<Vec<_>>();
+            match matches.as_slice() {
+                [entry] => item(entry).ok_or_else(|| {
+                    PortcoveError::conflict(format!(
+                        "{name} is not ready to review ({}); run launcher-library inspect for details",
+                        serde_json::to_value(entry.status)
+                            .ok()
+                            .and_then(|value| value.as_str().map(str::to_owned))
+                            .unwrap_or_default()
+                    ))
+                }),
+                [] => Err(PortcoveError::not_found(format!(
+                    "no app named {name} is in this launcher library"
+                ))),
+                _ => Err(PortcoveError::conflict(format!(
+                    "more than one app is named {name}; use its folder name"
+                ))),
+            }
+        })
+        .collect()
+}
+
 fn render_read_success<T, F>(mode: OutputMode, command: &str, data: T, renderer: F) -> Result<()>
 where
     T: Serialize + JsonSchema,
@@ -3557,7 +3652,12 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::Reconcile(_) => "reconcile",
         Commands::Install(_) => "install",
         Commands::Adopt(_) => "adopt",
-        Commands::LauncherLibrary { .. } => "launcher-library.inspect",
+        Commands::LauncherLibrary {
+            command: LauncherLibraryCommand::Inspect { .. },
+        } => "launcher-library.inspect",
+        Commands::LauncherLibrary {
+            command: LauncherLibraryCommand::Adopt { .. },
+        } => "launcher-library.adopt",
         Commands::Ensure(_) => "ensure",
         Commands::Update(_) => "update",
         Commands::Verify { .. } => "verify",

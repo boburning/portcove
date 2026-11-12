@@ -135,3 +135,122 @@ fn launcher_inventory_reads_only_and_hands_matched_entries_to_adopt() {
     assert_eq!(json_stdout(&adopted)["command"], "adopt");
     assert_eq!(tree(&data), before);
 }
+
+#[cfg(unix)]
+#[test]
+fn launcher_batch_copies_named_ready_apps_after_one_confirmation() {
+    use std::os::unix::fs::PermissionsExt;
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path();
+    let catalog = portcove_core::Catalog::embedded().unwrap();
+    let platform = portcove_core::Platform::current().unwrap();
+    let mut repositories = BTreeMap::<String, usize>::new();
+    for port in catalog.ports() {
+        *repositories
+            .entry(port.release.repository.to_ascii_lowercase())
+            .or_default() += 1;
+    }
+    let data = root.join("quiver");
+    let mut apps = Vec::new();
+    for port in catalog.ports().iter().filter(|port| {
+        port.release.provider == portcove_core::ReleaseSource::Github
+            && repositories[&port.release.repository.to_ascii_lowercase()] == 1
+    }) {
+        let Some(hint) = port.executable_hints.get(&platform).and_then(|h| h.first()) else {
+            continue;
+        };
+        if hint.contains(['*', '?']) {
+            continue;
+        }
+        let executable = data.join("Apps").join(&port.id).join(hint);
+        fs::create_dir_all(executable.parent().unwrap()).unwrap();
+        fs::write(&executable, b"synthetic executable").unwrap();
+        fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
+        apps.push(serde_json::json!({
+            "name": port.id, "repository": port.release.repository, "folderName": port.id
+        }));
+        if apps.len() == 24 {
+            break;
+        }
+    }
+    fs::write(
+        data.join("apps.json"),
+        serde_json::to_vec(&serde_json::json!({ "apps": apps })).unwrap(),
+    )
+    .unwrap();
+    let library = root.join("library");
+    let preferences = root.join("preferences.json");
+    let inspected = portcove_tool(
+        &preferences,
+        &library,
+        &[
+            "--json",
+            "launcher-library",
+            "inspect",
+            "--launcher",
+            "quiver",
+            data.to_str().unwrap(),
+        ],
+    );
+    assert!(inspected.status.success(), "{inspected:?}");
+    let ready = json_stdout(&inspected)["data"]["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|entry| entry["status"] == "ready-to-review")
+        .map(|entry| entry["name"].as_str().unwrap().to_owned())
+        .collect::<Vec<_>>();
+    assert!(ready.len() >= 2, "need two ready apps: {ready:?}");
+    let before = tree(&data);
+
+    let unknown = portcove_tool(
+        &preferences,
+        &library,
+        &[
+            "--json",
+            "--non-interactive",
+            "launcher-library",
+            "adopt",
+            "--launcher",
+            "quiver",
+            data.to_str().unwrap(),
+            "--app",
+            "no-such-app",
+            "--yes",
+        ],
+    );
+    assert!(!unknown.status.success());
+
+    let adopted = portcove_tool(
+        &preferences,
+        &library,
+        &[
+            "--json",
+            "--non-interactive",
+            "launcher-library",
+            "adopt",
+            "--launcher",
+            "quiver",
+            data.to_str().unwrap(),
+            "--app",
+            &ready[0],
+            "--app",
+            &ready[1],
+            "--yes",
+        ],
+    );
+    assert!(adopted.status.success(), "{adopted:?}");
+    let value = json_stdout(&adopted);
+    assert_eq!(value["command"], "launcher-library.adopt");
+    let items = value["data"]["items"].as_array().unwrap();
+    assert_eq!(items.len(), 2);
+    for (item, name) in items.iter().zip(&ready) {
+        assert_eq!(item["outcome"], "copied", "{item:#}");
+        assert_eq!(item["port_id"], name.as_str());
+    }
+    assert_eq!(
+        tree(&data),
+        before,
+        "launcher data and originals stay unchanged"
+    );
+}

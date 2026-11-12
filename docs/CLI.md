@@ -1823,6 +1823,34 @@ offers the same read-only list in **Copy an existing installation** under
 **Moving from GitHub Launcher or Quiver?**; choosing an app opens that dialog's
 ordinary copy review for its folder, one app at a time.
 
+### Copy several launcher apps at once
+
+`launcher-library adopt` reviews several matched apps as one batch and copies
+them after one confirmation:
+
+```text
+portcove launcher-library adopt --launcher quiver DATA_ROOT
+portcove --json --non-interactive launcher-library adopt --launcher github-launcher DATA_ROOT --app "Game A" --app "Game B" --yes
+```
+
+Without `--app`, the batch holds every `ready-to-review` app. `--app` selects by
+launcher name or folder name and refuses an unknown, ambiguous or not-ready
+app. A batch holds at most 32 installations, each folder once and each game
+once. The review is the ordinary adoption review of every app, shown together:
+files, size, managed destination, the current active version that stays
+installed, saved files that replace matching files in Portcove with no backup
+first, and unsupported items left in the original. One consent binds the
+reviewed `batch_sha256` (`adoption_batch_preview` in `schema export`).
+
+After consent, each app is reviewed again just before it is copied. An app whose
+folder or destination changed is reported `changed` and not copied; an app
+whose ordinary adoption fails is reported `failed`. Each copy is the same
+journaled adoption as `adopt`, so other apps are unaffected and interrupted
+work follows the ordinary adoption recovery. The `launcher-library.adopt`
+result (`adoption_batch_result`) lists every app's outcome. Originals and the
+launcher's files are never modified. Run the command again to review apps that
+were not copied; an app already copied refuses a second identical copy.
+
 ## Reviewed first installation
 
 API schema 57 adds the optional `installation.review` capability. Register

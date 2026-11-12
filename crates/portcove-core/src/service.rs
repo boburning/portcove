@@ -51,11 +51,16 @@ pub use catalog_download_identity::{
     CatalogForeignReleaseId,
 };
 pub(crate) use catalog_download_provider::CatalogDownloadRepository;
+mod adoption_batch;
 mod launcher_library;
 mod native_portable;
 pub(crate) mod package_selection;
 mod retained_direct_compatibility;
 mod setup_discovery;
+pub use adoption_batch::{
+    ADOPTION_BATCH_LIMIT, AdoptionBatchItem, AdoptionBatchItemOutcome, AdoptionBatchItemResult,
+    AdoptionBatchPreview, AdoptionBatchResult,
+};
 pub use catalog_download::{
     CatalogDownloadCandidate, CatalogDownloadCandidates, CatalogDownloadCoverage,
     CatalogDownloadPreview, CatalogDownloadRequest, PendingSetupRecord, PendingSetupState,

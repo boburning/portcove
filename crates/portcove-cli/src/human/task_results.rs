@@ -1,10 +1,11 @@
 //! Task-specific summaries. Core records remain the authority for every outcome.
 use portcove_core::{
-    AdoptionPreview, BackupRecord, CancellationPhase, CancellationState, Catalog,
-    ExternalRuntimePreview, ExternalRuntimeRecord, ExternalRuntimeRelinkPreview,
-    ExternalRuntimeRemovalPreview, InstallRecord, LauncherAppsRootOrigin, LauncherEntryStatus,
-    LauncherKind, LauncherLibraryInventory, OutputRelocationResult, PortRemovalPreview,
-    ReconcileAction, ReconcileResult, RestoreResult, UpdateCheck, VerificationReport,
+    AdoptionBatchItemOutcome, AdoptionBatchPreview, AdoptionBatchResult, AdoptionPreview,
+    BackupRecord, CancellationPhase, CancellationState, Catalog, ExternalRuntimePreview,
+    ExternalRuntimeRecord, ExternalRuntimeRelinkPreview, ExternalRuntimeRemovalPreview,
+    InstallRecord, LauncherAppsRootOrigin, LauncherEntryStatus, LauncherKind,
+    LauncherLibraryInventory, OutputRelocationResult, PortRemovalPreview, ReconcileAction,
+    ReconcileResult, RestoreResult, UpdateCheck, VerificationReport,
 };
 
 use super::{clean, format_bytes, platform_name, port_name, release_channel, utc_time};
@@ -298,6 +299,108 @@ fn powershell_quoted(value: &str) -> String {
 
 fn posix_quoted(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
+}
+
+pub(crate) fn adoption_batch_preview(preview: &AdoptionBatchPreview, catalog: &Catalog) -> String {
+    let mut text = format!(
+        "Copy several existing installations review\nInstallations: {}\nFiles to copy: {}\nCopy size: {}\nOriginals will be modified: {}\nReview SHA-256: {}",
+        preview.items.len(),
+        preview.total_files,
+        format_bytes(preview.total_bytes),
+        if preview.original_will_be_modified {
+            "Yes"
+        } else {
+            "No"
+        },
+        clean(&preview.batch_sha256),
+    );
+    for item in &preview.items {
+        let port = item
+            .selected_port_id
+            .as_deref()
+            .map(|id| port_name(catalog, id))
+            .unwrap_or_else(|| "Not selected".into());
+        text.push_str(&format!(
+            "\n\n{port}\nOriginal: {}\nFiles: {} · {}",
+            clean(&item.source.display().to_string()),
+            item.copy_plan.files.len(),
+            format_bytes(item.copy_plan.total_bytes),
+        ));
+        if let Some(destination) = &item.destination {
+            text.push_str(&format!(
+                "\nManaged destination: {}",
+                clean(
+                    &destination
+                        .output_location
+                        .effective_output_directory
+                        .display()
+                        .to_string()
+                )
+            ));
+            if let Some(install) = &destination.active_install {
+                text.push_str(&format!(
+                    "\nCurrent active version {} stays installed; the copy becomes active",
+                    clean(&install.version)
+                ));
+            }
+            for path in &destination.imported_user_data_paths {
+                text.push_str(&format!(
+                    "\nSaved file replaced in Portcove, with no backup first: {}",
+                    clean(&path.display().to_string())
+                ));
+            }
+        }
+        if !item.copy_plan.skipped_entries.is_empty() {
+            text.push_str(&format!(
+                "\nUnsupported items left only in the original: {}",
+                item.copy_plan.skipped_entries.len()
+            ));
+        }
+    }
+    text.push_str("\n\nEach installation is checked again just before it is copied. One that changed after this review is held, not copied. Stop the games before copying.");
+    text
+}
+
+pub(crate) fn adoption_batch_result(result: &AdoptionBatchResult, catalog: &Catalog) -> String {
+    let count = |outcome| {
+        result
+            .items
+            .iter()
+            .filter(|item| item.outcome == outcome)
+            .count()
+    };
+    let mut text = format!(
+        "Copy several existing installations result\nCopied: {}\nChanged after review, not copied: {}\nNot copied because of an error: {}",
+        count(AdoptionBatchItemOutcome::Copied),
+        count(AdoptionBatchItemOutcome::Changed),
+        count(AdoptionBatchItemOutcome::Failed),
+    );
+    for item in &result.items {
+        let outcome = match item.outcome {
+            AdoptionBatchItemOutcome::Copied => "Copied",
+            AdoptionBatchItemOutcome::Changed => "Changed after review; not copied",
+            AdoptionBatchItemOutcome::Failed => "Not copied",
+        };
+        text.push_str(&format!(
+            "\n\n{}: {outcome}\nOriginal: {}",
+            port_name(catalog, &item.port_id),
+            clean(&item.source.display().to_string())
+        ));
+        if let Some(install) = &item.install {
+            text.push_str(&format!("\nInstalled version: {}", clean(&install.version)));
+        }
+        if let Some(message) = &item.message {
+            text.push_str(&format!("\n{}", clean(message)));
+        }
+    }
+    if result
+        .items
+        .iter()
+        .any(|item| item.outcome != AdoptionBatchItemOutcome::Copied)
+    {
+        text.push_str("\n\nNext step: run the same command again to review the installations that were not copied.");
+    }
+    text
 }
 
 pub(crate) fn adoption_preview(preview: &AdoptionPreview, catalog: &Catalog) -> String {
