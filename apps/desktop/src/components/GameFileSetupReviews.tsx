@@ -35,7 +35,7 @@ export function GameFileSetupReviews({
   onReviewInstall?: ((portIds: string[]) => void) | undefined;
   focusFallback?: (() => HTMLElement | null) | undefined;
 }) {
-  const { selected, toggle, clear, requestReview } = useSetupReviewSelection();
+  const { selected, toggle, selectAll, clear, requestReview } = useSetupReviewSelection();
   const section = useRef<HTMLElement>(null);
   const restoreFocus = useRef(false);
   useEffect(() => {
@@ -84,14 +84,46 @@ export function GameFileSetupReviews({
     );
   };
   const available = compatible.filter((port) => canReview(port.id));
+  // Several versions that can use the same files are never selected together
+  // automatically; the player chooses between them.
+  const versions = new Map<string, number>();
+  for (const port of available)
+    if (port.source_profile)
+      versions.set(port.source_profile, (versions.get(port.source_profile) ?? 0) + 1);
+  const needsChoice = available.filter(
+    (port) => port.source_profile && (versions.get(port.source_profile) ?? 0) > 1,
+  );
+  const eligible = available.filter((port) => !needsChoice.includes(port));
+  const unselectedEligible = eligible.filter((port) => !selected.includes(port.id));
   if (!available.length && !selected.length) return null;
   return (
     <section ref={section} aria-label="Selected setup reviews" className="col-span-full">
       <h3>Select ports for setup review</h3>
       <p>
-        Select up to {maxSetupReviewSelection} independent ports. Each opens the existing setup
-        review; selecting a port does not register files or install anything.
+        Select games to review their setup, one at a time or together. Selecting a game doesn't
+        register files or install anything.
       </p>
+      <p role="status">
+        {selected.length} selected · {eligible.length} eligible
+        {needsChoice.length > 0 && ` · ${needsChoice.length} need a version choice`}
+      </p>
+      {needsChoice.length > 0 && (
+        <p>
+          More than one version can use the same files for {needsChoice.length}{" "}
+          {needsChoice.length === 1 ? "game" : "games"}. Select the version you want; selecting all
+          leaves them out.
+        </p>
+      )}
+      {unselectedEligible.length > 0 && (
+        <Button
+          data-focusable
+          variant="outline"
+          disabled={selected.length >= maxSetupReviewSelection}
+          onClick={() => selectAll(unselectedEligible.map((port) => port.id))}
+        >
+          Select all {eligible.length} eligible
+        </Button>
+      )}
       {available.map((port) => (
         <label key={port.id} className="setup-review-choice">
           <Checkbox
@@ -117,10 +149,7 @@ export function GameFileSetupReviews({
       ))}
       {selected.length > 0 && (
         <>
-          <p role="status">
-            {selected.length} of {maxSetupReviewSelection} ports selected. Return here after each
-            review to continue.
-          </p>
+          <p>Return here after each review to continue.</p>
           <ol>
             {selected.map((id) => (
               <li key={id}>
