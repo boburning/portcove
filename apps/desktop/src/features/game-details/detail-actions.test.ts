@@ -121,9 +121,11 @@ describe("detail actions", () => {
     });
     await actions.launch();
     await actions.launch(2);
+    await actions.launch(1);
     expect(launch.mock.calls).toEqual([
       [port.id, "", 4],
       [port.id, "", 4, 2],
+      [port.id, "", 4, 1],
     ]);
   });
 

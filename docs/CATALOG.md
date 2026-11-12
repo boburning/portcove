@@ -2396,7 +2396,8 @@ For a `psx-raw-set` source, the retained source profile's disc count is the
 launch disc choice that `status` reports as `readiness.selectable_discs`. A
 one-launch choice appends `--disc` with the absolute `runtime-discs/disc-NN.cue`
 beneath `build-portcove`; omitting it keeps `--no-launcher` and the runtime's
-saved disc unchanged.
+saved disc unchanged. Desktop's detail Play defaults to **Saved disc**, which
+sends no choice, and offers each disc as an explicit override.
 
 Reuse the PSX adapter’s preparation, preservation, and recovery evidence where
 the kit uses `psxrecomp/psxrecomp_cli.py` and the `psx-runtime` target, the same

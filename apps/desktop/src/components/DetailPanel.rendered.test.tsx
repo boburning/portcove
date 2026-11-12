@@ -1959,7 +1959,7 @@ describe("desktop components", () => {
       const picker = html.indexOf("Disc to start");
       expect(html).toContain("data-launch-action");
       expect(picker > -1).toBe(offered);
-      expect(html.includes("Disc 1")).toBe(offered);
+      expect(html.includes("Saved disc")).toBe(offered);
       expect(picker < html.indexOf("data-launch-action")).toBe(true);
     },
   );

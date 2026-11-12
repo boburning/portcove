@@ -2195,6 +2195,9 @@ function installedPlayPresentation(launchReady: boolean, trial: boolean, pending
   };
 }
 
+/** The disc choice that adds no `--disc` override. */
+const SAVED_DISC = "saved";
+
 function InstalledPlayActions({
   compact = false,
   hero = false,
@@ -2218,9 +2221,12 @@ function InstalledPlayActions({
   busy?: string | undefined;
   actions: DetailActions;
 }) {
-  // Ephemeral per-view choice: Core receives it with this launch only.
-  const [disc, setDisc] = useState("1");
-  const discChoice = selectableDiscs > 1 ? Math.min(Number(disc), selectableDiscs) : undefined;
+  // Ephemeral per-view choice: Core receives it with this launch only. The
+  // default sends no disc, so the game starts the disc it saved itself.
+  const [disc, setDisc] = useState(SAVED_DISC);
+  const offerDiscs = selectableDiscs > 1;
+  const discChoice =
+    offerDiscs && disc !== SAVED_DISC && Number(disc) <= selectableDiscs ? Number(disc) : undefined;
   if (preparationRequired)
     return <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />;
   const presentation = installedPlayPresentation(launchReady, trial, pendingSetup);
@@ -2232,16 +2238,19 @@ function InstalledPlayActions({
         hero && "detail-hero-primary",
       )}
     >
-      {discChoice !== undefined && (
+      {offerDiscs && (
         <ChoiceSelect
           inline
           showInlineLabel={false}
           label="Disc to start"
-          value={String(discChoice)}
-          options={Array.from({ length: selectableDiscs }, (_, index) => ({
-            value: String(index + 1),
-            label: `Disc ${index + 1}`,
-          }))}
+          value={discChoice === undefined ? SAVED_DISC : String(discChoice)}
+          options={[
+            { value: SAVED_DISC, label: "Saved disc" },
+            ...Array.from({ length: selectableDiscs }, (_, index) => ({
+              value: String(index + 1),
+              label: `Disc ${index + 1}`,
+            })),
+          ]}
           disabled={!launchReady || Boolean(busy)}
           onChange={setDisc}
         />
