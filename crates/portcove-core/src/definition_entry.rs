@@ -286,6 +286,16 @@ impl DefinitionContentIndex {
                 "executable-parent N64 runtime and data preservation require capability version 4",
             ));
         }
+        if port.runtime_disc_image.is_some()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= 30
+            })
+        {
+            return Err(PortcoveError::verification(
+                "disc-image unpacking requires staged-source capability version 30",
+            ));
+        }
         if port.mod_package_policy.is_some()
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "staged-source-portable"
