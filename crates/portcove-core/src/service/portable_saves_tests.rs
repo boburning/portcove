@@ -1257,3 +1257,59 @@ fn setting_aside_a_middle_save_keeps_one_offered_head() {
     assert_eq!(status.next_step, SaveFolderNextStep::Pull, "{status:?}");
     assert_eq!(deck.head(folder.path()), latest.content_sha256);
 }
+
+#[test]
+fn folders_inside_the_library_are_refused_for_pulls_and_set_asides() {
+    let outside = shared_folder();
+    let pc = seeded_source();
+    let pushed = pc.push(outside.path());
+    let deck = Device::new(VERSION);
+    // A sync tool mirrors the shared folder into this device's library.
+    let mirror = deck.library.root().join("mirror");
+    let directory = mirror.join("portcove-saves/v1").join(PORT);
+    fs::create_dir_all(&directory).unwrap();
+    for file in bundle_files(outside.path()) {
+        fs::copy(&file, directory.join(file.file_name().unwrap())).unwrap();
+    }
+    let before = deck.read("Save/file1.sav");
+    let refused = |error: PortcoveError| {
+        assert!(
+            error.to_string().contains("outside the Portcove library"),
+            "{error}"
+        )
+    };
+    refused(
+        deck.service
+            .preview_folder_save_import(PORT, &mirror, &pushed.content_sha256, Default::default())
+            .unwrap_err(),
+    );
+    refused(
+        deck.service
+            .authorize_folder_save_import(
+                PORT,
+                &mirror,
+                &pushed.content_sha256,
+                Default::default(),
+                &"0".repeat(64),
+            )
+            .unwrap_err(),
+    );
+    refused(
+        deck.service
+            .import_folder_saves(
+                PORT,
+                &mirror,
+                &pushed.content_sha256,
+                Default::default(),
+                "token",
+            )
+            .unwrap_err(),
+    );
+    refused(
+        deck.service
+            .mark_folder_saves_superseded(PORT, &mirror, &pushed.content_sha256)
+            .unwrap_err(),
+    );
+    assert!(!directory.join("superseded").exists());
+    assert_eq!(deck.read("Save/file1.sav"), before);
+}

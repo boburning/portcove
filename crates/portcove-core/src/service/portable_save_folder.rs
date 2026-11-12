@@ -467,6 +467,7 @@ impl PortcoveService {
                 "select saves by their 64-character content SHA-256",
             ));
         }
+        self.require_folder_outside_library(folder)?;
         let scan = scan(folder, port_id)?;
         if !scan.complete {
             return Err(PortcoveError::conflict(
@@ -590,8 +591,8 @@ impl PortcoveService {
         content_sha256: &str,
     ) -> Result<()> {
         self.catalog.port(port_id)?;
-        let scan = scan(folder, port_id)?;
         self.require_folder_outside_library(folder)?;
+        let scan = scan(folder, port_id)?;
         if !scan.bundles.contains_key(content_sha256) {
             return Err(PortcoveError::not_found(
                 "Those saves are not in the selected folder.",
