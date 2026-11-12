@@ -237,14 +237,17 @@ export function PortableSaves({
         setReview(undefined);
         setMessage(
           result.safety_backup
-            ? "Saves imported. This device's previous saves and settings are in a backup you can restore below."
+            ? "Saves imported. This device's previous saves and settings are in a backup you can restore from this game's backups."
             : "Saves imported.",
         );
         onChanged?.();
         setAttempt((count) => count + 1);
       }
     } catch (value) {
-      fail(value, "The saves could not be imported. Nothing was changed unless a backup says so.");
+      fail(
+        value,
+        "The saves could not be imported. Check this game's saves and backups before trying again.",
+      );
     } finally {
       setWorking(false);
     }
