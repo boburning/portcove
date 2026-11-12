@@ -89,7 +89,12 @@ pub struct PortIntentSource {
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum PortReadiness {
     /// Installed already; standing setup never reinstalls or updates it.
-    Installed { install_id: String },
+    Installed {
+        install_id: String,
+        /// The installed game's maintenance state under its own update policy.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        maintenance: Option<PortMaintenance>,
+    },
     /// A first install could start now with this exact plan.
     Ready {
         plan_sha256: String,
@@ -97,6 +102,27 @@ pub enum PortReadiness {
     },
     /// Something is missing or needs a person; the reason says what.
     Waiting { reason: String },
+}
+
+/// An installed game's maintenance state, read from its saved channel and
+/// update policy and its last update check. Assessing it downloads, stages or
+/// activates nothing; the existing update check and policy own that.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct PortMaintenance {
+    pub channel: crate::ReleaseChannel,
+    pub update_policy: crate::UpdatePolicy,
+    pub active_version: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub staged_version: Option<String>,
+    /// A newer release the last check found on this channel, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub available_version: Option<String>,
+    /// Identity of that release, used to announce it once.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub available_sha256: Option<String>,
+    /// When updates were last checked; `None` means never.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checked_at: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -107,7 +133,8 @@ pub struct PortIntentAssessment {
     /// Why this intent will not act or notify right now, if it won't.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub suppressed: Option<String>,
-    /// Ready with a plan the player has not been told about yet.
+    /// Ready with a plan, or installed with an update, the player has not
+    /// been told about yet.
     pub newly_ready: bool,
 }
 
@@ -467,7 +494,25 @@ impl PortcoveService {
 
     async fn port_readiness(&self, port_id: &str, status: crate::PortStatus) -> PortReadiness {
         if let Some(active) = status.active {
+            // Only an update for the installed copy's own channel counts.
+            let available = status.last_update_check.as_ref().filter(|snapshot| {
+                snapshot.check.update_available && snapshot.check.channel == status.channel
+            });
             PortReadiness::Installed {
+                maintenance: Some(PortMaintenance {
+                    channel: status.channel,
+                    update_policy: status.update_policy,
+                    active_version: active.version.clone(),
+                    staged_version: status.staged.as_ref().map(|staged| staged.version.clone()),
+                    available_version: available
+                        .map(|snapshot| snapshot.check.release.version.clone()),
+                    available_sha256: available
+                        .map(|snapshot| snapshot.check.release.asset.sha256.clone()),
+                    checked_at: status
+                        .last_update_check
+                        .as_ref()
+                        .map(|snapshot| snapshot.checked_at),
+                }),
                 install_id: active.id,
             }
         } else if status.external_runtime.is_some() {
@@ -509,9 +554,16 @@ impl PortcoveService {
         } else {
             None
         };
+        let announced = match &readiness {
+            PortReadiness::Ready { plan_sha256, .. } => Some(plan_sha256.as_str()),
+            PortReadiness::Installed {
+                maintenance: Some(maintenance),
+                ..
+            } => maintenance.available_sha256.as_deref(),
+            _ => None,
+        };
         let newly_ready = suppressed.is_none()
-            && matches!(&readiness, PortReadiness::Ready { plan_sha256, .. }
-                if intent.acknowledged_plan_sha256.as_deref() != Some(plan_sha256.as_str()));
+            && announced.is_some_and(|key| intent.acknowledged_plan_sha256.as_deref() != Some(key));
         PortIntentAssessment {
             port_id: intent.port_id.clone(),
             mode: intent.mode,
@@ -1095,6 +1147,102 @@ mod tests {
                 .len(),
             1
         );
+    }
+
+    #[tokio::test]
+    async fn an_installed_game_reports_its_maintenance_and_announces_an_update_once() {
+        let (_temporary, service) = ready_service().await;
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        assert_eq!(
+            service
+                .run_standing_setup(|_| {})
+                .await
+                .unwrap()
+                .batches
+                .len(),
+            1
+        );
+        service
+            .set_port_intent(PORT, PortIntentMode::Notify)
+            .unwrap();
+        let assessed = service.assess_port_intents().await.unwrap();
+        let PortReadiness::Installed {
+            maintenance: Some(maintenance),
+            ..
+        } = &assessed.assessments[0].readiness
+        else {
+            panic!("expected installed: {assessed:?}");
+        };
+        assert_eq!(maintenance.active_version, "v1");
+        assert!(maintenance.available_version.is_none());
+        assert!(!assessed.assessments[0].newly_ready);
+        // A check finds a newer release on the game's channel.
+        let status = service.status(PORT).unwrap();
+        let mut release = crate::ResolvedRelease {
+            version: "v2".into(),
+            channel: status.channel,
+            published_at: None,
+            asset: crate::ReleaseAsset {
+                name: "v2.zip".into(),
+                url: "https://example.invalid/v2.zip".into(),
+                size: 1,
+                sha256: "2".repeat(64),
+            },
+        };
+        service
+            .library()
+            .store_update_snapshot(&crate::UpdateCheck {
+                port_id: PORT.into(),
+                channel: status.channel,
+                installed_version: Some("v1".into()),
+                installed_artifact: None,
+                installed_runtime: None,
+                required_runtime: None,
+                update_available: true,
+                release: release.clone(),
+            })
+            .unwrap();
+        let assessed = service.assess_port_intents().await.unwrap();
+        let item = &assessed.assessments[0];
+        assert!(item.newly_ready);
+        let PortReadiness::Installed {
+            maintenance: Some(maintenance),
+            ..
+        } = &item.readiness
+        else {
+            panic!("expected installed");
+        };
+        assert_eq!(maintenance.available_version.as_deref(), Some("v2"));
+        // Told once; nothing was downloaded, staged or activated.
+        service
+            .acknowledge_port_readiness(&[PortReadinessAcknowledgement {
+                port_id: PORT.into(),
+                plan_sha256: release.asset.sha256.clone(),
+            }])
+            .unwrap();
+        assert!(!service.assess_port_intents().await.unwrap().assessments[0].newly_ready);
+        let after = service.status(PORT).unwrap();
+        assert_eq!(after.active.unwrap().version, "v1");
+        assert!(after.staged.is_none());
+        // A different newer release is announced again.
+        release.version = "v3".into();
+        release.asset.sha256 = "3".repeat(64);
+        service
+            .library()
+            .store_update_snapshot(&crate::UpdateCheck {
+                port_id: PORT.into(),
+                channel: status.channel,
+                installed_version: Some("v1".into()),
+                installed_artifact: None,
+                installed_runtime: None,
+                required_runtime: None,
+                update_available: true,
+                release,
+            })
+            .unwrap();
+        assert!(service.assess_port_intents().await.unwrap().assessments[0].newly_ready);
     }
 
     #[test]

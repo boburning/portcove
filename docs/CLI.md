@@ -787,6 +787,15 @@ Each game shows `installed`, `ready` with its plan digest, or `waiting` with the
 reason. `games intents-acknowledge --item PORT_ID=PLAN_SHA256` marks a ready
 game as seen. It is reported again only when its ready plan changes.
 
+For an installed game, `installed` also shows its maintenance state under its
+own saved channel and update policy: the active version, any staged version,
+and the newer release the last update check found on that channel, if any. A
+notify-mode game is reported once per newly available release; acknowledge it
+with that release's SHA-256 as `PLAN_SHA256`. Assessing reads saved state only:
+it doesn't check for updates, download, stage or activate anything. The
+existing update check and update policy own those, and standing setup never
+updates a game.
+
 `games setup-ready` runs one standing-setup pass. Each set-up-when-ready game
 that is ready gets its own one-game batch. Before the batch starts, Portcove
 checks the choice still stands; then the game is re-planned and freshly

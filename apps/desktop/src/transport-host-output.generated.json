@@ -8140,7 +8140,7 @@
             "$ref": "#/$defs/PortIntentMode"
           },
           "newly_ready": {
-            "description": "Ready with a plan the player has not been told about yet.",
+            "description": "Ready with a plan, or installed with an update, the player has not\nbeen told about yet.",
             "type": "boolean"
           },
           "port_id": {
@@ -8189,6 +8189,54 @@
           }
         ]
       },
+      "PortMaintenance": {
+        "description": "An installed game's maintenance state, read from its saved channel and\nupdate policy and its last update check. Assessing it downloads, stages or\nactivates nothing; the existing update check and policy own that.",
+        "properties": {
+          "active_version": {
+            "type": "string"
+          },
+          "available_sha256": {
+            "description": "Identity of that release, used to announce it once.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "available_version": {
+            "description": "A newer release the last check found on this channel, if any.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "checked_at": {
+            "description": "When updates were last checked; `None` means never.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "staged_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "update_policy": {
+            "$ref": "#/$defs/UpdatePolicy"
+          }
+        },
+        "required": [
+          "channel",
+          "update_policy",
+          "active_version"
+        ],
+        "type": "object"
+      },
       "PortReadiness": {
         "oneOf": [
           {
@@ -8196,6 +8244,17 @@
             "properties": {
               "install_id": {
                 "type": "string"
+              },
+              "maintenance": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/PortMaintenance"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The installed game's maintenance state under its own update policy."
               },
               "state": {
                 "const": "installed",
@@ -8247,6 +8306,22 @@
             "type": "object"
           }
         ]
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      },
+      "UpdatePolicy": {
+        "enum": [
+          "notify",
+          "stage",
+          "automatic"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -13204,7 +13279,7 @@
             "$ref": "#/$defs/PortIntentMode"
           },
           "newly_ready": {
-            "description": "Ready with a plan the player has not been told about yet.",
+            "description": "Ready with a plan, or installed with an update, the player has not\nbeen told about yet.",
             "type": "boolean"
           },
           "port_id": {
@@ -13253,6 +13328,54 @@
           }
         ]
       },
+      "PortMaintenance": {
+        "description": "An installed game's maintenance state, read from its saved channel and\nupdate policy and its last update check. Assessing it downloads, stages or\nactivates nothing; the existing update check and policy own that.",
+        "properties": {
+          "active_version": {
+            "type": "string"
+          },
+          "available_sha256": {
+            "description": "Identity of that release, used to announce it once.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "available_version": {
+            "description": "A newer release the last check found on this channel, if any.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "checked_at": {
+            "description": "When updates were last checked; `None` means never.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "staged_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "update_policy": {
+            "$ref": "#/$defs/UpdatePolicy"
+          }
+        },
+        "required": [
+          "channel",
+          "update_policy",
+          "active_version"
+        ],
+        "type": "object"
+      },
       "PortReadiness": {
         "oneOf": [
           {
@@ -13260,6 +13383,17 @@
             "properties": {
               "install_id": {
                 "type": "string"
+              },
+              "maintenance": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/PortMaintenance"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The installed game's maintenance state under its own update policy."
               },
               "state": {
                 "const": "installed",
@@ -13312,6 +13446,14 @@
           }
         ]
       },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      },
       "RootSetupWaiting": {
         "description": "An eligible-looking file in a consented folder that is waiting for a person\nor a requirement.",
         "properties": {
@@ -13352,6 +13494,14 @@
           "reason"
         ],
         "type": "object"
+      },
+      "UpdatePolicy": {
+        "enum": [
+          "notify",
+          "stage",
+          "automatic"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",

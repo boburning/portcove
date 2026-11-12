@@ -937,6 +937,10 @@ export type PortIntentMode = "discover_only" | "notify" | "set_up_when_ready" | 
 export type PortReadiness =
   | {
       install_id: string;
+      /**
+       * The installed game's maintenance state under its own update policy.
+       */
+      maintenance?: PortMaintenance | null;
       state: "installed";
       [k: string]: unknown;
     }
@@ -5269,7 +5273,8 @@ export interface OutputDesktopPortIntentAssessments {
 export interface PortIntentAssessment {
   mode: PortIntentMode;
   /**
-   * Ready with a plan the player has not been told about yet.
+   * Ready with a plan, or installed with an update, the player has not
+   * been told about yet.
    */
   newly_ready: boolean;
   port_id: string;
@@ -5278,6 +5283,30 @@ export interface PortIntentAssessment {
    * Why this intent will not act or notify right now, if it won't.
    */
   suppressed?: string | null;
+  [k: string]: unknown;
+}
+/**
+ * An installed game's maintenance state, read from its saved channel and
+ * update policy and its last update check. Assessing it downloads, stages or
+ * activates nothing; the existing update check and policy own that.
+ */
+export interface PortMaintenance {
+  active_version: string;
+  /**
+   * Identity of that release, used to announce it once.
+   */
+  available_sha256?: string | null;
+  /**
+   * A newer release the last check found on this channel, if any.
+   */
+  available_version?: string | null;
+  channel: ReleaseChannel;
+  /**
+   * When updates were last checked; `None` means never.
+   */
+  checked_at?: number | null;
+  staged_version?: string | null;
+  update_policy: UpdatePolicy;
   [k: string]: unknown;
 }
 export interface RootSetupConsent {
