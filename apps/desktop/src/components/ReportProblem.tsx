@@ -10,8 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } f
 const textareaClassName =
   "min-h-32 w-full min-w-0 rounded-pc-md border border-pc-input bg-[var(--color-bg-inset)] px-3 py-2 font-mono text-sm text-pc-foreground focus-visible:outline-2 focus-visible:outline-offset-2";
 
-/** Fields the player may edit; the others are shown as facts. */
-const editableFields = new Set(["observed", "evidence", "game", "happened", "expected", "context"]);
+/** Fields the player may edit; the others, including the game, are shown as facts. */
+const editableFields = new Set(["observed", "evidence", "happened", "expected", "context"]);
 
 /** Why text was copied: the player asked, or it was too long for a link. */
 type CopyReason = "asked" | "too_long";
@@ -21,7 +21,8 @@ type Phase =
   | { kind: "choosing" }
   // A choice made inside the dialog keeps it open while the draft loads.
   | { kind: "loading"; report: ReportKind; inDialog: boolean }
-  | { kind: "ready"; report: ReportKind; fields: BugReportField[] }
+  // `error` keeps the player's text on screen when opening or copying failed.
+  | { kind: "ready"; report: ReportKind; fields: BugReportField[]; error?: string | undefined }
   | { kind: "opening"; report: ReportKind; fields: BugReportField[] }
   | { kind: "copied"; report: ReportKind; reason: CopyReason }
   | {
@@ -31,7 +32,7 @@ type Phase =
       text: string;
     }
   // Core's own summary when it gave one; the fallback is translated at render.
-  | { kind: "failed"; summary: string | undefined };
+  | { kind: "failed"; report: ReportKind | undefined; summary: string | undefined };
 
 /**
  * Shows exactly what a pre-filled GitHub bug report or feedback form will contain,
@@ -85,6 +86,7 @@ export function ReportProblem({
         if (request.current === current)
           setPhase({
             kind: "failed",
+            report: kind,
             summary: failurePresentation(value)?.summary,
           });
       },
@@ -117,16 +119,16 @@ export function ReportProblem({
       }
     } catch (value) {
       setPhase({
-        kind: "failed",
-        summary: failurePresentation(value)?.summary,
+        kind: "ready",
+        report: kind,
+        fields,
+        error: failurePresentation(value)?.summary ?? t("copy.openFailed"),
       });
     }
   };
   const draft = phase.kind === "ready" || phase.kind === "opening" ? phase : undefined;
   const shown: ReportKind | undefined =
-    phase.kind === "closed" || phase.kind === "choosing" || phase.kind === "failed"
-      ? report
-      : phase.report;
+    phase.kind === "closed" || phase.kind === "choosing" ? report : (phase.report ?? report);
   const title =
     shown === "problem"
       ? t("problem.title")
@@ -228,6 +230,7 @@ export function ReportProblem({
               <textarea className={textareaClassName} readOnly value={phase.text} />
             </div>
           )}
+          {phase.kind === "ready" && phase.error && <p role="alert">{phase.error}</p>}
           {phase.kind === "failed" && (
             <p role="alert">{phase.summary ?? t("problem.prepareFailed")}</p>
           )}

@@ -235,3 +235,54 @@ it("copies the reviewed text without opening GitHub when the player asks", async
     "send it to the Portcove team another way",
   );
 });
+
+it("keeps a failed feedback preview titled as feedback", async () => {
+  const preview = vi.fn().mockRejectedValue(new Error("down"));
+  await act(async () => {
+    await root.rerender(<ReportProblem generation={1} preview={preview} open={vi.fn()} />);
+  });
+  await click("Report a problem or send feedback");
+  await click("Something was hard or confusing, or I have an idea");
+  expect(document.body.querySelector("[role=alert]")).not.toBeNull();
+  expect(document.body.textContent).toContain("Send feedback");
+  expect(document.body.textContent).not.toContain("Choose what you want to tell us");
+});
+
+it("keeps the player's text when the form cannot be opened", async () => {
+  const open = vi.fn().mockRejectedValue(new Error("no browser"));
+  await mountChoice(open);
+  await click("Report a problem or send feedback");
+  await click("Something was hard or confusing, or I have an idea");
+  const happened = () =>
+    [...document.body.querySelectorAll("label")]
+      .find((label) => label.textContent?.startsWith("What happened?"))
+      ?.querySelector("textarea");
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+    setter?.call(happened(), "Long story");
+    happened()?.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await click("Open on GitHub");
+  expect(document.body.querySelector("[role=alert]")?.textContent).toContain(
+    "Your text is still here",
+  );
+  expect(happened()?.value).toBe("Long story");
+  expect(button("Copy text")).toBeDefined();
+});
+
+it("shows the text for manual copying when an asked copy fails", async () => {
+  const { copyText } = await import("../clipboard");
+  vi.mocked(copyText).mockRejectedValueOnce(new Error("denied"));
+  const open = vi
+    .fn()
+    .mockResolvedValue({ url: "https://github.com/x", clipboard_text: "by hand" });
+  await mountChoice(open);
+  await click("Report a problem or send feedback");
+  await click("Something broke or didn't work as it should");
+  await click("Copy text");
+  const readOnly = document.body.querySelector("textarea[readonly]");
+  expect(readOnly instanceof HTMLTextAreaElement ? readOnly.value : undefined).toBe("by hand");
+  expect(document.body.querySelector("[role=alert]")?.textContent).toContain(
+    "could not be copied automatically",
+  );
+});

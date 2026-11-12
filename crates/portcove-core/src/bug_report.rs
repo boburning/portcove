@@ -33,13 +33,24 @@ impl ReportKind {
         }
     }
 
-    /// Template field ids the report may pre-fill. Everything else stays blank;
-    /// the feedback form's dropdowns are chosen by the player on GitHub.
-    fn fillable_fields(self) -> &'static [&'static str] {
+    /// Template field ids the report may pre-fill, with the form's own label for
+    /// the copied text. Everything else stays blank; the feedback form's journey
+    /// and outcome dropdowns are chosen by the player on GitHub.
+    fn fillable_fields(self) -> &'static [(&'static str, &'static str)] {
         match self {
-            Self::Problem => &["version", "platform", "observed", "evidence"],
+            Self::Problem => &[
+                ("version", "Portcove version or commit"),
+                ("platform", "Platform"),
+                ("observed", "Observed behavior"),
+                ("evidence", "Logs, screenshots, and diagnostic evidence"),
+            ],
             Self::Feedback => &[
-                "version", "platform", "game", "happened", "expected", "context",
+                ("version", "Portcove version"),
+                ("platform", "Platform"),
+                ("game", "Game, if it was about one"),
+                ("happened", "What happened?"),
+                ("expected", "What did you expect or want instead?"),
+                ("context", "Portcove details"),
             ],
         }
     }
@@ -337,8 +348,8 @@ pub fn bug_report_link(fields: &[BugReportField], redactions: &ReportRedactions)
 }
 
 /// Builds the pre-filled link of the given kind from the player's final text.
-/// Field ids outside that kind's form are ignored, and the text is redacted
-/// again, so an edit cannot add a path.
+/// Field ids outside that kind's form are ignored, the text is redacted again,
+/// so an edit cannot add a path, and the copied headings are Core's own.
 pub fn report_link(
     kind: ReportKind,
     fields: &[BugReportField],
@@ -346,7 +357,7 @@ pub fn report_link(
 ) -> BugReportLink {
     let mut query = vec![format!("template={}", kind.template())];
     let mut clipboard = String::new();
-    for &wanted in kind.fillable_fields() {
+    for &(wanted, label) in kind.fillable_fields() {
         let Some(field) = fields.iter().find(|field| field.id == wanted) else {
             continue;
         };
@@ -355,7 +366,7 @@ pub fn report_link(
             continue;
         }
         query.push(format!("{wanted}={}", percent_encode(&value)));
-        clipboard.push_str(&format!("## {}\n{}\n\n", field.label, value));
+        clipboard.push_str(&format!("## {label}\n{value}\n\n"));
     }
     let url = format!("{NEW_ISSUE_URL}?{}", query.join("&"));
     BugReportLink {
@@ -628,6 +639,8 @@ mod tests {
         );
         assert!(!url.to_lowercase().contains("alice"), "{url}");
         assert!(link.clipboard_text.contains("<home>"));
+        assert!(link.clipboard_text.contains("## What happened?\n"));
+        assert!(!link.clipboard_text.contains("## Observed"));
         assert_eq!(
             bug_report_link(&draft.fields, &redactions()).url,
             report_link(ReportKind::Problem, &draft.fields, &redactions()).url

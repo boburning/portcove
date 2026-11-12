@@ -1896,7 +1896,7 @@ export default interface Resources {
   },
   "report": {
     "choice": {
-      "description": "Choose what you want to tell us. You review everything before it is sent.",
+      "description": "Choose what you want to tell us. You review everything before you send it.",
       "feedback": "Something was hard or confusing, or I have an idea",
       "open": "Report a problem or send feedback",
       "preparing": "Preparing…",
@@ -1906,7 +1906,8 @@ export default interface Resources {
     "copy": {
       "button": "Copy text",
       "copied": "The text was copied. Paste it into a new GitHub issue, or send it to the Portcove team another way.",
-      "failed": "The text could not be copied automatically. Select and copy it below."
+      "failed": "The text could not be copied automatically. Select and copy it below.",
+      "openFailed": "The form could not be opened. Your text is still here; try again or copy it."
     },
     "feedback": {
       "copied": "This feedback is too long for a link, so it was copied instead. Open the feedback form on GitHub and paste it in.",

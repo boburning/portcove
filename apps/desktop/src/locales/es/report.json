@@ -1,6 +1,6 @@
 {
   "choice": {
-    "description": "Elige qué quieres contarnos. Revisas todo antes de enviarlo.",
+    "description": "Elige qué quieres contarnos. Revisas todo antes de enviarlo tú.",
     "feedback": "Algo fue difícil o confuso, o tengo una idea",
     "open": "Informar de un problema o enviar comentarios",
     "preparing": "Preparando…",
@@ -10,7 +10,8 @@
   "copy": {
     "button": "Copiar texto",
     "copied": "Se copió el texto. Pégalo en una nueva incidencia de GitHub o envíalo al equipo de Portcove de otra forma.",
-    "failed": "No se pudo copiar el texto automáticamente. Selecciónalo y cópialo abajo."
+    "failed": "No se pudo copiar el texto automáticamente. Selecciónalo y cópialo abajo.",
+    "openFailed": "No se pudo abrir el formulario. Tu texto sigue aquí; inténtalo de nuevo o cópialo."
   },
   "feedback": {
     "copied": "Estos comentarios son demasiado largos para un enlace, así que se copiaron. Abre el formulario de comentarios en GitHub y pégalos.",
