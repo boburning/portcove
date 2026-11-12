@@ -202,8 +202,10 @@ function useUpdateCenter({
   // Recovery's own Review action focuses the row once; record the ID it hands to the
   // shell so the prop change it causes is not revealed a second time.
   const reviewActivity = (id: string) => {
-    revealedFromElsewhere.current = { id, request: reviewedActivityRequest };
-    onReviewActivity?.(id);
+    if (onReviewActivity) {
+      revealedFromElsewhere.current = { id, request: reviewedActivityRequest };
+      onReviewActivity(id);
+    }
     setReviewedActivity((previous) => ({ id, request: (previous?.request ?? 0) + 1 }));
   };
   useEffect(() => {

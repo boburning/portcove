@@ -105,7 +105,7 @@ The detail hero holds identity, concise port/system context, readiness, one
 primary action, Favorite and More. Catalog setup-availability checks and catalog
 update settings are maintenance and appear at the top of the management section
 (Manage, or Game files when Manage is absent), not in the hero. Before the game is
-installed they appear in Game files (catalog details), beside setup. In desktop
+installed they appear at the top of Game files, beside setup. In desktop
 windows up to 760px high (from 761px width) the hero uses a 12.5rem minimum, tighter
 padding and a smaller title clamp so the tabs and initial tab content are visible
 at 1280×720; long titles and enlarged text still grow it. (#5058 D1)
