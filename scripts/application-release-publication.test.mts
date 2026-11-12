@@ -14,7 +14,7 @@ import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { applicationReleaseTrust as trust } from "./application-release-policy.mts";
 import { sha256 } from "./application-release-io.mts";
-import { metadataProtectionConsumersReady } from "./application-release-private.mts";
+import { metadataProtectionConsumerReady } from "./application-release-private.mts";
 import type { ReleaseSourceAttestationExpectation } from "./release-source-attestation.mts";
 import {
   bootstrapAssetNames,
@@ -3417,7 +3417,7 @@ void test("actual draft recovery metadata retains the exact SDK preimage and ign
   assert.deepEqual(routes, [release]);
 });
 
-void test("renewal protection waits for the complete exact-attempt signing cohort", () => {
+void test("renewal protection follows the exact role even when other signers have settled", () => {
   const current = {
     run_id: "43218696774",
     run_attempt: 2,
@@ -3433,16 +3433,24 @@ void test("renewal protection waits for the complete exact-attempt signing cohor
     steps: [{ name: "Execute only the attested fixed role worker", status: "in_progress" }],
   }));
   const check = (jobs: typeof ready, next: string | null = null) =>
-    metadataProtectionConsumersReady(current, "metadata", { total_count: jobs.length, jobs }, next);
+    metadataProtectionConsumerReady(
+      current,
+      "metadata-preview",
+      { total_count: jobs.length, jobs },
+      next,
+    );
 
-  assert.equal(check(ready.slice(0, 2)), false);
-  assert.equal(check([...ready.slice(0, 2), { ...ready[2]!, steps: [] }]), false);
-  assert.equal(check(ready), true);
+  const releases = { ...ready[0]!, status: "completed" };
+  const preview = ready[1]!;
+  const stable = { ...ready[2]!, status: "queued", steps: [] };
+  assert.equal(check([releases, stable]), false);
+  assert.equal(check([releases, { ...preview, steps: [] }, stable]), false);
+  assert.equal(check([releases, preview, stable]), true);
   assert.throws(() => check(ready, "next-page"));
-  assert.throws(() => check([...ready, ready[0]!]));
-  assert.throws(() => check([{ ...ready[0]!, run_attempt: 1 }, ...ready.slice(1)]));
+  assert.throws(() => check([...ready, preview]));
+  assert.throws(() => check([releases, { ...preview, run_attempt: 1 }, stable]));
   assert.throws(
-    () => check([{ ...ready[0]!, status: "completed" }, ...ready.slice(1)]),
+    () => check([releases, { ...preview, status: "completed" }, stable]),
     /settled before protection/u,
   );
 });

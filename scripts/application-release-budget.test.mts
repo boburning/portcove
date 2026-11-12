@@ -140,6 +140,33 @@ void test("native executed feed history survives copied rows and distinguishes u
   assert.equal(failed.feed_executions.length, 1);
 });
 
+void test("the execution budget distinguishes cancellation in the runner queue from executed work", () => {
+  const queued = {
+    ...job("renewal_protection_metadata / execute", 0, 1965),
+    conclusion: "cancelled",
+    created_at: at(0),
+    runner_id: 0,
+    runner_name: "",
+    runner_group_id: 0,
+    runner_group_name: "",
+    steps: [],
+  };
+  const inspect = (observer: typeof queued) =>
+    inspectApplicationJobBudget(
+      [{ context: context(1), jobs: jobs([job("source", 0, 51), observer]) }],
+      source,
+      run,
+      false,
+      "metadata-renewal",
+      "metadata-maintenance",
+    );
+
+  assert.equal(inspect(queued).actual_milliseconds, 51_000);
+  assert.equal(inspect({ ...queued, runner_id: 19 }).actual_milliseconds, 2_016_000);
+  assert.equal(inspect({ ...queued, runner_name: "assigned" }).actual_milliseconds, 2_016_000);
+  assert.equal(inspect({ ...queued, created_at: at(-1) }).actual_milliseconds, 2_016_000);
+});
+
 void test("bootstrap charges its draft preparation without extending the reservation or admitting payload work", () => {
   const rows = [{ context: context(1), jobs: jobs([job("publication_prepare", 0, 2)]) }];
   const ordinary = inspectApplicationJobBudget(rows, source, run, true, "application-release");
@@ -628,7 +655,7 @@ void test("forward metadata maintenance counts original executions, refuses miss
                 job("tools", 3780, 600),
                 job("payload / execute", 4380, 300),
               ]
-            : [job("native / execute", 0, 1800)],
+            : [job("native / execute", 0, 1200)],
         );
     }
     return Response.json(body);
@@ -639,8 +666,8 @@ void test("forward metadata maintenance counts original executions, refuses miss
       custody: member,
     });
   const result = await inspect();
-  assert.equal(result.actual_milliseconds, 1800000);
-  assert.equal(result.remaining_declared_minutes, 103);
+  assert.equal(result.actual_milliseconds, 1200000);
+  assert.equal(result.remaining_declared_minutes, 115);
   assert.equal(result.attempts, 2);
   assert.equal(result.maximum_minutes, 140);
   assert.deepEqual(new Set(result.opportunities), new Set([child, parent]));
@@ -659,7 +686,7 @@ void test("forward metadata maintenance counts original executions, refuses miss
     guardApplicationReleaseSource(roleSource, false, { useVerifiedSourceCustody: true });
   allowMemberDraft = false;
   const guarded = await roleGuard();
-  assert.equal(guarded.budget.actual_milliseconds, 1800000);
+  assert.equal(guarded.budget.actual_milliseconds, 1200000);
   assert.equal(guarded.budget.attempts, 2);
   await assert.rejects(() => guardApplicationReleaseSource(roleSource, false), { status: 403 });
   allowMemberDraft = true;
@@ -667,7 +694,7 @@ void test("forward metadata maintenance counts original executions, refuses miss
     { ...roleSource, execution_path: "metadata-recovery" },
     false,
   );
-  assert.equal(recovered.budget.actual_milliseconds, 1800000);
+  assert.equal(recovered.budget.actual_milliseconds, 1200000);
   assert.equal(recovered.budget.remaining_declared_minutes, 40);
   assert.equal(recovered.budget.attempts, 2);
   pause = releaseControlInputsFixture(undefined, undefined, undefined, false);
@@ -683,7 +710,7 @@ void test("forward metadata maintenance counts original executions, refuses miss
   const pendingMember = await inspect();
   assert.equal(
     pendingMember.actual_milliseconds,
-    1920000,
+    1320000,
     "an interrupted member append cannot erase its extra owner's actual source work",
   );
   assert.equal(pendingMember.attempts, 3);
