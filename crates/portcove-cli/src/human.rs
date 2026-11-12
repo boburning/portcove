@@ -1038,6 +1038,9 @@ fn port_readiness_line(assessment: &portcove_core::PortIntentAssessment) -> Stri
                     (Some(available), _) => {
                         text.push_str(&format!("; update {} available", clean(available)))
                     }
+                    (None, Some(_)) if maintenance.staged_version.is_some() => {
+                        text.push_str("; the staged version is ready to apply")
+                    }
                     (None, Some(_)) => text.push_str("; up to date at the last check"),
                     (None, None) => {
                         text.push_str("; updates not checked for this version and channel yet")
