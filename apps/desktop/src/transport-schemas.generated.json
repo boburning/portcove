@@ -2090,6 +2090,13 @@
               }
             ],
             "description": "Descriptive input evidence for this retained installed release. Missing\nlegacy fields and unreviewed contracts never establish compatibility."
+          },
+          "source_folder_unavailable": {
+            "description": "The saved game-file folder holding this game's missing or unreadable\noriginal, when that folder is currently unavailable: reconnecting it is\nthe fix, and nothing was deleted.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -25203,6 +25210,13 @@
               }
             ],
             "description": "Descriptive input evidence for this retained installed release. Missing\nlegacy fields and unreviewed contracts never establish compatibility."
+          },
+          "source_folder_unavailable": {
+            "description": "The saved game-file folder holding this game's missing or unreadable\noriginal, when that folder is currently unavailable: reconnecting it is\nthe fix, and nothing was deleted.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -34134,6 +34148,13 @@
               }
             ],
             "description": "Descriptive input evidence for this retained installed release. Missing\nlegacy fields and unreviewed contracts never establish compatibility."
+          },
+          "source_folder_unavailable": {
+            "description": "The saved game-file folder holding this game's missing or unreadable\noriginal, when that folder is currently unavailable: reconnecting it is\nthe fix, and nothing was deleted.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -63340,6 +63361,13 @@
               }
             ],
             "description": "Descriptive input evidence for this retained installed release. Missing\nlegacy fields and unreviewed contracts never establish compatibility."
+          },
+          "source_folder_unavailable": {
+            "description": "The saved game-file folder holding this game's missing or unreadable\noriginal, when that folder is currently unavailable: reconnecting it is\nthe fix, and nothing was deleted.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [

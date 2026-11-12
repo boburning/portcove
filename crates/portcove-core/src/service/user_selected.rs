@@ -254,6 +254,7 @@ impl PortcoveService {
             preparation_mode: None,
             required_source_extension: None,
             source: None,
+            source_folder_unavailable: None,
             bios: None,
             source_assessment: None,
             bios_assessment: None,

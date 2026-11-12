@@ -682,3 +682,24 @@ it("ignores malformed input entries without coercing them into reason codes", ()
   } as unknown as PortStatus;
   expect(installedCardInputPresentation(status)).toBeUndefined();
 });
+
+it("asks to reconnect a disconnected saved folder instead of reporting deleted files", () => {
+  const status = withAssessment({
+    action: "launch",
+    availability: "waiting",
+    reason: "missing_source",
+  });
+  expect(portActionPresentation(status, "launch").reason).toBe("Required game files are missing.");
+  const disconnected = {
+    ...status,
+    readiness: {
+      ...status.readiness!,
+      blockers: ["missing_source" as const],
+      source_folder_unavailable: "N:/Games",
+    },
+  };
+  expect(portActionPresentation(disconnected, "launch")).toEqual({
+    blocked: true,
+    reason: "Connect N:/Games to play. Its game files weren't deleted.",
+  });
+});

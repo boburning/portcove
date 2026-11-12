@@ -213,6 +213,17 @@ function presentAssessment(
     };
   if (action === "launch" && reason === "incompatible_source" && definition == null)
     return { blocked: true, reason: sourceFormatReason(status) };
+  // Core names the saved folder when it is disconnected; nothing was deleted.
+  const disconnected = status?.readiness?.source_folder_unavailable;
+  if (
+    action === "launch" &&
+    disconnected &&
+    (reason === "missing_source" || reason === "unreadable_source")
+  )
+    return {
+      blocked: true,
+      reason: `Connect ${disconnected} to play. Its game files weren't deleted.`,
+    };
   const explanation = Object.hasOwn(actionReasons, reason) ? actionReasons[reason] : undefined;
   if (explanation !== undefined) return { blocked: true, reason: explanation };
   return unavailable(action);

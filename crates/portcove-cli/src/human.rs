@@ -2767,6 +2767,13 @@ fn readiness(status: &PortStatus) -> String {
         })
         .collect::<Vec<_>>()
         .join(", ");
+    let blockers = match &readiness.source_folder_unavailable {
+        Some(folder) => format!(
+            "{blockers}; connect {} to play (its game files weren't deleted)",
+            clean(&folder.display().to_string())
+        ),
+        None => blockers,
+    };
     match readiness.required_source_extension.as_deref() {
         Some(extension) => format!("{blockers}; requires uncompressed .{extension} original file"),
         None => blockers,

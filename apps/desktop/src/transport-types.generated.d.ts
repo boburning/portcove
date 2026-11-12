@@ -1700,6 +1700,12 @@ export interface LaunchReadiness {
    * legacy fields and unreviewed contracts never establish compatibility.
    */
   source_assessment?: SourceAssessment | null;
+  /**
+   * The saved game-file folder holding this game's missing or unreadable
+   * original, when that folder is currently unavailable: reconnecting it is
+   * the fix, and nothing was deleted.
+   */
+  source_folder_unavailable?: string | null;
   [k: string]: unknown;
 }
 export interface SourceAssessment {
