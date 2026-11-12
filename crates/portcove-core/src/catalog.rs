@@ -4631,17 +4631,20 @@ mod tests {
         let started = std::time::Instant::now();
         eprintln!("catalog maintenance matrix: start");
         let baseline = Catalog::embedded().unwrap();
-        let retained = baseline
-            .ports()
-            .iter()
-            .map(|port| {
-                (
-                    port.id.clone(),
-                    crate::installed_contract::InstalledContract::capture(&baseline, &port.id)
-                        .unwrap(),
-                )
-            })
-            .collect::<std::collections::BTreeMap<_, _>>();
+        // Each status change below uses a separate catalog. Verify the retained
+        // contract against its creating definition once for every original port.
+        for before in baseline.ports() {
+            let retained =
+                crate::installed_contract::InstalledContract::capture(&baseline, &before.id)
+                    .unwrap();
+            let retained_catalog = retained.catalog(&before.id).unwrap();
+            assert_eq!(
+                serde_json::to_value(retained_catalog.port(&before.id).unwrap()).unwrap(),
+                serde_json::to_value(before).unwrap(),
+                "retained {}",
+                before.id
+            );
+        }
         for status in [
             crate::UpstreamStatus::Active,
             crate::UpstreamStatus::Retired,
@@ -4707,20 +4710,6 @@ mod tests {
                         before.id
                     );
                 }
-                let old_contract = retained.get(&before.id).unwrap();
-                assert_eq!(
-                    serde_json::to_value(
-                        old_contract
-                            .catalog(&before.id)
-                            .unwrap()
-                            .port(&before.id)
-                            .unwrap()
-                    )
-                    .unwrap(),
-                    serde_json::to_value(before).unwrap(),
-                    "retained {}",
-                    before.id
-                );
             }
             eprintln!(
                 "catalog maintenance {status:?}: complete after {:?}",
