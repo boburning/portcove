@@ -318,7 +318,13 @@ checked squash message. Source/target/body drift requires fresh reconciliation.
 There is no provider atomic precondition for closing relationships or target tip.
 
 After any merge response, including an error, collect fresh readback before
-considering another mutation. `verify-merge` requires the actual single-parent
+considering another mutation. GitHub clears a workflow run's `pull_requests` once
+the pull request merges, so preparation records the `closing-inventory` check
+suite it validated (`closing_inventory_suite`). A merged readback accepts that
+run's empty `pull_requests` only for that exact suite; any other run, a
+preparation without it (including GraphQL or direct-UI preparations, which
+record none, so their readback also uses GraphQL), or an unmerged pull request
+still refuses. `verify-merge` requires the actual single-parent
 squash, expected tree/message, merged PR, target branch and unchanged closing
 inventory. A failed or unavailable readback remains an unknown outcome: inspect
 the remote state and reconcile it without automatic retry or local cleanup.
