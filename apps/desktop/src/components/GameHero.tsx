@@ -18,6 +18,7 @@ import type { HeroMediaPort } from "../hero-media";
 import { ArtworkSource } from "./Artwork";
 import { MediaCredit } from "./CatalogMedia";
 import { cn } from "cn";
+import { useAppTranslation } from "../localization";
 
 /** Shared descriptive media composition; callers retain headings, actions and eligibility. */
 export function GameHero({
@@ -35,6 +36,7 @@ export function GameHero({
   children: ReactNode;
   successfulLaunches?: number | undefined;
 }) {
+  const { t } = useAppTranslation("browsing");
   const { element, visible } = useArtworkVisibility();
   const { foreground, cover, background } = useGameHeroArtwork(port, visible);
   const [surface, setSurface] = useState<HeroLogoSurface & { image: string }>();
@@ -94,7 +96,10 @@ export function GameHero({
       data-hero-layout={layout}
       data-successful-launches={successfulLaunches}
       aria-label={
-        label ?? `${gameTitle(port)} ${variant === "detail" ? "game details" : "recently played"}`
+        label ??
+        (variant === "detail"
+          ? t("hero.detailLabel", { title: gameTitle(port) })
+          : t("hero.continueLabel", { title: gameTitle(port) }))
       }
       data-focus-group
     >
@@ -168,6 +173,7 @@ function HeroCredits({
   artwork: Pick<ReturnType<typeof useGameHeroArtwork>, "foreground" | "cover" | "background">;
   coverVisible: boolean;
 }) {
+  const { t } = useAppTranslation("browsing");
   const slot = useRef<HTMLDivElement>(null);
   const focusedCredit = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
@@ -200,7 +206,7 @@ function HeroCredits({
     >
       {visible && (
         <details className="game-hero-credits">
-          <summary data-focusable>Image credits</summary>
+          <summary data-focusable>{t("hero.credits")}</summary>
           {foregroundMedia && <MediaCredit media={foregroundMedia} port={port} />}
           {background.catalogMedia && <MediaCredit media={background.catalogMedia} port={port} />}
           {coverState && (

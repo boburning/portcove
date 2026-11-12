@@ -1,4 +1,9 @@
 {
+  "hero": {
+    "continueLabel": "{{title}} لُعبت مؤخرًا",
+    "credits": "حقوق الصور",
+    "detailLabel": "تفاصيل لعبة {{title}}"
+  },
   "implementation": {
     "choose": "اختيار <name/>",
     "preferred": "المفضّل: <name/>",

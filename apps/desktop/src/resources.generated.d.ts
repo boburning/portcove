@@ -359,6 +359,11 @@ export default interface Resources {
     }
   },
   "browsing": {
+    "hero": {
+      "continueLabel": "{{title}} recently played",
+      "credits": "Image credits",
+      "detailLabel": "{{title}} game details"
+    },
     "implementation": {
       "choose": "Choose <name/>",
       "preferred": "Preferred: <name/>",
@@ -512,6 +517,9 @@ export default interface Resources {
     }
   },
   "common": {
+    "brand": {
+      "mascot": "Portcove crab mascot"
+    },
     "browserFailed": "Couldn’t open the browser: <detail/>",
     "close": "Close",
     "filter": {

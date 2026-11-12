@@ -1,4 +1,7 @@
 {
+  "brand": {
+    "mascot": "تميمة Portcove على شكل سلطعون"
+  },
   "browserFailed": "تعذر فتح المتصفح: <detail/>",
   "close": "إغلاق",
   "filter": {

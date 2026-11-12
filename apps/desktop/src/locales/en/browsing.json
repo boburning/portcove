@@ -1,4 +1,9 @@
 {
+  "hero": {
+    "continueLabel": "{{title}} recently played",
+    "credits": "Image credits",
+    "detailLabel": "{{title}} game details"
+  },
   "implementation": {
     "choose": "Choose <name/>",
     "preferred": "Preferred: <name/>",
