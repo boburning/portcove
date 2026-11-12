@@ -334,11 +334,11 @@ it("names Thunderstore and asks before installing a reviewed mod that runs code"
   expect(projectRead).toHaveBeenCalledWith("zelda64-recomp", "Owner-Timer", 7);
   await act(async () => button(host, "Review Owner-Timer-1.1.0.zip").click());
   expect(planned).toHaveBeenCalledWith("zelda64-recomp", "default", "Owner-Timer", "1.1.0", 7);
-  expect(host.textContent).toContain("These mods run their own code inside the game");
+  expect(host.textContent).toContain("speed_timer.nrm runs its own code inside the game");
   expect(host.textContent).toContain("speed_timer.nrm");
   expect([...host.querySelectorAll("button")].some((b) => b.textContent === "Install")).toBe(false);
 
-  await act(async () => button(host, "Allow their code and install").click());
+  await act(async () => button(host, "Allow its code and install").click());
   expect(applied).toHaveBeenCalledWith(
     "zelda64-recomp",
     "default",

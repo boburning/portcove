@@ -1892,7 +1892,8 @@ installed. Thunderstore listings are read once per community, conditionally and
 cached, and shown in Thunderstore's order. Desktop browses either provider the same
 way; when a reviewed file contains mods that run code, it names them, says Portcove
 can't tell whether the code is safe, and installs only through **Allow their code and
-install**, which consents to exactly that reviewed plan.
+install** (or **Allow its code and install** for one mod), which consents to exactly
+that reviewed plan.
 
 Desktop's Setups and mods panel offers the same flow for the setup in use when the
 game has a binding: find mods, show a mod's files, review a file (the same plan,

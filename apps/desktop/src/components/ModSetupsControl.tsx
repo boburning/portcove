@@ -143,7 +143,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   // Games without reviewed mod support show nothing, including while loading.
   if (!view?.supported) return null;
   if (busy) return <p role="status">{t("mods.busy")}</p>;
-  // The GameBanana browser's work or open review locks every other change, so a
+  // The provider browser's work or open review locks every other change, so a
   // review always lands on the setup and revision it was made for.
   const locked = working || !fresh || browserBusy;
 
@@ -237,19 +237,10 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                   ))}
                 </ul>
                 <p>
-                  {view.provider === "gamebanana" ? (
-                    t("mods.held.next", { count: heldUpdates.length })
-                  ) : (
-                    <Trans
-                      t={t}
-                      i18nKey="mods.held.nextCli"
-                      count={heldUpdates.length}
-                      components={{
-                        plan: <code dir="ltr">portcove profile provider-plan</code>,
-                        apply: <code dir="ltr">portcove profile provider-apply</code>,
-                      }}
-                    />
-                  )}
+                  {t("mods.held.next", {
+                    count: heldUpdates.length,
+                    provider: providerName(view.provider ?? ""),
+                  })}
                 </p>
               </div>
             </Notice>

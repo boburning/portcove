@@ -517,7 +517,7 @@ it("adds a mod without code, or code allowed before, without asking", async () =
   expect(host.textContent).not.toContain("runs its own code");
 });
 
-it("points held updates for a game Desktop can't review yet to the command line", async () => {
+it("points held Thunderstore updates to the Thunderstore browser", async () => {
   vi.spyOn(desktopApi, "modSetups").mockResolvedValue(
     view({
       provider: "thunderstore",
@@ -533,9 +533,11 @@ it("points held updates for a game Desktop can't review yet to the command line"
     }),
   );
   const host = await render();
-  expect(host.textContent).toContain("Desktop can’t review updates for this game’s mods yet");
-  expect(host.textContent).not.toContain("Find mods on GameBanana");
-  const commands = [...host.querySelectorAll("code[dir=ltr]")].map((code) => code.textContent);
-  expect(commands).toContain("portcove profile provider-plan");
-  expect(commands).toContain("portcove profile provider-apply");
+  expect(host.textContent).toContain("Find mods on Thunderstore below");
+  expect(host.textContent).not.toContain("GameBanana");
+  expect(
+    [...host.querySelectorAll("button")].some(
+      (candidate) => candidate.textContent?.trim() === "Find mods on Thunderstore…",
+    ),
+  ).toBe(true);
 });

@@ -377,3 +377,25 @@ async fn a_plan_stripped_of_its_code_marking_cannot_install_code_without_consent
     assert!(error.message.contains("runs its own code"), "{error:?}");
     assert!(live(&w).is_empty(), "nothing was installed");
 }
+
+#[tokio::test]
+async fn allowing_code_on_a_plan_without_code_installs_it_as_a_plain_review() {
+    let w = world();
+    let plan = w
+        .service
+        .plan_provider_install_via(&w.client, PORT, &w.profile, "Owner-Timer", "1.0.0")
+        .await
+        .unwrap();
+    assert!(
+        plan.members
+            .iter()
+            .all(|member| member.runs_code.is_empty())
+    );
+    let token = w
+        .service
+        .authorize_provider_install_allowing_code(&plan)
+        .unwrap()
+        .token;
+    w.service.apply_provider_install(&plan, &token).unwrap();
+    assert_eq!(live(&w), ["speed_timer.nrm"]);
+}

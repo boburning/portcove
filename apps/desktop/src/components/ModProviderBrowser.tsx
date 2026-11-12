@@ -27,7 +27,9 @@ type Props = {
 
 /** The provider's own name, which is not translated. */
 export function providerName(provider: string) {
-  return provider === "thunderstore" ? "Thunderstore" : "GameBanana";
+  if (provider === "gamebanana") return "GameBanana";
+  if (provider === "thunderstore") return "Thunderstore";
+  return provider;
 }
 
 function staleNote(
@@ -270,6 +272,7 @@ export function ModProviderBrowser(props: Props) {
                     <Trans
                       t={t}
                       i18nKey="mods.browse.code"
+                      count={codeMembers.length}
                       components={{
                         names: <bdi>{codeMembers.join(t("mods.separator"))}</bdi>,
                       }}
@@ -325,7 +328,9 @@ export function ModProviderBrowser(props: Props) {
                   })
                 }
               >
-                {codeMembers.length > 0 ? t("mods.browse.installCode") : t("mods.browse.install")}
+                {codeMembers.length > 0
+                  ? t("mods.browse.installCode", { count: codeMembers.length })
+                  : t("mods.browse.install")}
               </Button>
               <Button variant="outline" disabled={Boolean(working)} onClick={cancelPlan}>
                 {t("mods.browse.cancel")}
