@@ -97,6 +97,7 @@ it("shows one identity-bound completion without replaying old success after dism
   // Select the live region by its stable attribute, never by translated label text.
   const announcements = document.querySelector<HTMLElement>("[data-invocation-announcements]");
   if (!announcements) throw new Error("task-update live region is missing");
+  expect(announcements.getAttribute("role")).toBe("status");
   expect(announcements.textContent).toBe("");
   const visibleCompletions = () =>
     document.querySelectorAll('[data-invocation-id] [data-slot="notice-body"]');
