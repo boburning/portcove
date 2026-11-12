@@ -1813,8 +1813,15 @@ allows code for those exact bytes: the refusal's `sha256` detail names them, and
 `install-package ... --allow-mod-code SHA256` installs the package only when that
 digest matches. The consent is kept per game in the library and covers only those
 bytes, so a later version, a recipe or a hand-written revision with other bytes
-needs its own consent; Portcove checks it again before placing any package in
-`mods`, so code without consent is never deployed by any route. Consent records the
+needs its own consent, and other setups may use bytes already allowed. Portcove
+checks it again whenever it records a revision, switches profiles or places
+packages, before anything changes: a revision that would run code without consent
+is refused as `conflict` with nothing changed, and installing the same file again
+with `--allow-mod-code` lets it continue. Portcove therefore never records,
+enables or places mod code without consent. Files a player puts in `mods`
+themselves are not Portcove's: they are reported as files the setup did not add,
+never adopted into a setup that would run them. Provider installs refuse mods that
+run code. Consent records the
 player's choice; it does not establish that the code is safe, who wrote it, or
 that it works with the installed build. Packages that load code from outside
 themselves (`native_libraries` host libraries, `*.offline.nrm`) or contain files an

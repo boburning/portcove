@@ -1295,7 +1295,10 @@ fn recomp_code_runs_only_for_the_exact_bytes_the_player_allowed() {
         .unwrap();
     assert_eq!(installed.packages[0].native_id, "speedrun_timer.nrm");
     assert_eq!(w.live(), ["speedrun_timer.nrm"]);
-    assert_eq!(w.list()["enabled_mods"], serde_json::json!(["speedrun_timer"]));
+    assert_eq!(
+        w.list()["enabled_mods"],
+        serde_json::json!(["speedrun_timer"])
+    );
 
     // A later version is new bytes and needs its own consent.
     let newer = w.nrm(
@@ -1309,12 +1312,20 @@ fn recomp_code_runs_only_for_the_exact_bytes_the_player_allowed() {
         .install_mod_package(RECOMP, &w.default, &newer, w.revision())
         .unwrap_err();
     assert!(error.message.contains("runs its own code"));
-    assert_eq!(w.live(), ["speedrun_timer.nrm"], "the allowed version stays");
+    assert_eq!(
+        w.live(),
+        ["speedrun_timer.nrm"],
+        "the allowed version stays"
+    );
 
     // Libraries loaded by the operating system are never admitted, even with consent.
     let manifest = br#"{"game_id":"mm","id":"native_helper","display_name":"N","version":"1.0.0",
         "authors":["a"],"minimum_recomp_version":"1.0.0","native_libraries":{"helper":["run"]}}"#;
-    let native = archive(&w.scratch, "native.nrm", &[("mod.json", manifest.as_slice())]);
+    let native = archive(
+        &w.scratch,
+        "native.nrm",
+        &[("mod.json", manifest.as_slice())],
+    );
     let error = w
         .service
         .install_mod_package_allowing_code(
@@ -1329,18 +1340,39 @@ fn recomp_code_runs_only_for_the_exact_bytes_the_player_allowed() {
     assert!(error.message.contains("outside its package"));
 }
 
-#[test]
-fn stored_code_without_consent_is_never_placed_by_any_route() {
-    let w = recomp_world();
-    let code = w.nrm(
-        "code.nrm",
+fn code_package(w: &RecompWorld, file: &str, marker: &[u8]) -> (PathBuf, String) {
+    let package = w.nrm(
+        file,
         "speedrun_timer",
         &[],
-        &[("mod_binary.bin", b"\0"), ("mod_syms.bin", b"\0")],
+        &[("mod_binary.bin", marker), ("mod_syms.bin", b"\0")],
     );
-    let sha = sha256_file(&code).unwrap();
-    // Bytes reach the store without consent (for example through a recipe or a
-    // hand-written revision); placing them is still refused.
+    let sha = sha256_file(&package).unwrap();
+    (package, sha)
+}
+
+fn code_revision_request(expected: u64, sha: &str, size: u64) -> crate::ProfileRevisionRequest {
+    crate::ProfileRevisionRequest {
+        expected_revision: expected,
+        packages: Some(vec![ResolvedPackage {
+            native_id: "speedrun_timer.nrm".into(),
+            native_version: Some("1.0.0".into()),
+            provider: None,
+            sha256: sha.into(),
+            size,
+            enabled: true,
+            requires: Vec::new(),
+        }]),
+        ..Default::default()
+    }
+}
+
+#[test]
+fn code_without_consent_is_never_recorded_from_stored_or_live_bytes() {
+    let w = recomp_world();
+    let (code, sha) = code_package(&w, "code.nrm", b"\0");
+    let size = fs::metadata(&code).unwrap().len();
+    // Bytes in the store without consent (for example from a recipe).
     let layout = w.service.deploy_layout(RECOMP).unwrap();
     let stored = layout.package(&sha, "speedrun_timer.nrm");
     fs::create_dir_all(stored.parent().unwrap()).unwrap();
@@ -1349,26 +1381,106 @@ fn stored_code_without_consent_is_never_placed_by_any_route() {
         .service
         .copy_profile(RECOMP, &w.default, "Forged")
         .unwrap();
-    w.service
-        .create_profile_revision(
-            RECOMP,
-            &other.id,
-            &crate::ProfileRevisionRequest {
-                expected_revision: 1,
-                packages: Some(vec![ResolvedPackage {
-                    native_id: "speedrun_timer.nrm".into(),
-                    native_version: Some("1.0.0".into()),
-                    provider: None,
-                    sha256: sha.clone(),
-                    size: fs::metadata(&code).unwrap().len(),
-                    enabled: true,
-                    requires: Vec::new(),
-                }]),
-                ..Default::default()
-            },
-        )
-        .unwrap();
-    let error = w.service.activate_profile(RECOMP, &other.id).unwrap_err();
+    let error = w
+        .service
+        .create_profile_revision(RECOMP, &other.id, &code_revision_request(1, &sha, size))
+        .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Conflict);
     assert!(error.message.contains("runs its own code"), "{error:?}");
-    assert!(!w.user().join("mods").join("speedrun_timer.nrm").exists());
+    fs::remove_file(&stored).unwrap();
+
+    // The same file dropped into the live mods folder is not adopted either.
+    fs::create_dir_all(w.user().join("mods")).unwrap();
+    fs::copy(&code, w.user().join("mods").join("speedrun_timer.nrm")).unwrap();
+    let error = w
+        .service
+        .create_profile_revision(RECOMP, &w.default, &code_revision_request(1, &sha, size))
+        .unwrap_err();
+    assert!(error.message.contains("runs its own code"), "{error:?}");
+    assert_eq!(w.revision(), 1, "nothing was recorded");
+    assert!(!w.user().join("mods.json").exists(), "nothing was enabled");
+}
+
+#[test]
+fn a_switch_held_for_missing_consent_changes_nothing_and_allowing_the_file_resumes_it() {
+    let w = recomp_world();
+    let (code, sha) = code_package(&w, "code.nrm", b"\0");
+    let other = w.service.copy_profile(RECOMP, &w.default, "Plain").unwrap();
+    w.service
+        .install_mod_package_allowing_code(RECOMP, &w.default, &code, 1, &sha)
+        .unwrap();
+    w.service.activate_profile(RECOMP, &other.id).unwrap();
+    // The consent record is lost.
+    let layout = w.service.deploy_layout(RECOMP).unwrap();
+    fs::remove_file(layout.code_consent()).unwrap();
+    let selection = || {
+        crate::profile::selection(&w.service.library().connection().unwrap(), RECOMP)
+            .unwrap()
+            .unwrap()
+    };
+    let before = selection();
+    let error = w.service.activate_profile(RECOMP, &w.default).unwrap_err();
+    assert!(error.message.contains("runs its own code"), "{error:?}");
+    assert_eq!(selection(), before, "the switch never started");
+    assert!(!layout.journal().exists(), "nothing is left to recover");
+    // The port stays usable, and allowing the same file again resumes the setup.
+    let asset = w.nrm("ui.nrm", "better_ui", &[], &[]);
+    let current = w
+        .service
+        .profile_inventory(RECOMP)
+        .unwrap()
+        .profiles
+        .into_iter()
+        .find(|view| view.profile.id == other.id)
+        .unwrap()
+        .profile
+        .current_revision;
+    w.service
+        .install_mod_package(RECOMP, &other.id, &asset, current)
+        .unwrap();
+    w.service
+        .install_mod_package_allowing_code(RECOMP, &w.default, &code, w.revision(), &sha)
+        .unwrap();
+    w.service.activate_profile(RECOMP, &w.default).unwrap();
+    assert_eq!(w.live(), ["speedrun_timer.nrm"]);
+}
+
+#[test]
+fn recorded_consent_is_reused_and_an_unreadable_record_fails_closed() {
+    let w = recomp_world();
+    let (code, sha) = code_package(&w, "code.nrm", b"\0");
+    w.service
+        .install_mod_package_allowing_code(RECOMP, &w.default, &code, 1, &sha)
+        .unwrap();
+    // Another setup can use the same allowed bytes without asking again.
+    let other = w
+        .service
+        .copy_profile(RECOMP, &w.default, "Second")
+        .unwrap();
+    w.service.activate_profile(RECOMP, &other.id).unwrap();
+    assert_eq!(w.live(), ["speedrun_timer.nrm"]);
+    // Other bytes still need consent.
+    let (newer, _) = code_package(&w, "code2.nrm", b"\x01");
+    let current = w
+        .service
+        .profile_inventory(RECOMP)
+        .unwrap()
+        .profiles
+        .into_iter()
+        .find(|view| view.profile.id == other.id)
+        .unwrap()
+        .profile
+        .current_revision;
+    assert!(
+        w.service
+            .install_mod_package(RECOMP, &other.id, &newer, current)
+            .is_err()
+    );
+    let layout = w.service.deploy_layout(RECOMP).unwrap();
+    fs::write(layout.code_consent(), b"not json").unwrap();
+    let error = w
+        .service
+        .install_mod_package(RECOMP, &other.id, &code, current)
+        .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::State);
 }

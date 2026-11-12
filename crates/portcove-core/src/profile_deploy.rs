@@ -100,11 +100,11 @@ impl Layout {
     fn mods(&self) -> PathBuf {
         self.user.join(MODS)
     }
-    fn journal(&self) -> PathBuf {
+    pub(crate) fn journal(&self) -> PathBuf {
         self.store().join("switch.json")
     }
     /// Package digests whose code the player explicitly allowed to run.
-    fn code_consent(&self) -> PathBuf {
+    pub(crate) fn code_consent(&self) -> PathBuf {
         self.store().join("code-consent.json")
     }
     fn pending(&self) -> PathBuf {
@@ -155,7 +155,8 @@ fn consented_code(layout: &Layout) -> Result<BTreeSet<String>> {
             "the mod code consent record exceeds its bound",
         ));
     }
-    let digests: BTreeSet<String> = serde_json::from_slice(&fs::read(&path)?)?;
+    let digests: BTreeSet<String> = serde_json::from_slice(&fs::read(&path)?)
+        .map_err(|_| PortcoveError::state("the mod code consent record is not readable"))?;
     if digests.len() > MAX_CODE_CONSENTS || digests.iter().any(|sha| !is_sha256(sha)) {
         return Err(PortcoveError::state(
             "the mod code consent record is not readable",
@@ -234,27 +235,73 @@ fn code_consent_required(recomp: &crate::RecompModInspection) -> PortcoveError {
     .detail("sha256", &recomp.sha256)
 }
 
-/// Before a stored Recomp package is placed in the mods folder: a package whose
-/// bytes run code is placed only when the player allowed those exact bytes.
-fn require_deployable_code(layout: &Layout, stored: &Path, sha256: &str) -> Result<()> {
+fn code_not_allowed(recomp: &crate::RecompModInspection) -> PortcoveError {
+    PortcoveError::conflict(
+        "a mod in this setup runs its own code, and code was not allowed for these exact bytes; nothing was changed. Install the same file again and allow its code, or remove the mod from the setup",
+    )
+    .detail("mod", &recomp.native_id)
+    .detail("runs", describe_execution(&recomp.execution))
+    .detail("sha256", &recomp.sha256)
+}
+
+/// Refuses a revision that would place or enable Recomp code the player did not
+/// allow for its exact bytes. Checked when a revision is recorded and before a
+/// switch or deployment changes anything, and again inside `deploy`. Packages
+/// whose bytes are neither stored nor live are left to the missing-bytes checks.
+pub(crate) fn require_code_allowed(layout: &Layout, revision: &ProfileRevision) -> Result<()> {
     let Some(game) = native_mod_list::recomp_game(&layout.port_id()) else {
         return Ok(());
     };
-    let recomp = crate::inspect_recomp_mod(stored, game)?;
-    if recomp.execution.is_empty() && recomp.holds.is_empty() {
-        return Ok(());
-    }
-    if recomp.holds.contains(&crate::RecompModHold::OtherGame) {
-        return Err(PortcoveError::unsupported(
-            "a stored mod is made for a different game; nothing was changed",
-        )
-        .detail("mod", &recomp.native_id));
-    }
-    require_admissible_code(&recomp)?;
-    if !consented_code(layout)?.contains(sha256) {
-        return Err(code_consent_required(&recomp));
+    let mut consented = None;
+    for package in enabled(revision) {
+        let consented = match &consented {
+            Some(set) => set,
+            None => consented.insert(consented_code(layout)?),
+        };
+        // A recorded consent was only ever given to admissible code.
+        if consented.contains(&package.sha256) {
+            continue;
+        }
+        let stored = layout.package(&package.sha256, &package.native_id);
+        let live = live_package_path(layout, &package.native_id)?;
+        let bytes = if stored.try_exists()? {
+            stored
+        } else if live.try_exists()? && sha256_file(&live)? == package.sha256 {
+            live
+        } else {
+            continue;
+        };
+        let recomp = crate::inspect_recomp_mod(&bytes, game)?;
+        if recomp.sha256 != package.sha256 {
+            return Err(PortcoveError::verification(
+                "a mod's bytes changed while being checked; nothing was changed",
+            )
+            .detail("mod", &recomp.native_id));
+        }
+        if recomp.holds.contains(&crate::RecompModHold::OtherGame) {
+            return Err(PortcoveError::unsupported(
+                "a stored mod is made for a different game; nothing was changed",
+            )
+            .detail("mod", &recomp.native_id));
+        }
+        if recomp.execution.is_empty() && recomp.holds.is_empty() {
+            continue;
+        }
+        require_admissible_code(&recomp)?;
+        return Err(code_not_allowed(&recomp));
     }
     Ok(())
+}
+
+/// Whether an inspected package may run code.
+pub(crate) enum CodePolicy<'a> {
+    /// Code is refused outright (provider installs).
+    Refuse,
+    /// Code is installed when the player allowed these bytes now or before.
+    Consent {
+        allowed: Option<&'a str>,
+        recorded: &'a BTreeSet<String>,
+    },
 }
 
 /// Reviews a private package copy under the port's loader contract, without
@@ -263,7 +310,7 @@ pub(crate) fn inspect_for_port(
     port_id: &str,
     private: PathBuf,
     provider: Option<crate::ProviderPackageRef>,
-    allow_code_sha256: Option<&str>,
+    code: CodePolicy<'_>,
 ) -> Result<StagedPackage> {
     let Some(game) = native_mod_list::recomp_game(port_id) else {
         let inspection = inspect_asset_archive(&private)?;
@@ -286,8 +333,18 @@ pub(crate) fn inspect_for_port(
     let runs_code = !recomp.holds.is_empty() || !recomp.execution.is_empty();
     if runs_code {
         require_admissible_code(&recomp)?;
-        if allow_code_sha256 != Some(recomp.sha256.as_str()) {
-            return Err(code_consent_required(&recomp));
+        match code {
+            CodePolicy::Refuse => {
+                return Err(PortcoveError::unsupported(
+                    "this mod runs its own code; Portcove installs mods that run code only from a file you choose and allow; nothing was installed",
+                )
+                .detail("mod", &recomp.native_id));
+            }
+            CodePolicy::Consent { allowed, recorded } => {
+                if allowed != Some(recomp.sha256.as_str()) && !recorded.contains(&recomp.sha256) {
+                    return Err(code_consent_required(&recomp));
+                }
+            }
         }
     }
     let file_name = format!("{}.nrm", recomp.native_id);
@@ -416,6 +473,7 @@ fn stage_copy(layout: &Layout, source: &Path, destination: &Path) -> Result<()> 
 /// be observed clean first; only owned files change.
 fn deploy(layout: &Layout, from: Option<&ProfileRevision>, to: &ProfileRevision) -> Result<()> {
     require_distinct_native_names(layout, to)?;
+    require_code_allowed(layout, to)?;
     let wanted = enabled(to)
         .map(|package| (package.native_id.clone(), package.sha256.clone()))
         .collect::<std::collections::BTreeMap<_, _>>();
@@ -434,7 +492,6 @@ fn deploy(layout: &Layout, from: Option<&ProfileRevision>, to: &ProfileRevision)
             )
             .detail("package", &package.native_id));
         }
-        require_deployable_code(layout, &stored, &package.sha256)?;
         to_place.push((stored, live));
     }
     if let Some(from) = from {
@@ -888,7 +945,6 @@ impl PortcoveService {
     ) -> Result<ProfileRevision> {
         let layout = self.deploy_layout(port_id)?;
         let _guard = self.library.try_lock_port(port_id, "install-mod-package")?;
-        self.recover_switch_locked(port_id, &layout)?;
         // Copy first, then inspect and store the private copy only, so the bytes that
         // were reviewed are the bytes that are kept.
         fs::create_dir_all(layout.tmp())?;
@@ -898,7 +954,23 @@ impl PortcoveService {
             .ok_or_else(|| PortcoveError::usage("the package path has no file name"))?;
         let private = staging.path().join(file_name);
         fs::copy(source, &private)?;
-        let staged = inspect_for_port(port_id, private, None, allow_code_sha256)?;
+        let recorded = consented_code(&layout)?;
+        let staged = inspect_for_port(
+            port_id,
+            private,
+            None,
+            CodePolicy::Consent {
+                allowed: allow_code_sha256,
+                recorded: &recorded,
+            },
+        )?;
+        // Consent is the player's choice for these inspected bytes. It is kept
+        // before any interrupted change is finished, so allowing the same file
+        // again can complete a change that was held for it.
+        if staged.code_consent {
+            record_code_consent(&layout, &staged.inspection.sha256)?;
+        }
+        self.recover_switch_locked(port_id, &layout)?;
         self.install_staged_locked(port_id, profile_id, expected_revision, vec![staged])
     }
 
@@ -971,9 +1043,6 @@ impl PortcoveService {
                         "package bytes changed while being stored; nothing was installed",
                     ));
                 }
-            }
-            if item.code_consent {
-                record_code_consent(&layout, &inspection.sha256)?;
             }
             let package = ResolvedPackage {
                 native_id: inspection.file_name.clone(),
@@ -1084,6 +1153,7 @@ impl PortcoveService {
         };
         // Refuse before anything is parked or marked, so a refusal changes nothing.
         require_projectable(port_id, &target)?;
+        require_code_allowed(&layout, &target)?;
         let departing = profile::revision_by_number(&connection, &current_id, current_revision)?;
         let latest = if current_id == profile_id {
             Some(&target)
@@ -1148,6 +1218,7 @@ impl PortcoveService {
         }
         let materialized = profile::revision_by_number(connection, &id, revision)?;
         require_projectable(port_id, current)?;
+        require_code_allowed(layout, current)?;
         require_clean(
             &observe(layout, &[&materialized, current])?,
             "finishing an interrupted change",
