@@ -623,6 +623,7 @@ fn listing_artwork_catalog(artwork: Option<&crate::IgdbArtwork>) -> crate::Catal
 
 #[test]
 fn listing_only_artwork_uses_current_presentation_and_preserves_local_choices() {
+    let _budget = shared_cover_budget();
     use crate::{
         DestinationArtworkContent, DestinationArtworkRole, DestinationArtworkUnavailableReason,
     };
@@ -2010,6 +2011,16 @@ fn transient_cover_error() -> crate::artwork::IgdbFetchFailure {
     }
 }
 
+/// Cover tests share the process-wide image work budget. They may run
+/// concurrently with each other, but not beside the test that saturates it.
+static COVER_WORK_BUDGET: std::sync::RwLock<()> = std::sync::RwLock::new(());
+
+fn shared_cover_budget() -> std::sync::RwLockReadGuard<'static, ()> {
+    COVER_WORK_BUDGET
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 fn cover_with_fetch(
     service: &PortcoveService,
     artwork: &crate::IgdbArtwork,
@@ -2033,6 +2044,7 @@ fn cover_with_fetch(
 
 #[test]
 fn cover_backoff_expires_from_completion_and_success_recovers() {
+    let _budget = shared_cover_budget();
     use std::{
         cell::Cell,
         time::{Duration, Instant},
@@ -2078,6 +2090,7 @@ fn cover_backoff_expires_from_completion_and_success_recovers() {
 
 #[test]
 fn validated_cover_cache_precedes_backoff_and_clear_permits_retry() {
+    let _budget = shared_cover_budget();
     use std::time::Instant;
     let temp = tempfile::tempdir().unwrap();
     let (service, artwork, bytes) = backoff_fixture(temp.path());
@@ -2100,6 +2113,7 @@ fn validated_cover_cache_precedes_backoff_and_clear_permits_retry() {
 
 #[test]
 fn cover_backoff_isolated_by_library_image_and_content_identity() {
+    let _budget = shared_cover_budget();
     use std::{cell::Cell, time::Instant};
     let first = tempfile::tempdir().unwrap();
     let second = tempfile::tempdir().unwrap();
@@ -2134,6 +2148,7 @@ fn cover_backoff_isolated_by_library_image_and_content_identity() {
 
 #[test]
 fn permanent_integrity_publication_and_detailed_failures_are_not_cached() {
+    let _budget = shared_cover_budget();
     use std::{cell::Cell, time::Instant};
     let temp = tempfile::tempdir().unwrap();
     let (service, artwork, bytes) = backoff_fixture(temp.path());
@@ -2189,6 +2204,7 @@ fn permanent_integrity_publication_and_detailed_failures_are_not_cached() {
 
 #[test]
 fn concurrent_cover_failures_share_one_request_without_holding_registry() {
+    let _budget = shared_cover_budget();
     use std::{
         sync::{
             atomic::{AtomicUsize, Ordering},
@@ -2236,6 +2252,7 @@ fn concurrent_cover_failures_share_one_request_without_holding_registry() {
 
 #[test]
 fn clearing_cover_backoff_detaches_in_flight_failure() {
+    let _budget = shared_cover_budget();
     use std::{
         sync::{
             atomic::{AtomicUsize, Ordering},
@@ -2328,6 +2345,7 @@ fn only_transient_http_cover_statuses_receive_backoff() {
 
 #[test]
 fn new_library_at_same_path_does_not_inherit_cover_backoff() {
+    let _budget = shared_cover_budget();
     let temp = tempfile::tempdir().unwrap();
     let (service, artwork, _) = backoff_fixture(temp.path());
     let old_identity = service.library().identity_record().unwrap();
@@ -2348,6 +2366,7 @@ fn new_library_at_same_path_does_not_inherit_cover_backoff() {
 
 #[test]
 fn cover_backoff_and_clear_share_canonical_library_alias_identity() {
+    let _budget = shared_cover_budget();
     use std::{cell::Cell, time::Instant};
     let temp = tempfile::tempdir().unwrap();
     let (service, artwork, _) = backoff_fixture(temp.path());
@@ -2374,6 +2393,7 @@ fn cover_backoff_and_clear_share_canonical_library_alias_identity() {
 
 #[test]
 fn warm_cover_reuses_conversion_but_always_verifies_the_original() {
+    let _budget = shared_cover_budget();
     use std::{cell::Cell, time::Instant};
     let temp = tempfile::tempdir().unwrap();
     let (service, artwork, bytes) = backoff_fixture(temp.path());
@@ -2430,6 +2450,7 @@ fn warm_cover_reuses_conversion_but_always_verifies_the_original() {
 
 #[test]
 fn concurrent_cover_successes_share_fetch_and_conversion() {
+    let _budget = shared_cover_budget();
     use std::{
         sync::{
             atomic::{AtomicUsize, Ordering},
@@ -2476,6 +2497,11 @@ fn concurrent_cover_successes_share_fetch_and_conversion() {
 
 #[test]
 fn distinct_cover_work_is_bounded_and_busy_is_not_negatively_cached() {
+    // This test saturates the process-wide cover work budget, so no other
+    // cover test may run beside it in the same test process.
+    let _budget = COVER_WORK_BUDGET
+        .write()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     use std::{
         sync::mpsc,
         time::{Duration, Instant},
@@ -2533,6 +2559,7 @@ fn distinct_cover_work_is_bounded_and_busy_is_not_negatively_cached() {
 
 #[test]
 fn clearing_cover_cache_detaches_in_flight_derivative() {
+    let _budget = shared_cover_budget();
     use std::{
         sync::mpsc,
         time::{Duration, Instant},
@@ -2569,6 +2596,7 @@ fn clearing_cover_cache_detaches_in_flight_derivative() {
 
 #[test]
 fn cover_derivatives_follow_canonical_library_and_durable_identity() {
+    let _budget = shared_cover_budget();
     let temp = tempfile::tempdir().unwrap();
     let (service, artwork, bytes) = backoff_fixture(temp.path());
     let now = std::time::Instant::now();

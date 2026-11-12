@@ -50,8 +50,6 @@ pub(crate) fn validate_attribution(attribution: &ArtworkAttribution) -> Result<(
         })
         || !crate::artwork::steamgriddb::is_image_url(&attribution.source_url)
         || attribution.fetched_at <= 0
-        || attribution.fetched_at
-            > crate::Library::now().saturating_add(MAX_FETCHED_AT_SKEW_SECONDS)
     {
         return Err(PortcoveError::verification(
             "invalid artwork provider attribution",
@@ -219,6 +217,15 @@ pub(crate) fn write_provider(
 ) -> Result<()> {
     validate_hash(&record.asset_sha256)?;
     validate_attribution(&record.attribution)?;
+    // Only new writes (a choice or an import) are bounded by this host's clock;
+    // stored records stay readable if the clock later moves back.
+    if record.attribution.fetched_at
+        > crate::Library::now().saturating_add(MAX_FETCHED_AT_SKEW_SECONDS)
+    {
+        return Err(PortcoveError::verification(
+            "artwork provider attribution is dated in the future",
+        ));
+    }
     let (recorded, total): (u64, u64) = connection.query_row(
         "SELECT (SELECT COUNT(*) FROM artwork_asset_providers WHERE asset_sha256=?1 AND NOT (provider=?2 AND asset_id=?3)),
                 (SELECT COUNT(*) FROM artwork_asset_providers)",
