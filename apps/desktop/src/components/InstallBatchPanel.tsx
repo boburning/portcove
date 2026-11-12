@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
-import { errorText } from "../view-model";
+import { errorText, formatBytes } from "../view-model";
 import type { InstallBatchRecord, InstallBatchReview, PortDefinition } from "../types";
 import { Button } from "./ui/button";
 
@@ -218,6 +218,7 @@ function ReviewList({
         {ready.length} ready to install, {waiting} waiting. Every selected game is saved to your
         Library. Waiting games aren't installed.
       </p>
+      <BatchCapacity capacity={review.capacity} name={name} />
       <ul>
         {review.items.map((item) => (
           <li key={item.port_id}>
@@ -236,6 +237,48 @@ function ReviewList({
       <Button data-focusable variant="outline" onClick={onCancel}>
         Cancel
       </Button>
+    </div>
+  );
+}
+
+/** What the ready games need together, so shared volume pressure is visible before confirming. */
+function BatchCapacity({
+  capacity,
+  name,
+}: {
+  capacity: InstallBatchReview["capacity"] | undefined;
+  name: (id: string) => string;
+}) {
+  if (!capacity) return null;
+  const names = (ids: string[]) => ids.map(name).join(", ");
+  return (
+    <div>
+      {capacity.download_bytes > 0 && (
+        <p>Downloads together: {formatBytes(capacity.download_bytes)}.</p>
+      )}
+      {capacity.volumes.map((volume) => {
+        const games = volume.port_ids.map(name);
+        const who =
+          games.length === 1
+            ? `${games[0]} needs`
+            : `${games.slice(0, -1).join(", ")} and ${games.at(-1)} need`;
+        return (
+          <p key={volume.volume_identity ?? volume.path}>
+            {who} {formatBytes(volume.required_bytes)} of temporary space on the same drive
+            {volume.available_bytes === undefined || volume.available_bytes === null
+              ? ". Its free space is unknown; each game is checked before it runs."
+              : volume.sufficient === false
+                ? `, which has ${formatBytes(volume.available_bytes)} free. That isn't enough for all of them; later games may stop for space.`
+                : `, which has ${formatBytes(volume.available_bytes)} free.`}
+          </p>
+        );
+      })}
+      {capacity.unknown_space && capacity.unknown_space.length > 0 && (
+        <p>
+          Space needed is unknown for {names(capacity.unknown_space)}. Each is checked before it
+          runs.
+        </p>
+      )}
     </div>
   );
 }

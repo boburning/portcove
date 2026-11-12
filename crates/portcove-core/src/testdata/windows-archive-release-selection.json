@@ -42,6 +42,23 @@
         "Paperboat-Mulberry-Delta-Linux.zip"
       ]
     },
+    "street-fighter-iii-3rd-strike-3sx": {
+      "inventory": "three_sx",
+      "repository_id": 1071157272,
+      "selected_assets": ["3SX-6187364-windows.zip", "3SX-abcdef1-windows.zip"],
+      "linux_selected_assets": [
+        "3SX-6187364-linux-x86_64.tar.gz",
+        "3SX-abcdef1-linux-x86_64.tar.gz"
+      ],
+      "channel": "rolling",
+      "mutable_tag_snapshots": true
+    },
+    "mdk-sdl-nemo22": {
+      "inventory": "mdk_sdl",
+      "repository_id": 1406153922,
+      "selected_assets": ["mdk-win-x64.zip", "mdk-win-x64.zip"],
+      "linux_selected_assets": ["mdk-linux-x64.tar.gz", "mdk-linux-x64.tar.gz"]
+    },
     "perfect-dark": {
       "inventory": "perfect_dark",
       "repository_id": 669207138,
@@ -51,6 +68,46 @@
       "macos_aarch64_selected_assets": ["pd-arm64-osx.tar.xz", "pd-arm64-osx.tar.xz"],
       "channel": "rolling",
       "mutable_tag_snapshots": true
+    },
+    "mechakotik-tails-adventure": {
+      "inventory": "tails_adventure",
+      "repository_id": 532480163,
+      "selected_assets": [
+        "tails-adventure-v0.3.2-1-windows.zip",
+        "tails-adventure-v0.3.3-1-windows.zip"
+      ],
+      "linux_selected_assets": [
+        "tails-adventure-v0.3.2-1-linux-amd64.tar.xz",
+        "tails-adventure-v0.3.3-1-linux-amd64.tar.xz"
+      ]
+    },
+    "sdw-community-sheep-dog-n-wolf-rewooled": {
+      "inventory": "rewooled",
+      "repository_id": 1402106850,
+      "selected_assets": ["Rewooled-Windows-x64-1.1.3.zip", "Rewooled-Windows-x64-1.1.4.zip"],
+      "linux_selected_assets": [
+        "Rewooled-Linux-x86_64-1.1.3.zip",
+        "Rewooled-Linux-x86_64-1.1.4.zip"
+      ]
+    },
+    "rise-of-the-triad-barrett-lunarmeadow": {
+      "inventory": "barrett",
+      "repository_id": 1069797622,
+      "selected_assets": ["barrett-win64.zip", "barrett-win64.zip"],
+      "linux_selected_assets": ["barrett-linux.zip", "barrett-linux.zip"],
+      "macos_aarch64_selected_assets": ["barrett-macOS.zip", "barrett-macOS.zip"],
+      "channel": "beta"
+    },
+    "blast-corps-power-dozer": {
+      "inventory": "power_dozer",
+      "selected_assets": [
+        "power-dozer-v0.84-windows-x86_64.zip",
+        "power-dozer-v0.85-windows-x86_64.zip"
+      ],
+      "linux_selected_assets": [
+        "power-dozer-v0.84-linux-x86_64.tar.gz",
+        "power-dozer-v0.85-linux-x86_64.tar.gz"
+      ]
     },
     "doom-3-classic-dude-doom-3-unified-development-engine": {
       "inventory": "dude",
@@ -1782,6 +1839,172 @@
         ]
       }
     ],
+    "three_sx": [
+      {
+        "id": 288757274,
+        "tag_name": "rolling-pre-release",
+        "draft": false,
+        "prerelease": true,
+        "published_at": "2026-02-20T15:06:20Z",
+        "assets": [
+          {
+            "id": 668541820,
+            "name": "3SX-6187364-linux-arm64.tar.gz",
+            "browser_download_url": "https://github.com/crowded-street/3sx/releases/download/rolling-pre-release/3SX-6187364-linux-arm64.tar.gz",
+            "size": 8305567,
+            "digest": "sha256:1d4bd686e04123cb2e1cf22ad4669c498413e83e8763657a565f5adc3156c204"
+          },
+          {
+            "id": 668541826,
+            "name": "3SX-6187364-linux-x86_64.tar.gz",
+            "browser_download_url": "https://github.com/crowded-street/3sx/releases/download/rolling-pre-release/3SX-6187364-linux-x86_64.tar.gz",
+            "size": 8624391,
+            "digest": "sha256:e7d61eb19266c994ad90e012bf4616c09fbbc07072cd80992b7f0ca5e5a31e65"
+          },
+          {
+            "id": 668541828,
+            "name": "3SX-6187364-macos.dmg",
+            "browser_download_url": "https://github.com/crowded-street/3sx/releases/download/rolling-pre-release/3SX-6187364-macos.dmg",
+            "size": 2469659,
+            "digest": "sha256:a50536a3b8fe70b3c6b12310a9e81f42cff107567e35382d75b57c702cc3f733"
+          },
+          {
+            "id": 668541822,
+            "name": "3SX-6187364-windows.zip",
+            "browser_download_url": "https://github.com/crowded-street/3sx/releases/download/rolling-pre-release/3SX-6187364-windows.zip",
+            "size": 9720942,
+            "digest": "sha256:81874b57df0c1433148882d5f34316000b7254103b333a511457ce52fe4a0830"
+          }
+        ]
+      },
+      {
+        "id": 288757274,
+        "tag_name": "rolling-pre-release",
+        "draft": false,
+        "prerelease": true,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999200000,
+            "name": "3SX-abcdef1-linux-arm64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/3SX-abcdef1-linux-arm64.tar.gz",
+            "size": 8305567,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999200001,
+            "name": "3SX-abcdef1-linux-x86_64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/3SX-abcdef1-linux-x86_64.tar.gz",
+            "size": 8624391,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999200002,
+            "name": "3SX-abcdef1-macos.dmg",
+            "browser_download_url": "https://downloads.example.invalid/3SX-abcdef1-macos.dmg",
+            "size": 2469659,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999200003,
+            "name": "3SX-abcdef1-windows.zip",
+            "browser_download_url": "https://downloads.example.invalid/3SX-abcdef1-windows.zip",
+            "size": 9720942,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        ]
+      }
+    ],
+    "mdk_sdl": [
+      {
+        "id": 436524063,
+        "tag_name": "v1.2.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-06T13:18:32Z",
+        "assets": [
+          {
+            "id": 717237410,
+            "name": "mdk-android.apk",
+            "browser_download_url": "https://github.com/nautilusbits/mdk-sdl/releases/download/v1.2.6/mdk-android.apk",
+            "size": 19153772,
+            "digest": "sha256:ce3654db1bc58c231fc1fe6c660ce2147360125c8cc2c00eff4b3e3515efc124"
+          },
+          {
+            "id": 717237404,
+            "name": "mdk-linux-arm64.tar.gz",
+            "browser_download_url": "https://github.com/nautilusbits/mdk-sdl/releases/download/v1.2.6/mdk-linux-arm64.tar.gz",
+            "size": 4960901,
+            "digest": "sha256:e46f52c3c598feb8564a72a6da359ff112ce1911b958b659749aebb728e35fa0"
+          },
+          {
+            "id": 717237406,
+            "name": "mdk-linux-x64.tar.gz",
+            "browser_download_url": "https://github.com/nautilusbits/mdk-sdl/releases/download/v1.2.6/mdk-linux-x64.tar.gz",
+            "size": 5153514,
+            "digest": "sha256:4b983ef199a71084586e3fc2f8a125ced17156c2f81df4003757c5d796bd0100"
+          },
+          {
+            "id": 717237412,
+            "name": "mdk-osx-arm64.zip",
+            "browser_download_url": "https://github.com/nautilusbits/mdk-sdl/releases/download/v1.2.6/mdk-osx-arm64.zip",
+            "size": 4293984,
+            "digest": "sha256:87f552cfe84f831d794f90409be0f54af13ab10525a003d8bd9e675e9f68127e"
+          },
+          {
+            "id": 717237409,
+            "name": "mdk-win-x64.zip",
+            "browser_download_url": "https://github.com/nautilusbits/mdk-sdl/releases/download/v1.2.6/mdk-win-x64.zip",
+            "size": 4240198,
+            "digest": "sha256:e44e91720e92d399c746247bd9d5c1f38e71ef6a53444df824dcdcd0bdc2dfc5"
+          }
+        ]
+      },
+      {
+        "id": 999300000,
+        "tag_name": "v1.2.7",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999300010,
+            "name": "mdk-android.apk",
+            "browser_download_url": "https://downloads.example.invalid/v1.2.7/mdk-android.apk",
+            "size": 19153772,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999300011,
+            "name": "mdk-linux-arm64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/v1.2.7/mdk-linux-arm64.tar.gz",
+            "size": 4960901,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999300012,
+            "name": "mdk-linux-x64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/v1.2.7/mdk-linux-x64.tar.gz",
+            "size": 5153514,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999300013,
+            "name": "mdk-osx-arm64.zip",
+            "browser_download_url": "https://downloads.example.invalid/v1.2.7/mdk-osx-arm64.zip",
+            "size": 4293984,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999300014,
+            "name": "mdk-win-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/v1.2.7/mdk-win-x64.zip",
+            "size": 4240198,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          }
+        ]
+      }
+    ],
     "perfect_dark": [
       {
         "id": 155654014,
@@ -1924,6 +2147,296 @@
             "browser_download_url": "https://github.com/perfect-dark-pc-port/perfect_dark/releases/download/ci-dev-build/pd-x86_64-windows.zip",
             "size": 25739820,
             "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        ]
+      }
+    ],
+    "tails_adventure": [
+      {
+        "id": 312258250,
+        "tag_name": "v0.3.2-1",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-04-22T14:22:14Z",
+        "assets": [
+          {
+            "id": 405999751,
+            "name": "tails-adventure-v0.3.2-1-android.apk",
+            "browser_download_url": "https://github.com/mechakotik/tails-adventure/releases/download/v0.3.2-1/tails-adventure-v0.3.2-1-android.apk",
+            "size": 11663734,
+            "digest": "sha256:6ad893f1adc6ebc50b786529d763c3c91665fb02b53f7bedba12f1169b8a6893"
+          },
+          {
+            "id": 405999781,
+            "name": "tails-adventure-v0.3.2-1-linux-amd64.tar.xz",
+            "browser_download_url": "https://github.com/mechakotik/tails-adventure/releases/download/v0.3.2-1/tails-adventure-v0.3.2-1-linux-amd64.tar.xz",
+            "size": 4977016,
+            "digest": "sha256:74aa9d7a9ffbeb09a97f259f328135210b45823793e1011fbdb2c0afce848174"
+          },
+          {
+            "id": 405999799,
+            "name": "tails-adventure-v0.3.2-1-windows.zip",
+            "browser_download_url": "https://github.com/mechakotik/tails-adventure/releases/download/v0.3.2-1/tails-adventure-v0.3.2-1-windows.zip",
+            "size": 6625286,
+            "digest": "sha256:3dac0a4d470046b76a72d8e5d8f69afe766920d54f0585e69e5119db5702dd6e"
+          }
+        ]
+      },
+      {
+        "id": 999100000,
+        "tag_name": "v0.3.3-1",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999100100,
+            "name": "tails-adventure-v0.3.3-1-android.apk",
+            "browser_download_url": "https://downloads.example.invalid/tails-adventure-v0.3.3-1-android.apk",
+            "size": 11663734,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999100107,
+            "name": "tails-adventure-v0.3.3-1-linux-amd64.tar.xz",
+            "browser_download_url": "https://downloads.example.invalid/tails-adventure-v0.3.3-1-linux-amd64.tar.xz",
+            "size": 4977016,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999100114,
+            "name": "tails-adventure-v0.3.3-1-windows.zip",
+            "browser_download_url": "https://downloads.example.invalid/tails-adventure-v0.3.3-1-windows.zip",
+            "size": 6625286,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        ]
+      }
+    ],
+    "rewooled": [
+      {
+        "id": 417800534,
+        "tag_name": "v1.1.3",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-19T22:03:51Z",
+        "assets": [
+          {
+            "id": 657556900,
+            "name": "Rewooled-Linux-x86_64-1.1.3.zip",
+            "browser_download_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled/releases/download/v1.1.3/Rewooled-Linux-x86_64-1.1.3.zip",
+            "size": 4660608,
+            "digest": "sha256:49a58ef97c7f61f130d5050b3ac275a39f5c212f7c1ba06fbfcf7f1488ee1c58"
+          },
+          {
+            "id": 657556896,
+            "name": "Rewooled-macOS-arm64-1.1.3.zip",
+            "browser_download_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled/releases/download/v1.1.3/Rewooled-macOS-arm64-1.1.3.zip",
+            "size": 4584433,
+            "digest": "sha256:ac62d76d03e72d0c448c126df04c62d716cca462a7847a819d44172dd8bee901"
+          },
+          {
+            "id": 657556895,
+            "name": "Rewooled-Windows-x64-1.1.3.zip",
+            "browser_download_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled/releases/download/v1.1.3/Rewooled-Windows-x64-1.1.3.zip",
+            "size": 4050500,
+            "digest": "sha256:b4d785cefabb4d818c5421cb5ed14cc2041d48f343b5167a74e185c403f9b4bd"
+          }
+        ]
+      },
+      {
+        "id": 999100396,
+        "tag_name": "v1.1.4",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999100100,
+            "name": "Rewooled-Linux-x86_64-1.1.4.zip",
+            "browser_download_url": "https://downloads.example.invalid/Rewooled-Linux-x86_64-1.1.4.zip",
+            "size": 4660608,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999100107,
+            "name": "Rewooled-macOS-arm64-1.1.4.zip",
+            "browser_download_url": "https://downloads.example.invalid/Rewooled-macOS-arm64-1.1.4.zip",
+            "size": 4584433,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999100114,
+            "name": "Rewooled-Windows-x64-1.1.4.zip",
+            "browser_download_url": "https://downloads.example.invalid/Rewooled-Windows-x64-1.1.4.zip",
+            "size": 4050500,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        ]
+      }
+    ],
+    "barrett": [
+      {
+        "id": 339203412,
+        "tag_name": "v1.3-beta",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-06-14T16:17:30Z",
+        "assets": [
+          {
+            "id": 447399700,
+            "name": "barrett-linux.zip",
+            "browser_download_url": "https://github.com/lunarmeadow/barrett/releases/download/v1.3-beta/barrett-linux.zip",
+            "size": 922781,
+            "digest": "sha256:bbfc275234ef06953510f223efc1de380ce1bdc164f5bcc09190889c76be568b"
+          },
+          {
+            "id": 447399701,
+            "name": "barrett-macOS.zip",
+            "browser_download_url": "https://github.com/lunarmeadow/barrett/releases/download/v1.3-beta/barrett-macOS.zip",
+            "size": 928007,
+            "digest": "sha256:b2688cfc4fad28944829b74b76ac2f909fc4388aac1b0f8f1aae4c5bbef9baa5"
+          },
+          {
+            "id": 447399696,
+            "name": "barrett-win64.zip",
+            "browser_download_url": "https://github.com/lunarmeadow/barrett/releases/download/v1.3-beta/barrett-win64.zip",
+            "size": 2020033,
+            "digest": "sha256:fa0214cbcfb10b2cd7d8ead4e8f3fe77d9418f9dd5d54bd9a5f389cec1c4ba57"
+          }
+        ]
+      },
+      {
+        "id": 999100763,
+        "tag_name": "v1.4-beta",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999100104,
+            "name": "barrett-linux.zip",
+            "browser_download_url": "https://downloads.example.invalid/barrett-linux.zip",
+            "size": 922781,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999100111,
+            "name": "barrett-macOS.zip",
+            "browser_download_url": "https://downloads.example.invalid/barrett-macOS.zip",
+            "size": 928007,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999100118,
+            "name": "barrett-win64.zip",
+            "browser_download_url": "https://downloads.example.invalid/barrett-win64.zip",
+            "size": 2020033,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        ]
+      }
+    ],
+    "power_dozer": [
+      {
+        "id": 410159926,
+        "tag_name": "v0.84",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-12T04:24:48Z",
+        "assets": [
+          {
+            "id": 632650079,
+            "name": "power-dozer-v0.84-linux-x86_64.tar.gz",
+            "browser_download_url": "https://github.com/djultra64/Power-Dozer/releases/download/v0.84/power-dozer-v0.84-linux-x86_64.tar.gz",
+            "size": 18788674,
+            "digest": "sha256:56b342f4209544634d7f8debffd3f6bc5d79afcd8e196726436cf46d80f8d5f6"
+          },
+          {
+            "id": 632650074,
+            "name": "power-dozer-v0.84-linux-x86_64.tar.gz.sha256",
+            "browser_download_url": "https://github.com/djultra64/Power-Dozer/releases/download/v0.84/power-dozer-v0.84-linux-x86_64.tar.gz.sha256",
+            "size": 104,
+            "digest": "sha256:a28e68af24fdb41c9b862501b796f37c078db6ecd5d2bef1c797987e3ee833e2"
+          },
+          {
+            "id": 633621849,
+            "name": "power-dozer-v0.84-source.tar.gz",
+            "browser_download_url": "https://github.com/djultra64/Power-Dozer/releases/download/v0.84/power-dozer-v0.84-source.tar.gz",
+            "size": 23473804,
+            "digest": "sha256:fc04a9613d765fcccf70af4bba55a59bb0796764136c48f3eb28124f6182cf71"
+          },
+          {
+            "id": 633621859,
+            "name": "power-dozer-v0.84-source.tar.gz.sha256",
+            "browser_download_url": "https://github.com/djultra64/Power-Dozer/releases/download/v0.84/power-dozer-v0.84-source.tar.gz.sha256",
+            "size": 98,
+            "digest": "sha256:b3a1567c63000e54605a34a60795c36398ae215891e7f67416d3eee3c9f02e70"
+          },
+          {
+            "id": 633621837,
+            "name": "power-dozer-v0.84-windows-x86_64.zip",
+            "browser_download_url": "https://github.com/djultra64/Power-Dozer/releases/download/v0.84/power-dozer-v0.84-windows-x86_64.zip",
+            "size": 14232529,
+            "digest": "sha256:5b25d339376065442d82972917c921fa25f3b9e2f5bb87252389a993a4723533"
+          },
+          {
+            "id": 633621845,
+            "name": "power-dozer-v0.84-windows-x86_64.zip.sha256",
+            "browser_download_url": "https://github.com/djultra64/Power-Dozer/releases/download/v0.84/power-dozer-v0.84-windows-x86_64.zip.sha256",
+            "size": 103,
+            "digest": "sha256:2a28ab11222d1f56ff6b30fc34df7733bfde892565c6c84476159234f4875d33"
+          }
+        ]
+      },
+      {
+        "id": 999000085,
+        "tag_name": "v0.85",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999000850,
+            "name": "power-dozer-v0.85-linux-x86_64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/power-dozer-v0.85-linux-x86_64.tar.gz",
+            "size": 18788674,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999000851,
+            "name": "power-dozer-v0.85-linux-x86_64.tar.gz.sha256",
+            "browser_download_url": "https://downloads.example.invalid/power-dozer-v0.85-linux-x86_64.tar.gz.sha256",
+            "size": 104,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999000852,
+            "name": "power-dozer-v0.85-source.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/power-dozer-v0.85-source.tar.gz",
+            "size": 23473804,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999000853,
+            "name": "power-dozer-v0.85-source.tar.gz.sha256",
+            "browser_download_url": "https://downloads.example.invalid/power-dozer-v0.85-source.tar.gz.sha256",
+            "size": 98,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999000854,
+            "name": "power-dozer-v0.85-windows-x86_64.zip",
+            "browser_download_url": "https://downloads.example.invalid/power-dozer-v0.85-windows-x86_64.zip",
+            "size": 14232529,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          {
+            "id": 999000855,
+            "name": "power-dozer-v0.85-windows-x86_64.zip.sha256",
+            "browser_download_url": "https://downloads.example.invalid/power-dozer-v0.85-windows-x86_64.zip.sha256",
+            "size": 103,
+            "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
           }
         ]
       }
@@ -7914,6 +8427,10 @@
     ]
   },
   "other_zip_assets": [
+    { "inventory": "mdk_sdl", "release_index": 0, "asset": "mdk-osx-arm64.zip" },
+    { "inventory": "mdk_sdl", "release_index": 1, "asset": "mdk-osx-arm64.zip" },
+    { "inventory": "rewooled", "release_index": 0, "asset": "Rewooled-macOS-arm64-1.1.3.zip" },
+    { "inventory": "rewooled", "release_index": 1, "asset": "Rewooled-macOS-arm64-1.1.4.zip" },
     {
       "inventory": "rsdkv4",
       "release_index": 0,

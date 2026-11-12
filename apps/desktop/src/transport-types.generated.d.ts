@@ -807,6 +807,7 @@ export type OriginalAvailability = "verified" | "missing" | "changed";
  */
 export type ProviderFreshness = "fresh" | "revalidated" | "stale";
 export type ProviderUpdateState = "current" | "newer_files" | "installed_file_removed" | "unavailable";
+export type RecipeInputStatus = "available" | "acquirable" | "unavailable";
 /**
  * One documented outcome in the assessed scope, not a universal judgment about a project.
  */
@@ -1091,9 +1092,11 @@ export interface TransportOutputs {
   preparation_options: PreparationOptions;
   preparation_plan: OutputPreparationPlan;
   profile_inventory: OutputProfileInventory;
+  profile_recipe: ProfileRecipe;
   profile_revision: ProfileRevision;
   provider_install_plan: OutputProviderInstallPlan;
   provider_update_observation: OutputProviderUpdateObservation;
+  recipe_import_plan: OutputRecipeImportPlan;
   recommendation_metadata: OutputRecommendationMetadata;
   reconcile_batch_outcome: OutputReconcileBatchOutcome;
   reconcile_result: ReconcileResult;
@@ -4476,6 +4479,47 @@ export interface OriginalStatus {
   binding: OriginalBinding;
   [k: string]: unknown;
 }
+export interface ProfileRecipe {
+  format: number;
+  /**
+   * SHA-256 of the recipe's canonical content with this field empty.
+   */
+  identity_sha256: string;
+  loader: LoaderContractRef | null;
+  orderings: TypedOrdering[];
+  originals: RecipeOriginal[];
+  packages: RecipePackage[];
+  port_id: string;
+  runtime: RecipeRuntime;
+  /**
+   * Inputs this recipe cannot reproduce; always stated, never implied.
+   */
+  uncaptured: string[];
+}
+/**
+ * A reference to an original, by content identity only. No path, no payload.
+ */
+export interface RecipeOriginal {
+  requirement_id: string;
+  sha256: string;
+  size: number;
+}
+export interface RecipePackage {
+  enabled: boolean;
+  native_id: string;
+  native_version: string | null;
+  provider: ProviderPackageRef | null;
+  requires: string[];
+  sha256: string;
+  size: number;
+}
+export interface RecipeRuntime {
+  artifact: ArtifactIdentity1;
+  definition: DefinitionSelectionIdentity | null;
+  installed_contract_sha256: string;
+  platform: Platform;
+  runtime: RuntimeIdentity | null;
+}
 export interface OutputProviderInstallPlan {
   conflicts: AssetConflict[];
   conflicts_truncated: boolean;
@@ -4572,6 +4616,29 @@ export interface OutputProviderUpdateObservation {
    * False with `NewerFiles` means files changed under an unchanged version label.
    */
   version_changed: boolean;
+  [k: string]: unknown;
+}
+export interface OutputRecipeImportPlan {
+  can_apply: boolean;
+  /**
+   * Why applying is not possible yet; empty when every input is present.
+   */
+  holds: string[];
+  /**
+   * The exact installation the new profile would bind, when one matches.
+   */
+  install_id: string | null;
+  originals: RecipeInputPlan[];
+  packages: RecipeInputPlan[];
+  plan_sha256: string;
+  recipe: ProfileRecipe;
+  runtime: RecipeInputPlan;
+  [k: string]: unknown;
+}
+export interface RecipeInputPlan {
+  detail: string;
+  name: string;
+  status: RecipeInputStatus;
   [k: string]: unknown;
 }
 export interface OutputRecommendationMetadata {
@@ -5102,7 +5169,46 @@ export interface InstallBatchItem {
   state: InstallBatchItemState;
 }
 export interface OutputDesktopInstallBatchReview {
+  capacity: InstallBatchCapacity;
   items: InstallBatchReviewItem[];
+  [k: string]: unknown;
+}
+/**
+ * Combined needs of the games ready to install.
+ */
+export interface InstallBatchCapacity {
+  /**
+   * Known downloads: releases, bundled runtimes and required extras.
+   */
+  download_bytes: number;
+  /**
+   * Ready games whose space needs could not be estimated.
+   */
+  unknown_space?: string[];
+  volumes: InstallBatchVolume[];
+  [k: string]: unknown;
+}
+/**
+ * Space one volume needs for the games in a batch that will download.
+ */
+export interface InstallBatchVolume {
+  available_bytes?: number | null;
+  /**
+   * A destination on the volume (the first game's).
+   */
+  path: string;
+  port_ids: string[];
+  /**
+   * Sum of the games' temporary space floors on this volume. Final
+   * installed sizes are not known in advance.
+   */
+  required_bytes: number;
+  /**
+   * Whether the volume has room for all of them together; unknown when its
+   * free space could not be observed. Each game is checked again before it runs.
+   */
+  sufficient?: boolean | null;
+  volume_identity?: string | null;
   [k: string]: unknown;
 }
 /**

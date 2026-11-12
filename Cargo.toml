@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-exclude = ["vendor/rfd"]
+exclude = ["crates/portcove-core/fuzz", "vendor/rfd"]
 members = [
   "crates/portcove-core",
   "crates/portcove-cli",

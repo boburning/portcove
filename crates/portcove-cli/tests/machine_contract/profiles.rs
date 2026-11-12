@@ -210,4 +210,111 @@ fn profile_commands_migrate_default_append_revisions_and_refuse_stale_review() {
     let inventory = result(root, &["--json", "profile", "list", PORT], "profile.list");
     assert_eq!(inventory["profiles"].as_array().unwrap().len(), 2);
     assert_eq!(inventory["profiles"][0]["profile"]["id"], default["id"]);
+
+    // Recipes: export identity only, inspect locally, plan, and import as a new profile.
+    let exported = result(
+        root,
+        &["--json", "profile", "recipe-export", PORT, profile_id],
+        "profile.recipe-export",
+    );
+    assert_eq!(exported["format"], 1);
+    let recipe_file = root.join("recipe.json");
+    fs::write(&recipe_file, serde_json::to_vec_pretty(&exported).unwrap()).unwrap();
+    let text = fs::read_to_string(&recipe_file).unwrap();
+    assert!(
+        !text.contains(root.to_str().unwrap()),
+        "no private path in a recipe"
+    );
+    assert!(
+        !text.contains(profile_id),
+        "no local profile identity in a recipe"
+    );
+    let inspected = result(
+        root,
+        &[
+            "--json",
+            "profile",
+            "recipe-inspect",
+            recipe_file.to_str().unwrap(),
+        ],
+        "profile.recipe-inspect",
+    );
+    assert_eq!(inspected["identity_sha256"], exported["identity_sha256"]);
+    let plan = result(
+        root,
+        &[
+            "--json",
+            "profile",
+            "recipe-plan",
+            recipe_file.to_str().unwrap(),
+        ],
+        "profile.recipe-plan",
+    );
+    assert_eq!(plan["can_apply"], true, "{plan}");
+    let digest = plan["plan_sha256"].as_str().unwrap();
+    // A stale plan digest refuses.
+    let stale = invoke(
+        root,
+        &[
+            "--json",
+            "--non-interactive",
+            "profile",
+            "recipe-apply",
+            recipe_file.to_str().unwrap(),
+            "--name",
+            "From recipe",
+            "--expected-plan",
+            "stale",
+            "--yes",
+        ],
+    );
+    assert!(!stale.status.success());
+    assert_eq!(json_stdout(&stale)["error"]["code"], "conflict");
+    let created = result(
+        root,
+        &[
+            "--json",
+            "--non-interactive",
+            "profile",
+            "recipe-apply",
+            recipe_file.to_str().unwrap(),
+            "--name",
+            "From recipe",
+            "--expected-plan",
+            digest,
+            "--yes",
+        ],
+        "profile.recipe-apply",
+    );
+    assert_ne!(created["id"], default["id"]);
+    let again = result(
+        root,
+        &[
+            "--json",
+            "profile",
+            "recipe-export",
+            PORT,
+            created["id"].as_str().unwrap(),
+        ],
+        "profile.recipe-export",
+    );
+    assert_eq!(
+        again["identity_sha256"], exported["identity_sha256"],
+        "identity round trip"
+    );
+    // A forged recipe is refused before any planning.
+    let mut forged = exported.clone();
+    forged["packages"] = serde_json::json!([{"native_id": "../../x", "native_version": null,
+        "provider": null, "sha256": "a".repeat(64), "size": 1, "enabled": true, "requires": []}]);
+    fs::write(&recipe_file, serde_json::to_vec(&forged).unwrap()).unwrap();
+    let refused = invoke(
+        root,
+        &[
+            "--json",
+            "profile",
+            "recipe-plan",
+            recipe_file.to_str().unwrap(),
+        ],
+    );
+    assert!(!refused.status.success());
 }

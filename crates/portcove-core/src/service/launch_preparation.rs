@@ -192,9 +192,11 @@ impl PortcoveService {
         let selected_executable =
             Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
         checkpoint()?;
+        let disc_reported = std::cell::Cell::new(false);
         let report_disc =
             |phase: crate::adapter::DiscUnpackPhase, completed: u64, total: Option<u64>| {
                 if let (Some(operation), Some(events)) = (operation, events) {
+                    disc_reported.set(true);
                     events(disc_unpack_event(operation, phase, completed, total));
                 }
             };
@@ -232,6 +234,12 @@ impl PortcoveService {
         self.refresh_upstream_setup_manifest(port, active, &spec.working_directory)?;
         crate::preparation::require_manual_setup(port, active)?;
         checkpoint()?;
+        if let (true, Some(operation), Some(events)) = (disc_reported.get(), operation, events) {
+            // Preparation is over and the game starts next: supersede the last
+            // unpacking step so an observer does not keep showing it while the
+            // launch activity stays open for the whole play session.
+            events(preparation_finished_event(operation));
+        }
         Ok(spec)
     }
     fn recheck_launch_bios(
@@ -263,6 +271,11 @@ impl PortcoveService {
         }
         Ok(())
     }
+}
+
+/// The launch activity's event once preparation is done and the game is starting.
+fn preparation_finished_event(operation: &OperationCoordinator) -> crate::OperationEvent {
+    operation.progress_with_unit("launch", crate::ProgressUnit::Indeterminate, 0, None)
 }
 
 /// The launch activity's event for one disc-unpacking step. Extract carries
@@ -322,6 +335,13 @@ mod tests {
             .collect();
         let bytes = Some(crate::ProgressUnit::Bytes);
         let step = Some(crate::ProgressUnit::Indeterminate);
+        let finished = preparation_finished_event(&operation);
+        assert!(finished.sequence > events.last().unwrap().sequence);
+        assert!(matches!(
+            &finished.event,
+            crate::OperationEventKind::Progress { phase_id: Some(id), unit, .. }
+                if id == "launch" && *unit == Some(crate::ProgressUnit::Indeterminate)
+        ));
         assert_eq!(
             shaped,
             [
