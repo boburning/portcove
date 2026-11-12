@@ -1157,7 +1157,8 @@
       },
       "issue_number": 143,
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "availability": "unknown"
     },
@@ -13915,7 +13916,7 @@
     {
       "id": "blast-corps-power-dozer",
       "name": "Blast Corps (Power Dozer)",
-      "summary": "A native Blast Corps player using your own USA revision 1 cartridge dump. Portcove manages the official Windows x64 package and preserves its default local game data; upstream owns original-game import.",
+      "summary": "A native Blast Corps player using your own USA revision 1 cartridge dump. Portcove manages the official Windows x64 and Linux x86-64 packages and preserves their default local game data; upstream owns original-game import.",
       "original_game_title": "Blast Corps",
       "project_url": "https://github.com/djultra64/Power-Dozer",
       "issue_number": 2557,
@@ -13939,12 +13940,12 @@
             "instruction": "Choose your own Blast Corps USA revision 1 dump through the upstream in-process selector. It accepts .z64, .v64, .n64 or a single-ROM ZIP and checks normalized SHA-1 483f7161aea39de8b45c9fbc70a2c3883c4dea8c. The game stores its own normalized copy under data/cache/rom.z64. Core does not acquire or authenticate your cartridge dump; keep the original separately and do not share a data backup containing it."
           },
           {
-            "title": "Use the complete Windows package",
-            "instruction": "The official v0.84 Windows ZIP is an experimental beta despite its stable release stream. Keep power-dozer.exe, its matching DLLs and notices together. Windows x64 needs SSSE3/SSE4.1, Vulkan drivers and the Microsoft Visual C++ x64 runtime linked in the packaged README. No game compiler, installer or command wrapper is required for the normal native entry. Other platforms remain upstream-owned."
+            "title": "Use the complete Windows or Linux package",
+            "instruction": "The official v0.84 Windows ZIP and Linux x86-64 archive are experimental betas despite their stable release stream. Keep power-dozer.exe, its matching DLLs and notices together. Windows x64 needs SSSE3/SSE4.1, Vulkan drivers and the Microsoft Visual C++ x64 runtime linked in the packaged README. On Linux, keep power-dozer with its lib and licenses folders; it needs SSSE3/SSE4.1, glibc 2.38 or later, libz, Vulkan drivers, X11 or XWayland and a desktop file chooser. Portcove starts power-dozer directly, so the bundled Run Power Dozer.sh script is not needed. No game compiler or installer is required. Other platforms remain upstream-owned."
           },
           {
             "title": "Preserve game data and external diagnostics",
-            "instruction": "For the managed Windows route, Portcove sets BLASTCORPS_DATA_DIR=data with the executable directory as working directory. It preserves the complete local data folder across compatible package updates and rollback, including cached original, EEPROM, committed Controller Pak data, settings, controls, backups and interrupted temporary files. A rollback does not rewind saves or guarantee that an older runtime reads newer state. In-progress Controller Pak game transactions follow upstream commit markers; this is not a guarantee of unsaved gameplay recovery. The separate %LOCALAPPDATA%/blastcorps-feasibility RT64 diagnostics and ImGui profile remain external and outside Portcove backup/removal. Keep a separate backup of actual custom --data-dir, capture or debug paths; Portcove does not import or migrate them. Close the actual player before deliberate external changes."
+            "instruction": "For the managed Windows and Linux routes, Portcove sets BLASTCORPS_DATA_DIR=data with the executable directory as working directory. It preserves the complete local data folder across compatible package updates and rollback, including cached original, EEPROM, committed Controller Pak data, settings, controls, backups and interrupted temporary files. A rollback does not rewind saves or guarantee that an older runtime reads newer state. In-progress Controller Pak game transactions follow upstream commit markers; this is not a guarantee of unsaved gameplay recovery. The separate RT64 diagnostics and ImGui profile remain external and outside Portcove backup/removal: %LOCALAPPDATA%/blastcorps-feasibility on Windows, and ~/.config/.blastcorps-feasibility on Linux, or ~/.blastcorps-feasibility when ~/.config does not exist. Keep a separate backup of actual custom --data-dir, capture or debug paths; Portcove does not import or migrate them. Close the actual player before deliberate external changes."
           },
           {
             "title": "Keep one replacement owner",
@@ -13955,7 +13956,8 @@
         "help_url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/README.md"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -34458,11 +34460,11 @@
         "steps": [
           {
             "title": "Prepare your original game on Windows",
-            "instruction": "Keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required."
+            "instruction": "On Windows, keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required."
           },
           {
             "title": "Set up MDK on Linux",
-            "instruction": "Choose mdk-linux-x64.tar.gz or mdk-linux-arm64.tar.gz from the stable releases. Use a Vulkan driver and keep libSDL3.so beside mdk_sdl. Point MDK_DATA_DIR or the [paths] mdk entry in mdk_paths.cfg at your complete original installation. The inspected v1.2.6 x86-64 player needs glibc 2.43 or later and its ARM64 sibling needs glibc 2.38 or later."
+            "instruction": "On x86-64 Linux, Portcove can install and update the official mdk-linux-x64.tar.gz player. Linux has no default game-location detection, so create mdk_paths.cfg beside mdk_sdl and name your complete original installation in its [paths] mdk setting; Portcove does not pass MDK_DATA_DIR to the game. For an ARM64 copy you maintain, choose mdk-linux-arm64.tar.gz from the stable releases, keep libSDL3.so beside mdk_sdl, and point MDK_DATA_DIR or the [paths] mdk entry in mdk_paths.cfg at your original installation. Use a Vulkan driver. The inspected v1.2.6 x86-64 player needs glibc 2.43 or later and its ARM64 sibling needs glibc 2.38 or later."
           },
           {
             "title": "Set up MDK on an Apple silicon Mac",
@@ -34474,13 +34476,13 @@
           }
         ],
         "warnings": [
-          "Optional HD texture generation downloads and starts a separate upscaling tool. Let it finish, or cancel and confirm it has stopped before updating, backing up or removing the player. You and upstream maintain the Linux, Mac and Android copies."
+          "Optional HD texture generation downloads and starts a separate upscaling tool. Let it finish, or cancel and confirm it has stopped before updating, backing up or removing the player. You and upstream maintain the Linux ARM64, Mac and Android copies."
         ],
         "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/main/README.md",
         "references": [
           {
             "title": "Keep your desktop files",
-            "instruction": "For a Linux or Mac copy you maintain, keep settings.cfg, saves, mods, captures and custom exports. Keep the whole MDK_USER_DIR if you set it, or the actual user-data fallback if the player folder is read-only. On first portable start, upstream can copy settings and saves from an older personal profile. Keep both copies until you know which one the player uses. Keep mdk_paths.cfg and your originals separately."
+            "instruction": "For a Linux ARM64 or Mac copy you maintain, keep settings.cfg, saves, mods, captures and custom exports. Keep the whole MDK_USER_DIR if you set it, or the actual user-data fallback if the player folder is read-only. On first portable start, upstream can copy settings and saves from an older personal profile. Keep both copies until you know which one the player uses. Keep mdk_paths.cfg and your originals separately."
           }
         ]
       },
@@ -34491,9 +34493,6 @@
         "macos-aarch64"
       ],
       "download_asset_hints": {
-        "linux-x86-64": [
-          "mdk-linux-x64.tar.gz"
-        ],
         "macos-aarch64": [
           "mdk-osx-arm64.zip"
         ]
@@ -34573,11 +34572,11 @@
         "steps": [
           {
             "title": "Keep the complete portable player",
-            "instruction": "The inspected Windows ZIP contains tails-adventure.exe and its assets tree; no original ROM, BIOS, first-run extraction or compilation is required by this route. Keep matching assets/default_config and packaged resources."
+            "instruction": "The inspected Windows ZIP and Linux x86-64 TAR.XZ contain tails-adventure.exe or tails-adventure and its assets tree; no original ROM, BIOS, first-run extraction or compilation is required by this route. Keep matching assets/default_config and packaged resources."
           },
           {
             "title": "Keep your saves, options and mods",
-            "instruction": "The Windows player stores both options and saved progress in config beside the executable. Supported mods live in mods/ beside it. Keep both with their creating runtime and close the game normally before maintenance: the inspected title writes config during shutdown. Put replacement content in the supported mods tree; direct edits to shipped assets are outside the declared preserved data and can block update or removal until preserved and reconciled. Runtime rollback retains current data and does not rewind saves or guarantee cross-version mod/save compatibility."
+            "instruction": "The Windows and Linux players store both options and saved progress in config beside the executable. Supported mods live in mods/ beside it. Keep both with their creating runtime and close the game normally before maintenance: the inspected title writes config during shutdown. Put replacement content in the supported mods tree; direct edits to shipped assets are outside the declared preserved data and can block update or removal until preserved and reconciled. Runtime rollback retains current data and does not rewind saves or guarantee cross-version mod/save compatibility."
           }
         ],
         "warnings": [
@@ -34586,7 +34585,8 @@
       },
       "original_game_title": "Tails Adventure",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "availability": "unknown"
     },
@@ -46707,7 +46707,7 @@
         "steps": [
           {
             "title": "Prepare your original game",
-            "instruction": "Before first Play, copy your own supported Rise of the Triad DARKWAR.RTC/RTL/WAD or supported shareware HUNTBGIN.RTC/RTL/WAD into the folder beside barrett.exe, together with upstream’s required DEMO1_3.DMO through DEMO4_3.DMO and REMOTE1.RTS. Keep the original source copy and the packaged SDL2/SDL2_mixer libraries. The native archive needs no installer or compiler; this upstream beta is offered through Preview."
+            "instruction": "Before first Play, copy your own supported Rise of the Triad DARKWAR.RTC/RTL/WAD or supported shareware HUNTBGIN.RTC/RTL/WAD into the folder beside barrett.exe on Windows or barrett on Linux and Apple silicon Macs, together with upstream’s required DEMO1_3.DMO through DEMO4_3.DMO and REMOTE1.RTS. Keep the original source copy and the packaged Windows SDL2/SDL2_mixer libraries. On Linux, install SDL2 and SDL2_mixer from your distribution, use glibc 2.38 or later, and keep the uppercase file names shown here so Portcove preserves them. On an Apple silicon Mac, use macOS 15 or later and install SDL2 and SDL2_mixer with Homebrew in /opt/homebrew. The native archive needs no installer or compiler; this upstream beta is offered through Preview."
           }
         ],
         "warnings": [],
@@ -46715,7 +46715,9 @@
       },
       "original_game_title": "Rise of the Triad",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -47889,7 +47891,7 @@
         "steps": [
           {
             "title": "Prepare your original game",
-            "instruction": "For the managed direct-player route, copy your own original PC Sheep, Dog ’n’ Wolf game data into game-data beside SheepD3D.exe, with Levels directly inside game-data. Keep the original executable and DLLs in the source copy. The maintained --game-dir=game-data argument selects that folder; the game reads its saved rendering/input options. No engine compilation is needed. For external registration, supply your actual --game-dir=PATH in Change launch details, or use upstream’s SheepLauncher.exe workflow with its own installation."
+            "instruction": "For the managed direct-player route, copy your own original PC Sheep, Dog ’n’ Wolf game data into game-data beside SheepD3D.exe on Windows or SheepD3D on Linux, with Levels directly inside game-data. Keep the original executable and DLLs in the source copy. The maintained --game-dir=game-data argument selects that folder; the game reads its saved rendering/input options. No engine compilation is needed. For external registration, supply your actual --game-dir=PATH in Change launch details, or use upstream’s SheepLauncher.exe workflow with its own installation."
           }
         ],
         "warnings": [],
@@ -47897,7 +47899,8 @@
       },
       "original_game_title": "Sheep, Dog 'n' Wolf",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -51640,7 +51643,8 @@
       },
       "original_game_title": "Street Fighter III: 3rd Strike",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "availability": "unknown"
     },

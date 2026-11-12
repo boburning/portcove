@@ -21,17 +21,19 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "psx-recomp-managed",
     "release": {
       "repository": "NJH-1001/RevPRecompile",
       "asset_hints": {
-        "windows-x86-64": ["windows-x86_64-owned-input"]
+        "windows-x86-64": ["windows-x86_64-owned-input"],
+        "linux-x86-64": ["linux-x64"]
       }
     },
     "source_profile": "revelations-persona-psx",
     "executable_hints": {
-      "windows-x86-64": ["Revelations__Persona_Recompiled.exe"]
+      "windows-x86-64": ["Revelations__Persona_Recompiled.exe"],
+      "linux-x86-64": ["Revelations__Persona_Recompiled"]
     },
     "persistent_paths": [
       "saves",
@@ -59,7 +61,8 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Provide your own Revelations: Persona (USA) disc. Portcove builds the player on Windows or Linux before first Play. On Linux, the setup tools need glibc 2.38 or later. Linux generation, gameplay and save behavior are untested."
     }
   }
 }

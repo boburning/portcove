@@ -322,6 +322,16 @@
         "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/revelations-persona-recompiled-windows-reinstall-2026-09-15.md"
       },
       {
+        "id": "revelations-persona-recompiled-v011-linux-static-contract",
+        "role": "upstream_support",
+        "authority": "NJH-1001/RevPRecompile",
+        "authority_ref": "38fa6f4cf49a9a03244a64d2a12762074ed23348",
+        "reviewed_at": "2026-11-12",
+        "claim": "Exact v0.1.1 Linux x64 kit (28,066,719 bytes) matches the provider SHA-256 and passed Core package-layout inspection. After line-ending normalization, its shared game, CMake, setup CLI, runtime, UI and mod files match the accepted Windows owned-input kit. README-SETUP.txt and the native ELF emitters and setup host differ; Windows DLLs and executables, vendored .git markers, generated rabbitizer headers and fmt build-docs.py are absent, and setup uses the packaged prebuilt emitters. The kit keeps the same USA SLUS-00339 game configuration and normalized Track 1 contract. Its Linux emitters and host need glibc 2.38 and GLIBCXX 3.4.32. The runtime keeps saves and settings beside the generated player. Linux generation, native operation and gameplay were not observed.",
+        "immutable_url": "https://github.com/NJH-1001/RevPRecompile/blob/38fa6f4cf49a9a03244a64d2a12762074ed23348/game.toml",
+        "live_url": null
+      },
+      {
         "id": "dr-mario-64-recompiled-windows-2026-09-15",
         "role": "portcove_qualification",
         "authority": "boburning/portcove",
@@ -12795,7 +12805,8 @@
         "evidence_ids": [
           "alpha1-schema1-source-contracts",
           "revelations-persona-recompiled-windows-2026-09-15",
-          "revelations-persona-recompiled-windows-reinstall-2026-09-15"
+          "revelations-persona-recompiled-windows-reinstall-2026-09-15",
+          "revelations-persona-recompiled-v011-linux-static-contract"
         ],
         "authority_ref": "ffee8733e4448b8fbc8fe357ebdf77252a6260e8",
         "reviewed_at": "2026-09-15",
@@ -12806,6 +12817,10 @@
           {
             "upstream_ref": "v0.1.1",
             "artifact_sha256": "f4336030ba9c0e032061ad6892aa5ce9ff01c4cedcbaf3a5355428e6d728158a"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "b4cb5d74027689465ac4778fd5d71e7f6244f39e2a43b8fe4d7a89dd959b5f70"
           }
         ],
         "aliases": [],
