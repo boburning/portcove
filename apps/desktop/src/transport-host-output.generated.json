@@ -8213,7 +8213,7 @@
             "$ref": "#/$defs/ReleaseChannel"
           },
           "checked_at": {
-            "description": "When updates were last checked; `None` means never.",
+            "description": "When updates were last checked for this install on this channel;\n`None` means not yet.",
             "format": "int64",
             "type": [
               "integer",
@@ -13352,7 +13352,7 @@
             "$ref": "#/$defs/ReleaseChannel"
           },
           "checked_at": {
-            "description": "When updates were last checked; `None` means never.",
+            "description": "When updates were last checked for this install on this channel;\n`None` means not yet.",
             "format": "int64",
             "type": [
               "integer",

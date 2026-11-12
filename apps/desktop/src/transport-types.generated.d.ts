@@ -5302,7 +5302,8 @@ export interface PortMaintenance {
   available_version?: string | null;
   channel: ReleaseChannel;
   /**
-   * When updates were last checked; `None` means never.
+   * When updates were last checked for this install on this channel;
+   * `None` means not yet.
    */
   checked_at?: number | null;
   staged_version?: string | null;
