@@ -103,6 +103,28 @@ native-portable shape (for example bstone and rerac). Rewooled's Mac app would
 place `game-data` inside its app bundle, so it keeps upstream-owned setup until
 that bundle boundary is reviewed.
 
+## 3SX (#374), rolling `native-portable`
+
+The `3SX-6187364-linux-x86_64.tar.gz` package (8,624,391 bytes, provider SHA-256
+matched) was published on `rolling-pre-release`, tag commit
+`618736413eee139800d92d66525af8ada3e31552`. It passed Core layout inspection.
+After the lone wrapper is removed, the player is `bin/3sx` and its SDL3 version
+links resolve inside `lib/`. The player has `RUNPATH=$ORIGIN/../lib` and needs
+glibc 2.38, libz and OpenGL. The exact source keeps its profile at
+`SDL_GetPrefPath("CrowdedStreet", "3SX")`, which is external on Linux under XDG
+data, just as AppData stays external on Windows. The existing empty persistence
+contract applies. The corpus covers a synthetic replacement at the same rolling
+tag.
+
+## Held: 3SX-W (#375) Linux
+
+`3SX-c6b8e98-linux.tar.gz` (provider SHA-256 matched) contains
+`lib/libSDL3.so -> libSDL3.so.0`, and that target is absent from the archive.
+Core extraction refuses the dangling link with "archive links and special files
+are not allowed". This is a demonstrated package failure, not missing
+knowledge. Reconsider when upstream ships a Linux archive whose links all
+resolve inside the package. Windows management is unchanged.
+
 ## Not observed
 
 No upstream player, setup host, emitter or helper was executed. No original disc, BIOS

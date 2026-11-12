@@ -42,6 +42,17 @@
         "Paperboat-Mulberry-Delta-Linux.zip"
       ]
     },
+    "street-fighter-iii-3rd-strike-3sx": {
+      "inventory": "three_sx",
+      "repository_id": 1071157272,
+      "selected_assets": ["3SX-6187364-windows.zip", "3SX-abcdef1-windows.zip"],
+      "linux_selected_assets": [
+        "3SX-6187364-linux-x86_64.tar.gz",
+        "3SX-abcdef1-linux-x86_64.tar.gz"
+      ],
+      "channel": "rolling",
+      "mutable_tag_snapshots": true
+    },
     "perfect-dark": {
       "inventory": "perfect_dark",
       "repository_id": 669207138,
@@ -1818,6 +1829,82 @@
             "browser_download_url": "https://github.com/HarbourMasters/PaperBoat/releases/download/1.0.3/Paperboat-Mulberry-Delta-Win64.zip",
             "size": 27512774,
             "digest": "sha256:ad7a825befbbad2d925f511fc97cfa26027f825935b413040b9d294d953983f3"
+          }
+        ]
+      }
+    ],
+    "three_sx": [
+      {
+        "id": 288757274,
+        "tag_name": "rolling-pre-release",
+        "draft": false,
+        "prerelease": true,
+        "published_at": "2026-02-20T15:06:20Z",
+        "assets": [
+          {
+            "id": 668541820,
+            "name": "3SX-6187364-linux-arm64.tar.gz",
+            "browser_download_url": "https://github.com/crowded-street/3sx/releases/download/rolling-pre-release/3SX-6187364-linux-arm64.tar.gz",
+            "size": 8305567,
+            "digest": "sha256:1d4bd686e04123cb2e1cf22ad4669c498413e83e8763657a565f5adc3156c204"
+          },
+          {
+            "id": 668541826,
+            "name": "3SX-6187364-linux-x86_64.tar.gz",
+            "browser_download_url": "https://github.com/crowded-street/3sx/releases/download/rolling-pre-release/3SX-6187364-linux-x86_64.tar.gz",
+            "size": 8624391,
+            "digest": "sha256:e7d61eb19266c994ad90e012bf4616c09fbbc07072cd80992b7f0ca5e5a31e65"
+          },
+          {
+            "id": 668541828,
+            "name": "3SX-6187364-macos.dmg",
+            "browser_download_url": "https://github.com/crowded-street/3sx/releases/download/rolling-pre-release/3SX-6187364-macos.dmg",
+            "size": 2469659,
+            "digest": "sha256:a50536a3b8fe70b3c6b12310a9e81f42cff107567e35382d75b57c702cc3f733"
+          },
+          {
+            "id": 668541822,
+            "name": "3SX-6187364-windows.zip",
+            "browser_download_url": "https://github.com/crowded-street/3sx/releases/download/rolling-pre-release/3SX-6187364-windows.zip",
+            "size": 9720942,
+            "digest": "sha256:81874b57df0c1433148882d5f34316000b7254103b333a511457ce52fe4a0830"
+          }
+        ]
+      },
+      {
+        "id": 288757274,
+        "tag_name": "rolling-pre-release",
+        "draft": false,
+        "prerelease": true,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999200000,
+            "name": "3SX-abcdef1-linux-arm64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/3SX-abcdef1-linux-arm64.tar.gz",
+            "size": 8305567,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999200001,
+            "name": "3SX-abcdef1-linux-x86_64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/3SX-abcdef1-linux-x86_64.tar.gz",
+            "size": 8624391,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999200002,
+            "name": "3SX-abcdef1-macos.dmg",
+            "browser_download_url": "https://downloads.example.invalid/3SX-abcdef1-macos.dmg",
+            "size": 2469659,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999200003,
+            "name": "3SX-abcdef1-windows.zip",
+            "browser_download_url": "https://downloads.example.invalid/3SX-abcdef1-windows.zip",
+            "size": 9720942,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
           }
         ]
       }
