@@ -23,6 +23,48 @@
     "reset": "Restablecer el valor predeterminado…",
     "review": "Revisar el cambio"
   },
+  "mods": {
+    "add": "Añadir un archivo de mod…",
+    "blocked": "La carpeta de mods del juego tiene archivos que esta configuración no añadió, o archivos que cambiaron fuera de Portcove. Portcove no cambia los mods hasta que se muevan o se restauren, para no sobrescribirlos nunca.",
+    "busy": "Termina la operación en curso antes de cambiar los mods.",
+    "copy": "Copiar esta configuración",
+    "copyIntro": "Una copia tiene los mismos mods, pero empieza sin partidas guardadas y con los ajustes predeterminados del juego. Tu configuración actual conserva los suyos.",
+    "copyName": "Nombre de la nueva configuración",
+    "createFirst": "Crear la primera configuración",
+    "empty": "No hay mods. El juego se ejecuta sin cambios en esta configuración.",
+    "fromProvider": "{{name}} (de {{provider}})",
+    "gameChanged": "Este juego cambió. Actualiza sus detalles antes de cambiar los mods.",
+    "heading": "Configuraciones y mods",
+    "intro": "Una configuración es un conjunto de mods con sus propias partidas guardadas y ajustes. Al cambiar de configuración, se guardan aparte las partidas y los ajustes de la configuración actual y se recuperan los de la otra. Desactivar un mod lo quita de la carpeta de mods del juego; su archivo se queda en Portcove para que puedas volver a activarlo.",
+    "inUse": "En uso",
+    "laterPriority": "Los mods que aparecen más abajo en esta lista tienen prioridad cuando dos mods cambian lo mismo.",
+    "loadOrder": "El juego carga los mods en este orden.",
+    "modsIn": "Mods en {{name}}",
+    "modsInHeading": "Mods en <name />",
+    "native": {
+      "differs": "La lista de mods del juego no coincide con esta configuración. Portcove restaura los mods y el orden de esta configuración antes del próximo inicio.",
+      "notWritten": "Portcove escribe el orden de mods de esta configuración en el juego antes del próximo inicio.",
+      "reordered": "Reordenaste los mods en el juego ({{order}}). Portcove conserva ese orden para esta configuración.",
+      "unreadable": "Portcove no pudo leer el archivo de ajustes del juego, así que lo deja sin cambios. Es posible que el juego cargue los mods en su propio orden."
+    },
+    "none": "Este juego aún no tiene ninguna configuración. Tus partidas guardadas y ajustes actuales pasan a ser su primera configuración.",
+    "noneOn": "ningún mod activado",
+    "on_one": "{{count}} mod activado",
+    "on_many": "{{count}} mods activados",
+    "on_other": "{{count}} mods activados",
+    "outcome": {
+      "added": "Se añadió un mod a {{name}}.",
+      "copied": "Se creó {{name}} con los mismos mods, sin partidas guardadas y con los ajustes predeterminados.",
+      "createdFirst": "Se creó la primera configuración a partir de tus partidas guardadas y ajustes actuales.",
+      "turnedOff": "Se desactivó {{name}}.",
+      "turnedOn": "Se activó {{name}}.",
+      "using": "Ahora se usa {{name}}."
+    },
+    "reread": "Volver a leer las configuraciones",
+    "separator": ", ",
+    "setups": "Configuraciones",
+    "use": "Usar {{name}}"
+  },
   "panel": {
     "fileUnavailable": "Este archivo de ajustes no está disponible.",
     "heading": "Ajustes del juego",

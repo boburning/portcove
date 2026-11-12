@@ -204,3 +204,31 @@ it("offers to read again when the view cannot be refreshed after a change", asyn
   expect(read).toHaveBeenCalledTimes(3);
   expect(button(host, "Use Clean").disabled).toBe(false);
 });
+
+it("presents setups, counts and the reordered list in the active locale", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    const base = view();
+    vi.spyOn(desktopApi, "modSetups").mockResolvedValue(
+      view({
+        live: {
+          ...base.live!,
+          native_list: { state: "reordered", native_order: ["sfx.otr", "hd.o2r"] },
+        },
+      }),
+    );
+    const host = await render();
+    expect(host.querySelector("h3")?.textContent).toBe("الإعدادات المسبقة والتعديلات");
+    expect(host.querySelector("ul")?.getAttribute("aria-label")).toBe("الإعدادات المسبقة");
+    expect(host.textContent).toContain("تعديل واحد مُشغّل");
+    expect(host.textContent).toContain("لا توجد تعديلات مُشغّلة");
+    expect(host.textContent).toContain("قيد الاستخدام");
+    expect(host.textContent).toContain("أعدت ترتيب التعديلات في اللعبة (sfx.otr، hd.o2r).");
+    expect(host.querySelector("h4")?.textContent).toBe("التعديلات في Default");
+    expect(button(host, "استخدام Clean")).toBeTruthy();
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
