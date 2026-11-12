@@ -20,6 +20,7 @@ import { createHash } from "node:crypto";
 import { capacityDigest } from "./release-capacity.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import { isRecord } from "./runtime-values.mts";
+import { verifyRetainedApplicationCapacityStop } from "./release-semantic-runtime.mts";
 
 /** Technical duplicate/resource control, never semantic acceptance or journal
  * mutation authority. Retained POST locators permanently select readback. */
@@ -268,6 +269,11 @@ export async function claimSemanticTechnicalAttempt(
     retry_stop_sha256?: string;
     continuation_stop_sha256?: string;
     next_stop_sha256?: string;
+    capacity_stop?: {
+      sha256: string;
+      log_sha256: string;
+      request_sha256: string;
+    };
   },
 ) {
   if (
@@ -283,7 +289,11 @@ export async function claimSemanticTechnicalAttempt(
         !/^[a-f0-9]{64}$/u.test(partition.continuation_stop_sha256)) ||
       (partition.next_stop_sha256 !== undefined &&
         (partition.continuation_stop_sha256 === undefined ||
-          !/^[a-f0-9]{64}$/u.test(partition.next_stop_sha256))))
+          !/^[a-f0-9]{64}$/u.test(partition.next_stop_sha256))) ||
+      (partition.capacity_stop !== undefined &&
+        (partition.retry_stop_sha256 !== undefined ||
+          partition.next_stop_sha256 === undefined ||
+          Object.values(partition.capacity_stop).some((value) => !/^[a-f0-9]{64}$/u.test(value)))))
   )
     throw new Error("retained semantic partition scope differs");
   const entries = await readdir(requestDirectory);
@@ -309,14 +319,22 @@ export async function claimSemanticTechnicalAttempt(
       ? 4
       : 3;
   const providerContinuation = partition?.next_stop_sha256 && !partition.retry_stop_sha256;
-  const maximumClaims = providerContinuation
-    ? 4
-    : partition?.retry_stop_sha256
-      ? originalClaims + 1
-      : 3;
+  const maximumClaims = partition?.capacity_stop
+    ? 5
+    : providerContinuation
+      ? 4
+      : partition?.retry_stop_sha256
+        ? originalClaims + 1
+        : 3;
   if (runs.length >= maximumClaims) throw new Error("semantic technical retry budget exhausted");
   const bridgeContinuation = partition?.continuation_stop_sha256 && !partition.retry_stop_sha256;
-  if (bridgeContinuation && runs.length !== (providerContinuation ? 3 : 2))
+  if (partition?.capacity_stop && runs.length !== 4)
+    throw new Error("capacity continuation requires exactly four original claims");
+  if (
+    bridgeContinuation &&
+    !partition?.capacity_stop &&
+    runs.length !== (providerContinuation ? 3 : 2)
+  )
     throw new Error(
       providerContinuation
         ? "provider continuation requires exactly three original claims"
@@ -347,7 +365,7 @@ export async function claimSemanticTechnicalAttempt(
             ? partition?.next_stop_sha256
             : partition?.retry_stop_sha256
           : name === "technical-3"
-            ? partition?.continuation_stop_sha256
+            ? (partition?.capacity_stop?.sha256 ?? partition?.continuation_stop_sha256)
             : name === "technical-4"
               ? partition?.next_stop_sha256
               : undefined;
@@ -359,6 +377,7 @@ export async function claimSemanticTechnicalAttempt(
       stopped.outcome !== "technical-failure" ||
       (appointedStop && stopped.application_partition_request_id !== partition?.request_id) ||
       !Array.isArray(stopped.invocations) ||
+      (name === "technical-3" && partition?.capacity_stop && stopped.invocations.length < 2) ||
       (stopped.application_partition_request_id !== undefined &&
         stopped.application_partition_request_id !== partition?.request_id) ||
       stopped.invocations.length >
@@ -380,7 +399,7 @@ export async function claimSemanticTechnicalAttempt(
       )
         throw new Error("supplemental application invocation inventory differs");
     }
-    for (const invocation of stopped.invocations) {
+    for (const [index, invocation] of stopped.invocations.entries()) {
       if (
         !isRecord(invocation) ||
         typeof invocation.root !== "string" ||
@@ -389,6 +408,19 @@ export async function claimSemanticTechnicalAttempt(
         typeof invocation.invocation_sha256 !== "string"
       )
         throw new Error("retained technical invocation locator differs");
+      if (
+        name === "technical-3" &&
+        partition?.capacity_stop &&
+        index === stopped.invocations.length - 1
+      ) {
+        await verifyRetainedApplicationCapacityStop(
+          root,
+          partition.request_id,
+          { root: invocation.root, invocation_sha256: invocation.invocation_sha256 },
+          partition.capacity_stop,
+        );
+        continue;
+      }
       await settleRetainedInvocation(
         invocation.root,
         invocation.invocation_sha256,
