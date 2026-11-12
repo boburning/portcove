@@ -95,6 +95,7 @@ export function applicationReleaseMaximumMinutes(purpose: unknown, executionPath
 export function applicationReleaseRemainingMinutes(
   purpose: unknown,
   executionPath: unknown = "ordinary",
+  servedRenewal = false,
 ) {
   const ordinary = applicationReleaseBudgetMinutes(purpose);
   assert.ok(
@@ -118,6 +119,23 @@ export function applicationReleaseRemainingMinutes(
   }
   if (executionPath === "metadata-maintenance") {
     assert.equal(purpose, "metadata-renewal");
+    if (servedRenewal) {
+      return Object.freeze(
+        Object.fromEntries(
+          Object.entries(applicationReleaseRemainingMinutes(purpose, executionPath))
+            .filter(
+              ([name]) =>
+                !/^renewal_protection_(releases|preview|stable|snapshot|timestamp) \/ execute$/u.test(
+                  name,
+                ),
+            )
+            .map(([name, minutes]) => [
+              name,
+              /^(releases|preview|stable|snapshot|timestamp) \/ execute$/u.test(name) ? 2 : minutes,
+            ]),
+        ),
+      );
+    }
     const applicationWork = new Set([
       "package / package",
       "package / provenance",

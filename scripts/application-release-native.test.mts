@@ -1805,15 +1805,10 @@ void test("metadata renewal traverses existing protected metadata jobs while exc
     "source",
     "tools",
     "context",
-    "renewal_protection_releases",
-    "renewal_protection_preview",
-    "renewal_protection_stable",
     "releases",
     "preview",
     "stable",
-    "renewal_protection_snapshot",
     "snapshot",
-    "renewal_protection_timestamp",
     "timestamp",
     "assemble",
     "publication_prepare",
@@ -1843,6 +1838,23 @@ void test("metadata renewal traverses existing protected metadata jobs while exc
       name,
     );
   }
+  for (const role of ["releases", "preview", "stable", "snapshot", "timestamp"]) {
+    const observer = workflow.jobs[`renewal_protection_${role}`];
+    const signer = workflow.jobs[role];
+    assert.ok(isRecord(observer) && typeof observer.if === "string");
+    assert.ok(observer.if.includes("inputs.mode == 'renew-unserved'"));
+    assert.ok(
+      observer.if.includes(
+        "github.ref != 'refs/tags/portcove-production-controller-windows-20261112r86'",
+      ),
+    );
+    assert.ok(isRecord(signer) && isRecord(signer.with));
+    assert.ok(
+      String(signer.with.phase).includes(
+        "github.ref == 'refs/tags/portcove-production-controller-windows-20261112r86' && 'served-renewal'",
+      ),
+    );
+  }
   const renewalBudget = applicationReleaseRemainingMinutes(
     "metadata-renewal",
     "metadata-maintenance",
@@ -1863,7 +1875,7 @@ void test("metadata renewal traverses existing protected metadata jobs while exc
     assert.equal(signer.with.operation, `role-${role}`);
     assert.equal(
       signer.with.timeout_minutes,
-      `\${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && ${renewalBudget[`${role} / execute`]} || 2 }}`,
+      `\${{ ((inputs.mode == 'renew' && github.ref != 'refs/tags/portcove-production-controller-windows-20261112r86') || inputs.mode == 'renew-unserved') && ${renewalBudget[`${role} / execute`]} || 2 }}`,
     );
     assert.ok(String(signer.with.phase).includes(`&& 'metadata-${role}' || 'metadata'`));
     assert.deepEqual(Object.keys(signer.secrets), [`PORTCOVE_TUF_${role.toUpperCase()}_KEY`]);

@@ -106,7 +106,12 @@ attested prepared assets. The final job rechecks the live cohort, draft asset
 identities, pause and protection before publishing the immutable Release.
 Draft asset removal still requires its own fresh protection observation.
 
-The metadata maintenance workflow pairs each Releases, Preview and Stable
+The appointed r86 served metadata renewal uses the fixed role environments to sign only unchanged
+records into private attempt artifacts. The signer verifies the appointed source,
+live pause and budget, and exact context reservation before key use. Immutable
+publication and Pages each retain their fresh independent protection checks.
+
+Other metadata maintenance pairs each Releases, Preview and Stable
 signer with a separate observer for its phase and attempt. Each observer waits
 for the matching signing step before collecting the inventory. Other signing
 jobs may be queued or already settled. The signer verifies the receipt and its
