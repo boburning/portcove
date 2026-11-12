@@ -1109,6 +1109,49 @@ these identities through the same opaque scope before acquiring artifact bytes,
 then uses the existing shared byte verifier and policy checks at publication.
 Previously returned resolutions do not confer reusable upstream freshness.
 
+#### Preserved-location failover
+
+The owner approved this narrow exception to fresh upstream observation for
+[#1306](https://github.com/boburning/portcove/issues/1306). A curated record
+with `record_version: 2` may carry one or two `preserved_locations`. Each is a
+canonical `https://<host>/<owner>/<repo>/releases/download/<tag>/<file>` URL
+whose file is the record's `<sha256>.asset` or its filename, and whose host the
+schema-4 grant's `artifact_hosts` already authorizes. Locations are transport
+only: they are excluded from the retained immutable identity, cannot widen a
+grant, and never decide acceptance. Version-1 records cannot carry them.
+Clients that predate version 2 refuse such a record through
+`deny_unknown_fields` and keep their prior admission until it expires, so
+publish version-2 records only once the supporting client is the floor.
+
+Failover happens only when the upstream failure is classified _unavailable_
+from recorded transport facts, never from message text. Unavailable means a
+connect failure, a timeout, or HTTP 404/410 on repository, release, tag or
+asset discovery or on the asset bytes. It also covers an accepted release or
+asset that is absent from the listing by both ID and tag or name.
+Authentication, authorization and rate-limit refusals (401, 403, 407, 429) and
+every identity disagreement keep their existing behavior. Mid-stream resets are
+not classified as unavailable. A partial match never counts as disappearance:
+a moved tag, a reused asset name or a changed ID is a disagreement. A connect
+failure counts as unavailable only with a concrete socket-level cause
+(refused, reset, aborted, timed out, host or network unreachable). Proxy-tunnel
+refusals, including 407, and TLS failures never fail over.
+A failover selection carries the requested channel label for the record's
+accepted release; curated records are exact per platform, so no channel
+choice happens.
+
+Order: scope freshness, retained identity and the curated artifact hold are
+checked first. Then the existing upstream observation runs. When it is
+unavailable, Core selects the artifact from the authenticated, fresh policy
+record alone and makes no upstream request. Installation then re-observes
+through the same resolver and reuses a verified cache hit first. Otherwise it
+tries the upstream asset URL, then each preserved location in record order. Before every preserved
+attempt Core removes private partial bytes and rechecks the hold. The scoped
+anonymous client, `artifact_hosts` redirect policy, bounded transfer, bounded
+SHA-256 verifier, cache retention and atomic publication are unchanged. A byte
+mismatch from a preserved location refuses the install and tries no further
+location. Stale or expired policy, revocation, distribution withdrawal and
+lost future acceptance refuse before any preserved request.
+
 Only an exactly qualified curated platform uses the shared `downloads/curated-v1`
 byte cache; another platform's publisher-digest route remains independent. Cache
 hits still refresh upstream metadata, recheck current policy and immutable

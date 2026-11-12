@@ -1033,6 +1033,96 @@ async fn curated_capability_preserves_other_platform_publisher_digest_installati
     );
 }
 
+fn curated_catalog_with_preserved_location(location: Option<String>) -> Catalog {
+    let platform = crate::Platform::current().unwrap();
+    let mut document = curated_metadata_document();
+    let mut port = metadata_catalog().ports()[0].clone();
+    let mut record = crate::curated_acquisition::fixture_record();
+    record.repository = port.release.repository.clone();
+    record.upstream_url = format!("https://github.com/{}", record.repository);
+    record.platform = platform;
+    record.acquisition_url = format!(
+        "{}/releases/download/{}/{}",
+        record.upstream_url, record.tag, record.filename
+    );
+    if let Some(location) = location {
+        record.record_version = 2;
+        record.preserved_locations = vec![location.replace("{sha256}", &record.sha256)];
+    }
+    // The fixture port must declare the host platform the record is keyed by,
+    // with that platform's executable contract, as the sibling curated fixtures do.
+    port.platforms = vec![platform];
+    port.executable_hints = std::collections::BTreeMap::from([(
+        platform,
+        vec![
+            if cfg!(windows) {
+                "fixture.exe"
+            } else {
+                "fixture"
+            }
+            .into(),
+        ],
+    )]);
+    port.release.curated.insert(platform, record);
+    document.ports[0] = port;
+    Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+}
+
+/// Admits a signed schema-4 curated policy for `authored` and reports whether
+/// the library accepted it.
+async fn curated_policy_admission(authored: &Catalog) -> crate::Result<()> {
+    let fixture = RepositoryFixture::new();
+    let key = Key::new(fixture._directory.path());
+    let mut targets = repository_targets_for(authored, ID);
+    let mut document = managed_policy_for(&targets, true);
+    document["policy_schema"] = 4.into();
+    document["decision"]["curated_acquisition_checks"] = 1.into();
+    targets.push((
+        format!("policy/official/{ID}.json"),
+        serde_json::to_vec(&document).unwrap(),
+    ));
+    let root = fixture
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 1)),
+        )
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let admission = acquire_policy(&fixture, &root, ID).await.unwrap();
+    let (_directory, library) = library();
+    policy::install_authority_for_test(&library, &root).unwrap();
+    library.apply_definition_publisher_policy(&admission, Some(&candidate))?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn curated_preserved_location_hosts_must_already_be_granted() {
+    let granted =
+        "https://github.com/Owner/portcove-preserved/releases/download/preserved-1/{sha256}.asset";
+    curated_policy_admission(&curated_catalog_with_preserved_location(None))
+        .await
+        .unwrap();
+    curated_policy_admission(&curated_catalog_with_preserved_location(Some(
+        granted.into(),
+    )))
+    .await
+    .unwrap();
+    let ungranted = granted.replace("github.com", "mirror.example.org");
+    let error = curated_policy_admission(&curated_catalog_with_preserved_location(Some(ungranted)))
+        .await
+        .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("preserved location host is not granted")
+            || format!("{error:?}").contains("preserved location host is not granted"),
+        "{error:?}"
+    );
+}
+
 async fn curated_transition_fixture() -> (
     RepositoryFixture,
     Key,
@@ -3617,6 +3707,425 @@ curated_install_boundary_cases! {
     curated_install_published_withdrawal_preserves_owned_payload: "distribution_withdrawn", InstallPublished,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PreservedCase {
+    CompleteApiLoss,
+    ForbiddenNeverFallsBack,
+    DisagreementNeverFallsBack,
+    RateLimitedNotFoundNeverFallsBack,
+    MismatchedPreservedBytes,
+    ConnectRefused,
+    StalePolicyBeforeResolution,
+    StalePolicyBeforeBytes,
+    RetaggedReleaseNeverFallsBack,
+    SecondLocationAfterFirstUnavailable,
+    MismatchStopsBeforeSecondLocation,
+}
+
+/// Elapsed-time simulation: expire the admitted policy without changing bytes.
+fn expire_admitted_policy(library: &Library) {
+    let connection = library.connection().unwrap();
+    let encoded: String = connection
+        .query_row(
+            "SELECT provenance_json FROM definition_publisher_admission",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    let mut provenance: Value = serde_json::from_str(&encoded).unwrap();
+    provenance["expires_at"] = "2000-01-01T00:00:00Z".into();
+    connection
+        .execute(
+            "UPDATE definition_publisher_admission SET provenance_json=?1",
+            [provenance.to_string()],
+        )
+        .unwrap();
+}
+
+/// #1306: preserved-location failover through the real resolver, installer,
+/// shared verifier and scoped transport, against owned fixture responses.
+async fn curated_preserved_failover_fixture(case: PreservedCase) {
+    use crate::ReleaseProvider;
+    use std::io::{Cursor, Write};
+    let platform = crate::Platform::current().unwrap();
+    let executable = if cfg!(windows) {
+        "fixture.exe"
+    } else {
+        "fixture"
+    };
+    let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    archive
+        .start_file(
+            executable,
+            zip::write::SimpleFileOptions::default().unix_permissions(0o755),
+        )
+        .unwrap();
+    archive
+        .write_all(b"Owned nonexecuted preserved byte fixture")
+        .unwrap();
+    let bytes = archive.finish().unwrap().into_inner();
+    let mut baseline = Catalog::embedded().unwrap().authoritative_document();
+    let mut port = metadata_catalog().ports()[0].clone();
+    port.platforms = vec![platform];
+    port.executable_hints.clear();
+    port.executable_hints
+        .insert(platform, vec![executable.into()]);
+    let mut record = crate::curated_acquisition::fixture_record();
+    record.repository = port.release.repository.clone();
+    record.upstream_url = format!("https://github.com/{}", record.repository);
+    record.platform = platform;
+    record.tag = "v1".into();
+    record.filename = format!("game-{}.zip", platform.asset_tokens()[0]);
+    record.size = bytes.len() as u64;
+    record.sha256 = hex::encode(Sha256::digest(&bytes));
+    record.acquisition_url = format!(
+        "{}/releases/download/{}/{}",
+        record.upstream_url, record.tag, record.filename
+    );
+    record.record_version = 2;
+    record.preserved_locations = vec![format!(
+        "https://github.com/Owner/portcove-preserved/releases/download/preserved-1/{}.asset",
+        record.sha256
+    )];
+    if matches!(
+        case,
+        PreservedCase::SecondLocationAfterFirstUnavailable
+            | PreservedCase::MismatchStopsBeforeSecondLocation
+    ) {
+        let second = record.preserved_locations[0].replace("preserved-1", "preserved-2");
+        record.preserved_locations.push(second);
+    }
+    port.release.curated.insert(record.platform, record.clone());
+    baseline.ports.push(port);
+    let authored = Catalog::from_json(&serde_json::to_string(&baseline).unwrap()).unwrap();
+    let (_fixture, _key, _root, _directory, library, catalog, mut scope) =
+        managed_fixture_for_policy(authored, true).await;
+    assert_eq!(scope.curated_checks, Some(1));
+
+    if case == PreservedCase::ConnectRefused {
+        // Bind and release a port so nothing listens: a connect failure.
+        let closed = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let origin = format!("http://{}", closed.local_addr().unwrap());
+        drop(closed);
+        scope.fixture_origin = Some(origin.clone());
+        let provider = crate::GithubReleaseProvider::with_api_root(origin.clone()).unwrap();
+        let resolved = provider
+            .resolve_scoped(
+                catalog.port(ID).unwrap(),
+                ReleaseChannel::Stable,
+                platform,
+                Some(&scope),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resolved.release.asset.sha256, record.sha256);
+        assert_eq!(
+            resolved.release.asset.url,
+            format!(
+                "{origin}{}",
+                reqwest::Url::parse(&record.acquisition_url).unwrap().path()
+            )
+        );
+        return;
+    }
+
+    let server = AcquisitionHttp::new();
+    scope.fixture_origin = Some(server.origin.clone());
+    let provider = crate::GithubReleaseProvider::with_api_root(server.origin.clone()).unwrap();
+    let resolve = || {
+        provider.resolve_scoped(
+            catalog.port(ID).unwrap(),
+            ReleaseChannel::Stable,
+            platform,
+            Some(&scope),
+        )
+    };
+    let preserved_path = reqwest::Url::parse(&record.preserved_locations[0])
+        .unwrap()
+        .path()
+        .to_owned();
+    let requested = |server: &AcquisitionHttp| {
+        server
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|request| request.lines().next().unwrap_or_default().to_owned())
+            .collect::<Vec<_>>()
+    };
+    match case {
+        PreservedCase::ForbiddenNeverFallsBack => {
+            server.status(403, "Forbidden");
+            let error = resolve().await.unwrap_err();
+            assert_eq!(
+                error.upstream_failure(),
+                crate::failure::UpstreamFailure::Forbidden
+            );
+            assert_eq!(requested(&server).len(), 1);
+            return;
+        }
+        PreservedCase::RateLimitedNotFoundNeverFallsBack => {
+            server.responses.lock().unwrap().push_back(
+                b"HTTP/1.1 429 Too Many Requests\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                    .to_vec(),
+            );
+            assert!(resolve().await.is_err());
+            assert_eq!(requested(&server).len(), 1);
+            return;
+        }
+        PreservedCase::RetaggedReleaseNeverFallsBack => {
+            // The accepted release survives under a moved tag while a new release
+            // took its tag: a mutated identity, never disappearance.
+            let accepted_path = reqwest::Url::parse(&record.acquisition_url)
+                .unwrap()
+                .path()
+                .to_owned();
+            let releases = serde_json::json!([
+                {
+                    "id": record.release_id + 100, "tag_name": "v1", "draft": false,
+                    "prerelease": false, "published_at": null,
+                    "assets": [{"id": record.asset_id + 100, "name": "other.zip",
+                        "browser_download_url": format!("{}/other.zip", server.origin),
+                        "size": 1, "digest": null}]
+                },
+                {
+                    "id": record.release_id, "tag_name": "v1-old", "draft": false,
+                    "prerelease": false, "published_at": null,
+                    "assets": [{"id": record.asset_id, "name": record.filename,
+                        "browser_download_url": format!("{}{accepted_path}", server.origin),
+                        "size": record.size, "digest": null}]
+                }
+            ]);
+            server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+            server.json(releases);
+            let error = resolve().await.unwrap_err();
+            assert_ne!(
+                error.upstream_failure(),
+                crate::failure::UpstreamFailure::Unavailable,
+                "{error:?}"
+            );
+            assert!(
+                requested(&server)
+                    .iter()
+                    .all(|line| !line.contains(&preserved_path)),
+                "a moved tag must never contact a preserved location"
+            );
+            return;
+        }
+        PreservedCase::DisagreementNeverFallsBack => {
+            let mut release = server.release(false);
+            release[0]["id"] = record.release_id.into();
+            release[0]["assets"][0]["id"] = record.asset_id.into();
+            release[0]["assets"][0]["size"] = (record.size + 1).into();
+            release[0]["assets"][0]["name"] = record.filename.clone().into();
+            release[0]["assets"][0]["browser_download_url"] = format!(
+                "{}{}",
+                server.origin,
+                reqwest::Url::parse(&record.acquisition_url).unwrap().path()
+            )
+            .into();
+            server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+            server.json(release);
+            server.json(serde_json::json!({"ref":"refs/tags/v1", "object":{"type":"commit","sha":record.commit_sha1}}));
+            let error = resolve().await.unwrap_err();
+            assert_eq!(
+                error.upstream_failure(),
+                crate::failure::UpstreamFailure::Disagreement
+            );
+            assert!(
+                requested(&server)
+                    .iter()
+                    .all(|line| !line.contains(&preserved_path)),
+                "disagreement must never contact a preserved location"
+            );
+            return;
+        }
+        _ => {}
+    }
+
+    if case == PreservedCase::StalePolicyBeforeResolution {
+        expire_admitted_policy(&library);
+        assert!(resolve().await.is_err());
+        assert!(
+            requested(&server).is_empty(),
+            "stale policy refuses before any request"
+        );
+        return;
+    }
+    // Complete loss of the original repository/discovery route.
+    server.status(404, "Not Found");
+    let resolved = resolve().await.unwrap();
+    assert_eq!(resolved.release.asset.sha256, record.sha256);
+    assert_eq!(resolved.release.asset.name, record.filename);
+    assert_eq!(
+        requested(&server).len(),
+        1,
+        "fallback resolution makes no further request"
+    );
+
+    let installer = crate::Installer::new(library.clone()).unwrap();
+    let request = crate::InstallRequest {
+        port_id: ID.into(),
+        release: resolved.release.clone(),
+        output_root: library.versions_dir().join(ID),
+        activate: false,
+        managed: None,
+        qualification: crate::InstallQualification::from_catalog(&catalog, ID, platform)
+            .unwrap()
+            .with_acquisition_resolution(resolved)
+            .unwrap(),
+    };
+    if case == PreservedCase::StalePolicyBeforeBytes {
+        expire_admitted_policy(&library);
+        assert!(
+            installer
+                .install(
+                    request,
+                    &crate::operation::OperationCoordinator::new("install", None),
+                    |_| {},
+                )
+                .await
+                .is_err()
+        );
+        assert_eq!(
+            requested(&server).len(),
+            1,
+            "no upstream or preserved byte request"
+        );
+        assert_eq!(count(&library, "installs"), 0);
+        return;
+    }
+    // Install re-observes upstream (still gone), then tries upstream bytes
+    // (gone), then the preserved location.
+    server.status(404, "Not Found");
+    server.status(404, "Not Found");
+    if case == PreservedCase::SecondLocationAfterFirstUnavailable {
+        server.status(404, "Not Found");
+    }
+    let preserved_bytes = if matches!(
+        case,
+        PreservedCase::MismatchedPreservedBytes | PreservedCase::MismatchStopsBeforeSecondLocation
+    ) {
+        let mut changed = bytes.clone();
+        changed[0] ^= 1;
+        changed
+    } else {
+        bytes.clone()
+    };
+    server.bytes(&preserved_bytes);
+    let result = installer
+        .install(
+            request,
+            &crate::operation::OperationCoordinator::new("install", None),
+            |_| {},
+        )
+        .await;
+    let lines = requested(&server);
+    let second_path = record
+        .preserved_locations
+        .get(1)
+        .map(|location| reqwest::Url::parse(location).unwrap().path().to_owned());
+    let expected = if case == PreservedCase::SecondLocationAfterFirstUnavailable {
+        5
+    } else {
+        4
+    };
+    assert_eq!(lines.len(), expected, "{lines:?}");
+    assert!(lines[2].contains(reqwest::Url::parse(&record.acquisition_url).unwrap().path()));
+    assert!(lines[3].contains(&preserved_path), "{lines:?}");
+    if case == PreservedCase::SecondLocationAfterFirstUnavailable {
+        assert!(
+            lines[4].contains(second_path.as_deref().unwrap()),
+            "{lines:?}"
+        );
+    }
+    if case == PreservedCase::MismatchStopsBeforeSecondLocation {
+        let second = second_path.unwrap();
+        assert!(
+            lines.iter().all(|line| !line.contains(&second)),
+            "a byte mismatch must not try a further location: {lines:?}"
+        );
+    }
+    assert!(
+        server
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .all(|request| !request.to_ascii_lowercase().contains("authorization:")),
+        "preserved acquisition must stay anonymous"
+    );
+    if matches!(
+        case,
+        PreservedCase::MismatchedPreservedBytes | PreservedCase::MismatchStopsBeforeSecondLocation
+    ) {
+        let error = result.unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert!(error.message.contains("SHA-256"));
+        assert_eq!(count(&library, "installs"), 0);
+        return;
+    }
+    let installed = result.unwrap();
+    assert_eq!(installed.artifact.sha256, record.sha256);
+    assert!(installer.verify(&installed).unwrap().valid);
+    assert!(server.responses.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn curated_preserved_fallback_after_complete_api_loss() {
+    curated_preserved_failover_fixture(PreservedCase::CompleteApiLoss).await;
+}
+
+#[tokio::test]
+async fn curated_preserved_fallback_after_connection_refused() {
+    curated_preserved_failover_fixture(PreservedCase::ConnectRefused).await;
+}
+
+#[tokio::test]
+async fn curated_forbidden_upstream_never_falls_back() {
+    curated_preserved_failover_fixture(PreservedCase::ForbiddenNeverFallsBack).await;
+}
+
+#[tokio::test]
+async fn curated_rate_limited_upstream_never_falls_back() {
+    curated_preserved_failover_fixture(PreservedCase::RateLimitedNotFoundNeverFallsBack).await;
+}
+
+#[tokio::test]
+async fn curated_disagreement_never_falls_back() {
+    curated_preserved_failover_fixture(PreservedCase::DisagreementNeverFallsBack).await;
+}
+
+#[tokio::test]
+async fn curated_stale_policy_refuses_preserved_resolution() {
+    curated_preserved_failover_fixture(PreservedCase::StalePolicyBeforeResolution).await;
+}
+
+#[tokio::test]
+async fn curated_stale_policy_refuses_preserved_bytes_after_resolution() {
+    curated_preserved_failover_fixture(PreservedCase::StalePolicyBeforeBytes).await;
+}
+
+#[tokio::test]
+async fn curated_retagged_release_never_falls_back() {
+    curated_preserved_failover_fixture(PreservedCase::RetaggedReleaseNeverFallsBack).await;
+}
+
+#[tokio::test]
+async fn curated_preserved_tries_second_location_after_first_unavailable() {
+    curated_preserved_failover_fixture(PreservedCase::SecondLocationAfterFirstUnavailable).await;
+}
+
+#[tokio::test]
+async fn curated_preserved_mismatch_never_tries_a_further_location() {
+    curated_preserved_failover_fixture(PreservedCase::MismatchStopsBeforeSecondLocation).await;
+}
+
+#[tokio::test]
+async fn curated_preserved_location_rejects_mismatched_bytes() {
+    curated_preserved_failover_fixture(PreservedCase::MismatchedPreservedBytes).await;
+}
+
 async fn curated_installer_boundary_fixture(
     cache_controls: bool,
     artifact_status: Option<&str>,
@@ -4496,6 +5005,12 @@ impl AcquisitionHttp {
         .into_bytes();
         response.extend_from_slice(body);
         self.responses.lock().unwrap().push_back(response);
+    }
+    fn status(&self, code: u16, reason: &str) {
+        self.responses.lock().unwrap().push_back(
+            format!("HTTP/1.1 {code} {reason}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                .into_bytes(),
+        );
     }
     fn redirect(&self, url: &str) {
         self.responses.lock().unwrap().push_back(format!(

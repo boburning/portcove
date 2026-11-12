@@ -4345,6 +4345,13 @@
           "platform": {
             "$ref": "#/$defs/Platform"
           },
+          "preserved_locations": {
+            "description": "Record version 2 only: authorized alternate transports for the same\naccepted bytes (#1306). Locations are never identity or authority; the\naccepted size and SHA-256 above still decide every acquisition.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "protected_acceptance": {
             "$ref": "#/$defs/CuratedEvidenceReference"
           },
@@ -29295,6 +29302,13 @@
           "platform": {
             "$ref": "#/$defs/Platform"
           },
+          "preserved_locations": {
+            "description": "Record version 2 only: authorized alternate transports for the same\naccepted bytes (#1306). Locations are never identity or authority; the\naccepted size and SHA-256 above still decide every acquisition.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "protected_acceptance": {
             "$ref": "#/$defs/CuratedEvidenceReference"
           },
@@ -41189,6 +41203,13 @@
           },
           "platform": {
             "$ref": "#/$defs/Platform"
+          },
+          "preserved_locations": {
+            "description": "Record version 2 only: authorized alternate transports for the same\naccepted bytes (#1306). Locations are never identity or authority; the\naccepted size and SHA-256 above still decide every acquisition.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "protected_acceptance": {
             "$ref": "#/$defs/CuratedEvidenceReference"

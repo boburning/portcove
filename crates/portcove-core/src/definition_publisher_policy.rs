@@ -642,6 +642,7 @@ impl PolicyDocument {
             match self.decision {
                 PolicyDecision::ManagedGithub {
                     curated_checks: Some(1),
+                    ref artifact_hosts,
                     ..
                 } => {
                     crate::DefinitionAcquisitionScope::validate_port_contract(entry.port())?;
@@ -652,6 +653,18 @@ impl PolicyDocument {
                     }
                     for (platform, record) in &entry.port().release.curated {
                         record.validate(&entry.port().release.repository, *platform)?;
+                        // A preserved location is reachable only through hosts this grant
+                        // already authorizes; record bytes cannot widen the grant.
+                        for location in &record.preserved_locations {
+                            let host = reqwest::Url::parse(location)
+                                .ok()
+                                .and_then(|url| url.host_str().map(str::to_owned));
+                            if host.is_none_or(|host| !artifact_hosts.contains(&host)) {
+                                return Err(PortcoveError::verification(
+                                    "preserved location host is not granted",
+                                ));
+                            }
+                        }
                     }
                 }
                 _ => crate::DefinitionAcquisitionScope::validate_port(entry.port())?,
