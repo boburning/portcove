@@ -1169,6 +1169,21 @@ void test("a merged readback accepts its prepared closing-inventory run after Gi
         { ...open, pull_before: unmerged, pull_after: structuredClone(unmerged) },
         expected,
       ),
-    /did not run for this pull request|Merge outcome is unconfirmed/,
+    // Closing validation runs before the merge-state check, so only the gate itself can
+    // produce this refusal; without it the empty list would pass and a later check would fail.
+    /did not run for this pull request/,
+  );
+  // Both bracketing observations must come from one closing-inventory run.
+  const mixed = withEvidence(fixture(), 91, [{ number: 7 }]);
+  assert.throws(
+    () =>
+      prepareMergeSnapshot(
+        {
+          ...mixed,
+          closing_after: { ...mixed.closing_after, ...evidence(92, [{ number: 7 }]) },
+        },
+        expected,
+      ),
+    /Closing inventory evidence changed during collection/,
   );
 });

@@ -322,7 +322,9 @@ considering another mutation. GitHub clears a workflow run's `pull_requests` onc
 the pull request merges, so preparation records the `closing-inventory` check
 suite it validated (`closing_inventory_suite`). A merged readback accepts that
 run's empty `pull_requests` only for that exact suite; any other run, a
-preparation without it, or an unmerged pull request still refuses. `verify-merge` requires the actual single-parent
+preparation without it (including GraphQL or direct-UI preparations, which
+record none, so their readback also uses GraphQL), or an unmerged pull request
+still refuses. `verify-merge` requires the actual single-parent
 squash, expected tree/message, merged PR, target branch and unchanged closing
 inventory. A failed or unavailable readback remains an unknown outcome: inspect
 the remote state and reconcile it without automatic retry or local cleanup.
