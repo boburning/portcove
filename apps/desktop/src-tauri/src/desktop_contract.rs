@@ -615,6 +615,7 @@ pub fn export_transport_schemas() -> Value {
         "input": {
             "game_comparison_request": schemars::schema_for!(portcove_core::GameComparisonRequest),
             "bug_report_field": schemars::schema_for!(portcove_core::BugReportField),
+            "report_kind": schemars::schema_for!(portcove_core::ReportKind),
             "install_input": schemars::schema_for!(InstallInput),
             "organization_change": schemars::schema_for!(portcove_core::OrganizationChange),
             "catalog_download_request": schemars::schema_for!(portcove_core::CatalogDownloadRequest),

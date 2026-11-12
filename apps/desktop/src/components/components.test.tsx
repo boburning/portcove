@@ -226,7 +226,7 @@ describe("desktop components", () => {
       advanced.indexOf(">Create a support report</button>"),
     );
     expect(advanced).toContain("Original game files stay local");
-    expect(advanced).toContain("Report a problem");
+    expect(advanced).toContain("Report a problem or send feedback");
     const about = html.slice(html.indexOf('data-settings-group="about"'));
     expect(about).toContain("Open project repository");
     expect(about).toContain("Licensed under MIT or Apache-2.0.");

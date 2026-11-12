@@ -1900,6 +1900,26 @@ export default interface Resources {
     "uninstallPort": "Uninstall {{name}}"
   },
   "report": {
+    "choice": {
+      "description": "Choose what you want to tell us. You review everything before you send it.",
+      "feedback": "Something was hard or confusing, or I have an idea",
+      "open": "Report a problem or send feedback",
+      "preparing": "Preparing…",
+      "problem": "Something broke or didn't work as it should",
+      "title": "Report a problem or send feedback"
+    },
+    "copy": {
+      "button": "Copy text",
+      "copied": "The text was copied. Paste it into a new GitHub issue, or send it to the Portcove team another way.",
+      "failed": "The text could not be copied automatically. Select and copy it below.",
+      "openFailed": "The form could not be opened. Your text is still here; try again or copy it."
+    },
+    "feedback": {
+      "copied": "This feedback is too long for a link, so it was copied instead. Open the feedback form on GitHub and paste it in.",
+      "copyFailed": "This feedback is too long for a link and could not be copied automatically. Select and copy the text below, then paste it into the feedback form on GitHub.",
+      "description": "This is everything that will be filled into a GitHub feedback form. Describe what happened in your own words. On GitHub, you also choose what you were trying to do and how far you got. Portcove sends nothing itself, and folder paths and your user name are replaced.",
+      "title": "Send feedback"
+    },
     "problem": {
       "cancel": "Cancel",
       "close": "Close",

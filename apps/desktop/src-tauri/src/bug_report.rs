@@ -1,4 +1,5 @@
-//! Generation-bound transport for Core-built, player-reviewed bug reports.
+//! Generation-bound transport for Core-built, player-reviewed bug reports and
+//! feedback.
 //!
 //! Core owns drafting, redaction and the link. This adapter supplies host facts
 //! (version, home directory, user name) and opens the link only after the
@@ -8,7 +9,7 @@ use crate::{
 };
 use portcove_core::{
     BugReportDraft, BugReportField, BugReportInputs, BugReportLink, Platform, PortcoveService,
-    ReportRedactions, bug_report_link, draft_bug_report,
+    ReportKind, ReportRedactions, draft_report, report_link,
 };
 
 fn environment(names: &[&str]) -> Option<String> {
@@ -39,6 +40,7 @@ pub(crate) async fn preview_bug_report(
     state: tauri::State<'_, DesktopState>,
     port_id: Option<String>,
     generation: u64,
+    kind: Option<ReportKind>,
 ) -> DesktopResult<BugReportDraft> {
     let state = state.inner().clone();
     blocking_worker(move || {
@@ -89,23 +91,30 @@ pub(crate) async fn preview_bug_report(
             last_exit_code,
             doctor_summary: summary,
         };
-        Ok(draft_bug_report(&inputs, &redactions(&service)))
+        Ok(draft_report(
+            kind.unwrap_or_default(),
+            &inputs,
+            &redactions(&service),
+        ))
     })
     .await
 }
 
-/// Builds the link from the player's final text and opens it when it fits.
-/// The result always carries the clipboard text, so the caller can fall back.
+/// Builds the link from the player's final text and opens it when it fits,
+/// unless the player asked to copy the text instead. The result always carries
+/// the clipboard text, so the caller can fall back.
 #[tauri::command]
 pub(crate) async fn open_bug_report(
     state: tauri::State<'_, DesktopState>,
     fields: Vec<BugReportField>,
+    kind: Option<ReportKind>,
+    copy_only: Option<bool>,
 ) -> DesktopResult<BugReportLink> {
     let state = state.inner().clone();
     blocking_worker(move || {
         let redactions = redactions(&service(&state)?);
-        let link = bug_report_link(&fields, &redactions);
-        if let Some(url) = &link.url {
+        let link = report_link(kind.unwrap_or_default(), &fields, &redactions);
+        if let Some(url) = link.url.as_ref().filter(|_| copy_only != Some(true)) {
             open_host_target(std::ffi::OsStr::new(url))?;
         }
         Ok(link)

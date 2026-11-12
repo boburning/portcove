@@ -182,11 +182,11 @@ preview limitations.
 | Protect managed saved data  | Use the port's backups, or `portcove backup create PORT_ID` followed by `portcove backup list PORT_ID`.         | Check which saves and settings are included. Portcove also snapshots them automatically before an update, activation or rollback, and keeps the newest five per game. Back up your original files separately. Review which files a restore would replace. |
 | Correct a moved game file   | Use Update file location in Game files, or the [reviewed relink route](docs/CLI.md#find-and-relink-game-files). | The new location must still match the registered content; relinking does not move files or accept changed bytes.                                                                                                                                          |
 | Recover an interrupted task | Read Activity and `portcove doctor`, then follow the operation's reported recovery action.                      | Diagnosis does not itself resume or clean up an operation. Retained files or an unknown outcome need the specific supported recovery.                                                                                                                     |
-| Report a problem            | Use Report a problem in a game's details. You review the full text, then submit it on GitHub.                   | Portcove sends nothing itself. Folder paths and your user name are replaced, and no saves or game files are attached. Long reports are copied instead.                                                                                                    |
+| Report a problem            | Use Report a problem or send feedback in a game's details. You review the full text, then submit it on GitHub.  | Portcove sends nothing itself. Folder paths and your user name are replaced, and no saves or game files are attached. Long reports are copied instead.                                                                                                    |
 | Upgrade Portcove itself     | Follow [application upgrade and recovery](docs/UPGRADING.md).                                                   | Published Alpha 2 upgrades are manual. An application update is separate from a game update or catalog refresh.                                                                                                                                           |
 
-See [beta feedback and triage](docs/ROADMAP.md#beta-feedback-and-triage) for
-reporting from Settings or directly on GitHub.
+See [feedback and triage](docs/ROADMAP.md#feedback-and-triage) for reporting a
+problem or sending feedback from Portcove or directly on GitHub.
 
 Bulk `check --all`, `reconcile --all` and `update --all` continue after a
 per-port failure and report each outcome. A completed batch can contain failed

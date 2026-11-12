@@ -1,4 +1,24 @@
 {
+  "choice": {
+    "description": "Elige qué quieres contarnos. Revisas todo antes de enviarlo tú.",
+    "feedback": "Algo fue difícil o confuso, o tengo una idea",
+    "open": "Informar de un problema o enviar comentarios",
+    "preparing": "Preparando…",
+    "problem": "Algo falló o no funcionó como debía",
+    "title": "Informar de un problema o enviar comentarios"
+  },
+  "copy": {
+    "button": "Copiar texto",
+    "copied": "Se copió el texto. Pégalo en una nueva incidencia de GitHub o envíalo al equipo de Portcove de otra forma.",
+    "failed": "No se pudo copiar el texto automáticamente. Selecciónalo y cópialo abajo.",
+    "openFailed": "No se pudo abrir el formulario. Tu texto sigue aquí; inténtalo de nuevo o cópialo."
+  },
+  "feedback": {
+    "copied": "Estos comentarios son demasiado largos para un enlace, así que se copiaron. Abre el formulario de comentarios en GitHub y pégalos.",
+    "copyFailed": "Estos comentarios son demasiado largos para un enlace y no se pudieron copiar automáticamente. Selecciona y copia el texto de abajo y pégalo en el formulario de comentarios de GitHub.",
+    "description": "Esto es todo lo que se rellenará en un formulario de comentarios de GitHub. Describe con tus palabras lo que pasó. En GitHub también eliges qué intentabas hacer y hasta dónde llegaste. Portcove no envía nada por sí mismo, y las rutas de carpetas y tu nombre de usuario se sustituyen.",
+    "title": "Enviar comentarios"
+  },
   "problem": {
     "cancel": "Cancelar",
     "close": "Cerrar",

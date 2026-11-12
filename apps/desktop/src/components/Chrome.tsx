@@ -1921,10 +1921,11 @@ export function SettingsView(props: SettingsViewProps) {
         hasSnapshot={Boolean(doctor)}
       />
       <SettingsRow data-focus-group>
-        <h2>Report a problem</h2>
+        <h2>Report a problem or send feedback</h2>
         <p>
-          Review a pre-filled GitHub bug report before anything is sent. Portcove sends nothing
-          itself, and folder paths and your user name are replaced.
+          Tell us when something broke, or when something was hard, confusing or missing. You review
+          the pre-filled text before anything is sent. Portcove sends nothing itself, and folder
+          paths and your user name are replaced.
         </p>
         <ReportProblem key={generation} generation={generation} />
       </SettingsRow>

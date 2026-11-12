@@ -2762,8 +2762,8 @@ function MaintenanceActions({
         </ManagementRow>
       )}
       <ManagementRow
-        title="Report a problem"
-        description="Review a pre-filled GitHub bug report before anything is sent."
+        title="Report a problem or send feedback"
+        description="Tell us when something broke, or when something was hard or confusing. You review the pre-filled text before anything is sent."
       >
         <ReportProblem portId={port.id} generation={libraryGeneration} />
       </ManagementRow>
