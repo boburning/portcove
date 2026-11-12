@@ -451,7 +451,8 @@ it("translates the prepared and cancelled outcomes and the space line", async ()
     vi.spyOn(desktopApi, "planPreparation").mockResolvedValue(plan);
     let outcome: "prepared" | "cancelled" = "prepared";
     const run: RunPreparation = async () => {
-      if (outcome === "cancelled") throw { code: "cancelled", message: "Cancelled" };
+      if (outcome === "cancelled")
+        throw Object.assign(new Error("Cancelled"), { code: "cancelled" });
       return plan.inputs.install;
     };
     await root.rerender(
