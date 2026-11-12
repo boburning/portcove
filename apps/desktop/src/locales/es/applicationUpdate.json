@@ -69,6 +69,7 @@
     "saveFailedRefreshed": "{{error}} Se actualizaron los ajustes actuales; revísalos antes de volver a guardar."
   },
   "preferences": {
+    "automaticUnavailable": "Automático no está disponible porque esta compilación no puede instalar sus propias actualizaciones.",
     "channelDescription_preview": "Vista previa recibe las versiones de prueba públicas y, más adelante, las versiones finales aptas.",
     "channelDescription_stable": "Estable espera a una versión de producción apta que sea más reciente que la versión instalada; nunca instala una versión anterior de Portcove.",
     "channelGroup": "Canal de actualización de la aplicación",
