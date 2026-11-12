@@ -60,6 +60,7 @@ export default defineConfig({
       "src/components/LauncherBatchCopy.tsx",
       "src/components/ActivityDiagnostic.tsx",
       "src/components/CliContinuity.tsx",
+      "src/components/ManagedRouteChange.tsx",
       "src/features/port-actions/BrowsePortObservations.tsx",
       "src/components/ui.tsx",
       "src/components/FailureDetails.tsx",

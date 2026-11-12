@@ -906,6 +906,28 @@ export default interface Resources {
       "unrecognized": "This saved channel is not recognized in this version. Your saved choice has not changed."
     }
   },
+  "installation": {
+    "managedRoute": {
+      "cancel": "Cancel",
+      "checkAgain": "Check again",
+      "checking": "Checking the recommended release and destination…",
+      "create": "Create managed copy",
+      "description": "Portcove prepares a separate copy and switches to it only after verification. Your current registration stays usable until then, and its external files stay where they are.",
+      "differentHandling": "This proposed change has different file or data handling. Keep your current copy and update Portcove before reviewing it again.",
+      "failure": "The route change was not confirmed. Review the current installation before trying again.",
+      "folder": "New installation folder: <path/>",
+      "open": "Review a Portcove-managed copy…",
+      "options": "Change release or location",
+      "optionsNote": "These choices are saved for future managed installs. They do not move or change your external files.",
+      "preparing": "Preparing managed copy…",
+      "preserves": "Portcove updates the new installation and preserves the saves and settings covered by its recorded rules. Your external saves are not copied. A game that uses an upstream profile may still read the same profile when you choose Play; keep a separate backup of that data.",
+      "previousFiles": "Your previous files remain at <path/>. You can keep using them separately. The saved update policy stays in effect; Play remains a separate action.",
+      "recoverySummary": "Files and recovery details",
+      "refresh": "Refresh current installation",
+      "reviewing": "Reviewing managed copy",
+      "title": "Use a managed copy of <name/>?"
+    }
+  },
   "launch": {
     "failure": {
       "copied": "Copied",
