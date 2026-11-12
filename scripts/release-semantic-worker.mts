@@ -209,6 +209,7 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
       ![
         "max_lanes,request_id,wall_seconds",
         "max_lanes,request_id,retry_stop_sha256,wall_seconds",
+        "continuation_prefix_sha256,continuation_stop_sha256,max_lanes,request_id,wall_seconds",
         "continuation_prefix_sha256,continuation_stop_sha256,max_lanes,request_id,retry_stop_sha256,wall_seconds",
         "continuation_prefix_sha256,continuation_stop_sha256,max_lanes,next_prefix_sha256,next_stop_sha256,request_id,retry_stop_sha256,wall_seconds",
       ].includes(Object.keys(partition).sort().join(",")) ||
@@ -763,7 +764,10 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
   const resumePrefix =
     partitionScope?.continuation_prefix_sha256 && partitionScope.continuation_stop_sha256
       ? {
-          previous_attempt: path.join(requestDirectory, "technical-3"),
+          previous_attempt: path.join(
+            requestDirectory,
+            partitionScope.retry_stop_sha256 ? "technical-3" : "technical-1",
+          ),
           stop_sha256: partitionScope.continuation_stop_sha256,
           manifest_path: path.join(
             path.dirname(configurationPath),

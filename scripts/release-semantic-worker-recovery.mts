@@ -280,10 +280,10 @@ export async function claimSemanticTechnicalAttempt(
       (partition.retry_stop_sha256 !== undefined &&
         !/^[a-f0-9]{64}$/u.test(partition.retry_stop_sha256)) ||
       (partition.continuation_stop_sha256 !== undefined &&
-        (partition.retry_stop_sha256 === undefined ||
-          !/^[a-f0-9]{64}$/u.test(partition.continuation_stop_sha256))) ||
+        !/^[a-f0-9]{64}$/u.test(partition.continuation_stop_sha256)) ||
       (partition.next_stop_sha256 !== undefined &&
-        (partition.continuation_stop_sha256 === undefined ||
+        (partition.retry_stop_sha256 === undefined ||
+          partition.continuation_stop_sha256 === undefined ||
           !/^[a-f0-9]{64}$/u.test(partition.next_stop_sha256))))
   )
     throw new Error("retained semantic partition scope differs");
@@ -311,6 +311,9 @@ export async function claimSemanticTechnicalAttempt(
       : 3;
   const maximumClaims = partition?.retry_stop_sha256 ? originalClaims + 1 : 3;
   if (runs.length >= maximumClaims) throw new Error("semantic technical retry budget exhausted");
+  const bridgeContinuation = partition?.continuation_stop_sha256 && !partition.retry_stop_sha256;
+  if (bridgeContinuation && runs.length !== 2)
+    throw new Error("bridge continuation requires exactly two original claims");
   if (partition?.retry_stop_sha256 && runs.length !== originalClaims)
     throw new Error(`supplemental application attempt requires ${originalClaims} original claims`);
   if (runs.some((name, index) => name !== `technical-${index}`))
@@ -329,13 +332,15 @@ export async function claimSemanticTechnicalAttempt(
       partition ? 1024 * 1024 : 128 * 1024,
     );
     const appointedStop =
-      name === "technical-2"
-        ? partition?.retry_stop_sha256
-        : name === "technical-3"
-          ? partition?.continuation_stop_sha256
-          : name === "technical-4"
-            ? partition?.next_stop_sha256
-            : undefined;
+      name === "technical-1" && bridgeContinuation
+        ? partition?.continuation_stop_sha256
+        : name === "technical-2"
+          ? partition?.retry_stop_sha256
+          : name === "technical-3"
+            ? partition?.continuation_stop_sha256
+            : name === "technical-4"
+              ? partition?.next_stop_sha256
+              : undefined;
     if (appointedStop && createHash("sha256").update(stopBytes).digest("hex") !== appointedStop)
       throw new Error("original supplemental application stop differs from its appointment");
     const stopped: unknown = JSON.parse(stopBytes.toString("utf8"));
