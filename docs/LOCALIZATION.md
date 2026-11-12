@@ -130,6 +130,7 @@ unless the copy change is intended and reviewed.
 | Library refresh and recovery notices     | `features/workspace/WorkspaceRefreshNotice.tsx`            | `workspace`         |
 | Bug report preview                       | `components/ReportProblem.tsx`                             | `report`            |
 | Game search field                        | `components/PortSearch.tsx`                                | `browsing`          |
+| Command palette chrome                   | `components/CommandPalette.tsx`                            | `commands`          |
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-12 it
@@ -140,7 +141,7 @@ and are migrated with the surface that renders them. The count is a work
 inventory, not a coverage claim.
 
 Narrow technical-literal exclusions: the lint ignores the `align`, `aria-live`,
-`aria-atomic`, `aria-describedby`, `aria-hidden`, `aria-labelledby`, `data-backup-action`, `data-settings-control`,
+`aria-atomic`, `aria-autocomplete`, `aria-describedby`, `aria-hidden`, `aria-labelledby`, `data-backup-action`, `data-settings-control`,
 `data-slot`, `dir`, `intent`, `reviewSize`, `size`, `triggerId` and `variant`
 attributes, which carry design-system tokens, element ids, ARIA references or ARIA state tokens,
 never player copy.

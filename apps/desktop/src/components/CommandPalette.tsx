@@ -4,6 +4,8 @@ import type { LucideIcon } from "lucide-react";
 import { Search } from "lucide-react";
 import { Icon, NavigationHints, Shortcut } from "./ui";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
+import { Trans } from "react-i18next";
+import { useAppTranslation } from "../localization";
 import { normalizeGameSearchText } from "../search-text";
 
 export interface PaletteCommand {
@@ -43,6 +45,7 @@ function OpenCommandPalette({
   close: () => void;
 }) {
   const [query, setQuery] = useState("");
+  const { t } = useAppTranslation("commands");
   const [selectedId, setSelectedId] = useState<string>();
   const activeCommand = useRef<HTMLButtonElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
@@ -99,7 +102,7 @@ function OpenCommandPalette({
         aria-describedby={undefined}
       >
         <DialogTitle className="sr-only" id="command-palette-title">
-          Portcove commands
+          {t("palette.title")}
         </DialogTitle>
         <label className="palette-search grid min-h-[3.25rem] grid-cols-[auto_minmax(0,_1fr)_auto] items-center gap-3 bg-[var(--color-bg-inset)] p-[0_var(--space-4)] text-[var(--color-text-muted)] [border-bottom:1px_solid_var(--color-border)] focus-within:shadow-[inset_0_-2px_var(--color-focus)]">
           <Icon glyph={Search} />
@@ -110,7 +113,7 @@ function OpenCommandPalette({
             role="combobox"
             aria-expanded={filtered.length > 0}
             aria-autocomplete="list"
-            aria-label="Search commands"
+            aria-label={t("palette.search")}
             value={query}
             onChange={(event) => {
               const nextQuery = event.target.value;
@@ -149,28 +152,33 @@ function OpenCommandPalette({
             aria-activedescendant={
               filtered[activeIndex] ? `command-${filtered[activeIndex].id}` : undefined
             }
-            placeholder="Search actions and navigation"
+            placeholder={t("palette.placeholder")}
             autoComplete="off"
           />
-          <Shortcut>Esc</Shortcut>
+          <Shortcut>{t("palette.escapeKey")}</Shortcut>
         </label>
         {filtered.length > 0 && (
           <h3 className="m-0 px-5 pt-4 pb-2 text-[length:var(--text-xs)] font-medium text-[var(--color-text-muted)]">
-            {query.trim() ? "Search results" : "Quick actions"}
+            {query.trim() ? t("palette.results") : t("palette.quickActions")}
           </h3>
         )}
         <div
           className="palette-results max-h-[min(27rem,_58vh)] overflow-auto p-2"
           id="command-palette-results"
           role={filtered.length ? "listbox" : undefined}
-          aria-label={filtered.length ? "Available commands" : undefined}
+          aria-label={filtered.length ? t("palette.available") : undefined}
         >
           {filtered.length === 0 ? (
             <p
               className="palette-empty m-0 p-8 text-center text-[var(--color-text-muted)]"
               role="status"
             >
-              {query.trim() ? `No command matches “${query}”.` : "No commands are available."}
+              {query.trim() ? (
+                // The typed query is an exact player value, never interpolated.
+                <Trans t={t} i18nKey="palette.noMatch" components={{ query: <>{query}</> }} />
+              ) : (
+                t("palette.empty")
+              )}
             </p>
           ) : (
             contiguousCommandGroups(filtered).map((group) => (

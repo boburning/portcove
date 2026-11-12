@@ -489,6 +489,19 @@ export default interface Resources {
       "title": "Game listings"
     }
   },
+  "commands": {
+    "palette": {
+      "available": "Available commands",
+      "empty": "No commands are available.",
+      "escapeKey": "Esc",
+      "noMatch": "No command matches “<query/>”.",
+      "placeholder": "Search actions and navigation",
+      "quickActions": "Quick actions",
+      "results": "Search results",
+      "search": "Search commands",
+      "title": "Portcove commands"
+    }
+  },
   "counts": {
     "copiedFiles_one": "{{count, number}} file will be copied.",
     "copiedFiles_other": "{{count, number}} files will be copied.",

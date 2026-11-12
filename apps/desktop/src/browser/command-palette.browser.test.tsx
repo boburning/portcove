@@ -126,3 +126,32 @@ it("holds repeated Enter on search and focused options and consumes a deferred-c
   expect(second).not.toHaveBeenCalled();
   expect(close).toHaveBeenCalledOnce();
 });
+
+it("shows a typed query verbatim in the no-match message in the current language", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  flushSync(() =>
+    root.render(
+      <DirectionProvider direction="ltr">
+        <CommandPalette open commands={commandList(vi.fn(), vi.fn())} close={vi.fn()} />
+      </DirectionProvider>,
+    ),
+  );
+  const input = await vi.waitFor(() => {
+    const element = document.querySelector<HTMLInputElement>('input[role="combobox"]');
+    expect(element).not.toBeNull();
+    return element!;
+  });
+  // A `{{…}}` sequence typed by the player must never be treated as interpolation.
+  await userEvent.type(input, "zz {{{{count}}");
+  const status = () => document.querySelector('[role="status"]')?.textContent ?? "";
+  await expect.poll(status).toBe("No command matches “zz {{count}}”.");
+  try {
+    await localization.changeLanguage("ar-XB");
+    await expect.poll(status).toBe("لا يوجد أمر يطابق “zz {{count}}”.");
+    expect(input.getAttribute("aria-label")).toBe("البحث في الأوامر");
+  } finally {
+    await localization.changeLanguage("en");
+  }
+  await expect.poll(status).toBe("No command matches “zz {{count}}”.");
+});

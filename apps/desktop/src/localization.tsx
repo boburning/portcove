@@ -25,6 +25,7 @@ import englishLaunch from "./locales/en/launch.json";
 import englishWorkspace from "./locales/en/workspace.json";
 import englishReport from "./locales/en/report.json";
 import englishBrowsing from "./locales/en/browsing.json";
+import englishCommands from "./locales/en/commands.json";
 import englishCounts from "./locales/en/counts.json";
 import englishSettings from "./locales/en/settings.json";
 import englishShell from "./locales/en/shell.json";
@@ -37,6 +38,7 @@ import engineeringLaunch from "./locales/ar-XB/launch.json";
 import engineeringWorkspace from "./locales/ar-XB/workspace.json";
 import engineeringReport from "./locales/ar-XB/report.json";
 import engineeringBrowsing from "./locales/ar-XB/browsing.json";
+import engineeringCommands from "./locales/ar-XB/commands.json";
 import engineeringSettings from "./locales/ar-XB/settings.json";
 import engineeringShell from "./locales/ar-XB/shell.json";
 import type { LocalePreferenceSnapshot } from "./types";
@@ -52,6 +54,7 @@ import draftSpanishLaunch from "./locales/es/launch.json";
 import draftSpanishWorkspace from "./locales/es/workspace.json";
 import draftSpanishReport from "./locales/es/report.json";
 import draftSpanishBrowsing from "./locales/es/browsing.json";
+import draftSpanishCommands from "./locales/es/commands.json";
 
 const supportedLocales = ["en", "ar-XB"] as const;
 export type SupportedLocale = (typeof supportedLocales)[number];
@@ -127,6 +130,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(englishWorkspace, "workspace");
   assertCatalog(englishReport, "report");
   assertCatalog(englishBrowsing, "browsing");
+  assertCatalog(englishCommands, "commands");
   assertCatalog(engineeringSettings);
   assertCatalog(engineeringShell, "shell");
   assertCatalog(engineeringApplicationUpdate, "applicationUpdate");
@@ -138,6 +142,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(engineeringWorkspace, "workspace");
   assertCatalog(engineeringReport, "report");
   assertCatalog(engineeringBrowsing, "browsing");
+  assertCatalog(engineeringCommands, "commands");
   assertCatalog(draftSpanishSettings, "es.settings");
   assertCatalog(draftSpanishCounts, "es.counts");
   assertCatalog(draftSpanishShell, "es.shell");
@@ -150,6 +155,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(draftSpanishWorkspace, "es.workspace");
   assertCatalog(draftSpanishReport, "es.report");
   assertCatalog(draftSpanishBrowsing, "es.browsing");
+  assertCatalog(draftSpanishCommands, "es.commands");
   if (!i18next.isInitialized) {
     void i18next.use(initReactI18next).init({
       lng: resolveLocale(null, initialLocales),
@@ -168,6 +174,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
         "workspace",
         "report",
         "browsing",
+        "commands",
       ],
       defaultNS: "settings",
       resources: {
@@ -184,6 +191,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           workspace: englishWorkspace,
           report: englishReport,
           browsing: englishBrowsing,
+          commands: englishCommands,
         },
         "ar-XB": {
           settings: engineeringSettings,
@@ -197,6 +205,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           workspace: engineeringWorkspace,
           report: engineeringReport,
           browsing: engineeringBrowsing,
+          commands: engineeringCommands,
         },
         // Unreviewed draft pilot (#1028): bundled for review and engineering
         // fixtures only. resolveLocale never selects it and the picker omits it.
@@ -213,6 +222,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           workspace: draftSpanishWorkspace,
           report: draftSpanishReport,
           browsing: draftSpanishBrowsing,
+          commands: draftSpanishCommands,
         },
       },
       initAsync: false,
