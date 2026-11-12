@@ -28517,6 +28517,14 @@
       "port_id": {
         "type": "string"
       },
+      "provider": {
+        "default": null,
+        "description": "The mod provider this game has a reviewed binding for (`gamebanana`), if any.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "supported": {
         "description": "False when the game has no reviewed mod package contract; nothing else is\noffered then.",
         "type": "boolean"
@@ -28529,7 +28537,8 @@
       "later_mods_take_priority",
       "inventory",
       "live",
-      "held_updates"
+      "held_updates",
+      "provider"
     ],
     "title": "ModSetupsView",
     "type": "object"

@@ -4338,6 +4338,10 @@ export interface OutputModSetupsView {
   package_types: string[];
   port_id: string;
   /**
+   * The mod provider this game has a reviewed binding for (`gamebanana`), if any.
+   */
+  provider: string | null;
+  /**
    * False when the game has no reviewed mod package contract; nothing else is
    * offered then.
    */

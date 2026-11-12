@@ -9,6 +9,7 @@ import { errorText } from "../view-model";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
+import { ModProviderBrowser } from "./ModProviderBrowser";
 import { ActionRow, Notice } from "./ui/patterns";
 
 type Props = {
@@ -62,6 +63,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   // False from a change until the view is read again, so no control acts on a
   // revision the change has replaced.
   const [fresh, setFresh] = useState(true);
+  const [browserBusy, setBrowserBusy] = useState(false);
   const [copyName, setCopyName] = useState("");
   const copyId = useId();
   const headingId = useId();
@@ -135,7 +137,9 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   // Games without reviewed mod support show nothing, including while loading.
   if (!view?.supported) return null;
   if (busy) return <p role="status">{t("mods.busy")}</p>;
-  const locked = working || !fresh;
+  // The GameBanana browser's work or open review locks every other change, so a
+  // review always lands on the setup and revision it was made for.
+  const locked = working || !fresh || browserBusy;
 
   const setups = view.inventory?.profiles ?? [];
   const selectedId = view.live?.profile_id ?? undefined;
@@ -192,6 +196,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
             </Notice>
           )}
           {nativeMessage && <p className="text-sm">{nativeMessage}</p>}
+          {browserBusy && <p className="text-sm">{t("mods.browse.lockNote")}</p>}
           {heldUpdates.length > 0 && (
             <Notice intent="info">
               <div data-slot="notice-body">
@@ -210,13 +215,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                     </li>
                   ))}
                 </ul>
-                <p>
-                  <Trans
-                    t={t}
-                    i18nKey="mods.held.next"
-                    components={{ command: <code dir="ltr">profile provider-plan</code> }}
-                  />
-                </p>
+                <p>{t("mods.held.next", { count: heldUpdates.length })}</p>
               </div>
             </Notice>
           )}
@@ -324,6 +323,23 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                   {t("mods.add")}
                 </Button>
               </ActionRow>
+              {view.provider === "gamebanana" && (
+                <ModProviderBrowser
+                  key={selected.profile.id}
+                  portId={portId}
+                  generation={generation}
+                  profileId={selected.profile.id}
+                  profileName={selected.profile.display_name}
+                  inUse={selected.profile.id === selectedId}
+                  onBusyChange={setBrowserBusy}
+                  disabled={working || !fresh || blocked}
+                  onInstalled={(message) => {
+                    setOutcome(message);
+                    setFresh(false);
+                    setRequest((value) => value + 1);
+                  }}
+                />
+              )}
               <p className="text-sm text-pc-muted-foreground">{t("mods.copyIntro")}</p>
               <ActionRow>
                 <label htmlFor={copyId} className="text-sm">

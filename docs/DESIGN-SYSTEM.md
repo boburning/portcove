@@ -151,7 +151,7 @@ Overview pairs the actual description with a narrower facts column; project stat
 compatibility qualifications and recorded checks have named disclosures. Game files owns setup, source/BIOS/tool and file observations. Saves owns
 coverage, unknowns, backup history, recovery and reviews, plus game settings and, for
 games with reviewed mod support, setups and mods (each setup keeps its own saves and
-settings). Versions & updates owns
+settings), including reviewed GameBanana installs for games with a binding. Versions & updates owns
 checks, candidate decisions, staged activation, rollback, future preferences and
 private notice choices. Manage owns installation/location/artwork/Steam/CLI,
 verification/removal and the existing reviewed managed-route transition. Unsupported routes state their actual limits and keep upstream links.

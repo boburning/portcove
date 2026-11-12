@@ -74,6 +74,7 @@ export default defineConfig({
       "src/components/GameSettingsPanel.tsx",
       "src/components/LibraryImport.tsx",
       "src/components/ModSetupsControl.tsx",
+      "src/components/ModProviderBrowser.tsx",
       "src/features/browsing/CatalogFilters.tsx",
       "src/features/browsing/GroupedDiscover.tsx",
       "src/features/port-actions/BrowsePortObservations.tsx",

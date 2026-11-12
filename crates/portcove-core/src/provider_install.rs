@@ -328,7 +328,7 @@ impl PortcoveService {
     }
 
     /// Removes reviewed-but-unapplied staging older than a day (best effort).
-    fn prune_staged(&self, root: &std::path::Path) {
+    pub(crate) fn prune_staged(&self, root: &std::path::Path) {
         let Ok(entries) = fs::read_dir(root) else {
             return;
         };

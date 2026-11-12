@@ -66,6 +66,9 @@ export type ModSetupView = NonNullable<ModSetupsView["inventory"]>["profiles"][n
 export type ModSetup = ModSetupView["profile"];
 export type ModSetupRevision = Generated.TransportOutputs["profile_revision"];
 export type LiveMods = Generated.TransportOutputs["live_mods"];
+export type ProviderBrowsePage = Generated.TransportOutputs["provider_browse_page"];
+export type ProviderProjectView = Generated.TransportOutputs["provider_project_view"];
+export type ProviderInstallPlan = Generated.TransportOutputs["provider_install_plan"];
 
 export type { SourceHealth } from "./transport-types.generated";
 
