@@ -80,9 +80,8 @@ pub(crate) fn require_platform_executable(
 
 /// Whether the file's header identifies a binary this platform can run. A text file, a
 /// script, a binary for another architecture or an unreadable file does not qualify.
-#[cfg(all(test, unix))]
 pub(crate) fn is_platform_binary(path: &Path, platform: Platform) -> Result<bool> {
-    let file = std::fs::File::open(path)?;
+    let file = crate::external_runtime::open_single_link_file(path)?;
     header_is_platform_binary(&read_header(&file)?, platform)
 }
 

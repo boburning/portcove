@@ -129,7 +129,8 @@ fn check_directory(
         return Ok(());
     };
     if !working.starts_with(install)
-        || working != crate::runtime::working_root_for_executable(port, install, executable)
+        || working
+            != crate::runtime::working_root_for_executable(port, install, executable, platform)
     {
         return Err(PortcoveError::verification(
             "the managed profile lost its owned runtime/data namespace",
@@ -181,7 +182,7 @@ pub(crate) fn require_pristine_package(
     let Some(directory) = &port.windows_temp_directory else {
         return Ok(());
     };
-    let working = crate::runtime::working_root_for_executable(port, install, executable);
+    let working = crate::runtime::working_root_for_executable(port, install, executable, platform);
     check_directory(port, platform, install, &working, executable, false)?;
     match fs::symlink_metadata(working.join(directory)) {
         Ok(_) => {

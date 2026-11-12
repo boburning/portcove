@@ -141,10 +141,10 @@ fn create_missing_portable_marker_file(working_directory: &Path, name: &str) -> 
 }
 
 pub(crate) fn launch_working_directory(
-    kind: AdapterKind,
     port: &PortDefinition,
     install_root: &Path,
     executable: &Path,
+    platform: Platform,
 ) -> Result<PathBuf> {
     if let Some(relative) = &port.runtime_subdirectory {
         let directory = install_root.join(relative);
@@ -155,15 +155,12 @@ pub(crate) fn launch_working_directory(
             )));
         }
         Ok(directory)
-    } else if port.launch_from_install_root
-        || (kind == AdapterKind::N64RecompPortable && !port.n64_runtime_at_executable_parent)
-    {
-        Ok(install_root.to_path_buf())
     } else {
         Ok(crate::runtime::working_root_for_executable(
             port,
             install_root,
             executable,
+            platform,
         ))
     }
 }
@@ -303,7 +300,8 @@ impl Adapter for StandardAdapter {
                 crate::path::unicode(&cache, "cache")?,
             );
         }
-        let working_directory = launch_working_directory(self.0, port, install_root, &executable)?;
+        let working_directory =
+            launch_working_directory(port, install_root, &executable, platform)?;
         if self.0 == AdapterKind::LibultrashipPortable {
             let ship_home =
                 if crate::installed_mutability::declared_shipwright_persistence(port, platform) {
@@ -466,7 +464,8 @@ impl Adapter for StandardAdapter {
             ));
         }
         let executable = selected_executable.to_path_buf();
-        let working_directory = launch_working_directory(self.0, port, install_root, &executable)?;
+        let working_directory =
+            launch_working_directory(port, install_root, &executable, platform)?;
         if let Some(name) = crate::native_portable_data::directory_name(port, platform) {
             crate::native_portable_data::prepare(install_root, &executable, name, checkpoint)?;
         }

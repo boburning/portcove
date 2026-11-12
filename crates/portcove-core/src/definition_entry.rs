@@ -210,15 +210,24 @@ impl DefinitionContentIndex {
             ));
         }
         if !port.release.tar_xz_platforms.is_empty() {
-            crate::runtime::validate_generated_cache_tar_xz(&port)?;
+            crate::runtime::validate_platform_tar_xz(&port)?;
+            let (template, minimum) = if port.adapter == crate::AdapterKind::NativePortable {
+                (
+                    "native-portable",
+                    crate::runtime::NATIVE_MAC_BUNDLE_TAR_XZ_CAPABILITY,
+                )
+            } else {
+                (
+                    "generated-cache",
+                    crate::runtime::GENERATED_CACHE_TAR_XZ_CAPABILITY,
+                )
+            };
             if !document.required_capabilities.iter().any(|requirement| {
-                requirement.template == "generated-cache"
-                    && requirement.minimum_version
-                        >= crate::runtime::GENERATED_CACHE_TAR_XZ_CAPABILITY
+                requirement.template == template && requirement.minimum_version >= minimum
             }) {
-                return Err(PortcoveError::verification(
-                    "managed Mac TAR.XZ requires generated-cache capability version 3",
-                ));
+                return Err(PortcoveError::verification(format!(
+                    "managed Mac TAR.XZ requires {template} capability version {minimum}",
+                )));
             }
         }
         if port.portable_marker_file.is_some()

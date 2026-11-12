@@ -302,7 +302,11 @@ impl<'a> IndexedCatalogFixture<'a> {
         let capability_version = if port.linux_portable_data_directory.is_some() {
             crate::native_portable_data::NATIVE_CAPABILITY
         } else if !port.release.tar_xz_platforms.is_empty() {
-            3
+            if port.adapter == crate::AdapterKind::NativePortable {
+                crate::runtime::NATIVE_MAC_BUNDLE_TAR_XZ_CAPABILITY
+            } else {
+                crate::runtime::GENERATED_CACHE_TAR_XZ_CAPABILITY
+            }
         } else if port.release.grant_declared_executable {
             crate::test_fixture::grant_declared_executable_capability(port)
         } else if port.portable_marker_file.is_some() {

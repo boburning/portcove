@@ -102,7 +102,11 @@ fn entry_with_reference(document: &Value, reference: &str, port_index: usize) ->
     let version = if typed.linux_portable_data_directory.is_some() {
         crate::native_portable_data::NATIVE_CAPABILITY
     } else if !typed.release.tar_xz_platforms.is_empty() {
-        3
+        if typed.adapter == crate::AdapterKind::NativePortable {
+            crate::runtime::NATIVE_MAC_BUNDLE_TAR_XZ_CAPABILITY
+        } else {
+            crate::runtime::GENERATED_CACHE_TAR_XZ_CAPABILITY
+        }
     } else if typed.release.grant_declared_executable {
         crate::test_fixture::grant_declared_executable_capability(&typed)
     } else if typed.portable_marker_file.is_some() {

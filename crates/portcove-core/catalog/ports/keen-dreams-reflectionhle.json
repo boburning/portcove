@@ -28,7 +28,7 @@
         },
         {
           "title": "Choose a fresh managed runtime or keep your external player",
-          "instruction": "For a new Portcove installation, choose Install, then Play when ready. In the upstream launcher, select this entry’s exact game/version and complete original-data folder. Portcove does not choose the title or authenticate originals for you. It starts reflectionhle.exe from its parent folder with four separate arguments: `-datadir`, `.`, `-cfgdir`, `.`. The upstream launcher creates version-specific writable folders after accepting the originals. For an existing external copy, keep the normal upstream setup: extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe and its containing folder, leaving arguments empty for the game/version picker. Saving launch details does not start the game; choose Play separately, then select originals in the upstream launcher. Portcove does not run an original DOS executable or setup helper."
+          "instruction": "For a new Portcove installation, choose Install, then Play when ready. In the upstream launcher, select this entry’s exact game/version and complete original-data folder. Portcove does not choose the title or authenticate originals for you. It starts reflectionhle.exe from its parent folder with four separate arguments: `-datadir`, `.`, `-cfgdir`, `.`. On Mac, the official universal app runs with the same arguments from the folder containing reflectionhle.app. The upstream launcher creates version-specific writable folders after accepting the originals. For an existing external copy, keep the normal upstream setup: extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe and its containing folder, leaving arguments empty for the game/version picker. Saving launch details does not start the game; choose Play separately, then select originals in the upstream launcher. Portcove does not run an original DOS executable or setup helper."
         },
         {
           "title": "Preserve the shared profile and each game version",
@@ -36,7 +36,7 @@
         },
         {
           "title": "Keep new private progress separate from old profiles",
-          "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
+          "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside the player on Windows and Linux, or beside the app bundle on Mac. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
         }
       ],
       "warnings": [
@@ -44,7 +44,13 @@
         "This new installation does not import existing saves from external copies or the original DOS game. Save compatibility has not been confirmed. Keep those saves and the game versions that created them separately.",
         "Matching original game files are required to play and are not included. Existing saves are not imported, and compatibility with saves from other versions has not been confirmed."
       ],
-      "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+      "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
+      "references": [
+        {
+          "title": "Set up Android with the upstream app",
+          "instruction": "Use the official Android APK from the upstream releases. In its launcher, select this entry’s exact game version and complete matching original folder. The app may ask for broad storage access to browse shared folders. Keep your originals separately and back up the app’s appdata folder, where accessible, before replacing the app. Android installation and updates are handled by you and the upstream app."
+        }
+      ]
     },
     "download_asset_hints": {
       "windows-x86-64": ["reflectionhle-win64-", ".zip"]
@@ -65,7 +71,7 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "adapter": "native-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
@@ -74,14 +80,19 @@
       "repository": "ReflectionHLE/ReflectionHLE",
       "asset_hints": {
         "windows-x86-64": ["reflectionhle-win64-", ".zip"],
-        "linux-x86-64": ["reflectionhle-linux-x86_64-", ".tar.xz"]
+        "linux-x86-64": ["reflectionhle-linux-x86_64-", ".tar.xz"],
+        "macos-x86-64": ["reflectionhle-macos-universal2-", ".tar.xz"],
+        "macos-aarch64": ["reflectionhle-macos-universal2-", ".tar.xz"]
       },
       "linux_tar_xz": true,
-      "archive_file_links": true
+      "archive_file_links": true,
+      "tar_xz_platforms": ["macos-x86-64", "macos-aarch64"]
     },
     "executable_hints": {
       "windows-x86-64": ["reflectionhle.exe"],
-      "linux-x86-64": ["reflectionhle"]
+      "linux-x86-64": ["reflectionhle"],
+      "macos-x86-64": ["reflectionhle.app/Contents/MacOS/reflectionhle"],
+      "macos-aarch64": ["reflectionhle.app/Contents/MacOS/reflectionhle"]
     },
     "launch_arguments": ["-datadir", ".", "-cfgdir", "."],
     "persistent_paths": [
@@ -201,6 +212,16 @@
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "In ReflectionHLE, choose a supported game edition and the folder containing its matching original files. Keep originals in their existing location. New saves, configuration and original-location references stay private to this managed runtime. Existing DOS, AppData and other-player profiles remain separate; they are not imported or converted. Preserve the creating runtime with existing progress before older-version use. Runtime rollback does not establish save compatibility."
+    },
+    "reviewed_package_layouts": {
+      "macos-x86-64": {
+        "directories": ["reflectionhle.app"],
+        "executables": ["reflectionhle.app/contents/macos/reflectionhle"]
+      },
+      "macos-aarch64": {
+        "directories": ["reflectionhle.app"],
+        "executables": ["reflectionhle.app/contents/macos/reflectionhle"]
+      }
     }
   }
 }

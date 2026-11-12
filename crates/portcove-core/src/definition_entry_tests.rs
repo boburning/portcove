@@ -338,6 +338,46 @@ fn generated_cache_mac_tar_xz_requires_version_3_for_fresh_and_retained_reads() 
 }
 
 #[test]
+fn native_mac_bundle_tar_xz_requires_version_26_and_reviewed_bundle() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("wolfenstein-3d-reflectionhle").unwrap();
+    let mut entry = entry_for_port(port);
+    for minimum in [25, 26] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        entry["required_capabilities"][0]["maximum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ] {
+            if minimum == 26 {
+                assert!(result.unwrap().capabilities().compatible);
+            } else {
+                assert!(
+                    result
+                        .unwrap_err()
+                        .message
+                        .contains("capability version 26")
+                );
+            }
+        }
+    }
+    for (field, replacement) in [
+        ("/port/release/tar_xz_platforms", json!(["windows-x86-64"])),
+        ("/port/release/asset_hints/macos-aarch64", json!([".zip"])),
+        (
+            "/port/executable_hints/macos-aarch64",
+            json!(["reflectionhle"]),
+        ),
+        ("/port/reviewed_package_layouts", json!({})),
+    ] {
+        let mut invalid = entry.clone();
+        *invalid.pointer_mut(field).unwrap() = replacement;
+        assert!(inspect(&invalid).is_err(), "{field}");
+    }
+}
+
+#[test]
 fn generated_cache_mac_tar_xz_refuses_conflicting_or_unchecked_routes() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("perfect-dark").unwrap();
@@ -1246,7 +1286,11 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         let version = if port.linux_portable_data_directory.is_some() {
             crate::native_portable_data::NATIVE_CAPABILITY
         } else if !port.release.tar_xz_platforms.is_empty() {
-            3
+            if port.adapter == crate::AdapterKind::NativePortable {
+                crate::runtime::NATIVE_MAC_BUNDLE_TAR_XZ_CAPABILITY
+            } else {
+                crate::runtime::GENERATED_CACHE_TAR_XZ_CAPABILITY
+            }
         } else if port.release.grant_declared_executable {
             crate::test_fixture::grant_declared_executable_capability(port)
         } else if port.portable_marker_file.is_some() {

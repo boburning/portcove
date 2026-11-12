@@ -292,7 +292,10 @@ fn reflectionhle_declared_coordinates(id: &str) {
             manifest_sha256,
             selected_executable,
         };
-        assert_eq!(crate::runtime::working_root(port, &install), working);
+        assert_eq!(
+            crate::runtime::working_root(port, &install, Platform::WindowsX86_64),
+            working
+        );
         for (relative, bytes) in [
             ("reflectionhle.cfg", b"private config".as_slice()),
             ("wl6ap14.txt", b"external original folder reference"),
@@ -596,4 +599,91 @@ fn native_marathon_historical_root_is_retained_when_the_live_layout_changes() {
     }
     #[cfg(not(windows))]
     let _ = new;
+}
+#[test]
+fn reflectionhle_mac_tar_xz_keeps_player_data_outside_the_bundle() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let id = "wolfenstein-3d-reflectionhle";
+    let port = catalog.port(id).unwrap();
+    let program = "reflectionhle.app/Contents/MacOS/reflectionhle";
+    for (platform, cpu) in [
+        (Platform::MacosX86_64, 0x0100_0007_u32),
+        (Platform::MacosAarch64, 0x0100_000c_u32),
+    ] {
+        let qualification = InstallQualification::from_catalog(&catalog, id, platform).unwrap();
+        assert!(qualification.native_mac_bundle_tar_xz);
+        assert!(qualification.requires_tar_xz);
+        let mut binary = [0_u8; 32];
+        binary[..4].copy_from_slice(&[0xcf, 0xfa, 0xed, 0xfe]);
+        binary[4..8].copy_from_slice(&cpu.to_le_bytes());
+        binary[12..16].copy_from_slice(&2_u32.to_le_bytes());
+        let temporary = tempfile::tempdir().unwrap();
+        for (wrapper, link) in [("publisher/", false), ("", false), ("publisher/", true)] {
+            let mut tar = tar::Builder::new(Vec::new());
+            let mut header = tar::Header::new_ustar();
+            header.set_mode(0o755);
+            header.set_size(binary.len() as u64);
+            tar.append_data(&mut header, format!("{wrapper}{program}"), &binary[..])
+                .unwrap();
+            if link {
+                let mut header = tar::Header::new_ustar();
+                header.set_entry_type(tar::EntryType::Symlink);
+                header.set_mode(0o644);
+                header.set_size(0);
+                tar.append_link(&mut header, "publisher/alias", program)
+                    .unwrap();
+            }
+            let bytes = crate::archive::encode_xz_fixture(&tar.into_inner().unwrap());
+            let archive = temporary.path().join("fixture.tar.xz");
+            fs::write(&archive, &bytes).unwrap();
+            let payload = tempfile::tempdir_in(temporary.path()).unwrap();
+            let extracted = extract_tar_xz_with_checkpoint(
+                &archive,
+                payload.path(),
+                bytes.len() as u64,
+                false,
+                &|| Ok(()),
+            );
+            if link {
+                assert!(extracted.unwrap_err().message.contains("TAR links"));
+                assert_eq!(fs::read_dir(payload.path()).unwrap().count(), 0);
+                continue;
+            }
+            extracted.unwrap();
+            let root =
+                crate::package_layout::native_mac_bundle_root(payload.path(), port, platform)
+                    .unwrap();
+            assert_eq!(root, payload.path().join(wrapper));
+            #[cfg(unix)]
+            crate::package_layout::require_reviewed_layout(port, platform, &root).unwrap();
+            let executable = resolve_declared_executable(&root, &qualification).unwrap();
+            assert_eq!(executable, root.join(program));
+            assert_eq!(qualification.persistence_root(&root, &executable), root);
+            assert_eq!(
+                crate::adapter::launch_working_directory(port, &root, &executable, platform)
+                    .unwrap(),
+                root
+            );
+            let mut wrong_architecture = qualification.clone();
+            wrong_architecture.platform = if platform == Platform::MacosX86_64 {
+                Platform::MacosAarch64
+            } else {
+                Platform::MacosX86_64
+            };
+            assert!(resolve_declared_executable(&root, &wrong_architecture).is_err());
+        }
+    }
+    let root = Path::new("install");
+    let nested_player = root.join("publisher/reflectionhle");
+    for platform in [Platform::WindowsX86_64, Platform::LinuxX86_64] {
+        let policy = InstallQualification::from_catalog(&catalog, id, platform).unwrap();
+        assert_eq!(
+            policy.persistence_root(root, &nested_player),
+            root.join("publisher")
+        );
+        assert_eq!(
+            crate::adapter::launch_working_directory(port, root, &nested_player, platform).unwrap(),
+            root.join("publisher")
+        );
+    }
 }
