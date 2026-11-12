@@ -141,7 +141,8 @@ it("renders setup and notice choices in the current language with the exact vers
     const version = document.querySelector("p bdi");
     expect(version?.textContent).toBe("2.0-{{version}}");
     expect(version?.parentElement?.textContent).toContain("أُخفي الإشعار للإصدار 2.0-{{version}}");
-    expect(document.body.textContent).not.toContain("update notice");
+    const outsideVersion = document.body.textContent?.replace("2.0-{{version}}", "") ?? "";
+    expect(outsideVersion).not.toMatch(/[A-Za-z]/);
   } finally {
     await localization.changeLanguage("en");
   }
