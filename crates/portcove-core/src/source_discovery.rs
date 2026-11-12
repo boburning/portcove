@@ -23,6 +23,10 @@ const CURRENT_SCAN_FORMAT_VERSION: u32 = 12;
 const MAX_CONTINUATION_RECORDS: usize = 16_384;
 const MAX_CONTINUATION_BYTES: usize = 4 * 1024 * 1024;
 const MAX_RESUME_CHECKS: u32 = 100_000;
+/// Safety ceiling for matches one saved-folder scan retains across batches.
+/// `max_candidates` bounds each batch; reaching this ceiling ends the scan as
+/// safety-limited, never as "no more matches".
+pub const MAX_SCAN_CANDIDATES: usize = 2048;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -137,6 +141,43 @@ impl ScanContinuation {
         }
         self.retained_bytes += bytes;
         self.observed.insert(path.to_path_buf(), stamp);
+        Ok(())
+    }
+
+    /// After a batch has been validated, a finished folder is never listed
+    /// again, so only the unfinished frontier and the matched paths keep their
+    /// stamps. Storage then follows the frontier, not the whole scan. A
+    /// finished non-matching file that changes later is picked up by the next
+    /// scan, exactly like a change made after a scan completes; matched files
+    /// are still rechecked here and are re-verified before any use.
+    fn forget_completed(&mut self, matches: &BTreeSet<&Path>) -> Result<()> {
+        let frontier = self
+            .pending
+            .iter()
+            .map(|directory| (directory.path.as_path(), &directory.seen))
+            .collect::<BTreeMap<_, _>>();
+        self.observed.retain(|path, _| {
+            matches.contains(path.as_path())
+                || frontier.contains_key(path.as_path())
+                || path
+                    .parent()
+                    .zip(path.file_name())
+                    .is_some_and(|(parent, name)| {
+                        frontier.get(parent).is_some_and(|seen| {
+                            name.to_str().is_some_and(|name| seen.contains(name))
+                        })
+                    })
+        });
+        self.retained_bytes = 1024
+            + self
+                .observed
+                .iter()
+                .map(|(path, stamp)| {
+                    serde_json::to_vec(&(path, stamp)).map(|bytes| bytes.len() * 2 + 256)
+                })
+                .collect::<std::result::Result<Vec<_>, _>>()?
+                .into_iter()
+                .sum::<usize>();
         Ok(())
     }
 }
@@ -496,12 +537,9 @@ fn build_game_file_scan_with_registry_events(
         .continuation
         .as_ref()
         .is_none_or(|cursor| cursor.pending.is_empty());
-    let can_resume = !frontier_exhausted
-        && !batch.terminal_limited
-        && !report
-            .limits_reached
-            .iter()
-            .any(|limit| matches!(limit, SourceDiscoveryLimit::Candidates));
+    // A full batch budget is resumable like the entry budget; only the scan's
+    // safety ceiling (terminal) ends it.
+    let can_resume = !frontier_exhausted && !batch.terminal_limited;
     let pending_directories = batch
         .continuation
         .as_ref()
@@ -646,7 +684,7 @@ fn validate_continuation(
                         .as_ref()
                         .map_or(0, |coverage| coverage.batches),
                 )
-        || snapshot.report.candidate_count() > limits.max_candidates as usize
+        || snapshot.report.candidate_count() > MAX_SCAN_CANDIDATES
         || value
             .get("observed")
             .and_then(serde_json::Value::as_object)
@@ -667,7 +705,7 @@ fn validate_continuation(
         || cursor.outputs_sha256 != outputs_identity
         || cursor.report_sha256
             != hex::encode(Sha256::digest(serde_json::to_vec(&snapshot.report)?))
-        || snapshot.report.candidate_count() >= limits.max_candidates as usize
+        || snapshot.report.candidate_count() >= MAX_SCAN_CANDIDATES
         || snapshot.report.entries_examined as usize + snapshot.report.searched_roots.len()
             < cursor.observed.len()
         || cursor.pending.is_empty()
@@ -932,6 +970,8 @@ struct Discovery<'a> {
     prior_paths: BTreeSet<PathBuf>,
     terminal_limited: bool,
     batch_hash_limited: bool,
+    /// Matches already retained when this batch started.
+    batch_start_candidates: usize,
 }
 
 struct DiscoveryExclusion {
@@ -1100,7 +1140,9 @@ fn scan_with_continuation<'a>(
                 .filter(|limit| {
                     !matches!(
                         limit,
-                        SourceDiscoveryLimit::Entries | SourceDiscoveryLimit::HashBytes
+                        SourceDiscoveryLimit::Entries
+                            | SourceDiscoveryLimit::HashBytes
+                            | SourceDiscoveryLimit::Candidates
                     )
                 })
                 .collect()
@@ -1176,7 +1218,9 @@ fn scan_with_continuation<'a>(
         prior_paths,
         terminal_limited: false,
         batch_hash_limited: false,
+        batch_start_candidates: 0,
     };
+    discovery.batch_start_candidates = discovery.report.candidate_count();
     let omitted_owned_paths = discovery
         .exclusions
         .iter()
@@ -1290,6 +1334,22 @@ fn scan_with_continuation<'a>(
         .checked_add(discovery.budget.hashed)
         .ok_or_else(|| PortcoveError::state("scan hash byte counter reached its limit"))?;
     discovery.report.limits_reached = discovery.reached.into_iter().collect();
+    if let Some(cursor) = &mut discovery.continuation {
+        let matches = discovery
+            .report
+            .candidates
+            .iter()
+            .map(|record| record.path.as_path())
+            .chain(
+                discovery
+                    .report
+                    .preliminary_selections
+                    .iter()
+                    .map(|selection| selection.path.as_path()),
+            )
+            .collect::<BTreeSet<_>>();
+        cursor.forget_completed(&matches)?;
+    }
     discovery.report.candidates.sort_by(|left, right| {
         (&left.profile_id, &left.path).cmp(&(&right.profile_id, &right.path))
     });
@@ -1310,6 +1370,39 @@ fn scan_with_continuation<'a>(
 }
 
 impl Discovery<'_> {
+    /// One-off discovery keeps its exact bound. A saved-folder scan bounds
+    /// each batch instead, and only between files or folders, so no match
+    /// inside one is ever dropped while it is marked examined.
+    fn resumable(&self) -> bool {
+        self.continuation.is_some()
+    }
+
+    fn batch_full(&self) -> bool {
+        self.report
+            .candidate_count()
+            .saturating_sub(self.batch_start_candidates)
+            >= self.limits.max_candidates as usize
+    }
+
+    /// No more matches can be kept in this unit: the exact bound for one-off
+    /// discovery, or the scan's safety ceiling for saved folders.
+    fn unit_full(&self) -> bool {
+        if self.resumable() {
+            self.report.candidate_count() >= MAX_SCAN_CANDIDATES
+        } else {
+            self.report.candidate_count() >= self.limits.max_candidates as usize
+        }
+    }
+
+    /// Records that a match had to be dropped. For a saved scan that is the
+    /// safety ceiling, so the scan can't continue without losing matches.
+    fn candidates_exhausted(&mut self) {
+        self.reached.insert(SourceDiscoveryLimit::Candidates);
+        if self.resumable() {
+            self.terminal_limited = true;
+        }
+    }
+
     fn record_limit(&mut self, error: &PortcoveError) {
         if error
             .details
@@ -1353,8 +1446,8 @@ impl Discovery<'_> {
             }
             return Ok(());
         }
-        if self.report.candidate_count() >= self.limits.max_candidates as usize {
-            self.reached.insert(SourceDiscoveryLimit::Candidates);
+        if self.unit_full() {
+            self.candidates_exhausted();
             return Ok(());
         }
         let operation = self
@@ -1388,8 +1481,8 @@ impl Discovery<'_> {
             }
             return Ok(());
         }
-        if self.report.candidate_count() >= self.limits.max_candidates as usize {
-            self.reached.insert(SourceDiscoveryLimit::Candidates);
+        if self.unit_full() {
+            self.candidates_exhausted();
             return Ok(());
         }
         self.report.preliminary_selections.push(inspection);
@@ -1742,7 +1835,7 @@ impl Discovery<'_> {
                         return Ok(());
                     }
                     state.deferred_file = None;
-                    if self.report.candidate_count() >= self.limits.max_candidates as usize {
+                    if self.batch_full() || self.unit_full() {
                         self.reached.insert(SourceDiscoveryLimit::Candidates);
                         state.complete = complete;
                         pending.push_front(state);
@@ -1778,7 +1871,7 @@ impl Discovery<'_> {
                     self.save_frontier(pending);
                     return Ok(());
                 }
-                if self.report.candidate_count() >= self.limits.max_candidates as usize {
+                if self.batch_full() || self.unit_full() {
                     self.reached.insert(SourceDiscoveryLimit::Candidates);
                     self.save_frontier(pending);
                     return Ok(());
@@ -1901,7 +1994,7 @@ impl Discovery<'_> {
                 }
             }
         }
-        if self.report.candidate_count() >= self.limits.max_candidates as usize {
+        if self.unit_full() {
             return Ok(());
         }
         if !compound_profiles.is_empty() {
@@ -1978,8 +2071,7 @@ impl Discovery<'_> {
                             {
                                 self.record_preliminary(inspection)?;
                             }
-                            if self.report.candidate_count() >= self.limits.max_candidates as usize
-                            {
+                            if self.unit_full() {
                                 break;
                             }
                         }
@@ -2004,13 +2096,13 @@ impl Discovery<'_> {
                     self.issue(Some(path.into()), None, error.message);
                 }
             }
-            if self.report.candidate_count() >= self.limits.max_candidates as usize {
+            if self.unit_full() {
                 break;
             }
         }
         if extension.eq_ignore_ascii_case("zip")
             && !self.directory_profiles.is_empty()
-            && self.report.candidate_count() < self.limits.max_candidates as usize
+            && !self.unit_full()
         {
             match self.zip_file_sets(path) {
                 Ok(()) => {}
@@ -2090,7 +2182,7 @@ impl Discovery<'_> {
             if inspection.record.is_some() {
                 self.record_candidate(inspection.require_admitted_record()?)?;
             }
-            if self.report.candidate_count() >= self.limits.max_candidates as usize {
+            if self.unit_full() {
                 break;
             }
         }
@@ -2155,7 +2247,7 @@ impl Discovery<'_> {
                 && let Some(candidate) = inspection.record
             {
                 self.record_candidate(candidate)?;
-                if self.report.candidate_count() >= self.limits.max_candidates as usize {
+                if self.unit_full() {
                     break;
                 }
             }
@@ -2212,7 +2304,7 @@ impl Discovery<'_> {
             ) && let Some(candidate) = inspection.record
             {
                 self.record_candidate(candidate)?;
-                if self.report.candidate_count() >= self.limits.max_candidates as usize {
+                if self.unit_full() {
                     break;
                 }
             }
@@ -2312,7 +2404,7 @@ impl Discovery<'_> {
         observations: &mut DirectoryObservations,
     ) -> Result<()> {
         self.disc_directory(path, members, observations)?;
-        if self.report.candidate_count() >= self.limits.max_candidates as usize {
+        if self.unit_full() {
             return Ok(());
         }
         let names = members
@@ -2344,7 +2436,7 @@ impl Discovery<'_> {
                     ) && let Some(candidate) = inspection.record
                     {
                         self.record_candidate(candidate)?;
-                        if self.report.candidate_count() >= self.limits.max_candidates as usize {
+                        if self.unit_full() {
                             break;
                         }
                     }
@@ -2488,7 +2580,7 @@ impl Discovery<'_> {
             if inspection.record.is_some() {
                 self.record_candidate(inspection.require_admitted_record()?)?;
             }
-            if self.report.candidate_count() >= self.limits.max_candidates as usize {
+            if self.unit_full() {
                 break;
             }
         }
