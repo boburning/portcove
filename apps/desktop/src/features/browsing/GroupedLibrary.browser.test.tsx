@@ -468,10 +468,42 @@ it("presents grouped Discover cards and the comparison in the active locale", as
     await page.getByRole("button", { name: "مقارنة المنافذ", exact: true }).click();
     await expect
       .poll(() => document.querySelector("[role=dialog]")?.textContent)
-      .toContain("قارن متطلبات الإعداد لـ 2 منافذ.");
+      .toContain("قارن متطلبات الإعداد للمنافذ (2).");
     const dialog = document.querySelector("[role=dialog]")?.textContent;
     expect(dialog).toContain("من يتولى التحديثات");
     expect(dialog).toContain("الجهة المسؤولة عن التثبيت غير معروفة.");
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
+
+it("names a chosen port in a multi-port group with its matching project and action", async () => {
+  const { initializeLocalization } = await import("../../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await render(
+      <GroupedDiscover
+        all={[first, second]}
+        matching={[first]}
+        statuses={new Map()}
+        onSelect={vi.fn()}
+        onFavoriteToggle={vi.fn()}
+      />,
+    );
+    const identity = () =>
+      document.querySelector(".discover-game-identity")?.getAttribute("aria-label") ?? "";
+    expect(identity()).toMatch(
+      /^Original game 2 separate port projects\. Matching port: First project\. .+\. View port$/u,
+    );
+    expect(document.body.textContent).toContain("Matching port: First project");
+    expect(document.body.textContent).toContain("Compare all 2");
+    await localization.changeLanguage("ar-XB");
+    await expect
+      .poll(identity)
+      .toMatch(/^Original game مشروعان منفصلان\. المنفذ المطابق: First project\. .+\. عرض المنفذ$/u);
+    expect(document.querySelector(".discover-game-observation bdi")?.textContent).toBe(
+      "First project",
+    );
   } finally {
     await localization.changeLanguage("en");
   }

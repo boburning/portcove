@@ -448,7 +448,7 @@ export default interface Resources {
         "single": "{{title}} {{project}}. {{state}}. {{action}}"
       },
       "label": "Discover games",
-      "matchingPort": "Matching port: {{port}}",
+      "matchingPort": "Matching port: <port />",
       "memberLabel": "{{action}}: {{game}}",
       "ownership": {
         "external": "External installation. You or its launcher handle updates.",

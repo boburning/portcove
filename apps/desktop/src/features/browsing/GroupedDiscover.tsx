@@ -9,6 +9,7 @@ import type { useFavorites } from "../favorites/use-favorites";
 import { SaveGameButton, type Organization } from "../organization/OrganizationControls";
 import type { TFunction } from "i18next";
 import { useId, useRef, useState, type ReactNode } from "react";
+import { Trans } from "react-i18next";
 import { useAppTranslation } from "../../localization";
 import { ArrowRight, GitCompareArrows, Heart, Star } from "lucide-react";
 import { ArtworkFrame, artworkDisplayNotice } from "../../components/Artwork";
@@ -542,7 +543,11 @@ function DiscoverGameObservation({
         <>
           {group.ports.length > 1 && (
             <p className="text-xs text-pc-muted-foreground">
-              {t("discover.matchingPort", { port: firstProject })}
+              <Trans
+                t={t}
+                i18nKey="discover.matchingPort"
+                components={{ port: <bdi>{firstProject}</bdi> }}
+              />
             </p>
           )}
           <BrowsePortObservations

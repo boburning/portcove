@@ -26,7 +26,7 @@
     },
     "cardLabel": "{{game}}. {{state}}.",
     "chip": {
-      "channel": "Canal de actualizaciones",
+      "channel": "Canal de actualización",
       "platform": "Funciona en",
       "system": "Sistema original"
     },
@@ -34,7 +34,7 @@
       "files": "Archivos necesarios",
       "filesUnlisted": "Los requisitos no figuran aquí. Consulta las instrucciones de configuración del proyecto.",
       "instructions": "Instrucciones del proyecto",
-      "noChannel": "No figura ningún canal de actualizaciones.",
+      "noChannel": "No figura ningún canal de actualización.",
       "noPlatform": "No figura ninguna plataforma.",
       "options": "Opciones de comparación e informes",
       "optionsIntro": "Los detalles de las funciones no están disponibles para todos los proyectos. Consulta los informes y las instrucciones del proyecto. Es posible que tus partidas guardadas y tus mods no funcionen con otra adaptación.",
@@ -63,7 +63,7 @@
       "single": "{{title}} {{project}}. {{state}}. {{action}}"
     },
     "label": "Descubrir juegos",
-    "matchingPort": "Adaptación coincidente: {{port}}",
+    "matchingPort": "Adaptación coincidente: <port />",
     "memberLabel": "{{action}}: {{game}}",
     "ownership": {
       "external": "Instalación externa. Tú o su lanzador se encargan de las actualizaciones.",
