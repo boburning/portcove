@@ -1,7 +1,7 @@
 import {
-  reasons,
-  routes,
-  states,
+  gameFileReasonLabel,
+  gameFileRouteLabel,
+  gameFileStateLabel,
   type GameFileFilterContext,
 } from "../features/browsing/game-file-query-context";
 import { Trans } from "react-i18next";
@@ -22,10 +22,10 @@ export function GameFileFilterObservation({
   return (
     <section aria-label={t("filterObservation.heading")} className="space-y-2">
       <h2>{t("filterObservation.heading")}</h2>
-      <p>{states[projection.state]}</p>
-      <p>{reasons[projection.reason]}</p>
+      <p>{gameFileStateLabel(t, projection.state)}</p>
+      <p>{gameFileReasonLabel(t, projection.reason)}</p>
       <p className="text-sm text-pc-muted-foreground">
-        {routes.find((route) => route.value === projection.route)?.label}
+        {gameFileRouteLabel(t, projection.route)}
         {" · "}
         {platformLabel(projection.platform)}
         {" · "}

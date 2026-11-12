@@ -3,7 +3,20 @@ import { FolderOpen, ListChecks } from "lucide-react";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import type { LauncherKind, LauncherLibraryEntry, LauncherLibraryInventory } from "../types";
+import { Checkbox } from "./ui/checkbox";
+import {
+  LAUNCHER_BATCH_LIMIT,
+  LauncherBatchCopy,
+  type LauncherBatchSelection,
+} from "./LauncherBatchCopy";
+import type {
+  AdoptionBatchItem,
+  AdoptionBatchPreview,
+  AdoptionBatchResult,
+  LauncherKind,
+  LauncherLibraryEntry,
+  LauncherLibraryInventory,
+} from "../types";
 
 const LAUNCHERS: readonly { kind: LauncherKind; label: string }[] = [
   { kind: "github-launcher", label: "GitHub Launcher" },
@@ -29,6 +42,15 @@ export function launcherEntryCanBeReviewed(entry: LauncherLibraryEntry) {
   );
 }
 
+/** Apps that can join a several-app copy: exactly one matched game and a folder. */
+export function launcherEntryCanBeBatched(entry: LauncherLibraryEntry) {
+  return (
+    entry.status === "ready-to-review" &&
+    Boolean(entry.install_path) &&
+    Boolean(entry.adopt_port_id)
+  );
+}
+
 /**
  * Lists another launcher's apps without changing them. Choosing an app only fills
  * the existing copy review, which still checks the folder and asks before copying.
@@ -38,6 +60,9 @@ export function LauncherLibraryImport({
   inspect,
   pickFolder,
   choose,
+  reviewBatch,
+  copyBatch,
+  gameName,
 }: {
   disabled: boolean;
   inspect: (
@@ -47,12 +72,29 @@ export function LauncherLibraryImport({
   ) => Promise<LauncherLibraryInventory | undefined>;
   pickFolder?: (currentPath: string) => Promise<string | null>;
   choose: (entry: LauncherLibraryEntry) => void;
+  reviewBatch?: (items: AdoptionBatchItem[]) => Promise<AdoptionBatchPreview | undefined>;
+  copyBatch?: (
+    items: AdoptionBatchItem[],
+    batchSha256: string,
+  ) => Promise<AdoptionBatchResult | null | undefined>;
+  /** Catalog display name for a port ID, shown in the several-app review. */
+  gameName?: (portId: string) => string;
 }) {
   const id = useId();
   const [launcher, setLauncher] = useState<LauncherKind>("github-launcher");
   const [dataRoot, setDataRoot] = useState("");
   const [appsRoot, setAppsRoot] = useState("");
   const [inventory, setInventory] = useState<LauncherLibraryInventory>();
+  const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
+  // Core copies one installation per game and at most a fixed number per batch, so
+  // the list never offers a selection Core would refuse.
+  const canSelect = (entry: LauncherLibraryEntry) => {
+    const chosen = (inventory?.entries ?? []).filter((other) => selected.has(other.index));
+    return (
+      chosen.length < LAUNCHER_BATCH_LIMIT &&
+      !chosen.some((other) => other.adopt_port_id === entry.adopt_port_id)
+    );
+  };
   const [listing, setListing] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const request = useRef(0);
@@ -60,13 +102,17 @@ export function LauncherLibraryImport({
   const reset = () => {
     request.current += 1;
     setInventory(undefined);
+    setSelected(new Set());
   };
   const list = async () => {
     const current = ++request.current;
     setListing(true);
     try {
       const result = await inspect(launcher, dataRoot.trim(), appsRoot.trim() || undefined);
-      if (current === request.current) setInventory(result);
+      if (current === request.current) {
+        setInventory(result);
+        setSelected(new Set());
+      }
     } finally {
       if (current === request.current) setListing(false);
     }
@@ -234,6 +280,23 @@ export function LauncherLibraryImport({
                 key={entry.index}
                 className="list-none rounded-pc-md border border-[var(--color-border)] p-2 [overflow-wrap:anywhere]"
               >
+                {reviewBatch && copyBatch && launcherEntryCanBeBatched(entry) && (
+                  <Checkbox
+                    data-focusable
+                    className="me-2 align-middle"
+                    aria-label={`Select ${entry.name || entry.folder_name} to copy with others`}
+                    checked={selected.has(entry.index)}
+                    disabled={disabled || (!selected.has(entry.index) && !canSelect(entry))}
+                    onCheckedChange={(checked) =>
+                      setSelected((previous) => {
+                        const next = new Set(previous);
+                        if (checked) next.add(entry.index);
+                        else next.delete(entry.index);
+                        return next;
+                      })
+                    }
+                  />
+                )}
                 <strong>{entry.name || entry.folder_name}</strong> — {STATUS_LABELS[entry.status]}
                 <br />
                 <small className="text-[var(--color-text-secondary)]">{entry.explanation}</small>
@@ -275,6 +338,23 @@ export function LauncherLibraryImport({
               </li>
             ))}
           </ul>
+          {reviewBatch &&
+            copyBatch &&
+            inventory.entries.some((entry) => launcherEntryCanBeBatched(entry)) && (
+              <LauncherBatchCopy
+                selection={inventory.entries
+                  .filter((entry) => selected.has(entry.index) && launcherEntryCanBeBatched(entry))
+                  .map((entry): LauncherBatchSelection => ({
+                    item: { source: entry.install_path!, port_id: entry.adopt_port_id! },
+                    label: entry.name || entry.folder_name,
+                  }))}
+                disabled={disabled}
+                reviewBatch={reviewBatch}
+                copyBatch={copyBatch}
+                copied={() => setSelected(new Set())}
+                {...(gameName ? { gameName } : {})}
+              />
+            )}
         </section>
       )}
     </details>

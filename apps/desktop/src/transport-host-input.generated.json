@@ -1,4 +1,31 @@
 {
+  "adoption_batch_items": {
+    "$defs": {
+      "AdoptionBatchItem": {
+        "properties": {
+          "port_id": {
+            "description": "Catalog port this folder is reviewed for.",
+            "type": "string"
+          },
+          "source": {
+            "description": "Existing installation folder to copy; it is never modified.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "port_id"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "$ref": "#/$defs/AdoptionBatchItem"
+    },
+    "title": "Array_of_AdoptionBatchItem",
+    "type": "array"
+  },
   "application_update_choice": {
     "$defs": {
       "ApplicationChannel": {
