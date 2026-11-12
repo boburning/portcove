@@ -152,3 +152,20 @@ it("explains commands in the current language while commands and tokens stay lit
     await localization.changeLanguage("en");
   }
 });
+
+it("keeps placeholder tokens literal inside translated use-in-place guidance", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    const port = portDefinition();
+    port.release = { ...port.release, provider: "user-prepared" };
+    await root.rerender(<CliContinuity {...props} port={port} />);
+    await expect
+      .poll(() => [...document.querySelectorAll("p code")].map((node) => node.textContent))
+      .toContain("game-folder");
+    expect(document.body.textContent).toContain("حضّر الإصدار المطلوب بنفسك");
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});

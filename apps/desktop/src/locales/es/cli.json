@@ -17,7 +17,7 @@
     "installed": "La CLI comprueba esta instalación antes de iniciarla. Esto no instala ni actualiza el juego.",
     "setup": "Ejecutar este comando puede descargar e instalar la versión seleccionada. Los archivos necesarios del juego se comprueban antes de usarlos.",
     "staged": "La CLI comprueba la versión preparada conservada antes de activarla. Esto no descarga una nueva versión ni registra una instalación externa.",
-    "userSelected": "Completa la configuración original y luego reemplaza <executable/> y <workdir/> con las rutas que seleccionaste. Agrega los argumentos documentados con un <arg/> por argumento en ambos comandos. Tú o el iniciador original administran la configuración y las actualizaciones; Portcove no ha autenticado los bytes seleccionados como un paquete oficial."
+    "userSelected": "Completa la configuración del proyecto original y luego reemplaza <executable/> y <workdir/> con las rutas que seleccionaste. Agrega los argumentos documentados con un <arg/> por argumento en ambos comandos. Tú o el iniciador del proyecto original administran la configuración y las actualizaciones; Portcove no ha autenticado los bytes seleccionados como un paquete oficial."
   },
   "finding": "Buscando la aplicación de línea de comandos…",
   "followUp": {
