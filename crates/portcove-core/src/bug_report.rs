@@ -1,8 +1,9 @@
-//! Player-reviewed, pre-filled GitHub bug reports.
+//! Player-reviewed, pre-filled GitHub bug reports and feedback.
 //!
 //! Core builds and redacts the text; nothing is sent. The host opens the link
 //! only after the player has seen the full text, and the link can carry only
-//! the fixed field set below, so a webview cannot open an arbitrary issue form.
+//! the fixed field set of its kind, so a webview cannot open an arbitrary issue
+//! form.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -12,10 +13,37 @@ use crate::{Platform, redact_diagnostic_text};
 /// Conservative budget for the whole link; GitHub rejects very long URLs.
 pub const BUG_REPORT_URL_LIMIT: usize = 7_500;
 const NEW_ISSUE_URL: &str = "https://github.com/boburning/portcove/issues/new";
-const TEMPLATE: &str = "bug-report.yml";
 
-/// Template field ids the report may pre-fill. Everything else stays blank.
-const FILLABLE_FIELDS: [&str; 4] = ["version", "platform", "observed", "evidence"];
+/// Which issue form a report fills.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum ReportKind {
+    /// Something broke or behaved incorrectly (`bug-report.yml`).
+    #[default]
+    Problem,
+    /// Something worked but was hard, slow or confusing, or an idea (`feedback.yml`).
+    Feedback,
+}
+
+impl ReportKind {
+    fn template(self) -> &'static str {
+        match self {
+            Self::Problem => "bug-report.yml",
+            Self::Feedback => "feedback.yml",
+        }
+    }
+
+    /// Template field ids the report may pre-fill. Everything else stays blank;
+    /// the feedback form's dropdowns are chosen by the player on GitHub.
+    fn fillable_fields(self) -> &'static [&'static str] {
+        match self {
+            Self::Problem => &["version", "platform", "observed", "evidence"],
+            Self::Feedback => &[
+                "version", "platform", "game", "happened", "expected", "context",
+            ],
+        }
+    }
+}
 
 /// Host-supplied strings that identify the player or their machine.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -174,7 +202,80 @@ fn replace_path(text: &str, path: &str, placeholder: &str) -> String {
     splice(text, &ranges, placeholder)
 }
 
-/// Builds the editable draft. Every value is redacted before the player sees it.
+/// Builds the editable draft of the given kind. Every value is redacted before the
+/// player sees it.
+pub fn draft_report(
+    kind: ReportKind,
+    inputs: &BugReportInputs,
+    redactions: &ReportRedactions,
+) -> BugReportDraft {
+    match kind {
+        ReportKind::Problem => draft_bug_report(inputs, redactions),
+        ReportKind::Feedback => draft_feedback(inputs, redactions),
+    }
+}
+
+fn field(id: &str, label: &str, value: String, redactions: &ReportRedactions) -> BugReportField {
+    BugReportField {
+        id: id.to_owned(),
+        label: label.to_owned(),
+        value: redact_for_field(id, &value, redactions),
+    }
+}
+
+/// The player writes what happened; Core fills only facts it knows, and the
+/// Portcove details field carries the same summary a bug report would.
+fn draft_feedback(inputs: &BugReportInputs, redactions: &ReportRedactions) -> BugReportDraft {
+    let mut details = Vec::new();
+    if let Some(version) = &inputs.installed_version {
+        details.push(format!("Installed version: {version}"));
+    }
+    if let Some(outcome) = &inputs.last_session_outcome {
+        details.push(match inputs.last_exit_code {
+            Some(code) => format!("Last launch: {outcome} (exit code {code})"),
+            None => format!("Last launch: {outcome}"),
+        });
+    }
+    details.extend(inputs.doctor_summary.iter().cloned());
+    BugReportDraft {
+        fields: vec![
+            field(
+                "version",
+                "Portcove version",
+                inputs.portcove_version.clone(),
+                redactions,
+            ),
+            field(
+                "platform",
+                "Platform",
+                platform_label(inputs.platform).to_owned(),
+                redactions,
+            ),
+            field(
+                "game",
+                "Game, if it was about one",
+                inputs.port_id.clone().unwrap_or_default(),
+                redactions,
+            ),
+            field("happened", "What happened?", String::new(), redactions),
+            field(
+                "expected",
+                "What did you expect or want instead?",
+                String::new(),
+                redactions,
+            ),
+            field(
+                "context",
+                "Portcove details",
+                details.join("\n"),
+                redactions,
+            ),
+        ],
+    }
+}
+
+/// Builds the editable bug-report draft. Every value is redacted before the
+/// player sees it.
 pub fn draft_bug_report(inputs: &BugReportInputs, redactions: &ReportRedactions) -> BugReportDraft {
     let mut observed = String::new();
     if let Some(outcome) = &inputs.last_session_outcome {
@@ -220,22 +321,32 @@ pub fn draft_bug_report(inputs: &BugReportInputs, redactions: &ReportRedactions)
     }
 }
 
-/// `version` and `platform` are fixed facts matched against the issue template, so
-/// a user name that happens to be a word inside them must not rewrite them. Paths
-/// and secrets are still removed from them.
+/// `version`, `platform` and the game id are fixed facts matched against the issue
+/// template or catalog, so a user name that happens to be a word inside them must
+/// not rewrite them. Paths and secrets are still removed from them.
 fn redact_for_field(id: &str, value: &str, redactions: &ReportRedactions) -> String {
     match id {
-        "version" | "platform" => redact_paths(value, redactions),
+        "version" | "platform" | "game" => redact_paths(value, redactions),
         _ => redact_report_text(value, redactions),
     }
 }
 
-/// Builds the pre-filled link from the player's final text. Unknown field ids
-/// are ignored, and the text is redacted again, so an edit cannot add a path.
+/// Builds the pre-filled bug-report link from the player's final text.
 pub fn bug_report_link(fields: &[BugReportField], redactions: &ReportRedactions) -> BugReportLink {
-    let mut query = vec![format!("template={TEMPLATE}")];
+    report_link(ReportKind::Problem, fields, redactions)
+}
+
+/// Builds the pre-filled link of the given kind from the player's final text.
+/// Field ids outside that kind's form are ignored, and the text is redacted
+/// again, so an edit cannot add a path.
+pub fn report_link(
+    kind: ReportKind,
+    fields: &[BugReportField],
+    redactions: &ReportRedactions,
+) -> BugReportLink {
+    let mut query = vec![format!("template={}", kind.template())];
     let mut clipboard = String::new();
-    for wanted in FILLABLE_FIELDS {
+    for &wanted in kind.fillable_fields() {
         let Some(field) = fields.iter().find(|field| field.id == wanted) else {
             continue;
         };
@@ -464,6 +575,63 @@ mod tests {
         assert!(!url.contains("abc12345"), "{url}");
         assert!(url.contains("platform=Windows"), "{url}");
         assert!(link.clipboard_text.contains("<home>"));
+    }
+
+    #[test]
+    fn feedback_drafts_leave_the_story_to_the_player_and_fill_only_known_facts() {
+        let draft = draft_report(ReportKind::Feedback, &inputs(), &redactions());
+        let ids = draft
+            .fields
+            .iter()
+            .map(|field| field.id.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            ids,
+            [
+                "version", "platform", "game", "happened", "expected", "context"
+            ]
+        );
+        assert_eq!(value(&draft, "game"), "zelda64-recomp");
+        assert_eq!(value(&draft, "happened"), "");
+        assert_eq!(value(&draft, "expected"), "");
+        let context = value(&draft, "context");
+        assert!(context.contains("Installed version: 1.2.3"), "{context}");
+        assert!(
+            context.contains("Last launch: failed (exit code"),
+            "{context}"
+        );
+        assert!(context.contains("Installed games: 2"), "{context}");
+    }
+
+    #[test]
+    fn feedback_links_open_the_feedback_form_with_only_its_fields_redacted() {
+        let mut draft = draft_report(ReportKind::Feedback, &inputs(), &redactions());
+        for field in &mut draft.fields {
+            if field.id == "happened" {
+                field.value = r"Setup asked for C:\Users\Alice Smith\rom twice".to_owned();
+            }
+        }
+        // A bug-report field smuggled into a feedback link is dropped.
+        draft.fields.push(BugReportField {
+            id: "observed".to_owned(),
+            label: "Observed".to_owned(),
+            value: "smuggled".to_owned(),
+        });
+        let link = report_link(ReportKind::Feedback, &draft.fields, &redactions());
+        let url = link.url.unwrap();
+        assert!(url.contains("template=feedback.yml&"), "{url}");
+        assert!(url.contains("game=zelda64-recomp"), "{url}");
+        assert!(!url.contains("expected="), "blank fields stay blank: {url}");
+        assert!(
+            !url.contains("smuggled") && !url.contains("observed="),
+            "{url}"
+        );
+        assert!(!url.to_lowercase().contains("alice"), "{url}");
+        assert!(link.clipboard_text.contains("<home>"));
+        assert_eq!(
+            bug_report_link(&draft.fields, &redactions()).url,
+            report_link(ReportKind::Problem, &draft.fields, &redactions()).url
+        );
     }
 
     #[test]

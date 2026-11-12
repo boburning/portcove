@@ -16,6 +16,7 @@ import type {
   BugReportDraft,
   BugReportField,
   BugReportLink,
+  ReportKind,
   InstallInput,
   LaunchResult,
   LaunchSessionView,
@@ -1170,9 +1171,11 @@ export const desktopApi = {
     invoke<boolean>("get_automatic_snapshots", { generation }),
   setAutomaticSnapshots: (enabled: boolean, generation: number) =>
     invoke<boolean>("set_automatic_snapshots", { enabled, generation }),
-  previewBugReport: (portId: string | undefined, generation: number) =>
-    invoke<BugReportDraft>("preview_bug_report", { portId: portId ?? null, generation }),
-  openBugReport: (fields: BugReportField[]) => invoke<BugReportLink>("open_bug_report", { fields }),
+  previewBugReport: (portId: string | undefined, generation: number, kind: ReportKind) =>
+    invoke<BugReportDraft>("preview_bug_report", { portId: portId ?? null, generation, kind }),
+  /** Opens the reviewed form, or only returns its text when `copyOnly` is set. */
+  openBugReport: (fields: BugReportField[], kind: ReportKind, copyOnly: boolean) =>
+    invoke<BugReportLink>("open_bug_report", { fields, kind, copyOnly }),
   launchFailure: (portId: string, generation: number) =>
     invoke<LaunchSessionView | null>("get_launch_failure", { portId, generation }),
   previewAdoption: (path: string, generation: number, portId?: string) =>

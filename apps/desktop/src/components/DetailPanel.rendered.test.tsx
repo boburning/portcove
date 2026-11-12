@@ -1541,7 +1541,7 @@ describe("desktop components", () => {
     // Update ownership is stated for a Portcove-managed installation.
     expect(installed).toContain("Portcove handles updates for this installation.");
     // Reachable on the page, not just rendered by its own component test.
-    expect(buttonLabels).toContain("Report a problem");
+    expect(buttonLabels).toContain("Report a problem or send feedback");
     // The restore explanation belongs to the hidden restore control here; the retained
     // rollback cases assert it when a previous version exists.
     expect(installed).not.toContain(

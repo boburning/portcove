@@ -117,6 +117,10 @@ export type InstallationContext =
     };
 export type InputDesktopPortIntentMode = "discover_only" | "notify" | "set_up_when_ready" | "ignored";
 export type InputDesktopPortReadinessAcknowledgements = PortReadinessAcknowledgement[];
+/**
+ * Which issue form a report fills.
+ */
+export type InputDesktopReportKind = "problem" | "feedback";
 export type InputDesktopRootSetupEnrollment = RootSetupEnrollment | null;
 export type RootSetupEnrollment = "existing_and_future" | "future_only";
 /**
@@ -157,6 +161,7 @@ export interface TransportInputs {
   desktop_organization_change: InputDesktopOrganizationChange;
   desktop_port_intent_mode: InputDesktopPortIntentMode;
   desktop_port_readiness_acknowledgements: InputDesktopPortReadinessAcknowledgements;
+  desktop_report_kind: InputDesktopReportKind;
   desktop_root_setup_enrollment: InputDesktopRootSetupEnrollment;
   desktop_steam_artwork_selection: InputDesktopSteamArtworkSelection;
   desktop_steam_batch_selection: InputDesktopSteamBatchSelection;

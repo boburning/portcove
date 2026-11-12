@@ -188,14 +188,17 @@ their affected scope. Unknown saves grant no destructive management. Exact
 artifact/platform/source/operation evidence cannot qualify unrelated versions
 or ports.
 
-### Beta feedback and triage
+### Feedback and triage
 
-Use **Report a problem** in game details, the failed-launch notice, or
-**Settings > Advanced**, or open the
-[GitHub bug form](https://github.com/boburning/portcove/issues/new?template=bug-report.yml).
-When something worked but was hard, slow or confusing, or for an idea, use the
-[beta feedback form](https://github.com/boburning/portcove/issues/new?template=beta-feedback.yml)
-instead: what the player was trying to do, how far they got and what they expected.
+This route is permanent, not limited to the beta. Use **Report a problem or send
+feedback** in game details or **Settings > Advanced** and choose what to report,
+or **Report a problem** in the failed-launch notice. Either choice opens a
+reviewed, pre-filled GitHub form or copies the text for players who prefer
+another channel. Directly on GitHub, use the
+[bug form](https://github.com/boburning/portcove/issues/new?template=bug-report.yml)
+when something broke, or the
+[feedback form](https://github.com/boburning/portcove/issues/new?template=feedback.yml)
+when something worked but was hard, slow or confusing, or for an idea.
 Review and redact the draft before submitting it. Include the Portcove version,
 platform, game or port where relevant, the step that failed, and what happened.
 An error message or redacted screenshot can help when available. Keep
@@ -227,9 +230,9 @@ When selecting work, the friction evidence for an owning issue is the number of
 distinct players linked to it and their blocking levels, read from those link
 comments. Count what is linked. Do not infer demand from silence, from one
 player's repeated reports, or from a missing label. Feedback never establishes
-catalog support, qualification or a release gate. The `projects:` and labels in
-the form apply only when GitHub accepts them, so triage searches by template
-title as well as by label. A player without a GitHub account can send the text
+catalog support, qualification or a release gate. Feedback reports carry the
+ordinary `needs-triage` label and a `[Feedback]` title; find them by that title,
+since `projects:` in a form applies only when the reporter has write access. A player without a GitHub account can send the text
 through any channel; a maintainer or agent files it on their behalf and notes
 that it was relayed. Count each relayed report as a separate player unless the
 relay note identifies the same player, and never count by the filer's account.
