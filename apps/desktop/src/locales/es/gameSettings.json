@@ -35,7 +35,7 @@
     "cancel": "Cancelar",
     "current": "Valor guardado actual",
     "default": "Predeterminado",
-    "description": "Guarda esta preferencia para el juego instalado. Es posible que el juego deba reiniciarse para usarla.",
+    "description": "Guarda solo esta preferencia para el juego instalado. Es posible que el juego deba reiniciarse para usarla.",
     "failure": "No se aceptó el cambio. Actualiza los ajustes y vuelve a revisarlos.",
     "installationChanged": "La instalación cambió. Actualiza los ajustes y vuelve a revisarlos.",
     "new": "Nuevo valor",

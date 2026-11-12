@@ -512,3 +512,35 @@ it("presents the panel and review in the active locale while keeping catalog lab
     await localization.changeLanguage("en");
   }
 });
+
+it("translates validation codes and review labels in the active locale", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    const review = vi.fn(async (_file: string, _setting: string, change: GameSettingChange) =>
+      reviewed(change),
+    );
+    const apply = vi.fn(async () => settings());
+    const { host } = await mount({ review, apply });
+    const input = host.querySelector("input");
+    if (!(input instanceof HTMLInputElement)) throw new Error("Missing numeric input");
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      if (!setter) throw new Error("Missing input setter");
+      Reflect.apply(setter, input, ["1.5"]);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await click("مراجعة التغيير");
+    expect(host.querySelector("[role=alert]")?.textContent).toBe("أدخل عددًا صحيحًا.");
+    expect(review).not.toHaveBeenCalled();
+    await click("إعادة التعيين إلى الافتراضي…");
+    const terms = [...document.querySelectorAll("[role=dialog] dt")].map(
+      (item) => item.textContent,
+    );
+    expect(terms.slice(0, 3)).toEqual(["الإعداد", "القيمة المحفوظة الحالية", "الافتراضي"]);
+    expect(button("حفظ الإعداد").disabled).toBe(false);
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
