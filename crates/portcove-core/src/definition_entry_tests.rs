@@ -363,17 +363,27 @@ fn native_mac_bundle_tar_xz_requires_version_26_and_reviewed_bundle() {
         }
     }
     for (field, replacement) in [
-        ("/port/release/tar_xz_platforms", json!(["windows-x86-64"])),
-        ("/port/release/asset_hints/macos-aarch64", json!([".zip"])),
         (
-            "/port/executable_hints/macos-aarch64",
+            ["release", "tar_xz_platforms"].as_slice(),
+            json!(["windows-x86-64"]),
+        ),
+        (
+            &["release", "asset_hints", "macos-aarch64"],
+            json!([".zip"]),
+        ),
+        (
+            &["executable_hints", "macos-aarch64"],
             json!(["reflectionhle"]),
         ),
-        ("/port/reviewed_package_layouts", json!({})),
+        (&["reviewed_package_layouts"], json!({})),
     ] {
         let mut invalid = entry.clone();
-        *invalid.pointer_mut(field).unwrap() = replacement;
-        assert!(inspect(&invalid).is_err(), "{field}");
+        let mut target = &mut invalid["port"];
+        for segment in field {
+            target = &mut target[*segment];
+        }
+        *target = replacement;
+        assert!(inspect(&invalid).is_err(), "{field:?}");
     }
 }
 
