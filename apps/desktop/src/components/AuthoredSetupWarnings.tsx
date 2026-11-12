@@ -11,6 +11,7 @@ export function AuthoredSetupWarnings({ warnings }: { warnings?: readonly string
   if (!warnings?.length) return null;
   return (
     <aside
+      data-setup-warnings
       aria-label={t("setupWarnings")}
       className="border-pc-warning rounded-pc-md border bg-pc-warning-subtle p-3 text-pc-warning-foreground"
     >

@@ -94,7 +94,9 @@ it("shows one identity-bound completion without replaying old success after dism
     />
   );
   const view = await render(show([]));
-  const announcements = page.getByRole("status", { name: "Task updates" }).element();
+  // Select the live region by its stable attribute, never by translated label text.
+  const announcements = document.querySelector<HTMLElement>("[data-invocation-announcements]");
+  if (!announcements) throw new Error("task-update live region is missing");
   expect(announcements.textContent).toBe("");
   const visibleCompletions = () =>
     document.querySelectorAll('[data-invocation-id] [data-slot="notice-body"]');
@@ -114,7 +116,7 @@ it("shows one identity-bound completion without replaying old success after dism
   expect(dismiss).toHaveBeenCalledExactlyOnceWith(2);
   await view.rerender(show([first]));
   expect(visibleCompletions()).toHaveLength(0);
-  expect(page.getByRole("status", { name: "Task updates" }).element()).toBe(announcements);
+  expect(document.querySelector("[data-invocation-announcements]")).toBe(announcements);
   expect(announcements.querySelector('[data-announcement-invocation-id="1"]')).toBe(firstMessage);
   expect(announcements.querySelector('[data-announcement-invocation-id="2"]')).toBeNull();
 });

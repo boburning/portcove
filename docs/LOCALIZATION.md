@@ -134,6 +134,8 @@ unless the copy change is intended and reviewed.
 | Operation cancellation control                                  | `components/OperationCancellation.tsx`                     | `operations`        |
 | Shared dialog, tooltip, filter field and game search primitives | `components/ui/{dialog,tooltip,field,combobox}.tsx`        | `common`            |
 | External link failure                                           | `components/ExternalLink.tsx`                              | `common`            |
+| Setup-warning heading (warnings stay authored data)             | `components/AuthoredSetupWarnings.tsx`                     | `common`            |
+| Task-update live region label                                   | `components/InvocationAnnouncements.tsx`                   | `common`            |
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-12 it

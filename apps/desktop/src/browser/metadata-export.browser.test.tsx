@@ -51,7 +51,7 @@ it("announces a declined metadata picker as cancelled without exporting or showi
   await openExport();
   await page.getByRole("button", { name: "Export library information", exact: true }).click();
   await expect
-    .poll(() => page.getByRole("status", { name: "Task updates" }).element().textContent)
+    .poll(() => document.querySelector("[data-invocation-announcements]")?.textContent)
     .toContain("export library metadata · fixture/library: cancelled.");
   expect(exported).not.toHaveBeenCalled();
   expect(document.body.textContent).not.toContain("Library information exported to");
@@ -70,7 +70,7 @@ it("exports the selected path and retains its successful metadata receipt", asyn
   await openExport();
   await page.getByRole("button", { name: "Export library information", exact: true }).click();
   await expect
-    .poll(() => page.getByRole("status", { name: "Task updates" }).element().textContent)
+    .poll(() => document.querySelector("[data-invocation-announcements]")?.textContent)
     .toContain("export library metadata · fixture/library: finished.");
   expect(exported).toHaveBeenCalledExactlyOnceWith("C:\\owned\\metadata.json");
   await expect
