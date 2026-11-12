@@ -2688,6 +2688,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     let labels = inventory
                         .entries
                         .iter()
+                        // Only matched apps can be batch items, so an unmatched entry
+                        // sharing a folder never replaces the label.
+                        .filter(|entry| entry.adopt_port_id.is_some())
                         .filter_map(|entry| {
                             entry.install_path.clone().map(|path| {
                                 let label = if entry.name.trim().is_empty() {
