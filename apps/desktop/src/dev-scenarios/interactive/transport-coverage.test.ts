@@ -17,6 +17,7 @@ const transportPath = fileURLToPath(new URL("./transport.ts", import.meta.url));
 // must NOT be listed here: give it a handler in transport.ts.
 const unsupportedByReason: Record<string, string[]> = {
   "mutation or native action the fixtures do not model; they never change the host": `
+    apply_provider_install discard_provider_install
     acquire_game_update activate_port add_game_file_root add_games_to_library add_mod_package
     add_source adopt_batch adopt_port
     apply_catalog_update apply_game_setting apply_game_update apply_steam_batch_add
@@ -56,6 +57,7 @@ const unsupportedByReason: Record<string, string[]> = {
     inspect_source
     inspect_source_intake plan_catalog_update plan_game_update
     plan_game_update_acquisition plan_ghostship_legacy_recovery plan_library_import
+    plan_provider_install
     plan_library_move plan_output_relocation plan_port plan_source_import
     plan_source_relink preview_adoption preview_backup_action preview_bug_report
     preview_catalog_download preview_external_removal preview_external_runtime
@@ -68,6 +70,7 @@ const unsupportedByReason: Record<string, string[]> = {
   `.split(/\s+/),
   "read-only getter that the mounted fixture surfaces do not request, or a user-started flow they do not mount (get_catalog and get_statuses are replaced by get_workspace_snapshot)":
     `
+    browse_provider_mods get_provider_project
     forecast_installed_update_checks get_catalog get_catalog_media_thumbnail get_default_library_root
     get_engine_capabilities get_game_settings get_install_batch get_library_identity
     get_library_memberships get_runtime_diagnostic_health get_sources get_statuses

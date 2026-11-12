@@ -323,6 +323,51 @@ export const desktopApi = {
       expectedRevision,
       generation,
     }),
+  browseProviderMods: (portId: string, page: number, generation: number) =>
+    invoke<import("./types").ProviderBrowsePage>("browse_provider_mods", {
+      portId,
+      page,
+      generation,
+    }),
+  providerProject: (portId: string, projectId: number, generation: number) =>
+    invoke<import("./types").ProviderProjectView>("get_provider_project", {
+      portId,
+      projectId,
+      generation,
+    }),
+  planProviderInstall: (
+    portId: string,
+    profileId: string,
+    projectId: number,
+    fileId: number,
+    generation: number,
+  ) =>
+    invoke<import("./types").ProviderInstallPlan>("plan_provider_install", {
+      portId,
+      profileId,
+      projectId,
+      fileId,
+      generation,
+    }),
+  applyProviderInstall: (
+    portId: string,
+    profileId: string,
+    expectedPlanSha256: string,
+    plan: import("./types").ProviderInstallPlan,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetupRevision>("apply_provider_install", {
+      portId,
+      profileId,
+      expectedPlanSha256,
+      plan,
+      generation,
+    }),
+  discardProviderInstall: (
+    portId: string,
+    plan: import("./types").ProviderInstallPlan,
+    generation: number,
+  ) => invoke<void>("discard_provider_install", { portId, plan, generation }),
   addModPackage: (
     portId: string,
     profileId: string,

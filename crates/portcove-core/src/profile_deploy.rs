@@ -1281,6 +1281,9 @@ pub struct ModSetupsView {
     /// setup's current revision.
     #[serde(default)]
     pub held_updates: Vec<crate::HeldModUpdate>,
+    /// The mod provider this game has a reviewed binding for (`gamebanana`), if any.
+    #[serde(default)]
+    pub provider: Option<String>,
 }
 
 impl PortcoveService {
@@ -1295,13 +1298,19 @@ impl PortcoveService {
                 inventory: None,
                 live: None,
                 held_updates: Vec::new(),
+                provider: None,
             });
         };
+        // Reviews abandoned without Cancel (a closed window, a changed setup)
+        // leave staging; reading the setups is a regular point to prune it.
+        self.prune_staged(&layout.store().join("staged"));
         let inventory = self.profile_inventory(port_id)?;
         let has_profiles = !inventory.profiles.is_empty();
         let held_updates = crate::provider_auto_update::held_updates(&layout, &inventory);
         Ok(ModSetupsView {
             held_updates,
+            provider: crate::provider_install::gamebanana_game(port_id)
+                .map(|_| crate::gamebanana::PROVIDER.to_owned()),
             port_id: port_id.into(),
             supported: true,
             later_mods_take_priority: matches!(

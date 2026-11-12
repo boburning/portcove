@@ -47,6 +47,7 @@ function view(overrides: Partial<ModSetupsView> = {}): ModSetupsView {
     package_types: ["o2r", "otr"],
     later_mods_take_priority: true,
     held_updates: [],
+    provider: null,
     inventory: {
       port_id: "shipwright",
       profiles: [
@@ -232,6 +233,7 @@ it("explains a held unattended update for the setup in use", async () => {
     "kept the current version of a mod because its update needs your review",
   );
   expect(host.textContent).toContain("checks again when this setup changes");
+  expect(host.textContent).toContain("Find mods on GameBanana below");
   expect(host.textContent).toContain("hd.o2r: the newer file changes which mods it contains");
   expect(host.textContent).not.toContain("not for the setup in use");
 });
@@ -257,6 +259,16 @@ it("words several held updates together and shows none without a setup in use", 
 
   const other = await render();
   expect(other.textContent).not.toContain("needs your review");
+});
+
+it("offers GameBanana only for a game with a reviewed binding", async () => {
+  vi.spyOn(desktopApi, "modSetups")
+    .mockResolvedValueOnce(view())
+    .mockResolvedValueOnce(view({ provider: "gamebanana" }));
+  const without = await render();
+  expect(without.textContent).not.toContain("Find mods on GameBanana");
+  const bound = await render();
+  expect(button(bound, "Find mods on GameBanana…").disabled).toBe(false);
 });
 
 it("presents setups, counts and the reordered list in the active locale", async () => {
@@ -370,7 +382,7 @@ it("words held updates with the locale's plural forms", async () => {
     const host = await render();
     expect(host.textContent).toContain("أبقى Portcove الإصدارين الحاليين");
     expect(host.textContent).toContain("the newer file changes which mods it contains");
-    expect(host.querySelector("code[dir=ltr]")?.textContent).toBe("profile provider-plan");
+    expect(host.textContent).toContain("ابحث عن كل تعديل باستخدام «ابحث عن تعديلات في GameBanana»");
   } finally {
     await localization.changeLanguage("en");
   }

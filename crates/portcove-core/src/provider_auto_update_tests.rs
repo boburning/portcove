@@ -490,6 +490,11 @@ async fn a_held_update_is_shown_with_the_setup_until_the_setup_changes() {
     ]);
     w.pass_with_update(&next).await;
     let view = w.service.mod_setups(PORT).unwrap();
+    assert_eq!(
+        view.provider.as_deref(),
+        Some("gamebanana"),
+        "a bound game offers browsing"
+    );
     assert_eq!(view.held_updates.len(), 1, "{:?}", view.held_updates);
     let held = &view.held_updates[0];
     assert_eq!(held.profile_id, w.profile);

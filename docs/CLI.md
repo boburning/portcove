@@ -1842,6 +1842,11 @@ portcove --library PATH --json profile provider-plan PORT_ID PROFILE_ID PROJECT_
 portcove --library PATH --json profile provider-apply PORT_ID PROFILE_ID plan.json --expected-plan SHA256 --yes
 ```
 
+Desktop's Setups and mods panel offers the same flow for the setup in use when the
+game has a binding: find mods, show a mod's files, review a file (the same plan,
+shown before anything changes) and install it only after an explicit Install;
+Cancel discards the review. Stale data offers no review.
+
 `provider-browse` and `provider-project` only read. `provider-browse` lists one page
 (20 mods, most downloaded first, pages 1–50) of the bound game's GameBanana mods and
 says when more pages exist; `provider-project` shows one mod's files with the file
@@ -1871,7 +1876,8 @@ resolved by name; an outage reports `unavailable`, never "no update".
 `provider-apply` takes the saved plan and its `plan_sha256`, asks for confirmation
 (or `--yes`), and installs exactly the reviewed bytes under a one-use authorization.
 Altered staged bytes, a tampered plan or a newer profile revision that changed more
-than the mod order refuse without changing anything. Reviewed-but-unapplied staging is removed after a day.
+than the mod order refuse without changing anything. Reviewed-but-unapplied staging older than a day is removed at the next review or
+when the game's setups are read, and Desktop discards a review it leaves.
 
 ### Recipes
 
