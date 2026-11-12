@@ -129,7 +129,11 @@ export function SetupIntentChoice({
       {intent?.failure && (
         <p>
           {/* Core's failure text is exact, never interpolated. */}
-          <Trans t={t} i18nKey="intent.failed" components={{ reason: <>{intent.failure}</> }} />
+          <Trans
+            t={t}
+            i18nKey="intent.failed"
+            components={{ reason: <bdi>{intent.failure}</bdi> }}
+          />
         </p>
       )}
       {error && <p role="alert">{error}</p>}

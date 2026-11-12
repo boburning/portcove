@@ -31,7 +31,7 @@
     },
     "failed": "La última configuración automática no terminó: <reason/>. Portcove lo vuelve a intentar cuando cambian los archivos del juego, el catálogo o los requisitos.",
     "ignored": {
-      "detail": "Portcove no sugiere, no avisa ni configura este juego.",
+      "detail": "Portcove no sugiere este juego, no avisa sobre él ni lo configura.",
       "label": "Ignorar este juego"
     },
     "legend": "Cuando los archivos de este juego estén listos",
@@ -40,7 +40,7 @@
       "label": "Avisarme cuando esté listo"
     },
     "setUpWhenReady": {
-      "detail": "Portcove lo instala sin volver a preguntar cuando sus archivos y requisitos están listos. Nunca inicia el juego. Elige otra opción para detenerlo.",
+      "detail": "Portcove lo instala sin volver a preguntar cuando sus archivos y requisitos están listos. Nunca inicia el juego. Elige otra opción para desactivarlo.",
       "label": "Configurarlo cuando esté listo"
     },
     "uninstalled": "Desinstalaste este juego, así que Portcove no lo configurará ni te avisará sobre él hasta que vuelvas a elegir una opción.",

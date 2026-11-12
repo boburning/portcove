@@ -191,7 +191,7 @@ export function FolderSetupChoice({
                     {ports.find((port) => port.id === failure.port_id)?.name ?? failure.port_id}
                   </bdi>
                 ),
-                reason: <>{failure.reason}</>,
+                reason: <bdi>{failure.reason}</bdi>,
               }}
             />
           </p>

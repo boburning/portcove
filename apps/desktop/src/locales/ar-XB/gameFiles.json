@@ -58,7 +58,7 @@
     "notValidated": "لم يُجرَ التحقق."
   },
   "ready": {
-    "dismiss": "تجاهل <game/>",
+    "dismiss": "إخفاء إشعار <game/>",
     "heading": "جاهزة لك",
     "installable": "<game/> جاهزة للتثبيت.",
     "label": "ألعاب جاهزة لك",
