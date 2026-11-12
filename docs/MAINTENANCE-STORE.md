@@ -150,6 +150,18 @@ repository, issue comments or logs.
 node scripts/maintenance-store.mts status
 ```
 
+For local Neon credentials, pass the file and the variable explicitly. The
+file supplies only the selected variable and takes precedence over a
+process variable of the same name. Use the direct URL for maintenance store
+commands, including migrations, backup and restore. Once the maintenance
+schema is initialized, inventory commands can use the pooled URL for routine
+queries with the same options.
+
+```bash
+node scripts/maintenance-store.mts status --database-env-file .env.local --database-env DATABASE_URL_UNPOOLED
+node scripts/maintenance-inventory.mts handoffs --database-env-file .env.local --database-env DATABASE_URL
+```
+
 ```bash
 node scripts/maintenance-store.mts migrate
 ```

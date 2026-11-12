@@ -22,6 +22,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseEnv } from "node:util";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const defaultMigrationDirectory = path.join(
@@ -121,12 +122,22 @@ export function clientEnvironment(
 export function connectionFromEnvironment(
   name: string,
   base: NodeJS.ProcessEnv = process.env,
+  envFile?: string,
 ): NodeJS.ProcessEnv {
   if (!/^[A-Z_][A-Z0-9_]*$/u.test(name))
     throw new MaintenanceStoreError("Database environment variable name is invalid");
-  const value = base[name];
-  if (!value?.trim())
-    throw new MaintenanceStoreError(`Set ${name} to the maintenance database URL`);
+  let value = base[name];
+  if (envFile !== undefined) {
+    try {
+      value = parseEnv(readFileSync(envFile, "utf8"))[name];
+    } catch {
+      throw new MaintenanceStoreError("Could not load the maintenance database environment file");
+    }
+  }
+  if (!value?.trim()) {
+    const source = envFile === undefined ? "" : " in the database environment file";
+    throw new MaintenanceStoreError(`Set ${name}${source} to the maintenance database URL`);
+  }
   // The URL itself never reaches a child process; only its libpq translation does.
   const rest = { ...base };
   delete rest[name];
@@ -654,6 +665,7 @@ commands:
 
 options:
   --database-env NAME   environment variable holding the database URL (default ${defaultDatabaseEnvironment})
+  --database-env-file PATH   read that variable from an env file
   --migrations DIR      migration directory (default: the repository migrations)
 
 PORTCOVE_POSTGRES_BIN optionally names the directory holding psql, pg_dump and pg_restore.`;
@@ -666,12 +678,13 @@ export async function main(argv = process.argv.slice(2)) {
     return command ? 0 : 2;
   }
   const environmentName = option(args, "--database-env") ?? defaultDatabaseEnvironment;
+  const envFile = option(args, "--database-env-file");
   const directory = path.resolve(option(args, "--migrations") ?? defaultMigrationDirectory);
   const output = option(args, "--output");
   const input = option(args, "--input");
   if (args.length)
     throw new MaintenanceStoreError(`Unexpected arguments: ${args.join(" ")}\n${usage}`);
-  const environment = connectionFromEnvironment(environmentName);
+  const environment = connectionFromEnvironment(environmentName, process.env, envFile);
   let result: unknown;
   if (command === "status") result = migrationStatus(environment, directory);
   else if (command === "migrate") result = migrate(environment, directory);
