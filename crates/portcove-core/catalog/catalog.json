@@ -28620,7 +28620,7 @@
           "steps": [
             {
               "title": "Prepare the Mac tools and setup kit",
-              "instruction": "Choose the official v0.1.4 ZIP for your Intel or Apple silicon Mac and unpack it into a writable folder. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The bundled game and BIOS generators require macOS 15 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The inspected Mac setup host requires macOS 11 or newer. The bundled game and BIOS generators require macOS 15 or newer."
             },
             {
               "title": "Supply your matching disc and BIOS",
@@ -28632,9 +28632,10 @@
             }
           ],
           "warnings": [
+            "Before replacing your kit, make a normal in-game save, close the game and keep the previous kit and memory cards. Upstream warns that save states may be incompatible across versions.",
             "Portcove has not verified Mac setup, gameplay or save compatibility for this kit."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/tag/v0.1.4",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp#readme",
           "references": [
             {
               "title": "Updates and backups",
@@ -29103,7 +29104,7 @@
           "steps": [
             {
               "title": "Prepare the Mac tools and setup kit",
-              "instruction": "Choose the official v0.1.4 ZIP for your Intel or Apple silicon Mac and unpack it into a writable folder. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The bundled game and BIOS generators require macOS 15 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The inspected Mac setup host requires macOS 11 or newer. The bundled game and BIOS generators require macOS 15 or newer."
             },
             {
               "title": "Supply your matching disc and BIOS",
@@ -29115,9 +29116,10 @@
             }
           ],
           "warnings": [
+            "Before replacing your kit, make a normal in-game save, close the game and keep the previous kit and memory cards. Upstream warns that save states may be incompatible across versions.",
             "Portcove has not verified Mac setup, gameplay or save compatibility for this kit."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/tag/v0.1.4",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp#readme",
           "references": [
             {
               "title": "Updates and backups",
@@ -31806,7 +31808,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -31817,7 +31819,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -31951,7 +31953,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -31962,7 +31964,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -32231,7 +32233,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -32242,7 +32244,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -32508,7 +32510,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -32519,7 +32521,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -33050,7 +33052,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -33061,7 +33063,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -33195,7 +33197,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -33206,7 +33208,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -33340,7 +33342,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -33351,7 +33353,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -33485,7 +33487,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -33496,7 +33498,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -33630,7 +33632,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -33641,7 +33643,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -33775,7 +33777,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -33786,7 +33788,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -33920,7 +33922,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -33931,7 +33933,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -34326,7 +34328,7 @@
             },
             {
               "title": "Prepare a separate Mac player",
-              "instruction": "Choose the official v0.1.4 ZIP for your Intel or Apple silicon Mac and unpack it into a writable folder. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The bundled game and BIOS generators require macOS 15 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The inspected Mac setup host requires macOS 11 or newer. The bundled game and BIOS generators require macOS 15 or newer."
             },
             {
               "title": "Build and add the player on Mac",
@@ -34334,10 +34336,11 @@
             }
           ],
           "warnings": [
+            "Before replacing your kit, make a normal in-game save, close the game and keep the previous kit and memory cards. Upstream warns that save states may be incompatible across versions.",
             "Portcove checks the first data track and the track count. Keep the entire original disc intact.",
             "Portcove has not verified Mac setup, native gameplay or populated-save compatibility for this kit."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp/releases/tag/v0.1.4",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp#readme",
           "references": [
             {
               "title": "Updates and backups",
@@ -34471,7 +34474,7 @@
             },
             {
               "title": "Prepare a separate Mac player",
-              "instruction": "Choose the official v0.1.4 ZIP for your Intel or Apple silicon Mac and unpack it into a writable folder. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The bundled game and BIOS generators require macOS 15 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The inspected Mac setup host requires macOS 11 or newer. The bundled game and BIOS generators require macOS 15 or newer."
             },
             {
               "title": "Build and add the player on Mac",
@@ -34479,10 +34482,11 @@
             }
           ],
           "warnings": [
+            "Before replacing your kit, make a normal in-game save, close the game and keep the previous kit and memory cards. Upstream warns that save states may be incompatible across versions.",
             "Portcove checks the first data track and the track count. Keep the entire original disc intact.",
             "Portcove has not verified Mac setup, native gameplay or populated-save compatibility for this kit."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp/releases/tag/v0.1.4",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp#readme",
           "references": [
             {
               "title": "Updates and backups",
@@ -34834,7 +34838,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -34845,7 +34849,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -35235,7 +35239,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -35246,7 +35250,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -35652,7 +35656,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -35663,7 +35667,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -36205,7 +36209,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -36216,7 +36220,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -36350,7 +36354,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -36361,7 +36365,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -36495,7 +36499,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -36506,7 +36510,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -36776,7 +36780,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -36787,7 +36791,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -36917,7 +36921,7 @@
             },
             {
               "title": "Prepare a separate Mac player",
-              "instruction": "Choose the official v0.1.4 ZIP for your Intel or Apple silicon Mac and unpack it into a writable folder. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The bundled game and BIOS generators require macOS 15 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The inspected Mac setup host requires macOS 11 or newer. The bundled game and BIOS generators require macOS 15 or newer."
             },
             {
               "title": "Build and add the player on Mac",
@@ -36925,10 +36929,11 @@
             }
           ],
           "warnings": [
+            "Before replacing your kit, make a normal in-game save, close the game and keep the previous kit and memory cards. Upstream warns that save states may be incompatible across versions.",
             "Portcove checks the first data track and the track count. Keep the entire original disc intact.",
             "Portcove has not verified Mac setup, native gameplay or populated-save compatibility for this kit."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/releases/tag/v0.1.4",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp#readme",
           "references": [
             {
               "title": "Updates and backups",
@@ -37058,7 +37063,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -37069,7 +37074,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -37475,7 +37480,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -37486,7 +37491,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -37620,7 +37625,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -37631,7 +37636,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -38965,7 +38970,7 @@
             },
             {
               "title": "Prepare a separate Mac copy",
-              "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
             },
             {
               "title": "Build and add the completed Mac player",
@@ -38976,7 +38981,7 @@
             "Portcove checks the first data track and track count. Keep the complete disc intact.",
             "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp/releases/tag/v0.1.0",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp#readme",
           "references": [
             {
               "title": "Keep the original files and your data",
@@ -39106,7 +39111,7 @@
             },
             {
               "title": "Prepare a separate Mac player",
-              "instruction": "Choose the official v0.1.4 ZIP for your Intel or Apple silicon Mac and unpack it into a writable folder. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The bundled game and BIOS generators require macOS 15 or newer."
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The inspected Mac setup host requires macOS 11 or newer. The bundled game and BIOS generators require macOS 15 or newer."
             },
             {
               "title": "Build and add the player on Mac",
@@ -39114,11 +39119,12 @@
             }
           ],
           "warnings": [
+            "Before replacing your kit, make a normal in-game save, close the game and keep the previous kit and memory cards. Upstream warns that save states may be incompatible across versions.",
             "The managed route checks the original European release. The European Rev 1 disc has a different identity.",
             "Portcove checks the first data track and track count. Keep the entire original disc intact.",
             "The kit records BIOS-stage audio and FMV placement defects. Portcove has not verified native setup or gameplay."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/wipeout-recomp/releases/tag/v0.1.4",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/wipeout-recomp#readme",
           "references": [
             {
               "title": "Updates and backups",
