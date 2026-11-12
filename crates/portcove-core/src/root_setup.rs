@@ -36,7 +36,8 @@ use crate::{
 pub const ROOT_SETUP_FORMAT_VERSION: u8 = 1;
 /// Games set up for folder consent in one pass; later passes continue.
 pub const MAX_ROOT_SETUPS_PER_PASS: usize = 4;
-/// Files remembered as already present in a future-only folder.
+/// Identities remembered as already present in a future-only folder: about
+/// two per file plus one per folder, so roughly 100,000 files.
 pub const MAX_ROOT_SETUP_BASELINE: usize = 200_000;
 /// Matched files a pass plans or checks for folder consent; later passes continue.
 const MAX_ROOT_CANDIDATES_PER_PASS: usize = 32;
@@ -246,16 +247,26 @@ impl Library {
         json.map(|json| decode(root_id, &json)).transpose()
     }
 
-    fn root_setup_baseline_contains(&self, root_id: &str, identity: &str) -> Result<bool> {
-        Ok(self
-            .connection()?
-            .query_row(
-                "SELECT 1 FROM game_file_root_setup_baseline WHERE root_id=?1 AND identity=?2",
-                params![root_id, identity],
-                |_| Ok(true),
-            )
-            .optional()?
-            .unwrap_or(false))
+    /// Whether any of `identities` is remembered, on one connection.
+    fn root_setup_baseline_contains_any(
+        &self,
+        root_id: &str,
+        identities: &[String],
+    ) -> Result<bool> {
+        let connection = self.connection()?;
+        let mut statement = connection.prepare_cached(
+            "SELECT 1 FROM game_file_root_setup_baseline WHERE root_id=?1 AND identity=?2",
+        )?;
+        for identity in identities {
+            if statement
+                .query_row(params![root_id, identity], |_| Ok(()))
+                .optional()?
+                .is_some()
+            {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     /// Records a new choice and its boundary, replacing any earlier one.
@@ -520,19 +531,9 @@ impl PortcoveService {
             RootSetupEnrollment::ExistingAndFuture => true,
             RootSetupEnrollment::FutureOnly => match current_identities(root_path, &candidate.path)
             {
-                Some(identities) => {
-                    let mut existing = false;
-                    for identity in &identities {
-                        if self
-                            .library
-                            .root_setup_baseline_contains(root_id, identity)?
-                        {
-                            existing = true;
-                            break;
-                        }
-                    }
-                    !existing
-                }
+                Some(identities) => !self
+                    .library
+                    .root_setup_baseline_contains_any(root_id, &identities)?,
                 // A file that can't be checked now is not enrolled now.
                 None => false,
             },
@@ -573,9 +574,13 @@ impl PortcoveService {
                 {
                     return Ok(waiting);
                 }
-                if !candidate.path.starts_with(&root.path)
-                    || !self.still_enrolled(&root.id, &root.path, candidate)?
-                {
+                if !candidate.path.starts_with(&root.path) {
+                    continue;
+                }
+                // Checking the boundary reads the file (or game folder), so it
+                // counts toward the per-pass bound.
+                considered += 1;
+                if !self.still_enrolled(&root.id, &root.path, candidate)? {
                     continue;
                 }
                 let port_id = match self.root_candidate(&consent, candidate, busy, handled) {
@@ -588,7 +593,6 @@ impl PortcoveService {
                     }
                     RootCandidate::Setup { port_id } => port_id,
                 };
-                considered += 1;
                 let outcome = match self
                     .root_setup_one(&root.id, &root.path, candidate, &port_id, emit)
                     .await
@@ -880,7 +884,7 @@ impl PortcoveService {
     }
 }
 
-/// Files a folder-shaped game is matched through, at most.
+/// Entries a folder-shaped game is matched through, at most.
 const MAX_DIRECTORY_MEMBERS: usize = 1024;
 
 /// The boundary identities of a matched file or game folder as it is now, or
@@ -896,23 +900,26 @@ fn current_identities(root_path: &Path, path: &Path) -> Option<Vec<String>> {
         return None;
     }
     let mut identities = vec![directory_identity(relative).ok()?];
-    let mut pending = vec![path.to_path_buf()];
-    let mut members = 0;
-    while let Some(directory) = pending.pop() {
+    let mut pending = vec![(path.to_path_buf(), 0usize)];
+    let mut entries = 0;
+    while let Some((directory, depth)) = pending.pop() {
         for entry in std::fs::read_dir(&directory).ok()? {
+            // Bounded by entries and depth; what was read is enough to match.
+            entries += 1;
+            if entries > MAX_DIRECTORY_MEMBERS {
+                return Some(identities);
+            }
             let entry_path = entry.ok()?.path();
             let entry_metadata = std::fs::symlink_metadata(&entry_path).ok()?;
             if entry_metadata.is_dir() {
-                pending.push(entry_path);
+                if depth < MAX_BASELINE_DEPTH {
+                    pending.push((entry_path, depth + 1));
+                }
             } else if entry_metadata.is_file() {
                 identities.extend(
                     file_identities(entry_path.strip_prefix(root_path).ok()?, &entry_metadata)
                         .ok()?,
                 );
-                members += 1;
-                if members >= MAX_DIRECTORY_MEMBERS {
-                    return Some(identities);
-                }
             }
         }
     }
