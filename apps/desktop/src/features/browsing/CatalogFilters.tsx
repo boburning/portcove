@@ -347,7 +347,7 @@ export function CatalogFilters({
         <div className="browse-active-filters">
           {Boolean(result.unavailablePortIds?.length) && (
             <p role="status" className="basis-full text-xs text-pc-muted-foreground">
-              {t("filters.unknownFacts", { total: result.unavailablePortIds?.length ?? 0 })}
+              {t("filters.unknownFacts", { count: result.unavailablePortIds?.length ?? 0 })}
             </p>
           )}
           {supported &&
@@ -363,7 +363,7 @@ export function CatalogFilters({
                 variant="selected"
                 aria-label={t("filters.removeChip", {
                   group: groups.find((item) => item.key === group)?.label ?? "",
-                  value: label(t, group, value) ?? "",
+                  value: label(t, group, value) ?? value,
                 })}
                 onClick={(event) => {
                   const ownedFocus = document.activeElement === event.currentTarget;
@@ -379,7 +379,7 @@ export function CatalogFilters({
                 )}
                 {t("filters.chip", {
                   group: groups.find((item) => item.key === group)?.label ?? "",
-                  value: label(t, group, value) ?? "",
+                  value: label(t, group, value) ?? value,
                 })}{" "}
                 <X aria-hidden="true" />
               </ChipButton>
@@ -457,7 +457,7 @@ export function CatalogFilters({
               <Checkbox
                 id={optionId}
                 data-focusable
-                aria-label={t("filters.optionLabel", { option: text ?? "", amount: countText })}
+                aria-label={t("filters.optionLabel", { option: text ?? value, amount: countText })}
                 checked={supported && query[group.key]?.includes(value) === true}
                 disabled={!editable || result.counts[group.key][value] === null}
                 onCheckedChange={() => toggle(group.key, value)}

@@ -63,7 +63,8 @@
     "selectedCount": "{{total}} selected",
     "trigger": "Filters",
     "triggerLabel": "Filters ({{total}})",
-    "unknownFacts": "{{total}} projects have unknown facts for these filters. Choose All ports or clear these filters to find them.",
+    "unknownFacts_one": "{{count}} project has unknown facts for these filters. Choose All ports or clear these filters to find it.",
+    "unknownFacts_other": "{{count}} projects have unknown facts for these filters. Choose All ports or clear these filters to find them.",
     "unsupportedCatalog": "These restored filters are not supported. Reset catalog filters to choose a supported query.",
     "unsupportedLibrary": "These restored filters are not supported. Reset library filters to choose a supported query.",
     "value": {

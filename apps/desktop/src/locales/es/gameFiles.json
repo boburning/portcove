@@ -63,7 +63,9 @@
     "selectedCount": "{{total}} seleccionados",
     "trigger": "Filtros",
     "triggerLabel": "Filtros ({{total}})",
-    "unknownFacts": "{{total}} proyectos tienen datos desconocidos para estos filtros. Elige Todas las adaptaciones o borra estos filtros para encontrarlos.",
+    "unknownFacts_one": "{{count}} proyecto tiene datos desconocidos para estos filtros. Elige Todas las adaptaciones o borra estos filtros para encontrarlo.",
+    "unknownFacts_many": "{{count}} proyectos tienen datos desconocidos para estos filtros. Elige Todas las adaptaciones o borra estos filtros para encontrarlos.",
+    "unknownFacts_other": "{{count}} proyectos tienen datos desconocidos para estos filtros. Elige Todas las adaptaciones o borra estos filtros para encontrarlos.",
     "unsupportedCatalog": "Estos filtros restaurados no son compatibles. Restablece los filtros del catálogo para elegir una consulta compatible.",
     "unsupportedLibrary": "Estos filtros restaurados no son compatibles. Restablece los filtros de la biblioteca para elegir una consulta compatible.",
     "value": {
