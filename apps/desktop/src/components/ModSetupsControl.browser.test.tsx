@@ -443,6 +443,7 @@ it("offers a copy on the current version only for a customized setup on another 
       ),
     ).toBe(false);
   }
+});
 
 it("asks before adding a mod that runs code and binds the choice to the reviewed file", async () => {
   vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view({ package_types: ["nrm"] }));

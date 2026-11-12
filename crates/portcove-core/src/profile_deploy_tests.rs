@@ -1272,7 +1272,9 @@ fn an_upgraded_copy_uses_the_current_build_and_leaves_the_pinned_setup_on_its_ow
         .unwrap()
         .unwrap();
     assert_eq!(chosen.id, "first");
+}
 
+#[test]
 fn recomp_code_runs_only_for_the_exact_bytes_the_player_allowed() {
     let w = recomp_world();
     let code = w.nrm(
