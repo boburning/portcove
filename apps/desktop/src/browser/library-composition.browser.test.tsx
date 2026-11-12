@@ -811,7 +811,7 @@ it.each([
       24,
       0,
     );
-    expect(getComputedStyle(title).fontWeight).toBe("580");
+    expect(getComputedStyle(title).fontWeight).toBe("600");
     expect(getComputedStyle(art).borderRadius).toBe("10px");
     const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
     expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);

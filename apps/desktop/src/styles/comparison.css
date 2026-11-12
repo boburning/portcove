@@ -44,7 +44,7 @@
     inline-size: fit-content;
     cursor: pointer;
     font-size: var(--text-sm);
-    font-weight: 500;
+    font-weight: 400;
   }
   .comparison-settings > :not(summary) {
     margin-block-start: var(--space-4);
@@ -62,7 +62,7 @@
     margin: 0 0 var(--space-2);
     color: var(--color-text-muted);
     font-size: var(--text-xs);
-    font-weight: 500;
+    font-weight: 400;
   }
   .port-comparison-project h4:not(:first-child) {
     margin-block-start: var(--space-3);

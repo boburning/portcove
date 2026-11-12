@@ -169,7 +169,7 @@
   }
   .add-route-choices[data-route-selected="true"] .add-route-choice strong {
     font-size: var(--text-xs);
-    font-weight: 500;
+    font-weight: 400;
   }
   .add-route-choices[data-route-selected="true"] :is(.add-route-description, .add-route-arrow) {
     display: none;
