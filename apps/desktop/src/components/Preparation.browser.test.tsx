@@ -404,3 +404,42 @@ it("can leave running preparation without cancellation or completion stealing fo
   expect(onPrepared).not.toHaveBeenCalled();
   expect(document.activeElement).toBe(other);
 });
+
+it("presents the preparation review and outcomes in the active locale", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    vi.spyOn(desktopApi, "planPreparation").mockResolvedValue(plan);
+    let finish!: (value: undefined) => void;
+    const run: RunPreparation = (_plan, onEvent) => {
+      onEvent({ type: "message", message: "Core progress text" } as Parameters<typeof onEvent>[0]);
+      return new Promise((resolve) => {
+        finish = resolve;
+      });
+    };
+    await root.rerender(
+      <PreparationControl portId="sample" generation={7} disabled={false} run={run} />,
+    );
+    expect(document.querySelector("section")?.getAttribute("aria-label")).toBe(
+      "تجهيز بيانات اللعبة",
+    );
+    await click("مراجعة الإعداد");
+    const dialog = () => document.querySelector("[role=dialog]");
+    expect(dialog()?.textContent).toContain("الإصدار المثبت 1.2");
+    expect(dialog()?.querySelector("[aria-label='خطة التجهيز']")).not.toBeNull();
+    expect(dialog()?.textContent).toContain("إذا فتح الإعداد نافذة أخرى");
+    expect(
+      [...(dialog()?.querySelectorAll("bdi[dir=ltr]") ?? [])].map((item) => item.textContent),
+    ).toEqual([plan.inputs.install.path, plan.inputs.source.path]);
+    await click("تجهيز بيانات اللعبة");
+    expect(document.querySelector("[role=status]")?.textContent).toBe("Core progress text");
+    expect(dialog()?.textContent).toContain("أبقِ Portcove مفتوحًا.");
+    await act(async () => finish(undefined));
+    expect(document.querySelector("[role=status]")?.textContent).toBe(
+      "لم يكتمل الإعداد. تحقق من ملفات اللعبة المحددة قبل البدء مرة أخرى.",
+    );
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});

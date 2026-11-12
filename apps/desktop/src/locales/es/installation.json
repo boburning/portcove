@@ -67,6 +67,46 @@
     "reviewing": "Revisando la copia administrada",
     "title": "¿Usar una copia administrada de <name/>?"
   },
+  "preparation": {
+    "cancel": "Cancelar la preparación",
+    "cancelReview": "Cancelar la revisión",
+    "checking": "Comprobando lo necesario para la preparación…",
+    "continue": "Seguir explorando",
+    "description": {
+      "review": "Revisa los archivos y los cambios antes de empezar.",
+      "running": "Preparando la instalación y los archivos del juego revisados."
+    },
+    "details": "Archivos y detalles de la configuración",
+    "installedVersion": "Versión instalada <version />",
+    "intro": "Portcove usará los archivos originales que elegiste para preparar esta versión instalada. Tu instalación actual y tus datos guardados se quedan donde están.",
+    "keepOpen": "Mantén Portcove abierto. Puedes seguir explorando y volver a esta tarea en Actividad.",
+    "label": "Preparar los datos del juego",
+    "plan": {
+      "activation": "Activación y recuperación",
+      "activationText": "Tus archivos originales y tu instalación actual no cambian hasta que el resultado verificado se activa. La versión anterior sigue disponible para revertir.",
+      "changes": "Qué cambia",
+      "during": "Durante la configuración",
+      "duringInterrupt": "Si cancelas o se interrumpe, pueden quedar archivos de trabajo en Actividad. Al volver a empezar se conserva el trabajo sin terminar anterior.",
+      "duringOpen": "Mantén Portcove abierto. Sigue explorando y vuelve a ver el progreso en Actividad.",
+      "files": "Archivos que se usan",
+      "label": "Plan de preparación",
+      "source": "Archivos del juego elegidos",
+      "space": "Espacio libre",
+      "spaceText": "Al menos <size />, más lo que genere el juego.",
+      "window": "Si la configuración abre otra ventana",
+      "windowText": "Termina la configuración en esa ventana y ciérrala sin iniciar el juego. Portcove comprobará los archivos. Si las comprobaciones son correctas, cambiará a la nueva versión."
+    },
+    "prepare": "Preparar los datos del juego",
+    "review": "Revisar la configuración",
+    "selected": "Instalación elegida",
+    "status": {
+      "cancelled": "Configuración cancelada. Consulta Actividad reciente para ver el trabajo sin terminar.",
+      "prepared": "Los datos del juego están preparados.",
+      "starting": "Iniciando la preparación…",
+      "unfinished": "La configuración no terminó. Comprueba los archivos del juego elegidos antes de volver a empezar."
+    },
+    "title": "Preparar los datos del juego"
+  },
   "selfService": {
     "another": {
       "body": "Sigue usando tu instalación actual mientras preparas otra copia. La descarga no cambia sus archivos ni sus detalles de inicio. Revisa el nuevo programa del juego antes de cambiar. Consulta las instrucciones del proyecto sobre ubicaciones de partidas compartidas.",
