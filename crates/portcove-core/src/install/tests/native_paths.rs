@@ -618,6 +618,7 @@ fn reflectionhle_mac_tar_xz_keeps_player_data_outside_the_bundle() {
         binary[4..8].copy_from_slice(&cpu.to_le_bytes());
         binary[12..16].copy_from_slice(&2_u32.to_le_bytes());
         let temporary = tempfile::tempdir().unwrap();
+        let scratch = temporary.path().canonicalize().unwrap();
         for (wrapper, link) in [("publisher/", false), ("", false), ("publisher/", true)] {
             let mut tar = tar::Builder::new(Vec::new());
             let mut header = tar::Header::new_ustar();
@@ -634,9 +635,9 @@ fn reflectionhle_mac_tar_xz_keeps_player_data_outside_the_bundle() {
                     .unwrap();
             }
             let bytes = crate::archive::encode_xz_fixture(&tar.into_inner().unwrap());
-            let archive = temporary.path().join("fixture.tar.xz");
+            let archive = scratch.join("fixture.tar.xz");
             fs::write(&archive, &bytes).unwrap();
-            let payload = tempfile::tempdir_in(temporary.path()).unwrap();
+            let payload = tempfile::tempdir_in(&scratch).unwrap();
             let extracted = extract_tar_xz_with_checkpoint(
                 &archive,
                 payload.path(),

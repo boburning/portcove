@@ -212,14 +212,15 @@ mod grant_tests {
     #[test]
     fn mach_o_slices_must_match_the_platform_and_links_are_never_followed() {
         let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().canonicalize().unwrap();
         let arm = file(
-            dir.path(),
+            &root,
             "arm",
             &[0xcf, 0xfa, 0xed, 0xfe, 0x0c, 0, 0, 1],
             0o644,
         );
         let x86 = file(
-            dir.path(),
+            &root,
             "x86",
             &[0xcf, 0xfa, 0xed, 0xfe, 0x07, 0, 0, 1],
             0o644,
@@ -234,7 +235,7 @@ mod grant_tests {
         universal.extend([
             0x01, 0, 0, 0x0c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]);
-        let fat = file(dir.path(), "fat", &universal, 0o644);
+        let fat = file(&root, "fat", &universal, 0o644);
         assert!(is_platform_binary(&fat, Platform::MacosAarch64).unwrap());
         let link = dir.path().join("link");
         std::os::unix::fs::symlink(good_target(dir.path()), &link).unwrap();

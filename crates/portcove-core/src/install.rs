@@ -4191,12 +4191,14 @@ pub(crate) fn resolve_declared_executable(
         "declared executable",
         allow_one_wrapper,
     )?;
-    if qualification.native_mac_bundle_tar_xz
-        && !crate::permissions::is_platform_binary(&executable, platform)?
-    {
-        return Err(PortcoveError::verification(
-            "the Mac bundle executable has no matching Mach-O architecture",
-        ));
+    if qualification.native_mac_bundle_tar_xz {
+        let relative = manifest_relative(root, &executable)?;
+        let owned_executable = fs::canonicalize(root)?.join(relative);
+        if !crate::permissions::is_platform_binary(&owned_executable, platform)? {
+            return Err(PortcoveError::verification(
+                "the Mac bundle executable has no matching Mach-O architecture",
+            ));
+        }
     }
     match qualification.external_profile_policy {
         Some(crate::ExternalProfilePolicy::Z2rsDesktopV1) => {
