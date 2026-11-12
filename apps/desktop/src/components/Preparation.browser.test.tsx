@@ -5,7 +5,11 @@ import { useRef, useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import type { PreparationPlan } from "../types";
-import { PreparationControl, type RunPreparation } from "./Preparation";
+import {
+  PreparationCancellationShown,
+  PreparationControl,
+  type RunPreparation,
+} from "./Preparation";
 
 const plan: PreparationPlan = {
   format_version: 1,
@@ -412,6 +416,40 @@ it("can leave running preparation without cancellation or completion stealing fo
   await act(async () => finish(plan.inputs.install));
   expect(onPrepared).not.toHaveBeenCalled();
   expect(document.activeElement).toBe(other);
+});
+
+it("shows one Cancel for running setup when the page already offers it", async () => {
+  vi.spyOn(desktopApi, "planPreparation").mockResolvedValue(plan);
+  const run: RunPreparation = (_plan, onEvent) => {
+    onEvent({
+      schema_version: 2,
+      operation_id: "operation-1",
+      parent_operation_id: null,
+      target: null,
+      sequence: 0,
+      timestamp_ms: 1,
+      operation: "prepare",
+      type: "started",
+    });
+    return new Promise(() => undefined);
+  };
+  const tabCancel = () =>
+    [...container.querySelectorAll<HTMLButtonElement>(".preparation-control button")].filter(
+      (button) => button.textContent === "Cancel setup",
+    );
+  await root.rerender(
+    <PreparationControl portId="sample" generation={7} disabled={false} run={run} />,
+  );
+  await click("Finish setup", ".preparation-control");
+  await click("Finish setup", "[role=dialog]");
+  await click("Continue browsing");
+  await expect.poll(() => tabCancel().length).toBe(1);
+  await root.rerender(
+    <PreparationCancellationShown value={(id) => id === "operation-1"}>
+      <PreparationControl portId="sample" generation={7} disabled={false} run={run} />
+    </PreparationCancellationShown>,
+  );
+  await expect.poll(() => tabCancel().length).toBe(0);
 });
 
 it("presents the preparation review and outcomes in the active locale", async () => {

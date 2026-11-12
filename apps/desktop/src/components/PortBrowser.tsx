@@ -197,8 +197,9 @@ function browserResultCountLabel({
   declaredCandidates: CatalogEntry[] | undefined;
 }) {
   if (view === "catalog") {
+    // Each card is one game; port counts and grouping facts belong on the game page.
     const groups = groupCatalog(catalogUniverse ?? declaredCandidates ?? ports, visiblePorts);
-    return `${groupCountLabel(groups)} · ${visiblePorts.length} matching ports`;
+    return `${groups.length} ${groups.length === 1 ? "game" : "games"}`;
   }
   if (view === "library") {
     const groups = groupCatalog(catalogUniverse ?? ports, visiblePorts);
@@ -690,6 +691,7 @@ function PortBrowserView({
         loading={model.loadingResults}
         unavailable={model.resultsUnavailable}
         nativeSourceDrag={model.nativeSourceDrag}
+        devicePlatform={model.queryContext?.devicePlatform}
       />
     </div>
   );
@@ -787,7 +789,9 @@ function BrowserResults({
   loading,
   unavailable,
   nativeSourceDrag,
+  devicePlatform,
 }: {
+  devicePlatform?: PortDefinition["platforms"][number] | undefined;
   organization?: Organization | undefined;
   restoreAfter: (button: HTMLElement, action: () => Promise<boolean>) => Promise<void>;
   layout: CollectionLayout;
@@ -839,6 +843,7 @@ function BrowserResults({
         favorites={favorites}
         onFavoriteToggle={onFavoriteToggle}
         nativeSourceDrag={nativeSourceDrag}
+        devicePlatform={devicePlatform}
       />
     );
   return (

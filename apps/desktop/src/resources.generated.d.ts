@@ -457,7 +457,8 @@ export default interface Resources {
         "unavailable": "Installation ownership is unavailable. Check the project instructions."
       },
       "separateProjects_one": "{{count}} separate port project",
-      "separateProjects_other": "{{count}} separate port projects"
+      "separateProjects_other": "{{count}} separate port projects",
+      "unavailableFor": "Not available for {{platform}}"
     },
     "hero": {
       "continueLabel": "{{title}} recently played",
