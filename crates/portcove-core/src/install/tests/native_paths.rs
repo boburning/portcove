@@ -415,10 +415,10 @@ fn native_marathon_layout_retains_exact_player_coordinates_without_a_dated_root(
         let retained_port = retained.port(id).unwrap();
         assert_eq!(
             crate::adapter::launch_working_directory(
-                retained_port.adapter,
                 retained_port,
                 &root,
                 &root.join(&install.selected_executable),
+                Platform::WindowsX86_64,
             )
             .unwrap(),
             working,

@@ -90,10 +90,10 @@ impl PortcoveService {
             ));
         }
         let working = crate::adapter::launch_working_directory(
-            port.adapter,
             port,
             &install.path,
             &install.path.join(&install.selected_executable),
+            Platform::current()?,
         )?;
         let marker = if legacy {
             super::ghostship::GENERATED

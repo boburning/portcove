@@ -4745,7 +4745,7 @@ impl PortcoveService {
         crate::runtime_path_policy::check_executable(port, platform, executable)?;
         crate::runtime_path_policy::check_prepared_path(port, platform, executable)?;
         let directory = if port.runtime_subdirectory.is_some() {
-            crate::adapter::launch_working_directory(port.adapter, port, root, executable)?
+            crate::adapter::launch_working_directory(port, root, executable, platform)?
         } else {
             root.to_path_buf()
         };
@@ -5879,10 +5879,10 @@ impl PortcoveService {
         operation.checkpoint()?;
         let working_directory = if retained_port.runtime_subdirectory.is_some() {
             crate::adapter::launch_working_directory(
-                retained_port.adapter,
                 retained_port,
                 &record.path,
                 &record.executable,
+                platform,
             )?
         } else {
             record.path.clone()
