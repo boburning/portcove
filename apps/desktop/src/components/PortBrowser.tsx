@@ -2315,13 +2315,12 @@ function SuggestedOrderHint({
   },
   "model"
 >) {
+  if (model.view !== "catalog" || model.catalogSort !== "catalog") return null;
   return (
-    model.view === "catalog" &&
-    model.catalogSort === "catalog" &&
-    model.queryContext?.devicePlatform && (
-      <p className="mb-4 text-xs text-pc-muted-foreground">
-        Your library and setup options for this device appear first. All ports remain searchable.
-      </p>
-    )
+    <p className="mb-4 text-xs text-pc-muted-foreground">
+      {model.queryContext?.devicePlatform
+        ? "Your library and setup options for this device appear first. All ports remain searchable."
+        : "Games appear in catalog order. Choose Title A–Z to sort by name."}
+    </p>
   );
 }
