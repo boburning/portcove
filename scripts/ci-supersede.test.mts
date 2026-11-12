@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import { deferredWindowsRun, ownRunId, supersededRunIds } from "./ci-supersede.mts";
+import {
+  deferredWindowsRun,
+  ownRunId,
+  readyForReviewAction,
+  supersededRunIds,
+} from "./ci-supersede.mts";
 
 const run = (id: number, ...pulls: number[]) => ({
   id,
@@ -108,4 +113,72 @@ void test("only a run that deferred its Windows partitions for a draft is re-run
   assert.equal(deferredWindowsRun({ jobs: deferred.slice(0, 2) }), false);
   assert.equal(deferredWindowsRun({ jobs: [...deferred, job("rust", "failure")] }), false);
   assert.throws(() => deferredWindowsRun({}), /malformed/u);
+});
+
+void test("ready_for_review re-runs only a run that actually deferred its Windows partitions", () => {
+  const job = (name: string, conclusion: string | null, status = "completed") => ({
+    name,
+    status,
+    conclusion,
+  });
+  const classify = job("classify-ci-plan", "success");
+  const partition = (conclusion: string | null, status = "completed") =>
+    job("fast-rust-test (windows-x86_64, ${{ matrix.partition }})", conclusion, status);
+  const active = { status: "in_progress" };
+  const done = { status: "completed" };
+  // A run that has not classified yet reads the live (ready) state itself.
+  assert.equal(readyForReviewAction(active, { jobs: [] }), "wait");
+  assert.equal(
+    readyForReviewAction(active, { jobs: [job("classify-ci-plan", null, "in_progress")] }),
+    "wait",
+  );
+  // A deferred plan: partitions skipped while the Windows build runs or succeeded.
+  for (const build of [
+    job("fast-rust-build (windows-x86_64)", null, "in_progress"),
+    job("fast-rust-build (windows-x86_64)", "success"),
+  ])
+    assert.equal(
+      readyForReviewAction(active, { jobs: [classify, build, partition("skipped")] }),
+      "cancel-and-rerun",
+    );
+  // Non-Rust plans, running partitions, a failed build or a failed classifier are left alone.
+  assert.equal(
+    readyForReviewAction(active, {
+      jobs: [classify, job("fast-rust-build (windows-x86_64)", "skipped"), partition("skipped")],
+    }),
+    "none",
+  );
+  assert.equal(
+    readyForReviewAction(active, {
+      jobs: [
+        classify,
+        job("fast-rust-build (windows-x86_64)", "success"),
+        partition(null, "in_progress"),
+      ],
+    }),
+    "none",
+  );
+  assert.equal(
+    readyForReviewAction(active, {
+      jobs: [classify, job("fast-rust-build (windows-x86_64)", "failure"), partition("skipped")],
+    }),
+    "none",
+  );
+  assert.equal(
+    readyForReviewAction(active, { jobs: [job("classify-ci-plan", "failure")] }),
+    "none",
+  );
+  // A completed run follows the existing deferral detector.
+  assert.equal(
+    readyForReviewAction(done, {
+      jobs: [
+        classify,
+        job("rust", "failure"),
+        job("fast-rust-build (windows-x86_64)", "success"),
+        partition("skipped"),
+      ],
+    }),
+    "rerun",
+  );
+  assert.equal(readyForReviewAction(done, { jobs: [classify, job("rust", "success")] }), "none");
 });

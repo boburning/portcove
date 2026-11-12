@@ -99,6 +99,39 @@ export function deferredWindowsRun(listing: unknown): boolean {
   );
 }
 
+/**
+ * What a ready_for_review event should do with the head's own CI run. A run whose classifier has
+ * not finished will read the live (ready) draft state itself, so it is left alone after waiting
+ * for classification. Only a run that actually deferred its Windows partitions is re-run, and an
+ * active one is cancelled first so its new attempt starts at once. Anything else is left alone.
+ */
+export function readyForReviewAction(
+  run: unknown,
+  listing: unknown,
+): "wait" | "none" | "rerun" | "cancel-and-rerun" {
+  const status = isRecord(run) ? run.status : undefined;
+  if (status === "completed") return deferredWindowsRun(listing) ? "rerun" : "none";
+  const jobs =
+    isRecord(listing) && Array.isArray(listing.jobs) ? listing.jobs.filter(isRecord) : [];
+  const classify = jobs.filter((job) => job.name === "classify-ci-plan");
+  if (classify.length !== 1 || classify[0]?.status !== "completed") return "wait";
+  if (classify[0]?.conclusion !== "success") return "none";
+  const partitions = jobs.filter(
+    (job) =>
+      typeof job.name === "string" &&
+      (job.name.startsWith("fast-rust-test (windows-x86_64,") || job.name === "fast_rust_tests"),
+  );
+  const builds = jobs.filter((job) => job.name === "fast-rust-build (windows-x86_64)");
+  const build = builds[0];
+  const buildActive =
+    builds.length === 1 && (build?.status !== "completed" || build?.conclusion === "success");
+  const deferred =
+    partitions.length > 0 &&
+    partitions.every((job) => job.status === "completed" && job.conclusion === "skipped") &&
+    buildActive;
+  return deferred ? "cancel-and-rerun" : "none";
+}
+
 async function main() {
   const token = process.env.GH_TOKEN ?? "";
   const pullRequest = Number(process.env.PR_NUMBER);
@@ -160,31 +193,37 @@ async function main() {
           request: { portcove: { replay: "safe-read", attempts: 0 } },
         })
       ).data as unknown;
-    let cancelled = false;
-    for (let wait = 0; ; wait += 1) {
-      const run = await get(`${root}/runs/${own}`);
-      const status = isRecord(run) ? run.status : undefined;
-      if (status === "completed") break;
-      if (wait === 0) {
-        console.log(`Cancelling run ${own} so its draft attempt can be re-run`);
-        await sdk.request({
-          method: "POST",
-          url: `${root}/runs/${own}/cancel`,
-          request: { portcove: { replay: "once", attempts: 0 } },
-        });
-        cancelled = true;
-      }
-      if (wait >= 15)
-        throw new Error(`Run ${own} did not finish; re-run it to execute the Windows partitions`);
+    let action: ReturnType<typeof readyForReviewAction> = "wait";
+    for (let wait = 0; action === "wait"; wait += 1) {
+      action = readyForReviewAction(
+        await get(`${root}/runs/${own}`),
+        await get(`${root}/runs/${own}/jobs?filter=latest&per_page=100`),
+      );
+      if (action !== "wait") break;
+      if (wait >= 10)
+        throw new Error(`Run ${own} did not classify in time; re-run all jobs if it deferred`);
       await new Promise((resolve) => setTimeout(resolve, 10000));
     }
-    // A run cancelled here never completed its plan, so it is always re-run.
-    if (
-      !cancelled &&
-      !deferredWindowsRun(await get(`${root}/runs/${own}/jobs?filter=latest&per_page=100`))
-    ) {
-      console.log(`Run ${own} did not defer its Windows partitions; nothing to re-run`);
+    if (action === "none") {
+      console.log(`Run ${own} did not defer its Windows partitions; leaving it to finish`);
       return;
+    }
+    if (action === "cancel-and-rerun") {
+      console.log(`Cancelling deferred run ${own} so its new attempt starts at once`);
+      await sdk.request({
+        method: "POST",
+        url: `${root}/runs/${own}/cancel`,
+        request: { portcove: { replay: "once", attempts: 0 } },
+      });
+      for (let wait = 0; ; wait += 1) {
+        const run = await get(`${root}/runs/${own}`);
+        if (isRecord(run) && run.status === "completed") break;
+        if (wait >= 8)
+          throw new Error(
+            `Run ${own} did not finish cancelling; re-run all jobs to run the partitions`,
+          );
+        await new Promise((resolve) => setTimeout(resolve, 10000));
+      }
     }
     console.log(`Re-running run ${own} to execute its deferred Windows partitions`);
     await sdk.request({
