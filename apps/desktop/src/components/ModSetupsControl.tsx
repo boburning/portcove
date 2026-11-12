@@ -192,8 +192,8 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
               <div data-slot="notice-body">
                 <p>
                   {heldUpdates.length === 1
-                    ? "A mod update for this setup waits for your review, so Portcove kept the current version:"
-                    : "Mod updates for this setup wait for your review, so Portcove kept the current versions:"}
+                    ? "Portcove kept the current version of a mod because its update needs your review:"
+                    : "Portcove kept the current versions of some mods because their updates need your review:"}
                 </p>
                 <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
                   {heldUpdates.map((held) => (
@@ -202,6 +202,11 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                     </li>
                   ))}
                 </ul>
+                <p>
+                  Desktop can&rsquo;t review mod updates yet. Review one with the Portcove command
+                  line (<code>profile provider-plan</code>), or leave it: Portcove checks again when
+                  this setup changes or the mod offers another file.
+                </p>
               </div>
             </Notice>
           )}

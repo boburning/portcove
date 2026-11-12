@@ -228,7 +228,33 @@ it("explains a held unattended update for the setup in use", async () => {
     }),
   );
   const host = await render();
-  expect(host.textContent).toContain("waits for your review, so Portcove kept the current version");
+  expect(host.textContent).toContain(
+    "kept the current version of a mod because its update needs your review",
+  );
+  expect(host.textContent).toContain("checks again when this setup changes");
   expect(host.textContent).toContain("hd.o2r: the newer file changes which mods it contains");
   expect(host.textContent).not.toContain("not for the setup in use");
+});
+
+it("words several held updates together and shows none without a setup in use", async () => {
+  const held = (native_ids: string[], candidate_file_id: string) => ({
+    profile_id: "default",
+    native_ids,
+    project_id: "42",
+    candidate_file_id,
+    reason: "the update changes which mod wins an asset another enabled mod also changes",
+  });
+  vi.spyOn(desktopApi, "modSetups")
+    .mockResolvedValueOnce(
+      view({ held_updates: [held(["a.o2r", "b.o2r"], "11"), held(["c.o2r"], "12")] }),
+    )
+    .mockResolvedValueOnce(view({ live: null, held_updates: [held(["a.o2r"], "11")] }));
+  const host = await render();
+  expect(host.textContent).toContain("current versions of some mods because their updates");
+  expect(host.textContent).toContain("a.o2r, b.o2r:");
+  const notice = host.querySelector("[data-slot=notice] ul");
+  expect(notice?.querySelectorAll("li").length).toBe(2);
+
+  const other = await render();
+  expect(other.textContent).not.toContain("needs your review");
 });

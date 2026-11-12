@@ -1286,7 +1286,7 @@ pub struct ModSetupsView {
 impl PortcoveService {
     pub fn mod_setups(&self, port_id: &str) -> Result<ModSetupsView> {
         self.catalog().port(port_id)?;
-        let Ok(_) = self.deploy_layout(port_id) else {
+        let Ok(layout) = self.deploy_layout(port_id) else {
             return Ok(ModSetupsView {
                 port_id: port_id.into(),
                 supported: false,
@@ -1299,8 +1299,7 @@ impl PortcoveService {
         };
         let inventory = self.profile_inventory(port_id)?;
         let has_profiles = !inventory.profiles.is_empty();
-        let held_updates =
-            crate::provider_auto_update::held_updates(&self.deploy_layout(port_id)?, &inventory);
+        let held_updates = crate::provider_auto_update::held_updates(&layout, &inventory);
         Ok(ModSetupsView {
             held_updates,
             port_id: port_id.into(),
