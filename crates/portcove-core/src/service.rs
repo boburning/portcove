@@ -130,6 +130,8 @@ mod game_install_review;
 mod install_batch;
 #[path = "port_intent.rs"]
 mod port_intent;
+#[path = "root_setup.rs"]
+mod root_setup;
 pub use install_batch::{
     INSTALL_BATCH_FORMAT_VERSION, InstallBatchItem, InstallBatchItemState, InstallBatchRecord,
     InstallBatchRequestItem, InstallBatchReview, InstallBatchReviewItem, InstallBatchSummary,
@@ -139,6 +141,10 @@ pub use port_intent::{
     MAX_PORT_INTENT_ASSESSMENTS, MAX_STANDING_SETUP_ATTEMPTS, PORT_INTENT_FORMAT_VERSION,
     PortIntent, PortIntentAssessment, PortIntentAssessments, PortIntentMode, PortReadiness,
     PortReadinessAcknowledgement, StandingSetupFailure, StandingSetupResult,
+};
+pub use root_setup::{
+    MAX_ROOT_SETUP_BASELINE, MAX_ROOT_SETUPS_PER_PASS, ROOT_SETUP_FORMAT_VERSION, RootSetupConsent,
+    RootSetupEnrollment, RootSetupFailure, RootSetupImplementation, RootSetupWaiting,
 };
 mod game_settings;
 #[path = "game_update_acquisition.rs"]

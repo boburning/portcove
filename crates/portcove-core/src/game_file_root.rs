@@ -169,6 +169,9 @@ impl Library {
             )
             .detail("existing_root_id", existing_id.unwrap()));
         }
+        // A future-only folder remembers what is already at the new location
+        // before it moves, so relinking never enrolls existing content.
+        self.prepare_root_setup_for_relink(id, &path)?;
         let now = Self::now();
         let changed = connection.execute(
             "UPDATE game_file_roots SET path=?2,path_key=?3,updated_at=?4 WHERE id=?1",
@@ -192,10 +195,17 @@ impl Library {
 
     pub fn remove_game_file_root(&self, id: &str) -> Result<bool> {
         validate_id(id)?;
-        Ok(self
-            .connection()?
-            .execute("DELETE FROM game_file_roots WHERE id=?1", [id])?
-            > 0)
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        // Removing a folder ends its automatic setup; installed games remain.
+        transaction.execute(
+            "DELETE FROM game_file_root_setup_baseline WHERE root_id=?1",
+            [id],
+        )?;
+        transaction.execute("DELETE FROM game_file_root_setup WHERE root_id=?1", [id])?;
+        let removed = transaction.execute("DELETE FROM game_file_roots WHERE id=?1", [id])? > 0;
+        transaction.commit()?;
+        Ok(removed)
     }
 
     #[cfg(test)]

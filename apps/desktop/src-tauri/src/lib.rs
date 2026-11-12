@@ -1222,6 +1222,58 @@ async fn acknowledge_port_readiness(
     .await
 }
 
+/// Turns automatic setup for one saved folder on (with its enrollment
+/// boundary) or off (`None`). Installed games are never changed.
+#[tauri::command]
+async fn set_root_setup_consent(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    root_id: String,
+    enrollment: Option<portcove_core::RootSetupEnrollment>,
+) -> DesktopResult<Option<portcove_core::RootSetupConsent>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        match enrollment {
+            Some(enrollment) => service
+                .set_root_setup_consent(&root_id, enrollment)
+                .map(Some)
+                .map_err(Into::into),
+            None => service
+                .remove_root_setup_consent(&root_id)
+                .map(|_| None)
+                .map_err(Into::into),
+        }
+    })
+    .await
+}
+
+/// Chooses which game a folder sets up for files several games can use.
+#[tauri::command]
+async fn set_root_setup_implementation(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    root_id: String,
+    profile_id: String,
+    port_id: String,
+) -> DesktopResult<portcove_core::RootSetupConsent> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .set_root_setup_implementation(&root_id, &profile_id, &port_id)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn get_root_setup_consents(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<Vec<portcove_core::RootSetupConsent>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.root_setup_consents().map_err(Into::into)
+    })
+    .await
+}
+
 /// Installs every set-up-when-ready game that is ready now, under the player's
 /// standing choice. Each game is re-planned and freshly authorized; none is launched.
 #[tauri::command]
@@ -3117,6 +3169,9 @@ pub fn run() -> std::process::ExitCode {
             assess_port_intents,
             acknowledge_port_readiness,
             run_standing_setup,
+            set_root_setup_consent,
+            set_root_setup_implementation,
+            get_root_setup_consents,
             cancel_install_batch,
             get_install_batch,
             add_game_file_root,

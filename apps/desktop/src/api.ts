@@ -97,6 +97,8 @@ import type {
   PortIntentMode,
   PortReadinessAcknowledgement,
   StandingSetupResult,
+  RootSetupConsent,
+  RootSetupEnrollment,
   LibraryMembership,
   LibraryMembershipOutcome,
   LibraryMembershipRequest,
@@ -688,6 +690,27 @@ export const desktopApi = {
     channel.onmessage = onEvent;
     return invoke<StandingSetupResult>("run_standing_setup", { generation, onEvent: channel });
   },
+  /** Turns automatic setup for one saved folder on, or off with `null`. Installed games are kept. */
+  setRootSetupConsent: (
+    rootId: string,
+    enrollment: RootSetupEnrollment | null,
+    generation: number,
+  ) =>
+    invoke<RootSetupConsent | null>("set_root_setup_consent", { rootId, enrollment, generation }),
+  setRootSetupImplementation: (
+    rootId: string,
+    profileId: string,
+    portId: string,
+    generation: number,
+  ) =>
+    invoke<RootSetupConsent>("set_root_setup_implementation", {
+      rootId,
+      profileId,
+      portId,
+      generation,
+    }),
+  rootSetupConsents: (generation: number) =>
+    invoke<RootSetupConsent[]>("get_root_setup_consents", { generation }),
   cancelInstallBatch: (batchId: string, generation: number) =>
     invoke<InstallBatchRecord>("cancel_install_batch", { batchId, generation }),
   installBatch: (batchId: string, generation: number) =>

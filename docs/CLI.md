@@ -776,7 +776,59 @@ authorized. It is never launched, and an installed game is never reinstalled or
 updated. A failed or interrupted attempt is not retried with the same plan; it
 becomes eligible again when the plan changes. Uninstalling a game is
 remembered, so it is not set up or reported again until you choose a mode for it.
-The desktop app runs the same pass once when a library opens.
+The desktop app runs the same pass after a library opens, after the catalog or
+registered files change, and after a choice is saved. Only one pass runs at a
+time across windows and the CLI; a busy pass is tried again about 30 seconds
+later. Nothing runs while Portcove is closed.
+
+### Set up games from a chosen folder
+
+`games folder-setup ROOT_ID MODE` turns automatic setup on or off for one saved
+game-file folder (`ROOT_ID` comes from `source roots`). It is off by default, and
+adding a folder never turns it on.
+
+| Mode                  | What is set up                                                          |
+| --------------------- | ----------------------------------------------------------------------- |
+| `existing-and-future` | Eligible games already in the folder and any found there later.         |
+| `future-only`         | Only games whose files were not in the folder when you chose this mode. |
+| `off`                 | Nothing; turning it off never changes installed games.                  |
+
+`future-only` lists the folder when you choose it and remembers every file and
+subfolder there, whether or not Portcove recognizes it yet. A file is
+remembered by its path inside the folder and size, and also by its size and
+exact modification time, so renaming or moving it inside the folder doesn't
+make it new. A game stored as a folder counts as already there if its folder
+or any file inside it was. Those files are never set up by this choice, so restarts,
+rescans, repeated events, catalog changes that recognize more files, and clock
+changes never enroll them. The folder must be available when you choose it.
+Relinking the folder to another location remembers the files already there
+too; if that location can't be listed, automatic setup for the folder is
+turned off. Choosing a mode again records a new boundary.
+
+`games setup-ready` handles these folders in the same pass as
+set-up-when-ready games, at most four folder games per pass; later passes
+continue. For each matched file in the folder, Portcove:
+
+- skips a game that is installed, is part of an unfinished batch, or has its own
+  remembered choice (that choice wins, including `ignored` and an uninstall);
+- waits, without installing, when more than one game can use the same files,
+  until you run `games folder-setup-choose ROOT_ID --files PROFILE_ID --game PORT_ID`.
+  It never sets up every fork or switches implementations on its own;
+- registers a file that is not yet registered where it is, after checking its
+  current bytes, and only inside the folder. It never replaces a different copy
+  you already use;
+- then installs the game with an ordinary one-game batch that re-plans and
+  freshly authorizes it. It never launches a game.
+
+Problems that can pass on their own, such as being offline or the game being
+busy with another task, are reported as waiting and are not counted. A game
+whose files can't be registered or whose install fails is tried again only up
+to three times with the same plan or file; it becomes eligible again when that
+changes. Each pass checks or plans at most 32 folder files. Turning automatic
+setup off takes effect before the next file is registered or installed, even
+during a pass. An unavailable folder waits and keeps its setting. Removing a folder ends its automatic setup.
+`games folder-setups` lists folders with automatic setup turned on, their
+implementation choices and recent failures, and changes nothing.
 
 ### Register and inspect
 
