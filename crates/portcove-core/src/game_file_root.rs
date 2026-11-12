@@ -55,8 +55,8 @@ pub struct GameFileScanCoverage {
     pub entries_relisted: u32,
     pub metadata_checks: u32,
     pub prior_member_rechecks: u32,
-    /// Files whose saved identity was reused because their recorded
-    /// metadata and inspector version still match. Never admission.
+    /// File identities (one per file and representation) reused because the
+    /// recorded metadata and inspector version still match. Never admission.
     #[serde(default)]
     pub observations_reused: u32,
     pub pending_directories: u32,
@@ -207,6 +207,23 @@ impl Library {
             [id],
         )?;
         transaction.execute("DELETE FROM game_file_root_setup WHERE root_id=?1", [id])?;
+        // Its saved file observations go with it.
+        if let Some(root) = transaction
+            .query_row(
+                "SELECT path_key FROM game_file_roots WHERE id=?1",
+                [id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?
+        {
+            let separator = std::path::MAIN_SEPARATOR;
+            let prefix = format!("{}{separator}", root.trim_end_matches(separator));
+            transaction.execute(
+                "DELETE FROM game_file_observations WHERE path_key=?1
+                 OR substr(path_key,1,length(?2))=?2",
+                params![root, prefix],
+            )?;
+        }
         let removed = transaction.execute("DELETE FROM game_file_roots WHERE id=?1", [id])? > 0;
         transaction.commit()?;
         Ok(removed)
@@ -317,7 +334,14 @@ impl Library {
                  identity_json=excluded.identity_json,observed_at=excluded.observed_at",
             )?;
             let now = Self::now();
-            for row in rows {
+            // Oversized facts (for example a very long ZIP member name) are
+            // simply not cached.
+            for row in rows.iter().filter(|row| {
+                row.identity_json.len() <= 16_384
+                    && row.representation.len() <= 4096
+                    && row.stamp_json.len() <= 4096
+                    && (1..=32_768).contains(&row.path.len())
+            }) {
                 statement.execute(rusqlite::params![
                     path_key(&row.path),
                     row.representation,
@@ -333,39 +357,62 @@ impl Library {
         Ok(())
     }
 
-    /// After complete coverage of the available saved folders, forget rows for
-    /// files that no longer exist there and for folders no longer saved. Rows
-    /// under an unavailable folder are kept: unseen is not deleted.
-    pub(crate) fn prune_game_file_observations(&self, roots: &[GameFileRoot]) -> Result<u32> {
-        let connection = self.connection()?;
+    /// Forget rows for files gone from an available saved folder and for
+    /// folders no longer saved. Rows under an unavailable folder are kept:
+    /// unseen is not deleted. At most 20,000 files, oldest first, are examined
+    /// per call, in one cancellable transaction.
+    pub(crate) fn prune_game_file_observations(
+        &self,
+        roots: &[GameFileRoot],
+        operation: &crate::OperationCoordinator,
+    ) -> Result<u32> {
+        const MAX_OBSERVATION_PRUNE: i64 = 20_000;
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let rows = {
-            let mut statement =
-                connection.prepare("SELECT DISTINCT path_key,path FROM game_file_observations")?;
+            let mut statement = transaction.prepare(
+                "SELECT path_key,min(path) FROM game_file_observations
+                 GROUP BY path_key ORDER BY min(observed_at) LIMIT ?1",
+            )?;
             statement
-                .query_map([], |row| {
+                .query_map([MAX_OBSERVATION_PRUNE], |row| {
                     Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
                 })?
                 .collect::<std::result::Result<Vec<_>, _>>()?
         };
         let mut removed = 0;
-        for (key, path) in rows {
-            let path_buf = PathBuf::from(&path);
-            let owner = roots.iter().find(|root| path_buf.starts_with(&root.path));
-            let gone = match owner {
-                None => true,
-                Some(root) if root.availability == GameFileRootAvailability::Available => {
-                    std::fs::symlink_metadata(&path_buf).is_err()
+        {
+            let mut forget =
+                transaction.prepare("DELETE FROM game_file_observations WHERE path_key=?1")?;
+            for (key, path) in rows {
+                operation.checkpoint()?;
+                let path = PathBuf::from(&path);
+                let gone = match roots.iter().find(|root| path.starts_with(&root.path)) {
+                    None => true,
+                    Some(root) if root.availability == GameFileRootAvailability::Available => {
+                        std::fs::symlink_metadata(&path)
+                            .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
+                    }
+                    Some(_) => false,
+                };
+                if gone {
+                    removed += forget.execute([key])? as u32;
                 }
-                Some(_) => false,
-            };
-            if gone {
-                removed += connection.execute(
-                    "DELETE FROM game_file_observations WHERE path_key=?1",
-                    [key],
-                )? as u32;
             }
         }
+        transaction.commit()?;
         Ok(removed)
+    }
+
+    /// Forget a file's saved identities after fresh verification disagreed
+    /// with them, so the next scan inspects its bytes again. Best effort.
+    pub(crate) fn forget_game_file_observation(&self, path: &Path) {
+        if let (Ok(connection), Some(path)) = (self.connection(), path.to_str()) {
+            let _ = connection.execute(
+                "DELETE FROM game_file_observations WHERE path_key=?1",
+                [path_key(path)],
+            );
+        }
     }
 
     pub(crate) fn stored_game_file_scan_payload(&self) -> Result<Option<String>> {

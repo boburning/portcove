@@ -5805,39 +5805,117 @@ fn unchanged_rescans_reuse_saved_identities_without_hashing_and_changes_rehash_o
 }
 
 #[test]
-fn complete_coverage_forgets_deleted_files_but_an_unavailable_folder_keeps_its_observations() {
+fn deleted_files_are_forgotten_while_an_unavailable_folder_keeps_its_observations() {
     let temporary = tempfile::tempdir().unwrap();
-    let root = temporary.path().join("selected");
-    fs::create_dir(&root).unwrap();
     let payload = b"supported resumable source";
-    for name in ["one.z64", "two.z64"] {
-        fs::write(root.join(name), payload).unwrap();
+    let near = temporary.path().join("near");
+    let far = temporary.path().join("far");
+    for (root, names) in [
+        (&near, ["one.z64", "two.z64"]),
+        (&far, ["three.z64", "four.z64"]),
+    ] {
+        fs::create_dir(root).unwrap();
+        for name in names {
+            fs::write(root.join(name), payload).unwrap();
+        }
     }
     let library = crate::Library::open(temporary.path().join("library")).unwrap();
-    library.add_game_file_root(&root).unwrap();
+    library.add_game_file_root(&near).unwrap();
+    library.add_game_file_root(&far).unwrap();
     let limits = SourceDiscoveryLimits::default();
     let catalog = catalog(payload);
     scan_to_end(&catalog, &library, &limits);
-    assert_eq!(observation_rows(&library), 2);
+    assert_eq!(observation_rows(&library), 4);
 
-    fs::remove_file(root.join("two.z64")).unwrap();
-    let (after_delete, _) = scan_to_end(&catalog, &library, &limits);
-    assert_eq!(
-        after_delete.coverage.as_ref().unwrap().remaining_entries,
-        Some(0)
-    );
-    assert_eq!(observation_rows(&library), 1);
-
-    // Disconnecting the folder is not deletion.
+    // One folder disconnects while a file is deleted from the other.
+    fs::remove_file(near.join("two.z64")).unwrap();
     let parked = temporary.path().join("parked");
-    fs::rename(&root, &parked).unwrap();
-    let _ = publish_saved_batch(&catalog, &library, &limits);
-    assert_eq!(observation_rows(&library), 1);
-    fs::rename(&parked, &root).unwrap();
+    fs::rename(&far, &parked).unwrap();
+    let (partial, _) = scan_to_end(&catalog, &library, &limits);
+    assert!(partial.coverage.as_ref().unwrap().frontier_exhausted);
+    assert_eq!(
+        observation_rows(&library),
+        3,
+        "only the deleted file is forgotten"
+    );
+
+    fs::rename(&parked, &far).unwrap();
     let (reconnected, _) = scan_to_end(&catalog, &library, &limits);
     assert_eq!(reconnected.report.files_hashed, 0);
     assert_eq!(
         reconnected.coverage.as_ref().unwrap().observations_reused,
-        1
+        3
     );
+
+    // Removing a saved folder forgets its observations with it.
+    let far_id = library
+        .game_file_roots()
+        .unwrap()
+        .into_iter()
+        .find(|root| root.path == fs::canonicalize(&far).unwrap())
+        .unwrap()
+        .id;
+    library.remove_game_file_root(&far_id).unwrap();
+    assert_eq!(observation_rows(&library), 1);
+}
+
+#[test]
+fn the_observation_cache_never_fails_a_scan() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    fs::write(root.join("one.z64"), payload).unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits::default();
+    let catalog = catalog(payload);
+
+    // Oversized facts are skipped rather than failing the write.
+    library
+        .record_game_file_observations(&[super::ObservationRow {
+            path: root.join("long.zip").to_str().unwrap().into(),
+            representation: "[]".into(),
+            stamp_json: "{}".into(),
+            identity_json: "x".repeat(20_000),
+        }])
+        .unwrap();
+    assert_eq!(observation_rows(&library), 0);
+
+    // An unusable store is a miss: the scan still finishes and hashes.
+    library
+        .connection()
+        .unwrap()
+        .execute("DROP TABLE game_file_observations", [])
+        .unwrap();
+    let (snapshot, _) = scan_to_end(&catalog, &library, &limits);
+    assert!(snapshot.coverage.as_ref().unwrap().frontier_exhausted);
+    assert_eq!(snapshot.report.files_hashed, 1);
+    assert_eq!(snapshot.report.candidates.len(), 2);
+}
+
+#[test]
+fn a_changed_size_limit_or_failed_verification_inspects_the_file_again() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    fs::write(root.join("one.z64"), payload).unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let mut limits = SourceDiscoveryLimits::default();
+    let catalog = catalog(payload);
+    scan_to_end(&catalog, &library, &limits);
+
+    limits.max_file_bytes -= 1;
+    let (narrower, _) = scan_to_end(&catalog, &library, &limits);
+    assert_eq!(narrower.report.files_hashed, 1);
+    assert_eq!(narrower.coverage.as_ref().unwrap().observations_reused, 0);
+
+    // Fresh verification that disagrees forgets the saved identity.
+    let (reused, _) = scan_to_end(&catalog, &library, &limits);
+    assert_eq!(reused.report.files_hashed, 0);
+    library.forget_game_file_observation(&fs::canonicalize(root.join("one.z64")).unwrap());
+    let (healed, _) = scan_to_end(&catalog, &library, &limits);
+    assert_eq!(healed.report.files_hashed, 1);
 }

@@ -1299,7 +1299,7 @@ pub(crate) fn game_file_scan(snapshot: &GameFileScanSnapshot) -> String {
     }
     if let Some(coverage) = &snapshot.coverage {
         output.push_str(&format!(
-            "\nScan batches: {}; this batch examined {} entries, re-listed {} entries, and made {} metadata checks.\nPrior-batch file-set members rehashed: {}.\nUnchanged files reused without rehashing: {}.\nPending directories: {}. Remaining entries: {}.",
+            "\nScan batches: {}; this batch examined {} entries, re-listed {} entries, and made {} metadata checks.\nPrior-batch file-set members rehashed: {}.\nSaved file identities reused without rehashing: {}.\nPending directories: {}. Remaining entries: {}.",
             coverage.batches, coverage.batch_entries_examined, coverage.entries_relisted,
             coverage.metadata_checks, coverage.prior_member_rechecks, coverage.observations_reused,
             coverage.pending_directories,
@@ -3315,7 +3315,7 @@ mod tests {
             ..Default::default()
         });
         let output = super::game_file_scan(&snapshot);
-        assert!(output.contains("Unchanged files reused without rehashing: 4."));
+        assert!(output.contains("Saved file identities reused without rehashing: 4."));
         assert!(output.contains("Scan batches: 2; this batch examined 1 entries"));
         assert!(output.contains("Remaining entries: unknown"));
         assert!(output.contains("same limits to resume"));

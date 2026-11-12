@@ -47,8 +47,9 @@ impl HashBudget<'_> {
 }
 
 /// Version of the file and ZIP identity facts below. Bump it whenever hashing,
-/// ZIP member selection or canonical normalization changes, so saved
-/// observations from an older inspector are never reused.
+/// ZIP member selection, ZIP validation or rejection policy, or canonical
+/// normalization changes, so saved observations from an older inspector are
+/// never reused to skip a check that would now refuse the file.
 pub(crate) const IDENTITY_INSPECTOR_VERSION: i64 = 1;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]

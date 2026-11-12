@@ -184,6 +184,69 @@ impl ScanContinuation {
     }
 }
 
+/// Exact metadata key for reusing a saved identity: the scan stamp plus, on
+/// Windows, the volume and file identifier and the NTFS change time that the
+/// stamp lacks (an in-place rewrite keeps size, times and creation date but
+/// changes the change time). Without a strong key a file is never reused.
+fn observation_key(path: &Path) -> Result<Option<String>> {
+    let Some(stamp) = ScanEntryStamp::read(path)? else {
+        return Ok(None);
+    };
+    if stamp.kind != 0 {
+        return Ok(None);
+    }
+    #[cfg(unix)]
+    let strong = stamp.object.is_some().then_some(());
+    #[cfg(windows)]
+    let strong = windows_change_identity(path);
+    #[cfg(not(any(unix, windows)))]
+    let strong: Option<()> = None;
+    let Some(strong) = strong else {
+        return Ok(None);
+    };
+    Ok(Some(serde_json::to_string(&(stamp, strong))?))
+}
+
+#[cfg(windows)]
+fn windows_change_identity(path: &Path) -> Option<(u64, [u8; 16], i64)> {
+    use std::{
+        mem::{size_of, zeroed},
+        os::windows::io::AsRawHandle,
+    };
+    use windows_sys::Win32::Storage::FileSystem::{
+        FILE_BASIC_INFO, FILE_ID_INFO, FileBasicInfo, FileIdInfo, GetFileInformationByHandleEx,
+    };
+    let file = fs::File::open(path).ok()?;
+    // SAFETY: zeroed plain-data Win32 output structures are valid initial values.
+    let mut id: FILE_ID_INFO = unsafe { zeroed() };
+    // SAFETY: as above.
+    let mut basic: FILE_BASIC_INFO = unsafe { zeroed() };
+    // SAFETY: each output buffer is initialized, sized for its information
+    // class, and the borrowed handle stays open for both calls.
+    let identified = unsafe {
+        GetFileInformationByHandleEx(
+            file.as_raw_handle() as _,
+            FileIdInfo,
+            std::ptr::from_mut(&mut id).cast(),
+            size_of::<FILE_ID_INFO>() as u32,
+        )
+    } != 0;
+    // SAFETY: as above.
+    let timed = unsafe {
+        GetFileInformationByHandleEx(
+            file.as_raw_handle() as _,
+            FileBasicInfo,
+            std::ptr::from_mut(&mut basic).cast(),
+            size_of::<FILE_BASIC_INFO>() as u32,
+        )
+    } != 0;
+    (identified && timed).then_some((
+        id.VolumeSerialNumber,
+        id.FileId.Identifier,
+        basic.ChangeTime,
+    ))
+}
+
 /// One reusable file identity for a saved scan, written after the batch.
 pub(crate) struct ObservationRow {
     pub path: String,
@@ -226,6 +289,16 @@ impl ObservationReuse {
             .optional()?;
         // A malformed row is ignored and replaced by fresh inspection.
         Ok(identity.and_then(|json| serde_json::from_str(&json).ok()))
+    }
+
+    /// The cache never fails a scan: an unreadable store is a miss.
+    fn find(
+        &self,
+        path: &str,
+        representation: &str,
+        key: &str,
+    ) -> Option<crate::source_file::FileIdentity> {
+        self.lookup(path, representation, key).ok().flatten()
     }
 }
 
@@ -597,9 +670,11 @@ fn build_game_file_scan_with_registry_events(
         && report.issues.is_empty()
         && report.issues_omitted == 0)
         .then_some(0);
-    if remaining_entries == Some(0) {
-        // Complete coverage of every available saved folder confirms deletion.
-        library.prune_game_file_observations(&roots)?;
+    if frontier_exhausted {
+        // Rows for files that are gone from an available saved folder, or for
+        // folders no longer saved, are forgotten; an unavailable folder keeps
+        // its rows. Best effort and bounded: the cache never fails a scan.
+        let _ = library.prune_game_file_observations(&roots, operation);
     }
     let coverage = crate::GameFileScanCoverage {
         batches: resumed
@@ -1439,7 +1514,8 @@ fn scan_with_continuation<'a>(
     if let (Some(reuse), Some(library)) = (discovery.reuse.take(), output_library) {
         observations_reused = reuse.reused;
         drop(reuse.connection);
-        library.record_game_file_observations(&reuse.fresh)?;
+        // A cache write failure only costs a later rehash; it never fails the scan.
+        let _ = library.record_game_file_observations(&reuse.fresh);
     }
     Ok(ScanBatch {
         report: discovery.report,
@@ -2035,20 +2111,22 @@ impl Discovery<'_> {
         path: &Path,
         extensions: &[String],
     ) -> Result<crate::source_file::FileIdentity> {
+        // The size limit is part of the representation: ZIP member sizes are
+        // checked while hashing, so a changed limit must inspect again.
         let saved = match (&self.reuse, path.to_str()) {
-            (Some(_), Some(text)) => ScanEntryStamp::read(path)?
+            (Some(_), Some(text)) => observation_key(path)?
                 .map(|stamp| {
                     Ok::<_, PortcoveError>((
                         text.to_owned(),
-                        serde_json::to_string(extensions)?,
-                        serde_json::to_string(&stamp)?,
+                        serde_json::to_string(&(extensions, self.limits.max_file_bytes))?,
+                        stamp,
                     ))
                 })
                 .transpose()?,
             _ => None,
         };
         if let (Some(reuse), Some((text, representation, stamp))) = (&mut self.reuse, &saved)
-            && let Some(identity) = reuse.lookup(text, representation, stamp)?
+            && let Some(identity) = reuse.find(text, representation, stamp)
         {
             reuse.reused += 1;
             return Ok(identity);
@@ -2060,11 +2138,7 @@ impl Discovery<'_> {
             &mut self.budget,
         )?;
         if let (Some(reuse), Some((text, representation, stamp))) = (&mut self.reuse, saved)
-            && ScanEntryStamp::read(path)?
-                .map(|after| serde_json::to_string(&after))
-                .transpose()?
-                .as_ref()
-                == Some(&stamp)
+            && observation_key(path)?.as_ref() == Some(&stamp)
         {
             reuse.fresh.push(ObservationRow {
                 path: text,
