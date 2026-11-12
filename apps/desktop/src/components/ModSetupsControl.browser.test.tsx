@@ -214,6 +214,7 @@ it("offers to read again when the view cannot be refreshed after a change", asyn
 it("explains a held unattended update for the setup in use", async () => {
   vi.spyOn(desktopApi, "modSetups").mockResolvedValue(
     view({
+      provider: "gamebanana",
       held_updates: [
         {
           profile_id: "default",
@@ -381,7 +382,7 @@ it("words held updates with the locale's plural forms", async () => {
       reason: "the newer file changes which mods it contains",
     });
     vi.spyOn(desktopApi, "modSetups").mockResolvedValue(
-      view({ held_updates: [held("11"), held("12")] }),
+      view({ provider: "gamebanana", held_updates: [held("11"), held("12")] }),
     );
     const host = await render();
     expect(host.textContent).toContain("أبقى Portcove الإصدارين الحاليين");
@@ -514,4 +515,27 @@ it("adds a mod without code, or code allowed before, without asking", async () =
     "c".repeat(64),
   );
   expect(host.textContent).not.toContain("runs its own code");
+});
+
+it("points held updates for a game Desktop can't review yet to the command line", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(
+    view({
+      provider: "thunderstore",
+      held_updates: [
+        {
+          profile_id: "default",
+          native_ids: ["hd.o2r"],
+          project_id: "Owner-Timer",
+          candidate_file_id: "1.1.0",
+          reason: "the update runs its own code inside the game; review it to allow that code",
+        },
+      ],
+    }),
+  );
+  const host = await render();
+  expect(host.textContent).toContain("Desktop can’t review updates for this game’s mods yet");
+  expect(host.textContent).not.toContain("Find mods on GameBanana");
+  const commands = [...host.querySelectorAll("code[dir=ltr]")].map((code) => code.textContent);
+  expect(commands).toContain("portcove profile provider-plan");
+  expect(commands).toContain("portcove profile provider-apply");
 });

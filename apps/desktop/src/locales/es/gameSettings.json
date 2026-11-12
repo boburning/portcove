@@ -100,7 +100,10 @@
       "item": "<mods />: <reason />",
       "next_one": "Para instalarla de todos modos, busca el mod con Buscar mods en GameBanana más abajo y revisa el archivo más reciente. O déjala: Portcove vuelve a comprobarlo cuando este perfil cambie o el mod ofrezca otro archivo.",
       "next_many": "Para instalarlas de todos modos, busca cada mod con Buscar mods en GameBanana más abajo y revisa su archivo más reciente. O déjalas: Portcove vuelve a comprobarlo cuando este perfil cambie o un mod ofrezca otro archivo.",
-      "next_other": "Para instalarlas de todos modos, busca cada mod con Buscar mods en GameBanana más abajo y revisa su archivo más reciente. O déjalas: Portcove vuelve a comprobarlo cuando este perfil cambie o un mod ofrezca otro archivo."
+      "next_other": "Para instalarlas de todos modos, busca cada mod con Buscar mods en GameBanana más abajo y revisa su archivo más reciente. O déjalas: Portcove vuelve a comprobarlo cuando este perfil cambie o un mod ofrezca otro archivo.",
+      "nextCli_one": "Todavía no puedes revisar en Desktop las actualizaciones de los mods de este juego. Para instalarla de todos modos, revisa la versión más reciente con <plan /> y aplícala con <apply />. O déjala así: Portcove vuelve a comprobar cuando cambie este perfil o el mod ofrezca otra versión.",
+      "nextCli_many": "Todavía no puedes revisar en Desktop las actualizaciones de los mods de este juego. Para instalarlas de todos modos, revisa cada versión más reciente con <plan /> y aplícala con <apply />. O déjalas así: Portcove vuelve a comprobar cuando cambie este perfil o un mod ofrezca otra versión.",
+      "nextCli_other": "Todavía no puedes revisar en Desktop las actualizaciones de los mods de este juego. Para instalarlas de todos modos, revisa cada versión más reciente con <plan /> y aplícala con <apply />. O déjalas así: Portcove vuelve a comprobar cuando cambie este perfil o un mod ofrezca otra versión."
     },
     "intro": "Un perfil es un conjunto de mods con sus propias partidas guardadas y ajustes. Al cambiar de perfil, se guardan aparte las partidas y los ajustes del perfil actual y se recuperan los del otro perfil. Desactivar un mod lo quita de la carpeta de mods del juego; su archivo se queda en Portcove para que puedas volver a activarlo.",
     "inUse": "En uso",

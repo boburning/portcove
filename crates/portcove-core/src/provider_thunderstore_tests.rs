@@ -265,3 +265,100 @@ async fn code_from_thunderstore_needs_explicit_consent_and_never_updates_unatten
     );
     assert_eq!(live(&w), ["speed_timer.nrm"]);
 }
+
+#[tokio::test]
+async fn recomp_plans_compare_no_asset_entries_and_unattended_updates_take_the_newest_version() {
+    let w = world();
+    let plan = w
+        .service
+        .plan_provider_install_via(&w.client, PORT, &w.profile, "Owner-Timer", "1.0.0")
+        .await
+        .unwrap();
+    let token = w.service.authorize_provider_install(&plan).unwrap().token;
+    w.service.apply_provider_install(&plan, &token).unwrap();
+    w.service
+        .set_profile_update_policy(
+            PORT,
+            &w.profile,
+            crate::ProfileUpdatePolicy::AutomaticEligible,
+        )
+        .unwrap();
+    for (version, created, marker) in [
+        ("1.1.0", "2026-11-05T00:00:00Z", "b"),
+        ("1.2.0", "2026-11-06T00:00:00Z", "c"),
+    ] {
+        let bytes = zip_bytes(&[
+            ("mod.json", &serde_json::to_vec(&serde_json::json!({
+                "game_id": "mm", "id": "speed_timer", "display_name": "Timer", "version": "1.0.0",
+                "authors": ["someone"], "minimum_recomp_version": "1.2.0",
+            })).unwrap()),
+            ("textures/a.png", marker.as_bytes()),
+        ]);
+        w.versions.lock().unwrap().push((
+            version.into(),
+            created.into(),
+            package_zip("timer.nrm", &bytes),
+        ));
+    }
+    // An enabled Recomp mod's entries (mod.json and so on) are not conflicts.
+    let plan = w
+        .service
+        .plan_provider_install_via(&w.client, PORT, &w.profile, "Owner-Timer", "1.1.0")
+        .await
+        .unwrap();
+    assert!(plan.conflicts.is_empty(), "{:?}", plan.conflicts);
+    assert_eq!(plan.members[0].asset_count, 0);
+    w.service.discard_provider_install(&plan).unwrap();
+    // Two newer versions of one line: the newest is applied.
+    let results = w
+        .service
+        .run_eligible_provider_updates_via(&w.client, PORT)
+        .await
+        .unwrap();
+    assert!(
+        matches!(&results[0].outcome, ProviderAutoUpdateOutcome::Applied { file_id, .. } if file_id == "1.2.0"),
+        "{:?}",
+        results[0].outcome
+    );
+}
+
+#[test]
+fn a_backport_published_after_a_newer_release_is_not_an_update() {
+    let client = ProviderClient::Thunderstore {
+        client: ThunderstoreClient::with_root("http://127.0.0.1:9", None).unwrap(),
+        community: COMMUNITY,
+    };
+    let file = |version: &str, added_at: i64| crate::ProviderFileCandidate {
+        file_id: version.into(),
+        file_name: format!("Owner-Timer-{version}.zip"),
+        size: 1,
+        added_at,
+        download_url: String::new(),
+        claimed_md5: None,
+        archived: false,
+        claimed_scan: None,
+    };
+    let installed = file("2.0.0", 10);
+    assert!(!client.newer_than(&file("1.9.1", 20), "2.0.0", Some(&installed)));
+    assert!(client.newer_than(&file("2.0.1", 20), "2.0.0", Some(&installed)));
+    // No longer listed: only a higher version number counts.
+    assert!(client.newer_than(&file("2.1.0", 1), "2.0.0", None));
+    assert!(!client.newer_than(&file("1.0.0", 99), "2.0.0", None));
+}
+
+#[tokio::test]
+async fn a_plan_stripped_of_its_code_marking_cannot_install_code_without_consent() {
+    let w = world();
+    w.versions.lock().unwrap()[0].2 = package_zip("timer.nrm", &nrm("speed_timer", true));
+    let plan = w
+        .service
+        .plan_provider_install_via(&w.client, PORT, &w.profile, "Owner-Timer", "1.0.0")
+        .await
+        .unwrap();
+    let mut forged = plan.clone();
+    forged.members[0].runs_code.clear();
+    forged.plan_sha256 = crate::provider_install::digest(&forged).unwrap();
+    let token = w.service.authorize_provider_install(&forged).unwrap().token;
+    assert!(w.service.apply_provider_install(&forged, &token).is_err());
+    assert!(live(&w).is_empty(), "nothing was installed");
+}

@@ -232,7 +232,21 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                     </li>
                   ))}
                 </ul>
-                <p>{t("mods.held.next", { count: heldUpdates.length })}</p>
+                <p>
+                  {view.provider === "gamebanana" ? (
+                    t("mods.held.next", { count: heldUpdates.length })
+                  ) : (
+                    <Trans
+                      t={t}
+                      i18nKey="mods.held.nextCli"
+                      count={heldUpdates.length}
+                      components={{
+                        plan: <code dir="ltr">portcove profile provider-plan</code>,
+                        apply: <code dir="ltr">portcove profile provider-apply</code>,
+                      }}
+                    />
+                  )}
+                </p>
               </div>
             </Notice>
           )}

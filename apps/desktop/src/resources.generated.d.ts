@@ -1322,6 +1322,8 @@ export default interface Resources {
         "intro_one": "Portcove kept the current version of a mod because its update needs your review:",
         "intro_other": "Portcove kept the current versions of some mods because their updates need your review:",
         "item": "<mods />: <reason />",
+        "nextCli_one": "Desktop can’t review updates for this game’s mods yet. To install it anyway, review the newer version with <plan />, then apply it with <apply />. Or leave it: Portcove checks again when this setup changes or the mod offers another version.",
+        "nextCli_other": "Desktop can’t review updates for this game’s mods yet. To install them anyway, review each newer version with <plan />, then apply it with <apply />. Or leave them: Portcove checks again when this setup changes or a mod offers another version.",
         "next_one": "To install it anyway, find the mod with Find mods on GameBanana below and review the newer file. Or leave it: Portcove checks again when this setup changes or the mod offers another file.",
         "next_other": "To install them anyway, find each mod with Find mods on GameBanana below and review its newer file. Or leave them: Portcove checks again when this setup changes or a mod offers another file."
       },

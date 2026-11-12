@@ -171,6 +171,10 @@ fn hold_reason(
             list(had.difference(&brought).copied().collect()),
         ));
     }
+    // Recomp mods' entries are not compared (which mod wins is not established).
+    if crate::native_mod_list::recomp_game(&plan.port_id).is_some() {
+        return None;
+    }
     let staged = layout.staged(&plan.plan_sha256);
     let replacement = plan
         .members
@@ -192,6 +196,19 @@ fn hold_reason(
         );
     }
     None
+}
+
+/// The update a pass would take: the only newer file, or for Thunderstore, whose
+/// versions form one line, the newest. Several GameBanana files are a choice.
+fn chosen_candidate<'a>(
+    client: &ProviderClient,
+    observation: &'a crate::ProviderUpdateObservation,
+) -> Option<&'a crate::ProviderFileCandidate> {
+    match (client, observation.newer_files.as_slice()) {
+        (_, [candidate]) => Some(candidate),
+        (ProviderClient::Thunderstore { .. }, [.., newest]) => Some(newest),
+        _ => None,
+    }
 }
 
 fn hold_key(
@@ -468,8 +485,8 @@ impl PortcoveService {
         let outcome = self
             .update_one_inner(client, layout, port_id, profile_id, installed)
             .await;
-        let current_key = match (&outcome, installed.observation.newer_files.as_slice()) {
-            (Some(ProviderAutoUpdateOutcome::Held { .. }), [candidate]) => self
+        let current_key = match (&outcome, chosen_candidate(client, installed.observation)) {
+            (Some(ProviderAutoUpdateOutcome::Held { .. }), Some(candidate)) => self
                 .library
                 .connection()
                 .and_then(|connection| profile::current_revision(&connection, port_id, profile_id))
@@ -528,7 +545,9 @@ impl PortcoveService {
         if let Some(reason) = &observation.reason {
             return held(reason);
         }
-        let [candidate] = observation.newer_files.as_slice() else {
+        // Thunderstore versions form one line, so the newest one is the update;
+        // several GameBanana files are a choice for the player.
+        let Some(candidate) = chosen_candidate(client, observation) else {
             return held("the provider offers several newer files; choose one");
         };
         if installed.packages.iter().any(|package| !package.enabled) {

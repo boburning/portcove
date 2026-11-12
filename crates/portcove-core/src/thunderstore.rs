@@ -22,7 +22,8 @@ use crate::{
 pub const PROVIDER: &str = "thunderstore";
 const WEB_ROOT: &str = "https://thunderstore.io";
 /// A community listing with more packages than this is refused rather than
-/// silently truncated.
+/// silently truncated. The 4 MiB response bound (about 1,700 packages at today's
+/// density) is reached first and also fails closed; this guards parsed data.
 const MAX_PACKAGES: usize = 20_000;
 /// More versions than this in one package is refused, so a newer one is never missed.
 const MAX_VERSIONS: usize = 1024;

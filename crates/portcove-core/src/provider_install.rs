@@ -102,7 +102,7 @@ pub struct ProviderInstallPlan {
     pub plan_sha256: String,
 }
 
-fn digest(plan: &ProviderInstallPlan) -> Result<String> {
+pub(crate) fn digest(plan: &ProviderInstallPlan) -> Result<String> {
     let mut copy = plan.clone();
     copy.plan_sha256.clear();
     Ok(hex::encode(Sha256::digest(serde_json::to_vec(&copy)?)))
@@ -287,10 +287,17 @@ impl PortcoveService {
             None => member_paths,
         };
 
+        // Recomp packages are reviewed through their manifests; which of two mods
+        // wins an asset is not established for that loader, so their entries are
+        // not compared, as for a local install.
+        let compares_assets = crate::native_mod_list::recomp_game(port_id).is_none();
         let mut members = Vec::new();
         let mut inspections = Vec::new();
         for path in &member_paths {
-            let inspection = inspect_asset_archive(path)?;
+            let mut inspection = inspect_asset_archive(path)?;
+            if !compares_assets {
+                inspection.asset_paths.clear();
+            }
             if let Some(hold) = inspection.holds.first() {
                 return Err(PortcoveError::unsupported(format!(
                     "a package in the download is held: {hold:?}"
@@ -313,7 +320,11 @@ impl PortcoveService {
 
         // Conflicts are reported against what the profile has enabled now.
         let mut existing_assets = Vec::new();
-        for package in current.packages.iter().filter(|package| package.enabled) {
+        for package in current
+            .packages
+            .iter()
+            .filter(|package| compares_assets && package.enabled)
+        {
             let stored = layout.package(&package.sha256, &package.native_id);
             if let Ok(inspection) = inspect_asset_archive(&stored) {
                 existing_assets.push((package.native_id.clone(), inspection.asset_paths));
@@ -498,8 +509,8 @@ impl PortcoveService {
     ) -> Result<ProfileRevision> {
         let layout = self.deploy_layout(&plan.port_id)?;
         // A plan is caller-supplied data: re-establish what planning established.
-        let bound = ProviderClient::for_port(&self.library, &plan.port_id).ok();
-        if bound.is_none_or(|client| plan.provider.provider != client.provider())
+        if bound_provider(&plan.port_id)
+            .is_none_or(|(provider, _)| plan.provider.provider != provider)
             || plan.members.is_empty()
             || plan
                 .members

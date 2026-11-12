@@ -134,8 +134,11 @@ impl ProviderClient {
                 candidate.file_id.parse::<u64>().unwrap_or_default()
                     > installed_id.parse::<u64>().unwrap_or_default()
             }
+            // Published later and numbered higher: a backport published after a
+            // newer release is never offered as an update.
             (Self::Thunderstore { .. }, Some(installed)) => {
-                self.order_key(candidate) > self.order_key(installed)
+                candidate.added_at > installed.added_at
+                    && version_parts(&candidate.file_id) > version_parts(&installed.file_id)
             }
             // No longer listed: only a higher version number counts as newer.
             (Self::Thunderstore { .. }, None) => {

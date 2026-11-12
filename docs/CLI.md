@@ -1906,13 +1906,15 @@ compatibility, and a `stale` result is earlier data from an outage.
 `provider-plan` needs a reviewed binding and a current provider observation; cached
 data from an outage never produces a plan. It refuses another game's project, an
 obsolete or archived file and a file the provider's scan reports as infected, and it
-checks the file type before downloading. It downloads privately (following only the
+checks a GameBanana file's type before downloading (a Thunderstore version is always
+a zip). It downloads privately (following only the
 provider's own hosts, enforcing the declared size), unwraps only the loader's package
 members (`.o2r`/`.otr`, or `.nrm`) from a zip wrapper, inspects them without
 executing anything, and reports replacements and asset-path conflicts against the
 profile's enabled packages. Recomp members are reviewed as local installs are: named
 by manifest mod ID, another game's mod refused, and each member's `runs_code` lists
-the code it would run. The plan binds the
+the code it would run; their entries are not compared for conflicts, because which of
+two Recomp mods wins is not established. The plan binds the
 computed SHA-256 of the actual bytes. The provider's MD5 and scan results are shown
 as unverified claims. A displayed version label does not identify bytes; the file ID
 and computed digest do.
@@ -1984,10 +1986,12 @@ file with the same checks as `provider-plan`, and authorizes and applies that ex
 plan at once.
 
 Updates are decided per installed provider file. One is applied only when the
-observation is current, the provider offers exactly one newer file, every mod from
+observation is current, the provider offers exactly one newer file (for Thunderstore,
+whose versions form one line, the newest version published after and numbered above
+the installed one), every mod from
 the installed file is on, the newer file contains exactly the same mods, and no
 asset that two enabled mods both change gets a different winner (an overlap that
-already exists and stays the same does not hold an update). Several newer files, a
+already exists and stays the same does not hold an update). Several newer GameBanana files, a
 mod that is off and an obsolete project are held before anything is downloaded.
 Results are reported in `mod_updates`, one per installed file:
 
