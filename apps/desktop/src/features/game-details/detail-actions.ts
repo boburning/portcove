@@ -112,8 +112,12 @@ export function detailActions({
         dismissInstallReview();
       }
     },
-    launch: () =>
-      perform("launch", () => desktopApi.launch(port.id, sourcePath, libraryGeneration)),
+    launch: (disc?: number) =>
+      perform("launch", () =>
+        disc === undefined
+          ? desktopApi.launch(port.id, sourcePath, libraryGeneration)
+          : desktopApi.launch(port.id, sourcePath, libraryGeneration, disc),
+      ),
     openUserData: () =>
       perform("open data folder", () => desktopApi.openUserData(port.id, libraryGeneration), {
         refresh: "none",

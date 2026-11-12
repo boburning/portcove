@@ -102,6 +102,25 @@ it("shows why the last launch failed on an installed game's details page, with O
   expect(openActivity).toHaveBeenCalled();
 });
 
+it("starts the chosen disc of a managed multi-disc game and defaults to disc 1", async () => {
+  vi.spyOn(desktopApi, "launchFailure").mockResolvedValue(null);
+  const props = installedSourceDetail("alexbeav-ace-combat-3-electrosphere-recomp", "current");
+  const status = {
+    ...props.status,
+    readiness: { ...props.status.readiness, selectable_discs: 2 },
+  };
+  await render(<DetailPanel {...props} status={status} />);
+  const play = document.querySelector<HTMLButtonElement>("[data-launch-action]");
+  expect(play).not.toBeNull();
+  await userEvent.click(play!);
+  expect(props.actions.launch).toHaveBeenLastCalledWith(1);
+  await page.getByRole("combobox", { name: "Disc to start Disc 1" }).click();
+  await page.getByRole("option", { name: "Disc 2", exact: true }).click();
+  await expect.element(page.getByRole("combobox", { name: "Disc to start Disc 2" })).toBeVisible();
+  await userEvent.click(play!);
+  expect(props.actions.launch).toHaveBeenLastCalledWith(2);
+});
+
 it("shows no launch-failure notice when the last launch has nothing to explain", async () => {
   const props = installedSourceDetail("road-rash-64-recompiled", "not_checked");
   vi.spyOn(desktopApi, "launchFailure").mockResolvedValue(null);

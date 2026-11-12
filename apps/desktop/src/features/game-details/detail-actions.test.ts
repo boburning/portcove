@@ -106,6 +106,27 @@ describe("detail actions", () => {
     expect(desktopApi.check).toHaveBeenCalledExactlyOnceWith(port.id, 17);
   });
 
+  it("forwards only an explicit disc choice with the launch request", async () => {
+    const launch = vi
+      .spyOn(desktopApi, "launch")
+      .mockResolvedValue({ processId: null, sessionId: "session" });
+    const actions = detailActions({
+      port,
+      status: undefined,
+      sourcePath: "",
+      biosPath: "",
+      perform: async (_name, task) => task(),
+      close: vi.fn(),
+      libraryGeneration: 4,
+    });
+    await actions.launch();
+    await actions.launch(2);
+    expect(launch.mock.calls).toEqual([
+      [port.id, "", 4],
+      [port.id, "", 4, 2],
+    ]);
+  });
+
   it("refreshes persisted workspace state after checking one port", async () => {
     vi.spyOn(desktopApi, "check").mockResolvedValue(undefined!);
     const perform = vi.fn(async (_name: string, task: () => Promise<unknown>) =>

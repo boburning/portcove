@@ -9,6 +9,7 @@ import { ListingMaintenanceFacts } from "../features/browsing/ListingMaintenance
 import { gameFilesPresentation } from "../features/port-actions/browse-presentation";
 import { CurrentStateSummary, ManagementRow } from "./ui/patterns";
 import { DetailLayout } from "./DetailLayout";
+import { ChoiceSelect } from "./ChoiceSelect";
 import { SetupStatement, UpdateNoticePreferences, type DetailOrganization } from "./DetailChoices";
 import {
   initialDetailSection,
@@ -124,7 +125,8 @@ export interface DetailActions {
   deleteBackup: ApplyBackupAction;
   dismissInstallReview: () => void;
   install: AsyncAction;
-  launch: AsyncAction;
+  /** `disc` is an ephemeral 1-based choice Core validates for managed multi-disc games. */
+  launch: (disc?: number) => void | Promise<unknown>;
   openUserData: AsyncAction;
   openSetupFolder?: AsyncAction;
   reviewInstall: AsyncAction;
@@ -2201,6 +2203,7 @@ function InstalledPlayActions({
   launchReady,
   pendingSetup,
   stagedVersion,
+  selectableDiscs = 0,
   busy,
   actions,
 }: {
@@ -2211,9 +2214,13 @@ function InstalledPlayActions({
   launchReady: boolean;
   pendingSetup: boolean;
   stagedVersion?: string | undefined;
+  selectableDiscs?: number | undefined;
   busy?: string | undefined;
   actions: DetailActions;
 }) {
+  // Ephemeral per-view choice: Core receives it with this launch only.
+  const [disc, setDisc] = useState("1");
+  const discChoice = selectableDiscs > 1 ? Math.min(Number(disc), selectableDiscs) : undefined;
   if (preparationRequired)
     return <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />;
   const presentation = installedPlayPresentation(launchReady, trial, pendingSetup);
@@ -2225,6 +2232,20 @@ function InstalledPlayActions({
         hero && "detail-hero-primary",
       )}
     >
+      {discChoice !== undefined && (
+        <ChoiceSelect
+          inline
+          showInlineLabel={false}
+          label="Disc to start"
+          value={String(discChoice)}
+          options={Array.from({ length: selectableDiscs }, (_, index) => ({
+            value: String(index + 1),
+            label: `Disc ${index + 1}`,
+          }))}
+          disabled={!launchReady || Boolean(busy)}
+          onChange={setDisc}
+        />
+      )}
       <Button
         data-focusable
         data-launch-action
@@ -2237,7 +2258,7 @@ function InstalledPlayActions({
         focusableWhenDisabled={launchReady && Boolean(busy)}
         aria-busy={launchReady && Boolean(busy)}
         onClick={() => {
-          void actions.launch();
+          void actions.launch(discChoice);
         }}
       >
         <Icon
@@ -4232,6 +4253,7 @@ function DetailHeaderAction({
       launchReady={model.launchReady}
       pendingSetup={model.pendingSetup}
       stagedVersion={undefined}
+      selectableDiscs={model.status?.readiness?.selectable_discs ?? undefined}
       busy={busy}
       actions={model.actions}
     />
