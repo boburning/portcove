@@ -1049,8 +1049,20 @@ fn curated_catalog_with_preserved_location(location: Option<String>) -> Catalog 
         record.record_version = 2;
         record.preserved_locations = vec![location.replace("{sha256}", &record.sha256)];
     }
-    // The fixture port must declare the host platform the record is keyed by.
+    // The fixture port must declare the host platform the record is keyed by,
+    // with that platform's executable contract, as the sibling curated fixtures do.
     port.platforms = vec![platform];
+    port.executable_hints = std::collections::BTreeMap::from([(
+        platform,
+        vec![
+            if cfg!(windows) {
+                "fixture.exe"
+            } else {
+                "fixture"
+            }
+            .into(),
+        ],
+    )]);
     port.release.curated.insert(platform, record);
     document.ports[0] = port;
     Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
