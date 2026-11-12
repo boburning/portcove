@@ -1,0 +1,34 @@
+{
+  "actions": {
+    "artwork": "Cambiar ilustración",
+    "more": "Más acciones para {{name}}",
+    "project": "Proyecto original",
+    "steam": "Acceso directo de Steam"
+  },
+  "identity": {
+    "label": "Identidad del juego y de la adaptación",
+    "offeredChannel": "Canal de actualización ofrecido",
+    "originalSystem": "Sistema original",
+    "originalSystemUnspecified": "Sistema original no especificado",
+    "runsOn": "Funciona en",
+    "selectedChannel": "Canal de actualización seleccionado"
+  },
+  "requirements": {
+    "fallback": "Revisa Archivos del juego y las instrucciones del proyecto original para conocer los requisitos de esta adaptación.",
+    "heading": "Requisitos"
+  },
+  "resources": {
+    "heading": "Proyecto y soporte",
+    "support": "Crear un informe de soporte",
+    "supportNote": "Guarda y revisa localmente un informe con datos ocultos antes de decidir compartirlo.",
+    "website": "Sitio web del proyecto"
+  },
+  "section": {
+    "files": "Archivos del juego",
+    "label": "Secciones de detalles del juego",
+    "manage": "Administrar",
+    "overview": "Resumen",
+    "saves": "Partidas y copias de seguridad",
+    "versions": "Versiones y actualizaciones"
+  }
+}
