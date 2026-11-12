@@ -38241,7 +38241,7 @@
         "$ref": "#/$defs/ProviderPackageRef"
       },
       "replaces": {
-        "description": "Installed packages with the same native ID but different bytes.",
+        "description": "Installed packages this plan replaces: the same native ID with different\nbytes, or a package the game loads as the same mod under another extension.",
         "items": {
           "type": "string"
         },

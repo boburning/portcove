@@ -1723,19 +1723,22 @@ list. Portcove writes that entry from the selected revision after every change,
 switch and before each launch, keeping every other key in the file. The
 `asset-override` order is the list order; the game adds archives in that order and
 the last one providing an asset wins. Only the profile's own entries are rewritten:
-entries for mods the player placed in `mods` themselves keep their positions. Two
-package files the game would load as one mod (the same name without extension,
-ignoring case) and names containing `|<>"?*` are refused when a revision is created,
-and a switch to an older revision with such packages refuses before anything is
-parked.
+entries for mods the player placed in `mods` themselves keep their positions.
+Installing a package the game would load as an installed mod (the same name without
+extension, ignoring case, such as `HD Link.o2r` for `HD Link.otr`) replaces it and
+keeps its place in the order; `provider-plan` reports it under `replaces`. Two such
+packages in one provider file, and names containing `|<>"?*`, are refused before
+anything is authorized. A revision the game could not load unambiguously is refused
+when it is created, including a new profile from a recipe (whose plan holds it), and
+a switch to an older revision with such packages refuses before anything is parked.
 
 `profile live` reports `native_list`: `in-sync`, `not-written`, `reordered`,
 `differs` (with `missing` and `unexpected` names) or `unreadable`. A reorder made in
 the game's mod menu (the same mods in another order) is kept as the profile's next
 revision when supervised play ends (or, if that cannot be recorded, at the next
-profile change or launch). A revision created this way changes the profile's
-revision number, so a plan reviewed against the earlier revision must be reviewed
-again. Any other difference among the profile's own entries, such as a mod
+profile change or launch). A revision created this way changes only the order, so
+an install, a mod turned on or off, or a provider plan reviewed against the earlier
+revision still applies; any other newer revision makes it refuse. Any other difference among the profile's own entries, such as a mod
 disabled in the game's menu (which the game would re-enable at its next start), is
 reported and rewritten from the revision before the next launch. An unreadable or
 unexpectedly shaped configuration is never rewritten: the game itself discards a
@@ -1774,8 +1777,8 @@ resolved by name; an outage reports `unavailable`, never "no update".
 
 `provider-apply` takes the saved plan and its `plan_sha256`, asks for confirmation
 (or `--yes`), and installs exactly the reviewed bytes under a one-use authorization.
-Altered staged bytes, a tampered plan or a newer profile revision refuse without
-changing anything. Reviewed-but-unapplied staging is removed after a day.
+Altered staged bytes, a tampered plan or a newer profile revision that changed more
+than the mod order refuse without changing anything. Reviewed-but-unapplied staging is removed after a day.
 
 ### Recipes
 

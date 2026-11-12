@@ -4599,7 +4599,8 @@ export interface OutputProviderInstallPlan {
   project_name: string;
   provider: ProviderPackageRef;
   /**
-   * Installed packages with the same native ID but different bytes.
+   * Installed packages this plan replaces: the same native ID with different
+   * bytes, or a package the game loads as the same mod under another extension.
    */
   replaces: string[];
   /**

@@ -61,7 +61,8 @@ pub struct ProviderInstallPlan {
     pub members: Vec<PlanMember>,
     /// Entries of the provider's wrapper that are not packages and were not read.
     pub ignored_entries: u32,
-    /// Installed packages with the same native ID but different bytes.
+    /// Installed packages this plan replaces: the same native ID with different
+    /// bytes, or a package the game loads as the same mod under another extension.
     pub replaces: Vec<String>,
     pub conflicts: Vec<AssetConflict>,
     pub conflicts_truncated: bool,
@@ -217,19 +218,41 @@ impl PortcoveService {
                 existing_assets.push((package.native_id.clone(), inspection.asset_paths));
             }
         }
+        // The checks apply would make, made before anything is authorized.
+        let named = crate::native_mod_list::contract(port_id).is_some();
+        if named {
+            for member in &members {
+                crate::native_mod_list::require_listable(&member.file_name)?;
+            }
+            if let Some((first, second)) = crate::native_mod_list::identity_collision(
+                members.iter().map(|member| member.file_name.as_str()),
+            ) {
+                return Err(PortcoveError::unsupported(
+                    "this file contains two packages the game would load as the same mod, so it cannot be installed",
+                )
+                .detail("packages", format!("{first}, {second}")));
+            }
+        }
+        // A package the game loads as the same mod is replaced, even under another
+        // extension (`.otr` to `.o2r`).
+        let same = |member: &PlanMember, id: &str| {
+            member.file_name == id
+                || (named && crate::native_mod_list::same_mod(&member.file_name, id))
+        };
         let replaces = current
             .packages
             .iter()
             .filter(|package| {
-                members
-                    .iter()
-                    .any(|m| m.file_name == package.native_id && m.sha256 != package.sha256)
+                members.iter().any(|m| {
+                    same(m, &package.native_id)
+                        && (m.sha256 != package.sha256 || m.file_name != package.native_id)
+                })
             })
             .map(|package| package.native_id.clone())
             .collect::<Vec<_>>();
         let mut ordered = existing_assets
             .iter()
-            .filter(|(id, _)| !members.iter().any(|m| &m.file_name == id))
+            .filter(|(id, _)| !members.iter().any(|m| same(m, id)))
             .map(|(id, paths)| (id.as_str(), paths.as_slice()))
             .collect::<Vec<_>>();
         for inspection in &inspections {

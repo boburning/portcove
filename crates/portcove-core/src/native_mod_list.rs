@@ -72,6 +72,11 @@ pub(crate) fn require_listable(file_name: &str) -> Result<()> {
     Ok(())
 }
 
+/// Whether the loader treats two package file names as the same mod.
+pub(crate) fn same_mod(a: &str, b: &str) -> bool {
+    native_name(a).to_lowercase() == native_name(b).to_lowercase()
+}
+
 /// Two different package files the loader would treat as the same mod: equal
 /// names without extension, compared without case because Windows folders are
 /// case-insensitive.

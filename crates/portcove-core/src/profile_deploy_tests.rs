@@ -501,18 +501,24 @@ fn the_game_list_names_exactly_the_enabled_packages_in_override_order() {
 }
 
 #[test]
-fn files_the_game_would_load_as_one_mod_or_cannot_list_are_refused() {
+fn the_same_mod_under_another_extension_replaces_and_unlistable_names_are_refused() {
     let w = world();
-    install(&w, &w.default, "Link.o2r", 1).unwrap();
-    let collision = install(&w, &w.default, "link.otr", 2).unwrap_err();
-    assert_eq!(collision.code, crate::ErrorCode::Conflict);
-    assert_eq!(revision(&w, &w.default), 2, "nothing was recorded");
-    assert_eq!(live_mods(&w), ["Link.o2r"]);
+    install(&w, &w.default, "a-first.o2r", 1).unwrap();
+    install(&w, &w.default, "Link.otr", 2).unwrap();
+    install(&w, &w.default, "z-last.o2r", 3).unwrap();
+    // The same mod under another extension replaces it and keeps its place.
+    let replaced = install(&w, &w.default, "link.o2r", 4).unwrap();
+    assert_eq!(live_mods(&w), ["a-first.o2r", "link.o2r", "z-last.o2r"]);
+    assert_eq!(
+        replaced.orderings[0].native_ids,
+        ["a-first.o2r", "link.o2r", "z-last.o2r"]
+    );
+    assert_eq!(native_list(&w).as_deref(), Some("a-first|link|z-last"));
     // A list separator in a name would split it into two native entries.
     #[cfg(unix)]
     {
-        assert!(install(&w, &w.default, "a|b.o2r", 2).is_err());
-        assert_eq!(revision(&w, &w.default), 2, "nothing was recorded");
+        assert!(install(&w, &w.default, "a|b.o2r", 5).is_err());
+        assert_eq!(revision(&w, &w.default), 5, "nothing was recorded");
     }
 }
 

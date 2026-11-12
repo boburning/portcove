@@ -444,6 +444,7 @@ impl PortcoveService {
             created_at: profile.created_at,
             digest: String::new(),
         };
+        crate::profile_deploy::require_projectable(&profile.port_id, &revision)?;
         seal(&mut revision)?;
         let mut connection = self.library.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;

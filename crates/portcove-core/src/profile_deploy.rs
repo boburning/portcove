@@ -307,11 +307,14 @@ pub(crate) fn native_projection(revision: &ProfileRevision) -> Vec<String> {
 
 /// Loader names of every package the revision owns, enabled or not. Other list
 /// entries belong to the player (their own files in `mods`) and are never moved.
+/// Compared without case, as the game treats names that differ only in case as
+/// one mod; an entry left by a replaced package (`Link` for `link.o2r`) is the
+/// profile's, not the player's.
 fn managed_names(revision: &ProfileRevision) -> BTreeSet<String> {
     revision
         .packages
         .iter()
-        .map(|package| native_mod_list::native_name(&package.native_id).to_owned())
+        .map(|package| native_mod_list::native_name(&package.native_id).to_lowercase())
         .collect()
 }
 
@@ -323,7 +326,7 @@ fn merged_list(existing: &[String], revision: &ProfileRevision) -> Vec<String> {
     let mut wanted = native_projection(revision).into_iter();
     let mut merged = Vec::new();
     for entry in existing {
-        if managed.contains(entry) {
+        if managed.contains(&entry.to_lowercase()) {
             if let Some(next) = wanted.next() {
                 merged.push(next);
             }
@@ -376,7 +379,7 @@ fn native_status(layout: &Layout, revision: &ProfileRevision) -> NativeModListSt
         NativeList::Listed(names) => {
             let listed = names
                 .into_iter()
-                .filter(|name| managed.contains(name))
+                .filter(|name| managed.contains(&name.to_lowercase()))
                 .collect::<Vec<_>>();
             if listed == expected {
                 return NativeModListStatus::InSync;
@@ -639,6 +642,7 @@ impl PortcoveService {
             require_clean(&observe(&layout, &[&current])?, "installing a package")?;
         }
         let mut packages = current.packages.clone();
+        let mut renames = Vec::<(String, String)>::new();
         for item in staged {
             let inspection = &item.inspection;
             let stored = layout.package(&inspection.sha256, &inspection.file_name);
@@ -666,7 +670,22 @@ impl PortcoveService {
                 enabled: true,
                 requires: Vec::new(),
             };
-            packages.retain(|existing| existing.native_id != package.native_id);
+            // A package the game loads as the same mod (for example `.otr` replaced
+            // by `.o2r`) is replaced and keeps its place in the order.
+            let named = native_mod_list::contract(port_id).is_some();
+            let replaced = packages
+                .iter()
+                .filter(|existing| {
+                    existing.native_id == package.native_id
+                        || (named
+                            && native_mod_list::same_mod(&existing.native_id, &package.native_id))
+                })
+                .map(|existing| existing.native_id.clone())
+                .collect::<Vec<_>>();
+            for old in replaced.iter().filter(|old| **old != package.native_id) {
+                renames.push((old.clone(), package.native_id.clone()));
+            }
+            packages.retain(|existing| !replaced.contains(&existing.native_id));
             packages.push(package);
         }
         packages.sort_by(|a, b| a.native_id.cmp(&b.native_id));
@@ -680,7 +699,15 @@ impl PortcoveService {
             )
             .detail("packages", format!("{first}, {second}")));
         }
-        let orderings = with_override_order(&current.orderings, &packages);
+        let mut existing_orderings = current.orderings.clone();
+        for ordering in &mut existing_orderings {
+            for id in &mut ordering.native_ids {
+                if let Some((_, new)) = renames.iter().find(|(old, _)| old == id) {
+                    id.clone_from(new);
+                }
+            }
+        }
+        let orderings = with_override_order(&existing_orderings, &packages);
         let request = ProfileRevisionRequest {
             expected_revision: current.revision,
             packages: Some(packages),
