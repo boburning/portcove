@@ -264,7 +264,7 @@ pub(crate) fn require_projectable(port_id: &str, revision: &ProfileRevision) -> 
         enabled(revision).map(|package| package.native_id.as_str()),
     ) {
         return Err(PortcoveError::conflict(
-            "two enabled packages would load as the same mod; nothing was changed",
+            "two enabled packages would load as the same mod; turn one of them off. Nothing was changed",
         )
         .detail("packages", format!("{first}, {second}")));
     }
