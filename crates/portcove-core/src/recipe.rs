@@ -525,6 +525,7 @@ impl PortcoveService {
             .collect::<Vec<_>>();
         let user = self.library.user_dir(&recipe.port_id);
         let layout = crate::profile_deploy::Layout::for_user(&user);
+        let connection = self.library.connection()?;
         let packages = recipe
             .packages
             .iter()
@@ -532,11 +533,26 @@ impl PortcoveService {
                 let stored = layout.package(&package.sha256, &package.native_id);
                 let present = stored.try_exists().unwrap_or(false)
                     && sha256_file(&stored).is_ok_and(|sha| sha == package.sha256);
+                let unrecorded_label = match &package.provider {
+                    Some(provider) => !profile::provider_label_recorded(
+                        &connection,
+                        &recipe.port_id,
+                        &package.sha256,
+                        &package.native_id,
+                        provider,
+                    )?,
+                    None => false,
+                };
                 let plannable = package
                     .provider
                     .as_ref()
                     .and_then(|provider| plannable_provider_file(&recipe.port_id, provider));
-                let (status, detail) = if present {
+                let (status, detail) = if present && unrecorded_label {
+                    (
+                        RecipeInputStatus::Available,
+                        "its exact bytes are in the package store; its provider label is not recorded in this library for these bytes, so the new profile does not keep it".to_owned(),
+                    )
+                } else if present {
                     (
                         RecipeInputStatus::Available,
                         "its exact bytes are in the package store".to_owned(),
@@ -572,13 +588,13 @@ impl PortcoveService {
                             .to_owned(),
                     )
                 };
-                RecipeInputPlan {
+                Ok(RecipeInputPlan {
                     name: package.native_id.clone(),
                     status,
                     detail,
-                }
+                })
             })
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>>>()?;
         let mut plan = RecipeImportPlan {
             recipe: recipe.clone(),
             runtime,
@@ -655,20 +671,38 @@ impl PortcoveService {
                     .map(|source| profile::bind_original(&original.requirement_id, source))
             })
             .collect::<Vec<_>>();
-        // A recipe's provider label is an unverified claim. The new profile keeps a
-        // provider reference only where this port already recorded one for the
-        // same bytes, so update checks never follow a label the recipe supplied.
-        let verified = self.verified_provider_refs(&port_id)?;
+        // A recipe's provider label is an unverified claim. The new profile keeps it
+        // only when this port already recorded exactly that label for the same
+        // bytes and file name, so update checks never follow a label the recipe
+        // supplied. The reviewed plan says which labels are dropped.
+        let connection = self.library.connection()?;
+        let mut providers = Vec::with_capacity(plan.recipe.packages.len());
+        for package in &plan.recipe.packages {
+            let kept = match &package.provider {
+                Some(provider)
+                    if profile::provider_label_recorded(
+                        &connection,
+                        &port_id,
+                        &package.sha256,
+                        &package.native_id,
+                        provider,
+                    )? =>
+                {
+                    Some(provider.clone())
+                }
+                _ => None,
+            };
+            providers.push(kept);
+        }
         let packages = plan
             .recipe
             .packages
             .iter()
-            .map(|package| crate::ResolvedPackage {
+            .zip(providers)
+            .map(|(package, provider)| crate::ResolvedPackage {
                 native_id: package.native_id.clone(),
                 native_version: package.native_version.clone(),
-                provider: verified
-                    .get(&(package.sha256.clone(), package.native_id.clone()))
-                    .cloned(),
+                provider,
                 sha256: package.sha256.clone(),
                 size: package.size,
                 enabled: package.enabled,
@@ -708,34 +742,11 @@ impl PortcoveService {
     }
 }
 
-impl PortcoveService {
-    /// Provider references this port recorded for package bytes it installed,
-    /// keyed by content digest and file name.
-    fn verified_provider_refs(
-        &self,
-        port_id: &str,
-    ) -> Result<BTreeMap<(String, String), ProviderPackageRef>> {
-        let mut verified = BTreeMap::new();
-        for view in self.profile_inventory(port_id)?.profiles {
-            for revision in self.profile_revisions(port_id, &view.profile.id)? {
-                for package in revision.packages {
-                    if let Some(provider) = package.provider {
-                        verified
-                            .entry((package.sha256, package.native_id))
-                            .or_insert(provider);
-                    }
-                }
-            }
-        }
-        Ok(verified)
-    }
-}
-
 /// The GameBanana project and file a recipe package names, when this game has a
 /// reviewed binding and the reference is complete enough for `provider-plan`.
 fn plannable_provider_file(port_id: &str, provider: &ProviderPackageRef) -> Option<(u64, u64)> {
     crate::provider_install::gamebanana_game(port_id)?;
-    if provider.provider != "gamebanana" {
+    if provider.provider != crate::gamebanana::PROVIDER {
         return None;
     }
     let project = provider.project.parse::<u64>().ok()?;

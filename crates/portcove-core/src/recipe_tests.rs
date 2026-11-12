@@ -389,36 +389,95 @@ fn constructed_recipes_are_held_to_the_same_rules_as_inspected_ones() {
     assert!(ProfileRecipe::inspect(&bytes(&sealed(long))).is_err());
 }
 
+fn label(project: &str, file: &str) -> ProviderPackageRef {
+    ProviderPackageRef {
+        provider: "gamebanana".into(),
+        project: project.into(),
+        file: Some(file.into()),
+        version: None,
+    }
+}
+
+fn import(w: &World, recipe: ProfileRecipe, name: &str) -> (RecipeImportPlan, Profile) {
+    let plan = w.service.plan_recipe_import(&sealed(recipe)).unwrap();
+    assert!(plan.can_apply, "{:?}", plan.holds);
+    let token = w
+        .service
+        .authorize_recipe_import(&plan, name)
+        .unwrap()
+        .token;
+    let imported = w.service.apply_recipe_import(&plan, name, &token).unwrap();
+    (plan, imported)
+}
+
 #[test]
-fn a_recipe_cannot_relabel_local_bytes_with_a_provider_source() {
+fn a_recipe_keeps_only_provider_labels_this_library_recorded_for_the_same_bytes() {
+    let w = world();
+    // The library records a provider label for its package, as a provider install does.
+    let connection = w.service.library().connection().unwrap();
+    let current = profile::current_revision(&connection, "starship", &w.profile).unwrap();
+    let mut packages = current.packages.clone();
+    packages[0].provider = Some(label("1", "2"));
+    w.service
+        .create_profile_revision(
+            "starship",
+            &w.profile,
+            &crate::ProfileRevisionRequest {
+                expected_revision: current.revision,
+                packages: Some(packages),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let recipe = w
+        .service
+        .export_profile_recipe("starship", &w.profile, None)
+        .unwrap();
+    assert_eq!(recipe.packages[0].provider, Some(label("1", "2")));
+
+    // Exactly the recorded label is kept and the identity round-trips.
+    let (_, kept) = import(&w, recipe.clone(), "Kept");
+    let round_trip = w
+        .service
+        .export_profile_recipe("starship", &kept.id, None)
+        .unwrap();
+    assert_eq!(round_trip.identity_sha256, recipe.identity_sha256);
+
+    // A recipe without a label never gains one.
+    let mut unlabelled = recipe.clone();
+    unlabelled.packages[0].provider = None;
+    let unlabelled = sealed(unlabelled);
+    let (_, plain) = import(&w, unlabelled.clone(), "Plain");
+    let round_trip = w
+        .service
+        .export_profile_recipe("starship", &plain.id, None)
+        .unwrap();
+    assert_eq!(round_trip.identity_sha256, unlabelled.identity_sha256);
+
+    // A different label for the same bytes is dropped, not substituted, and the
+    // reviewed plan says so.
+    let mut relabelled = recipe.clone();
+    relabelled.packages[0].provider = Some(label("9", "9"));
+    let (plan, other) = import(&w, relabelled, "Relabelled");
+    assert!(plan.packages[0].detail.contains("does not keep it"));
+    let connection = w.service.library().connection().unwrap();
+    let revision = profile::current_revision(&connection, "starship", &other.id).unwrap();
+    assert_eq!(
+        revision.packages[0].provider, None,
+        "update checks never follow a label the recipe supplied"
+    );
+}
+
+#[test]
+fn acquirable_detail_names_the_canonical_provider_file() {
     let w = world();
     let mut recipe = w
         .service
         .export_profile_recipe("starship", &w.profile, None)
         .unwrap();
-    assert!(recipe.packages[0].provider.is_none());
-    // The bytes are present, but the recipe claims they came from a provider.
-    recipe.packages[0].provider = Some(ProviderPackageRef {
-        provider: "gamebanana".into(),
-        project: "9".into(),
-        file: Some("9".into()),
-        version: None,
-    });
+    recipe.packages[0].sha256 = "d".repeat(64);
+    recipe.packages[0].provider = Some(label("+01", "2"));
     let plan = w.service.plan_recipe_import(&sealed(recipe)).unwrap();
-    assert!(plan.can_apply, "{:?}", plan.holds);
-    let token = w
-        .service
-        .authorize_recipe_import(&plan, "Relabelled")
-        .unwrap()
-        .token;
-    let imported = w
-        .service
-        .apply_recipe_import(&plan, "Relabelled", &token)
-        .unwrap();
-    let connection = w.service.library().connection().unwrap();
-    let revision = profile::current_revision(&connection, "starship", &imported.id).unwrap();
-    assert_eq!(
-        revision.packages[0].provider, None,
-        "update checks never follow a label the recipe supplied"
-    );
+    assert_eq!(plan.packages[0].status, RecipeInputStatus::Acquirable);
+    assert!(plan.packages[0].detail.contains("project 1, file 2"));
 }
