@@ -28,6 +28,7 @@ export default defineConfig({
       "src/components/ReportProblem.tsx",
       "src/components/PortSearch.tsx",
       "src/components/CommandPalette.tsx",
+      "src/components/OperationCancellation.tsx",
     ],
     ignore: ["src/**/*.test.{ts,tsx}", "src/**/*.generated.d.ts", "src/design-compatibility/**"],
     output: "src/locales/{{language}}/{{namespace}}.json",

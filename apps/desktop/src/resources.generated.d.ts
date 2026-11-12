@@ -592,6 +592,15 @@ export default interface Resources {
       "restorePrevious": "Restore previous version"
     }
   },
+  "operations": {
+    "cancellation": {
+      "cancel": "Cancel operation",
+      "finishing": "Finishing safely…",
+      "requested": "Cancellation requested",
+      "requestedBody": "Portcove will stop after the current step reaches a safe stopping point.",
+      "requesting": "Requesting cancellation…"
+    }
+  },
   "removal": {
     "apply": "Uninstall all versions",
     "applying": "Uninstalling…",

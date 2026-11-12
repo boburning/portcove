@@ -131,6 +131,7 @@ unless the copy change is intended and reviewed.
 | Bug report preview                       | `components/ReportProblem.tsx`                             | `report`            |
 | Game search field                        | `components/PortSearch.tsx`                                | `browsing`          |
 | Command palette chrome                   | `components/CommandPalette.tsx`                            | `commands`          |
+| Operation cancellation control           | `components/OperationCancellation.tsx`                     | `operations`        |
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-12 it
