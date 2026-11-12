@@ -833,7 +833,7 @@ jobs:
                 $report = try { Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json } catch { $null }
                 if ($report -and ($report.PSObject.Properties.Name -contains 'failure')) {
                   "-- $($_.Name)"
-                  foreach ($name in 'failure', 'cleanup_failure') {
+                  foreach ($name in 'failure', 'failure_stack', 'cleanup_failure') {
                     $value = [string]$report.$name
                     if ($value) { "${name}: $($value.Substring(0, [Math]::Min(4000, $value.Length)))" }
                   }

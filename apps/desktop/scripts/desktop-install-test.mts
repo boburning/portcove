@@ -1666,6 +1666,8 @@ export async function installScenarios({
       primaryFailure =
         error instanceof Error ? error : new Error(errorMessage(error), { cause: error });
       observations.failure = errorMessage(error);
+      // Harness-only locator for the failed step; no player data.
+      observations.failure_stack = primaryFailure.stack?.slice(0, 4000);
     } finally {
       for (const gate of gates) gate.release();
       try {
