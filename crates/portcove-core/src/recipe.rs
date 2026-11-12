@@ -597,7 +597,7 @@ impl PortcoveService {
             .collect::<Result<Vec<_>>>()?;
         // The game must be able to load the enabled packages unambiguously, as for
         // any new revision.
-        if crate::native_mod_list::contract(&recipe.port_id).is_some() {
+        if crate::native_mod_list::loader_list(&recipe.port_id).is_some() {
             let enabled = recipe
                 .packages
                 .iter()

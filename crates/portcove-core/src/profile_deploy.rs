@@ -794,7 +794,7 @@ impl PortcoveService {
             };
             // A package the game loads as the same mod (for example `.otr` replaced
             // by `.o2r`) is replaced and keeps its place in the order.
-            let named = native_mod_list::contract(port_id).is_some();
+            let named = native_mod_list::loader_list(port_id).is_some();
             let replaced = packages
                 .iter()
                 .filter(|existing| {
