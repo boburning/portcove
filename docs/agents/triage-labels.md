@@ -7,6 +7,7 @@
 | ready-for-agent | ready-for-agent | Fully specified for agent implementation |
 | ready-for-human | ready-for-human | Requires human implementation            |
 | wontfix         | wontfix         | Will not be actioned                     |
+| beta-feedback   | beta-feedback   | Player friction report; link to an owner |
 
 Use these exact strings when an engineering skill names a triage role.
 
