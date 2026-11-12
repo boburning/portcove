@@ -34,7 +34,7 @@
     "button": "Enviar como {{login}}",
     "choose": "Elige una respuesta",
     "done": "Enviado como incidencia n.º {{number}} desde tu cuenta de GitHub. Las respuestas aparecerán allí.",
-    "failed": "No se pudo enviar el informe. Tu texto sigue aquí; inténtalo de nuevo, ábrelo en GitHub o cópialo.",
+    "failed": "Puede que el informe no se haya enviado. Comprueba en GitHub si ya existe tu nueva incidencia antes de volver a intentarlo. Tu texto sigue aquí, y también puedes abrirlo en GitHub o copiarlo.",
     "needs": "Para enviarlo, responde a cada pregunta y describe lo que pasó.",
     "view": "Ver en GitHub"
   }

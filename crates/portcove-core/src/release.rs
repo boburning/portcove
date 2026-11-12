@@ -861,8 +861,11 @@ impl GithubReleaseProvider {
                 .map_err(github_request_error)?;
             let status = response.status();
             if status == StatusCode::FORBIDDEN || status == StatusCode::NOT_FOUND {
+                // GitHub's secondary limit for creating content answers 403 with
+                // retry-after but without an exhausted primary limit.
                 let limited = rate_limit_from_headers(response.headers())
-                    .is_some_and(|limit| limit.remaining == 0);
+                    .is_some_and(|limit| limit.remaining == 0)
+                    || response.headers().contains_key(header::RETRY_AFTER);
                 if !limited {
                     return Err(PortcoveError::state(
                         "GitHub did not let this sign-in create the report. Open it on GitHub or copy the text instead.",
@@ -4035,8 +4038,10 @@ mod tests {
     #[tokio::test]
     async fn a_refused_or_foreign_submission_is_reported_not_trusted() {
         let forbidden = "HTTP/1.1 403 Forbidden\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}".to_owned();
+        let slowed = "HTTP/1.1 403 Forbidden\r\nRetry-After: 60\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}".to_owned();
         let (origin, _requests, server) = serve_http(vec![
             forbidden,
+            slowed,
             created_issue("https://example.com/other/repo/issues/7"),
         ]);
         let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
@@ -4052,6 +4057,20 @@ mod tests {
             refused.message.contains("did not let this sign-in"),
             "{}",
             refused.message
+        );
+        // The secondary limit for creating content keeps its retry hint.
+        let slowed = provider
+            .submit_report(&report_issue_fixture())
+            .await
+            .unwrap_err();
+        assert!(
+            !slowed.message.contains("did not let this sign-in"),
+            "{}",
+            slowed.message
+        );
+        assert_eq!(
+            slowed.details.get("retry_after").map(String::as_str),
+            Some("60")
         );
         let foreign = provider
             .submit_report(&report_issue_fixture())

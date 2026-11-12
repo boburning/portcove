@@ -18,7 +18,14 @@ const textareaClassName =
   "min-h-32 w-full min-w-0 rounded-pc-md border border-pc-input bg-[var(--color-bg-inset)] px-3 py-2 font-mono text-sm text-pc-foreground focus-visible:outline-2 focus-visible:outline-offset-2";
 
 /** Fields the player may edit; the others, including the game, are shown as facts. */
-const editableFields = new Set(["observed", "evidence", "happened", "expected", "context"]);
+const editableFields = new Set([
+  "observed",
+  "reproduce",
+  "evidence",
+  "happened",
+  "expected",
+  "context",
+]);
 
 const selectClassName =
   "w-full min-w-0 rounded-pc-md border border-pc-input bg-[var(--color-bg-inset)] px-3 py-2 text-sm font-normal text-pc-foreground focus-visible:outline-2 focus-visible:outline-offset-2";
@@ -340,7 +347,9 @@ export function ReportProblem({
           )}
           {phase.kind === "ready" && phase.error && <p role="alert">{phase.error}</p>}
           {login && draft && !readyToSend && (
-            <p className="text-sm text-[var(--color-text-secondary)]">{t("send.needs")}</p>
+            <p id="report-send-needs" className="text-sm text-[var(--color-text-secondary)]">
+              {t("send.needs")}
+            </p>
           )}
           {phase.kind === "failed" && (
             <p role="alert">{phase.summary ?? t("problem.prepareFailed")}</p>
@@ -374,6 +383,7 @@ export function ReportProblem({
                   <Button
                     variant="primary"
                     disabled={phase.kind === "opening" || !readyToSend}
+                    aria-describedby={readyToSend ? undefined : "report-send-needs"}
                     onClick={() => void send(draft.report, draft.fields, draft.choices)}
                   >
                     {t("send.button", { login })}

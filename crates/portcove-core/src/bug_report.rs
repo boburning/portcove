@@ -32,6 +32,16 @@ const JOURNEY_OPTIONS: [&str; 10] = [
     "Change settings",
     "Something else",
 ];
+/// Platform dropdown options shared by both forms.
+const PLATFORM_OPTIONS: [&str; 7] = [
+    "Windows",
+    "Linux",
+    "Steam Deck",
+    "macOS Intel",
+    "macOS Apple Silicon",
+    "Multiple platforms",
+    "Not applicable",
+];
 const OUTCOME_OPTIONS: [&str; 4] = [
     "I couldn't finish",
     "I finished, but it was difficult",
@@ -486,6 +496,12 @@ fn reviewed_values(
                     .find(|option| option.as_str() == raw)
                     .cloned()
                     .unwrap_or_default(),
+                // A dropdown on both forms; anything else is not a platform.
+                None if id == "platform" => PLATFORM_OPTIONS
+                    .iter()
+                    .find(|option| **option == raw)
+                    .map(|option| (*option).to_owned())
+                    .unwrap_or_default(),
                 None => redact_for_field(id, raw, redactions),
             };
             (id, label, value)
@@ -903,6 +919,9 @@ mod tests {
             issue.body
         );
         assert!(!issue.body.contains("not on this form"));
+        set(&mut fields, "platform", "Plan 9 <script>");
+        let issue = report_issue(ReportKind::Feedback, &fields, &redactions()).unwrap();
+        assert!(issue.body.contains("### Platform\n\n_No response_\n\n"));
     }
 
     #[test]

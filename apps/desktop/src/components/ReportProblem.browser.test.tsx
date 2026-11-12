@@ -10,6 +10,7 @@ const draft = {
     { id: "version", label: "Portcove version or commit", value: "0.1.0" },
     { id: "platform", label: "Platform", value: "Windows" },
     { id: "observed", label: "Observed behavior", value: "Crash in <home>/game" },
+    { id: "reproduce", label: "What were you doing when it happened?", value: "" },
     { id: "evidence", label: "Logs and diagnostics", value: "Installed games: 2" },
   ],
   choices: [],
@@ -387,11 +388,24 @@ it("keeps the answers and text when submitting fails", async () => {
   await type("What happened?", "Kept my words");
   await click("Submit as octo");
   expect(document.body.querySelector("[role=alert]")?.textContent).toContain(
-    "could not be submitted",
+    "Check GitHub for your new issue before trying again",
   );
   const kept = [...document.body.querySelectorAll("label")]
     .find((element) => element.textContent?.startsWith("What happened?"))
     ?.querySelector("textarea");
   expect(kept?.value).toBe("Kept my words");
   expect(button("Open on GitHub")).toBeDefined();
+});
+
+it("lets the player say what they were doing in a bug report", async () => {
+  const submitReport = vi.fn().mockResolvedValue({ number: 3, url: "https://github.com/x/3" });
+  await mountChoice(vi.fn(), { authStatus: signedIn, submitReport });
+  await click("Report a problem or send feedback");
+  await click("Something broke or didn't work as it should");
+  await expect.poll(() => button("Submit as octo")).toBeDefined();
+  await type("What were you doing when it happened?", "Launching after an update");
+  await click("Submit as octo");
+  const sent = submitReport.mock.calls[0]?.[0] as BugReportDraft["fields"];
+  expect(sent.find((f) => f.id === "reproduce")?.value).toBe("Launching after an update");
+  expect(submitReport.mock.calls[0]?.[1]).toBe("problem");
 });
