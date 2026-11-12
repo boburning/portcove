@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Trans } from "react-i18next";
 import { useAppTranslation } from "../localization";
 import { desktopApi } from "../api";
@@ -8,6 +8,15 @@ import { ArtworkImage } from "./Artwork";
 import { OperationCancellation } from "./OperationCancellation";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
+
+/**
+ * Reports whether a surrounding page already shows Cancel for a running operation,
+ * so this control shows progress without a second Cancel. The review dialog keeps
+ * its own, because it covers the page.
+ */
+export const PreparationCancellationShown = createContext<(operationId: string) => boolean>(
+  () => false,
+);
 
 export type RunPreparation = (
   expectedPlan: string,
@@ -32,6 +41,7 @@ export function PreparationControl({
   onPrepared?: () => void;
 }) {
   const { t } = useAppTranslation("installation");
+  const cancellationShown = useContext(PreparationCancellationShown);
   const [plan, setPlan] = useState<PreparationPlan>();
   const [pending, setPending] = useState<"review" | "prepare">();
   // App-owned outcomes are codes translated at render; Core progress text stays verbatim.
@@ -265,7 +275,7 @@ export function PreparationControl({
         </Dialog>
       )}
       {!plan && message && <p role="status">{message}</p>}
-      {!plan && operationId && (
+      {!plan && operationId && !cancellationShown(operationId) && (
         <OperationCancellation
           key={operationId}
           operationId={operationId}
