@@ -372,7 +372,8 @@ function CompletedScan({
           {report.limits_reached.map((limit) => (
             <li key={limit}>
               {sourceDiscoveryLimitLabel(limit)}:{" "}
-              {(limit === "entries" || limit === "hash_bytes") && canContinue
+              {(limit === "entries" || limit === "hash_bytes" || limit === "candidates") &&
+              canContinue
                 ? "Continue the scan to check the next batch. Earlier matches were kept."
                 : savedRootLimitGuidance(limit)}
             </li>

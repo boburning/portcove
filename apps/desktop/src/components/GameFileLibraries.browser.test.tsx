@@ -1824,23 +1824,26 @@ it("explains that all nine saved folders are unavailable without starting a scan
   expect(document.body.textContent).toContain("D:/Games-8");
 });
 
-it("offers Core's hash-limited continuation without widening the allowance or authorizing setup", async () => {
-  const continued = resumableSnapshot();
-  continued.report = { ...continued.report, limits_reached: ["hash_bytes"] };
-  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(continued);
-  await click("Refresh folders");
-  expect(document.body.textContent).toContain(
-    "Continue the scan to check the next batch. Earlier matches were kept.",
-  );
-  expect(document.body.textContent).not.toContain("Remove or update saved folders");
-  await click("Continue scan");
-  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(
-    snapshot.limits,
-    1,
-    expect.any(Function),
-  );
-  expect(desktopApi.importSource).not.toHaveBeenCalled();
-});
+it.each(["hash_bytes", "candidates"] as const)(
+  "offers Core's %s-limited continuation without widening the allowance or authorizing setup",
+  async (limit) => {
+    const continued = resumableSnapshot();
+    continued.report = { ...continued.report, limits_reached: [limit] };
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(continued);
+    await click("Refresh folders");
+    expect(document.body.textContent).toContain(
+      "Continue the scan to check the next batch. Earlier matches were kept.",
+    );
+    expect(document.body.textContent).not.toContain("Remove or update saved folders");
+    await click("Continue scan");
+    expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(
+      snapshot.limits,
+      1,
+      expect.any(Function),
+    );
+    expect(desktopApi.importSource).not.toHaveBeenCalled();
+  },
+);
 
 vi.mock("../file-picker", { spy: true });
 
