@@ -1631,7 +1631,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 mode,
                 "games.batch-cancel",
                 service.cancel_install_batch(&batch_id)?,
-                |record| human::install_batch(record),
+                human::install_batch,
             )?,
             GamesCommand::BatchShow { batch_id } => render_read_success(
                 mode,
@@ -1640,7 +1640,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     PortcoveError::not_found("install batch does not exist")
                         .detail("batch_id", &batch_id)
                 })?,
-                |record| human::install_batch(record),
+                human::install_batch,
             )?,
             GamesCommand::Intent {
                 port_id,
@@ -1649,7 +1649,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 mode,
                 "games.intent",
                 service.set_port_intent(&port_id, intent_mode.into())?,
-                |intent| human::port_intent(intent),
+                human::port_intent,
             )?,
             GamesCommand::Intents => {
                 let assessed = service.assess_port_intents().await?;
@@ -3769,6 +3769,17 @@ fn command_name(command: &Commands) -> &'static str {
     }
 }
 
+/// Parses one reviewed `PORT_ID=PLAN_SHA256` batch item; Core validates the digest.
+fn parse_batch_item(value: &str) -> Result<portcove_core::InstallBatchRequestItem> {
+    let (port_id, digest) = value.split_once('=').ok_or_else(|| {
+        PortcoveError::usage("write each batch item as PORT_ID=PLAN_SHA256 from `games batch-plan`")
+    })?;
+    Ok(portcove_core::InstallBatchRequestItem {
+        port_id: port_id.to_owned(),
+        expected_plan_sha256: digest.to_owned(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     fn launcher_inventory(entries: serde_json::Value) -> portcove_core::LauncherLibraryInventory {
@@ -5184,15 +5195,4 @@ mod tests {
                 .contains("Unknown expiry (invalid timestamp)")
         );
     }
-}
-
-/// Parses one reviewed `PORT_ID=PLAN_SHA256` batch item; Core validates the digest.
-fn parse_batch_item(value: &str) -> Result<portcove_core::InstallBatchRequestItem> {
-    let (port_id, digest) = value.split_once('=').ok_or_else(|| {
-        PortcoveError::usage("write each batch item as PORT_ID=PLAN_SHA256 from `games batch-plan`")
-    })?;
-    Ok(portcove_core::InstallBatchRequestItem {
-        port_id: port_id.to_owned(),
-        expected_plan_sha256: digest.to_owned(),
-    })
 }
