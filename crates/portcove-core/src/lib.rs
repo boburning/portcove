@@ -172,8 +172,8 @@ pub use authorization::DestructiveAuthorization;
 pub use browsing_context::{CatalogBrowsingContext, CatalogBrowsingSnapshot};
 pub use bug_report::{
     BUG_REPORT_URL_LIMIT, BugReportDraft, BugReportField, BugReportInputs, BugReportLink,
-    ReportKind, ReportRedactions, bug_report_link, draft_bug_report, draft_report,
-    redact_report_text, report_link,
+    REPORT_REPOSITORY, ReportChoice, ReportIssue, ReportKind, ReportRedactions, SubmittedReport,
+    bug_report_link, draft_bug_report, draft_report, redact_report_text, report_issue, report_link,
 };
 pub use cancellation::{CancellationPhase, CancellationState};
 pub use cartridge_build::CartridgeBuildRecipe;

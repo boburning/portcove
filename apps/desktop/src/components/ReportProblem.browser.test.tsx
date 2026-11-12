@@ -10,8 +10,10 @@ const draft = {
     { id: "version", label: "Portcove version or commit", value: "0.1.0" },
     { id: "platform", label: "Platform", value: "Windows" },
     { id: "observed", label: "Observed behavior", value: "Crash in <home>/game" },
+    { id: "reproduce", label: "What were you doing when it happened?", value: "" },
     { id: "evidence", label: "Logs and diagnostics", value: "Installed games: 2" },
   ],
+  choices: [],
 } as BugReportDraft;
 
 vi.mock("../clipboard", () => ({ copyText: vi.fn().mockResolvedValue(undefined) }));
@@ -173,15 +175,34 @@ const feedbackDraft = {
     { id: "expected", label: "What did you expect or want instead?", value: "" },
     { id: "context", label: "Portcove details", value: "Installed games: 2" },
   ],
+  choices: [
+    {
+      id: "journey",
+      label: "What were you trying to do?",
+      options: ["Install a game", "Play a game"],
+    },
+    { id: "outcome", label: "How far did you get?", options: ["I couldn't finish"] },
+  ],
 } as BugReportDraft;
 
-async function mountChoice(open: NonNullable<ComponentProps<typeof ReportProblem>["open"]>) {
+const signedOut = () => Promise.reject(new Error("not signed in"));
+
+type Props = ComponentProps<typeof ReportProblem>;
+
+async function mountChoice(open: NonNullable<Props["open"]>, extra: Partial<Props> = {}) {
   const preview = vi.fn((_port: string | undefined, _generation: number, kind: string) =>
     Promise.resolve(kind === "feedback" ? feedbackDraft : draft),
   );
   await act(async () => {
     await root.rerender(
-      <ReportProblem portId="zelda64-recomp" generation={4} preview={preview} open={open} />,
+      <ReportProblem
+        portId="zelda64-recomp"
+        generation={4}
+        preview={preview}
+        open={open}
+        authStatus={signedOut}
+        {...extra}
+      />,
     );
   });
   return preview;
@@ -285,4 +306,106 @@ it("shows the text for manual copying when an asked copy fails", async () => {
   expect(document.body.querySelector("[role=alert]")?.textContent).toContain(
     "could not be copied automatically",
   );
+});
+
+const signedIn = () =>
+  Promise.resolve({
+    source: "credential_store",
+    authenticated: true,
+    login: "octo",
+    rate_limit: null,
+    device_login_available: true,
+  } as Awaited<ReturnType<NonNullable<Props["authStatus"]>>>);
+
+async function type(label: string, text: string) {
+  const area = [...document.body.querySelectorAll("label")]
+    .find((element) => element.textContent?.startsWith(label))
+    ?.querySelector("textarea");
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+    setter?.call(area, text);
+    area?.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+async function pick(label: string, option: string) {
+  const select = [...document.body.querySelectorAll("label")]
+    .find((element) => element.textContent?.startsWith(label))
+    ?.querySelector("select");
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set;
+    setter?.call(select, option);
+    select?.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+}
+
+it("offers no Submit when the player is not signed in", async () => {
+  await mountChoice(vi.fn());
+  await click("Report a problem or send feedback");
+  await click("Something was hard or confusing, or I have an idea");
+  expect(document.body.querySelector("select")).not.toBeNull();
+  expect(
+    [...document.body.querySelectorAll("button")].some((b) => b.textContent?.startsWith("Submit")),
+  ).toBe(false);
+  expect(button("Open on GitHub")).toBeDefined();
+});
+
+it("submits the answered feedback from the signed-in account and links the issue", async () => {
+  const submitReport = vi.fn().mockResolvedValue({
+    number: 12,
+    url: "https://github.com/boburning/portcove/issues/12",
+  });
+  const openIssue = vi.fn().mockResolvedValue(undefined);
+  await mountChoice(vi.fn(), { authStatus: signedIn, submitReport, openIssue });
+  await click("Report a problem or send feedback");
+  await click("Something was hard or confusing, or I have an idea");
+  await expect.poll(() => button("Submit as octo")).toBeDefined();
+  expect(button("Submit as octo")?.disabled).toBe(true);
+  expect(document.body.textContent).toContain("answer each question");
+  await pick("What were you trying to do?", "Install a game");
+  await pick("How far did you get?", "I couldn't finish");
+  await type("What happened?", "Setup asked twice");
+  expect(button("Submit as octo")?.disabled).toBe(false);
+  await click("Submit as octo");
+  expect(submitReport.mock.calls[0]?.[1]).toBe("feedback");
+  const sent = submitReport.mock.calls[0]?.[0] as BugReportDraft["fields"];
+  expect(sent.find((f) => f.id === "journey")?.value).toBe("Install a game");
+  expect(sent.find((f) => f.id === "outcome")?.value).toBe("I couldn't finish");
+  expect(sent.find((f) => f.id === "happened")?.value).toBe("Setup asked twice");
+  expect(document.body.querySelector("[role=status]")?.textContent).toContain("issue #12");
+  await click("View on GitHub");
+  expect(openIssue).toHaveBeenCalledWith("https://github.com/boburning/portcove/issues/12");
+});
+
+it("keeps the answers and text when submitting fails", async () => {
+  const submitReport = vi.fn().mockRejectedValue(new Error("refused"));
+  await mountChoice(vi.fn(), { authStatus: signedIn, submitReport });
+  await click("Report a problem or send feedback");
+  await click("Something was hard or confusing, or I have an idea");
+  await expect.poll(() => button("Submit as octo")).toBeDefined();
+  await pick("What were you trying to do?", "Play a game");
+  await pick("How far did you get?", "I couldn't finish");
+  await type("What happened?", "Kept my words");
+  await click("Submit as octo");
+  expect(document.body.querySelector("[role=alert]")?.textContent).toContain(
+    "Check GitHub for your new issue before trying again",
+  );
+  const kept = [...document.body.querySelectorAll("label")]
+    .find((element) => element.textContent?.startsWith("What happened?"))
+    ?.querySelector("textarea");
+  expect(kept?.value).toBe("Kept my words");
+  expect(button("Open on GitHub")).toBeDefined();
+});
+
+it("lets the player say what they were doing in a bug report", async () => {
+  const submitReport = vi.fn().mockResolvedValue({ number: 3, url: "https://github.com/x/3" });
+  await mountChoice(vi.fn(), { authStatus: signedIn, submitReport });
+  await click("Report a problem or send feedback");
+  await click("Something broke or didn't work as it should");
+  await expect.poll(() => button("Submit as octo")).toBeDefined();
+  await type("What were you doing when it happened?", "Launching after an update");
+  await click("Submit as octo");
+  const sent = submitReport.mock.calls[0]?.[0] as BugReportDraft["fields"];
+  expect(sent.find((f) => f.id === "reproduce")?.value).toBe("Launching after an update");
+  expect(submitReport.mock.calls[0]?.[1]).toBe("problem");
 });

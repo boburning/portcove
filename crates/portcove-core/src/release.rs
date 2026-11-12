@@ -814,6 +814,82 @@ impl GithubReleaseProvider {
         );
     }
 
+    /// Files a reviewed report as an issue on Portcove's own repository under the
+    /// signed-in player's account. The token stays here: the caller passes only
+    /// Core-built text, and only Core's headers authorize the request. Without a
+    /// sign-in nothing is sent.
+    pub fn submit_report(
+        &self,
+        issue: &crate::ReportIssue,
+    ) -> impl std::future::Future<Output = Result<crate::SubmittedReport>> + Send + 'static + use<>
+    {
+        let url = format!(
+            "{}/repos/{}/issues",
+            self.api_root,
+            crate::REPORT_REPOSITORY
+        );
+        let expected_prefix = format!("{}/{}/issues/", self.web_root, crate::REPORT_REPOSITORY);
+        let token = self.active_token();
+        let headers = self.metadata_headers(&url, token.as_deref(), None);
+        let payload = serde_json::to_vec(issue);
+        let transport = self.api_transport.clone();
+        async move {
+            if token.is_none() {
+                return Err(PortcoveError::state(
+                    "sign in to GitHub to submit a report from Portcove",
+                ));
+            }
+            let url = reqwest::Url::parse(&url)
+                .map_err(|error| PortcoveError::network(error.to_string()))?;
+            let mut headers = headers?;
+            headers.remove(header::CONTENT_LENGTH);
+            headers.insert(
+                header::CONTENT_TYPE,
+                header::HeaderValue::from_static("application/json"),
+            );
+            headers.insert(
+                header::ACCEPT,
+                header::HeaderValue::from_static("application/vnd.github+json"),
+            );
+            let payload = payload.map_err(|error| PortcoveError::state(error.to_string()))?;
+            let mut request = reqwest::Request::new(reqwest::Method::POST, url);
+            *request.headers_mut() = headers;
+            *request.body_mut() = Some(payload.into());
+            let response = transport
+                .execute(request)
+                .await
+                .map_err(github_request_error)?;
+            let status = response.status();
+            if status == StatusCode::FORBIDDEN || status == StatusCode::NOT_FOUND {
+                // GitHub's secondary limit for creating content answers 403 with
+                // retry-after but without an exhausted primary limit.
+                let limited = rate_limit_from_headers(response.headers())
+                    .is_some_and(|limit| limit.remaining == 0)
+                    || response.headers().contains_key(header::RETRY_AFTER);
+                if !limited {
+                    return Err(PortcoveError::state(
+                        "GitHub did not let this sign-in create the report. Open it on GitHub or copy the text instead.",
+                    )
+                    .detail("status", status.as_u16().to_string()));
+                }
+            }
+            if !status.is_success() {
+                return Err(github_http_error(status, response.headers()));
+            }
+            let created: GithubCreatedIssue =
+                parse_bounded_json(response, "GitHub created issue").await?;
+            if !created.html_url.starts_with(&expected_prefix) || created.number == 0 {
+                return Err(PortcoveError::verification(
+                    "GitHub returned an issue outside Portcove's repository",
+                ));
+            }
+            Ok(crate::SubmittedReport {
+                number: created.number,
+                url: created.html_url,
+            })
+        }
+    }
+
     pub fn auth_status(
         &self,
     ) -> impl std::future::Future<Output = Result<GithubAuthStatus>> + Send + 'static + use<> {
@@ -1775,6 +1851,12 @@ fn github_http_error(status: StatusCode, headers: &header::HeaderMap) -> Portcov
 #[derive(Debug, Deserialize)]
 struct GithubUser {
     login: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GithubCreatedIssue {
+    number: u64,
+    html_url: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -3889,6 +3971,117 @@ mod tests {
                 .unwrap();
             assert!(!headers.contains_key(header::AUTHORIZATION), "{url}");
         }
+    }
+
+    fn created_issue(html_url: &str) -> String {
+        let body = format!(r#"{{"number":7,"html_url":"{html_url}"}}"#);
+        format!(
+            "HTTP/1.1 201 Created\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        )
+    }
+
+    fn report_issue_fixture() -> crate::ReportIssue {
+        crate::ReportIssue {
+            title: "[Feedback] Setup was slow".into(),
+            body: "### What happened?\n\nSetup was slow\n".into(),
+            labels: vec!["needs-triage".into()],
+        }
+    }
+
+    #[tokio::test]
+    async fn submitting_a_report_needs_a_sign_in_and_sends_nothing_without_one() {
+        let anonymous = GithubReleaseProvider::with_api_root("http://127.0.0.1:9").unwrap();
+        let refused = anonymous
+            .submit_report(&report_issue_fixture())
+            .await
+            .unwrap_err();
+        assert!(refused.message.contains("sign in"), "{}", refused.message);
+    }
+
+    #[tokio::test]
+    async fn submitted_reports_post_core_text_to_portcove_with_the_stored_token() {
+        // The fixture origin is only known once the server listens, so the
+        // response is built from a request-time closure.
+        let (origin, requests, server) = crate::test_http::serve_routed_http(1, |request: &str| {
+            let host = request
+                .lines()
+                .find_map(|line| line.strip_prefix("host: ").or(line.strip_prefix("Host: ")))
+                .unwrap_or_default()
+                .trim()
+                .to_owned();
+            created_issue(&format!("http://{host}/boburning/portcove/issues/7"))
+        });
+        let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+        provider.set_credential(
+            Some("player-token".into()),
+            GithubAuthSource::CredentialStore,
+        );
+        let submitted = provider
+            .submit_report(&report_issue_fixture())
+            .await
+            .unwrap();
+        assert_eq!(submitted.number, 7);
+        assert!(submitted.url.ends_with("/boburning/portcove/issues/7"));
+        server.join().unwrap();
+        let request = requests.recv().unwrap();
+        let (headers, body) = request.split_once("\r\n\r\n").unwrap();
+        let headers = headers.to_ascii_lowercase();
+        assert!(headers.starts_with("post /repos/boburning/portcove/issues "));
+        assert!(headers.contains("\r\nauthorization: bearer player-token\r\n"));
+        assert!(headers.contains("\r\ncontent-type: application/json\r\n"));
+        let sent: serde_json::Value = serde_json::from_str(body).unwrap();
+        assert_eq!(sent["title"], "[Feedback] Setup was slow");
+        assert_eq!(sent["labels"], serde_json::json!(["needs-triage"]));
+    }
+
+    #[tokio::test]
+    async fn a_refused_or_foreign_submission_is_reported_not_trusted() {
+        let forbidden = "HTTP/1.1 403 Forbidden\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}".to_owned();
+        let slowed = "HTTP/1.1 403 Forbidden\r\nRetry-After: 60\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}".to_owned();
+        let (origin, _requests, server) = serve_http(vec![
+            forbidden,
+            slowed,
+            created_issue("https://example.com/other/repo/issues/7"),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+        provider.set_credential(
+            Some("player-token".into()),
+            GithubAuthSource::CredentialStore,
+        );
+        let refused = provider
+            .submit_report(&report_issue_fixture())
+            .await
+            .unwrap_err();
+        assert!(
+            refused.message.contains("did not let this sign-in"),
+            "{}",
+            refused.message
+        );
+        // The secondary limit for creating content keeps its retry hint.
+        let slowed = provider
+            .submit_report(&report_issue_fixture())
+            .await
+            .unwrap_err();
+        assert!(
+            !slowed.message.contains("did not let this sign-in"),
+            "{}",
+            slowed.message
+        );
+        assert_eq!(
+            slowed.details.get("retry_after").map(String::as_str),
+            Some("60")
+        );
+        let foreign = provider
+            .submit_report(&report_issue_fixture())
+            .await
+            .unwrap_err();
+        assert!(
+            foreign.message.contains("outside Portcove's repository"),
+            "{}",
+            foreign.message
+        );
+        server.join().unwrap();
     }
 
     #[tokio::test]
