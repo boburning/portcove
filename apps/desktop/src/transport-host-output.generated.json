@@ -8025,6 +8025,31 @@
             "type": "string"
           }
         ]
+      },
+      "PortIntentSource": {
+        "additionalProperties": false,
+        "description": "One registered copy a remembered choice is bound to.",
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -8036,6 +8061,17 @@
           "string",
           "null"
         ]
+      },
+      "channel": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The release channel chosen with this choice. A different channel later\nwaits for the player to choose again."
       },
       "explicitly_uninstalled_at": {
         "description": "Set when the player uninstalled the game. Standing setup and\nnotifications stay quiet until the player chooses a mode again.",
@@ -8074,6 +8110,13 @@
       },
       "port_id": {
         "type": "string"
+      },
+      "sources": {
+        "description": "The registered copies of this game's files when the choice was made.\nA different or removed copy later waits for the player; it is never\nsilently retargeted. Empty when no files were registered yet: the first\nfiles that arrive are used.",
+        "items": {
+          "$ref": "#/$defs/PortIntentSource"
+        },
+        "type": "array"
       },
       "updated_at": {
         "format": "int64",
@@ -8240,6 +8283,17 @@
               "null"
             ]
           },
+          "channel": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReleaseChannel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The release channel chosen with this choice. A different channel later\nwaits for the player to choose again."
+          },
           "explicitly_uninstalled_at": {
             "description": "Set when the player uninstalled the game. Standing setup and\nnotifications stay quiet until the player chooses a mode again.",
             "format": "int64",
@@ -8278,6 +8332,13 @@
           "port_id": {
             "type": "string"
           },
+          "sources": {
+            "description": "The registered copies of this game's files when the choice was made.\nA different or removed copy later waits for the player; it is never\nsilently retargeted. Empty when no files were registered yet: the first\nfiles that arrive are used.",
+            "items": {
+              "$ref": "#/$defs/PortIntentSource"
+            },
+            "type": "array"
+          },
           "updated_at": {
             "format": "int64",
             "type": "integer"
@@ -8314,6 +8375,31 @@
             "type": "string"
           }
         ]
+      },
+      "PortIntentSource": {
+        "additionalProperties": false,
+        "description": "One registered copy a remembered choice is bound to.",
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",

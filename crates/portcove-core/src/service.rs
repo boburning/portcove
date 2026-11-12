@@ -139,8 +139,8 @@ pub use install_batch::{
 };
 pub use port_intent::{
     MAX_PORT_INTENT_ASSESSMENTS, MAX_STANDING_SETUP_ATTEMPTS, PORT_INTENT_FORMAT_VERSION,
-    PortIntent, PortIntentAssessment, PortIntentAssessments, PortIntentMode, PortReadiness,
-    PortReadinessAcknowledgement, StandingSetupFailure, StandingSetupResult,
+    PortIntent, PortIntentAssessment, PortIntentAssessments, PortIntentMode, PortIntentSource,
+    PortReadiness, PortReadinessAcknowledgement, StandingSetupFailure, StandingSetupResult,
 };
 pub use root_setup::{
     MAX_ROOT_SETUP_BASELINE, MAX_ROOT_SETUPS_PER_PASS, ROOT_SETUP_FORMAT_VERSION, RootSetupConsent,

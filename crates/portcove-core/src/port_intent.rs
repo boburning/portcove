@@ -65,6 +65,24 @@ pub struct PortIntent {
     pub failed_attempts: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub failure: Option<String>,
+    /// The release channel chosen with this choice. A different channel later
+    /// waits for the player to choose again.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub channel: Option<crate::ReleaseChannel>,
+    /// The registered copies of this game's files when the choice was made.
+    /// A different or removed copy later waits for the player; it is never
+    /// silently retargeted. Empty when no files were registered yet: the first
+    /// files that arrive are used.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sources: Vec<PortIntentSource>,
+}
+
+/// One registered copy a remembered choice is bound to.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PortIntentSource {
+    pub profile_id: String,
+    pub sha256: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -146,6 +164,8 @@ impl PortIntent {
             failed_plan_sha256: None,
             failed_attempts: 0,
             failure: None,
+            channel: None,
+            sources: Vec::new(),
         }
     }
 
@@ -294,6 +314,16 @@ impl PortcoveService {
         ) {
             self.catalog.listing(port_id)?;
         }
+        // A choice that can act remembers what it was made with, so later
+        // changes wait for the player instead of silently retargeting it.
+        let (channel, sources) = if matches!(
+            mode,
+            PortIntentMode::Notify | PortIntentMode::SetUpWhenReady
+        ) {
+            self.intent_binding(port_id)?
+        } else {
+            (None, Vec::new())
+        };
         if mode == PortIntentMode::SetUpWhenReady {
             self.add_games_to_library(&[crate::LibraryMembershipRequest {
                 port_id: port_id.to_owned(),
@@ -321,12 +351,72 @@ impl PortcoveService {
                 intent.mode = mode;
                 intent.explicitly_uninstalled_at = None;
                 intent.clear_failure();
+                intent.channel = channel;
+                intent.sources = sources;
                 intent.clone()
             })
     }
 
     pub fn port_intents(&self) -> Result<Vec<PortIntent>> {
         self.library.port_intents()
+    }
+
+    /// The channel and registered copies a new choice is made with.
+    fn intent_binding(
+        &self,
+        port_id: &str,
+    ) -> Result<(Option<crate::ReleaseChannel>, Vec<PortIntentSource>)> {
+        let port = self.catalog.port(port_id)?;
+        let channel = self.status(port_id)?.channel;
+        let mut sources = Vec::new();
+        for profile_id in [&port.source_profile, &port.bios_source_profile]
+            .into_iter()
+            .flatten()
+        {
+            if let Some(source) = self.library.source(profile_id)? {
+                sources.push(PortIntentSource {
+                    profile_id: source.profile_id,
+                    sha256: source.sha256,
+                });
+            }
+        }
+        Ok((Some(channel), sources))
+    }
+
+    /// Why a remembered choice no longer matches the current channel or
+    /// registered files, if it doesn't. The player chooses again to accept them.
+    fn intent_binding_hold(&self, intent: &PortIntent) -> Option<String> {
+        if let Some(chosen) = intent.channel {
+            match self.status(&intent.port_id) {
+                Ok(status) if status.channel != chosen => {
+                    return Some(format!(
+                        "you chose the {chosen} channel, but this game now uses {}; choose again to set it up from that channel",
+                        status.channel
+                    ));
+                }
+                Ok(_) => {}
+                Err(error) => return Some(error.message),
+            }
+        }
+        for bound in &intent.sources {
+            match self.library.source(&bound.profile_id) {
+                Ok(Some(current)) if current.sha256 == bound.sha256 => {}
+                Ok(Some(_)) => {
+                    return Some(
+                        "a different copy of this game's files is registered now; choose again to set it up with them"
+                            .to_owned(),
+                    );
+                }
+                Ok(None) => {
+                    return Some(
+                        "the files you chose for this game are no longer registered; register them again, or choose again"
+                            .to_owned(),
+                    );
+                }
+                Err(error) => return Some(error.message),
+            }
+        }
+        None
     }
 
     /// Reassesses every remembered notify or set-up-when-ready choice with the
@@ -362,6 +452,10 @@ impl PortcoveService {
             .library
             .status(&intent.port_id, crate::ReleaseChannel::Stable)
         {
+            Ok(status) if status.active.is_none() => match self.intent_binding_hold(intent) {
+                Some(reason) => PortReadiness::Waiting { reason },
+                None => self.port_readiness(&intent.port_id, status).await,
+            },
             Ok(status) => self.port_readiness(&intent.port_id, status).await,
             Err(error) => PortReadiness::Waiting {
                 reason: error.message,
@@ -541,6 +635,7 @@ impl PortcoveService {
         let still_wanted = self.library.port_intent(port_id)?.is_some_and(|intent| {
             intent.mode == PortIntentMode::SetUpWhenReady
                 && intent.explicitly_uninstalled_at.is_none()
+                && self.intent_binding_hold(&intent).is_none()
         });
         if !still_wanted {
             return Ok(None);
@@ -865,6 +960,108 @@ mod tests {
         assert_eq!(
             service.status(PORT).unwrap().active.unwrap().id,
             installed.id
+        );
+    }
+
+    fn registered_copy(service: &PortcoveService, byte: char) -> crate::SourceRecord {
+        let profile_id = service
+            .catalog()
+            .port(PORT)
+            .unwrap()
+            .source_profile
+            .clone()
+            .unwrap();
+        let sha256 = byte.to_string().repeat(64);
+        let source = crate::SourceRecord {
+            profile_id,
+            path: std::env::temp_dir().join(format!("portcove-intent-{byte}.z64")),
+            sha256: sha256.clone(),
+            size: 4,
+            storage_sha256: sha256,
+            storage_size: 4,
+            updated_at: 0,
+            observed_identity: None,
+        };
+        service.library().register_source(&source).unwrap();
+        source
+    }
+
+    #[tokio::test]
+    async fn a_choice_remembers_its_files_and_never_switches_to_another_copy() {
+        let (_temporary, service) = ready_service().await;
+        let chosen = registered_copy(&service, 'a');
+        let intent = service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        assert_eq!(intent.sources.len(), 1);
+        assert_eq!(intent.sources[0].sha256, chosen.sha256);
+        assert_eq!(intent.channel, Some(service.status(PORT).unwrap().channel));
+        // Another copy is registered later: the choice waits, nothing installs.
+        registered_copy(&service, 'b');
+        let result = service.run_standing_setup(|_| {}).await.unwrap();
+        assert!(result.batches.is_empty());
+        let PortReadiness::Waiting { reason } = &result.assessments[0].readiness else {
+            panic!("expected waiting: {result:?}");
+        };
+        assert!(reason.contains("different copy"), "{reason}");
+        assert!(service.status(PORT).unwrap().active.is_none());
+        // Choosing again accepts the new copy.
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        assert_eq!(
+            service
+                .run_standing_setup(|_| {})
+                .await
+                .unwrap()
+                .batches
+                .len(),
+            1
+        );
+        assert!(service.status(PORT).unwrap().active.is_some());
+    }
+
+    #[tokio::test]
+    async fn a_changed_channel_waits_for_a_new_choice() {
+        let (_temporary, service) = ready_service().await;
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        let current = service.status(PORT).unwrap().channel;
+        let other = [
+            crate::ReleaseChannel::Stable,
+            crate::ReleaseChannel::Beta,
+            crate::ReleaseChannel::Rolling,
+        ]
+        .into_iter()
+        .find(|channel| *channel != current)
+        .unwrap();
+        // The choice was made while the game followed another channel.
+        service
+            .library()
+            .update_port_intent(PORT, |intent, _| {
+                intent.as_mut().unwrap().channel = Some(other);
+            })
+            .unwrap();
+        let result = service.run_standing_setup(|_| {}).await.unwrap();
+        assert!(result.batches.is_empty());
+        let PortReadiness::Waiting { reason } = &result.assessments[0].readiness else {
+            panic!("expected waiting: {result:?}");
+        };
+        assert!(reason.contains("channel"), "{reason}");
+        assert!(service.status(PORT).unwrap().active.is_none());
+        // Choosing again adopts the current channel.
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        assert_eq!(
+            service
+                .run_standing_setup(|_| {})
+                .await
+                .unwrap()
+                .batches
+                .len(),
+            1
         );
     }
 

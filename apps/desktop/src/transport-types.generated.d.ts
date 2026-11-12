@@ -5222,6 +5222,11 @@ export interface PortIntent {
    */
   acknowledged_plan_sha256?: string | null;
   /**
+   * The release channel chosen with this choice. A different channel later
+   * waits for the player to choose again.
+   */
+  channel?: ReleaseChannel | null;
+  /**
    * Set when the player uninstalled the game. Standing setup and
    * notifications stay quiet until the player chooses a mode again.
    */
@@ -5237,7 +5242,21 @@ export interface PortIntent {
   format_version: number;
   mode: PortIntentMode;
   port_id: string;
+  /**
+   * The registered copies of this game's files when the choice was made.
+   * A different or removed copy later waits for the player; it is never
+   * silently retargeted. Empty when no files were registered yet: the first
+   * files that arrive are used.
+   */
+  sources?: PortIntentSource[];
   updated_at: number;
+}
+/**
+ * One registered copy a remembered choice is bound to.
+ */
+export interface PortIntentSource {
+  profile_id: string;
+  sha256: string;
 }
 export interface OutputDesktopPortIntentAssessments {
   assessments: PortIntentAssessment[];

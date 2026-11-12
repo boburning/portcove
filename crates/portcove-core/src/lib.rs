@@ -338,7 +338,7 @@ pub use service::{
     ManagedRouteChangePreview, ManagedRouteChangeResult, PORT_INTENT_FORMAT_VERSION,
     PendingSetupRecord, PendingSetupState, PlayerDataProtection, PortCapabilityFeature,
     PortCapabilityNotice, PortCapabilityReport, PortCapabilityRoute, PortIntent,
-    PortIntentAssessment, PortIntentAssessments, PortIntentMode, PortReadiness,
+    PortIntentAssessment, PortIntentAssessments, PortIntentMode, PortIntentSource, PortReadiness,
     PortReadinessAcknowledgement, PortRemovalPreview, PortcoveService, ProtectionDeclaration,
     QUIVER_FORMAT_REVISION, ROOT_SETUP_FORMAT_VERSION, RootSetupConsent, RootSetupEnrollment,
     RootSetupFailure, RootSetupImplementation, RootSetupWaiting, SetupLaunchTarget,
