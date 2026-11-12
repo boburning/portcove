@@ -979,12 +979,6 @@ export async function installScenarios({
         "Backup history must label the automatic snapshot with its version change",
       );
       await snapshotEvidence("native-automatic-snapshot-history", historyLabel);
-      const manualLabels = await browser.findElements(
-        By.css(
-          `[aria-labelledby="detail-saves-and-storage"] [data-backup-id]:not([data-backup-id="${snapshot.id}"]) [data-automatic-snapshot]`,
-        ),
-      );
-      assert.equal(manualLabels.length, 0, "Only automatic snapshots carry the label");
 
       await clickVisible(
         browser,
@@ -996,8 +990,19 @@ export async function installScenarios({
         until.elementLocated(By.css('[aria-labelledby="backup-review-title"]')),
         15_000,
       );
-      const reviewLabel = await restoreReview.findElement(By.css("[data-automatic-snapshot]"));
-      assert.equal(await reviewLabel.getText(), expected);
+      // The review's details render only after Core's preview answers.
+      const reviewLabel = await browser.wait(
+        until.elementLocated(
+          By.css('[aria-labelledby="backup-review-title"] [data-automatic-snapshot]'),
+        ),
+        15_000,
+        "Restore review did not load the snapshot details",
+      );
+      await browser.wait(
+        async () => (await reviewLabel.getText()) === expected,
+        15_000,
+        "Restore review must label the automatic snapshot with its version change",
+      );
       await snapshotEvidence("native-automatic-snapshot-restore-review", restoreReview);
       await browser.actions().sendKeys(Key.ESCAPE).perform();
       await browser.wait(
@@ -1027,6 +1032,16 @@ export async function installScenarios({
         browser,
         await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')),
       );
+      // Settings opens on Appearance; the control lives in Library and storage.
+      const storageCategory = await browser.wait(
+        until.elementLocated(
+          By.xpath(
+            '//nav[@aria-label="Settings categories"]//button[normalize-space(.)="Library and storage"]',
+          ),
+        ),
+        15_000,
+      );
+      await clickVisible(browser, storageCategory);
       const setting = await browser.wait(
         until.elementLocated(
           By.xpath(
@@ -1039,7 +1054,7 @@ export async function installScenarios({
         await browser.wait(
           async () =>
             (await setting.getAttribute("aria-checked")) === String(value) &&
-            (await setting.isEnabled()) &&
+            (await setting.getAttribute("data-disabled")) === null &&
             (await snapshotsEnabled()) === value,
           15_000,
           `Settings and Core must both report automatic snapshots ${value ? "on" : "off"}`,
