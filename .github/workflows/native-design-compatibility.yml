@@ -809,6 +809,18 @@ jobs:
                   }
               }
           }
+          "==== DevToolsActivePort files written anywhere the WebView may have used"
+          @('D:\a', $env:LOCALAPPDATA, $env:TEMP, $env:RUNNER_TEMP) | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | ForEach-Object {
+            Get-ChildItem -LiteralPath $_ -Recurse -File -Filter DevToolsActivePort -Force -ErrorAction SilentlyContinue |
+              Select-Object -First 10 | ForEach-Object { "$($_.FullName) $($_.LastWriteTimeUtc.ToString('o'))" }
+          }
+          "==== Edge and WebView2 policies"
+          foreach ($key in 'HKLM:\SOFTWARE\Policies\Microsoft\Edge', 'HKLM:\SOFTWARE\Policies\Microsoft\Edge\WebView2', 'HKLM:\SOFTWARE\Policies\Microsoft\EdgeUpdate', 'HKCU:\SOFTWARE\Policies\Microsoft\Edge') {
+            if (Test-Path $key) { "-- $key"; Get-ItemProperty -Path $key | Format-List * | Out-String -Width 200 }
+            Get-ChildItem -Path $key -Recurse -ErrorAction SilentlyContinue | ForEach-Object { "-- $($_.Name)"; $_ | Get-ItemProperty | Format-List * | Out-String -Width 200 }
+          }
+          "==== WEBVIEW2 environment"
+          Get-ChildItem env: | Where-Object Name -like 'WEBVIEW2*' | Format-Table -AutoSize | Out-String -Width 200
           "==== Windows Application log errors since job start"
           Get-WinEvent -FilterHashtable @{ LogName = 'Application'; Level = 1, 2; StartTime = (Get-Date).AddHours(-2) } -MaxEvents 30 -ErrorAction SilentlyContinue |
             Format-List TimeCreated, ProviderName, Id, Message
