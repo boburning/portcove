@@ -1123,7 +1123,7 @@ Clients that predate version 2 refuse such a record through
 `deny_unknown_fields` and keep their prior admission until it expires, so
 publish version-2 records only once the supporting client is the floor.
 
-Failover happens only when the upstream failure is classified *unavailable*
+Failover happens only when the upstream failure is classified _unavailable_
 from recorded transport facts, never from message text. Unavailable means a
 connect failure, a timeout, or HTTP 404/410 on repository, release, tag or
 asset discovery or on the asset bytes. It also covers an accepted release or
