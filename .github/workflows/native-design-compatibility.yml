@@ -826,6 +826,26 @@ jobs:
                   }
               }
           }
+          "==== Scenario report failures and largest retained outputs"
+          if ($env:PORTCOVE_OUTPUT_DIR -and (Test-Path -LiteralPath $env:PORTCOVE_OUTPUT_DIR)) {
+            Get-ChildItem -LiteralPath $env:PORTCOVE_OUTPUT_DIR -Recurse -File -Filter '*.json' -ErrorAction SilentlyContinue |
+              Where-Object { $_.Directory.Name -eq 'native' -and $_.Length -le 4MB } | ForEach-Object {
+                $report = try { Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json } catch { $null }
+                if ($report -and ($report.PSObject.Properties.Name -contains 'failure')) {
+                  "-- $($_.Name)"
+                  foreach ($name in 'failure', 'cleanup_failure') {
+                    $value = [string]$report.$name
+                    if ($value) { "${name}: $($value.Substring(0, [Math]::Min(4000, $value.Length)))" }
+                  }
+                }
+              }
+            Get-ChildItem -LiteralPath $env:PORTCOVE_OUTPUT_DIR -Recurse -File -ErrorAction SilentlyContinue |
+              Sort-Object Length -Descending | Select-Object -First 15 |
+              ForEach-Object { "$($_.Length) $($_.FullName.Substring($env:PORTCOVE_OUTPUT_DIR.Length))" }
+            $nativeTotal = (Get-ChildItem -LiteralPath $env:PORTCOVE_OUTPUT_DIR -Recurse -File -ErrorAction SilentlyContinue |
+              Where-Object { $_.Directory.Name -eq 'native' -and $_.Extension -in '.json', '.jsonl', '.log', '.png' } | Measure-Object Length -Sum).Sum
+            "native evidence total bytes: $nativeTotal"
+          }
           "==== DevToolsActivePort files written anywhere the WebView may have used"
           @('D:\a', $env:LOCALAPPDATA, $env:TEMP, $env:RUNNER_TEMP) | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | ForEach-Object {
             Get-ChildItem -LiteralPath $_ -Recurse -File -Filter DevToolsActivePort -Force -ErrorAction SilentlyContinue |
