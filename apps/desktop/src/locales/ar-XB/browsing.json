@@ -69,6 +69,28 @@
     "setupOption": "<method/>. خيار الإعداد هذا يطابق مرشحاتك. يتحقق Portcove من المتطلبات الحالية مرة أخرى قبل الإعداد أو التشغيل.",
     "unavailable": "نتائج التصفية هذه غير متاحة. عد إلى المرشحات لتحديث اختياراتك أو للفحص مرة أخرى."
   },
+  "media": {
+    "captionUnavailable": "<caption/> · الصورة غير متاحة",
+    "choose": "اختر لقطة شاشة",
+    "creditOriginal": "الإصدار الأصلي · <edition/> · <credit/>",
+    "creditPort": "صورة المنفذ · <credit/>",
+    "enlarge": "تكبير لقطة الشاشة {{number, number}}: {{caption}}",
+    "exactPort": "لقطة شاشة لهذا المنفذ بالتحديد.",
+    "fromOriginal": "من الإصدار الأصلي؛ قد يبدو هذا المنفذ مختلفًا.",
+    "igdbTerms": "شروط IGDB",
+    "loading": "جارٍ تحميل الصورة…",
+    "loadingScreenshot": "جارٍ تحميل لقطة الشاشة…",
+    "next": "التالي",
+    "openOriginal": "فتح الصورة الأصلية",
+    "position": "معاينة الصورة · لقطة الشاشة {{number, number}} من {{total, number}}",
+    "previous": "السابق",
+    "retry": "إعادة محاولة الصورة",
+    "retryScreenshot": "إعادة محاولة لقطة الشاشة {{number, number}}",
+    "screenshots": "لقطات الشاشة",
+    "show": "عرض لقطة الشاشة {{number, number}}: {{caption}}",
+    "source": "المصدر",
+    "unavailable": "الصورة غير متاحة"
+  },
   "observations": {
     "available": "تحديث متاح عند آخر فحص",
     "channel": "قناة التحديث المحددة: <channel/>",

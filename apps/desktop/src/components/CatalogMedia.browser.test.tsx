@@ -739,3 +739,35 @@ it.each(
     .toBeVisible();
   expect(media.mock.calls.map((call) => call[1])).toEqual([logo.id]);
 });
+
+it("labels the gallery and preview in the current language with exact credits", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    const first = { ...image("first"), attribution: "Studio {{credit}}" };
+    vi.spyOn(desktopApi, "catalogMediaThumbnail").mockImplementation(
+      async (_port, _id, sha256) => ({ asset_sha256: sha256, choice_revision: 0, png_base64: png }),
+    );
+    await render(
+      <ArtworkProvider generation={7} listings={directory([first])}>
+        <CatalogMediaGallery
+          port={{
+            ...portDefinition(),
+            presentation: { ...portDefinition().presentation!, media: [first] },
+          }}
+        />
+      </ArtworkProvider>,
+    );
+    await expect
+      .element(page.getByRole("region", { name: "لقطات الشاشة", exact: true }))
+      .toBeVisible();
+    const credits = [...document.querySelectorAll(".media-credit bdi")].map((n) => n.textContent);
+    expect(credits).toContain("Studio {{credit}}");
+    await page.getByRole("button", { name: `تكبير لقطة الشاشة 1: ${first.caption}` }).click();
+    await expect.element(page.getByText("معاينة الصورة · لقطة الشاشة 1 من 1")).toBeVisible();
+    await expect.element(page.getByRole("button", { name: "التالي" })).toBeDisabled();
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
