@@ -286,7 +286,7 @@ pub(crate) fn artwork_handoff(
                 "\nThe selected local original is unavailable."
             }
             DestinationArtworkUnavailableReason::SelectedImageNotWide => {
-                "\nThe selected detail image is not wider than tall, so it is not offered as a wide role."
+                "\nThe selected detail image is not displayed wider than tall, so it is not offered as a wide role."
             }
         }),
     }
@@ -544,6 +544,44 @@ mod tests {
             assert!(details.contains("Recorded port ID (redacted):"));
             assert!(!details.contains("private-launch"), "{details}");
         }
+    }
+
+    #[test]
+    fn hero_refusal_explains_the_displayed_shape_including_rotation() {
+        use portcove_core::{
+            ArtworkChoice, ArtworkSlot, DestinationArtworkContent, DestinationArtworkHandoff,
+            DestinationArtworkRole, DestinationArtworkSource, DestinationArtworkUnavailableReason,
+            LibraryIdentity,
+        };
+        let catalog = Catalog::embedded().unwrap();
+        let port_id = catalog.ports()[0].id.clone();
+        let handoff = DestinationArtworkHandoff {
+            handoff_schema: portcove_core::ARTWORK_HANDOFF_SCHEMA,
+            library: LibraryIdentity {
+                id: "library".into(),
+                root: "/library".into(),
+            },
+            port_id: port_id.clone(),
+            role: DestinationArtworkRole::HeroBanner,
+            choice: Some(ArtworkChoice {
+                port_id,
+                slot: ArtworkSlot::Detail,
+                revision: 1,
+                asset_sha256: None,
+            }),
+            source: DestinationArtworkSource::UnassignedRole,
+            selected_asset_sha256: None,
+            content: DestinationArtworkContent::Unavailable {
+                reason: DestinationArtworkUnavailableReason::SelectedImageNotWide,
+            },
+        };
+        let text = artwork_handoff(&handoff, &catalog);
+        assert!(
+            text.contains(
+                "The selected detail image is not displayed wider than tall, so it is not offered as a wide role."
+            ),
+            "{text}"
+        );
     }
 
     #[test]
