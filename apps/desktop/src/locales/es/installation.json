@@ -78,7 +78,7 @@
     },
     "details": "Archivos y detalles de la configuración",
     "installedVersion": "Versión instalada <version />",
-    "intro": "Portcove usará los archivos originales que elegiste para preparar esta versión instalada. Tu instalación actual y tus datos guardados se quedan donde están.",
+    "intro": "Portcove usará los archivos originales que seleccionaste para preparar esta versión instalada. Tu instalación actual y tus datos guardados se quedan donde están.",
     "keepOpen": "Mantén Portcove abierto. Puedes seguir explorando y volver a esta tarea en Actividad.",
     "label": "Preparar los datos del juego",
     "plan": {
@@ -90,7 +90,7 @@
       "duringOpen": "Mantén Portcove abierto. Sigue explorando y vuelve a ver el progreso en Actividad.",
       "files": "Archivos que se usan",
       "label": "Plan de preparación",
-      "source": "Archivos del juego elegidos",
+      "source": "Archivos del juego seleccionados",
       "space": "Espacio libre",
       "spaceText": "Al menos <size />, más lo que genere el juego.",
       "window": "Si la configuración abre otra ventana",
@@ -98,12 +98,12 @@
     },
     "prepare": "Preparar los datos del juego",
     "review": "Revisar la configuración",
-    "selected": "Instalación elegida",
+    "selected": "Instalación seleccionada",
     "status": {
       "cancelled": "Configuración cancelada. Consulta Actividad reciente para ver el trabajo sin terminar.",
       "prepared": "Los datos del juego están preparados.",
       "starting": "Iniciando la preparación…",
-      "unfinished": "La configuración no terminó. Comprueba los archivos del juego elegidos antes de volver a empezar."
+      "unfinished": "La configuración no terminó. Comprueba los archivos del juego seleccionados antes de volver a empezar."
     },
     "title": "Preparar los datos del juego"
   },

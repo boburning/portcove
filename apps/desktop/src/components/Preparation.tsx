@@ -35,7 +35,7 @@ export function PreparationControl({
   const [plan, setPlan] = useState<PreparationPlan>();
   const [pending, setPending] = useState<"review" | "prepare">();
   // App-owned outcomes are codes translated at render; Core progress text stays verbatim.
-  const [status, setMessage] = useState<
+  const [status, setStatus] = useState<
     "starting" | "prepared" | "unfinished" | "cancelled" | { text: string }
   >();
   const message =
@@ -79,7 +79,7 @@ export function PreparationControl({
     setPending("review");
     setError(undefined);
     setPlan(undefined);
-    setMessage(undefined);
+    setStatus(undefined);
     try {
       const value = await desktopApi.planPreparation(portId, generation);
       if (request.current === current) setPlan(value);
@@ -94,21 +94,21 @@ export function PreparationControl({
     const current = ++request.current;
     setPending("prepare");
     setError(undefined);
-    setMessage("starting");
+    setStatus("starting");
     try {
       const result = await run(plan.plan_sha256, (event) => {
         if (request.current !== current) return;
         if (event.type === "started") setOperationId(event.operation_id);
-        if (event.type === "message") setMessage({ text: event.message });
+        if (event.type === "message") setStatus({ text: event.message });
       });
       // Readback may already have removed this control. The parent completion
       // owner validates its target/epoch and connected workspace before focusing.
       if (result && observing.current) onPrepared?.();
       if (request.current === current) completed.current = Boolean(result);
-      if (request.current === current) setMessage(result ? "prepared" : "unfinished");
+      if (request.current === current) setStatus(result ? "prepared" : "unfinished");
     } catch (value) {
       if (request.current === current) {
-        if (isCancellation(value)) setMessage("cancelled");
+        if (isCancellation(value)) setStatus("cancelled");
         else setError(errorText(value));
       }
     } finally {
