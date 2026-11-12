@@ -743,6 +743,7 @@ describe("desktop components", () => {
     );
     expect(html).toContain("Setup needed");
     expect(html).toContain("Finish setup before playing.");
+    expect(html).toContain("Finish setup before playing.");
     expect(html).not.toContain("Game files required");
     expect(html).not.toContain("Finish setup</strong>");
     expect(html).not.toContain("Portcove will run and verify the upstream setup before play.");
@@ -777,6 +778,7 @@ describe("desktop components", () => {
       expect(reviewButton).toBeDefined();
       expect(reviewButton).not.toMatch(/\sdisabled(?:\s|=|>)/);
       expect(ready).toContain("Setup needed");
+      expect(ready).toContain("Finish setup before playing.");
       expect(ready).not.toContain(">Play</button>");
 
       const metadataOnly = renderToStaticMarkup(

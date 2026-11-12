@@ -160,8 +160,10 @@ export function assertPreparationReviewSummary(text: string) {
   for (const expected of [
     "Finish setup",
     "Uses",
-    "Installs to",
+    "Starts from",
+    "The finished version goes in a new folder beside it.",
     "Needs",
+    "At least",
     "free, plus what the game creates",
     "Your original game files aren't changed.",
     "Your original files and current installation remain unchanged until the verified result becomes active.",
@@ -1329,7 +1331,7 @@ export async function preparationScenarios({
     // Recovery guidance is disclosed on request; open it so the observed text
     // covers every reviewed safety statement, then close it again.
     const recoveryGuidance = await browser.findElement(
-      By.xpath('//summary[normalize-space(.)="What happens if something goes wrong"]'),
+      By.xpath('//summary[normalize-space(.)="Setup and recovery details"]'),
     );
     await recoveryGuidance.click();
     const preparationText = await browser.findElement(preparationDialog).getText();

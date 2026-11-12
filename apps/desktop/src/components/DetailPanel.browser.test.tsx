@@ -641,7 +641,8 @@ it.each(["busy", "missing_runtime", "invalid_installation"] as const)(
     expect(
       notices.querySelector(busy ? '[role="status"]' : "[data-detail-reason]")?.textContent?.trim(),
     ).toBeTruthy();
-    expect(primary.textContent).toContain(busy ? "Play" : "Finish setup");
+    // Damaged or runtime-blocked installs have no remaining setup to finish.
+    expect(primary.textContent).toContain(busy ? "Play" : "Review game files");
     await captureParityState(`detail-hero-${state}-and-staged-fixture`);
     await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
     const apply = page.getByRole("button", { name: "Apply update · 2.0", exact: true });

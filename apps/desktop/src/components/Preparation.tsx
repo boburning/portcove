@@ -289,9 +289,10 @@ function PreparationFacts({ plan }: { plan: PreparationPlan }) {
           </dd>
         </div>
         <div>
-          <dt className="text-pc-secondary-foreground">{t("preparation.plan.installsTo")}</dt>
+          <dt className="text-pc-secondary-foreground">{t("preparation.plan.current")}</dt>
           <dd className="m-0 [user-select:text]">
             <bdi dir="ltr">{plan.inputs.install.path}</bdi>
+            <span className="block">{t("preparation.plan.destination")}</span>
             <span className="block text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
               <Trans
                 t={t}
@@ -321,7 +322,7 @@ function PreparationFacts({ plan }: { plan: PreparationPlan }) {
         <summary data-focusable className="cursor-pointer py-2">
           {t("preparation.plan.ifWrong")}
         </summary>
-        <div className="preparation-during" aria-label={t("preparation.plan.during")}>
+        <div className="preparation-during" role="group" aria-label={t("preparation.plan.during")}>
           <p>{t("preparation.plan.activationText")}</p>
           <p>{t("preparation.plan.duringOpen")}</p>
           <p>{t("preparation.plan.duringInterrupt")}</p>

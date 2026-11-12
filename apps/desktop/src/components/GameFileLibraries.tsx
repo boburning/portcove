@@ -39,12 +39,12 @@ import { ReadyGameNotices } from "./ReadyGameNotices";
 const setupReturnOrigin = "game-file-libraries-setup";
 
 function portSetupLabel(status?: PortStatus) {
-  if (!status) return "Readiness unavailable; refresh the workspace";
+  if (!status) return "Can't check right now; check again from the game's details";
   if (status.active || status.external_runtime) return "Already in your library";
   const install = status.port_actions?.find((action) => action.action === "install");
   const external = status.port_actions?.find((action) => action.action === "register_external");
   const action = install?.reason === "route_not_offered" ? external : install;
-  if (!action) return "Readiness unavailable; refresh the workspace";
+  if (!action) return "Can't check right now; check again from the game's details";
   if (action.reason === "unsupported_platform") return "Unavailable on this platform";
   if (action.reason === "missing_bios") return "BIOS file needed";
   if (action.reason === "missing_source") return "Needs game files";

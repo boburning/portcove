@@ -57,11 +57,12 @@ for (const mode of [
 
 const currentPreparationSummary = `Finish setup
 Uses E:/owned.iso
-Installs to E:/sample
+Starts from E:/sample
+The finished version goes in a new folder beside it.
 Installed version 1.2
-Needs 1.5 MiB free, plus what the game creates
+Needs At least 1.5 MiB free, plus what the game creates
 Your original game files aren't changed.
-What happens if something goes wrong
+Setup and recovery details
 Your original files and current installation remain unchanged until the verified
 result becomes active. The previous version stays available for rollback.
 Keep Portcove open. Continue browsing and revisit progress in Activity.
@@ -73,7 +74,7 @@ test("native preparation observation accepts current rendered safety guidance an
 });
 
 for (const [name, omitted] of [
-  ["minimum free space", /Needs 1\.5 MiB free, /],
+  ["minimum free space", /At least 1\.5 MiB free, /],
   ["generated output", /plus what the game creates/],
   ["unchanged originals", /Your original game files aren't changed\./],
   ["originals and active runtime", /Your original files[\s\S]*?result becomes active\./],

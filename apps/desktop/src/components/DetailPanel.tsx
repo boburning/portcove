@@ -543,8 +543,13 @@ function DetailBody(model: {
         ) : (
           <Button
             data-focusable
-            variant={model.state.checkAgain && model.checkAgain ? "outline" : "primary"}
+            variant={
+              model.state.checkAgain && model.checkAgain && !setupRoutes.promoteAlternative && !busy
+                ? "outline"
+                : "primary"
+            }
             size="lg"
+            aria-label={`${heroSetupLabel(model, directInstall, managedPreparation, setupRoutes.promoteAlternative)}: ${gameIdentityLabel(model.port)}`}
             disabled={Boolean(busy)}
             onClick={() => {
               reveal(
@@ -559,11 +564,12 @@ function DetailBody(model: {
               if (directInstall) void model.actions.reviewInstall();
             }}
           >
-            {setupRoutes.promoteAlternative
-              ? "View setup options"
-              : directInstall
-                ? "Install"
-                : "Finish setup"}
+            {heroSetupLabel(
+              model,
+              directInstall,
+              managedPreparation,
+              setupRoutes.promoteAlternative,
+            )}
             <Icon glyph={ArrowRight} />
           </Button>
         )
@@ -629,7 +635,7 @@ function DetailAttention({
               ? `Manual setup is available. Managed setup: ${setupRoutes.managedReason}`
               : model.state.description}
           </span>
-          {model.state.checkAgain && model.checkAgain && (
+          {model.state.checkAgain && model.checkAgain && !setupRoutes.promoteAlternative && (
             <CheckAgainButton checkAgain={model.checkAgain} />
           )}
         </div>
@@ -4305,4 +4311,18 @@ function CheckAgainButton({ checkAgain }: { checkAgain: () => Promise<unknown> }
       {checking ? "Checking…" : "Check again"}
     </Button>
   );
+}
+
+/** Names the actual next step; "Finish setup" only when Core reports remaining setup. */
+function heroSetupLabel(
+  model: { installed: boolean; pendingSetup: boolean; sourceReady: boolean; biosReady: boolean },
+  directInstall: boolean,
+  managedPreparation: boolean,
+  promoteAlternative: boolean,
+) {
+  if (promoteAlternative) return "View setup options";
+  if (directInstall) return "Install";
+  if (model.installed && (model.pendingSetup || managedPreparation)) return "Finish setup";
+  if (!model.sourceReady || !model.biosReady) return "Choose files";
+  return "Review game files";
 }

@@ -266,7 +266,10 @@ it("reviews without executing and binds explicit confirmation to the returned pl
   );
   expect(
     [...document.body.querySelectorAll(".preparation-plan dt")].map((term) => term.textContent),
-  ).toEqual(["Uses", "Installs to", "Needs"]);
+  ).toEqual(["Uses", "Starts from", "Needs"]);
+  expect(document.body.textContent).toContain(
+    "The finished version goes in a new folder beside it.",
+  );
   const reviewedFacts = document.body.querySelector(".preparation-plan dl");
   expect(reviewedFacts?.textContent).toContain(plan.inputs.install.version);
   expect(reviewedFacts?.textContent).toContain(plan.inputs.install.path);
@@ -464,7 +467,7 @@ it("translates the prepared and cancelled outcomes and the space line", async ()
     );
     await click("Finish setup", ".preparation-control");
     expect(document.querySelector("[role=dialog]")?.textContent).toMatch(
-      /.+ free, plus what the game creates/u,
+      /At least .+ free, plus what the game creates/u,
     );
     await click("Finish setup", "[role=dialog]");
     expect(document.querySelector("[role=status]")?.textContent).toBe("Setup is finished.");
@@ -472,7 +475,7 @@ it("translates the prepared and cancelled outcomes and the space line", async ()
     outcome = "cancelled";
     await click("إكمال الإعداد", ".preparation-control");
     expect(document.querySelector("[role=dialog]")?.textContent).toMatch(
-      /.+ مساحة حرة، إضافةً إلى ما تنشئه اللعبة/u,
+      /.+ مساحة حرة على الأقل، إضافةً إلى ما تنشئه اللعبة/u,
     );
     await click("إكمال الإعداد", "[role=dialog]");
     expect(document.querySelector("[role=status]")?.textContent).toBe(

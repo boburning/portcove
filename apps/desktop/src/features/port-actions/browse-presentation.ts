@@ -255,7 +255,13 @@ function missingInputDescription(
         .map((system) => identityLabel(canonicalIdentityId(system))),
     ),
   ];
-  if (title && blockers.includes("missing_source") && !blockers.includes("missing_bios"))
-    return `You need your own copy of ${title}${systems.length === 1 ? ` (${systems[0]})` : ""}. Portcove checks that it's a supported version and never changes it.`;
+  if (title && blockers.includes("missing_source") && !blockers.includes("missing_bios")) {
+    const editionsKnown = (port.presentation?.original_game?.source_editions?.length ?? 0) > 0;
+    return `You need your own copy of ${title}${systems.length === 1 ? ` (${systems[0]})` : ""}. ${
+      editionsKnown
+        ? "Portcove checks that it's a supported version and never changes it."
+        : "Portcove never changes it."
+    }`;
+  }
   return "Choose your own copy of the game files or BIOS this port needs, then finish setup. Portcove never changes them.";
 }

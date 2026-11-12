@@ -178,9 +178,10 @@ unknown, **Check again** rereads it as the primary action, and Install or Finish
 setup is shown as a secondary control until the read succeeds. A missing input
 names what the player owns (“You need your own copy of Title (System)”), not the
 requirement's role; unknown titles stay generic. The setup review leads with
-**Uses**, **Installs to** and **Needs**, one reassurance that original files are
+**Uses**, **Starts from** (the current installation; the result goes in a new
+folder beside it) and **Needs** (“At least …”), one reassurance that original files are
 not changed, and keeps activation, rollback and interruption behavior in a
-closed disclosure; full paths stay visible (#5058 S1, S2, S5, S6).
+closed “Setup and recovery details” disclosure; full paths stay visible (#5058 S1, S2, S5, S6).
 
 The card, detail action, review title and confirmation name the same action.
 One screen offers one primary control per review; subordinate controls (for
