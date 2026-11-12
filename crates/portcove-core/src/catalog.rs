@@ -5211,7 +5211,9 @@ mod tests {
             .find(|port| port.id == "nocturne-recomp")
             .unwrap()
             .optional_game_source = true;
-        let error = Catalog::from_document(document).err().expect("rejected");
+        let Err(error) = Catalog::from_document(document) else {
+            panic!("rejected");
+        };
         assert_eq!(error.code, crate::ErrorCode::Usage);
         assert!(
             error.message.contains("optional game source"),
@@ -7721,7 +7723,8 @@ mod tests {
             ]
         );
         let arena = "alexbeav-armored-core-master-of-arena-recomp";
-        let broken: [(&str, fn(&mut PortDefinition)); 3] = [
+        type Breakage = (&'static str, fn(&mut PortDefinition));
+        let broken: [Breakage; 3] = [
             // Any other adapter or source materialization.
             ("dr-mario-64-recomp", |port| {
                 port.launch_disc_choice = Some(LaunchDiscChoice::PsxSettingsSelected);
