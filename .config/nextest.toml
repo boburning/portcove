@@ -170,6 +170,16 @@ filter = 'package(portcove-core) & test(/^service::tests::authenticated_admissio
 slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
 success-output = "immediate"
 
+# Qualification 43090604192/1 Intel job 130795135036 terminated this same
+# lifecycle at the 120s default (its single zero-retry attempt) without an assertion
+# failure; ARM job 130788166154 passed it in 55.9s. Give Intel macOS the same
+# finite 180s Windows room, keeping every assertion, cleanup and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)'
+slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
+success-output = "immediate"
+
 # CI41021237692/a1 Windows3 cut this complete pre-Play preservation lifecycle
 # at90.393s without an assertion failure; the preceding run passed at54.155s.
 # Give only this Windows case finite120s diagnostic/execution room, before the
