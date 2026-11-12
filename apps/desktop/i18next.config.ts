@@ -67,6 +67,7 @@ export default defineConfig({
       "src/components/DetailQualificationSummary.tsx",
       "src/components/DetailLayout.tsx",
       "src/components/PortCapabilities.tsx",
+      "src/components/RecoveryReview.tsx",
       "src/components/GhostshipRecoveryReview.tsx",
       "src/components/InstallBatchPanel.tsx",
       "src/components/GameFileSetupReviews.tsx",

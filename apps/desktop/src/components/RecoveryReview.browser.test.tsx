@@ -337,3 +337,122 @@ it("shows malformed journal observations without offering operation controls", a
     await act(async () => root.unmount());
   }
 });
+
+it("presents recovery items, failures and navigation in the active locale", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  try {
+    await localization.changeLanguage("ar-XB");
+    const repair = {
+      generated_at: 1,
+      items: [
+        { ...item(), kind: "degraded_backup" as const },
+        { ...item(), kind: "future" },
+      ],
+    } as unknown as Repair;
+    await act(async () =>
+      root.render(
+        <RecoveryReview
+          {...freshDiagnostics}
+          stale
+          failure={new Error("Core detail")}
+          repair={repair}
+          ports={[port]}
+          onSelect={vi.fn()}
+        />,
+      ),
+    );
+    expect(host.querySelector("section")?.getAttribute("aria-label")).toBe(
+      "العمل غير المكتمل والاسترداد",
+    );
+    expect(host.querySelector("[role=alert]")?.textContent).toBe(
+      "تعذّر تحديث معلومات الاسترداد: Core detail يبقى آخر فحص مكتمل ظاهرًا.",
+    );
+    const summaries = [...host.querySelectorAll("summary")].map((summary) => summary.textContent);
+    expect(summaries).toEqual([
+      `${port.name} · النسخة الاحتياطية تحتاج إلى انتباه`,
+      `${port.name} · معلومات الاسترداد تحتاج إلى مراجعة`,
+    ]);
+    expect(host.querySelector("summary bdi")?.textContent).toBe(port.name);
+    const buttons = [...host.querySelectorAll("button")].map((button) => button.textContent);
+    expect(buttons).toContain("تحديث معلومات الاسترداد");
+    expect(buttons).toContain("مراجعة ملفات الحفظ والنسخ الاحتياطية");
+  } finally {
+    await act(async () => root.unmount());
+    await localization.changeLanguage("en");
+  }
+});
+
+it("presents the cleanup review and an unloaded failure in the active locale", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  const preview: PreparationCleanupPreview = {
+    format_version: 1,
+    operation_id: "owned-operation",
+    port_id: port.id,
+    retained_path: "C:\\Library\\staging\\owned-operation\\",
+    retained: {
+      directories: ["payload/generated"],
+      files: [
+        { relative_path: "payload/generated/private.bin", sha256: "a".repeat(64), size: 128 },
+      ],
+      skipped_entries: [{ relative_path: "payload/generated/link", reason: "symbolic link" }],
+      total_bytes: 128,
+    },
+    original_install_path: "C:\\Library\\versions\\sample\\original",
+    source_path: "D:\\Owned\\source.iso",
+    persistent_data_path: "C:\\Library\\user\\sample",
+    backup_path: "C:\\Library\\backups\\sample",
+    logs_path: "C:\\Library\\logs",
+    cleanup_is_irreversible: true,
+    interrupted_cleanup_will_retry: true,
+    preview_sha256: "b".repeat(64),
+  };
+  vi.spyOn(desktopApi, "previewPreparationCleanup").mockResolvedValue(preview);
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await localization.changeLanguage("ar-XB");
+    await act(async () =>
+      root.render(
+        <RecoveryReview {...freshDiagnostics} failure={new Error("Core detail")} ports={[port]} />,
+      ),
+    );
+    expect(host.querySelector("[role=alert]")?.textContent).toBe(
+      "تعذّر تحديث معلومات الاسترداد: Core detail",
+    );
+    expect(host.querySelector("[role=alert] bdi")?.textContent).toBe("Core detail");
+    await act(async () =>
+      root.render(
+        <RecoveryReview
+          {...freshDiagnostics}
+          repair={{ generated_at: 1, items: [{ ...item(), kind: "retained_preparation" }] }}
+          ports={[port]}
+        />,
+      ),
+    );
+    await act(async () =>
+      [...host.querySelectorAll("button")]
+        .find((button) => button.textContent === "مراجعة ملفات الإعداد غير المكتمل")
+        ?.click(),
+    );
+    await expect.poll(() => document.body.textContent).toContain("ملفات تركها إعداد غير مكتمل");
+    expect(document.body.textContent).toContain("المهمة المسجّلة: owned-operation");
+    expect(document.body.textContent).toContain("الإدخالات المتأثرة (3)");
+    expect(document.body.textContent).toContain("رابط أو إدخال خاص");
+    expect(document.body.textContent).toContain("التثبيت الأصلي");
+    const retained = [...document.querySelectorAll("bdi[dir=ltr]")].find(
+      (element) => element.textContent === preview.retained_path,
+    );
+    expect(retained).toBeTruthy();
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    await localization.changeLanguage("en");
+  }
+});
