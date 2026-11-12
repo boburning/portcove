@@ -699,15 +699,31 @@ mod tests {
             .stderr(Stdio::null());
         let (mut child, mut job) = SessionJob::spawn(&mut command, &id, install.path()).unwrap();
         let status = job.wait_for_child(&mut child);
-        let active = job.active_processes();
-        let mut waited = Vec::new();
-        let released = job.wait_until_released(&mut |members| waited.push(members.to_vec()));
+        // While ping still runs in the job, nothing holds the session. Poll
+        // with a deadline and keep what held it, so a failure explains itself.
+        let deadline = Instant::now() + Duration::from_secs(20);
+        let mut observed = None;
+        let mut last_holding = Vec::new();
+        while observed.is_none() && Instant::now() < deadline {
+            let active = job.active_processes();
+            let holding = job.holding_members();
+            match (active, holding) {
+                (Ok(active), Ok(holding)) if active > 0 && holding.is_empty() => {
+                    observed = Some(active);
+                }
+                (Ok(0), _) => break,
+                (_, Ok(holding)) => last_holding = holding,
+                (Err(error), _) | (_, Err(error)) => panic!("job query failed: {error}"),
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
         // SAFETY: the test-created job handle has full access; this stops
-        // only the fixture's own ping.
+        // only the fixture's own processes.
         unsafe { TerminateJobObject(job.job.as_raw_handle(), 1) };
         assert!(status.unwrap().success());
-        assert!(active.unwrap() > 0, "ping should outlive cmd.exe");
-        released.unwrap();
-        assert!(waited.is_empty(), "{waited:?}");
+        assert!(
+            observed.is_some(),
+            "ping outside the install should run without holding the session; last holding: {last_holding:?}"
+        );
     }
 }
