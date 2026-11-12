@@ -67,6 +67,12 @@ export function useAppShellState(
   const [catalogSort, setCatalogSort] = useState<CatalogSort>(initial?.catalogSort ?? "catalog");
   const [selectedId, setSelectedId] = useState<string>();
   const [reviewedActivityId, setReviewedActivityId] = useState<string>();
+  // Each explicit reveal request (e.g. "Show task") counts, even for the same task.
+  const [reviewedActivityRequest, setReviewedActivityRequest] = useState(0);
+  const revealActivity = useCallback((id: string | undefined) => {
+    setReviewedActivityId(id);
+    setReviewedActivityRequest((request) => request + 1);
+  }, []);
   const [activitySection, setActivitySection] = useState<"tasks" | "updates" | "history">("tasks");
   const [settingsCategory, setSettingsCategory] =
     useState<SettingsCategory>(initialSettingsCategory);
@@ -150,6 +156,8 @@ export function useAppShellState(
     setSelectedId,
     reviewedActivityId,
     setReviewedActivityId,
+    reviewedActivityRequest,
+    revealActivity,
     activitySection,
     setActivitySection,
     settingsCategory,
