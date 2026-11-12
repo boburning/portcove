@@ -149,7 +149,7 @@ pub struct InstallBatchReview {
 
 /// Holds a ready game that would install into the same folder as an earlier
 /// game in the batch; different games never share an install folder.
-fn hold_shared_destinations(items: &mut [InstallBatchReviewItem]) {
+fn hold_shared_destinations(items: &mut [InstallBatchReviewItem], name: impl Fn(&str) -> String) {
     let mut claimed = std::collections::BTreeMap::<std::path::PathBuf, String>::new();
     for item in items.iter_mut() {
         let Some(plan) = item.plan.as_ref().filter(|_| item.hold.is_none()) else {
@@ -159,7 +159,8 @@ fn hold_shared_destinations(items: &mut [InstallBatchReviewItem]) {
         match claimed.get(&destination) {
             Some(first) => {
                 item.hold = Some(format!(
-                    "it would install into the same folder as {first}; choose a different install folder for one of them"
+                    "it would install into the same folder as {}; choose a different install folder for one of them",
+                    name(first)
                 ));
             }
             None => {
@@ -428,7 +429,11 @@ impl PortcoveService {
             };
             items.push(item);
         }
-        hold_shared_destinations(&mut items);
+        hold_shared_destinations(&mut items, |port_id| {
+            self.catalog
+                .port(port_id)
+                .map_or_else(|_| port_id.to_owned(), |port| port.name.clone())
+        });
         let capacity = batch_capacity(&items);
         Ok(InstallBatchReview { items, capacity })
     }
@@ -781,7 +786,7 @@ mod tests {
                 hold: Some("waiting".into()),
             },
         ];
-        hold_shared_destinations(&mut items);
+        hold_shared_destinations(&mut items, str::to_owned);
         let capacity = batch_capacity(&items);
         assert_eq!(capacity.download_bytes, 127);
         assert_eq!(capacity.unknown_space, vec!["four".to_owned()]);
@@ -799,7 +804,7 @@ mod tests {
             ready_item(&base, "one", 10, "/games/shared", Some("A"), Some(100)),
             ready_item(&base, "two", 10, "/games/shared", Some("A"), Some(100)),
         ];
-        hold_shared_destinations(&mut items);
+        hold_shared_destinations(&mut items, str::to_owned);
         assert!(items[0].hold.is_none());
         assert!(
             items[1]
@@ -820,12 +825,9 @@ mod tests {
             .await
             .unwrap();
         let plan = review.items[0].plan.as_ref().unwrap();
-        // An existing copy is activated, so nothing is downloaded.
-        if plan.plan.action == crate::InstallPlanAction::Download {
-            assert_eq!(review.capacity.download_bytes, plan.plan.download_bytes);
-        } else {
-            assert_eq!(review.capacity, InstallBatchCapacity::default());
-        }
+        // The fixture's staged copy is activated, so nothing is downloaded.
+        assert_ne!(plan.plan.action, crate::InstallPlanAction::Download);
+        assert_eq!(review.capacity, InstallBatchCapacity::default());
     }
 
     #[tokio::test]

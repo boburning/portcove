@@ -256,17 +256,23 @@ function BatchCapacity({
       {capacity.download_bytes > 0 && (
         <p>Downloads together: {formatBytes(capacity.download_bytes)}.</p>
       )}
-      {capacity.volumes.map((volume) => (
-        <p key={volume.volume_identity ?? volume.path}>
-          {names(volume.port_ids)} need {formatBytes(volume.required_bytes)} of temporary space on
-          the drive with {volume.path}
-          {volume.available_bytes === undefined || volume.available_bytes === null
-            ? ". Its free space is unknown; each game is checked before it runs."
-            : volume.sufficient === false
-              ? `, which has ${formatBytes(volume.available_bytes)} free. That isn't enough for all of them; later games may stop for space.`
-              : `, which has ${formatBytes(volume.available_bytes)} free.`}
-        </p>
-      ))}
+      {capacity.volumes.map((volume) => {
+        const games = volume.port_ids.map(name);
+        const who =
+          games.length === 1
+            ? `${games[0]} needs`
+            : `${games.slice(0, -1).join(", ")} and ${games.at(-1)} need`;
+        return (
+          <p key={volume.volume_identity ?? volume.path}>
+            {who} {formatBytes(volume.required_bytes)} of temporary space on the same drive
+            {volume.available_bytes === undefined || volume.available_bytes === null
+              ? ". Its free space is unknown; each game is checked before it runs."
+              : volume.sufficient === false
+                ? `, which has ${formatBytes(volume.available_bytes)} free. That isn't enough for all of them; later games may stop for space.`
+                : `, which has ${formatBytes(volume.available_bytes)} free.`}
+          </p>
+        );
+      })}
       {capacity.unknown_space && capacity.unknown_space.length > 0 && (
         <p>
           Space needed is unknown for {names(capacity.unknown_space)}. Each is checked before it

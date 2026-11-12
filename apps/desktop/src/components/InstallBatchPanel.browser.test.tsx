@@ -59,6 +59,8 @@ function button(label: string) {
 beforeEach(async () => {
   vi.spyOn(desktopApi, "unfinishedInstallBatches").mockResolvedValue([]);
   vi.spyOn(desktopApi, "planInstallBatch").mockResolvedValue(review);
+  vi.spyOn(desktopApi, "startInstallBatch");
+  vi.spyOn(desktopApi, "addGamesToLibrary");
   const host = document.createElement("div");
   document.body.append(host);
   root = await renderComponent(null, { container: host });
@@ -85,9 +87,8 @@ it("reviews the whole selection once, with combined space, before anything chang
   expect(text()).toContain("Waiting. Missing files");
   expect(text()).toContain("Downloads together");
   expect(text()).toContain("That isn't enough for all of them");
+  expect(text()).toContain("First and Second need");
   // Reviewing changed nothing.
-  vi.spyOn(desktopApi, "startInstallBatch");
-  vi.spyOn(desktopApi, "addGamesToLibrary");
   expect(desktopApi.startInstallBatch).not.toHaveBeenCalled();
   await act(async () => button("Cancel").click());
   expect(onDone).toHaveBeenCalled();
@@ -106,8 +107,8 @@ it("one confirmation saves every game and installs only the ready ones", async (
       { port_id: "second", expected_plan_sha256: "s".repeat(64), state: "queued" },
     ],
   } as unknown as InstallBatchRecord;
-  vi.spyOn(desktopApi, "addGamesToLibrary").mockResolvedValue([]);
-  vi.spyOn(desktopApi, "startInstallBatch").mockResolvedValue(batch);
+  vi.mocked(desktopApi.addGamesToLibrary).mockResolvedValue([]);
+  vi.mocked(desktopApi.startInstallBatch).mockResolvedValue(batch);
   vi.spyOn(desktopApi, "runInstallBatch").mockResolvedValue({
     ...batch,
     items: [
