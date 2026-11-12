@@ -489,14 +489,18 @@ does not erase the earlier cache or original failures. A later real scheduled
 run must demonstrate continued source/page/Core progress separately from fixture
 tests and an individual batch's `made_progress` field.
 
-The November 2 checkpoint-history loss has one explicitly approved fresh-baseline
-opportunity, pinned in source to failed scheduled run `41476042003`, its original
-attempt/source/creation identity, main ancestry anchor `c66e450e`, and the unchanged
-configuration digest. Only its first natural scheduled successor, attempt one,
-may initialize an entirely absent checkpoint tree. Every intervening scheduled
-status consumes that opportunity, including queued, failed and cancelled runs;
-reruns and manual dispatch cannot use it. The known predecessor must still be
-inside the existing twenty-four-hour recovery window. Provider-verified current
+The November 2 checkpoint-history loss's one approved fresh-baseline opportunity
+was consumed and has expired; it cannot be renewed. After snapshot export failures
+left no retained snapshot, the November 11 checkpoint-history loss has one
+explicitly owner-approved fresh-baseline opportunity (Related to #246), approved
+for the upstream source of the #4129 maintenance inventory. It is pinned in source
+to failed scheduled run `43116173426`, its original attempt/source/creation
+identity (`538ce14b`, `2026-11-11T22:58:46Z`), main ancestry anchor `d7f5e10b`,
+and the unchanged configuration digest. Only its first natural scheduled
+successor, attempt one, may initialize an entirely absent checkpoint tree. Every
+intervening scheduled status consumes that opportunity, including queued, failed
+and cancelled runs; reruns and manual dispatch cannot use it. The known
+predecessor must still be inside the existing twenty-four-hour recovery window. Provider-verified current
 run identity, complete ordered history, retained main ancestry, and exact-current-
 source Contents metadata bind the config and both catalog/listing input files.
 Their paths, regular-file type, size and locally computed Git blob identity must
