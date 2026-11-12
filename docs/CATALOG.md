@@ -2380,7 +2380,9 @@ are `mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml` and
 its other build-provided files. The existing whole-`mods` forms keep their
 original persistence scope. The split-mods form requires explicit selectors
 with the same title prefix and the platform-specific `-windows-x64.zip` and
-`-linux-x64.zip` suffixes.
+`-linux-x64.zip` suffixes. `"split-mods-openbios"` combines those split mod
+paths and selectors with the bundled OpenBIOS argument and refuses a retail
+BIOS profile, for reviewed dual-platform kits that ship and support OpenBIOS.
 
 A Linux sibling uses the same generated player basename without `.exe`, its
 own asset selector and artifact-bound source applicability.

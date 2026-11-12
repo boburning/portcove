@@ -2081,6 +2081,26 @@
         "immutable_url": "https://redump.info/disc/469",
         "live_url": null,
         "claim": "Redump Mortal Kombat Trilogy (USA) (Rev 1), SLUS-00330, has 30 tracks. Track 1 size 70755216, SHA-1 aa9b7e1716bd8790bca25d651c280f7a2a48b884, MD5 12131037d60bdfcbc870c84b97e70a35 and CRC32 a3e7f67a agree with the kit. Core binds the first data track and count."
+      },
+      {
+        "id": "njh-1001-wipeout2k97xl-v020-static-contract",
+        "role": "upstream_support",
+        "authority": "NJH-1001/Wipeout2K97XL",
+        "authority_ref": "9d3fd26e392e4b8d195f06bcdc10731f8ac4b704",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://github.com/NJH-1001/Wipeout2K97XL/blob/9d3fd26e392e4b8d195f06bcdc10731f8ac4b704/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.2.0 Windows (45448914 bytes, SHA-256 effe49cb0185b4984f1aa7a0cf4f4390aaf377a3e43fb6c1fd2aa6be93eb4b5a) and Linux x64 (46036395 bytes, SHA-256 ee0e2ce8fb03d4c7071c1c98b2860183a839209116a07a25ec7f55ca976b6fc7) setup kits match provider SHA-256 and pass Core package-layout inspection; the Linux kit has no case-colliding paths. Both carry the same game.toml: SCUS-94351, 12 tracks, first data track size 86045568 and SHA-1 5694008c30fa9896d17afdd6281e4bebb9f63953, with no retail bios_config. README-SETUP makes a retail SCPH-1001 BIOS optional and otherwise uses the shipped psxrecomp/bios/openbios.bin. The kits pin PSXRecomp 8d56cf659fd84367c3f778e17851674ac7896371, whose runtime path literals match the reviewed split-mods framework 5420458a apart from BIOS discovery names and a read-only gamecontrollerdb.txt beside the player, ship mods/bundled and mods/preloaded, and generate Wipeout2K97XL from the window title through the psx-runtime target. Native generation, gameplay and saves remain unobserved."
+      },
+      {
+        "id": "njh-1001-wipeout2k97xl-redump-5649",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/5649",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://redump.info/disc/5649",
+        "live_url": null,
+        "claim": "Redump Wipeout XL (USA), SCUS-94351, has 12 tracks. Track 1 size 86045568, SHA-1 5694008c30fa9896d17afdd6281e4bebb9f63953, MD5 bee4ab5e4835235ccf6f16bc8caea5e6 and CRC32 18ebdeb3 agree with the kit. Core binds the first data track and count."
       }
     ],
     "identities": [
@@ -12238,6 +12258,53 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "njh-1001-wipeout2k97xl-usa-psx",
+        "label": "Wipeout XL (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Wipeout XL (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SCUS-94351"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  12
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "5694008c30fa9896d17afdd6281e4bebb9f63953",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "njh-1001-wipeout2k97xl-v020-static-contract",
+                  "njh-1001-wipeout2k97xl-redump-5649"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "njh-1001-wipeout2k97xl-v020-static-contract",
+              "njh-1001-wipeout2k97xl-redump-5649"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -18599,6 +18666,38 @@
           {
             "upstream_ref": "v0.1.1",
             "artifact_sha256": "89e6f5b36adeb06be73c18831abf0cfdb5a3cc8e2436192140cd24faa6a74a38"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "njh-1001-wipeout2k97xl-game-source",
+        "port_id": "njh-1001-wipeout2k97xl",
+        "role": "game",
+        "profile_id": "njh-1001-wipeout2k97xl-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "njh-1001-wipeout2k97xl-v020-static-contract",
+          "njh-1001-wipeout2k97xl-redump-5649"
+        ],
+        "authority_ref": "9d3fd26e392e4b8d195f06bcdc10731f8ac4b704",
+        "reviewed_at": "2026-11-12",
+        "immutable_review_url": "https://github.com/NJH-1001/Wipeout2K97XL/blob/9d3fd26e392e4b8d195f06bcdc10731f8ac4b704/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.2.0",
+            "artifact_sha256": "effe49cb0185b4984f1aa7a0cf4f4390aaf377a3e43fb6c1fd2aa6be93eb4b5a"
+          },
+          {
+            "upstream_ref": "v0.2.0",
+            "artifact_sha256": "ee0e2ce8fb03d4c7071c1c98b2860183a839209116a07a25ec7f55ca976b6fc7"
           }
         ],
         "aliases": [],
@@ -48890,6 +48989,143 @@
         }
       },
       "linux_portable_data_directory": "data"
+    },
+    {
+      "id": "njh-1001-wipeout2k97xl",
+      "name": "Wipeout XL / Wipeout XL Recompiled (NJH-1001)",
+      "summary": "Build and play Wipeout XL on Windows or Linux with your own matching USA PlayStation disc and the kit's bundled OpenBIOS. You can also use a separately prepared upstream copy.",
+      "project_url": "https://github.com/NJH-1001/Wipeout2K97XL",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "NJH-1001/Wipeout2K97XL",
+        "asset_hints": {
+          "windows-x86-64": [
+            "wipeoutxl-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "wipeoutxl-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "njh-1001-wipeout2k97xl-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Wipeout2K97XL.exe"
+        ],
+        "linux-x86-64": [
+          "Wipeout2K97XL"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods/installed",
+        "mods/packages",
+        "mods/.staging",
+        "mods/state.toml",
+        "mods/state.toml.tmp",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "njh-1001-wipeout2k97xl-usa-psx",
+            "label": "Wipeout XL (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own complete 12-track USA Wipeout XL CHD (SCUS-94351). Portcove verifies the data track and track count, builds privately with the registered toolchain and the kit's bundled OpenBIOS, and keeps saves, settings and installed mods. Provide all tracks; the remaining tracks are carried into preparation without authenticating their audio content. Bundled mods belong to the runtime version. Keep your original disc separately. Windows and Linux package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Wipeout XL",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original and permitted complete kit",
+              "instruction": "Use source, components and a completed kit you are independently permitted to use, with your own Wipeout XL USA SCUS-94351 Redump-style CUE and all 12 BIN tracks. Track01 is 86,045,568 bytes, MD5 bee4ab5e4835235ccf6f16bc8caea5e6 and SHA-1 5694008c30fa9896d17afdd6281e4bebb9f63953. Other regions or revisions are outside this guide. Keep every original track unchanged and together with its CUE. Released ZIPs are setup kits, not already generated games. No retail BIOS dump is needed by the documented OpenBIOS route; retain its supplied image and applicable notices. The pinned psxrecomp code is noncommercial-use licensed; separate UI/component/original rights still apply. In the official 0.2.0 Windows kit, the root Wipeout2K97XL.exe starts upstream setup. Complete Generate & rebuild with Python and the upstream build tools before selecting the build-release player below; the kit supplies the recompiler emitters and leaves game-code generation to your own disc. Keep the matching root DLL companions together with the setup host."
+            },
+            {
+              "title": "Complete all upstream generation and rebuilding first",
+              "instruction": "Use the documented upstream setup wizard or source-build recipe outside Portcove, including its required Python/toolchain setup and Generate & rebuild step. Wait for the completed native psx-runtime product, normally build-release/Wipeout2K97XL.exe, with its matching bios, mods, configs, assets and other staged companions. Keep the complete kit/source and completed output together. Root/setup executables forward to another process and exit on Windows; do not register those setup hosts or codegen/helper scripts. A generated-source tree or incomplete build is not the finished player."
+            },
+            {
+              "title": "Select the documented completed build product",
+              "instruction": "Select the finished build-release/Wipeout2K97XL.exe and use that complete build-release directory as working directory; leave arguments empty. Upstream stages runtime configs for direct build launches. The completed game-dispatch product keeps its normal launcher/game in-process rather than taking the setup-host forward path. Keep the same supported disc selected if the player asks. Saving launch details and Play are separate actions. Setup, Generate & rebuild, PGO optimize or optional relaunch/restart actions remain outside this tracked initial-player route; close any actual successors before another attachment or maintenance."
+            },
+            {
+              "title": "Back up active settings, cards and all custom roots before startup",
+              "instruction": "Preserve the complete creating runtime and upstream kit, executable-adjacent settings.toml, disc/BIOS .cfg sidecars, saves/ (including cards, game options and save states), mods/, reports/logs/caches/captures and original discs. The default game config uses saves/ and card1.mcd/card2.mcd; established explicit card files or --memcard-dir and PSX_OVERLAY_CAPTURE_ROOT overrides are separate roots. Do not merge profiles or infer save compatibility between disc variants. Startup can remove an older settings.toml.bad and rename malformed settings.toml there; back up both outside the runtime beforehand. Before startup, also preserve the loose legacy state_*.pst files, their openbios/ and scph1001/ destination subfolders and .pst_bios_isolated marker in a separate backup: upstream can move those legacy states into BIOS-scoped subfolders during its first migration. This does not establish cross-BIOS or cross-build save-state compatibility."
+            },
+            {
+              "title": "Keep runtime and mod replacement with upstream",
+              "instruction": "Upstream/player owns generation, rebuilding, updates and recovery. Preserve custom mods, settings/cards and the old complete runtime outside build/output paths before replacing or rebuilding the kit. Close all actual player/setup/rebuild processes first, then review/relink changed executable bytes after preparation. Portcove does not adopt optional rebuild successors. Removing registration preserves external files; no managed update, rollback, backup, save migration or external deletion is offered."
+            }
+          ],
+          "warnings": [
+            "Release ZIPs are setup kits rather than generated game builds. Keep your complete 12-track disc and the supplied OpenBIOS. Controller and enhancement support varies. Back up cards, settings and mods before rebuilding; the pinned framework allows noncommercial use only."
+          ],
+          "help_url": "https://github.com/NJH-1001/Wipeout2K97XL/blob/464def7d7d95d46a548863475cdccee1e1ea31b3/README.md"
+        },
+        "artwork": {
+          "game_id": 1538,
+          "cover_id": 200817,
+          "image_id": "co4ay9",
+          "image_sha256": "a306ddcaf6d24f17a938e8b9eb6f5c83ded3ca97a5e67c214ff0fd1e750cf6bf",
+          "game_slug": "wipeout-xl",
+          "match_kind": "underlying-game"
+        }
+      }
     },
     {
       "id": "noahvl-birdman64",

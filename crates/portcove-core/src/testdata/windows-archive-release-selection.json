@@ -1668,6 +1668,27 @@
         "mortal-kombat-trilogy-0.1.1-linux-x64.zip",
         "mortal-kombat-trilogy-999.123.456-linux-x64.zip"
       ]
+    },
+    "njh-1001-wipeout2k97xl": {
+      "inventory": "njh-1001-wipeout2k97xl",
+      "selected_assets": [
+        "wipeoutxl-0.2.0-windows-x64.zip",
+        "wipeoutxl-999.123.456-windows-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SCUS-94351",
+        "track_sha1": "5694008c30fa9896d17afdd6281e4bebb9f63953",
+        "track_sha256": null,
+        "generated_executable": "Wipeout2K97XL.exe",
+        "track_count": 12,
+        "openbios": true,
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      },
+      "linux_selected_assets": [
+        "wipeoutxl-0.2.0-linux-x64.zip",
+        "wipeoutxl-999.123.456-linux-x64.zip"
+      ]
     }
   },
   "inventories": {
@@ -9874,6 +9895,96 @@
           }
         ]
       }
+    ],
+    "njh-1001-wipeout2k97xl": [
+      {
+        "id": 421409989,
+        "tag_name": "v0.2.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-23T03:10:11Z",
+        "assets": [
+          {
+            "id": 667803741,
+            "name": "wipeoutxl-0.2.0-linux-x64.zip",
+            "size": 46036395,
+            "digest": "sha256:ee0e2ce8fb03d4c7071c1c98b2860183a839209116a07a25ec7f55ca976b6fc7",
+            "browser_download_url": "https://github.com/NJH-1001/Wipeout2K97XL/releases/download/v0.2.0/wipeoutxl-0.2.0-linux-x64.zip"
+          },
+          {
+            "id": 667804225,
+            "name": "wipeoutxl-0.2.0-linux-x64.zip.sha256",
+            "size": 96,
+            "digest": "sha256:e7de6b4d59bfcc3e708506c89f3cc4036f7e2017bfd4e83c9fba350aceda082f",
+            "browser_download_url": "https://github.com/NJH-1001/Wipeout2K97XL/releases/download/v0.2.0/wipeoutxl-0.2.0-linux-x64.zip.sha256"
+          },
+          {
+            "id": 667804237,
+            "name": "wipeoutxl-0.2.0-macos-arm64.zip",
+            "size": 22201188,
+            "digest": "sha256:e0e4ff5899b13f94050fd6bb6d60b3dfe84e1bfe186bc7e831a4d57bd929ccb4",
+            "browser_download_url": "https://github.com/NJH-1001/Wipeout2K97XL/releases/download/v0.2.0/wipeoutxl-0.2.0-macos-arm64.zip"
+          },
+          {
+            "id": 667804580,
+            "name": "wipeoutxl-0.2.0-macos-arm64.zip.sha256",
+            "size": 98,
+            "digest": "sha256:9ae03f5cc5d92072afa4b3f5fa7844d6ec2b97087330e7d19353b8ee3312f50c",
+            "browser_download_url": "https://github.com/NJH-1001/Wipeout2K97XL/releases/download/v0.2.0/wipeoutxl-0.2.0-macos-arm64.zip.sha256"
+          },
+          {
+            "id": 667804597,
+            "name": "wipeoutxl-0.2.0-macos-x64.zip",
+            "size": 22631908,
+            "digest": "sha256:74bc723d52abec9d2f56d4d6152f277ce3c0da237477844bf35a9db9a735a87f",
+            "browser_download_url": "https://github.com/NJH-1001/Wipeout2K97XL/releases/download/v0.2.0/wipeoutxl-0.2.0-macos-x64.zip"
+          },
+          {
+            "id": 667804993,
+            "name": "wipeoutxl-0.2.0-macos-x64.zip.sha256",
+            "size": 96,
+            "digest": "sha256:3b7da1f4ace5affddc1d75fac1d86603d28a8077f1344e5f288a935ac725bfe7",
+            "browser_download_url": "https://github.com/NJH-1001/Wipeout2K97XL/releases/download/v0.2.0/wipeoutxl-0.2.0-macos-x64.zip.sha256"
+          },
+          {
+            "id": 667803085,
+            "name": "wipeoutxl-0.2.0-windows-x64.zip",
+            "size": 45448914,
+            "digest": "sha256:effe49cb0185b4984f1aa7a0cf4f4390aaf377a3e43fb6c1fd2aa6be93eb4b5a",
+            "browser_download_url": "https://github.com/NJH-1001/Wipeout2K97XL/releases/download/v0.2.0/wipeoutxl-0.2.0-windows-x64.zip"
+          },
+          {
+            "id": 667803732,
+            "name": "wipeoutxl-0.2.0-windows-x64.zip.sha256",
+            "size": 99,
+            "digest": "sha256:cf8d79d4d9061f0bace2cd30d458135b9e7c240d89416da595cb04e2f05f4b57",
+            "browser_download_url": "https://github.com/NJH-1001/Wipeout2K97XL/releases/download/v0.2.0/wipeoutxl-0.2.0-windows-x64.zip.sha256"
+          }
+        ]
+      },
+      {
+        "id": 999700510,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-12T00:00:00Z",
+        "assets": [
+          {
+            "id": 999700511,
+            "name": "wipeoutxl-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/wipeoutxl-999.123.456-windows-x64.zip",
+            "size": 45400000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999700512,
+            "name": "wipeoutxl-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/wipeoutxl-999.123.456-linux-x64.zip",
+            "size": 46000000,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
     ]
   },
   "other_zip_assets": [
@@ -11031,6 +11142,16 @@
       "inventory": "alexbeav-mortal-kombat-trilogy-recomp",
       "release_index": 0,
       "asset": "mortal-kombat-trilogy-0.1.1-macos-x64.zip"
+    },
+    {
+      "inventory": "njh-1001-wipeout2k97xl",
+      "release_index": 0,
+      "asset": "wipeoutxl-0.2.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "njh-1001-wipeout2k97xl",
+      "release_index": 0,
+      "asset": "wipeoutxl-0.2.0-macos-x64.zip"
     }
   ]
 }

@@ -3429,7 +3429,7 @@ mod tests {
 
     #[test]
     fn njh_1001_wipeout2k97xl_prepared_player_route_1908() {
-        assert_listing_only_player_route("njh-1001-wipeout2k97xl", Some(false));
+        assert_bound_listing_player_route("njh-1001-wipeout2k97xl", "Wipeout2K97XL.exe", &[]);
     }
 
     #[test]
