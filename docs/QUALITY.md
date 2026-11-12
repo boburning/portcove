@@ -437,6 +437,16 @@ seconds after installer start), from 15 to 30 seconds for Intel withdrawal
 retention (first copy at 15.33 seconds), and from 5 to 15 seconds for ARM
 cancellation restore (expired at 5.32 seconds before any copy). Each latch still
 requires a real partial copy, then the intervention, refusal and worker-drain checks.
+Scheduled Qualification run 43230875182 attempt 1 (source `bdc3a4d5`) then
+passed all of those cases on both Macs, but Intel job 131243259441 cut two
+other cases on their single attempt.
+`catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts`
+stopped at its 180-second Intel override after passing in 164.8 seconds in the
+earlier run; its Intel override is now 240 seconds (5s × 48), below the
+300-second no-retry line.
+`curated_rollback_withdrawal_permits_exact_retained_target` stopped at the
+120-second default after passing in 119.4 seconds earlier; Intel now has the
+same exact 180-second override as Windows.
 
 The October 2026 test audit calibrated the three maintained Node suites that
 contain fixed Linux Python child wrappers from a 30-second default to

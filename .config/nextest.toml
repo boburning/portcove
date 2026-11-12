@@ -113,15 +113,26 @@ filter = 'package(portcove-core) & test(/^definition_repository::tests::publishe
 slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
 success-output = "immediate"
 
+# Qualification 43230875182/1 Intel job 131243259441 cut this same exact-target
+# rollback at the 120s default on its single attempt; Intel passed it in
+# 119.4s in 43090604192/1 and ARM in 56.8s. Give Intel the Windows 180s room.
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target$/)'
+slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
+success-output = "immediate"
+
 # Full qualification40763883340/a1 retained19 failures from five producers.
 # Intel reached Active at50.076s before its60s cutoff. Give the complete
 # Intel matrix finite180s diagnostic room. This exact case/platform safeguard
 # retains assertions, inventories and cleanup; it establishes no performance
-# improvement.
+# improvement. Qualification 43090604192/1 passed it in 164.8s; 43230875182/1
+# Intel job 131243259441 then cut it at 180.2s on its single attempt (ARM:
+# 115.0s). Raise only Intel to 240s, below the 300s no-retry line.
 [[profile.default.overrides]]
 platform = 'x86_64-apple-darwin'
 filter = 'package(portcove-core) & test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/)'
-slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
+slow-timeout = { period = "5s", terminate-after = 48, grace-period = "0s" }
 success-output = "immediate"
 
 # CI 42687446229/42691806693 hosted Windows: main completed this CPU-bound
