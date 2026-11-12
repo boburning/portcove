@@ -136,7 +136,7 @@ the executable whenever that folder is writable, as on Windows. The fallback is
 `~/.local/share/mdk-sdl` on Linux, and a first portable run copies older data
 from there. The Windows persistence contract therefore applies unchanged. The
 listing's upstream-owned Linux x86-64 entry moves to the managed integration.
-Linux ARM64 and Apple silicon stay upstream-owned setup.
+Upstream `MdkData.Find()` only probes Windows GOG and Steam defaults, and managed launches do not pass `MDK_DATA_DIR`. The managed Linux route therefore names the original installation in `mdk_paths.cfg` beside `mdk_sdl`, which is already declared persistent. Linux ARM64 and Apple silicon stay upstream-owned setup.
 
 ## Not observed
 

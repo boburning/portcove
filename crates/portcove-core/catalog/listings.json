@@ -34460,11 +34460,11 @@
         "steps": [
           {
             "title": "Prepare your original game on Windows",
-            "instruction": "Keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required."
+            "instruction": "On Windows, keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, or on Linux, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required."
           },
           {
             "title": "Set up MDK on Linux",
-            "instruction": "On x86-64 Linux, Portcove can install and update the official mdk-linux-x64.tar.gz player. For an ARM64 copy you maintain, choose mdk-linux-arm64.tar.gz from the stable releases. Use a Vulkan driver and keep libSDL3.so beside mdk_sdl. Point MDK_DATA_DIR or the [paths] mdk entry in mdk_paths.cfg at your complete original installation. The inspected v1.2.6 x86-64 player needs glibc 2.43 or later and its ARM64 sibling needs glibc 2.38 or later."
+            "instruction": "On x86-64 Linux, Portcove can install and update the official mdk-linux-x64.tar.gz player. Linux has no default game-location detection, so create mdk_paths.cfg beside mdk_sdl and name your complete original installation in its [paths] mdk setting; Portcove does not pass MDK_DATA_DIR to the game. For an ARM64 copy you maintain, choose mdk-linux-arm64.tar.gz from the stable releases, keep libSDL3.so beside mdk_sdl, and point MDK_DATA_DIR or the [paths] mdk entry in mdk_paths.cfg at your original installation. Use a Vulkan driver. The inspected v1.2.6 x86-64 player needs glibc 2.43 or later and its ARM64 sibling needs glibc 2.38 or later."
           },
           {
             "title": "Set up MDK on an Apple silicon Mac",
