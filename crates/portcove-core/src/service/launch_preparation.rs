@@ -96,7 +96,11 @@ impl PortcoveService {
             match self.library.source(profile)? {
                 // An optional source whose file has gone is treated as absent: nothing is
                 // unpacked and the runtime and its persistent files stay as they are.
-                Some(record) if port.optional_game_source && !record.path.exists() => None,
+                Some(record)
+                    if port.optional_game_source && super::source_file_is_gone(&record.path) =>
+                {
+                    None
+                }
                 Some(_) => Some(self.verified_source_record_with_checkpoint(
                     &catalog,
                     profile,

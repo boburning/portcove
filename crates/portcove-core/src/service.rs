@@ -158,6 +158,15 @@ pub(crate) mod game_update_acquisition;
 #[path = "game_update_review.rs"]
 mod game_update_review;
 
+/// A registered source file is gone only when it is not found. A permission error or an
+/// unreachable location is never treated as gone: readiness reports those as unreadable.
+fn source_file_is_gone(path: &Path) -> bool {
+    matches!(
+        std::fs::metadata(path),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound
+    )
+}
+
 fn add_source_blocker(blockers: &mut Vec<LaunchBlocker>, health: Option<SourceHealth>, bios: bool) {
     let blocker = match (health, bios) {
         (Some(SourceHealth::Unregistered | SourceHealth::Missing), false) => {
@@ -2444,17 +2453,28 @@ impl PortcoveService {
         let platform = Platform::current()?;
         // Install evaluates the current definition. Launch readiness may have
         // inspected a different, retained installed contract.
+        // Only the game source can be optional; the same rule as the install plan.
         let current_missing = [
-            (current_port.source_profile.as_ref(), Reason::MissingSource),
+            (
+                current_port.source_profile.as_ref(),
+                current_port.optional_game_source,
+                Reason::MissingSource,
+            ),
             (
                 current_port.bios_source_profile.as_ref(),
+                false,
                 Reason::MissingBios,
             ),
         ]
         .into_iter()
-        .find_map(|(profile, reason)| {
+        .find_map(|(profile, optional, reason)| {
             profile
-                .filter(|id| !registered_sources.contains_key(*id))
+                .filter(|id| {
+                    crate::types::source_blocks_setup(
+                        registered_sources.contains_key(*id),
+                        optional,
+                    )
+                })
                 .map(|_| reason)
         });
         let install = if let Some(reason) = crate::definition_eligibility::admission_route_exclusion(
@@ -3642,11 +3662,27 @@ impl PortcoveService {
             self.library.register_source(&source)?;
             return Ok(Some(source));
         }
+        // An optional source that was never registered, or whose file has gone, is not used:
+        // setup proceeds without it and nothing is unpacked.
+        if port.optional_game_source
+            && self
+                .library
+                .source(profile_id)?
+                .is_some_and(|record| source_file_is_gone(&record.path))
+        {
+            return Ok(None);
+        }
         match self.verified_original_for_setup(port) {
             Ok(source) => Ok(Some(source)),
             Err(error) if error.code == crate::ErrorCode::NotFound => self
                 .resolve_and_register_inbox_source(profile_id, Some(&port.id), Some(port), operation)
                 .map(Some)
+                .or_else(|error| {
+                    if port.optional_game_source && error.code == crate::ErrorCode::NotFound {
+                        return Ok(None);
+                    }
+                    Err(error)
+                })
                 .map_err(|error| {
                     if error.code == crate::ErrorCode::NotFound {
                         PortcoveError::source(format!(
@@ -17668,66 +17704,174 @@ fn main() {
         );
     }
 
+    const OPTIONAL_DISC_ID: &str = "nocturne-recomp";
+    // An embedded profile ID (so the retained qualification resolves it); the catalog
+    // below redefines it for the synthetic image.
+    const OPTIONAL_DISC_PROFILE: &str = "sotn-xbla";
+    const OPTIONAL_DISC_TITLE: u32 = 0x4D53_07E6;
+
+    /// Writes a synthetic disc image and returns its SHA-256.
+    fn optional_disc_image(path: &Path) -> String {
+        use crate::disc_filesystem::fixtures::{file, xex, xiso};
+        xiso(
+            0,
+            vec![
+                file("default.xex", &xex(OPTIONAL_DISC_TITLE)),
+                file("data.bin", b"payload"),
+            ],
+        )
+        .write_to(path);
+        hex::encode(Sha256::digest(fs::read(path).unwrap()))
+    }
+
+    /// A single-port catalog: an embedded staged port given a disc-image source, with the
+    /// profile redefined to accept `image_sha256`, optional or required.
+    fn optional_disc_catalog(
+        optional: bool,
+        image_sha256: &str,
+    ) -> (crate::Catalog, PortDefinition) {
+        use crate::disc_filesystem::fixtures::xex;
+        let mut port = crate::test_fixture::host_declared_embedded_catalog(&[OPTIONAL_DISC_ID])
+            .port(OPTIONAL_DISC_ID)
+            .unwrap()
+            .clone();
+        port.source_profile = Some(OPTIONAL_DISC_PROFILE.into());
+        port.runtime_source_filename = Some("assets".into());
+        port.runtime_source_materialization =
+            Some(crate::RuntimeSourceMaterialization::XdvdfsDirectory);
+        port.runtime_source_hashes = std::collections::BTreeMap::from([(
+            "default.xex".to_owned(),
+            hex::encode(Sha256::digest(xex(OPTIONAL_DISC_TITLE))),
+        )]);
+        port.runtime_disc_image = Some(crate::DiscImageProfile {
+            format: crate::DiscImageFormat::Xdvdfs,
+            max_image_bytes: 1 << 30,
+            product_codes: vec![format!("{OPTIONAL_DISC_TITLE:08X}")],
+        });
+        port.optional_game_source = optional;
+        // Keep the embedded presentation requirement; the profile carries the same label.
+        let label = port.presentation.as_ref().unwrap().source_requirements[0]
+            .label
+            .clone();
+        let catalog = crate::Catalog::from_json(
+            &serde_json::json!({
+                "schema_version": 1,
+                "source_profiles": [{
+                    "id": OPTIONAL_DISC_PROFILE, "label": label, "kind": "file",
+                    "accepted_extensions": ["iso"], "accepted_sha256": [image_sha256],
+                }],
+                "ports": [port],
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let port = catalog.port(OPTIONAL_DISC_ID).unwrap().clone();
+        (catalog, port)
+    }
+
+    /// The Install action (for a port that is not installed yet) holds on a missing
+    /// source only when the source is required.
+    #[test]
+    fn an_unregistered_optional_source_does_not_hold_the_install_action() {
+        for optional in [true, false] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let image = temporary.path().join("fixture.iso");
+            let (catalog, _) = optional_disc_catalog(optional, &optional_disc_image(&image));
+            let mut service = PortcoveService::new(library).unwrap();
+            service.replace_catalog_for_test(catalog);
+            let status = service.status(OPTIONAL_DISC_ID).unwrap();
+            let install = status
+                .port_actions
+                .iter()
+                .find(|action| action.action == crate::PortAction::Install)
+                .unwrap();
+            let held = install.availability == crate::PortActionAvailability::Waiting
+                && install.reason == crate::PortActionReason::MissingSource;
+            assert_eq!(held, !optional, "optional={optional}: {install:?}");
+        }
+    }
+
+    /// A registered optional source that changed or cannot be read still holds Play (it is
+    /// only an unregistered or vanished one that does not), and a path that fails for any
+    /// reason other than not being found is never treated as gone.
+    #[test]
+    fn a_changed_or_unreadable_optional_source_still_blocks() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let image = temporary.path().join("fixture.iso");
+        let (catalog, port) = optional_disc_catalog(true, &optional_disc_image(&image));
+        let root = library.versions_dir().join(OPTIONAL_DISC_ID).join("v1");
+        fs::create_dir_all(&root).unwrap();
+        write_host_test_executable(&root, OPTIONAL_DISC_ID);
+        let artifact = ArtifactIdentity {
+            asset_name: format!("{OPTIONAL_DISC_ID}-v1.zip"),
+            sha256: hex::encode(Sha256::digest("optional:v1")),
+            size: 4,
+        };
+        register_existing_test_artifact_with_port(&library, &port, "v1", &root, artifact, true);
+        let mut service = PortcoveService::new(library).unwrap();
+        service.replace_catalog_for_test(catalog);
+        service
+            .register_source(OPTIONAL_DISC_PROFILE, &image)
+            .unwrap();
+        let blockers = |service: &PortcoveService| {
+            service
+                .status(OPTIONAL_DISC_ID)
+                .unwrap()
+                .readiness
+                .unwrap()
+                .blockers
+        };
+        assert!(!blockers(&service).contains(&LaunchBlocker::MissingSource));
+
+        // Changed: a different size than the registered baseline.
+        let original = fs::read(&image).unwrap();
+        fs::write(&image, b"changed").unwrap();
+        assert!(blockers(&service).contains(&LaunchBlocker::ChangedSource));
+        fs::write(&image, &original).unwrap();
+        assert!(!blockers(&service).contains(&LaunchBlocker::ChangedSource));
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            // Unreadable: present but cannot be opened.
+            fs::set_permissions(&image, fs::Permissions::from_mode(0o000)).unwrap();
+            let readable = fs::File::open(&image).is_ok();
+            let blocked = blockers(&service).contains(&LaunchBlocker::UnreadableSource);
+            fs::set_permissions(&image, fs::Permissions::from_mode(0o644)).unwrap();
+            // Running as a user that bypasses file permissions cannot make a file unreadable.
+            assert!(readable || blocked, "an unreadable optional source blocks");
+
+            // A permission failure on the path is not "gone"; only NotFound is.
+            let folder = temporary.path().join("sealed");
+            fs::create_dir_all(&folder).unwrap();
+            fs::write(folder.join("image.iso"), b"x").unwrap();
+            fs::set_permissions(&folder, fs::Permissions::from_mode(0o000)).unwrap();
+            let denied = !super::source_file_is_gone(&folder.join("image.iso"));
+            let denied_is_error = fs::metadata(folder.join("image.iso")).is_err();
+            fs::set_permissions(&folder, fs::Permissions::from_mode(0o755)).unwrap();
+            assert!(denied, "a permission error is not a vanished source");
+            let _ = denied_is_error;
+        }
+        assert!(super::source_file_is_gone(
+            &temporary.path().join("never-existed.iso")
+        ));
+        assert!(!super::source_file_is_gone(&image));
+    }
+
     /// An optional disc source never blocks Play: with none registered, or after its file
     /// has gone, nothing is unpacked or removed. A required source (the twin) still blocks
     /// while unregistered and when its registered file has gone.
     #[test]
     fn an_optional_disc_source_never_blocks_or_changes_the_runtime() {
-        use crate::disc_filesystem::fixtures::{file, xex, xiso};
-        const TITLE: u32 = 0x4D53_07E6;
-        const ID: &str = "nocturne-recomp";
-        // An embedded profile ID (so the retained qualification resolves it); the service
-        // catalog below redefines it for the synthetic image.
-        const PROFILE: &str = "sotn-xbla";
+        const ID: &str = OPTIONAL_DISC_ID;
+        const PROFILE: &str = OPTIONAL_DISC_PROFILE;
         for optional in [true, false] {
             let temporary = tempfile::tempdir().unwrap();
             let library = Library::open(temporary.path().join("library")).unwrap();
             let image = temporary.path().join("fixture.iso");
-            xiso(
-                0,
-                vec![
-                    file("default.xex", &xex(TITLE)),
-                    file("data.bin", b"payload"),
-                ],
-            )
-            .write_to(&image);
-            let image_sha256 = hex::encode(Sha256::digest(fs::read(&image).unwrap()));
-            let mut port = crate::test_fixture::host_declared_embedded_catalog(&[ID])
-                .port(ID)
-                .unwrap()
-                .clone();
-            port.source_profile = Some(PROFILE.into());
-            port.runtime_source_filename = Some("assets".into());
-            port.runtime_source_materialization =
-                Some(crate::RuntimeSourceMaterialization::XdvdfsDirectory);
-            port.runtime_source_hashes = std::collections::BTreeMap::from([(
-                "default.xex".to_owned(),
-                hex::encode(Sha256::digest(xex(TITLE))),
-            )]);
-            port.runtime_disc_image = Some(crate::DiscImageProfile {
-                format: crate::DiscImageFormat::Xdvdfs,
-                max_image_bytes: 1 << 30,
-                product_codes: vec![format!("{TITLE:08X}")],
-            });
-            port.optional_game_source = optional;
-            // Keep the embedded presentation requirement; the service catalog's profile
-            // below carries the same label.
-            let label = port.presentation.as_ref().unwrap().source_requirements[0]
-                .label
-                .clone();
-            let catalog = crate::Catalog::from_json(
-                &serde_json::json!({
-                    "schema_version": 1,
-                    "source_profiles": [{
-                        "id": PROFILE, "label": label, "kind": "file",
-                        "accepted_extensions": ["iso"], "accepted_sha256": [image_sha256],
-                    }],
-                    "ports": [port],
-                })
-                .to_string(),
-            )
-            .unwrap();
-            let port = catalog.port(ID).unwrap().clone();
+            let (catalog, port) = optional_disc_catalog(optional, &optional_disc_image(&image));
 
             let root = library.versions_dir().join(ID).join("v1");
             fs::create_dir_all(&root).unwrap();

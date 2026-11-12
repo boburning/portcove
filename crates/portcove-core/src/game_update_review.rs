@@ -504,6 +504,26 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn an_optional_unregistered_game_source_does_not_hold_the_update_download() {
+        let (_temporary, service) = fixture();
+        let next = service_with_release(service.library.clone(), "v3");
+        let mut review = next.plan_game_update(PORT, false).await.unwrap();
+        assert_eq!(review.plan.action, crate::InstallPlanAction::Download);
+        // The required baseline holds the download.
+        assert_eq!(
+            review.assessment.reason,
+            crate::PortActionReason::MissingSource
+        );
+        review.plan.source_requirements[0].optional = true;
+        let assessment = game_update_plan_assessment(&review.plan);
+        assert_eq!(
+            assessment.availability,
+            crate::PortActionAvailability::Allowed
+        );
+        assert_eq!(assessment.reason, crate::PortActionReason::Available);
+    }
+
     #[test]
     fn saving_every_policy_changes_no_installation_or_activity_and_survives_restart() {
         let (_temporary, service) = fixture();

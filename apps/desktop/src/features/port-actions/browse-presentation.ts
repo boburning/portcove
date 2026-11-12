@@ -146,15 +146,19 @@ export function browseStatusSummary(
 
 /** File-state copy only. Paths and review-eligibility booleans cannot prove connected inputs. */
 export function gameFilesPresentation(
-  port: Pick<PortDefinition, "source_profile" | "bios_source_profile" | "presentation">,
+  port: Pick<
+    PortDefinition,
+    "source_profile" | "bios_source_profile" | "presentation" | "optional_game_source"
+  >,
   status: PortStatus | undefined,
 ) {
   const readiness = status?.readiness;
   const sourceBlocked = readiness?.blockers.some((blocker) => SOURCE_BLOCKERS.includes(blocker));
   const biosBlocked = readiness?.blockers.some((blocker) => BIOS_BLOCKERS.includes(blocker));
+  // An optional source is not required unless something already ties it to this port.
   const sourceRequired = Boolean(
     sourceBlocked ||
-    port.source_profile ||
+    (port.source_profile && !port.optional_game_source) ||
     readiness?.required_source_extension ||
     readiness?.source_assessment ||
     readiness?.source,
@@ -205,6 +209,12 @@ export function gameFilesPresentation(
       title: "Files connected",
       description:
         "Recorded input checks are current for this installation’s supported file contract.",
+    };
+  if (port.optional_game_source && !sourceRequired && !biosRequired)
+    return {
+      title: "Game files are optional",
+      description:
+        "You can choose a disc image for Portcove to prepare, or keep using your own files. Play does not need one.",
     };
   if (!sourceRequired && !biosRequired && port.presentation?.source_requirements?.length === 0)
     return {

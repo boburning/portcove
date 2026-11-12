@@ -131,6 +131,32 @@ it("retains concurrent input blockers when invalid installation takes precedence
   expect(observation.concurrentBlockers).toContain("Required game files are missing.");
 });
 
+it("presents an optional game source as optional, but a blocked one as still needing attention", () => {
+  const optional = {
+    ...port,
+    source_profile: "optional-disc",
+    bios_source_profile: null,
+    optional_game_source: true,
+    presentation: {
+      installation_method: "portable-package" as const,
+      saves_and_settings: "external-user-owned" as const,
+      source_requirements: [],
+    },
+  };
+  // Nothing registered and nothing blocking: not required.
+  expect(gameFilesPresentation(optional, undefined).title).toBe("Game files are optional");
+  // The same port as a required source is not described as optional.
+  expect(
+    gameFilesPresentation({ ...optional, optional_game_source: false }, undefined).title,
+  ).not.toBe("Game files are optional");
+  // A registered optional source that changed still needs attention.
+  const changed = {
+    ...healthy,
+    readiness: { launchable: false, pending_setup: false, blockers: ["changed_source" as const] },
+  };
+  expect(gameFilesPresentation(optional, changed).title).toBe("Files need checking");
+});
+
 it("does not turn legacy file blockers or saved paths into a connected/no-input claim", () => {
   const noDeclaredInputs = {
     ...port,

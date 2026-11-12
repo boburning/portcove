@@ -1887,11 +1887,16 @@ pub struct InstallSourceRequirement {
     pub optional: bool,
 }
 
+/// The one rule for whether a source holds installing and updating: an unregistered
+/// required source does; an optional one never does.
+pub(crate) fn source_blocks_setup(registered: bool, optional: bool) -> bool {
+    !registered && !optional
+}
+
 impl InstallSourceRequirement {
-    /// An unregistered required source holds installing and updating; an optional one
-    /// never does.
+    /// See [`source_blocks_setup`].
     pub(crate) fn blocks_setup(&self) -> bool {
-        !self.registered && !self.optional
+        source_blocks_setup(self.registered, self.optional)
     }
 }
 
