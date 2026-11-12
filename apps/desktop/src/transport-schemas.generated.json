@@ -829,7 +829,7 @@
         "type": "array"
       },
       "items_replacing_saved_files": {
-        "description": "Items whose copy replaces matching saved files already in Portcove.",
+        "description": "Items that import saved files while Portcove already holds saved files for\nthat game, so matching files there are replaced.",
         "format": "uint",
         "minimum": 0,
         "type": "integer"

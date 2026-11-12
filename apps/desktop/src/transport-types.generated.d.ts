@@ -1283,7 +1283,8 @@ export interface OutputAdoptionBatchPreview {
    */
   items: AdoptionPreview[];
   /**
-   * Items whose copy replaces matching saved files already in Portcove.
+   * Items that import saved files while Portcove already holds saved files for
+   * that game, so matching files there are replaced.
    */
   items_replacing_saved_files: number;
   original_will_be_modified: boolean;
