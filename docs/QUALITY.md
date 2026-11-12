@@ -88,8 +88,11 @@ ungated.
 1. `.github/workflows/ci-required-status.yml` posts `ci` on the pull request head
    when that head's `CI` run completes: `success` for a successful run, `failure`
    for a failed, timed-out or unstartable one, and nothing for a cancelled one. It
-   runs the default branch's copy, checks out nothing and executes no pull request
-   content. While the five contexts remain required, `ci` is informational.
+   runs the default branch's copy, checks out nothing and executes nothing from
+   the pull request; the pull request still supplies the `ci.yml` whose run is
+   judged, as it does for the aggregate jobs today. Only the run's current attempt
+   posts, and posts for one head run one at a time. While the five contexts remain
+   required, `ci` is informational.
 2. The owner changes the `main` ruleset to require `ci` in place of the five
    contexts, together with `.github/repository-ruleset.json`, the protected-context
    list in `.github/qualification-coverage.json` and the delivery readers that
@@ -98,8 +101,15 @@ ungated.
    request runs return to built-in per-pull-request cancellation, and the cancelling
    half of the supersede workflow is removed.
 
-A later attempt on the same head overwrites the status with its own outcome. A
-missing status blocks merge once `ci` is required; a skipped job cannot satisfy it.
+A later decided attempt on the same head replaces the status with its own outcome.
+A later attempt that is cancelled or still running leaves the earlier status, which
+that same head earned. A missing status blocks merge once `ci` is required; a
+skipped job cannot satisfy it.
+
+The run outcome is stricter than the five contexts in one place: no aggregate job
+needs `frontend-no-global (macos-arm64)`, so today its failure fails the run without
+failing a required context. Step two must either accept that job as required or
+exclude it from the run outcome.
 
 ### Review scope
 

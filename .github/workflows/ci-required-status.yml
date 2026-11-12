@@ -1,10 +1,11 @@
 name: Required CI status
 
 # Posts the single `ci` commit status for a pull request head from the outcome of its CI run.
-# It runs the default branch's copy of this file, checks out nothing and executes no pull
-# request content, so a pull request cannot post its own result. A cancelled CI run posts
-# nothing: built-in cancellation can then replace a superseded run without any job of the
-# old run needing a runner. See docs/QUALITY.md#single-required-status-transition.
+# It runs the default branch's copy of this file, checks out nothing and executes nothing from
+# the pull request; the pull request still supplies the ci.yml whose run is judged, as it does
+# for the aggregate jobs today. A cancelled CI run posts nothing: built-in cancellation can then
+# replace a superseded run without any job of the old run needing a runner.
+# See docs/QUALITY.md#single-required-status-transition.
 on:
   workflow_run:
     workflows: [CI]
@@ -12,17 +13,22 @@ on:
 
 permissions: {}
 
+# Posts for one head run one at a time, so an older outcome cannot land after a newer one.
+concurrency:
+  group: ci-required-status-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
 jobs:
   post:
     name: post-required-ci-status
     if: >-
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.path == '.github/workflows/ci.yml' &&
-      github.event.workflow_run.repository.full_name == github.repository &&
       contains(fromJSON('["success","failure","timed_out","startup_failure"]'), github.event.workflow_run.conclusion)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      actions: read
       statuses: write
     steps:
       - name: Post the ci status on the validated pull request head
@@ -33,10 +39,18 @@ jobs:
           PORTCOVE_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           PORTCOVE_RUN_URL: ${{ github.event.workflow_run.html_url }}
           PORTCOVE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          PORTCOVE_RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
           if [[ ! "$PORTCOVE_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]; then
             echo "::error::CI run omitted a full head commit" >&2
             exit 1
+          fi
+          # A re-run supersedes this attempt: its own completion posts, so a delayed older
+          # outcome never overwrites or pre-empts it. An unreadable run posts nothing.
+          current="$(gh api "repos/${PORTCOVE_REPOSITORY}/actions/runs/${PORTCOVE_RUN_ID}" --jq .run_attempt)"
+          if [[ "$current" != "$PORTCOVE_RUN_ATTEMPT" ]]; then
+            echo "Attempt ${PORTCOVE_RUN_ATTEMPT} is no longer current (now ${current}); posting nothing."
+            exit 0
           fi
           if [[ "$PORTCOVE_CONCLUSION" == "success" ]]; then
             state=success

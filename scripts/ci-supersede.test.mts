@@ -230,12 +230,20 @@ void test("the required ci status is posted from trusted code and never for a ca
     /pull_request_target|^ {2}pull_request:|^\s+(?:- )?uses:|node |pnpm /mu,
   );
   assert.match(workflow, /^permissions: \{\}$/mu);
-  assert.match(workflow, /permissions:\n {6}statuses: write\n/u);
+  assert.match(workflow, /permissions:\n {6}actions: read\n {6}statuses: write\n/u);
   assert.equal(workflow.split("permissions:").length - 1, 2);
-  // Only a pull request run of ci.yml in this repository, and only a decided conclusion.
+  // Only a pull request run of ci.yml, and only a decided conclusion.
   assert.match(workflow, /github\.event\.workflow_run\.event == 'pull_request'/u);
   assert.match(workflow, /github\.event\.workflow_run\.path == '\.github\/workflows\/ci\.yml'/u);
-  assert.match(workflow, /workflow_run\.repository\.full_name == github\.repository/u);
+  // One post at a time per head, and only from the run's current attempt.
+  assert.match(
+    workflow,
+    /group: ci-required-status-\$\{\{ github\.event\.workflow_run\.head_sha \}\}\n {2}cancel-in-progress: false/u,
+  );
+  assert.match(
+    workflow,
+    /--jq \.run_attempt\)"\n\s+if \[\[ "\$current" != "\$PORTCOVE_RUN_ATTEMPT" \]\]; then/u,
+  );
   assert.match(
     workflow,
     /fromJSON\('\["success","failure","timed_out","startup_failure"\]'\), github\.event\.workflow_run\.conclusion/u,
