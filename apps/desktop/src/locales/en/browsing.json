@@ -1,0 +1,8 @@
+{
+  "search": {
+    "clear": "Clear search",
+    "discover": "Search Discover",
+    "library": "Search your library",
+    "placeholder": "Game or port name"
+  }
+}

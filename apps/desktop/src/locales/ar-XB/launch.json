@@ -1,0 +1,10 @@
+{
+  "failure": {
+    "copied": "تم النسخ",
+    "copyExitCode": "نسخ رمز الخروج",
+    "exitCode": "رمز الخروج <code/>",
+    "label": "آخر تشغيل",
+    "openActivity": "فتح النشاط",
+    "restorePrevious": "استعادة الإصدار السابق"
+  }
+}

@@ -109,3 +109,22 @@ it("offers a retry after a failed read and recovers when Core answers", async ()
   expect(document.body.querySelector("[role=alert]")).toBeNull();
   expect(checkbox()?.getAttribute("aria-checked")).toBe("true");
 });
+
+it("re-renders the read-failure fallback in the current language", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  await show(vi.fn().mockRejectedValue(new Error("down")), vi.fn());
+  const alert = () => document.body.querySelector("[role=alert]")?.textContent ?? "";
+  expect(alert()).toBe("The setting could not be read.");
+  try {
+    await act(async () => {
+      await localization.changeLanguage("ar-XB");
+    });
+    await expect.poll(alert).toBe("تعذرت قراءة الإعداد.");
+  } finally {
+    await act(async () => {
+      await localization.changeLanguage("en");
+    });
+  }
+  await expect.poll(alert).toBe("The setting could not be read.");
+});

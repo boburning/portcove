@@ -216,3 +216,31 @@ it("ignores a late review from the previous library", async () => {
   expect(dialog().textContent).not.toContain("external/versions/retained");
   expect(apply).not.toHaveBeenCalled();
 });
+
+it("re-renders an unconfirmed removal failure in the current language", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  vi.spyOn(desktopApi, "previewRemoval").mockResolvedValue(review);
+  await root.rerender(
+    <RemovalReviewDialog
+      port={port}
+      generation={7}
+      apply={vi.fn().mockResolvedValue(false)}
+      close={vi.fn()}
+    />,
+  );
+  await click("Uninstall all versions");
+  const alert = () => dialog().querySelector('[role="alert"]')?.textContent ?? "";
+  expect(alert()).toContain("Removal did not complete");
+  try {
+    await act(async () => {
+      await localization.changeLanguage("ar-XB");
+    });
+    await expect.poll(alert).toContain("لم تكتمل الإزالة");
+  } finally {
+    await act(async () => {
+      await localization.changeLanguage("en");
+    });
+  }
+  await expect.poll(alert).toContain("Removal did not complete");
+});

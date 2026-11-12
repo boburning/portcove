@@ -154,4 +154,18 @@ describe("player-data protection summary", () => {
     );
     expect(html).not.toContain("No completed backup recorded.");
   });
+
+  it("shows paths containing interpolation-like text exactly", () => {
+    const protection = snapshot();
+    protection.managed_data.path = "/home/player/{{state}}/{{path}}/saves";
+    protection.managed_data.state = "unreadable";
+    const html = render(protection);
+    expect(html).toContain('<code dir="ltr">/home/player/{{state}}/{{path}}/saves</code>');
+    expect(html).toContain("Couldn’t read");
+    // An unknown future Core state never renders a raw placeholder.
+    (protection.managed_data as { state: string }).state = "future_state";
+    const future = render(protection);
+    expect(future).toContain("Status unavailable");
+    expect(future).not.toContain("· {{state}}");
+  });
 });
