@@ -1074,3 +1074,101 @@ void test("complete replay snapshot retains both attempts and selects exact auth
     assert.throws(() => prepareMergeSnapshot(rejected, { ...expected, attempt: 2 }));
   }
 });
+
+void test("a merged readback accepts its prepared closing-inventory run after GitHub clears pull_requests", () => {
+  const timeline = [
+    {
+      url: `https://api.github.com/repos/${repository}/issues/7/timeline?per_page=100&page=1`,
+      link: null,
+      events: [{ event: "committed", sha: head }, { event: "cross-referenced" }],
+    },
+  ];
+  const evidence = (suite: number, pulls: unknown[]) => ({
+    method: "rest-timeline",
+    timeline_pages: structuredClone(timeline),
+    inventory_checks: {
+      total_count: 1,
+      check_runs: [
+        {
+          id: 90,
+          name: "closing-inventory",
+          head_sha: head,
+          status: "completed",
+          conclusion: "success",
+          app: { slug: "github-actions" },
+          check_suite: { id: suite },
+        },
+      ],
+    },
+    inventory_runs: {
+      total_count: 1,
+      workflow_runs: [
+        {
+          check_suite_id: suite,
+          path: ".github/workflows/closing-inventory.yml",
+          event: "pull_request_target",
+          status: "completed",
+          conclusion: "success",
+          pull_requests: pulls,
+        },
+      ],
+    },
+  });
+  const withEvidence = <T extends { closing_before: object; closing_after: object }>(
+    value: T,
+    suite: number,
+    pulls: unknown[],
+  ) => ({
+    ...value,
+    closing_before: { ...value.closing_before, ...evidence(suite, pulls) },
+    closing_after: { ...value.closing_after, ...evidence(suite, pulls) },
+  });
+
+  // Preparation records the run it validated while the run still listed this pull request.
+  const prepare = withEvidence(fixture(), 91, [{ number: 7 }]);
+  const prepared = prepareMergeSnapshot(prepare, expected);
+  assert.equal(prepared.closing_inventory_suite, 91);
+  // A pre-merge run that lists no pull request still proves nothing.
+  assert.throws(
+    () => prepareMergeSnapshot(withEvidence(fixture(), 91, []), expected),
+    /did not run for this pull request/,
+  );
+
+  const base = readback();
+  const merged = (suite: number, pulls: unknown[], preparedSuite: unknown = 91) =>
+    withEvidence(
+      { ...base, prepared: { ...prepared, closing_inventory_suite: preparedSuite } },
+      suite,
+      pulls,
+    );
+  assert.equal(verifyMergeSnapshotReadback(merged(91, []), expected).observation, "complete");
+  // The listing GitHub returned before the merge remains acceptable.
+  assert.equal(
+    verifyMergeSnapshotReadback(merged(91, [{ number: 7 }]), expected).observation,
+    "complete",
+  );
+  // Another run, or a preparation that bound none, cannot vouch for the merged pull request.
+  assert.throws(
+    () => verifyMergeSnapshotReadback(merged(92, []), expected),
+    /did not run for this pull request/,
+  );
+  assert.throws(
+    () => verifyMergeSnapshotReadback(merged(91, [], null), expected),
+    /did not run for this pull request/,
+  );
+  assert.throws(
+    () => verifyMergeSnapshotReadback(merged(91, [{ number: 8 }]), expected),
+    /did not run for this pull request/,
+  );
+  // An unmerged pull request never gets the empty-list allowance.
+  const open = merged(91, []);
+  const unmerged = { ...open.pull_before, state: "open", merged: false };
+  assert.throws(
+    () =>
+      verifyMergeSnapshotReadback(
+        { ...open, pull_before: unmerged, pull_after: structuredClone(unmerged) },
+        expected,
+      ),
+    /did not run for this pull request|Merge outcome is unconfirmed/,
+  );
+});
