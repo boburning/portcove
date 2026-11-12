@@ -340,7 +340,8 @@ export type ExternalProfilePolicy =
   | "z2rs-desktop-v1"
   | "recomp-direct-v1"
   | "doom3-linux-v1"
-  | "openjk-unix-v1";
+  | "openjk-unix-v1"
+  | "openomf-linux-v1";
 export type GameSettingsFormat = "json" | "ini";
 export type GameSettingType =
   | {

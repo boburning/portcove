@@ -338,6 +338,46 @@ fn generated_cache_mac_tar_xz_requires_version_3_for_fresh_and_retained_reads() 
 }
 
 #[test]
+fn openomf_appimage_requires_27_in_fresh_and_retained_readers() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("omf2097-openomf").unwrap();
+    let mut windows = port.clone();
+    let linux = crate::Platform::LinuxX86_64;
+    windows.platforms.retain(|platform| *platform != linux);
+    windows.release.asset_hints.remove(&linux);
+    windows.executable_hints.remove(&linux);
+    windows.external_profile_policy = None;
+
+    for (definition, minimum, accepted) in
+        [(&windows, 2, true), (port, 26, false), (port, 27, true)]
+    {
+        let mut entry = entry_for_port(definition);
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        entry["required_capabilities"][0]["maximum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &definition.id).inspect_retained_entry(
+                "official",
+                &definition.id,
+                &bytes,
+            ),
+        ] {
+            if accepted {
+                assert!(result.unwrap().capabilities().compatible);
+            } else {
+                assert!(
+                    result
+                        .unwrap_err()
+                        .message
+                        .contains("capability version 27")
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn native_mac_bundle_tar_xz_requires_version_26_and_reviewed_bundle() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("wolfenstein-3d-reflectionhle").unwrap();

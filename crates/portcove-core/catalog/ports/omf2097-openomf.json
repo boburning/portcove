@@ -25,8 +25,8 @@
           "instruction": "The official archive includes the freeware One Must Fall 2097 resources and the native OpenOMF player. Choose Play after installation; no commercial source files or generation step are needed. The package also includes an ARM64 player; this route uses openomf.exe for x86-64."
         },
         {
-          "title": "Open the upstream Linux AppImage",
-          "instruction": "Choose the stable x86-64 AppImage and use your Linux system’s AppImage support. Keep it executable. It includes the freeware resources and its own SDL2 libraries."
+          "title": "Start the managed Linux AppImage",
+          "instruction": "Install the stable x86-64 AppImage in Portcove and choose Play. Your Linux system needs AppImage support. The package includes the freeware resources and its own SDL2 libraries. For a custom OpenOMF override or alternate resource set, keep a separately prepared copy."
         },
         {
           "title": "Prepare the upstream Apple Silicon package",
@@ -34,7 +34,7 @@
         }
       ],
       "warnings": [
-        "You and upstream maintain the Linux and Mac packages. Back up the configuration and state folders your copy actually uses before replacement. An explicit OPENOMF_CONFIG_PATH or OPENOMF_STATE_PATH can change those locations."
+        "Portcove manages the selected Windows and Linux runtime packages. You and upstream maintain independently prepared copies, including the Mac package. Back up the actual configuration and state folders separately. An explicit OPENOMF_CONFIG_PATH or OPENOMF_STATE_PATH can change those locations."
       ],
       "help_url": "https://github.com/omf2097/openomf/blob/master/PATHS.md",
       "references": [
@@ -49,7 +49,7 @@
       ]
     },
     "original_game_title": "One Must Fall: 2097",
-    "platforms": ["linux-x86-64", "macos-aarch64"],
+    "platforms": ["macos-aarch64"],
     "download_asset_hints": {
       "linux-x86-64": ["OpenOMF-", "-x86_64.AppImage"],
       "macos-aarch64": ["openomf_", "_macos", "_arm.zip"]
@@ -58,23 +58,26 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
     "release": {
       "repository": "omf2097/openomf",
       "asset_hints": {
-        "windows-x86-64": ["openomf_", "_windows.zip"]
+        "windows-x86-64": ["openomf_", "_windows.zip"],
+        "linux-x86-64": ["openomf-", "-x86_64.appimage"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": ["openomf.exe"]
+      "windows-x86-64": ["openomf.exe"],
+      "linux-x86-64": ["OpenOMF.AppImage"]
     },
+    "external_profile_policy": "openomf-linux-v1",
     "persistent_paths": [],
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "The official archive includes the freeware One Must Fall 2097 resources and the native OpenOMF player. Choose Play after installation; no commercial source files or generation step are needed. The package also includes an ARM64 player; this route uses openomf.exe for x86-64. OpenOMF resolves writable settings, saves, scores, screenshots, recordings and user mods through its OpenOMF user-preference directory, normally AppData/OpenOMF on Windows. That external data remains outside Portcove backups. Package resources and bundled mods remain version-owned; no in-folder player-data paths are declared. Use an external registration for custom OPENOMF_* storage overrides. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations."
+      "manual_preparation": "The official packages include the freeware One Must Fall 2097 resources. Choose Play after installation. The Windows ZIP includes an ARM64 player alongside the managed x86-64 executable. The managed Linux route uses the stable x86-64 AppImage and its bundled resources. OpenOMF keeps configuration and state in its external profile, normally AppData/OpenOMF on Windows or ~/.local/share/OpenOMF on Linux. On Linux, explicit XDG_CONFIG_HOME and XDG_STATE_HOME select their own absolute locations, and XDG_DATA_HOME can change the SDL preference root. Back up settings, saves, scores, screenshots, recordings and user mods separately. Use a separately prepared copy for custom OpenOMF overrides or alternate resources. Package resources and bundled mods stay with their installed version."
     }
   }
 }

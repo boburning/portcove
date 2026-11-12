@@ -1898,6 +1898,7 @@ pub(crate) fn native_appimage(
                 | crate::ExternalProfilePolicy::VkquakeLinuxV1
                 | crate::ExternalProfilePolicy::CorsixthLinuxV1
                 | crate::ExternalProfilePolicy::OpenlocoUnixV1
+                | crate::ExternalProfilePolicy::OpenomfLinuxV1
         )
     ) {
         let [prefix, suffix] = port.release.asset_hints.get(&platform)?.as_slice() else {

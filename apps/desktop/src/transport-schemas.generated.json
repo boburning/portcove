@@ -5229,7 +5229,8 @@
           "z2rs-desktop-v1",
           "recomp-direct-v1",
           "doom3-linux-v1",
-          "openjk-unix-v1"
+          "openjk-unix-v1",
+          "openomf-linux-v1"
         ],
         "type": "string"
       },
@@ -31144,7 +31145,8 @@
           "z2rs-desktop-v1",
           "recomp-direct-v1",
           "doom3-linux-v1",
-          "openjk-unix-v1"
+          "openjk-unix-v1",
+          "openomf-linux-v1"
         ],
         "type": "string"
       },
@@ -44507,7 +44509,8 @@
           "z2rs-desktop-v1",
           "recomp-direct-v1",
           "doom3-linux-v1",
-          "openjk-unix-v1"
+          "openjk-unix-v1",
+          "openomf-linux-v1"
         ],
         "type": "string"
       },

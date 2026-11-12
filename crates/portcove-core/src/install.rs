@@ -1326,7 +1326,8 @@ impl Installer {
             }
             if let Some(
                 policy @ (crate::ExternalProfilePolicy::CorsixthLinuxV1
-                | crate::ExternalProfilePolicy::OpenlocoUnixV1),
+                | crate::ExternalProfilePolicy::OpenlocoUnixV1
+                | crate::ExternalProfilePolicy::OpenomfLinuxV1),
             ) = port.external_profile_policy
                 && crate::native_external_profile::applies_to(
                     policy,
