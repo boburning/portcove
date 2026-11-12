@@ -56,7 +56,7 @@ export default defineConfig({
   },
   lint: {
     ignore: ["src/localization.tsx"],
-    // Technical design-system, ARIA-reference and ARIA-state literals, never player copy.
+    // Technical design-system, ARIA and HTML/SVG rendering-hint literals, never player copy.
     ignoredAttributes: [
       "align",
       "aria-live",

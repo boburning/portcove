@@ -153,7 +153,7 @@ inventory, not a coverage claim.
 Narrow technical-literal exclusions: the lint ignores the `align`, `aria-live`,
 `aria-atomic`, `aria-autocomplete`, `aria-describedby`, `aria-hidden`, `aria-labelledby`, `aria-relevant`, `data-backup-action`, `data-settings-control`,
 `data-slot`, `decoding`, `dir`, `focusable`, `intent`, `positionMethod`, `reviewSize`, `size`, `triggerId` and `variant`
-attributes, which carry design-system tokens, element ids, ARIA references or ARIA state tokens,
+attributes, which carry design-system tokens, element ids, ARIA references, ARIA state tokens or HTML/SVG rendering hints,
 never player copy.
 Thrown `Error` messages that are caught and never displayed, stable state codes,
 keyboard key names and product names remain literals.
