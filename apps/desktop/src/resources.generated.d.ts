@@ -910,6 +910,54 @@ export default interface Resources {
       "selectedHistory": "Selected-route check history",
       "selectedScope": "Selected port",
       "waiting": "Waiting for the previous check to finish."
+    },
+    "testResults": {
+      "detailsAvailable": "Download and test details are available in Technical details.",
+      "detailsMissing": "The tested download or test version wasn’t recorded.",
+      "earlierAutomated": "Earlier automated tests",
+      "earlierHandsOn": "Earlier hands-on tests",
+      "earlierNote": "These are earlier test results. Passing automated checks doesn’t confirm that the game plays correctly. These platform results don’t identify the exact download, edition or file format tested.",
+      "field": {
+        "artifact": "Recorded artifact SHA-256",
+        "checkVersion": "Recorded check version",
+        "contract": "Recorded contract",
+        "edition": "Recorded edition and format",
+        "observed": "Observed date (UTC)",
+        "platform": "Recorded platform",
+        "release": "Recorded release"
+      },
+      "heading": {
+        "bios": "BIOS recorded observations",
+        "game": "Game-file recorded observations"
+      },
+      "kind": {
+        "automated": "Automated lifecycle",
+        "handsOn": "Hands-on observation",
+        "knownFailure": "Known failure",
+        "structural": "Structural check",
+        "unknown": "Check kind unknown"
+      },
+      "kindOutcome": "{{kind}} · {{outcome}}",
+      "methodNotRecorded": "Method not recorded",
+      "noEarlierTests": "No earlier platform tests recorded",
+      "noRecords": "No matching recorded observations supplied by this report.",
+      "notConfirmed": "We haven’t confirmed whether these test results apply to your files, game version, or device.",
+      "notRecorded": "Not recorded",
+      "outcome": {
+        "failed": "Failed",
+        "notRun": "Not run",
+        "passed": "Passed",
+        "unknown": "Outcome unknown"
+      },
+      "partialCoverage": "<recorded/> · Not recorded: <missing/>",
+      "reportUnavailable": "File-check report unavailable for this requirement. Catalog evidence may still exist.",
+      "section": {
+        "bios": "Recorded BIOS checks",
+        "game": "Recorded game-file checks",
+        "technicalBios": "Technical recorded BIOS checks",
+        "technicalGame": "Technical recorded game-file checks"
+      },
+      "unverifiedScopes": "Some recorded scopes could not be verified for this requirement."
     }
   },
   "gameSettings": {

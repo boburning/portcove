@@ -64,6 +64,7 @@ export default defineConfig({
       "src/components/SelfServiceSetup.tsx",
       "src/components/RegisteredSourceSetup.tsx",
       "src/components/CatalogMedia.tsx",
+      "src/components/DetailQualificationSummary.tsx",
       "src/features/port-actions/BrowsePortObservations.tsx",
       "src/components/ui.tsx",
       "src/components/FailureDetails.tsx",
