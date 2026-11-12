@@ -38674,6 +38674,233 @@
     "title": "ProfileRevision",
     "type": "object"
   },
+  "provider_browse_page": {
+    "$defs": {
+      "ProviderFileCandidate": {
+        "description": "A provider's own claims about one downloadable file. The checksum is the\nprovider's claim; an MD5 or any provider-supplied digest never authenticates\na publisher.",
+        "properties": {
+          "added_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "claimed_md5": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "claimed_scan": {
+            "description": "Provider scan outcomes, as claimed (\"clean\", \"infected\", ...). Not an assurance.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "download_url": {
+            "description": "Canonical download location derived from `file_id`, never a provider-supplied URL.",
+            "type": "string"
+          },
+          "file_id": {
+            "description": "Provider file identity; distinct from the project and from any version label.",
+            "type": "string"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "file_id",
+          "file_name",
+          "size",
+          "added_at",
+          "download_url",
+          "claimed_md5",
+          "archived",
+          "claimed_scan"
+        ],
+        "type": "object"
+      },
+      "ProviderFreshness": {
+        "description": "How current an observation is. A confirmed empty result is `Fresh`; an outage\nthat falls back to earlier data is `Stale`, never an empty list.",
+        "oneOf": [
+          {
+            "enum": [
+              "fresh"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "revalidated",
+            "description": "The provider confirmed its cached copy is unchanged (HTTP 304).",
+            "type": "string"
+          },
+          {
+            "const": "stale",
+            "description": "The provider could not be reached or is backing off; this is earlier data.",
+            "type": "string"
+          }
+        ]
+      },
+      "ProviderPage": {
+        "properties": {
+          "complete": {
+            "description": "False when more pages exist; callers must not treat a page as the whole result.",
+            "type": "boolean"
+          },
+          "page": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "projects": {
+            "items": {
+              "$ref": "#/$defs/ProviderProject"
+            },
+            "type": "array"
+          },
+          "total": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "projects",
+          "total",
+          "page",
+          "complete"
+        ],
+        "type": "object"
+      },
+      "ProviderProject": {
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/$defs/ProviderFileCandidate"
+            },
+            "type": "array"
+          },
+          "game_id": {
+            "description": "The provider's game identity for this project; compared against a reviewed\nbinding, never matched by name or popularity.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "obsolete": {
+            "type": "boolean"
+          },
+          "profile_url": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "submitter": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unreadable_files": {
+            "default": 0,
+            "description": "File records the adapter could not read. Non-zero means the file list is\nincomplete, so \"no newer file\" or \"file removed\" cannot be concluded.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "version": {
+            "description": "Displayed version label; it does not identify bytes (a file can change\nunder an unchanged label).",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "project_id",
+          "name",
+          "version",
+          "game_id",
+          "updated_at",
+          "obsolete",
+          "profile_url",
+          "submitter",
+          "files",
+          "unreadable_files"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "freshness": {
+        "$ref": "#/$defs/ProviderFreshness",
+        "description": "`stale` means GameBanana could not be reached and this is earlier data."
+      },
+      "game_name": {
+        "description": "The game's catalog name, for presentation.",
+        "type": "string"
+      },
+      "last_page": {
+        "description": "Highest page browsing offers.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "observed_at": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "other_game_records": {
+        "description": "Records on this page the provider labels as another game; not listed.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "page": {
+        "$ref": "#/$defs/ProviderPage",
+        "description": "One page of mods, most downloaded first. `page.complete` is false when more\npages exist."
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "provider": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "port_id",
+      "game_name",
+      "last_page",
+      "other_game_records",
+      "provider",
+      "page",
+      "observed_at",
+      "freshness"
+    ],
+    "title": "ProviderBrowsePage",
+    "type": "object"
+  },
   "provider_install_plan": {
     "$defs": {
       "AssetConflict": {
@@ -38899,6 +39126,183 @@
       "plan_sha256"
     ],
     "title": "ProviderInstallPlan",
+    "type": "object"
+  },
+  "provider_project_view": {
+    "$defs": {
+      "ProviderFileCandidate": {
+        "description": "A provider's own claims about one downloadable file. The checksum is the\nprovider's claim; an MD5 or any provider-supplied digest never authenticates\na publisher.",
+        "properties": {
+          "added_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "claimed_md5": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "claimed_scan": {
+            "description": "Provider scan outcomes, as claimed (\"clean\", \"infected\", ...). Not an assurance.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "download_url": {
+            "description": "Canonical download location derived from `file_id`, never a provider-supplied URL.",
+            "type": "string"
+          },
+          "file_id": {
+            "description": "Provider file identity; distinct from the project and from any version label.",
+            "type": "string"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "file_id",
+          "file_name",
+          "size",
+          "added_at",
+          "download_url",
+          "claimed_md5",
+          "archived",
+          "claimed_scan"
+        ],
+        "type": "object"
+      },
+      "ProviderFreshness": {
+        "description": "How current an observation is. A confirmed empty result is `Fresh`; an outage\nthat falls back to earlier data is `Stale`, never an empty list.",
+        "oneOf": [
+          {
+            "enum": [
+              "fresh"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "revalidated",
+            "description": "The provider confirmed its cached copy is unchanged (HTTP 304).",
+            "type": "string"
+          },
+          {
+            "const": "stale",
+            "description": "The provider could not be reached or is backing off; this is earlier data.",
+            "type": "string"
+          }
+        ]
+      },
+      "ProviderProject": {
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/$defs/ProviderFileCandidate"
+            },
+            "type": "array"
+          },
+          "game_id": {
+            "description": "The provider's game identity for this project; compared against a reviewed\nbinding, never matched by name or popularity.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "obsolete": {
+            "type": "boolean"
+          },
+          "profile_url": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "submitter": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unreadable_files": {
+            "default": 0,
+            "description": "File records the adapter could not read. Non-zero means the file list is\nincomplete, so \"no newer file\" or \"file removed\" cannot be concluded.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "version": {
+            "description": "Displayed version label; it does not identify bytes (a file can change\nunder an unchanged label).",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "project_id",
+          "name",
+          "version",
+          "game_id",
+          "updated_at",
+          "obsolete",
+          "profile_url",
+          "submitter",
+          "files",
+          "unreadable_files"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "freshness": {
+        "$ref": "#/$defs/ProviderFreshness"
+      },
+      "game_name": {
+        "description": "The game's catalog name, for presentation.",
+        "type": "string"
+      },
+      "observed_at": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "project": {
+        "$ref": "#/$defs/ProviderProject",
+        "description": "The project's files; a file ID with this project ID is what `provider-plan`\nreviews."
+      }
+    },
+    "required": [
+      "port_id",
+      "game_name",
+      "project",
+      "observed_at",
+      "freshness"
+    ],
+    "title": "ProviderProjectView",
     "type": "object"
   },
   "provider_update_observation": {

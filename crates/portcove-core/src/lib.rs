@@ -95,6 +95,7 @@ mod native_mod_list;
 mod profile;
 mod profile_deploy;
 mod provider_auto_update;
+mod provider_browse;
 mod provider_install;
 mod provider_update;
 mod psx;
@@ -311,6 +312,7 @@ pub use profile::{
 };
 pub use profile_deploy::{LiveMods, ModSetupsView, NativeModListStatus};
 pub use provider_auto_update::{ProviderAutoUpdate, ProviderAutoUpdateOutcome};
+pub use provider_browse::{ProviderBrowsePage, ProviderProjectView};
 pub use provider_install::{PlanMember, ProviderInstallPlan};
 pub use provider_update::{ProviderUpdateObservation, ProviderUpdateState};
 pub use providers::CompositeReleaseProvider;

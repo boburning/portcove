@@ -177,6 +177,21 @@ fn profile_commands_migrate_default_append_revisions_and_refuse_stale_review() {
     );
     assert!(!no_binding.status.success());
     assert_eq!(json_stdout(&no_binding)["error"]["code"], "unsupported");
+    // Browsing is read-only and also needs the binding.
+    for arguments in [
+        &["--json", "profile", "provider-browse", PORT][..],
+        &["--json", "profile", "provider-project", PORT, "1"][..],
+    ] {
+        let refused = invoke(root, arguments);
+        assert!(!refused.status.success());
+        let envelope = json_stdout(&refused);
+        assert_eq!(envelope["error"]["code"], "unsupported");
+        assert_eq!(
+            envelope["command"],
+            format!("profile.{}", arguments[2]),
+            "{envelope}"
+        );
+    }
     // Applying needs a valid plan file that matches the reviewed digest.
     let plan = root.join("plan.json");
     fs::write(&plan, b"{not json").unwrap();

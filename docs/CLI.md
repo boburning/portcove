@@ -1834,9 +1834,18 @@ files are kept with each profile.
 ### Installing from GameBanana
 
 ```text
+portcove --library PATH --json profile provider-browse PORT_ID [--page N]
+portcove --library PATH --json profile provider-project PORT_ID PROJECT_ID
 portcove --library PATH --json profile provider-plan PORT_ID PROFILE_ID PROJECT_ID FILE_ID > plan.json
 portcove --library PATH --json profile provider-apply PORT_ID PROFILE_ID plan.json --expected-plan SHA256 --yes
 ```
+
+`provider-browse` and `provider-project` only read. `provider-browse` lists one page
+(20 mods, most downloaded first, pages 1–50) of the bound game's GameBanana mods and
+says when more pages exist; `provider-project` shows one mod's files with the file
+IDs `provider-plan` takes, refusing a mod from another game. Provider text is
+sanitized presentation data: names, popularity and version labels never establish
+compatibility, and a `stale` result is earlier data from an outage.
 
 `provider-plan` needs a reviewed port-to-game binding (currently Ship of Harkinian,
 GameBanana game 16121) and a current provider observation; cached data from an
