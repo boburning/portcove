@@ -1,6 +1,6 @@
 {
   "collection": {
-    "withCount": "<name/> ({{total, number}})"
+    "withCount": "<name/> ({{total}})"
   },
   "edit": {
     "create": "إنشاء مجموعة",
