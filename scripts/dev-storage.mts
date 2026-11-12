@@ -39,7 +39,7 @@ import {
 
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");
-const DEFAULT_MINIMUM_FREE_GIB = 20;
+const DEFAULT_MINIMUM_FREE_GIB = 5;
 const GIB = 1024 ** 3;
 const HELP = `Check development storage, run a command after preflight, or explicitly clean Cargo caches.
 

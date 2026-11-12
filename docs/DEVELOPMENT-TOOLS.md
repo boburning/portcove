@@ -3443,12 +3443,14 @@ Known cloud limits remain visible in `just doctor`:
   acceptance remains the separate `portcove-desktop-verification` route. Local
   feedback stays optional.
 
-The storage preflight's 20 GiB default floor matches a cold build: on
-2026-11-09 a cloud `cargo test --workspace --locked --no-run` from an empty
-`target` used about 18 GB of about 26 GB free. Once `target` exists, the default
-would refuse every later incremental run, so the Portcove cloud environment sets
-`PORTCOVE_MIN_FREE_GIB=6`: new runs start while at least 6 GiB is free, and a
-run can use more after it starts. Browser projects retain raw traces under
+The storage preflight's default floor is 5 GiB; it gates starting a command, not
+the space a build then needs. On 2026-11-09 a cloud
+`cargo test --workspace --locked --no-run` from an empty `target` used about 18 GB
+of about 26 GB free, so a cold build on a nearly full disk can still run out of
+space after it starts. An earlier 20 GiB default matched that cold build but
+refused every later incremental run once `target` existed, so the Portcove cloud
+environment already set `PORTCOVE_MIN_FREE_GIB=6`. New runs start while at least
+the floor is free, and a run can use more after it starts. Browser projects retain raw traces under
 `work/bt` even after passing runs, and a complete browser run can write over
 10 GiB there. After confirming that the owning test process has exited and no
 failure evidence is needed, remove only that run's own `work/bt/run-*`
