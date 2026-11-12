@@ -1922,10 +1922,12 @@ Results are reported in `mod_updates`, one per installed file:
   with the earlier file, stays recoverable; saves and settings are not touched.
 - `held`: it needs the player's review (for example the newer file adds or drops a
   mod, or changes which mod wins an asset); nothing changed and its staging is
-  discarded. A hold is remembered for that setup revision and candidate file, so it
-  is not downloaded again until either changes.
-- `deferred`: something temporary, such as the game running or another change in
-  progress, prevented it; the next pass tries again.
+  discarded. A hold found by comparing the newer file with the setup is remembered
+  for that setup revision and candidate file, so it is not downloaded again until
+  either changes.
+- `deferred`: something temporary, such as the game running, another change in
+  progress, or files in the live `mods` folder the setup did not add, prevented it;
+  this is checked before downloading, and the next pass tries again.
 - `unavailable`: whether an update exists could not be established; never reported
   as "no update".
 

@@ -7,9 +7,11 @@
 //! exactly one newer file in a current observation, every package from the
 //! installed file must be on, the newer file must bring exactly the same package
 //! names, and no asset two enabled mods both change may get a different winner.
-//! Anything else is held with a reason. A hold is remembered for the setup's
-//! revision and the candidate file, so the same download is not repeated on every
-//! pass; any change to either tries again.
+//! Anything else is held with a reason. A hold that comes from comparing the update
+//! with the setup is remembered for the setup's revision and the candidate file,
+//! so the same download is not repeated on every pass; any change to either tries
+//! again. A busy port or a mods folder with unknown files defers before any
+//! download.
 //!
 //! Like standing setup, the policy is consent, never an authorization: each
 //! update is planned again and authorized immediately before it is applied, under
@@ -237,6 +239,35 @@ fn classify(error: PortcoveError) -> ProviderAutoUpdateOutcome {
 }
 
 impl PortcoveService {
+    /// Why an update cannot be applied right now, checked before downloading: the
+    /// game or another change holds the port, or the live mods folder of the
+    /// selected setup has files the setup did not add.
+    fn busy_reason(&self, port_id: &str, profile_id: &str) -> Option<String> {
+        if let Err(error) = self.library.try_lock_port(port_id, "check-provider-update") {
+            return Some(error.message);
+        }
+        let selected = self
+            .library
+            .connection()
+            .and_then(|connection| profile::selection(&connection, port_id))
+            .ok()
+            .flatten()
+            .is_some_and(|(id, _)| id == profile_id);
+        if selected {
+            match self.observe_live_mods(port_id) {
+                Ok(live) if live.unmanaged.is_empty() && live.changed_owned.is_empty() => {}
+                Ok(_) => {
+                    return Some(
+                        "the mods folder has files this setup did not add, or files changed outside Portcove; move or restore them first"
+                            .into(),
+                    );
+                }
+                Err(error) => return Some(error.message),
+            }
+        }
+        None
+    }
+
     /// Applies eligible provider updates to every setup of `port_id` whose
     /// policy allows it. Other setups are not contacted.
     pub async fn run_eligible_provider_updates(
@@ -378,18 +409,18 @@ impl PortcoveService {
         if let Some(reason) = read_holds(layout).get(&key) {
             return held(reason);
         }
+        if let Some(reason) = self.busy_reason(port_id, profile_id) {
+            // Waiting costs nothing; downloading now would be thrown away.
+            return Some(ProviderAutoUpdateOutcome::Deferred { reason });
+        }
         let plan = match self
             .plan_provider_install_with(client, port_id, profile_id, project_id, file_id)
             .await
         {
             Ok(plan) => plan,
-            Err(error) => {
-                let outcome = classify(error);
-                if let ProviderAutoUpdateOutcome::Held { reason } = &outcome {
-                    remember_hold(layout, key, reason);
-                }
-                return Some(outcome);
-            }
+            // Refusals here are not remembered: one may be a passing download
+            // fault, and the provider's flags are checked before any download.
+            Err(error) => return Some(classify(error)),
         };
         let outcome = match hold_reason(layout, &plan, &revision, installed) {
             Some(reason) => {
@@ -406,13 +437,7 @@ impl PortcoveService {
                         file_id: candidate.file_id.clone(),
                     });
                 }
-                Err(error) => {
-                    let outcome = classify(error);
-                    if let ProviderAutoUpdateOutcome::Held { reason } = &outcome {
-                        remember_hold(layout, key, reason);
-                    }
-                    outcome
-                }
+                Err(error) => classify(error),
             },
         };
         let _ = self.discard_provider_install(&plan);

@@ -433,9 +433,8 @@ async fn a_busy_setup_defers_the_update_without_remembering_a_hold() {
         .library()
         .try_lock_port(PORT, "another change")
         .unwrap();
-    let updates = w
-        .pass_with_update(&wrapper(&[("hd-link.o2r", "objects/link.bin", b"v2")]))
-        .await;
+    // Deferred before any download: only the update check is made.
+    let updates = w.pass_without_download(&[(10, 1), (11, 1)]).await;
     drop(guard);
     assert!(
         matches!(
@@ -463,4 +462,18 @@ async fn a_busy_setup_defers_the_update_without_remembering_a_hold() {
         ),
         "{updates:?}"
     );
+}
+
+#[tokio::test]
+async fn unknown_files_in_the_live_mods_folder_defer_before_downloading() {
+    let w = world();
+    w.install_first(&wrapper(&[("hd-link.o2r", "objects/link.bin", b"v1")]))
+        .await;
+    w.allow_automatic();
+    fs::write(w.user().join("mods/mine.o2r"), b"player's own").unwrap();
+    let updates = w.pass_without_download(&[(10, 1), (11, 1)]).await;
+    let ProviderAutoUpdateOutcome::Deferred { reason } = &updates[0].outcome else {
+        panic!("{updates:?}");
+    };
+    assert!(reason.contains("did not add"), "{reason}");
 }
