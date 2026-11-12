@@ -461,8 +461,13 @@ it("asks before adding a mod that runs code and binds the choice to the reviewed
   await act(async () => button(host, "Add mod file…").click());
   expect(review).toHaveBeenCalledWith("shipwright", "/mods/timer.nrm", 7);
   expect(add).not.toHaveBeenCalled();
-  expect(host.textContent).toContain("Speedrun Timer runs its own code inside the game");
-  expect(host.querySelector("code[dir=ltr]")?.textContent).toBe("b".repeat(64));
+  expect(host.textContent).toContain(
+    "Speedrun Timer (speedrun_timer) runs its own code inside the game",
+  );
+  expect(host.textContent).toContain("(speedrun_timer)");
+  expect([...host.querySelectorAll("code[dir=ltr]")].map((code) => code.textContent)).toContain(
+    "b".repeat(64),
+  );
 
   // Declining adds nothing.
   await act(async () => button(host, "Don’t add").click());

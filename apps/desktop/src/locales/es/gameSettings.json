@@ -78,10 +78,10 @@
     },
     "busy": "Termina la operación en curso antes de cambiar los mods.",
     "code": {
-      "allow": "Permitir su código y agregar",
-      "cancel": "No agregar",
-      "digest": "Tu permiso cubre solo este archivo exacto: <digest />. Un archivo distinto, incluida una versión posterior, volverá a pedirlo.",
-      "intro": "<name /> ejecuta su propio código dentro del juego. Portcove no puede saber si ese código es seguro, quién lo escribió ni si funciona con esta versión del juego. Agrégalo solo si confías en su origen.",
+      "allow": "Permitir su código y añadir",
+      "cancel": "No añadir",
+      "digest": "Tu permiso cubre solo este archivo exacto: <digest />. Portcove volverá a preguntar por un archivo distinto, incluida una versión posterior.",
+      "intro": "<name /> (<id />) ejecuta su propio código dentro del juego. Portcove no puede saber si ese código es seguro, quién lo escribió ni si funciona con esta versión del juego. Añádelo solo si confías en su origen.",
       "runs": "El sistema de mods del juego convierte el código del mod en código del juego y lo ejecuta mientras juegas."
     },
     "copy": "Copiar este perfil",

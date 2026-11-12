@@ -324,11 +324,14 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                       // answer for a view that was replaced is dropped.
                       if (typeof path !== "string" || !alive.current) return;
                       let review: ModCodeReview | null;
+                      setWorking(true);
                       try {
                         review = await desktopApi.reviewModPackageCode(portId, path, generation);
                       } catch (failure) {
                         if (alive.current) setFailure({ text: errorText(failure) });
                         return;
+                      } finally {
+                        if (alive.current) setWorking(false);
                       }
                       if (!alive.current) return;
                       // Code the player has not allowed for these exact bytes waits for
@@ -364,7 +367,10 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                       <Trans
                         t={t}
                         i18nKey="mods.code.intro"
-                        components={{ name: <bdi>{codeReview.review.display_name}</bdi> }}
+                        components={{
+                          name: <bdi>{codeReview.review.display_name}</bdi>,
+                          id: <code dir="ltr">{codeReview.review.native_id}</code>,
+                        }}
                       />
                     </p>
                     <p>{t("mods.code.runs")}</p>
