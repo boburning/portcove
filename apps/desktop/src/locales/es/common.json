@@ -10,5 +10,7 @@
     "empty": "Ningún juego ni adaptación coincide con esta búsqueda.",
     "placeholder": "Buscar juegos y proyectos de adaptación…",
     "show": "Mostrar juegos y adaptaciones"
-  }
+  },
+  "setupWarnings": "Antes de empezar",
+  "taskUpdates": "Novedades de las tareas"
 }
