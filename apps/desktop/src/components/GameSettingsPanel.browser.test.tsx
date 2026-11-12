@@ -484,3 +484,31 @@ it("retries a failed settings read and preserves a local unavailable reason", as
   expect(read).toHaveBeenCalledTimes(3);
   expect(host.querySelector("input")?.value).toBe("70");
 });
+
+it("presents the panel and review in the active locale while keeping catalog labels", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    const review = vi.fn(async () => ({
+      ...reviewed({ action: "reset" }),
+      install_id: "other-install",
+    }));
+    const apply = vi.fn(async () => settings());
+    const { host } = await mount({ review, apply });
+    expect(host.querySelector("section")?.getAttribute("aria-label")).toBe("إعدادات اللعبة");
+    expect(host.querySelector("h3")?.textContent).toBe("إعدادات اللعبة");
+    expect(host.textContent).toContain("Master volume");
+    expect(host.textContent).toContain("أعداد صحيحة من 0 إلى 100، بخطوات قدرها 1.");
+    await click("إعادة التعيين إلى الافتراضي…");
+    const dialog = document.querySelector("[role=dialog]");
+    expect(dialog?.textContent).toContain("مراجعة إعداد اللعبة");
+    expect(document.querySelector("[role=alert]")?.textContent).toContain(
+      "تغيّر التثبيت. حدّث الإعدادات وراجعها مرة أخرى.",
+    );
+    expect(button("حفظ الإعداد").disabled).toBe(true);
+    expect(apply).not.toHaveBeenCalled();
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
