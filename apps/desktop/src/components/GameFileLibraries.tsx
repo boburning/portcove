@@ -309,7 +309,9 @@ const matchPageSize = 64;
 
 /** Matches beyond the snapshot preview, read in pages for one recorded scan. */
 interface MoreMatches {
-  scanId: string;
+  /** The snapshot the pages extend. A continued scan keeps its scan ID but
+   * can change its preview, so pages from before it are dropped. */
+  key: string;
   candidates: GameFileScanMatchPage["candidates"];
   preliminary: GameFileScanMatchPage["preliminary_selections"];
 }
@@ -330,7 +332,20 @@ function useMoreMatches(
   const [error, setError] = useState<string>();
   const report = snapshot?.report;
   const scanId = snapshot?.matches?.scan_id;
-  const current = more && more.scanId === scanId ? more : undefined;
+  const key = scanId
+    ? [
+        scanId,
+        report?.candidates.length ?? 0,
+        report?.preliminary_selections?.length ?? 0,
+        snapshot?.matches?.exact_matches ?? 0,
+        snapshot?.matches?.preliminary_selections ?? 0,
+      ].join(":")
+    : undefined;
+  const currentKey = useRef(key);
+  useLayoutEffect(() => {
+    currentKey.current = key;
+  }, [key]);
+  const current = more && more.key === key ? more : undefined;
   const exactShown = (report?.candidates.length ?? 0) + (current?.candidates.length ?? 0);
   const preliminaryShown =
     (report?.preliminary_selections?.length ?? 0) + (current?.preliminary.length ?? 0);
@@ -339,7 +354,7 @@ function useMoreMatches(
     snapshot?.matches?.preliminary_selections ?? report?.preliminary_selections?.length ?? 0;
   const remaining = exactTotal - exactShown + (preliminaryTotal - preliminaryShown);
   const showMore = async () => {
-    if (!scanId || loading) return;
+    if (!scanId || !key || loading) return;
     const kind = exactShown < exactTotal ? "exact" : "preliminary";
     setLoading(true);
     setError(undefined);
@@ -353,11 +368,12 @@ function useMoreMatches(
         },
         generation,
       );
+      // The snapshot changed while this page loaded: its offsets no longer apply.
+      if (currentKey.current !== key) return;
       setMore((previous) => {
-        const base =
-          previous?.scanId === scanId ? previous : { scanId, candidates: [], preliminary: [] };
+        const base = previous?.key === key ? previous : { key, candidates: [], preliminary: [] };
         return {
-          scanId,
+          key,
           candidates: [...base.candidates, ...page.candidates],
           preliminary: [...base.preliminary, ...page.preliminary_selections],
         };

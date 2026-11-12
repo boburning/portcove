@@ -1440,8 +1440,17 @@ pub(crate) fn game_file_scan_matches(
         ]);
     }
     if let Some(next) = page.next_offset {
+        // Repeat the page's own selection, so following the hint pages the same set.
+        let kind = match page.kind {
+            portcove_core::GameFileScanMatchKind::Exact => "exact",
+            portcove_core::GameFileScanMatchKind::Preliminary => "preliminary",
+        };
+        let scan = page
+            .scan_id
+            .as_deref()
+            .map_or_else(String::new, |id| format!(" --scan-id {}", clean(id)));
         lines.push(format!(
-            "More matches remain; use source roots matches --offset {next} for the next page."
+            "More matches remain; use source roots matches --kind {kind}{scan} --offset {next} (with the same --root, if any) for the next page."
         ));
     }
     lines.push(
@@ -3366,7 +3375,9 @@ mod tests {
         let output = super::game_file_scan_matches(&page, &catalog);
         assert!(output.starts_with("Matching candidates 65-65 of 130"));
         assert!(output.contains("Path: /games/fixture.z64"));
-        assert!(output.contains("source roots matches --offset 65"));
+        assert!(output.contains(
+            "source roots matches --kind exact --scan-id 00000000-0000-4000-8000-000000000000 --offset 65"
+        ));
         let empty = portcove_core::GameFileScanMatchPage {
             candidates: Vec::new(),
             next_offset: None,

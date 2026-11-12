@@ -1117,8 +1117,10 @@ fn validate_continuation(
         || snapshot.matches.as_ref().is_none_or(|summary| {
             uuid::Uuid::parse_str(&summary.scan_id).is_err()
                 || summary.scan_id.len() != 36
+                // A batch may end exactly at the ceiling; the next one then
+                // ends as limited instead of the continuation being refused.
                 || summary.exact_matches as usize + summary.preliminary_selections as usize
-                    >= scan_match_ceiling().matches
+                    > scan_match_ceiling().matches
                 || snapshot.report.candidates.len() > summary.exact_matches as usize
                 || snapshot.report.preliminary_selections.len()
                     > summary.preliminary_selections as usize
@@ -1144,7 +1146,7 @@ fn validate_continuation(
         || cursor.outputs_sha256 != outputs_identity
         || cursor.report_sha256 != report_digest(&snapshot.report, Some(summary))?
         || cursor.match_count != summary.exact_matches + summary.preliminary_selections
-        || cursor.match_bytes >= scan_match_ceiling().bytes
+        || cursor.match_bytes > scan_match_ceiling().bytes
         || snapshot.report.entries_examined as usize + snapshot.report.searched_roots.len()
             < cursor.observed.len()
         || cursor.pending.is_empty()

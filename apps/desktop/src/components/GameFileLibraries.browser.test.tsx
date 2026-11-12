@@ -2208,3 +2208,46 @@ it("explains a scan that stopped at its safety limit for matches", async () => {
   expect(document.body.textContent).toContain("The matches found so far were kept.");
   expect(document.body.textContent).not.toContain("Continue scan");
 });
+
+it("drops earlier pages when a continued scan keeps its ID but changes its preview", async () => {
+  const stored = storedMatchesSnapshot();
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stored);
+  const later = (name: string): SourceRecord => ({ ...savedCandidate, path: `D:/Games/${name}` });
+  const pages = vi.spyOn(desktopApi, "gameFileScanMatches").mockResolvedValueOnce({
+    scan_id: stored.matches!.scan_id,
+    kind: "exact",
+    offset: 1,
+    total: 3,
+    candidates: [later("second.z64")],
+    preliminary_selections: [],
+    next_offset: 2,
+  });
+  await click("Refresh folders");
+  await click("Show more matches");
+  expect(document.body.textContent).toContain("D:/Games/second.z64");
+  // The same scan continues: its preview now holds two matches of four.
+  const continued: GameFileScanSnapshot = {
+    ...stored,
+    report: { ...stored.report, candidates: [savedCandidate, later("second.z64")] },
+    matches: { ...stored.matches!, exact_matches: 4 },
+  };
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(continued);
+  await click("Refresh folders");
+  expect(document.body.textContent).toContain("Showing 2 of 4 matches.");
+  // The earlier page is not appended again, so nothing is shown twice.
+  expect(document.body.textContent?.split("D:/Games/second.z64").length).toBe(2);
+  pages.mockResolvedValueOnce({
+    scan_id: stored.matches!.scan_id,
+    kind: "exact",
+    offset: 2,
+    total: 4,
+    candidates: [later("third.z64")],
+    preliminary_selections: [],
+    next_offset: 3,
+  });
+  await click("Show more matches");
+  expect(pages).toHaveBeenLastCalledWith(
+    { scan_id: stored.matches!.scan_id, kind: "exact", offset: 2, limit: 64 },
+    1,
+  );
+});
