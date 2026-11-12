@@ -57,6 +57,7 @@ export default defineConfig({
       "src/components/SupportBundleExport.tsx",
       "src/features/organization/OrganizationControls.tsx",
       "src/components/DetailChoices.tsx",
+      "src/components/LauncherBatchCopy.tsx",
       "src/features/port-actions/BrowsePortObservations.tsx",
       "src/components/ui.tsx",
       "src/components/FailureDetails.tsx",

@@ -1,0 +1,34 @@
+{
+  "batch": {
+    "apps_one": "{{count, number}} app",
+    "apps_other": "{{count, number}} apps",
+    "becomesActive": "Becomes the active version; <version/> stays installed.",
+    "continue": "Continue to copy confirmation",
+    "copying": "Waiting for confirmation or copying…",
+    "files_one": "{{count, number}} file",
+    "files_other": "{{count, number}} files",
+    "label": "Copy several apps",
+    "outcome": {
+      "changed": "Changed after review; not copied",
+      "copied": "Copied",
+      "failed": "Not copied"
+    },
+    "planLabel": "Several apps copy plan",
+    "planSummary": "<strong>{{apps}}</strong> · {{files}} · {{size}} to copy into Portcove.",
+    "recheckNote": "Each app is checked again just before it is copied; one that changed is held, not copied. The original folders stay unchanged. Stop the games before copying.",
+    "replacesSavedFiles_one": "For {{count, number}} game, matching saved files already in Portcove are replaced. Portcove does not create a backup first, and removing a copy later does not restore them.",
+    "replacesSavedFiles_other": "For {{count, number}} games, matching saved files already in Portcove are replaced. Portcove does not create a backup first, and removing a copy later does not restore them.",
+    "resultItem": "<name/>: {{outcome}}",
+    "resultLabel": "Several apps copy result",
+    "resultSummary_one": "Copied {{count, number}} app of {{total, number}}.",
+    "resultSummary_other": "Copied {{count, number}} apps of {{total, number}}.",
+    "review": "Review copying the selected apps",
+    "reviewing": "Reviewing…",
+    "savedFilesCopied": "Saved files are copied in.",
+    "selected_zero": "Select apps above to copy several at once.",
+    "selected_one": "{{count, number}} app selected. Select at least one more to copy them together, or review it on its own above.",
+    "selected_other": "{{count, number}} apps selected.",
+    "unsupported_one": "{{count, number}} unsupported item stays only in the original folder.",
+    "unsupported_other": "{{count, number}} unsupported items stay only in the original folder."
+  }
+}

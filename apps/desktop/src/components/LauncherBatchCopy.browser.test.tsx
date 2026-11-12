@@ -180,3 +180,31 @@ it("hides a review once the selection changes", async () => {
     await view.cleanup();
   }
 });
+
+it("reviews and reports several apps in the current language with exact names", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  await localization.changeLanguage("ar-XB");
+  const named: LauncherBatchSelection[] = [
+    { item: selection[0]!.item, label: "Game {{label}} A" },
+    selection[1]!,
+  ];
+  const view = await render(named);
+  try {
+    await expect.element(page.getByText("تطبيقان محددان (2).")).toBeVisible();
+    await page.getByRole("button", { name: "مراجعة نسخ التطبيقات المحددة" }).click();
+    await expect
+      .element(page.getByText(/^تطبيقان \(2\) · 12 ملفًا · .* للنسخ إلى Portcove\.$/))
+      .toBeVisible();
+    await expect.element(page.getByText("يصبح الإصدار النشط؛ يبقى 1.0 مثبتًا.")).toBeVisible();
+    await expect.element(page.getByText(/^للعبة واحدة \(1\)، تُستبدل/)).toBeVisible();
+    await page.getByRole("button", { name: "المتابعة إلى تأكيد النسخ" }).click();
+    await expect.element(page.getByText("نُسخ 1 من 2 من التطبيقات.")).toBeVisible();
+    const names = [...document.querySelectorAll("li bdi")].map((node) => node.textContent);
+    expect(names).toContain("Game {{label}} A");
+    await expect.element(page.getByText(/^Game B: تغيّر بعد المراجعة؛ لم يُنسخ/)).toBeVisible();
+  } finally {
+    await view.cleanup();
+    await localization.changeLanguage("en");
+  }
+});

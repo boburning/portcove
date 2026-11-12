@@ -1,5 +1,8 @@
+import type { TFunction } from "i18next";
 import { useEffect, useRef, useState } from "react";
 import { FolderInput } from "lucide-react";
+import { Trans } from "react-i18next";
+import { useAppTranslation } from "../localization";
 import { formatBytes } from "../view-model";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
@@ -10,18 +13,18 @@ export type LauncherBatchSelection = { item: AdoptionBatchItem; label: string };
 /** Core refuses larger batches; the list keeps selections within it. */
 export const LAUNCHER_BATCH_LIMIT = 32;
 
-const OUTCOME_LABELS: Record<AdoptionBatchResult["items"][number]["outcome"], string> = {
-  copied: "Copied",
-  changed: "Changed after review; not copied",
-  failed: "Not copied",
-};
-
-/** Complete per-count messages; English suffixes are never appended. */
-function apps(count: number) {
-  return count === 1 ? "1 app" : `${count} apps`;
-}
-function files(count: number) {
-  return count === 1 ? "1 file" : `${count} files`;
+function outcomeLabel(
+  t: TFunction<"launcherImport">,
+  outcome: AdoptionBatchResult["items"][number]["outcome"],
+): string {
+  switch (outcome) {
+    case "copied":
+      return t("batch.outcome.copied");
+    case "changed":
+      return t("batch.outcome.changed");
+    case "failed":
+      return t("batch.outcome.failed");
+  }
 }
 
 /**
@@ -47,6 +50,7 @@ export function LauncherBatchCopy({
   copied: () => void;
   gameName?: (portId: string) => string;
 }) {
+  const { t } = useAppTranslation("launcherImport");
   const [preview, setPreview] = useState<AdoptionBatchPreview>();
   const [result, setResult] = useState<{
     value: AdoptionBatchResult;
@@ -66,13 +70,9 @@ export function LauncherBatchCopy({
     if (result) resultRef.current?.focus();
   }, [result]);
   return (
-    <section aria-label="Copy several apps" className="mt-3">
+    <section aria-label={t("batch.label")} className="mt-3">
       <p className="text-[var(--color-text-secondary)]">
-        {selection.length === 0
-          ? "Select apps above to copy several at once."
-          : selection.length === 1
-            ? "1 app selected. Select at least one more to copy them together, or review it on its own above."
-            : `${apps(selection.length)} selected.`}
+        {t("batch.selected", { count: selection.length })}
       </p>
       <Button
         data-focusable
@@ -91,44 +91,55 @@ export function LauncherBatchCopy({
         }}
       >
         <Icon glyph={FolderInput} />
-        {phase === "reviewing" ? "Reviewing…" : "Review copying the selected apps"}
+        {phase === "reviewing" ? t("batch.reviewing") : t("batch.review")}
       </Button>
       {current && (
         <div
           className="mt-3 rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-3 [overflow-wrap:anywhere]"
-          aria-label="Several apps copy plan"
+          aria-label={t("batch.planLabel")}
           role="group"
         >
           <p>
-            <strong>{apps(current.items.length)}</strong> · {files(current.total_files)} ·{" "}
-            {formatBytes(current.total_bytes)} to copy into Portcove.
+            <Trans
+              t={t}
+              i18nKey="batch.planSummary"
+              values={{
+                apps: t("batch.apps", { count: current.items.length }),
+                files: t("batch.files", { count: current.total_files }),
+                size: formatBytes(current.total_bytes),
+              }}
+              components={{ strong: <strong /> }}
+            />
           </p>
           <ul className="ps-5">
             {current.items.map((item) => (
               <li key={item.source}>
-                {label(item.source)} → {gameName(item.selected_port_id ?? "")}
+                <bdi>{label(item.source)}</bdi> → <bdi>{gameName(item.selected_port_id ?? "")}</bdi>
                 {item.destination?.active_install && (
                   <>
                     <br />
                     <small>
-                      Becomes the active version; {item.destination.active_install.version} stays
-                      installed.
+                      <Trans
+                        t={t}
+                        i18nKey="batch.becomesActive"
+                        components={{
+                          version: <bdi>{item.destination.active_install.version}</bdi>,
+                        }}
+                      />
                     </small>
                   </>
                 )}
                 {(item.destination?.imported_user_data_paths.length ?? 0) > 0 && (
                   <>
                     <br />
-                    <small>Saved files are copied in.</small>
+                    <small>{t("batch.savedFilesCopied")}</small>
                   </>
                 )}
                 {item.copy_plan.skipped_entries.length > 0 && (
                   <>
                     <br />
                     <small className="text-[var(--color-warning-text)]">
-                      {item.copy_plan.skipped_entries.length === 1
-                        ? "1 unsupported item stays only in the original folder."
-                        : `${item.copy_plan.skipped_entries.length} unsupported items stay only in the original folder.`}
+                      {t("batch.unsupported", { count: item.copy_plan.skipped_entries.length })}
                     </small>
                   </>
                 )}
@@ -137,17 +148,10 @@ export function LauncherBatchCopy({
           </ul>
           {current.items_replacing_saved_files > 0 && (
             <p role="note" className="text-[var(--color-warning-text)]">
-              {current.items_replacing_saved_files === 1
-                ? "For 1 game, matching saved files already in Portcove are replaced."
-                : `For ${current.items_replacing_saved_files} games, matching saved files already in Portcove are replaced.`}{" "}
-              Portcove does not create a backup first, and removing a copy later does not restore
-              them.
+              {t("batch.replacesSavedFiles", { count: current.items_replacing_saved_files })}
             </p>
           )}
-          <p className="text-[var(--color-text-secondary)]">
-            Each app is checked again just before it is copied; one that changed is held, not
-            copied. The original folders stay unchanged. Stop the games before copying.
-          </p>
+          <p className="text-[var(--color-text-secondary)]">{t("batch.recheckNote")}</p>
           <Button
             data-focusable
             type="button"
@@ -168,27 +172,34 @@ export function LauncherBatchCopy({
             }}
           >
             <Icon glyph={FolderInput} />
-            {phase === "copying"
-              ? "Waiting for confirmation or copying…"
-              : "Continue to copy confirmation"}
+            {phase === "copying" ? t("batch.copying") : t("batch.continue")}
           </Button>
         </div>
       )}
       <div aria-live="polite">
         {result && (
-          <div className="mt-3" role="group" aria-label="Several apps copy result">
+          <div className="mt-3" role="group" aria-label={t("batch.resultLabel")}>
             <p
               ref={resultRef}
               tabIndex={-1}
               className="rounded-sm focus:outline-2 focus:outline-offset-2 focus:outline-pc-ring"
             >
-              Copied {apps(result.value.items.filter((item) => item.outcome === "copied").length)}{" "}
-              of {result.value.items.length}.
+              {t("batch.resultSummary", {
+                count: result.value.items.filter((item) => item.outcome === "copied").length,
+                total: result.value.items.length,
+              })}
             </p>
             <ul className="ps-5">
               {result.value.items.map((item) => (
                 <li key={item.source}>
-                  {result.labels.get(item.source) ?? item.source}: {OUTCOME_LABELS[item.outcome]}
+                  <Trans
+                    t={t}
+                    i18nKey="batch.resultItem"
+                    values={{ outcome: outcomeLabel(t, item.outcome) }}
+                    components={{
+                      name: <bdi>{result.labels.get(item.source) ?? item.source}</bdi>,
+                    }}
+                  />
                   {item.message && (
                     <>
                       <br />

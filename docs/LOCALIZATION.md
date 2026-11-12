@@ -157,6 +157,7 @@ unless the copy change is intended and reviewed.
 | Support report export, receipt, section statuses and collection reasons (the saved path and entry names stay exact)                                                                           | `components/SupportBundleExport.tsx`                       | `settings`          |
 | Collections, saved and hidden views, save action and Library visibility menu items (collection names stay exact; focus restoration uses `data-organization-controls`, not a translated label) | `features/organization/OrganizationControls.tsx`           | `organization`      |
 | Setup reminder and library update-notice choices (skipped release versions stay exact)                                                                                                        | `components/DetailChoices.tsx`                             | `organization`      |
+| Several-app launcher copy review, plan, consequences and per-app results (app labels, game names and versions stay exact; Core result messages stay verbatim)                                 | `components/LauncherBatchCopy.tsx`                         | `launcherImport`    |
 | Discover card observations (readiness, acquisition and setup-route text follow their producers' migrations)                                                                                   | `features/port-actions/BrowsePortObservations.tsx`         | `browsing`          |
 | Navigation hints (keyboard key names stay literal)                                                                                                                                            | `components/ui.tsx`                                        | `common`            |
 | Failure technical details (codes, phases, messages and context values stay verbatim)                                                                                                          | `components/FailureDetails.tsx`                            | `common`            |
@@ -164,7 +165,7 @@ unless the copy change is intended and reviewed.
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-12 it
-reported 1,432 findings in 43 of 218 analyzed files, measured after the
+reported 1,421 findings in 42 of 218 analyzed files, measured after the
 migrations listed above and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
 and are migrated with the surface that renders them. The count is a work

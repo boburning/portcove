@@ -22,6 +22,7 @@ import englishRemoval from "./locales/en/removal.json";
 import englishBackups from "./locales/en/backups.json";
 import englishGameSettings from "./locales/en/gameSettings.json";
 import englishOrganization from "./locales/en/organization.json";
+import englishLauncherImport from "./locales/en/launcherImport.json";
 import englishGameUpdates from "./locales/en/gameUpdates.json";
 import englishLaunch from "./locales/en/launch.json";
 import englishWorkspace from "./locales/en/workspace.json";
@@ -40,6 +41,7 @@ import engineeringRemoval from "./locales/ar-XB/removal.json";
 import engineeringBackups from "./locales/ar-XB/backups.json";
 import engineeringGameSettings from "./locales/ar-XB/gameSettings.json";
 import engineeringOrganization from "./locales/ar-XB/organization.json";
+import engineeringLauncherImport from "./locales/ar-XB/launcherImport.json";
 import engineeringGameUpdates from "./locales/ar-XB/gameUpdates.json";
 import engineeringLaunch from "./locales/ar-XB/launch.json";
 import engineeringWorkspace from "./locales/ar-XB/workspace.json";
@@ -61,6 +63,7 @@ import draftSpanishRemoval from "./locales/es/removal.json";
 import draftSpanishBackups from "./locales/es/backups.json";
 import draftSpanishGameSettings from "./locales/es/gameSettings.json";
 import draftSpanishOrganization from "./locales/es/organization.json";
+import draftSpanishLauncherImport from "./locales/es/launcherImport.json";
 import draftSpanishGameUpdates from "./locales/es/gameUpdates.json";
 import draftSpanishLaunch from "./locales/es/launch.json";
 import draftSpanishWorkspace from "./locales/es/workspace.json";
@@ -142,6 +145,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(englishBackups, "backups");
   assertCatalog(englishGameSettings, "gameSettings");
   assertCatalog(englishOrganization, "organization");
+  assertCatalog(englishLauncherImport, "launcherImport");
   assertCatalog(englishGameUpdates, "gameUpdates");
   assertCatalog(englishLaunch, "launch");
   assertCatalog(englishWorkspace, "workspace");
@@ -159,6 +163,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(engineeringBackups, "backups");
   assertCatalog(engineeringGameSettings, "gameSettings");
   assertCatalog(engineeringOrganization, "organization");
+  assertCatalog(engineeringLauncherImport, "launcherImport");
   assertCatalog(engineeringGameUpdates, "gameUpdates");
   assertCatalog(engineeringLaunch, "launch");
   assertCatalog(engineeringWorkspace, "workspace");
@@ -177,6 +182,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(draftSpanishBackups, "es.backups");
   assertCatalog(draftSpanishGameSettings, "es.gameSettings");
   assertCatalog(draftSpanishOrganization, "es.organization");
+  assertCatalog(draftSpanishLauncherImport, "es.launcherImport");
   assertCatalog(draftSpanishGameUpdates, "es.gameUpdates");
   assertCatalog(draftSpanishLaunch, "es.launch");
   assertCatalog(draftSpanishWorkspace, "es.workspace");
@@ -201,6 +207,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
         "backups",
         "gameSettings",
         "organization",
+        "launcherImport",
         "gameUpdates",
         "launch",
         "workspace",
@@ -223,6 +230,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           backups: englishBackups,
           gameSettings: englishGameSettings,
           organization: englishOrganization,
+          launcherImport: englishLauncherImport,
           gameUpdates: englishGameUpdates,
           launch: englishLaunch,
           workspace: englishWorkspace,
@@ -242,6 +250,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           backups: engineeringBackups,
           gameSettings: engineeringGameSettings,
           organization: engineeringOrganization,
+          launcherImport: engineeringLauncherImport,
           gameUpdates: engineeringGameUpdates,
           launch: engineeringLaunch,
           workspace: engineeringWorkspace,
@@ -264,6 +273,7 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           backups: draftSpanishBackups,
           gameSettings: draftSpanishGameSettings,
           organization: draftSpanishOrganization,
+          launcherImport: draftSpanishLauncherImport,
           gameUpdates: draftSpanishGameUpdates,
           launch: draftSpanishLaunch,
           workspace: draftSpanishWorkspace,
