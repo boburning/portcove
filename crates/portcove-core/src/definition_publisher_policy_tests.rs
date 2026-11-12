@@ -1049,6 +1049,8 @@ fn curated_catalog_with_preserved_location(location: Option<String>) -> Catalog 
         record.record_version = 2;
         record.preserved_locations = vec![location.replace("{sha256}", &record.sha256)];
     }
+    // The fixture port must declare the host platform the record is keyed by.
+    port.platforms = vec![platform];
     port.release.curated.insert(platform, record);
     document.ports[0] = port;
     Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
