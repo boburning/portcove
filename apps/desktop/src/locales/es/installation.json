@@ -1,0 +1,22 @@
+{
+  "managedRoute": {
+    "cancel": "Cancelar",
+    "checkAgain": "Volver a comprobar",
+    "checking": "Comprobando la versión recomendada y el destino…",
+    "create": "Crear la copia administrada",
+    "description": "Portcove prepara una copia separada y cambia a ella solo después de verificarla. Tu registro actual sigue funcionando hasta entonces, y sus archivos externos permanecen donde están.",
+    "differentHandling": "Este cambio propuesto maneja los archivos o los datos de otra manera. Conserva tu copia actual y actualiza Portcove antes de volver a revisarlo.",
+    "failure": "No se confirmó el cambio de ruta. Revisa la instalación actual antes de volver a intentarlo.",
+    "folder": "Nueva carpeta de instalación: <path/>",
+    "open": "Revisar una copia administrada por Portcove…",
+    "options": "Cambiar la versión o la ubicación",
+    "optionsNote": "Estas elecciones se guardan para futuras instalaciones administradas. No mueven ni cambian tus archivos externos.",
+    "preparing": "Preparando la copia administrada…",
+    "preserves": "Portcove actualiza la nueva instalación y conserva las partidas y los ajustes cubiertos por sus reglas registradas. Tus partidas externas no se copian. Un juego que usa un perfil del proyecto original puede seguir leyendo ese mismo perfil cuando eliges Jugar; guarda una copia de seguridad aparte de esos datos.",
+    "previousFiles": "Tus archivos anteriores permanecen en <path/>. Puedes seguir usándolos por separado. La política de actualización guardada sigue vigente; Jugar sigue siendo una acción aparte.",
+    "recoverySummary": "Detalles de archivos y recuperación",
+    "refresh": "Actualizar la instalación actual",
+    "reviewing": "Revisando la copia administrada",
+    "title": "¿Usar una copia administrada de <name/>?"
+  }
+}

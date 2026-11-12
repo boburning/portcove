@@ -160,6 +160,7 @@ unless the copy change is intended and reviewed.
 | Several-app launcher copy review, plan, consequences and per-app results (app labels, game names and versions stay exact; Core result messages stay verbatim)                                                                           | `components/LauncherBatchCopy.tsx`                         | `launcherImport`    |
 | Preparation log viewer: phases, completeness, truncation, stream labels and clipboard fallback (captured output, Core failure text and the saved time stay verbatim)                                                                    | `components/ActivityDiagnostic.tsx`                        | `operations`        |
 | Command-line handoff: titles, copy labels, interpreter and template notes, disclosures and follow-up guidance (commands, the library path, missing-value names and placeholder tokens such as `--arg` and `review-sha256` stay literal) | `components/CliContinuity.tsx`                             | `cli`               |
+| Managed-copy route change review: dialog, options, consequences and recovery details (game names and paths stay exact; release, platform and size line stays data formatting; catalog setup and preparation text stays verbatim)        | `components/ManagedRouteChange.tsx`                        | `installation`      |
 | Discover card observations (readiness, acquisition and setup-route text follow their producers' migrations)                                                                                                                             | `features/port-actions/BrowsePortObservations.tsx`         | `browsing`          |
 | Navigation hints (keyboard key names stay literal)                                                                                                                                                                                      | `components/ui.tsx`                                        | `common`            |
 | Failure technical details (codes, phases, messages and context values stay verbatim)                                                                                                                                                    | `components/FailureDetails.tsx`                            | `common`            |
@@ -167,7 +168,7 @@ unless the copy change is intended and reviewed.
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-12 it
-reported 1,394 findings in 40 of 218 analyzed files, measured after the
+reported 1,379 findings in 39 of 218 analyzed files, measured after the
 migrations listed above and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
 and are migrated with the surface that renders them. The count is a work
