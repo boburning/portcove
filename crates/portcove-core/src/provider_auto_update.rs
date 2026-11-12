@@ -25,9 +25,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     ErrorCode, PortcoveError, PortcoveService, ProfileRevision, ProfileUpdatePolicy,
     ProviderInstallPlan, ProviderUpdateObservation, ProviderUpdateState, Result, asset_conflicts,
-    gamebanana::GameBananaClient,
     inspect_asset_archive, profile,
     profile_deploy::{Layout, enabled_in_override_order},
+    provider_client::ProviderClient,
 };
 
 const HOLDS_FILE: &str = "auto-update-holds.json";
@@ -135,6 +135,18 @@ fn hold_reason(
     revision: &ProfileRevision,
     installed: &InstalledFile<'_>,
 ) -> Option<String> {
+    // Consent to run code covers exact bytes, so new code always waits for the
+    // player, however the setup's policy reads.
+    if let Some(member) = plan
+        .members
+        .iter()
+        .find(|member| !member.runs_code.is_empty())
+    {
+        return Some(format!(
+            "the update to {} runs its own code inside the game; review it to allow that code",
+            member.file_name
+        ));
+    }
     let brought = plan
         .members
         .iter()
@@ -363,19 +375,30 @@ impl PortcoveService {
         &self,
         port_id: &str,
     ) -> Result<Vec<ProviderAutoUpdate>> {
-        let client = GameBananaClient::for_library(&self.library)?;
-        self.run_eligible_provider_updates_with(&client, port_id)
+        if crate::provider_install::bound_provider(port_id).is_none() {
+            return Ok(Vec::new());
+        }
+        let client = ProviderClient::for_port(&self.library, port_id)?;
+        self.run_eligible_provider_updates_via(&client, port_id)
             .await
     }
 
+    #[cfg(test)]
     pub(crate) async fn run_eligible_provider_updates_with(
         &self,
-        client: &GameBananaClient,
+        client: &crate::GameBananaClient,
         port_id: &str,
     ) -> Result<Vec<ProviderAutoUpdate>> {
-        if crate::provider_install::gamebanana_game(port_id).is_none() {
-            return Ok(Vec::new());
-        }
+        let client = ProviderClient::gamebanana(client, port_id)?;
+        self.run_eligible_provider_updates_via(&client, port_id)
+            .await
+    }
+
+    pub(crate) async fn run_eligible_provider_updates_via(
+        &self,
+        client: &ProviderClient,
+        port_id: &str,
+    ) -> Result<Vec<ProviderAutoUpdate>> {
         let layout = self.deploy_layout(port_id)?;
         let setups = self
             .profile_inventory(port_id)?
@@ -396,7 +419,7 @@ impl PortcoveService {
                 outcome,
             };
             let observations = match self
-                .check_provider_updates_with(client, port_id, &setup.id)
+                .check_provider_updates_via(client, port_id, &setup.id)
                 .await
             {
                 Ok(observations) => observations,
@@ -436,7 +459,7 @@ impl PortcoveService {
     /// a hold for the current revision and candidate stays remembered.
     async fn update_one(
         &self,
-        client: &GameBananaClient,
+        client: &ProviderClient,
         layout: &Layout,
         port_id: &str,
         profile_id: &str,
@@ -472,7 +495,7 @@ impl PortcoveService {
 
     async fn update_one_inner(
         &self,
-        client: &GameBananaClient,
+        client: &ProviderClient,
         layout: &Layout,
         port_id: &str,
         profile_id: &str,
@@ -513,16 +536,11 @@ impl PortcoveService {
                 "a mod from this file is turned off; review the update when you turn it on",
             );
         }
-        let ids = installed
-            .project
-            .parse::<u64>()
-            .ok()
-            .zip(candidate.file_id.parse::<u64>().ok());
-        let Some((project_id, file_id)) = ids else {
+        if installed.project.is_empty() || candidate.file_id.is_empty() {
             return Some(ProviderAutoUpdateOutcome::Unavailable {
                 reason: "the provider's file identity is not readable".into(),
             });
-        };
+        }
         let revision = match self
             .library
             .connection()
@@ -540,7 +558,13 @@ impl PortcoveService {
             return Some(ProviderAutoUpdateOutcome::Deferred { reason });
         }
         let plan = match self
-            .plan_provider_install_with(client, port_id, profile_id, project_id, file_id)
+            .plan_provider_install_via(
+                client,
+                port_id,
+                profile_id,
+                &installed.project,
+                &candidate.file_id,
+            )
             .await
         {
             Ok(plan) => plan,

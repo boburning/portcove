@@ -10,9 +10,11 @@ use std::collections::BTreeMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+#[cfg(test)]
+use crate::GameBananaClient;
 use crate::{
-    GameBananaClient, PortcoveService, ProviderFileCandidate, ProviderFreshness,
-    ProviderPackageRef, Result, profile,
+    PortcoveService, ProviderFileCandidate, ProviderFreshness, ProviderPackageRef, Result, profile,
+    provider_client::ProviderClient,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -37,7 +39,8 @@ pub struct ProviderUpdateObservation {
     pub observed_version: Option<String>,
     /// False with `NewerFiles` means files changed under an unchanged version label.
     pub version_changed: bool,
-    /// Candidates in ascending file-ID order; more than one is ambiguous.
+    /// Candidates oldest first (GameBanana file ID, Thunderstore publish date);
+    /// more than one is ambiguous.
     pub newer_files: Vec<ProviderFileCandidate>,
     pub freshness: Option<ProviderFreshness>,
     pub reason: Option<String>,
@@ -49,14 +52,27 @@ impl PortcoveService {
         port_id: &str,
         profile_id: &str,
     ) -> Result<Vec<ProviderUpdateObservation>> {
-        let client = GameBananaClient::for_library(&self.library)?;
-        self.check_provider_updates_with(&client, port_id, profile_id)
+        self.catalog().port(port_id)?;
+        let client = ProviderClient::for_port(&self.library, port_id)?;
+        self.check_provider_updates_via(&client, port_id, profile_id)
             .await
     }
 
+    #[cfg(test)]
     pub(crate) async fn check_provider_updates_with(
         &self,
         client: &GameBananaClient,
+        port_id: &str,
+        profile_id: &str,
+    ) -> Result<Vec<ProviderUpdateObservation>> {
+        let client = ProviderClient::gamebanana(client, port_id)?;
+        self.check_provider_updates_via(&client, port_id, profile_id)
+            .await
+    }
+
+    pub(crate) async fn check_provider_updates_via(
+        &self,
+        client: &ProviderClient,
         port_id: &str,
         profile_id: &str,
     ) -> Result<Vec<ProviderUpdateObservation>> {
@@ -68,15 +84,14 @@ impl PortcoveService {
             let Some(provider) = package.provider.clone() else {
                 continue;
             };
-            if provider.provider != crate::gamebanana::PROVIDER {
+            if provider.provider != client.provider() {
                 continue;
             }
-            let ids = provider.file.as_deref().and_then(|file| {
-                Some((
-                    file.parse::<u64>().ok()?,
-                    provider.project.parse::<u64>().ok()?,
-                ))
-            });
+            let ids = provider
+                .file
+                .clone()
+                .filter(|file| !file.is_empty() && !provider.project.is_empty())
+                .map(|file| (file, provider.project.clone()));
             let Some((installed_id, project_id)) = ids else {
                 // Unknown identity is reported, never dropped from the report.
                 observations.push(ProviderUpdateObservation {
@@ -94,12 +109,12 @@ impl PortcoveService {
                 });
                 continue;
             };
-            let file = installed_id.to_string();
+            let file = installed_id.clone();
             let observed = match projects.get(&project_id) {
                 Some(observed) => observed,
                 None => {
-                    let result = client.project(project_id).await;
-                    projects.entry(project_id).or_insert(result)
+                    let result = client.project(&project_id).await;
+                    projects.entry(project_id.clone()).or_insert(result)
                 }
             };
             let mut observation = ProviderUpdateObservation {
@@ -141,19 +156,20 @@ impl PortcoveService {
                         .files
                         .iter()
                         .any(|candidate| candidate.file_id == file && !candidate.archived);
+                    let installed = project
+                        .files
+                        .iter()
+                        .find(|candidate| candidate.file_id == installed_id);
                     let mut newer = project
                         .files
                         .iter()
                         .filter(|candidate| {
                             !candidate.archived
-                                && candidate.file_id.parse::<u64>().unwrap_or_default()
-                                    > installed_id
+                                && client.newer_than(candidate, &installed_id, installed)
                         })
                         .cloned()
                         .collect::<Vec<_>>();
-                    newer.sort_by_key(|candidate| {
-                        candidate.file_id.parse::<u64>().unwrap_or_default()
-                    });
+                    newer.sort_by_key(|candidate| client.order_key(candidate));
                     observation.state = if !newer.is_empty() {
                         ProviderUpdateState::NewerFiles
                     } else if !still_offered {

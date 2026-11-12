@@ -14,24 +14,26 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::{
-    AssetConflict, GameBananaClient, PortcoveError, PortcoveService, ProfileRevision,
-    ProviderFileCandidate, ProviderFreshness, ProviderPackageRef, Result, asset_conflicts,
+    AssetConflict, PortcoveError, PortcoveService, ProfileRevision, ProviderFileCandidate,
+    ProviderFreshness, ProviderPackageRef, RecompExecution, Result, asset_conflicts,
     inspect_asset_archive,
     mod_package::extract_packages,
     profile,
-    profile_deploy::{adapter_extensions, inspect_for_port, sha256_file},
+    profile_deploy::{CodePolicy, adapter_extensions, inspect_for_port, sha256_file},
+    provider_client::ProviderClient,
 };
 
 const MAX_DOWNLOAD_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 const MAX_REPORTED_CONFLICTS: usize = 100;
 const STAGED_RETENTION_SECONDS: u64 = 24 * 60 * 60;
 const ACTION: &str = "install_provider_package";
+/// A plan whose packages run code is authorized separately, only when the player
+/// explicitly allows that code.
+const ACTION_WITH_CODE: &str = "install_provider_package_with_code";
 
 /// Reviewed operational binding between a port and the provider's game identity.
 /// Names and popularity never authorize compatibility; only this binding does.
-/// Planning inspects asset archives directly; binding a port whose loader names
-/// packages from their contents (Recomp) needs planning through
-/// `inspect_for_port` first, though apply already uses it.
+/// Thunderstore communities are bound in `thunderstore`.
 const GAMEBANANA_BINDINGS: &[(&str, u64)] = &[("shipwright", 16121)];
 
 pub(crate) fn gamebanana_game(port_id: &str) -> Option<u64> {
@@ -45,9 +47,23 @@ pub(crate) fn gamebanana_game(port_id: &str) -> Option<u64> {
         .map(|(_, game)| *game)
 }
 
-/// Ports with a reviewed binding, for passes that visit each of them.
-pub(crate) fn gamebanana_ports() -> impl Iterator<Item = &'static str> {
-    GAMEBANANA_BINDINGS.iter().map(|(port, _)| *port)
+/// Ports with a reviewed provider binding, for passes that visit each of them.
+pub(crate) fn provider_ports() -> impl Iterator<Item = &'static str> {
+    GAMEBANANA_BINDINGS
+        .iter()
+        .map(|(port, _)| *port)
+        .chain(crate::thunderstore::bound_ports())
+}
+
+/// The provider a port has a reviewed binding for, and its name in messages.
+pub(crate) fn bound_provider(port_id: &str) -> Option<(&'static str, &'static str)> {
+    if gamebanana_game(port_id).is_some() {
+        Some((crate::gamebanana::PROVIDER, "GameBanana"))
+    } else if crate::thunderstore::thunderstore_community(port_id).is_some() {
+        Some((crate::thunderstore::PROVIDER, "Thunderstore"))
+    } else {
+        None
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -56,6 +72,9 @@ pub struct PlanMember {
     pub sha256: String,
     pub size: u64,
     pub asset_count: usize,
+    /// What the package runs if installed (Recomp code); empty for asset mods.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub runs_code: Vec<RecompExecution>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -98,43 +117,63 @@ fn target(plan: &ProviderInstallPlan) -> Result<String> {
 }
 
 impl PortcoveService {
-    /// Reviews one GameBanana file for one profile without changing anything but a
-    /// private staging area.
+    /// Reviews one provider file for one profile without changing anything but a
+    /// private staging area. IDs are the provider's own: a GameBanana mod and file
+    /// number, or a Thunderstore `NAMESPACE-NAME` package and version.
     pub async fn plan_provider_install(
         &self,
         port_id: &str,
         profile_id: &str,
-        project_id: u64,
-        file_id: u64,
+        project_id: &str,
+        file_id: &str,
     ) -> Result<ProviderInstallPlan> {
-        let client = GameBananaClient::for_library(&self.library)?;
-        self.plan_provider_install_with(&client, port_id, profile_id, project_id, file_id)
+        self.catalog().port(port_id)?;
+        let client = ProviderClient::for_port(&self.library, port_id)?;
+        self.plan_provider_install_via(&client, port_id, profile_id, project_id, file_id)
             .await
     }
 
+    #[cfg(test)]
     pub(crate) async fn plan_provider_install_with(
         &self,
-        client: &GameBananaClient,
+        client: &crate::GameBananaClient,
         port_id: &str,
         profile_id: &str,
         project_id: u64,
         file_id: u64,
     ) -> Result<ProviderInstallPlan> {
-        let game = gamebanana_game(port_id).ok_or_else(|| {
-            PortcoveError::unsupported("this port has no reviewed GameBanana binding yet")
-        })?;
+        let client = ProviderClient::gamebanana(client, port_id)?;
+        self.plan_provider_install_via(
+            &client,
+            port_id,
+            profile_id,
+            &project_id.to_string(),
+            &file_id.to_string(),
+        )
+        .await
+    }
+
+    pub(crate) async fn plan_provider_install_via(
+        &self,
+        client: &ProviderClient,
+        port_id: &str,
+        profile_id: &str,
+        project_id: &str,
+        file_id: &str,
+    ) -> Result<ProviderInstallPlan> {
         let layout = self.deploy_layout(port_id)?;
         let extensions = adapter_extensions(port_id).unwrap_or(&[]);
         let current = profile::current_revision(&self.library.connection()?, port_id, profile_id)?;
 
         let observed = client.project(project_id).await?;
         if observed.freshness == ProviderFreshness::Stale {
-            return Err(PortcoveError::network(
-                "GameBanana could not be reached; a plan needs a current observation, not cached data",
-            ));
+            return Err(PortcoveError::network(format!(
+                "{} could not be reached; a plan needs a current observation, not cached data",
+                client.label()
+            )));
         }
         let project = observed.value;
-        if project.game_id.as_deref() != Some(game.to_string().as_str()) {
+        if project.game_id.as_deref() != Some(client.game_id().as_str()) {
             return Err(PortcoveError::verification(
                 "this project does not belong to the game this port is bound to",
             ));
@@ -147,7 +186,7 @@ impl PortcoveService {
         let file = project
             .files
             .iter()
-            .find(|file| file.file_id == file_id.to_string())
+            .find(|file| file.file_id == file_id)
             .cloned()
             .ok_or_else(|| PortcoveError::not_found("the project has no such file"))?;
         if file.archived {
@@ -183,7 +222,7 @@ impl PortcoveService {
         let staging = tempfile::tempdir_in(layout.tmp())?;
         let download = staging.path().join("download.bin");
         let (download_sha256, download_size) = client
-            .download_file(&file, &download, MAX_DOWNLOAD_BYTES)
+            .download(project_id, &file, &download, MAX_DOWNLOAD_BYTES)
             .await?;
 
         let members_dir = staging.path().join("members");
@@ -201,6 +240,43 @@ impl PortcoveService {
                 "the download contains no package this game can load",
             ));
         }
+        let mut recomp_code = std::collections::BTreeMap::<String, Vec<RecompExecution>>::new();
+
+        // A loader that names packages by their own manifest (Recomp) is reviewed
+        // the way a local install is: named by mod ID, other games refused, and
+        // any code it would run reported for the player's decision.
+        let member_paths = match crate::native_mod_list::recomp_game(port_id) {
+            Some(game) => {
+                let mut renamed = Vec::new();
+                let mut code = std::collections::BTreeMap::new();
+                for path in &member_paths {
+                    let recomp = crate::inspect_recomp_mod(path, game)?;
+                    if recomp.holds.contains(&crate::RecompModHold::OtherGame) {
+                        return Err(PortcoveError::unsupported(
+                            "a mod in this file is made for a different game; it cannot be installed",
+                        )
+                        .detail("mod", &recomp.native_id));
+                    }
+                    if !recomp.execution.is_empty() || !recomp.holds.is_empty() {
+                        crate::profile_deploy::require_admissible_code(&recomp)?;
+                    }
+                    let name = format!("{}.nrm", recomp.native_id);
+                    let destination = members_dir.join(&name);
+                    if !profile::valid_native_id(&name) || destination.try_exists()? {
+                        return Err(PortcoveError::unsupported(
+                            "this file contains two mods with the same ID, or an ID that cannot be a file name",
+                        )
+                        .detail("mod", &recomp.native_id));
+                    }
+                    fs::rename(path, &destination)?;
+                    code.insert(name, recomp.execution);
+                    renamed.push(destination);
+                }
+                recomp_code = code;
+                renamed
+            }
+            None => member_paths,
+        };
 
         let mut members = Vec::new();
         let mut inspections = Vec::new();
@@ -217,6 +293,10 @@ impl PortcoveService {
                 sha256: inspection.sha256.clone(),
                 size: inspection.size,
                 asset_count: inspection.asset_paths.len(),
+                runs_code: recomp_code
+                    .get(&inspection.file_name)
+                    .cloned()
+                    .unwrap_or_default(),
             });
             inspections.push(inspection);
         }
@@ -282,10 +362,15 @@ impl PortcoveService {
             profile_id: profile_id.into(),
             expected_revision: current.revision,
             provider: ProviderPackageRef {
-                provider: crate::gamebanana::PROVIDER.into(),
-                project: project_id.to_string(),
-                file: Some(file_id.to_string()),
-                version: project.version.clone(),
+                provider: client.provider().into(),
+                project: project_id.to_owned(),
+                file: Some(file_id.to_owned()),
+                // A Thunderstore version is the file itself; GameBanana shows one
+                // label for the whole project.
+                version: match client {
+                    ProviderClient::Thunderstore { .. } => Some(file.file_id.clone()),
+                    ProviderClient::GameBanana { .. } => project.version.clone(),
+                },
             },
             project_name: project.name.clone(),
             file: file.clone(),
@@ -354,8 +439,45 @@ impl PortcoveService {
                 "the plan does not match its recorded digest",
             ));
         }
+        if let Some(member) = plan
+            .members
+            .iter()
+            .find(|member| !member.runs_code.is_empty())
+        {
+            return Err(PortcoveError::usage(
+                "this file includes a mod that runs its own code inside the game; it is installed only when you allow its code",
+            )
+            .detail("package", &member.file_name)
+            .detail("sha256", &member.sha256));
+        }
         self.library
             .issue_authorization(ACTION, &target(plan)?, &plan.plan_sha256)
+    }
+
+    /// Like [`Self::authorize_provider_install`], and the player allows the code of
+    /// the packages this plan reports as running code. The plan digest binds those
+    /// packages' exact bytes; it records the player's choice, not that the code is
+    /// safe.
+    pub fn authorize_provider_install_allowing_code(
+        &self,
+        plan: &ProviderInstallPlan,
+    ) -> Result<crate::DestructiveAuthorization> {
+        if digest(plan)? != plan.plan_sha256 {
+            return Err(PortcoveError::verification(
+                "the plan does not match its recorded digest",
+            ));
+        }
+        let action = if plan
+            .members
+            .iter()
+            .any(|member| !member.runs_code.is_empty())
+        {
+            ACTION_WITH_CODE
+        } else {
+            ACTION
+        };
+        self.library
+            .issue_authorization(action, &target(plan)?, &plan.plan_sha256)
     }
 
     /// Installs exactly the reviewed bytes. A changed profile revision, missing or
@@ -367,8 +489,8 @@ impl PortcoveService {
     ) -> Result<ProfileRevision> {
         let layout = self.deploy_layout(&plan.port_id)?;
         // A plan is caller-supplied data: re-establish what planning established.
-        if gamebanana_game(&plan.port_id).is_none()
-            || plan.provider.provider != crate::gamebanana::PROVIDER
+        let bound = ProviderClient::for_port(&self.library, &plan.port_id).ok();
+        if bound.is_none_or(|client| plan.provider.provider != client.provider())
             || plan.members.is_empty()
             || plan
                 .members
@@ -388,8 +510,17 @@ impl PortcoveService {
                 "the plan does not match its recorded digest",
             ));
         }
-        self.library
-            .consume_authorization(token, ACTION, &target(plan)?, &plan.plan_sha256)?;
+        let runs_code = plan
+            .members
+            .iter()
+            .any(|member| !member.runs_code.is_empty());
+        self.library.consume_authorization(
+            token,
+            if runs_code { ACTION_WITH_CODE } else { ACTION },
+            &target(plan)?,
+            &plan.plan_sha256,
+        )?;
+        let recorded = crate::profile_deploy::consented_code(&layout).unwrap_or_default();
         let staged_dir = layout.staged(&plan.plan_sha256);
         let mut staged = Vec::new();
         for member in &plan.members {
@@ -401,11 +532,17 @@ impl PortcoveService {
                 .detail("package", &member.file_name));
             }
             // The same loader review a local install gets.
+            // Code is allowed only for packages the authorized plan reported as
+            // running code, and only for their reviewed bytes.
+            let allowed = (!member.runs_code.is_empty()).then_some(member.sha256.as_str());
             let item = inspect_for_port(
                 &plan.port_id,
                 path,
                 Some(plan.provider.clone()),
-                crate::profile_deploy::CodePolicy::Refuse,
+                CodePolicy::Consent {
+                    allowed,
+                    recorded: &recorded,
+                },
             )?;
             if item.inspection.sha256 != member.sha256 {
                 return Err(PortcoveError::verification(
@@ -413,6 +550,11 @@ impl PortcoveService {
                 ));
             }
             staged.push(item);
+        }
+        for item in &staged {
+            if item.code_consent {
+                crate::profile_deploy::record_code_consent(&layout, &item.inspection.sha256)?;
+            }
         }
         let revision = self.install_staged_locked(
             &plan.port_id,

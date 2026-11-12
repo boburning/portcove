@@ -557,7 +557,7 @@ impl PortcoveService {
                         RecipeInputStatus::Available,
                         "its exact bytes are in the package store".to_owned(),
                     )
-                } else if let Some((project, file)) = plannable {
+                } else if let Some((label, project, file)) = plannable {
                     holds.push(format!(
                         "package {} must be acquired first",
                         package.native_id
@@ -565,7 +565,7 @@ impl PortcoveService {
                     (
                         RecipeInputStatus::Acquirable,
                         format!(
-                            "review GameBanana project {project}, file {file} with `profile provider-plan`; the new profile keeps the recipe's label only if this library records exactly that label for those bytes"
+                            "review {label} project {project}, file {file} with `profile provider-plan`; the new profile keeps the recipe's label only if this library records exactly that label for those bytes"
                         ),
                     )
                 } else if package.provider.is_some() {
@@ -575,7 +575,7 @@ impl PortcoveService {
                     ));
                     (
                         RecipeInputStatus::Unavailable,
-                        "its bytes are not in the store, and its source is not a GameBanana file this game has a reviewed binding for".to_owned(),
+                        "its bytes are not in the store, and its source is not a provider file this game has a reviewed binding for".to_owned(),
                     )
                 } else {
                     holds.push(format!(
@@ -765,16 +765,35 @@ impl PortcoveService {
     }
 }
 
-/// The GameBanana project and file a recipe package names, when this game has a
-/// reviewed binding and the reference is complete enough for `provider-plan`.
-fn plannable_provider_file(port_id: &str, provider: &ProviderPackageRef) -> Option<(u64, u64)> {
-    crate::provider_install::gamebanana_game(port_id)?;
-    if provider.provider != crate::gamebanana::PROVIDER {
+/// The provider project and file a recipe package names, when this game has a
+/// reviewed binding for that provider and the reference is complete enough for
+/// `provider-plan`.
+fn plannable_provider_file(
+    port_id: &str,
+    provider: &ProviderPackageRef,
+) -> Option<(&'static str, String, String)> {
+    let (bound, label) = crate::provider_install::bound_provider(port_id)?;
+    if provider.provider != bound {
         return None;
     }
-    let project = provider.project.parse::<u64>().ok()?;
-    let file = provider.file.as_deref()?.parse::<u64>().ok()?;
-    Some((project, file))
+    let file = provider.file.as_deref()?;
+    // GameBanana IDs are numbers, named in their canonical form.
+    if bound == crate::gamebanana::PROVIDER {
+        let project = provider.project.parse::<u64>().ok()?;
+        let file = file.parse::<u64>().ok()?;
+        return Some((label, project.to_string(), file.to_string()));
+    }
+    let readable = |id: &str| {
+        !id.is_empty()
+            && id.len() <= 256
+            && id
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
+    };
+    if !readable(&provider.project) || !readable(file) {
+        return None;
+    }
+    Some((label, provider.project.clone(), file.to_owned()))
 }
 
 fn target(plan: &RecipeImportPlan, display_name: &str) -> Result<String> {

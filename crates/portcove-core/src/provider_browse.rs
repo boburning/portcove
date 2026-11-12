@@ -1,4 +1,4 @@
-//! Read-only browsing of a bound game's GameBanana mods.
+//! Read-only browsing of a bound game's provider mods (GameBanana or Thunderstore).
 //!
 //! Browsing is limited to games with a reviewed provider binding and only reads:
 //! it never downloads, plans or installs. Results are presentation data whose text
@@ -8,10 +8,11 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+#[cfg(test)]
+use crate::GameBananaClient;
 use crate::{
     PortcoveError, PortcoveService, ProviderFreshness, ProviderPage, ProviderProject, Result,
-    gamebanana::{GameBananaClient, PROVIDER},
-    provider_install::gamebanana_game,
+    provider_client::ProviderClient,
 };
 
 /// Mods listed per browse page.
@@ -33,7 +34,7 @@ pub struct ProviderBrowsePage {
     /// pages exist.
     pub page: ProviderPage,
     pub observed_at: i64,
-    /// `stale` means GameBanana could not be reached and this is earlier data.
+    /// `stale` means the provider could not be reached and this is earlier data.
     pub freshness: ProviderFreshness,
 }
 
@@ -49,12 +50,6 @@ pub struct ProviderProjectView {
     pub freshness: ProviderFreshness,
 }
 
-fn binding(port_id: &str) -> Result<u64> {
-    gamebanana_game(port_id).ok_or_else(|| {
-        PortcoveError::unsupported("this game has no reviewed GameBanana binding yet")
-    })
-}
-
 impl PortcoveService {
     /// One page of GameBanana mods for a game with a reviewed binding.
     pub async fn browse_provider_mods(
@@ -62,27 +57,39 @@ impl PortcoveService {
         port_id: &str,
         page: u32,
     ) -> Result<ProviderBrowsePage> {
-        let client = GameBananaClient::for_library(&self.library)?;
-        self.browse_provider_mods_with(&client, port_id, page).await
+        self.catalog().port(port_id)?;
+        let client = ProviderClient::for_port(&self.library, port_id)?;
+        self.browse_provider_mods_via(&client, port_id, page).await
     }
 
+    #[cfg(test)]
     pub(crate) async fn browse_provider_mods_with(
         &self,
         client: &GameBananaClient,
         port_id: &str,
         page: u32,
     ) -> Result<ProviderBrowsePage> {
+        self.catalog().port(port_id)?;
+        let client = ProviderClient::gamebanana(client, port_id)?;
+        self.browse_provider_mods_via(&client, port_id, page).await
+    }
+
+    pub(crate) async fn browse_provider_mods_via(
+        &self,
+        client: &ProviderClient,
+        port_id: &str,
+        page: u32,
+    ) -> Result<ProviderBrowsePage> {
         let game_name = self.catalog().port(port_id)?.name.clone();
-        let game = binding(port_id)?;
         if page == 0 || page > MAX_BROWSE_PAGE {
             return Err(PortcoveError::usage(format!(
                 "browse pages run from 1 to {MAX_BROWSE_PAGE}"
             )));
         }
-        let mut observed = client.search(game, page, BROWSE_PAGE_SIZE).await?;
+        let mut observed = client.search(page, BROWSE_PAGE_SIZE).await?;
         // The provider filters by game; anything it labels as another game is
         // dropped rather than listed under this one.
-        let game_text = game.to_string();
+        let game_text = client.game_id();
         let before = observed.value.projects.len();
         observed
             .value
@@ -94,7 +101,7 @@ impl PortcoveService {
             game_name,
             last_page: MAX_BROWSE_PAGE,
             other_game_records,
-            provider: PROVIDER.into(),
+            provider: client.provider().into(),
             page: observed.value,
             observed_at: observed.observed_at,
             freshness: observed.freshness,
@@ -105,23 +112,36 @@ impl PortcoveService {
     pub async fn provider_project(
         &self,
         port_id: &str,
-        project_id: u64,
+        project_id: &str,
     ) -> Result<ProviderProjectView> {
-        let client = GameBananaClient::for_library(&self.library)?;
-        self.provider_project_with(&client, port_id, project_id)
+        self.catalog().port(port_id)?;
+        let client = ProviderClient::for_port(&self.library, port_id)?;
+        self.provider_project_via(&client, port_id, project_id)
             .await
     }
 
+    #[cfg(test)]
     pub(crate) async fn provider_project_with(
         &self,
         client: &GameBananaClient,
         port_id: &str,
         project_id: u64,
     ) -> Result<ProviderProjectView> {
+        self.catalog().port(port_id)?;
+        let client = ProviderClient::gamebanana(client, port_id)?;
+        self.provider_project_via(&client, port_id, &project_id.to_string())
+            .await
+    }
+
+    pub(crate) async fn provider_project_via(
+        &self,
+        client: &ProviderClient,
+        port_id: &str,
+        project_id: &str,
+    ) -> Result<ProviderProjectView> {
         let game_name = self.catalog().port(port_id)?.name.clone();
-        let game = binding(port_id)?;
         let observed = client.project(project_id).await?;
-        if observed.value.game_id.as_deref() != Some(game.to_string().as_str()) {
+        if observed.value.game_id.as_deref() != Some(client.game_id().as_str()) {
             return Err(PortcoveError::verification(
                 "this project does not belong to the game this port is bound to",
             ));

@@ -96,6 +96,7 @@ mod profile;
 mod profile_deploy;
 mod provider_auto_update;
 mod provider_browse;
+mod provider_client;
 mod provider_http;
 mod provider_install;
 mod provider_update;

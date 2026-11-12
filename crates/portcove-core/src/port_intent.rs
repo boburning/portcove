@@ -738,7 +738,7 @@ impl PortcoveService {
             }
         };
         let mut mod_updates = Vec::new();
-        for port_id in crate::provider_install::gamebanana_ports() {
+        for port_id in crate::provider_install::provider_ports() {
             match self.run_eligible_provider_updates(port_id).await {
                 Ok(updates) => mod_updates.extend(updates),
                 Err(error) => mod_updates.push(crate::ProviderAutoUpdate {

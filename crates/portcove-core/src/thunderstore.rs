@@ -42,6 +42,11 @@ pub(crate) fn thunderstore_community(port_id: &str) -> Option<&'static str> {
         .map(|(_, community)| *community)
 }
 
+/// Ports with a reviewed community binding.
+pub(crate) fn bound_ports() -> impl Iterator<Item = &'static str> {
+    COMMUNITY_BINDINGS.iter().map(|(port, _)| *port)
+}
+
 #[derive(Clone)]
 pub struct ThunderstoreClient {
     http: ProviderHttp,
@@ -189,11 +194,12 @@ fn canonical_download(web_root: &str, namespace: &str, name: &str, version: &str
 }
 
 fn timestamp(value: &Value) -> Option<i64> {
-    value
-        .as_str()?
-        .parse::<jiff::Timestamp>()
-        .ok()
-        .map(|time| time.as_second())
+    time::OffsetDateTime::parse(
+        value.as_str()?,
+        &time::format_description::well_known::Rfc3339,
+    )
+    .ok()
+    .map(time::OffsetDateTime::unix_timestamp)
 }
 
 fn parse_version(
@@ -293,3 +299,7 @@ pub(crate) fn parse_listing(
 #[cfg(test)]
 #[path = "thunderstore_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "provider_thunderstore_tests.rs"]
+mod lifecycle_tests;
