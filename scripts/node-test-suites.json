@@ -1399,7 +1399,8 @@
             "each host platform keeps its own assessment history, gaps and latest run",
             "release health records coverage, quiet recurrence and needs-attention conditions",
             "upstream observations record coverage, quiet recurrence, attention and failed reads",
-            "hosted intake records requests, quiet recurrence, attention, gaps and failed reads"
+            "hosted intake records requests, quiet recurrence, attention, gaps and failed reads",
+            "handoffs plan once, stay quiet, clear and abandon only after complete runs, and refuse stale fences"
           ],
           "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
         }
@@ -1424,6 +1425,13 @@
       "memberships": [
         ["catalog-full", 1274],
         ["repository-tools", 409]
+      ]
+    },
+    {
+      "file": "scripts/maintenance-handoffs.test.mts",
+      "memberships": [
+        ["catalog-full", 1275],
+        ["repository-tools", 410]
       ]
     },
     {
