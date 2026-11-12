@@ -21,6 +21,7 @@ import {
   failedBootstrapRecovery,
   retainedServedRenewal,
   retainedServedRenewalFeed,
+  retainedV8RenewalContinuation,
   retainedV8RenewalDraft,
   retainedR55Renewal,
   retainedR56FeedRecovery,
@@ -609,7 +610,13 @@ void test("forward metadata maintenance counts original executions, refuses miss
           status: mode === "queued" ? "queued" : "completed",
           run_attempt: mode === "attempts" ? 3 : 1,
         },
-        { ...runRow(124, `Application ${child}`), status: "in_progress", run_attempt: 1 },
+        {
+          ...runRow(124, `Application ${child}`),
+          status: mode.startsWith("current-queued") ? "queued" : "in_progress",
+          head_branch: ref.slice("refs/tags/".length),
+          conclusion: null,
+          run_attempt: mode === "current-queued-rerun" ? 2 : 1,
+        },
       ];
       if (mode === "missing") rows.shift();
       if (mode === "newer-active")
@@ -643,9 +650,39 @@ void test("forward metadata maintenance counts original executions, refuses miss
         body = {
           ...context(attempt),
           id,
+          head_branch: ref.slice("refs/tags/".length),
+          status: mode === "current-queued-terminal" ? "completed" : "queued",
+          conclusion: mode === "current-queued-terminal" ? "failure" : null,
           run_started_at: at(id === 124 ? 5000 : (attempt - 1) * 2000),
         };
-      else if (id === 124) body = jobs([]);
+      else if (id === 124 && mode === "current-queued-rerun" && attempt === 1)
+        body = jobs([{ ...job("source", 5000, 30), run_id: 124 }]);
+      else if (id === 124)
+        body = jobs(
+          mode === "current-queued-no-job" || !mode.startsWith("current-queued")
+            ? []
+            : [
+                {
+                  ...job("releases / execute", 5100, 0),
+                  run_id: 124,
+                  run_attempt: attempt,
+                  head_branch:
+                    mode === "current-queued-wrong-job"
+                      ? "foreign"
+                      : ref.slice("refs/tags/".length),
+                  completed_at: null,
+                  status: "in_progress",
+                  conclusion: null,
+                  steps: [
+                    {
+                      name: "Execute only the attested fixed role worker",
+                      status: "in_progress",
+                      conclusion: null,
+                    },
+                  ],
+                },
+              ],
+        );
       else if (id === 125) body = jobs([{ ...job("source", 1900, 120), run_id: 125 }]);
       else if (attempt > 1) body = jobs([]);
       else
@@ -669,12 +706,26 @@ void test("forward metadata maintenance counts original executions, refuses miss
     });
   const result = await inspect();
   assert.equal(result.actual_milliseconds, 1200000);
-  assert.equal(result.remaining_declared_minutes, 115);
+  assert.equal(result.remaining_declared_minutes, 100);
   assert.equal(result.attempts, 2);
   assert.equal(result.maximum_minutes, 140);
   assert.deepEqual(new Set(result.opportunities), new Set([child, parent]));
   mode = "multipage";
   assert.deepEqual(await inspect(), result);
+  mode = "current-queued-active";
+  assert.deepEqual(await inspect(), result);
+  for (const refused of ["current-queued-no-job", "current-queued-wrong-job"]) {
+    mode = refused;
+    await assert.rejects(inspect, /no active exact-attempt job/u);
+  }
+  mode = "current-queued-terminal";
+  await assert.rejects(inspect, /no matching current attempt/u);
+  mode = "current-queued-rerun";
+  process.env.GITHUB_RUN_ATTEMPT = "2";
+  const rerun = await inspect();
+  assert.equal(rerun.attempts, 3);
+  assert.equal(rerun.actual_milliseconds, result.actual_milliseconds + 30000);
+  process.env.GITHUB_RUN_ATTEMPT = "1";
   mode = "valid";
   const roleSource = {
     purpose: "metadata-renewal",
@@ -876,6 +927,65 @@ void test("the exact pre-registration renewal refusal permits one continuation w
       runs: [...registered, currentCustody, draft.predecessors[2]],
     }),
     false,
+  );
+
+  const { predecessor, next_ref, context_sha256 } = retainedV8RenewalContinuation;
+  const successor = { ...current, ref: next_ref };
+  const burned = {
+    ...nextContext,
+    run_id: predecessor.id,
+    control_commit: predecessor.control_commit,
+    control_ref: predecessor.control_ref,
+    context_sha256: context_sha256[2],
+  };
+  const { conclusion, milliseconds: _milliseconds, ...previousActor } = predecessor;
+  const successorCustody = inspectApplicationRunCustody({
+    ...custody,
+    runs: [...registered, previousActor, { ...currentCustody, control_ref: next_ref }],
+    metadata_contexts: [...contexts, burned],
+  });
+  const successorInventory = [
+    ...inventory.slice(0, 3),
+    {
+      id: Number(predecessor.id),
+      head_sha: predecessor.control_commit,
+      head_branch: predecessor.control_ref.slice(10),
+      run_attempt: 1,
+      status: "completed",
+      conclusion,
+    },
+    { ...inventory[3]!, head_branch: next_ref.slice(10) },
+  ];
+  assert.equal(permits(successorInventory, successor, successorCustody), true);
+  assert.equal(permits(successorInventory.slice(1), successor, successorCustody), false);
+  assert.equal(permits([...successorInventory, inventory[3]!], successor, successorCustody), false);
+  assert.throws(() =>
+    inspectApplicationRunCustody({
+      ...successorCustody,
+      metadata_contexts: [...contexts, { ...burned, context_sha256: "1".repeat(64) }],
+    }),
+  );
+  const successorContext = {
+    ...nextContext,
+    control_ref: next_ref,
+    generated_at: at(180).replace(".000Z", ".001Z"),
+    versions: Object.fromEntries(
+      Object.entries(burned.versions).map(([name, version]) => [
+        name,
+        name === "targets" ? version : "12",
+      ]),
+    ),
+  };
+  assert.equal(
+    permits(
+      successorInventory,
+      successor,
+      inspectApplicationRunCustody({
+        ...successorCustody,
+        metadata_contexts: [...contexts, burned, successorContext],
+      }),
+    ),
+    true,
   );
 });
 
