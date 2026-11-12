@@ -2448,9 +2448,29 @@ fn assert_backup_deletion_recovers_after_every_recorded_transition(point: Lifecy
     let error = delete_backup_authorized(&service, "zelda64-recomp", &backup.id).unwrap_err();
     assert!(error.message.contains("injected lifecycle failure"));
     let interrupted = service.list_backups("zelda64-recomp").unwrap();
+    // Until the backup has left view, the deletion holds the backup actions. After
+    // that, the next backup, restore, deletion or restart finishes it without a
+    // judgement call, so it holds nothing; doctor still lists it either way.
+    let backup_out_of_view = !matches!(
+        point,
+        LifecycleFaultPoint::DeleteBackupPrepared | LifecycleFaultPoint::DeleteBackupQuarantined
+    );
     assert_eq!(
         interrupted.state,
-        BackupInventoryState::RecoveryRequired,
+        if backup_out_of_view {
+            BackupInventoryState::Healthy
+        } else {
+            BackupInventoryState::RecoveryRequired
+        },
+        "{point:?}"
+    );
+    assert_eq!(
+        interrupted.create_assessment.availability == PortActionAvailability::Allowed,
+        backup_out_of_view,
+        "{point:?}"
+    );
+    assert!(
+        !service.repair_plan().unwrap().items.is_empty(),
         "{point:?}"
     );
 
@@ -2511,9 +2531,13 @@ fn backup_deletion_recovery_completes_a_partially_removed_quarantine() {
     let service = service_with_fault(library.clone(), LifecycleFaultPoint::DeleteBackupDeleting);
     let backup = service.create_backup("zelda64-recomp").unwrap();
     delete_backup_authorized(&service, "zelda64-recomp", &backup.id).unwrap_err();
-    let quarantine = service.list_backups("zelda64-recomp").unwrap().problems[0]
-        .path
-        .clone();
+    let quarantine = OperationStore::new(library.clone())
+        .all()
+        .unwrap()
+        .into_iter()
+        .find(|operation| operation.kind == LifecycleOperationKind::DeleteBackup)
+        .and_then(|operation| operation.paths.quarantine)
+        .unwrap();
     fs::remove_file(quarantine.join("data/save.dat")).unwrap();
 
     let recovered = service_with_release(library, "v1");
@@ -3502,6 +3526,203 @@ fn a_pending_retention_deletion_does_not_block_a_manual_backup() {
             .unwrap()
             .is_none()
     );
+}
+
+/// Saves a player can later restore, plus one older snapshot of them.
+fn zelda_with_a_backup(library: &Library, service: &PortcoveService) -> (PathBuf, BackupRecord) {
+    register_zelda_install(library, "v1", true);
+    let user = library.user_dir(ZELDA).join("general.json");
+    fs::create_dir_all(user.parent().unwrap()).unwrap();
+    fs::write(&user, b"saves worth keeping").unwrap();
+    let backup = service.create_backup(ZELDA).unwrap();
+    fs::write(&user, b"progress after a bad update").unwrap();
+    (user, backup)
+}
+
+#[test]
+fn a_pending_retention_deletion_does_not_block_restoring_saves() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let (user, backup) = zelda_with_a_backup(&library, &service);
+    let quarantine = seed_stuck_prune(&library);
+    let store = OperationStore::new(library.clone());
+
+    // The history the player sees offers Restore, Delete and Back up now.
+    let inventory = service.list_backups(ZELDA).unwrap();
+    assert_eq!(inventory.state, BackupInventoryState::Healthy);
+    assert!(inventory.problems.is_empty());
+    assert_eq!(
+        inventory.restore_assessment.availability,
+        PortActionAvailability::Allowed
+    );
+    assert_eq!(
+        inventory.create_assessment.availability,
+        PortActionAvailability::Allowed
+    );
+    // The review stays read-only and does not refuse.
+    let authorization = backup_authorization(&service, ZELDA, &backup.id, BackupAction::Restore);
+    assert!(store.get("stuck-prune").unwrap().is_some());
+
+    service
+        .restore_backup(ZELDA, &backup.id, &authorization.token)
+        .expect("the leftover prune no longer blocks a restore");
+
+    assert_eq!(fs::read(&user).unwrap(), b"saves worth keeping");
+    assert!(!quarantine.exists());
+    assert!(store.get("stuck-prune").unwrap().is_none());
+}
+
+#[test]
+fn a_pending_retention_deletion_does_not_block_deleting_a_backup() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let (_, backup) = zelda_with_a_backup(&library, &service);
+    let quarantine = seed_stuck_prune(&library);
+
+    let authorization = backup_authorization(&service, ZELDA, &backup.id, BackupAction::Delete);
+    service
+        .delete_backup(ZELDA, &backup.id, &authorization.token)
+        .expect("the leftover prune no longer blocks deleting a backup");
+
+    assert!(!backup.path.exists());
+    assert!(!quarantine.exists());
+    assert!(
+        OperationStore::new(library)
+            .get("stuck-prune")
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
+fn a_deletion_that_cannot_finish_still_refuses_the_restore_and_keeps_the_saves() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let (user, backup) = zelda_with_a_backup(&library, &service);
+    seed_stuck_prune(&library);
+    let store = OperationStore::new(library.clone());
+    // Reviewed while the deletion could still be finished...
+    let authorization = backup_authorization(&service, ZELDA, &backup.id, BackupAction::Restore);
+    // ...then both the visible and the quarantined copy exist: recovery must not guess.
+    let operation = store.get("stuck-prune").unwrap().unwrap();
+    let original = operation.paths.final_path.clone().unwrap();
+    fs::create_dir_all(&original).unwrap();
+    fs::write(original.join("partial-data"), b"visible").unwrap();
+    let review = service
+        .preview_backup_action(ZELDA, &backup.id, BackupAction::Restore)
+        .unwrap_err();
+    assert!(review.message.contains("unfinished backup deletion"));
+
+    let error = service
+        .restore_backup(ZELDA, &backup.id, &authorization.token)
+        .unwrap_err();
+
+    assert_eq!(error.code, crate::ErrorCode::Conflict);
+    assert!(
+        error.message.contains("unfinished backup deletion"),
+        "{error:?}"
+    );
+    assert_eq!(
+        error.details.get("recovery_action").map(String::as_str),
+        Some("restart_then_doctor")
+    );
+    assert_eq!(fs::read(&user).unwrap(), b"progress after a bad update");
+    assert!(store.get("stuck-prune").unwrap().is_some());
+    assert!(original.exists());
+}
+
+#[test]
+fn a_deletion_whose_backup_is_still_visible_keeps_restore_and_backup_on_hold() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    zelda_with_a_backup(&library, &service);
+    seed_stuck_prune(&library);
+    let store = OperationStore::new(library.clone());
+    let mut operation = store.get("stuck-prune").unwrap().unwrap();
+    fs::create_dir_all(operation.paths.final_path.as_ref().unwrap()).unwrap();
+    store.put(&mut operation).unwrap();
+
+    let inventory = service.list_backups(ZELDA).unwrap();
+
+    assert_eq!(inventory.state, BackupInventoryState::RecoveryRequired);
+    assert_eq!(
+        inventory.restore_assessment.reason,
+        PortActionReason::RecoveryRequired
+    );
+    assert_eq!(
+        inventory.create_assessment.reason,
+        PortActionReason::RecoveryRequired
+    );
+}
+
+#[test]
+fn a_deletion_that_failed_on_retry_holds_until_recovery_finishes_it() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let (user, backup) = zelda_with_a_backup(&library, &service);
+    let quarantine = seed_stuck_prune(&library);
+    // Recovery refuses a quarantine holding an unauthorized runtime-safety copy,
+    // so the next action cannot finish this deletion.
+    let companion = quarantine.join(".portcove-ghostship-runtime-safety.json");
+    fs::write(&companion, b"{}").unwrap();
+    let held = |service: &PortcoveService| {
+        let inventory = service.list_backups(ZELDA).unwrap();
+        inventory.state == BackupInventoryState::RecoveryRequired
+            && inventory.restore_assessment.reason == PortActionReason::RecoveryRequired
+            && inventory.create_assessment.reason == PortActionReason::RecoveryRequired
+    };
+    assert!(held(&service), "the prediction matches recovery's refusal");
+    let preview = service
+        .preview_backup_action(ZELDA, &backup.id, BackupAction::Restore)
+        .unwrap_err();
+    assert!(preview.message.contains("unfinished backup deletion"));
+
+    // The next locked backup action (here Back up now) retries and fails.
+    let refusal = service.create_backup(ZELDA).unwrap_err();
+    assert!(refusal.message.contains("unfinished backup deletion"));
+    let operation = OperationStore::new(library.clone())
+        .get("stuck-prune")
+        .unwrap()
+        .unwrap();
+    assert!(
+        operation
+            .last_error
+            .as_deref()
+            .is_some_and(|error| error.starts_with("could not be finished on retry: ")),
+        "{operation:?}"
+    );
+
+    // Even once the cause is gone, a deletion that already failed on retry keeps
+    // holding until recovery finishes it, rather than promising the next action will.
+    fs::remove_file(&companion).unwrap();
+    assert!(held(&service));
+    // A startup attempt that fails also keeps holding.
+    fs::write(&companion, b"{}").unwrap();
+    let restarted = PortcoveService::new(library.clone()).unwrap();
+    assert!(held(&restarted));
+    assert!(
+        OperationStore::new(library.clone())
+            .get("stuck-prune")
+            .unwrap()
+            .unwrap()
+            .last_error
+            .is_some_and(|error| error.starts_with("could not be finished on retry: "))
+    );
+    fs::remove_file(&companion).unwrap();
+    let recovered = PortcoveService::new(library.clone()).unwrap();
+    assert!(!quarantine.exists());
+    let inventory = recovered.list_backups(ZELDA).unwrap();
+    assert_eq!(inventory.state, BackupInventoryState::Healthy);
+    assert_eq!(
+        inventory.restore_assessment.availability,
+        PortActionAvailability::Allowed
+    );
+    assert_eq!(fs::read(&user).unwrap(), b"progress after a bad update");
 }
 
 #[test]

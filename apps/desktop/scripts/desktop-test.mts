@@ -3203,14 +3203,23 @@ try {
     artifacts.push(entryArtifact);
     await captureScenarioScreenshot("first-use-port-catalog", true);
     await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
+    // First run leads with Discover; Add games and the game-file folder are secondary.
     const browse = await browser.wait(
       until.elementLocated(
-        By.xpath('//*[contains(@class,"empty-state")]//button[normalize-space(.)="Add games"]'),
+        By.xpath('//*[contains(@class,"empty-state")]//button[normalize-space(.)="Browse games"]'),
       ),
       15_000,
     );
     assert.equal(await browse.getAttribute("data-slot"), "button");
     assert.equal(await browse.getAttribute("data-variant"), "primary");
+    assert.equal(
+      await browser
+        .findElement(
+          By.xpath('//*[contains(@class,"empty-state")]//button[normalize-space(.)="Add games"]'),
+        )
+        .getAttribute("data-variant"),
+      "outline",
+    );
     assert.match(
       await browser.findElement(By.css(".empty-state")).getText(),
       /Your library is empty[\s\S]*copy a supported installation without changing its original folder/,
@@ -3237,7 +3246,7 @@ try {
     await captureScenarioScreenshot("empty-library-compact-first-use", true);
     assert.ok(
       firstUseAction.top >= 0 && firstUseAction.bottom <= firstUseAction.viewportHeight,
-      `Add games must be visible without scrolling: ${JSON.stringify(firstUseAction)}`,
+      `Browse games must be visible without scrolling: ${JSON.stringify(firstUseAction)}`,
     );
     await browser.manage().window().setRect({ width: 1280, height: 800 });
     assert.equal((await browser.findElements(By.id("port-search"))).length, 0);

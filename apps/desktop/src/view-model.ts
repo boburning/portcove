@@ -511,8 +511,16 @@ function catalogRank(port: CatalogEntry, status: PortStatus | undefined, platfor
 function visibleInView(port: CatalogEntry, statuses: ReadonlyMap<string, PortStatus>, view: View) {
   const status = statuses.get(port.id);
   return (
-    view !== "library" || Boolean(status?.active || status?.external_runtime || port.pendingSetup)
+    view !== "library" ||
+    Boolean(
+      status?.active || status?.external_runtime || port.pendingSetup || isSavedLibraryEntry(port),
+    )
   );
+}
+
+/** An explicit add-only Library entry. It is not an installation and never counts as one. */
+export function isSavedLibraryEntry(port: CatalogEntry) {
+  return Boolean(port.listingStatus?.library_membership);
 }
 
 function needsAttention(readiness: PortReadiness) {

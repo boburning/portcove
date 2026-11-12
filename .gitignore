@@ -5,7 +5,6 @@
 /apps/desktop/dist/
 /apps/desktop/src-tauri/gen/
 .fallow/
-.rscheck/
 /.codex-remote-attachments/
 /work/
 /apps/desktop/.vitest/

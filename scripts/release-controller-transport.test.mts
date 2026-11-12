@@ -728,7 +728,7 @@ void test("catalog diagnostics retain only fixed refusal stages and no exception
   const { retainControllerDiagnostics } = await import("./release-controller-diagnostics.mts");
   const root = await mkdtemp(path.join(os.tmpdir(), "catalog-controller-diagnostics-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  await retainCatalogCoordinatorRefusal(root, "launch", "tool-custody");
+  await retainCatalogCoordinatorRefusal(root, "launch", "tool-custody-provider-before");
   await assert.rejects(retainCatalogCoordinatorRefusal(root, "launch", "attested-worker"), {
     code: "EEXIST",
   });
@@ -747,7 +747,7 @@ void test("catalog diagnostics retain only fixed refusal stages and no exception
   const output = await retainControllerDiagnostics(root, "coordinator");
   assert.deepEqual(JSON.parse(await readFile(path.join(output, launch), "utf8")), {
     schema_version: 1,
-    stage: "tool-custody",
+    stage: "tool-custody-provider-before",
     authority: "none",
     automatic_retry: false,
   });

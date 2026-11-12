@@ -181,14 +181,17 @@ function useUpdateCenter({
   const updateReviewOwner = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!reviewedActivity) return;
-    const frame = window.requestAnimationFrame(() => {
-      const row = [...document.querySelectorAll<HTMLElement>("[data-activity-id]")].find(
-        (element) => element.dataset.activityId === reviewedActivity.id,
-      );
-      if (row) focusAndReveal(row);
-    });
-    return () => window.cancelAnimationFrame(frame);
+    return focusActivityRow(reviewedActivity.id);
   }, [reviewedActivity]);
+  // "Show task" while Activity is already open changes only the reviewed ID; reveal
+  // that row then. Mounting with a retained ID does not move focus.
+  const revealedFromElsewhere = useRef(reviewedActivityId);
+  useEffect(() => {
+    if (revealedFromElsewhere.current === reviewedActivityId) return;
+    revealedFromElsewhere.current = reviewedActivityId;
+    if (!reviewedActivityId) return;
+    return focusActivityRow(reviewedActivityId);
+  }, [reviewedActivityId]);
   useEffect(() => {
     const refreshNow = () => setNowSeconds(Date.now() / 1000);
     refreshNow();
@@ -404,7 +407,7 @@ function renderInstalledUpdateHeader({ model, port, status, state }: InstalledUp
       <div className="update-title min-w-0">
         <strong className="block text-sm">{gameTitle(port)}</strong>
         <small className="block text-xs text-pc-muted-foreground">{gameProjectLabel(port)}</small>
-        <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
+        <small className="mt-1 block text-xs text-[var(--color-text-secondary)]">
           {releaseChannelPresentation(status.channel).label} · {policyLabel(status.update_policy)}
         </small>
       </div>
@@ -706,13 +709,13 @@ function GameUpdatesContent({ model }: { model: UpdateCenterModel }) {
                     <small className="block text-xs text-pc-muted-foreground">
                       {gameProjectLabel(port)}
                     </small>
-                    <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
+                    <small className="mt-1 block text-xs text-[var(--color-text-secondary)]">
                       Registered user-prepared runtime
                     </small>
                   </div>
                   <div className="update-versions grid min-w-0 grid-cols-2 gap-3.5 max-[65rem]:grid-cols-1 max-[65rem]:gap-2">
                     <div className="update-version min-w-0">
-                      <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
+                      <small className="mt-1 block text-xs text-[var(--color-text-secondary)]">
                         {runtime.user_selected ? "Update ownership" : "Registered version"}
                       </small>
                       <span className="mt-[3px] block text-sm [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
@@ -1190,9 +1193,28 @@ function ActivityRow({
         {presentation.label}
       </span>
       {presentation.state === "unfinished" && (
-        <p className={activityDetailsClass}>
-          This task has not reported completion. Review its details before retrying.
-        </p>
+        <div className={activityDetailsClass}>
+          <p>
+            This task didn’t report whether it finished.{" "}
+            {activity.liveness !== "interrupted" && "It may still be running in another window. "}
+            {target.portId
+              ? "Check the game’s current state before trying again."
+              : "Review its details before trying again."}
+          </p>
+          {/* A read-only look at current state; it never repeats the task. */}
+          {target.portId && !activity.failure && (
+            <Button
+              data-focusable
+              variant="link"
+              size="sm"
+              aria-label={`Check game: ${target.label}`}
+              data-detail-origin={`updates:activity:${activity.id}:check`}
+              onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:check`)}
+            >
+              Check game
+            </Button>
+          )}
+        </div>
       )}
       {activity.status === "running" && operation && operation.type !== "finished" && (
         <div className={activityDetailsClass}>
@@ -1257,6 +1279,7 @@ function ActivityFailure({
               data-focusable
               variant="link"
               size="sm"
+              aria-label={`${reviewLabel}: ${target.label}`}
               data-detail-origin={`updates:activity:${activity.id}:review`}
               onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:review`)}
             >
@@ -1516,4 +1539,14 @@ function updateState(
       tone: "available",
     };
   return { label: "No update found at last check", tone: "current" };
+}
+
+function focusActivityRow(id: string) {
+  const frame = window.requestAnimationFrame(() => {
+    const row = [...document.querySelectorAll<HTMLElement>("[data-activity-id]")].find(
+      (element) => element.dataset.activityId === id,
+    );
+    if (row) focusAndReveal(row);
+  });
+  return () => window.cancelAnimationFrame(frame);
 }

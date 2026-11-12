@@ -19,6 +19,7 @@ export interface WakeProvider {
   run(id: string, retain?: RetainWakeResponse): Promise<unknown>;
   jobs(id: string, attempt?: number): Promise<unknown>;
   ref(name: string): Promise<unknown>;
+  compareAncestry(base: string, head: string): Promise<unknown>;
   file(filename: string, revision: string): Promise<unknown>;
   runs(workflow: WakeWorkflow, filters: Record<string, string>, page: number): Promise<unknown>;
   artifacts(run: string): Promise<unknown>;
@@ -94,6 +95,14 @@ export async function createWakeProvider(options: {
         per_page: 100,
       }),
     ref: (name) => get("/repos/{owner}/{repo}/git/ref/{ref}", { ref: name }),
+    // Page one can include changed files and patches. Only the comparison
+    // status and merge base are needed for this ancestry predicate.
+    compareAncestry: (base, head) =>
+      get("/repos/{owner}/{repo}/compare/{basehead}", {
+        basehead: `${base}...${head}`,
+        per_page: 1,
+        page: 2,
+      }),
     file: (filename, revision) =>
       get("/repos/{owner}/{repo}/contents/{path}", { path: filename, ref: revision }),
     runs: (workflow, filters, page) =>

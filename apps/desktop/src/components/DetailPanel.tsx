@@ -1,4 +1,5 @@
 import { AuthoredSetupWarnings } from "./AuthoredSetupWarnings";
+import { SetupIntentChoice } from "./SetupIntentChoice";
 import { PortCapabilities } from "./PortCapabilities";
 import { setupRoutePresentation } from "../features/port-actions/setup-route-presentation";
 import { Chip } from "./ui/chip";
@@ -141,7 +142,7 @@ type AsyncAction = () => void | Promise<unknown>;
 interface DetailPanelProps {
   backLabel?: string | undefined;
   favoriteControl?: ReactNode;
-  heroSupplement?: ReactNode;
+  managementSupplement?: ReactNode;
   opening?: DetailOpening | undefined;
   extraFiles?: ReactNode;
   openActivity?: (() => void) | undefined;
@@ -323,7 +324,7 @@ export function DetailPanel(props: DetailPanelProps) {
     <DetailBody
       backLabel={props.backLabel}
       favoriteControl={props.favoriteControl}
-      heroSupplement={props.heroSupplement}
+      managementSupplement={props.managementSupplement}
       state={state}
       opening={props.opening}
       extraFiles={props.extraFiles}
@@ -439,7 +440,7 @@ function detailBodyAvailability(
 function DetailBody(model: {
   backLabel?: string | undefined;
   favoriteControl?: ReactNode;
-  heroSupplement?: ReactNode;
+  managementSupplement?: ReactNode;
   state: DetailState;
   opening?: DetailOpening | undefined;
   extraFiles?: ReactNode;
@@ -500,7 +501,7 @@ function DetailBody(model: {
     <DetailLayout
       backLabel={model.backLabel}
       favoriteControl={model.favoriteControl}
-      heroSupplement={model.heroSupplement}
+      managementSupplement={model.managementSupplement}
       port={model.displayPort ?? model.port}
       projectUrl={model.port.project_url}
       openSupport={model.openSupport}
@@ -1252,10 +1253,13 @@ export function InstallationVersionSummary({
   status,
   selectedChannel,
   action,
+  portcoveUpdates = false,
 }: {
   status?: PortStatus | undefined;
   selectedChannel: ReleaseChannel;
   action?: ReactNode;
+  /** Portcove owns runtime replacement for this managed installation. */
+  portcoveUpdates?: boolean;
 }) {
   const checked = currentUpdateSnapshot(status)?.check;
   const candidate =
@@ -1315,6 +1319,25 @@ export function InstallationVersionSummary({
         <p className="detail-version-context">
           Latest release at last check: {checked.release.version}. The saved update above is a
           separate candidate.
+        </p>
+      )}
+      {status?.active && portcoveUpdates && (
+        <p className="detail-version-context">
+          {/* Ownership stays with Portcove even when the catalog no longer offers updates. */}
+          {/* Only lasting withdrawals; temporary holds (stale metadata, pending setup)
+              keep the ordinary ownership line and their own update explanation. */}
+          {status.port_actions?.some(
+            (assessment) =>
+              assessment?.action === "update" &&
+              assessment.reason === "definition_ineligible" &&
+              [
+                "publisher_revoked",
+                "curated_artifact_revoked",
+                "curated_distribution_withdrawn",
+              ].includes(assessment.definition?.reason ?? ""),
+          )
+            ? "Portcove manages this installation; no further updates are offered."
+            : "Portcove handles updates for this installation."}
         </p>
       )}
     </section>
@@ -2486,11 +2509,11 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
     <div className="install-plan mt-[16px] grid grid-cols-1 [align-items:end] gap-[18px] rounded-pc-lg border border-pc-border bg-pc-surface p-[14px] @min-[30rem]/detail:grid-cols-[1fr_auto]">
       <div>
         <strong className="block text-[length:var(--text-sm)]">{plan.release.version}</strong>
-        <span className="mt-[4px] block text-xs text-[var(--color-text-secondary)] capitalize">
+        <span className="mt-[4px] block text-xs text-[var(--color-text-secondary)]">
           {releaseChannelPresentation(plan.channel).label} · {installPlanActionLabel(plan.action)}
         </span>
         {plan.bundled_runtime && (
-          <span className="mt-[4px] block text-xs text-[var(--color-text-secondary)] capitalize">
+          <span className="mt-[4px] block text-xs text-[var(--color-text-secondary)]">
             Required component included · {formatBytes(plan.bundled_runtime.asset.size)}
           </span>
         )}
@@ -2504,7 +2527,7 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
         <strong className="block text-[length:var(--text-sm)]">
           {download ? formatBytes(plan.download_bytes) : "No download"}
         </strong>
-        <span className="mt-[4px] block text-xs text-[var(--color-text-secondary)] capitalize">
+        <span className="mt-[4px] block text-xs text-[var(--color-text-secondary)]">
           {download
             ? libraryOutput
               ? plan.temporary_space?.available_bytes === null
@@ -2610,6 +2633,9 @@ function VersionRollback({
 }) {
   const rollback = portActionPresentation(status, "rollback");
   const canRollback = Boolean(status?.previous);
+  // A loaded status with no previous version makes restore known to be inapplicable;
+  // an unknown status keeps the control and its check message.
+  if (status && !status.previous) return null;
   return (
     <>
       <Button
@@ -3778,6 +3804,12 @@ function DetailFilesSection({
           pendingSetup={model.pendingSetup}
           busy={model.busy}
         />
+        <SetupIntentChoice
+          key={`intent:${model.port.id}:${model.libraryGeneration}`}
+          portId={model.port.id}
+          generation={model.libraryGeneration}
+          installed={Boolean(model.installed || model.status?.external_runtime)}
+        />
         {(model.port.presentation?.manual_setup || model.port.presentation?.manual_preparation) && (
           <SetupStatement
             portId={model.port.id}
@@ -4032,6 +4064,7 @@ function DetailVersionsSection({
           <InstallationVersionSummary
             status={model.status}
             selectedChannel={model.selectedChannel}
+            portcoveUpdates={!external && model.port.release.provider !== "user-prepared"}
             action={
               !external && model.stagedVersion ? (
                 <StagedActivation
@@ -4157,7 +4190,7 @@ function ManualSetupActions({
             disabled={Boolean(model.busy) || !model.actions.openSetupFolder}
             onClick={() => void model.actions.openSetupFolder?.()}
           >
-            Finish setup
+            Open setup folder
           </Button>
           <Button
             data-focusable

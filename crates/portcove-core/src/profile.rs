@@ -539,7 +539,9 @@ pub(crate) fn valid_native_id(value: &str) -> bool {
         && value.is_ascii()
         && !value.starts_with('.')
         && !value.ends_with(['.', ' '])
-        && !value.chars().any(|c| c.is_control() || "/\\:".contains(c))
+        && !value
+            .chars()
+            .any(|c| c.is_control() || matches!(c, '/' | '\\' | ':'))
 }
 
 fn text(value: &str, name: &str) -> Result<()> {
@@ -1077,4 +1079,12 @@ pub(crate) fn current_revision(
 ) -> Result<ProfileRevision> {
     let profile = profile_from(connection, port_id, profile_id)?;
     revision_from(connection, profile_id, profile.current_revision)
+}
+
+pub(crate) fn profile_by_id(
+    connection: &Connection,
+    port_id: &str,
+    profile_id: &str,
+) -> Result<Profile> {
+    profile_from(connection, port_id, profile_id)
 }

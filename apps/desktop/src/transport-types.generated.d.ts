@@ -696,8 +696,20 @@ export type HostToolProbeState =
 export type OutputLaunchRequest = LaunchSessionView | null;
 export type LaunchSessionOutcome = "succeeded" | "failed" | "cancelled";
 export type LaunchSessionPhase = "preparing" | "spawning" | "running" | "collecting" | "recovering";
+export type LauncherAppsRootOrigin = "settings" | "default" | "override" | "unresolved";
+export type LauncherEntryStatus =
+  | "ready-to-review"
+  | "ambiguous"
+  | "not-in-catalog"
+  | "unrecognized-files"
+  | "adoption-unsupported"
+  | "not-installed"
+  | "unsafe-path"
+  | "duplicate";
+export type LauncherKind = "github-launcher" | "quiver";
 export type LibraryContentKind =
   "application_versions" | "user_data" | "source_inbox" | "backups" | "toolchains" | "local_artwork";
+export type LibraryMembershipOrigin = "game_file_discovery" | "manual";
 /**
  * How a profile follows newer eligible releases. Stored as intent; unattended
  * application is owned by the provider/standing-policy work, not this module.
@@ -789,6 +801,12 @@ export type OutputDestinationOwnership =
   | "invalid"
   | "unknown";
 export type OutputPendingSetups = PendingSetupRecord[];
+/**
+ * How current an observation is. A confirmed empty result is `Fresh`; an outage
+ * that falls back to earlier data is `Stale`, never an empty list.
+ */
+export type ProviderFreshness = "fresh" | "revalidated" | "stale";
+export type ProviderUpdateState = "current" | "newer_files" | "installed_file_removed" | "unavailable";
 /**
  * How current an observation is. A confirmed empty result is `Fresh`; an outage
  * that falls back to earlier data is `Stale`, never an empty list.
@@ -907,6 +925,11 @@ export type ApplicationUpdateInstallEligibility =
   "eligible" | "package-managed-deb" | "package-managed-rpm" | "not-configured" | "unavailable";
 export type ApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
 export type OutputDesktopAutomaticSnapshotsEnabled = boolean;
+export type InstallBatchItemState = ("queued" | "running" | "failed" | "cancelled") | "ready" | "held" | "interrupted";
+export type OutputDesktopInstallBatches = InstallBatchRecord[];
+export type LibraryMembershipOutcomeKind = "added" | "already_saved" | "already_in_library";
+export type OutputDesktopLibraryMembershipOutcomes = LibraryMembershipOutcome[];
+export type OutputDesktopLibraryMemberships = LibraryMembership[];
 export type InstallationContext =
   | {
       installation_id: string;
@@ -916,8 +939,42 @@ export type InstallationContext =
       installation_id: string;
       kind: "external";
     };
-export type SteamEntryChangeKind = "add" | "repair" | "remove" | "unchanged";
+export type PortIntentMode = "discover_only" | "notify" | "set_up_when_ready" | "ignored";
+export type PortReadiness =
+  | {
+      install_id: string;
+      state: "installed";
+      [k: string]: unknown;
+    }
+  | {
+      plan_sha256: string;
+      state: "ready";
+      version: string;
+      [k: string]: unknown;
+    }
+  | {
+      reason: string;
+      state: "waiting";
+      [k: string]: unknown;
+    };
+export type OutputDesktopPortIntents = PortIntent[];
+export type SteamArtworkRoleAction =
+  "write" | "replace" | "preserve" | "unchanged" | "unavailable" | "remove" | "preserve_modified" | "absent";
+/**
+ * Separate reviewed Steam artwork action for one owned shortcut.
+ */
+export type SteamArtworkOperation =
+  | {
+      kind: "update";
+      replace_existing: boolean;
+      [k: string]: unknown;
+    }
+  | {
+      kind: "remove_owned";
+      [k: string]: unknown;
+    };
 export type SteamClientState = "closed" | "running" | "unknown";
+export type SteamEntryChangeKind = "add" | "repair" | "remove" | "unchanged";
 export type SteamEntryOperation = "add_or_repair" | "remove";
 export type OutputDesktopSteamProfiles = string[];
 export type SupportBundleScope = "bounded_recent_diagnostics";
@@ -990,7 +1047,7 @@ export interface TransportOutputs {
   game_file_query_snapshot: OutputGameFileQuerySnapshot;
   game_file_roots: OutputGameFileRoots;
   game_file_scan_snapshot: OutputGameFileScanSnapshot;
-  game_install_plan: OutputGameInstallPlan;
+  game_install_plan: GameInstallPlan;
   game_setting_change: GameSettingChange;
   game_setting_review: OutputGameSettingReview;
   game_settings_contract: GameSettingsContract;
@@ -1006,6 +1063,7 @@ export interface TransportOutputs {
   host_tool_status: HostToolStatus;
   install_plan: InstallPlan;
   launch_request: OutputLaunchRequest;
+  launcher_library_inventory: OutputLauncherLibraryInventory;
   library_identity: LibraryIdentity;
   library_import_plan: OutputLibraryImportPlan;
   library_import_result: OutputLibraryImportResult;
@@ -1104,17 +1162,28 @@ export interface TransportOutputs {
   desktop_game_file_query_snapshot: OutputGameFileQuerySnapshot;
   desktop_game_file_roots: OutputGameFileRoots;
   desktop_game_file_scan_snapshot: OutputGameFileScanSnapshot;
+  desktop_install_batch: InstallBatchRecord;
+  desktop_install_batch_review: OutputDesktopInstallBatchReview;
+  desktop_install_batches: OutputDesktopInstallBatches;
   desktop_launch_result: OutputDesktopLaunchResult;
+  desktop_library_membership_outcomes: OutputDesktopLibraryMembershipOutcomes;
+  desktop_library_memberships: OutputDesktopLibraryMemberships;
   desktop_library_organization: OutputDesktopLibraryOrganization;
   desktop_locale_preference: OutputDesktopLocalePreference;
   desktop_managed_route_change_preview: OutputManagedRouteChangePreview;
   desktop_managed_route_change_result: OutputManagedRouteChangeResult;
   desktop_pending_setup_record: PendingSetupRecord;
+  desktop_port_intent: PortIntent;
+  desktop_port_intent_assessments: OutputDesktopPortIntentAssessments;
+  desktop_port_intents: OutputDesktopPortIntents;
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
   desktop_setup_launch_targets: OutputSetupLaunchTargets;
   desktop_source_reuse_review: OutputSourceReuseReview;
   desktop_source_verification_outcome: OutputSourceBatchOutcome;
+  desktop_standing_setup: OutputDesktopStandingSetup;
+  desktop_steam_artwork_apply_result: OutputDesktopSteamArtworkApplyResult;
+  desktop_steam_artwork_review: OutputDesktopSteamArtworkReview;
   desktop_steam_batch_review: OutputDesktopSteamBatchReview;
   desktop_steam_entry_apply_result: OutputDesktopSteamEntryApplyResult;
   desktop_steam_entry_review: OutputDesktopSteamEntryReview;
@@ -1851,6 +1920,11 @@ export interface PortDefinition {
     [k: string]: string;
   };
   launch_from_install_root: boolean;
+  /**
+   * Native25: keep the Linux player's portable profile in this declared
+   * directory beside the executable, creating it when absent before Play.
+   */
+  linux_portable_data_directory?: string | null;
   /**
    * Catalog-owned containment for a managed route whose current upstream
    * release still matches its selector but changed reviewed behavior.
@@ -3330,7 +3404,7 @@ export interface SourceInspection {
 /**
  * Exact registered-input review for the first managed installation.
  */
-export interface OutputGameInstallPlan {
+export interface GameInstallPlan {
   plan: InstallPlan;
   plan_sha256: string;
   /**
@@ -3577,6 +3651,115 @@ export interface ExitExplanation {
   table_version: number;
   [k: string]: unknown;
 }
+export interface OutputLauncherLibraryInventory {
+  apps_root: string | null;
+  apps_root_origin: LauncherAppsRootOrigin;
+  data_root: string;
+  entries: LauncherLibraryEntry[];
+  /**
+   * Upstream source revision whose library format this reader implements.
+   */
+  format_revision: string;
+  /**
+   * Content fingerprint of this inventory, excluding this field.
+   */
+  inventory_sha256: string;
+  launcher: LauncherKind;
+  /**
+   * True when only the launcher's legacy `games.json` was present.
+   */
+  legacy_library_file: boolean;
+  library_file: string;
+  /**
+   * Inspection reads only; launcher data and installations stay untouched.
+   */
+  original_will_be_modified: boolean;
+  skipped_entries: LauncherLibrarySkippedEntry[];
+  [k: string]: unknown;
+}
+export interface LauncherLibraryEntry {
+  /**
+   * Port to pass to the existing reviewed `adopt --port` for `install_path`.
+   * Absent unless exactly one copyable catalog port was detected.
+   */
+  adopt_port_id: string | null;
+  /**
+   * Catalog ports whose reviewed upstream repository matches this entry.
+   */
+  candidate_port_ids: string[];
+  /**
+   * Catalog ports whose declared executable was found in the installation.
+   */
+  detected_port_ids: string[];
+  explanation: string;
+  /**
+   * True when `installPath` was explicit rather than apps folder plus folder name.
+   */
+  explicit_install_path: boolean;
+  folder_name: string;
+  hints: LauncherEntryHints;
+  /**
+   * Zero-based position across the launcher library's entry arrays.
+   */
+  index: number;
+  /**
+   * Resolved installation folder, when the entry names a safe absolute location.
+   */
+  install_path: string | null;
+  mods: LauncherModInventory | null;
+  name: string;
+  /**
+   * Launcher settings for this app that Portcove does not carry over.
+   */
+  not_carried_over: string[];
+  repository: string;
+  /**
+   * `github`, `gitlab`, `codeberg` or `manual`, as the launcher interprets the entry.
+   */
+  repository_source: string;
+  /**
+   * Earlier entry naming the same installation folder for a different app.
+   */
+  shares_folder_with: number | null;
+  status: LauncherEntryStatus;
+  /**
+   * Declared saves/configuration present in the installation for a single match.
+   */
+  user_data_paths: string[];
+  [k: string]: unknown;
+}
+export interface LauncherEntryHints {
+  /**
+   * First line of `version.txt` in the installation. Untrusted label.
+   */
+  installed_version_label: string | null;
+  /**
+   * `preferredVersion` from the launcher library. Untrusted label.
+   */
+  preferred_version: string | null;
+  /**
+   * First line of `selected_executable.txt`. Portcove uses its own declared executable.
+   */
+  selected_executable: string | null;
+  [k: string]: unknown;
+}
+export interface LauncherModInventory {
+  providers: string[];
+  /**
+   * False when the sidecar exists but could not be read within limits.
+   */
+  readable: boolean;
+  /**
+   * Records in `.quiver-mods.json`; they are inventoried, never activated.
+   */
+  records: number;
+  [k: string]: unknown;
+}
+export interface LauncherLibrarySkippedEntry {
+  index: number;
+  reason: string;
+  [k: string]: unknown;
+}
 /**
  * The export carries metadata; all payload bytes remain in the explicitly chosen content root.
  */
@@ -3607,6 +3790,11 @@ export interface LibraryMetadata {
   content_roots: LibraryContentRoot[];
   exported_at: number;
   launch_history: LibraryLaunchHistory[];
+  /**
+   * Explicit add-only Library entries; present only under metadata schema 7, so
+   * an older reader refuses the export instead of silently dropping them.
+   */
+  library_memberships?: LibraryMembership[];
   original_root: string;
   port_settings: LibraryPortSettings[];
   portability_authority?: PortabilityAuthority | null;
@@ -3633,6 +3821,21 @@ export interface LibraryLaunchHistory {
   port_id: string;
   successful_launches: number;
   [k: string]: unknown;
+}
+export interface LibraryMembership {
+  added_at: number;
+  format_version: number;
+  origin: LibraryMembershipOrigin;
+  port_id: string;
+  sources?: LibraryMembershipSource[];
+}
+/**
+ * A reviewed original the player associated with the saved entry. This is a
+ * hint for explaining requirements; reinspection remains the authority.
+ */
+export interface LibraryMembershipSource {
+  profile_id: string;
+  sha256: string;
 }
 export interface LibraryPortSettings {
   active_install_id: string | null;
@@ -3868,6 +4071,10 @@ export interface PortListingStatus {
    * Optional inert read model; absence cannot suppress an independently allowed action.
    */
   capabilities?: PortCapabilityReport | null;
+  /**
+   * Explicit saved Library entry, independent of any installation or registration.
+   */
+  library_membership?: LibraryMembership | null;
   port_id: string;
   status: PortStatus;
   [k: string]: unknown;
@@ -4317,6 +4524,104 @@ export interface SourceInspectionProblem {
    * matching shared readiness controls. Other error details remain private.
    */
   tool_id?: string | null;
+  [k: string]: unknown;
+}
+export interface OutputProviderInstallPlan {
+  conflicts: AssetConflict[];
+  conflicts_truncated: boolean;
+  /**
+   * Computed from the actual downloaded bytes.
+   */
+  download_sha256: string;
+  download_size: number;
+  /**
+   * Profile revision this plan was reviewed against.
+   */
+  expected_revision: number;
+  file: ProviderFileCandidate;
+  /**
+   * Entries of the provider's wrapper that are not packages and were not read.
+   */
+  ignored_entries: number;
+  members: PlanMember[];
+  plan_sha256: string;
+  port_id: string;
+  profile_id: string;
+  project_name: string;
+  provider: ProviderPackageRef;
+  /**
+   * Installed packages with the same native ID but different bytes.
+   */
+  replaces: string[];
+  /**
+   * What this plan relies on without verifying.
+   */
+  unverified_claims: string[];
+  [k: string]: unknown;
+}
+/**
+ * Several packages claim the same asset path.
+ */
+export interface AssetConflict {
+  path: string;
+  /**
+   * Packages providing the path, in the supplied precedence order.
+   */
+  providers: string[];
+  /**
+   * The provider that takes effect under that order.
+   */
+  winner: string;
+  [k: string]: unknown;
+}
+/**
+ * A provider's own claims about one downloadable file. The checksum is the
+ * provider's claim; an MD5 or any provider-supplied digest never authenticates
+ * a publisher.
+ */
+export interface ProviderFileCandidate {
+  added_at: number;
+  archived: boolean;
+  claimed_md5: string | null;
+  /**
+   * Provider scan outcomes, as claimed ("clean", "infected", ...). Not an assurance.
+   */
+  claimed_scan: string | null;
+  /**
+   * Canonical download location derived from `file_id`, never a provider-supplied URL.
+   */
+  download_url: string;
+  /**
+   * Provider file identity; distinct from the project and from any version label.
+   */
+  file_id: string;
+  file_name: string;
+  size: number;
+  [k: string]: unknown;
+}
+export interface PlanMember {
+  asset_count: number;
+  file_name: string;
+  sha256: string;
+  size: number;
+  [k: string]: unknown;
+}
+export interface OutputProviderUpdateObservation {
+  freshness: ProviderFreshness | null;
+  installed_version: string | null;
+  native_id: string;
+  /**
+   * Candidates in ascending file-ID order; more than one is ambiguous.
+   */
+  newer_files: ProviderFileCandidate[];
+  observed_version: string | null;
+  provider: ProviderPackageRef;
+  reason: string | null;
+  state: ProviderUpdateState;
+  /**
+   * False with `NewerFiles` means files changed under an unchanged version label.
+   */
+  version_changed: boolean;
   [k: string]: unknown;
 }
 export interface OutputProviderInstallPlan {
@@ -4929,9 +5234,42 @@ export interface OutputDesktopCliCommandContext {
   platform: Platform;
   [k: string]: unknown;
 }
+export interface InstallBatchRecord {
+  cancel_requested: boolean;
+  created_at: number;
+  format_version: number;
+  id: string;
+  items: InstallBatchItem[];
+  updated_at: number;
+}
+export interface InstallBatchItem {
+  detail?: string | null;
+  expected_plan_sha256: string;
+  install_id?: string | null;
+  port_id: string;
+  state: InstallBatchItemState;
+}
+export interface OutputDesktopInstallBatchReview {
+  items: InstallBatchReviewItem[];
+  [k: string]: unknown;
+}
+/**
+ * One game in a batch review: its exact plan, or why it cannot run yet.
+ */
+export interface InstallBatchReviewItem {
+  hold?: string | null;
+  plan?: GameInstallPlan | null;
+  port_id: string;
+  [k: string]: unknown;
+}
 export interface OutputDesktopLaunchResult {
   processId: number | null;
   sessionId: string;
+  [k: string]: unknown;
+}
+export interface LibraryMembershipOutcome {
+  outcome: LibraryMembershipOutcomeKind;
+  port_id: string;
   [k: string]: unknown;
 }
 export interface OutputDesktopLibraryOrganization {
@@ -4986,13 +5324,141 @@ export interface OutputDesktopLocalePreference {
   locale: string | null;
   [k: string]: unknown;
 }
+export interface PortIntent {
+  /**
+   * The ready plan the player was last told about; a notification repeats
+   * only when the ready plan changes.
+   */
+  acknowledged_plan_sha256?: string | null;
+  /**
+   * Set when the player uninstalled the game. Standing setup and
+   * notifications stay quiet until the player chooses a mode again.
+   */
+  explicitly_uninstalled_at?: number | null;
+  failed_attempts?: number;
+  /**
+   * The plan whose standing setup last failed, and how many times it has
+   * failed. It is retried on later passes up to a small limit, then waits
+   * until the plan changes, so a permanent failure does not recur.
+   */
+  failed_plan_sha256?: string | null;
+  failure?: string | null;
+  format_version: number;
+  mode: PortIntentMode;
+  port_id: string;
+  updated_at: number;
+}
+export interface OutputDesktopPortIntentAssessments {
+  assessments: PortIntentAssessment[];
+  /**
+   * Intents left for a later pass because one pass is bounded.
+   */
+  not_assessed: number;
+  [k: string]: unknown;
+}
+export interface PortIntentAssessment {
+  mode: PortIntentMode;
+  /**
+   * Ready with a plan the player has not been told about yet.
+   */
+  newly_ready: boolean;
+  port_id: string;
+  readiness: PortReadiness;
+  /**
+   * Why this intent will not act or notify right now, if it won't.
+   */
+  suppressed?: string | null;
+  [k: string]: unknown;
+}
+/**
+ * What one standing-setup pass did for each game it considered.
+ */
+export interface OutputDesktopStandingSetup {
+  /**
+   * Another process is already running a pass; this one did nothing.
+   */
+  already_running: boolean;
+  assessments: PortIntentAssessment[];
+  /**
+   * One single-game batch per game that started, in order.
+   */
+  batches: InstallBatchRecord[];
+  /**
+   * Games that could not start; the others were not affected.
+   */
+  failures: StandingSetupFailure[];
+  not_assessed: number;
+  [k: string]: unknown;
+}
+export interface StandingSetupFailure {
+  port_id: string;
+  reason: string;
+  [k: string]: unknown;
+}
+export interface OutputDesktopSteamArtworkApplyResult {
+  backup_paths: string[];
+  plan_sha256: string;
+  roles: SteamArtworkRoleChange[];
+  wrote: boolean;
+  [k: string]: unknown;
+}
+export interface SteamArtworkRoleChange {
+  action: SteamArtworkRoleAction;
+  destination_path: string | null;
+  existing_paths: string[];
+  existing_sha256: string | null;
+  /**
+   * The destination-local ownership record for this role is dropped.
+   */
+  forget_ownership: boolean;
+  proposed_sha256: string | null;
+  role: DestinationArtworkRole;
+  unavailable_reason: DestinationArtworkUnavailableReason | null;
+  [k: string]: unknown;
+}
+export interface OutputDesktopSteamArtworkReview {
+  app_id: number | null;
+  display_name: string;
+  grid_path: string;
+  operation: SteamArtworkOperation;
+  plan_sha256: string;
+  port_id: string;
+  recovered: SteamArtworkRecovery | null;
+  /**
+   * An interrupted shortcut (or, for shortcut reviews, artwork) change in this
+   * profile was settled before review.
+   */
+  recovered_shortcut_change: boolean;
+  roles: SteamArtworkRoleChange[];
+  schema_version: number;
+  steam_client_state: SteamClientState;
+  steam_root: string;
+  steam_user_id: string;
+  writes_required: boolean;
+  [k: string]: unknown;
+}
+/**
+ * Roles an earlier interrupted artwork change settled before this review.
+ */
+export interface SteamArtworkRecovery {
+  abandoned: DestinationArtworkRole[];
+  completed: DestinationArtworkRole[];
+  [k: string]: unknown;
+}
 export interface OutputDesktopSteamBatchReview {
+  artwork: SteamEntryArtworkPreview[];
+  artwork_review_sha256: string | null;
   changes: SteamEntryChange[];
   cli_path: string;
   cli_product_version: string;
   cli_sha256: string;
   library_root: string;
   proposed_sha256: string;
+  /**
+   * An interrupted shortcut (or, for shortcut reviews, artwork) change in this
+   * profile was settled before review.
+   */
+  recovered_shortcut_change: boolean;
   review_sha256: string;
   schema_version: number;
   selected_games: SteamGameEntryTarget[];
@@ -5003,6 +5469,18 @@ export interface OutputDesktopSteamBatchReview {
   steam_user_id: string;
   writer_plan_sha256: string;
   writes_required: boolean;
+  [k: string]: unknown;
+}
+/**
+ * Artwork reviewed together with a shortcut Add for one game.
+ */
+export interface SteamEntryArtworkPreview {
+  port_id: string;
+  roles: SteamArtworkRoleChange[];
+  /**
+   * Why this game's artwork cannot be reviewed now; the shortcut is unaffected.
+   */
+  unavailable: string | null;
   [k: string]: unknown;
 }
 export interface SteamEntryChange {
@@ -5017,6 +5495,11 @@ export interface SteamGameEntryTarget {
   [k: string]: unknown;
 }
 export interface OutputDesktopSteamEntryApplyResult {
+  /**
+   * Per-game outcome of artwork included with a shortcut Add. A failed or
+   * unavailable role never undoes a successfully written shortcut.
+   */
+  artwork: SteamEntryArtworkOutcome[];
   backup_path: string | null;
   changes: SteamEntryChange[];
   plan_sha256: string;
@@ -5024,7 +5507,20 @@ export interface OutputDesktopSteamEntryApplyResult {
   wrote: boolean;
   [k: string]: unknown;
 }
+export interface SteamEntryArtworkOutcome {
+  backup_paths: string[];
+  /**
+   * Why no artwork was written for this game; retry with Review artwork update.
+   */
+  error: string | null;
+  port_id: string;
+  roles: SteamArtworkRoleChange[];
+  wrote: boolean;
+  [k: string]: unknown;
+}
 export interface OutputDesktopSteamEntryReview {
+  artwork: SteamEntryArtworkPreview[];
+  artwork_review_sha256: string | null;
   changes: SteamEntryChange[];
   cli_path: string | null;
   cli_product_version: string | null;
@@ -5035,6 +5531,11 @@ export interface OutputDesktopSteamEntryReview {
   plan_sha256: string;
   port_id: string;
   proposed_sha256: string;
+  /**
+   * An interrupted shortcut (or, for shortcut reviews, artwork) change in this
+   * profile was settled before review.
+   */
+  recovered_shortcut_change: boolean;
   schema_version: number;
   shortcuts_path: string;
   snapshot_sha256: string | null;

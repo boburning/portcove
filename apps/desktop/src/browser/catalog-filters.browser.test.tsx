@@ -250,7 +250,7 @@ it("keeps host, setup method and membership on one context through details and r
   await page.viewport(1100, 900);
   flushSync(() => root.render(<Fixture />));
   await openAdvancedFilters("Filters (0)");
-  await userEvent.click(await filterChoice("For this device (2)"));
+  await userEvent.click(await filterChoice("Available for this device (2)"));
   await userEvent.click(await filterChoice("In my library (2)"));
   await expect
     .element(await filterChoice("Linux (0)"))
@@ -278,7 +278,9 @@ it("keeps host, setup method and membership on one context through details and r
     document.querySelector('[aria-label="Matching browsing contexts"]')?.textContent,
   ).toContain("Original disc referenced at launch");
   await userEvent.click(roleButton("Back to catalog"));
-  await expect.element(roleButton("Remove Target OS: For this device filter")).toBeInTheDocument();
+  await expect
+    .element(roleButton("Remove Runs on: Available for this device filter"))
+    .toBeInTheDocument();
   await expect
     .element(roleButton("Remove Setup methods: Download and install filter"))
     .toBeInTheDocument();
@@ -301,12 +303,12 @@ it.each(["dark", "light"])(
     await userEvent.click(await filterChoice("Linux (2)"));
     await closeFilters();
     await expect.element(roleButton("Filters (2)")).toHaveFocus();
-    await expect.element(roleButton("Remove Target OS: Windows filter")).toBeInTheDocument();
+    await expect.element(roleButton("Remove Runs on: Windows filter")).toBeInTheDocument();
     await expect.element(roleButton("Remove Update channels: Preview filter")).toBeInTheDocument();
     await captureParityState("discover-selected-filter-chips");
     await openDiscoverPort("both");
     await userEvent.click(roleButton("Back to catalog"));
-    await expect.element(roleButton("Remove Target OS: Windows filter")).toBeInTheDocument();
+    await expect.element(roleButton("Remove Runs on: Windows filter")).toBeInTheDocument();
     flushSync(() => root.unmount());
     root = createRoot(host);
     flushSync(() => root.render(<Fixture />));

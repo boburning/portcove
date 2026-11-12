@@ -20,6 +20,7 @@ import { performance } from "node:perf_hooks";
 import { parseDocument } from "yaml";
 import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
+import { controllerTagPatterns, releaseOwner } from "./release-ref-rulesets.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { prepareFixedControllerConfiguration } from "./release-controller-configuration.mts";
 import { fixedControllerConfigurationSource } from "./release-authority-configuration-contract.mts";
@@ -40,15 +41,20 @@ import {
 import { catalogEnvironmentFixture } from "./fixtures/release-live-control-fixture.mts";
 import { capacityDigest, slice4CapacityResources } from "./release-capacity.mts";
 import { maximumProductionControllerWorkflowBytes } from "./production-controller-admission.mts";
-import { selectCatalogBootstrapRecovery } from "./release-catalog-bootstrap-adoption.mts";
+import {
+  isCatalogBootstrapRecoveryRef,
+  selectCatalogBootstrapRecovery,
+} from "./release-catalog-bootstrap-adoption.mts";
 import {
   retainedCatalogBootstrapClaim,
   retainedCatalogForwardAdoptionClaim,
+  retainedCatalogNativeAdoptionClaim,
 } from "./release-coordinator-checkpoint-authentication.mts";
 
-void test("catalog recovery distinguishes the exact forward claim from historical bootstrap", () => {
+void test("catalog recovery distinguishes exact renewal claims from historical bootstrap", () => {
   const old = retainedCatalogBootstrapClaim;
   const forward = retainedCatalogForwardAdoptionClaim;
+  const native = retainedCatalogNativeAdoptionClaim;
   assert.equal(selectCatalogBootstrapRecovery(old.successor_ref, 1, old.previous, false), old);
   assert.equal(
     selectCatalogBootstrapRecovery(forward.successor_ref, 1, forward.previous, true),
@@ -58,11 +64,41 @@ void test("catalog recovery distinguishes the exact forward claim from historica
     selectCatalogBootstrapRecovery(forward.original_ref, 1, forward.previous, true),
     undefined,
   );
+  assert.equal(
+    selectCatalogBootstrapRecovery(native.successor_ref, 1, native.previous, "native"),
+    native,
+  );
+  assert.equal(
+    selectCatalogBootstrapRecovery(
+      `refs/tags/${native.original_ref}`,
+      1,
+      native.previous,
+      "native",
+    ),
+    undefined,
+  );
+  assert.equal(
+    native.successor_ref,
+    "refs/tags/portcove-production-controller-catalog-adoption-settle-20261111",
+  );
+  assert.ok(isCatalogBootstrapRecoveryRef(native.successor_ref));
+  for (const retired of [
+    "refs/tags/portcove-production-controller-catalog-adoption-resume-20261111",
+    "refs/tags/portcove-production-controller-catalog-adoption-stable-wake-20261111",
+  ]) {
+    assert.equal(selectCatalogBootstrapRecovery(retired, 1, native.previous, "native"), undefined);
+    assert.equal(isCatalogBootstrapRecoveryRef(retired), false);
+  }
   for (const [ref, attempt, parent, direction] of [
     [old.successor_ref, 1, old.previous, true],
     [forward.successor_ref, 1, forward.previous, false],
     [forward.successor_ref, 2, forward.previous, true],
     [forward.successor_ref, 1, old.previous, true],
+    [forward.successor_ref, 1, forward.previous, "native"],
+    [native.successor_ref, 1, native.previous, true],
+    [native.successor_ref, 1, native.previous, false],
+    [native.successor_ref, 2, native.previous, "native"],
+    [native.successor_ref, 1, forward.previous, "native"],
   ] as const)
     assert.throws(
       () => selectCatalogBootstrapRecovery(ref, attempt, parent, direction),
@@ -323,6 +359,7 @@ void test("catalog maintenance authenticates pause and exact catalog environment
   const branch = "portcove-release-pause";
   const rule = (id: number, types: string[], actors: unknown[]) => ({
     id,
+    target: "branch",
     source_type: "Repository",
     source: "boburning/portcove",
     enforcement: "active",
@@ -333,6 +370,11 @@ void test("catalog maintenance authenticates pause and exact catalog environment
   const rules = [
     rule(1, ["update"], [{ actor_type: "User", actor_id: 43177418, bypass_mode: "always" }]),
     rule(2, ["creation", "deletion", "non_fast_forward"], []),
+    {
+      ...rule(99, ["creation", "update", "deletion"], []),
+      target: "tag",
+      conditions: { ref_name: { include: [controllerRef], exclude: [] } },
+    },
   ];
   const paths: string[] = [];
   const read = async (endpoint: string) => {
@@ -367,7 +409,7 @@ void test("catalog maintenance authenticates pause and exact catalog environment
   assert.throws(() => requireReleaseInputWriterPolicy(observation, 202));
   // Retained immutable-controller rulesets must not crowd out the complete
   // catalog/environment stability observations.
-  const retained = Array.from({ length: 60 }, (_, index) => ({
+  const retained = Array.from({ length: 59 }, (_, index) => ({
     ...rule(index + 3, ["creation", "update", "deletion"], []),
     conditions: { ref_name: { include: [`refs/tags/controller-retained-${index}`], exclude: [] } },
   }));
@@ -519,6 +561,86 @@ void test("catalog maintenance authenticates pause and exact catalog environment
   retainedRule.bypass_actors.pop();
   environments[0]!.policies.pop();
   rules.pop();
+  const tagConditions: { ref_name: { include: string[]; exclude: string[] } } = {
+    ref_name: { include: [...controllerTagPatterns], exclude: [] },
+  };
+  const split = [
+    {
+      ...retainedRule,
+      id: 90,
+      conditions: tagConditions,
+      rules: [{ type: "update" }, { type: "deletion" }],
+    },
+    {
+      ...retainedRule,
+      id: 91,
+      conditions: tagConditions,
+      rules: [{ type: "creation" }],
+      bypass_actors: [releaseOwner] as unknown[],
+    },
+  ];
+  const withRules = (rows: unknown[]) => {
+    const inventory = { ...shared.inventory, rulesets: [...rules.slice(0, 2), ...rows] };
+    return { ...shared, inventory, inventory_sha256: capacityDigest(inventory) };
+  };
+  const sharedExact = structuredClone(retainedRule);
+  sharedExact.conditions.ref_name.include.push(controllerRef);
+  requireCatalogMaintenancePolicy(withRules([sharedExact]), controllerRef);
+  const consolidated = withRules(split);
+  requireCatalogMaintenancePolicy(consolidated, controllerRef);
+  assert.notEqual(consolidated.inventory_sha256, shared.inventory_sha256);
+  assert.throws(
+    () =>
+      requireCatalogMaintenancePolicy(
+        {
+          ...consolidated,
+          inventory_sha256: shared.inventory_sha256,
+        },
+        controllerRef,
+      ),
+    /fresh authenticated protection inventory/u,
+  );
+  for (const mutate of [
+    (rows: typeof split) => {
+      rows[0]!.target = "branch";
+    },
+    (rows: typeof split) => {
+      rows[0]!.enforcement = "disabled";
+    },
+    (rows: typeof split) => {
+      rows[0]!.conditions.ref_name.include = ["refs/tags/*"];
+    },
+    (rows: typeof split) => {
+      rows[0]!.conditions.ref_name.include = ["refs/tags/unrelated"];
+    },
+    (rows: typeof split) => {
+      rows[0]!.conditions.ref_name.exclude.push(controllerRef);
+    },
+    (rows: typeof split) => {
+      rows[0]!.rules.pop();
+    },
+    (rows: typeof split) => {
+      rows[0]!.bypass_actors.push(releaseOwner);
+    },
+    (rows: typeof split) => {
+      rows[1]!.bypass_actors = [];
+    },
+    (rows: typeof split) => {
+      rows[1]!.bypass_actors = [{ ...releaseOwner, actor_id: 5632044 }];
+    },
+    (rows: typeof split) => {
+      rows[1]!.rules.push({ type: "update" });
+    },
+  ]) {
+    const changed = structuredClone(split);
+    mutate(changed);
+    assert.throws(() => requireCatalogMaintenancePolicy(withRules(changed), controllerRef));
+  }
+  const unappointed = "refs/tags/portcove-production-controller-unappointed";
+  assert.throws(
+    () => requireCatalogMaintenancePolicy(consolidated, unappointed),
+    /outside retained appointments|authenticated exact controller tag/u,
+  );
   const applicationTag = "portcove-production-controller-windows-20261105r10";
   const applicationRule = {
     ...retainedRule,

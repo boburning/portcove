@@ -63,6 +63,7 @@ impl BundledRuntime {
 
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     crate::native_external_profile::validate(port)?;
+    crate::native_portable_data::validate(port)?;
     validate_generated_cache_tar_xz(port)?;
     let linux = Platform::LinuxX86_64;
     if port.release.linux_tar_xz

@@ -471,6 +471,7 @@ function closing(
   value: unknown,
   candidate: DeliveryPull,
   interval: { started: number; completed: number },
+  inventory: { mergedSuite?: number | undefined; suites: number[] } = { suites: [] },
 ): DeliveryClosingObservation {
   if (typeof candidate.title !== "string" || typeof candidate.body !== "string")
     throw new Error("PR title or body is unavailable");
@@ -509,12 +510,15 @@ function closing(
     );
     if (!same(derived, relationships))
       throw new Error("Closing inventory differs from its raw REST timeline reconstruction");
-    validateClosingInventoryEvidence(
+    const merged = candidate.state === "closed" && candidate.merged === true;
+    const evidence = validateClosingInventoryEvidence(
       item.inventory_checks,
       item.inventory_runs,
       candidate.head.sha,
       candidate.number,
+      { mergedSuite: merged ? inventory.mergedSuite : undefined },
     );
+    inventory.suites.push(evidence.suite);
   } else if ("timeline_pages" in item || "inventory_checks" in item || "inventory_runs" in item)
     throw new Error(
       "Only rest-timeline closing inventories carry timeline pages or inventory evidence",
@@ -555,20 +559,25 @@ function bracketed(
   snapshot: Record<string, unknown>,
   expected: MergeSnapshotExpectation,
   interval: { started: number; completed: number },
+  mergedSuite?: number,
 ) {
+  const inventory = { mergedSuite, suites: [] as number[] };
   const before = pull(snapshot.pull_before, expected),
     after = pull(snapshot.pull_after, expected);
   if (!same(pullBinding(before), pullBinding(after)))
     throw new Error("PR source, state, body, or preview changed during collection");
-  const first = closing(snapshot.closing_before, before, interval);
-  const last = closing(snapshot.closing_after, after, interval);
+  const first = closing(snapshot.closing_before, before, interval, inventory);
+  const last = closing(snapshot.closing_after, after, interval, inventory);
   if (!same(first, last)) throw new Error("Closing inventory changed during collection");
   if (
     utc(record(snapshot.closing_before, "closing inventory").observed_at, "closing observation") >
     utc(record(snapshot.closing_after, "closing inventory").observed_at, "closing observation")
   )
     throw new Error("Closing observations are out of order");
-  return { pull: after, closing: last };
+  // REST closing evidence must come from one closing-inventory run throughout collection.
+  if (new Set(inventory.suites).size > 1)
+    throw new Error("Closing inventory evidence changed during collection");
+  return { pull: after, closing: last, inventorySuite: inventory.suites[0] ?? null };
 }
 
 export function validateCommitComposition(
@@ -847,6 +856,7 @@ export function prepareMergeSnapshot(
     target_ref: ref,
     preview: observed.pull.merge_commit_sha,
     composition: verifiedComposition,
+    closing_inventory_suite: observed.inventorySuite,
     run: expected.run,
     attempt: expected.attempt,
     closing_fingerprint: fingerprint(observed.closing),
@@ -866,7 +876,17 @@ export function prepareMergeSnapshot(
 
 export function verifyMergeSnapshotReadback(value: unknown, expected: MergeSnapshotExpectation) {
   const { snapshot, ...interval } = envelope(value, "merge-readback", expected);
-  const observed = bracketed(snapshot, expected, interval);
+  // A merged pull request's closing-inventory run no longer lists it; accept that
+  // only for the exact run preparation bound to this pull request.
+  const preparedSuite = isRecord(snapshot.prepared)
+    ? snapshot.prepared.closing_inventory_suite
+    : undefined;
+  const observed = bracketed(
+    snapshot,
+    expected,
+    interval,
+    Number.isSafeInteger(preparedSuite) ? Number(preparedSuite) : undefined,
+  );
   const merged = observed.pull.merge_commit_sha;
   if (observed.pull.state !== "closed" || observed.pull.merged !== true || !sha(merged))
     throw new Error("Merge outcome is unconfirmed; reconcile remote state before any retry");

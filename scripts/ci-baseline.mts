@@ -9,7 +9,6 @@ import {
   classifyChanges,
   buildPlan,
   command,
-  environmentDependentContractSkip,
   executePlan,
   pythonContractTests,
   nodeTestOwnership,
@@ -261,7 +260,7 @@ export function baselineTestArguments(tests: string[], contracts = false) {
     "--test-timeout=60000",
     "--experimental-test-module-mocks",
     "--test-reporter=./scripts/required-node-test-reporter.mts",
-    ...(contracts ? [environmentDependentContractSkip] : []),
+    ...(contracts ? ["--test-skip-pattern=pnpm uses|direct just recipes"] : []),
     ...tests,
   ];
 }

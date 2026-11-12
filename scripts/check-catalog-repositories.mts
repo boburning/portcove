@@ -39,6 +39,8 @@ export interface ReviewedSourceArchive extends GithubSourceArchiveScope {
   port_contract_sha256: string;
   platform: string;
 }
+/** Monitor rules that describe the original location itself: a redirect or a missing repository. */
+export const originalLocationReasons = ["provider-redirect", "inaccessible-or-missing"] as const;
 interface OriginalCondition {
   port_id: string;
   port_contract_sha256: string;
@@ -46,7 +48,7 @@ interface OriginalCondition {
   repository: string;
   operation: "observe-availability";
   http_status: 301 | 404;
-  reason: "provider-redirect" | "inaccessible-or-missing";
+  reason: (typeof originalLocationReasons)[number];
   redirect_repository_id: number | null;
   evidence: string;
   resume_condition: string;

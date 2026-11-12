@@ -335,7 +335,7 @@ export function releaseBuildMatrix(rawProfile: unknown = "full") {
       ...(profile === "full"
         ? [
             {
-              os: "macos-14",
+              os: "macos-15",
               label: "macos-aarch64",
               bundles: "dmg",
               target: "aarch64-apple-darwin",

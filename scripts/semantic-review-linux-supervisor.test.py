@@ -1,5 +1,6 @@
 """Inert model/parser tests only: no namespace, systemd, auth or provider calls."""
 
+import contextlib
 import errno
 import importlib.util
 import io
@@ -178,7 +179,7 @@ class SupervisorContract(unittest.TestCase):
         for changed in ({"models": []}, {"models": json.loads(data)["models"] * 2}, {**json.loads(data), "fallback": "remote"}):
             with self.subTest(changed=list(changed)), self.assertRaises(supervisor.Refusal):
                 supervisor.inspect_model_catalog(json.dumps(changed).encode())
-        args = supervisor.codex_arguments("a" * 64, "codex")
+        args = supervisor.codex_arguments("a" * 64)
         self.assertIn('model_catalog_json="/runtime/semantic-review-model-catalog.json"', args)
         self.assertIn('features.code_mode_host=false', args)
         self.assertIn('mcp_servers.portcove_frozen_bundle.omit_tools_from=["deferred","code_mode"]', args)
@@ -408,8 +409,66 @@ class SupervisorContract(unittest.TestCase):
         self.assertFalse(supervisor.auth_refresh_allowed(result, []))
         self.assertFalse(supervisor.auth_refresh_allowed(result, [10, 11]))
 
+    def test_keyless_handoff_uses_the_fixed_reader_and_checks_exact_bytes(self):
+        reader_hash = "f" * 64
+        expected = b"inert fixture\n"
+        page = {
+            "bytes": len(expected),
+            "sha256": supervisor.hashlib.sha256(expected).hexdigest(),
+            "offset": 0,
+            "encoding": "base64",
+            "data": supervisor.base64.b64encode(expected).decode("ascii"),
+            "next": None,
+        }
+
+        def responses(page, extra_content=()):
+            initialized = {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {"tools": {}},
+                "serverInfo": {"name": "portcove_frozen_bundle", "version": "1"},
+            }
+            read = {
+                "isError": False,
+                "content": [{"type": "text", "text": json.dumps(page)}, *extra_content],
+            }
+            return SimpleNamespace(
+                returncode=0,
+                stderr=b"",
+                stdout="".join(
+                    json.dumps({"jsonrpc": "2.0", "id": identifier, "result": result}) + "\n"
+                    for identifier, result in enumerate((initialized, read))
+                ).encode(),
+            )
+
+        with patch.object(supervisor.subprocess, "run", return_value=responses(page)) as run:
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                supervisor.qualify_reader_handoff(reader_hash)
+            self.assertEqual(run.call_args.args, (supervisor.reader_arguments(reader_hash),))
+            self.assertEqual(run.call_args.kwargs["timeout"], 15)
+            requests = [json.loads(row) for row in run.call_args.kwargs["input"].splitlines()]
+            self.assertEqual(
+                [row["method"] for row in requests],
+                ["initialize", "notifications/initialized", "tools/call"],
+            )
+            self.assertEqual(requests[2]["params"]["name"], "read")
+            self.assertEqual(requests[2]["params"]["arguments"]["path"], "fixture.txt")
+            self.assertEqual(json.loads(output.getvalue())["reader_sha256"], reader_hash)
+        with (
+            patch.object(supervisor.subprocess, "run", return_value=responses({**page, "data": "eA=="})),
+            self.assertRaisesRegex(supervisor.Refusal, "fixture bytes differ"),
+        ):
+            supervisor.qualify_reader_handoff(reader_hash)
+        with (
+            patch.object(
+                supervisor.subprocess, "run",
+                return_value=responses(page, [{"type": "text", "text": "extra"}]),
+            ),
+            self.assertRaisesRegex(supervisor.Refusal, "content differs"),
+        ):
+            supervisor.qualify_reader_handoff(reader_hash)
+
     def test_codex_command_is_fixed_safe_reader_and_disabled_shell(self):
-        command = supervisor.codex_arguments("f" * 64, "codex")
+        command = supervisor.codex_arguments("f" * 64)
         self.assertEqual(command[0], "/runtime/codex")
         self.assertIn("features.shell_tool=false", command)
         self.assertIn("features.plugins=false", command)

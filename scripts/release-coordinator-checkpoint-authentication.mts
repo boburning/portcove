@@ -67,6 +67,21 @@ export const retainedCatalogForwardAdoptionClaim = {
   successor_ref: "refs/tags/portcove-production-controller-20261110r66",
 } as const;
 
+/** The native metadata adoption already claimed this child. Only its
+ * separately appointed successor may finish this one signed transition. */
+export const retainedCatalogNativeAdoptionClaim = {
+  previous: "006439a83c66cc3c1fa3fa142d7e4a6ed27f8553",
+  child: "d23b4f108b03ecd81c1696a407c740ca24e5d705",
+  tree: "925f93173c6ab2b5572068e99e96722c8986a0cf",
+  state_sha256: "85bba0bb4540ddee8c287dfeee2a62261c09542aa00c823f01cb50f9113e31f8",
+  clock: "2026-11-11T17:44:17.587Z",
+  original_source: "a2814fe75262c10bfe7f9511d98df79e8ae0c001",
+  original_ref: "portcove-production-controller-catalog-adoption-20261111",
+  original_run: "43069742240",
+  original_job: 130697078365,
+  successor_ref: "refs/tags/portcove-production-controller-catalog-adoption-settle-20261111",
+} as const;
+
 /** The r52 application claim already exists, so r53 may only settle these bytes. */
 export const retainedApplicationReviewClaim = {
   previous: "565eb5b3ccf58d6f0654e99b8d3e0214987cd003",
@@ -258,7 +273,7 @@ export const retainedApplicationContextUpload = Object.freeze({
 export const retainedApplicationContextSettlement = Object.freeze({
   checkpoint: "e6160a6b2c8b7784ef83e1f0c36bec0804acf2e3",
   previous: retainedApplicationContextUpload.checkpoint,
-  successor_ref: "refs/tags/portcove-production-controller-20261111r79",
+  successor_ref: "refs/tags/portcove-production-controller-20261111r80",
   workflow_sha256: retainedApplicationContextUpload.workflow_sha256,
   revision: "fd45c587cd21fbd3ab125aaa9e1096577bbb5351",
   ref: retainedApplicationContextUpload.successor_ref,
@@ -324,6 +339,29 @@ export function matchesRetainedApplicationRenewalHandoff(
     producer.run_attempt === 1 &&
     producer.job_id === "129733085853" &&
     producer.check_run_id === "129733085853"
+  );
+}
+
+/** The catalog coordinator can authenticate this exact signed application
+ * predecessor for readback. Its own appointment still gates every operation. */
+export function matchesRetainedNativeAdoptionPredecessor(
+  checkpoint: { checkpoint: string; previous: string | null },
+  producer: Record<string, unknown>,
+  source: { workflow_sha256: string },
+  purpose: "application" | "catalog-publication" | undefined,
+) {
+  return (
+    purpose === "catalog-publication" &&
+    source.workflow_sha256 === retainedApplicationContextSettlement.workflow_sha256 &&
+    checkpoint.checkpoint === "006439a83c66cc3c1fa3fa142d7e4a6ed27f8553" &&
+    checkpoint.previous === retainedApplicationContextSettlement.checkpoint &&
+    producer.controller_revision === "ddf7e1ff74ced4ae988b089bf2ba9951d4de9964" &&
+    producer.controller_ref === retainedApplicationContextSettlement.successor_ref &&
+    producer.workflow_sha256 === retainedApplicationContextSettlement.workflow_sha256 &&
+    producer.run_id === "43061111295" &&
+    producer.run_attempt === 1 &&
+    producer.job_id === "130666640318" &&
+    producer.check_run_id === "130666640318"
   );
 }
 
@@ -400,7 +438,8 @@ export async function authenticateFixedJobCoordinatorHistory(
       matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, withdrawal) ||
       matchesRetainedCatalogAdoptionWithdrawal(checkpoint, producer, purpose) ||
       matchesRetainedCatalogForwardAdoptionHandoff(checkpoint, producer, source, purpose) ||
-      matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, purpose));
+      matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, purpose) ||
+      matchesRetainedNativeAdoptionPredecessor(checkpoint, producer, source, purpose));
   if (
     !producer ||
     (!retainedHandoff &&

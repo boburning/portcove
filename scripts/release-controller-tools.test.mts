@@ -1588,7 +1588,7 @@ void test("tool acquisition retains the phase deadline before outputs and after 
         },
       },
     }),
-    /controller tool verification refused; retain/,
+    { message: /controller tool verification refused; retain/u, phase: "provider-before" },
   );
   assert.equal(calls, 1);
   const [partial] = await readdir(root);

@@ -89,7 +89,7 @@ impl Ceremony {
     }
 
     async fn with_profile(profile: InitialRootProfile) -> Self {
-        let directory = tempfile::tempdir().unwrap();
+        let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
         fs::create_dir(directory.path().join("tmp")).unwrap();
         let mut fixture = Self {
             directory,

@@ -167,7 +167,7 @@ fn require_native_program(path: &Path, platform: Platform) -> Result<()> {
 
 fn mac_executable_slices(file: &mut fs::File, header: &[u8; 48]) -> Result<bool> {
     let length = file.metadata()?.len();
-    for entry in header[8..].chunks_exact(20) {
+    for entry in header[8..].as_chunks::<20>().0 {
         let offset = u64::from(u32::from_be_bytes(entry[8..12].try_into().unwrap()));
         let size = u64::from(u32::from_be_bytes(entry[12..16].try_into().unwrap()));
         if offset < header.len() as u64 || size < 32 || offset + size > length {

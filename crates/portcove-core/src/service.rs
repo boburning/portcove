@@ -51,6 +51,7 @@ pub use catalog_download_identity::{
     CatalogForeignReleaseId,
 };
 pub(crate) use catalog_download_provider::CatalogDownloadRepository;
+mod launcher_library;
 mod native_portable;
 pub(crate) mod package_selection;
 mod retained_direct_compatibility;
@@ -58,6 +59,11 @@ mod setup_discovery;
 pub use catalog_download::{
     CatalogDownloadCandidate, CatalogDownloadCandidates, CatalogDownloadCoverage,
     CatalogDownloadPreview, CatalogDownloadRequest, PendingSetupRecord, PendingSetupState,
+};
+pub use launcher_library::{
+    GITHUB_LAUNCHER_FORMAT_REVISION, LauncherAppsRootOrigin, LauncherEntryHints,
+    LauncherEntryStatus, LauncherKind, LauncherLibraryEntry, LauncherLibraryInventory,
+    LauncherLibrarySkippedEntry, LauncherModInventory, QUIVER_FORMAT_REVISION,
 };
 pub use package_selection::{CatalogDownloadRelease, CatalogPackageAssessment};
 pub use setup_discovery::{SetupLaunchTarget, SetupLaunchTargets};
@@ -120,6 +126,20 @@ std::thread_local! {
 
 #[path = "game_install_review.rs"]
 mod game_install_review;
+#[path = "install_batch.rs"]
+mod install_batch;
+#[path = "port_intent.rs"]
+mod port_intent;
+pub use install_batch::{
+    INSTALL_BATCH_FORMAT_VERSION, InstallBatchItem, InstallBatchItemState, InstallBatchRecord,
+    InstallBatchRequestItem, InstallBatchReview, InstallBatchReviewItem, InstallBatchSummary,
+    MAX_INSTALL_BATCH_ITEMS,
+};
+pub use port_intent::{
+    MAX_PORT_INTENT_ASSESSMENTS, MAX_STANDING_SETUP_ATTEMPTS, PORT_INTENT_FORMAT_VERSION,
+    PortIntent, PortIntentAssessment, PortIntentAssessments, PortIntentMode, PortReadiness,
+    PortReadinessAcknowledgement, StandingSetupFailure, StandingSetupResult,
+};
 mod game_settings;
 #[path = "game_update_acquisition.rs"]
 pub(crate) mod game_update_acquisition;
@@ -726,6 +746,10 @@ impl PortcoveService {
                     }
                     let new_error = if failed_install_cleanup {
                         install_cleanup_retry_message(current.last_error.as_deref(), &error.message)
+                    } else if current.kind == LifecycleOperationKind::DeleteBackup {
+                        // A failed attempt is evidence the next action cannot finish it
+                        // either, so inventory keeps holding (see backups::RESUME_FAILED).
+                        format!("{}{}", backups::RESUME_FAILED, error.message)
                     } else {
                         error.message.clone()
                     };
@@ -4550,6 +4574,10 @@ impl PortcoveService {
             }
             let mut removal = RemovalOperation::decode(&self.library, &lifecycle)?;
             removal.require_retained_outputs(self, &lifecycle)?;
+            // Remember the explicit uninstall before the removal starts, so a
+            // removal that later needs recovery is still never undone by
+            // standing setup. Failing here changes nothing.
+            self.library.record_explicit_uninstall(port_id)?;
             store.put(&mut lifecycle)?;
             intent_persisted = true;
             for removal in &removals {
@@ -4954,6 +4982,8 @@ impl PortcoveService {
                     port.map_or(ReleaseChannel::Stable, default_channel),
                 )?
                 .active;
+            // A selected non-default profile launches its exact pinned build.
+            let active = self.profile_pinned_install(port_id, active)?;
             let external = self.library.external_runtime_with_port(port_id)?;
             if !arguments.is_empty()
                 && active.as_ref().is_some_and(|install| {
@@ -5210,6 +5240,18 @@ impl PortcoveService {
                     crate::native_temp::recheck(retained_port, platform, &spec, &|| {
                         operation.checkpoint()
                     })?;
+                    if let Some(name) =
+                        crate::native_portable_data::directory_name(retained_port, platform)
+                    {
+                        crate::native_portable_data::require_launch(
+                            retained_port,
+                            &self.library,
+                            &spec,
+                            &command,
+                            name,
+                            &|| operation.checkpoint(),
+                        )?;
+                    }
                     self.require_installed_shared_preferences(install)?;
                     if retained_port.managed_shared_preferences.is_some()
                         && (spec.arguments != retained_port.launch_arguments

@@ -158,6 +158,7 @@ pub(crate) fn require_unix_player(executable: &Path, platform: Platform) -> Resu
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{ChildProcessClass, ChildProcessPolicy};
 
     #[test]
     fn z2rs_profile_precedence_matches_desktop_players() {
@@ -165,7 +166,8 @@ mod tests {
         let home = temporary.path().join("home");
         let appdata = temporary.path().join("appdata");
         let data = temporary.path().join("data");
-        let mut command = Command::new("inert-player");
+        let mut command =
+            ChildProcessPolicy::native_command(ChildProcessClass::Game, "inert-player").unwrap();
         command
             .env_clear()
             .env("HOME", &home)
@@ -206,7 +208,8 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let home = temporary.path().join("home");
         let non_unicode = OsString::from_vec(vec![b'/', 0xff]);
-        let mut command = Command::new("inert-player");
+        let mut command =
+            ChildProcessPolicy::native_command(ChildProcessClass::Game, "inert-player").unwrap();
         command
             .env_clear()
             .env("HOME", &home)
@@ -274,7 +277,8 @@ mod tests {
             fixed_arguments_only: true,
             launch_kind: crate::LaunchKind::Native,
         };
-        let mut command = Command::new("inert-player");
+        let mut command =
+            ChildProcessPolicy::native_command(ChildProcessClass::Game, "inert-player").unwrap();
         command.env_clear().env("XDG_DATA_HOME", &data);
         let check = |command: &Command| {
             super::super::require_external_roots(

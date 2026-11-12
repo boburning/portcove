@@ -84,13 +84,6 @@
     "rust-quality-full-2": {
       "arguments": ["--test", "--test-reporter=./scripts/required-node-test-reporter.mts"]
     },
-    "rust-quality-full-3": {
-      "arguments": [
-        "--test",
-        "--test-timeout=30000",
-        "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
-    },
     "frontend-full": {
       "arguments": [
         "--test",
@@ -602,6 +595,13 @@
       "memberships": [
         ["catalog-full-2", 5001],
         ["repository-tools-2", 601]
+      ]
+    },
+    {
+      "file": "scripts/browser-shard-balance.test.mts",
+      "memberships": [
+        ["catalog-full-2", 5003],
+        ["repository-tools-2", 603]
       ]
     },
     {
@@ -1377,6 +1377,83 @@
       "memberships": [
         ["catalog-full-2", 9200],
         ["repository-tools-2", 4200]
+      ]
+    },
+    {
+      "file": "scripts/maintenance-inventory.test.mts",
+      "memberships": [
+        ["catalog-full", 1271],
+        ["repository-tools", 406]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "darwin"],
+          "owner": "catalog-full",
+          "category": "prerequisite",
+          "prerequisite": "Non-root PostgreSQL 16+ server binaries (initdb, pg_ctl) for disposable clusters",
+          "reason": "The read-only inventory proof needs a real PostgreSQL cluster; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full on ubuntu-latest",
+          "cases": [
+            "declared records flow through Core assessment, the store and a static report",
+            "complete collection stores changes only, verifies membership and records absence",
+            "each host platform keeps its own assessment history, gaps and latest run",
+            "release health records coverage, quiet recurrence and needs-attention conditions",
+            "upstream observations record coverage, quiet recurrence, attention and failed reads",
+            "hosted intake records requests, quiet recurrence, attention, gaps and failed reads",
+            "handoffs plan once, stay quiet, clear and abandon only after complete runs, and refuse stale fences"
+          ],
+          "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
+        }
+      ]
+    },
+    {
+      "file": "scripts/maintenance-release-health.test.mts",
+      "memberships": [
+        ["catalog-full", 1272],
+        ["repository-tools", 407]
+      ]
+    },
+    {
+      "file": "scripts/maintenance-upstream.test.mts",
+      "memberships": [
+        ["catalog-full", 1273],
+        ["repository-tools", 408]
+      ]
+    },
+    {
+      "file": "scripts/maintenance-hosted-intake.test.mts",
+      "memberships": [
+        ["catalog-full", 1274],
+        ["repository-tools", 409]
+      ]
+    },
+    {
+      "file": "scripts/maintenance-handoffs.test.mts",
+      "memberships": [
+        ["catalog-full", 1275],
+        ["repository-tools", 410]
+      ]
+    },
+    {
+      "file": "scripts/maintenance-store.test.mts",
+      "memberships": [
+        ["catalog-full", 1270],
+        ["repository-tools", 405]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "darwin"],
+          "owner": "catalog-full",
+          "category": "prerequisite",
+          "prerequisite": "Non-root PostgreSQL 16+ server binaries (initdb, pg_ctl) for disposable clusters",
+          "reason": "The integration proof needs real PostgreSQL clusters; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full on ubuntu-latest",
+          "cases": [
+            "maintenance store guards history and survives an independent PostgreSQL restore",
+            "an interrupted maintenance migration leaves no partial schema and resumes cleanly"
+          ],
+          "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
+        }
       ]
     },
     {
@@ -3920,25 +3997,6 @@
       "memberships": [
         ["frontend-full", 200],
         ["development-tools", 4100]
-      ]
-    },
-    {
-      "file": "scripts/run-rscheck.test.mts",
-      "memberships": [["rust-quality-full-3", 100]],
-      "platform_skips": [
-        {
-          "platform": ["linux", "win32", "darwin"],
-          "owner": "rust-quality-full-3",
-          "category": "prerequisite",
-          "prerequisite": "Pinned rscheck is not installed; run the maintained rscheck route for this control",
-          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
-          "intended_route": ".github/workflows/ci.yml; complete Node suite rust-quality-full-3; Mac complement macos-platform-contracts",
-          "cases": [
-            "TFE hostile-path exception applies only to the exact dedicated test fixture",
-            "reviewed portability literals apply only to exact files and exact values"
-          ],
-          "skip_reason_prefix": "Pinned rscheck is not installed; run the maintained rscheck route for this control"
-        }
       ]
     },
     {

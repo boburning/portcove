@@ -580,6 +580,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/fixtures/semantic-review-appcontainer.cs.txt",
   "scripts/release-capacity-operation.mts",
   "scripts/release-input-protections.mts",
+  "scripts/release-ref-rulesets.mts",
   "scripts/release-reviewed-inputs.mts",
   "docs/qualification/release-reviewed-inputs.held.yml",
   "scripts/trusted-aggregate-attestation.mts",
@@ -801,7 +802,10 @@ function classifyPath(file: string): PathOwnership {
   const documentation =
     (file.endsWith(".md") || file.startsWith("docs/") || inertGithubFile) &&
     !(releaseSecurity && /\.ya?ml$/u.test(file));
-  const rust = file.startsWith("crates/") || file.startsWith("apps/desktop/src-tauri/");
+  const rust =
+    file.startsWith("crates/") ||
+    file.startsWith("apps/desktop/src-tauri/") ||
+    file.startsWith("tools/rust-portability/");
   const rootRust = [
     "Cargo.toml",
     "Cargo.lock",
@@ -827,6 +831,8 @@ function classifyPath(file: string): PathOwnership {
           "scripts/frontend-case-observations.ts",
           "scripts/viteplus-cli.mts",
           "scripts/frontend-tests.ts",
+          "scripts/browser-shard-balance.mts",
+          ".config/browser-test-weights.json",
           "scripts/run-ui-tests.mts",
           "scripts/test-coverage-config.mts",
           "scripts/coverage-maps.mts",
@@ -948,7 +954,6 @@ function classifyPath(file: string): PathOwnership {
           "tsconfig.json",
           "tsconfig.base.json",
           ".prettierignore",
-          ".rscheck.toml",
           "eslint.config.mjs",
           "prettier.config.mjs",
           "pyproject.toml",
@@ -1063,6 +1068,8 @@ function classifyAuditPath(file: string): PathOwnership {
         "scripts/frontend-case-observations.ts",
         "scripts/viteplus-cli.mts",
         "scripts/frontend-tests.ts",
+        "scripts/browser-shard-balance.mts",
+        ".config/browser-test-weights.json",
         "scripts/run-ui-tests.mts",
         "scripts/test-coverage-config.mts",
         "scripts/coverage-maps.mts",
@@ -1081,6 +1088,7 @@ function classifyAuditPath(file: string): PathOwnership {
   );
   match(
     file.startsWith("crates/") ||
+      file.startsWith("tools/rust-portability/") ||
       [
         "Cargo.toml",
         "Cargo.lock",
@@ -1164,7 +1172,6 @@ function classifyAuditPath(file: string): PathOwnership {
         "tsconfig.json",
         "tsconfig.base.json",
         ".prettierignore",
-        ".rscheck.toml",
         "eslint.config.mjs",
         "prettier.config.mjs",
         "pyproject.toml",

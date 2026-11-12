@@ -20,7 +20,19 @@ import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 
 const catalogRefusalStages = {
-  launch: ["source-admission", "job-clock", "tool-custody", "attested-worker", "worker-settlement"],
+  launch: [
+    "source-admission",
+    "job-clock",
+    "tool-custody",
+    "tool-custody-provider-before",
+    "tool-custody-opaque-download",
+    "tool-custody-archive-inspection",
+    "tool-custody-pinned-attestation-verifier",
+    "tool-custody-provider-after",
+    "tool-custody-materialize-only-verified-tools",
+    "attested-worker",
+    "worker-settlement",
+  ],
   operation: [
     "actual-catalog-admission",
     "catalog-reader-identity",

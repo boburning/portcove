@@ -90,7 +90,7 @@ function shareWorkspaceRead(previous: unknown, next: unknown): WorkspaceRead {
 }
 
 /** Rebuilds a complete snapshot, reusing held catalog objects when unchanged. */
-export function restoreUnchangedCatalog(
+function restoreUnchangedCatalog(
   transport: WorkspaceSnapshotTransport,
   held: WorkspaceSnapshot | undefined,
 ): WorkspaceSnapshot {

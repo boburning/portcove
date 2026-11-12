@@ -192,6 +192,20 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
         Commands::Launch { command } => match command {
             LaunchCommand::Show { .. } | LaunchCommand::Recover { .. } => Recovering,
         },
+        Commands::Games { command } => match command {
+            GamesCommand::List
+            | GamesCommand::BatchPlan { .. }
+            | GamesCommand::BatchShow { .. }
+            | GamesCommand::Intents => ReadOnly,
+            GamesCommand::Add { .. }
+            | GamesCommand::Remove { .. }
+            | GamesCommand::BatchRun { .. }
+            | GamesCommand::BatchResume { .. }
+            | GamesCommand::BatchCancel { .. }
+            | GamesCommand::Intent { .. }
+            | GamesCommand::IntentsAcknowledge { .. }
+            | GamesCommand::SetupReady => Recovering,
+        },
         // These commands return before shared service construction. Preserve the
         // historical policy bit without moving their own dispatch/constructors.
         Commands::Library { command } => match command {
@@ -228,6 +242,7 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
         | Commands::Plan { .. }
         | Commands::Paths { .. }
         | Commands::RemovePreview { .. }
+        | Commands::LauncherLibrary { .. }
         | Commands::Capabilities => ReadOnly,
         Commands::Cancel { .. }
         | Commands::About
@@ -342,6 +357,7 @@ mod tests {
     #[test]
     fn parsed_leaf_policy_matches_prechange_oracle() {
         let observations = [
+            "launcher-library inspect --launcher quiver dir",
             "artwork handoff p --role portrait-cover",
             "artwork handoff-bytes p --role portrait-cover --expected-library-id l --expected-revision 1 --expected-asset-sha256 a",
             "artwork show p",

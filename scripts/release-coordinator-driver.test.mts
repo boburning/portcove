@@ -1213,6 +1213,94 @@ void test("catalog coordinator reconstructs the appointed initial commit through
   assert.equal(dispatches, 2);
 });
 
+void test("neutral checkpoint reacquires expired protection before claim and refuses changed controls", async () => {
+  const source = await readFile(
+    new URL("./release-coordinator-driver.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("function applicationReviewCheckpointControls(");
+  const end = source.indexOf("/** Withdraw one owner-appointed request", start);
+  assert.ok(start > 0 && end > start);
+  const subject = "a".repeat(64);
+  let now = Date.parse("2026-11-11T14:04:20.486Z");
+  const deadline = 180000;
+  const facts = (time: number, policy: string, round: number) => ({
+    phase: "coordinator",
+    purpose: "metadata-coordinator-controls",
+    resource_policy_matches_controller: true,
+    reader: { job_id: 123, expires_at: new Date(time + 90000).toISOString(), round },
+    protection: { observed_at: new Date(time).toISOString(), inventory_sha256: policy },
+    pause: { commit: "b".repeat(40), publication_paused: false },
+    capacity: { document_sha256: "c".repeat(64) },
+    facts_sha256: releaseCanonicalDigest({ time, policy, round }),
+  });
+  const reads: number[] = [];
+  const acquired: number[] = [];
+  let policy = "d".repeat(64);
+  const control = (time: number, round: number) => {
+    const observed = facts(time, policy, round);
+    return {
+      evidence_scope: "github.com",
+      async readSdkMaintenance(
+        allowance: unknown,
+        options: { deadline: number; maxBytes: number },
+      ) {
+        assert.equal(allowance, undefined);
+        assert.equal(options.deadline, deadline);
+        assert.equal(options.maxBytes, 16 * 1024 ** 2);
+        assert.ok(now < time + 60000, "expired observation cannot authorize an effect");
+        reads.push(round);
+        return observed;
+      },
+    };
+  };
+  const createControls = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end)) + "\napplicationReviewCheckpointControls",
+    {
+      Date: { now: () => now, parse: Date.parse },
+      path,
+      coordinatorMaintenanceIdentity,
+      async authenticateReleaseControlRound(
+        directory: string,
+        digest: string,
+        phase: string,
+        round: number,
+        options: { deadline: number; controlReader: string },
+      ) {
+        assert.equal(directory, `/inert/application-review-control-${round}`);
+        assert.equal(digest, subject);
+        assert.equal(phase, "coordinator");
+        assert.equal(options.deadline, deadline);
+        assert.equal(options.controlReader, "metadata-maintenance");
+        acquired.push(round);
+        return control(now, round);
+      },
+    },
+  ) as (...args: unknown[]) => () => Promise<void>;
+  let sourceReads = 0;
+  const recheck = createControls(
+    "/inert",
+    subject,
+    { monotonicDeadline: deadline, check() {} },
+    control(now, 0),
+    facts(now, policy, 0),
+    async () => {
+      sourceReads++;
+    },
+  );
+  await recheck();
+  now += 60023;
+  await recheck();
+  await recheck();
+  assert.deepEqual(acquired, [1]);
+  assert.deepEqual(reads, [0, 1, 1]);
+  now += 30000;
+  policy = "e".repeat(64);
+  await assert.rejects(recheck(), /checkpoint controls changed/u);
+  assert.deepEqual(acquired, [1, 2]);
+  assert.equal(sourceReads, 4);
+});
+
 void test("actual neutral review entry awaits fixed SDK source and complete inventory before unchanged decision", async (t) => {
   const sourceUrl = new URL("./release-coordinator-driver.mts", import.meta.url);
   const source = await readFile(sourceUrl, "utf8");

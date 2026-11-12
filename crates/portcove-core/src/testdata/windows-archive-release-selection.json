@@ -1,5 +1,17 @@
 {
   "cases": {
+    "sonic-the-hedgehog-2013-mobile-edition-rsdkv4-decompilation": {
+      "inventory": "rsdkv4",
+      "repository_id": 321543928,
+      "selected_assets": ["v4-windows-x64.zip", "v4-windows-x64.zip"],
+      "linux_selected_assets": ["v4-linux.zip", "v4-linux.zip"]
+    },
+    "sonic-the-hedgehog-2-2013-mobile-edition-rsdkv4-decompilation": {
+      "inventory": "rsdkv4",
+      "repository_id": 321543928,
+      "selected_assets": ["v4-windows-x64.zip", "v4-windows-x64.zip"],
+      "linux_selected_assets": ["v4-linux.zip", "v4-linux.zip"]
+    },
     "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo": {
       "inventory": "openjk",
       "repository_id": 9214660,
@@ -1444,6 +1456,82 @@
     }
   },
   "inventories": {
+    "rsdkv4": [
+      {
+        "id": 259036513,
+        "tag_name": "1.3.3",
+        "published_at": "2025-11-02T00:48:00Z",
+        "draft": false,
+        "prerelease": false,
+        "assets": [
+          {
+            "id": 311445073,
+            "name": "v4-android.zip",
+            "size": 2981773,
+            "digest": "sha256:1807a029bf9254518dc4eb6e14622c09827baa3bafbe03ef79c5cea617f6dc55",
+            "browser_download_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/releases/download/1.3.3/v4-android.zip"
+          },
+          {
+            "id": 311445067,
+            "name": "v4-linux.zip",
+            "size": 568095,
+            "digest": "sha256:119f6a8bfcf20a4edeaf8c97ea3903a63812ccd457ed4a89d6cb6ba443f7f3b7",
+            "browser_download_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/releases/download/1.3.3/v4-linux.zip"
+          },
+          {
+            "id": 311445048,
+            "name": "v4-windows-x64.zip",
+            "size": 1350673,
+            "digest": "sha256:e491bb9556b48bdb1fd656801a5bd7ce19dc0b7a31693bff754f619a9a8fa814",
+            "browser_download_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/releases/download/1.3.3/v4-windows-x64.zip"
+          },
+          {
+            "id": 311445060,
+            "name": "v4-windows.zip",
+            "size": 1198568,
+            "digest": "sha256:ce29bfeb04dbe334d76d4bff8dface26ef5f5bfe9d7ee39a18efc7f4422c1078",
+            "browser_download_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/releases/download/1.3.3/v4-windows.zip"
+          }
+        ]
+      },
+      {
+        "id": 259036514,
+        "tag_name": "1.3.4",
+        "published_at": "2026-10-01T00:00:00Z",
+        "draft": false,
+        "prerelease": false,
+        "assets": [
+          {
+            "id": 311446073,
+            "name": "v4-android.zip",
+            "size": 2981774,
+            "digest": "sha256:60ce478b0d88a36030d9d57121a1565d6750652d78e721fb6691cbcf1a3d4a05",
+            "browser_download_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/releases/download/1.3.4/v4-android.zip"
+          },
+          {
+            "id": 311446067,
+            "name": "v4-linux.zip",
+            "size": 568096,
+            "digest": "sha256:6d9e669354c452f26c7abd449294c3976ff468c967faf059ad9674d91ba417d5",
+            "browser_download_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/releases/download/1.3.4/v4-linux.zip"
+          },
+          {
+            "id": 311446048,
+            "name": "v4-windows-x64.zip",
+            "size": 1350674,
+            "digest": "sha256:3e8e8f121fc1b8b31f898d9624e51d1dab4a92f56cf46f4ae247dbdab16a2b99",
+            "browser_download_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/releases/download/1.3.4/v4-windows-x64.zip"
+          },
+          {
+            "id": 311446060,
+            "name": "v4-windows.zip",
+            "size": 1198569,
+            "digest": "sha256:299fc1d1d9cfd4974099d3f296f6b10e27257caa9731f6f82bda24664335defc",
+            "browser_download_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/releases/download/1.3.4/v4-windows.zip"
+          }
+        ]
+      }
+    ],
     "openjk": [
       {
         "id": 398990609,
@@ -7826,6 +7914,26 @@
     ]
   },
   "other_zip_assets": [
+    {
+      "inventory": "rsdkv4",
+      "release_index": 0,
+      "asset": "v4-android.zip"
+    },
+    {
+      "inventory": "rsdkv4",
+      "release_index": 0,
+      "asset": "v4-windows.zip"
+    },
+    {
+      "inventory": "rsdkv4",
+      "release_index": 1,
+      "asset": "v4-android.zip"
+    },
+    {
+      "inventory": "rsdkv4",
+      "release_index": 1,
+      "asset": "v4-windows.zip"
+    },
     {
       "inventory": "openjk",
       "release_index": 0,

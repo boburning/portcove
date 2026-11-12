@@ -804,6 +804,10 @@ pub struct PortDefinition {
     /// their configuration, so it must be a declared persistent path and is never reset.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub portable_marker_file: Option<String>,
+    /// Native25: keep the Linux player's portable profile in this declared
+    /// directory beside the executable, creating it when absent before Play.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub linux_portable_data_directory: Option<String>,
     /// Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub n64_windows_initial_d3d12: bool,
@@ -1099,6 +1103,9 @@ pub struct PortListingStatus {
     /// Optional inert read model; absence cannot suppress an independently allowed action.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub capabilities: Option<crate::PortCapabilityReport>,
+    /// Explicit saved Library entry, independent of any installation or registration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub library_membership: Option<crate::LibraryMembership>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -2356,6 +2363,20 @@ impl CapabilityDocument {
                 "installation.reference-removal-plan".into(),
                 "installation.reference-remove".into(),
                 "adopt".into(),
+                "launcher-library.inspect".into(),
+                "games".into(),
+                "games.list".into(),
+                "games.add".into(),
+                "games.remove".into(),
+                "games.batch-plan".into(),
+                "games.batch-run".into(),
+                "games.batch-resume".into(),
+                "games.batch-cancel".into(),
+                "games.batch-show".into(),
+                "games.intent".into(),
+                "games.intents".into(),
+                "games.intents-acknowledge".into(),
+                "games.setup-ready".into(),
                 "ensure".into(),
                 "update".into(),
                 "verify".into(),

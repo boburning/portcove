@@ -62,6 +62,7 @@ mod removal;
 #[cfg(any(windows, target_os = "linux"))]
 mod runtime_support;
 mod source_removal;
+pub mod steam_artwork;
 pub mod steam_entries;
 pub mod steam_entry_commands;
 mod transport;
@@ -1032,6 +1033,229 @@ async fn get_game_file_roots(
 ) -> DesktopResult<Vec<portcove_core::GameFileRoot>> {
     blocking_service_at_generation(state.inner().clone(), generation, move |service| {
         service.library().game_file_roots().map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn get_library_memberships(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<Vec<portcove_core::LibraryMembership>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.library_memberships().map_err(Into::into)
+    })
+    .await
+}
+
+/// Saves reviewed games to the Library. Acquires, registers, installs and launches nothing.
+#[tauri::command]
+async fn add_games_to_library(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    requests: Vec<portcove_core::LibraryMembershipRequest>,
+) -> DesktopResult<Vec<portcove_core::LibraryMembershipOutcome>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.add_games_to_library(&requests).map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn remove_library_membership(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+) -> DesktopResult<bool> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .remove_library_membership(&port_id)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+/// Reviews first installs for the selected games. Changes nothing.
+#[tauri::command]
+async fn plan_install_batch(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_ids: Vec<String>,
+) -> DesktopResult<portcove_core::InstallBatchReview> {
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .plan_install_batch(&port_ids)
+                .await
+                .map_err(Into::into)
+        },
+    )
+    .await
+}
+
+/// Saves the reviewed games to the Library and records exactly them as one
+/// confirmed batch. Stores no authorization and runs nothing yet.
+#[tauri::command]
+async fn start_install_batch(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    items: Vec<portcove_core::InstallBatchRequestItem>,
+) -> DesktopResult<portcove_core::InstallBatchRecord> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .start_install_batch(
+                &items,
+                portcove_core::LibraryMembershipOrigin::GameFileDiscovery,
+            )
+            .map_err(Into::into)
+    })
+    .await
+}
+
+/// Runs the batch's unstarted games once each. Every game re-plans and is
+/// freshly authorized before it runs; finished games are never repeated and no
+/// game is launched.
+#[tauri::command]
+async fn run_install_batch(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    batch_id: String,
+    on_event: Option<tauri::ipc::JavaScriptChannelId>,
+) -> DesktopResult<portcove_core::InstallBatchRecord> {
+    let on_event: Option<tauri::ipc::Channel<OperationEvent>> =
+        on_event.map(|id| id.channel_on(webview));
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .run_install_batch(&batch_id, |event| {
+                    emit_install_operation(&app, &on_event, event)
+                })
+                .await
+                .map_err(Into::into)
+        },
+    )
+    .await
+}
+
+/// Batches with games that have not finished, newest first, so an interrupted
+/// batch can be continued after a restart.
+#[tauri::command]
+async fn get_unfinished_install_batches(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<Vec<portcove_core::InstallBatchRecord>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.unfinished_install_batches().map_err(Into::into)
+    })
+    .await
+}
+
+/// Stops games in the batch that have not started; a running install keeps its
+/// ordinary cancellation and cleanup boundaries.
+#[tauri::command]
+async fn cancel_install_batch(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    batch_id: String,
+) -> DesktopResult<portcove_core::InstallBatchRecord> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.cancel_install_batch(&batch_id).map_err(Into::into)
+    })
+    .await
+}
+
+/// Records the player's choice for one game. Discover-only is the default.
+#[tauri::command]
+async fn set_port_intent(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    mode: portcove_core::PortIntentMode,
+) -> DesktopResult<portcove_core::PortIntent> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.set_port_intent(&port_id, mode).map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn get_port_intents(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<Vec<portcove_core::PortIntent>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.port_intents().map_err(Into::into)
+    })
+    .await
+}
+
+/// Reassesses remembered choices against current files, catalog and tools. Reads only.
+#[tauri::command]
+async fn assess_port_intents(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<portcove_core::PortIntentAssessments> {
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move { service.assess_port_intents().await.map_err(Into::into) },
+    )
+    .await
+}
+
+#[tauri::command]
+async fn acknowledge_port_readiness(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    acknowledgements: Vec<portcove_core::PortReadinessAcknowledgement>,
+) -> DesktopResult<()> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .acknowledge_port_readiness(&acknowledgements)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+/// Installs every set-up-when-ready game that is ready now, under the player's
+/// standing choice. Each game is re-planned and freshly authorized; none is launched.
+#[tauri::command]
+async fn run_standing_setup(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    on_event: Option<tauri::ipc::JavaScriptChannelId>,
+) -> DesktopResult<portcove_core::StandingSetupResult> {
+    let on_event: Option<tauri::ipc::Channel<OperationEvent>> =
+        on_event.map(|id| id.channel_on(webview));
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .run_standing_setup(|event| emit_install_operation(&app, &on_event, event))
+                .await
+                .map_err(Into::into)
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+async fn get_install_batch(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    batch_id: String,
+) -> DesktopResult<Option<portcove_core::InstallBatchRecord>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.install_batch(&batch_id).map_err(Into::into)
     })
     .await
 }
@@ -2813,6 +3037,8 @@ pub fn run() -> std::process::ExitCode {
             steam_entry_commands::apply_steam_entry,
             steam_entry_commands::preview_steam_batch_add,
             steam_entry_commands::apply_steam_batch_add,
+            steam_entry_commands::preview_steam_artwork,
+            steam_entry_commands::apply_steam_artwork,
             library_selection::get_library_identity,
             library_selection::get_default_library_root,
             library_selection::set_default_library,
@@ -2886,6 +3112,20 @@ pub fn run() -> std::process::ExitCode {
             forecast_installed_update_checks,
             add_source,
             get_game_file_roots,
+            get_library_memberships,
+            add_games_to_library,
+            remove_library_membership,
+            plan_install_batch,
+            start_install_batch,
+            run_install_batch,
+            get_unfinished_install_batches,
+            set_port_intent,
+            get_port_intents,
+            assess_port_intents,
+            acknowledge_port_readiness,
+            run_standing_setup,
+            cancel_install_batch,
+            get_install_batch,
             add_game_file_root,
             relink_game_file_root,
             remove_game_file_root,
@@ -2906,6 +3146,7 @@ pub fn run() -> std::process::ExitCode {
             activate_port,
             rollback_port,
             adoption::preview_adoption,
+            adoption::inspect_launcher_library,
             adoption::adopt_port,
             removal::preview_removal,
             removal::remove_port,

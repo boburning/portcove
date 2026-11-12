@@ -38,14 +38,6 @@
       "ci_install": "prebuilt"
     },
     {
-      "id": "rscheck-cli",
-      "crate": "rscheck-cli",
-      "version": "0.1.0",
-      "command": ["rscheck", "--version"],
-      "tier": "required",
-      "ci_install": "cached"
-    },
-    {
       "id": "cargo-mutants",
       "crate": "cargo-mutants",
       "version": "27.1.0",

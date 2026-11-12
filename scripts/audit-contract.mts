@@ -37,7 +37,12 @@ export const AUDIT_STAGES: readonly AuditStage[] = Object.freeze([
     reusable: false,
     reason: "dependency and advisory state is externally mutable",
   },
-  { id: "rscheck", recipe: "rscheck", domain: "rscheck", reusable: true },
+  {
+    id: "rust-portability",
+    recipe: "rust-portability",
+    domain: "rust-portability",
+    reusable: true,
+  },
   {
     id: "release-unit",
     recipe: "release-check",

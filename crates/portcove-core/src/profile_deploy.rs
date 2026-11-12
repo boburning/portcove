@@ -1008,6 +1008,45 @@ impl PortcoveService {
         }
     }
 
+    /// The build a launch should use. The default profile follows the active build,
+    /// as a single-setup player expects. A selected non-default profile launches the
+    /// exact build its materialized revision pins, for this launch only: the global
+    /// active pointer never changes, and an unavailable pinned build holds the
+    /// launch instead of substituting the latest one.
+    pub(crate) fn profile_pinned_install(
+        &self,
+        port_id: &str,
+        active: Option<crate::InstallRecord>,
+    ) -> Result<Option<crate::InstallRecord>> {
+        let Some(active) = active else {
+            return Ok(None);
+        };
+        let connection = self.library.connection()?;
+        let Some((profile_id, revision)) = profile::selection(&connection, port_id)? else {
+            return Ok(Some(active));
+        };
+        let selected = profile::profile_by_id(&connection, port_id, &profile_id)?;
+        if selected.is_default {
+            return Ok(Some(active));
+        }
+        let pinned = profile::revision_by_number(&connection, &profile_id, revision)?.build;
+        if pinned.install_id == active.id {
+            return Ok(Some(active));
+        }
+        let unavailable = |reason: &str| {
+            PortcoveError::conflict(
+                "the selected profile's exact build cannot be launched; no other build was substituted",
+            )
+            .detail("profile", &selected.display_name)
+            .detail("reason", reason)
+        };
+        let install = crate::Library::install_by_id(&connection, Some(&pinned.install_id))?
+            .ok_or_else(|| unavailable("the build is no longer installed"))?;
+        self.verified_retained_build(port_id, &install.id)
+            .map_err(|error| unavailable(&error.message))?;
+        Ok(Some(install))
+    }
+
     /// Read-only view of live mods against the selected revision.
     pub fn observe_live_mods(&self, port_id: &str) -> Result<LiveMods> {
         let layout = self.deploy_layout(port_id)?;

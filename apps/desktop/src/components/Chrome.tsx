@@ -376,7 +376,7 @@ export function PageHeader({
         <h1 tabIndex={-1}>{copy.title}</h1>
         {view === "library" && libraryCount !== undefined && (
           <p className="mt-2 mb-0 text-sm text-[var(--color-text-secondary)]">
-            {libraryCount} library {libraryCount === 1 ? "entry" : "entries"}
+            {libraryCount} in your library
           </p>
         )}
         {copy.description && (
@@ -503,7 +503,10 @@ export function StatusLayer({
   dismissInvocation,
   openActivity,
   preparationRecovery,
+  onActivity = false,
 }: {
+  /** Activity is open: a link may reveal a known task there but never re-open Activity. */
+  onActivity?: boolean;
   error?: unknown;
   clearError: () => void;
   reviewPreparation?: (() => void) | undefined;
@@ -514,7 +517,7 @@ export function StatusLayer({
   invocations?: ReadonlyMap<number, InvocationRecord>;
   operationEvents?: ReadonlyMap<string, OperationEvent>;
   dismissInvocation?: (id: number) => void;
-  openActivity?: (id?: string) => void;
+  openActivity?: ((id?: string) => void) | undefined;
   preparationRecovery?: (record: InvocationRecord) => (() => void) | undefined;
 }) {
   const acknowledgedSuccess = useRef(new Set<number>());
@@ -568,6 +571,7 @@ export function StatusLayer({
                   invocation={record}
                   announceNeutral={false}
                   openActivity={openActivity}
+                  onActivity={onActivity}
                 />
               )}
               {record.phase === "pending" ? (
@@ -586,13 +590,13 @@ export function StatusLayer({
                     busy={record.outcome ? "refresh current state" : record.name}
                     announcePhase={false}
                   />
-                  {openActivity && (
+                  {openActivity && (!onActivity || record.context.activityId) && (
                     <Button
                       variant="link"
                       size="sm"
                       onClick={() => openActivity(record.context.activityId)}
                     >
-                      {record.context.activityId ? "View task in Activity" : "Open Activity"}
+                      {activityLinkLabel(record.context.activityId, onActivity)}
                     </Button>
                   )}
                 </>
@@ -610,7 +614,7 @@ export function StatusLayer({
                           size="sm"
                           onClick={() => openActivity(record.context.activityId)}
                         >
-                          View in Activity
+                          {onActivity ? "Show task" : "View in Activity"}
                         </Button>
                       )}
                       {dismissInvocation && (
@@ -678,6 +682,12 @@ function invocationAnnouncement(
   return outcome ? `${identity}: ${outcome}.` : undefined;
 }
 
+/** On Activity itself, a link only reveals the exact task; it never re-opens Activity. */
+function activityLinkLabel(activityId: string | undefined, onActivity: boolean) {
+  if (onActivity) return "Show task";
+  return activityId ? "View task in Activity" : "Open Activity";
+}
+
 function ErrorNotice({
   error,
   clearError,
@@ -685,8 +695,10 @@ function ErrorNotice({
   reviewCurrentState,
   invocation,
   openActivity,
+  onActivity = false,
   announceNeutral = true,
 }: {
+  onActivity?: boolean;
   error: unknown;
   clearError: () => void;
   reviewPreparation?: (() => void) | undefined;
@@ -749,14 +761,14 @@ function ErrorNotice({
       </span>
       <div data-slot="notice-body">{renderFailureDetails()}</div>
       <div data-slot="notice-actions" className="error-actions flex gap-1">
-        {openActivity && invocation && (
+        {openActivity && invocation && (!onActivity || invocation.context.activityId) && (
           <Button
             data-focusable
             variant="outline"
             size="sm"
             onClick={() => openActivity(invocation.context.activityId)}
           >
-            {invocation.context.activityId ? "View task in Activity" : "Open Activity"}
+            {activityLinkLabel(invocation.context.activityId, onActivity)}
           </Button>
         )}
         {reviewCurrentState && presentation?.recovery_actions.includes("review_current_state") && (

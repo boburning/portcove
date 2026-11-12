@@ -773,3 +773,84 @@ fn a_change_reviewed_before_a_menu_reorder_still_applies_and_keeps_the_new_order
     let stale = install(&w, &w.default, "d.o2r", shown).unwrap_err();
     assert_eq!(stale.code, crate::ErrorCode::Conflict);
 }
+
+#[test]
+fn launch_pins_a_non_default_profiles_exact_build_without_moving_the_active_pointer() {
+    use crate::retained_build::tests::install;
+    let w = world();
+    let first = w
+        .service
+        .library()
+        .all_installs()
+        .unwrap()
+        .into_iter()
+        .find(|install| install.id == "first")
+        .unwrap();
+    // The game later updates: a newer build becomes the global active build.
+    let second = install(w.service.library(), "second", b"newer runtime", true);
+    let pinned = w
+        .service
+        .copy_profile("starship", &w.default, "Pinned")
+        .unwrap();
+    let active = || {
+        w.service
+            .library()
+            .all_installs()
+            .unwrap()
+            .into_iter()
+            .find(|install| install.id == "second")
+    };
+    // The default profile follows whatever is active, as a single-setup player expects.
+    let chosen = w
+        .service
+        .profile_pinned_install("starship", active())
+        .unwrap()
+        .unwrap();
+    assert_eq!(chosen.id, second.id);
+    // Selecting the pinned profile launches the exact build its revision names.
+    w.service.activate_profile("starship", &pinned.id).unwrap();
+    let chosen = w
+        .service
+        .profile_pinned_install("starship", active())
+        .unwrap()
+        .unwrap();
+    assert_eq!(chosen.id, first.id, "the pinned build, not the latest");
+    // The global active selection is untouched.
+    let status = w.service.status("starship").unwrap();
+    assert_eq!(status.active.unwrap().id, second.id);
+    // No installation means nothing to pin.
+    assert!(
+        w.service
+            .profile_pinned_install("starship", None)
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
+fn an_unavailable_pinned_build_holds_the_launch_instead_of_substituting_latest() {
+    use crate::retained_build::tests::install;
+    let w = world();
+    let pinned = w
+        .service
+        .copy_profile("starship", &w.default, "Pinned")
+        .unwrap();
+    let second = install(w.service.library(), "second", b"newer runtime", true);
+    w.service.activate_profile("starship", &pinned.id).unwrap();
+    // The pinned build's bytes go missing.
+    let first = w
+        .service
+        .library()
+        .all_installs()
+        .unwrap()
+        .into_iter()
+        .find(|install| install.id == "first")
+        .unwrap();
+    fs::remove_file(first.path.join(".portcove-manifest.json")).unwrap();
+    let error = w
+        .service
+        .profile_pinned_install("starship", Some(second))
+        .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Conflict);
+    assert!(error.message.contains("no other build was substituted"));
+}

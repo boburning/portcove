@@ -649,14 +649,14 @@ void test("completed raw failed producer imports passed deterministic stages and
   const f = fixture();
   const payload = structuredClone(f.aggregate.payload);
   payload.success = false;
-  Object.assign(required(payload.stages.find((s) => s.id === "rscheck")), {
+  Object.assign(required(payload.stages.find((s) => s.id === "rust-portability")), {
     status: "failed",
     exitCode: 1,
   });
   const aggregate = receiptEnvelope(payload);
   const receipts = Object.fromEntries(
     [...f.bundle.files]
-      .filter(([name]) => name.startsWith("receipts/") && name !== "receipts/rscheck.json")
+      .filter(([name]) => name.startsWith("receipts/") && name !== "receipts/rust-portability.json")
       .map(([name, bytes]) => [name.slice(9, -5), record(JSON.parse(bytes.toString("utf8")))]),
   );
   const bundle = buildAuditBundle({
@@ -679,16 +679,16 @@ void test("completed raw failed producer imports passed deterministic stages and
       workflowDigest: f.proof.workflowDigest,
     });
     assert.ok(result.imported.includes("rust"));
-    assert.equal(result.imported.includes("rscheck"), false);
+    assert.equal(result.imported.includes("rust-portability"), false);
     const admitted = validateAuditProducer(bundle.files, f.proof, {
       workflowDigest: f.proof.workflowDigest,
     });
     assert.equal(admitted.aggregate.payload.success, false);
     assert.equal(
-      required(admitted.aggregate.payload.stages.find((s) => s.id === "rscheck")).status,
+      required(admitted.aggregate.payload.stages.find((s) => s.id === "rust-portability")).status,
       "failed",
     );
-    assert.equal(bundle.files.has("receipts/rscheck.json"), false);
+    assert.equal(bundle.files.has("receipts/rust-portability.json"), false);
     assert.ok(result.provenance);
   } finally {
     rmSync(root, { recursive: true, force: true });
