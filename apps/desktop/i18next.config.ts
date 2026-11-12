@@ -72,6 +72,7 @@ export default defineConfig({
       "src/components/InstallBatchPanel.tsx",
       "src/components/GameFileSetupReviews.tsx",
       "src/components/GameSettingsPanel.tsx",
+      "src/components/LibraryImport.tsx",
       "src/components/ModSetupsControl.tsx",
       "src/features/browsing/CatalogFilters.tsx",
       "src/features/browsing/GroupedDiscover.tsx",
