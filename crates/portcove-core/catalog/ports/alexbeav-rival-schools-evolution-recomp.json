@@ -31,7 +31,7 @@
         },
         {
           "title": "Prepare a separate Mac copy",
-          "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+          "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The inspected Mac setup host and bundled generators require macOS 11 or newer."
         },
         {
           "title": "Build and add the completed Mac player",
@@ -42,7 +42,7 @@
         "Portcove checks the first data track and track count. Keep the complete disc intact.",
         "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
       ],
-      "help_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp/releases/tag/v0.1.0",
+      "help_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp#readme",
       "references": [
         {
           "title": "Keep the original files and your data",
