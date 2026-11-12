@@ -71,7 +71,7 @@ export default interface Resources {
       "saved": "Update settings saved. Saving these settings does not start an update."
     },
     "preferences": {
-      "automaticUnavailable": "Automatic isn't available because this build can't install its own updates. Install updates through your package manager or the manual instructions; Portcove can still check and notify you.",
+      "automaticUnavailable": "Automatic isn't available because this build can't install its own updates.",
       "channelDescription_preview": "Preview receives public test releases and later eligible final releases.",
       "channelDescription_stable": "Stable waits for an eligible production release that is newer than your installed version; it never downgrades Portcove.",
       "channelGroup": "Application update channel",

@@ -1010,7 +1010,7 @@ describe("ApplicationUpdateSettings", () => {
       const reason = document.getElementById("application-update-automatic-unavailable");
       expect(modes.getAttribute("aria-describedby")).toBe(reason?.id);
       expect(reason?.textContent).toBe(
-        "Automatic isn't available because this build can't install its own updates. Install updates through your package manager or the manual instructions; Portcove can still check and notify you.",
+        "Automatic isn't available because this build can't install its own updates.",
       );
       expect(button("Automatic").disabled).toBe(true);
       expect(modes.textContent).not.toContain("Recommended");
@@ -1019,6 +1019,20 @@ describe("ApplicationUpdateSettings", () => {
       expect(button("Check for updates").disabled).toBe(false);
     },
   );
+
+  it("shows a default Automatic draft as the disabled choice without describing it", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(missingChoice);
+    vi.mocked(desktopApi.applicationUpdateStatus).mockResolvedValue({
+      ...idleStatus,
+      install_eligibility: "not-configured",
+    });
+    await render();
+    await expect.poll(() => button("Automatic").disabled).toBe(true);
+    expect(button("Automatic").getAttribute("aria-pressed")).toBe("true");
+    expect(host.textContent).not.toContain("Allows Portcove to check and stage verified updates");
+    expect(document.getElementById("application-update-automatic-unavailable")).not.toBeNull();
+    expect(button("Notify only").disabled).toBe(false);
+  });
 
   it("keeps Automatic available and recommended for a build that can update itself", async () => {
     vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);

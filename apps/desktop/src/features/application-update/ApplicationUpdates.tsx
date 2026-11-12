@@ -1290,8 +1290,9 @@ export function ApplicationUpdateSettings(
     loadStatus,
   } = useApplicationUpdateSettings(props);
   const { t } = useAppTranslation("applicationUpdate");
-  // A build that cannot install its own updates cannot honor Automatic; checks and
-  // notifications still work, so only that mode is withheld.
+  // A build that cannot install its own updates cannot honor Automatic. The status
+  // panel gives the per-installation guidance; a saved or default Automatic choice is
+  // shown as is. Until status loads, nothing is withheld; the host still enforces it.
   const automaticUnavailable = Boolean(status && status.install_eligibility !== "eligible");
   const renderPreferences = () =>
     preferences && (
@@ -1384,13 +1385,15 @@ export function ApplicationUpdateSettings(
               </Button>
             ))}
           </div>
-          <p className={updateMutedCopyClass}>
-            {draft.mode === "automatic"
-              ? t("preferences.modeDescription_automatic")
-              : draft.mode === "notify-only"
-                ? t("preferences.modeDescription_notifyOnly")
-                : t("preferences.modeDescription_manual")}
-          </p>
+          {!(draft.mode === "automatic" && automaticUnavailable) && (
+            <p className={updateMutedCopyClass}>
+              {draft.mode === "automatic"
+                ? t("preferences.modeDescription_automatic")
+                : draft.mode === "notify-only"
+                  ? t("preferences.modeDescription_notifyOnly")
+                  : t("preferences.modeDescription_manual")}
+            </p>
+          )}
           {automaticUnavailable && (
             <p id="application-update-automatic-unavailable" className={updateMutedCopyClass}>
               {t("preferences.automaticUnavailable")}

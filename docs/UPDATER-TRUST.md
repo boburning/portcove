@@ -38,11 +38,13 @@ production release and never a downgrade. Automatic-mode disclosure names stagin
 and makes safe exit or an explicit Restart to update action a separate apply boundary.
 When install eligibility is anything other than `eligible` (not configured,
 unavailable, or DEB/RPM package-managed), the Automatic choice is disabled, loses its
-Recommended tag and the mode group is described by one reason: install updates
-through the package manager or the manual instructions; Portcove can still check and
-notify. One-time checks, Notify only, Manual, channel, pause and reset stay available.
-This is presentation only: a saved or default Automatic choice is shown, not
-rewritten, and host preference semantics are unchanged (#5058 ST1).
+Recommended tag and the mode group is described by one reason: this build can't
+install its own updates. The status panel keeps the per-installation guidance (the
+package source for DEB/RPM, the manual instructions otherwise); the reason does not
+claim that checks work, because a not-configured build cannot check. When Automatic
+is the saved or default draft it is shown as the disabled selection without its mode
+description; Save can still persist it. This is presentation only: choices are not
+rewritten and host preference semantics are unchanged (#5058 ST1).
 
 Starting with the first non-prerelease 1.x build, an installation with a saved
 Preview choice receives one production-channel offer. Use Stable performs a
