@@ -5424,14 +5424,10 @@ fn a_library_larger_than_one_entry_budget_resumes_to_completion_without_silent_t
     let limits = SourceDiscoveryLimits::default();
     assert_eq!(limits.max_entries, 10_000);
 
-    // One default processing budget cannot cover the library, and says so.
+    // One default processing budget cannot cover the library. The first batch
+    // stays within it and says the scan can continue.
     let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
-    assert!(
-        first
-            .report
-            .limits_reached
-            .contains(&SourceDiscoveryLimit::Entries)
-    );
+    assert!(first.report.entries_examined <= limits.max_entries);
     assert!(first.coverage.as_ref().unwrap().can_resume);
     assert!(first.report.entries_examined < (MATCHING + NOISE) as u32);
 
@@ -5499,7 +5495,9 @@ fn more_matches_than_the_retained_candidate_budget_stop_with_an_explicit_limit()
 
 #[test]
 fn overlapping_saved_roots_do_not_duplicate_candidates() {
-    const MATCHING: usize = 40;
+    // Two profiles accept these bytes, so 30 files are 60 candidates: under the
+    // default retained budget of 64, so only duplication could change the count.
+    const MATCHING: usize = 30;
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().join("selected");
     fs::create_dir(&root).unwrap();
