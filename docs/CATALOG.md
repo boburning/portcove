@@ -1940,6 +1940,10 @@ cross-version update/rollback, or non-Windows behavior. The exact identities,
 methods, and remaining boundaries are recorded in
 [`docs/qualification/dr-mario-64-recompiled-windows-2026-09-15.md`](qualification/dr-mario-64-recompiled-windows-2026-09-15.md).
 
+An N64 recompilation package whose wrapper folder differs by platform keeps the shared
+`runtime_subdirectory` for the platforms that use it and lists the others in
+`runtime_subdirectory_by_platform` (capability 6 of its adapter).
+
 Native portable archives normally derive the working directory from the unique
 exact declared player filename. Do not repeat an incidental dated wrapper in
 `runtime_subdirectory` when the player’s parent is the reviewed runtime root.

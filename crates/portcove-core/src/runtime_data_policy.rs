@@ -62,7 +62,7 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
                 hash.len() != 64 || !hash.bytes().all(|byte| byte.is_ascii_hexdigit())
             })
         || !port.persistent_file_patterns.is_empty()
-        || port.runtime_subdirectory.is_some()
+        || port.declares_runtime_subdirectory()
         || !port.launch_from_install_root
         || port.source_environment.is_some()
         || port.user_data_environment.is_some()

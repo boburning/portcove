@@ -21,7 +21,7 @@ pub(crate) fn validate_shipwright_persistence(port: &PortDefinition) -> Result<(
             || !port.release.user_prepared.is_empty()
             || !port.release.managed_build.is_empty()
             || crate::preparation::managed(port)
-            || port.runtime_subdirectory.is_some()
+            || port.declares_runtime_subdirectory()
             || port.launch_from_install_root
             || !port.launch_arguments.is_empty()
             || !port.launch_environment.is_empty()
@@ -251,6 +251,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         launch_environment,
         launch_arguments,
         runtime_subdirectory,
+        runtime_subdirectory_by_platform,
         runtime_source_filename,
         runtime_source_materialization,
         runtime_source_hashes,
@@ -299,6 +300,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         "launch_environment": launch_environment,
         "launch_arguments": launch_arguments,
         "runtime_subdirectory": runtime_subdirectory,
+        "runtime_subdirectory_by_platform": runtime_subdirectory_by_platform,
         "runtime_source_filename": runtime_source_filename,
         "runtime_source_materialization": runtime_source_materialization,
         "runtime_source_hashes": runtime_source_hashes,

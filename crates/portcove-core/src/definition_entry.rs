@@ -249,6 +249,17 @@ impl DefinitionContentIndex {
                 "Linux portable data directories require native capability version 25",
             ));
         }
+        if !port.runtime_subdirectory_by_platform.is_empty()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "n64-recomp-portable"
+                    && requirement.minimum_version
+                        >= crate::runtime::N64_PLATFORM_RUNTIME_SUBDIRECTORY_CAPABILITY
+            })
+        {
+            return Err(PortcoveError::verification(
+                "platform runtime subdirectories require n64-recomp-portable capability version 6",
+            ));
+        }
         if port.release.grant_declared_executable {
             let (template, minimum) = match port.adapter {
                 crate::AdapterKind::NativePortable => ("native-portable", 22),

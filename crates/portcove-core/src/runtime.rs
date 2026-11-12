@@ -7,6 +7,8 @@ use crate::{
 };
 
 pub(crate) const GENERATED_CACHE_TAR_XZ_CAPABILITY: u32 = 3;
+/// n64-recomp-portable capability that reads a per-platform runtime subdirectory.
+pub(crate) const N64_PLATFORM_RUNTIME_SUBDIRECTORY_CAPABILITY: u32 = 6;
 pub(crate) const NATIVE_MAC_BUNDLE_TAR_XZ_CAPABILITY: u32 = 26;
 
 fn has_github_tar_xz_route(port: &PortDefinition, platform: Platform) -> bool {
@@ -56,7 +58,7 @@ pub(crate) fn validate_platform_tar_xz(port: &PortDefinition) -> Result<()> {
 }
 
 fn native_mac_bundle_layout(port: &PortDefinition, platform: Platform) -> bool {
-    if port.runtime_subdirectory.is_some() || port.launch_from_install_root {
+    if port.runtime_subdirectory_for(platform).is_some() || port.launch_from_install_root {
         return false;
     }
     let Some([executable]) = port.executable_hints.get(&platform).map(Vec::as_slice) else {
@@ -117,7 +119,7 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     crate::installed_mutability::validate_shipwright_persistence(port)?;
     if port.n64_runtime_at_executable_parent
         && (port.adapter != crate::AdapterKind::N64RecompPortable
-            || port.runtime_subdirectory.is_some()
+            || port.declares_runtime_subdirectory()
             || port.launch_from_install_root
             || port.user_data_environment.is_some()
             || !port.portable_marker
@@ -154,7 +156,11 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
             "a bundled runtime must cover every declared platform",
         ));
     }
-    if let Some(directory) = &port.runtime_subdirectory {
+    for directory in port
+        .runtime_subdirectory
+        .iter()
+        .chain(port.runtime_subdirectory_by_platform.values())
+    {
         crate::archive::validate_relative_path(directory, true)?;
     }
     for runtime in port.bundled_runtime.values() {
@@ -266,7 +272,7 @@ pub(crate) fn working_root_for_executable(
     executable: &Path,
     platform: Platform,
 ) -> PathBuf {
-    if let Some(directory) = &port.runtime_subdirectory {
+    if let Some(directory) = port.runtime_subdirectory_for(platform) {
         install_root.join(directory)
     } else if persistence_at_install_root(port, platform) {
         install_root.to_path_buf()

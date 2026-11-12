@@ -197,6 +197,7 @@ mod tests {
             launch_environment: BTreeMap::new(),
             launch_arguments: vec![],
             runtime_subdirectory: None,
+            runtime_subdirectory_by_platform: BTreeMap::new(),
             runtime_source_filename: None,
             runtime_source_materialization: None,
             runtime_source_hashes: BTreeMap::new(),

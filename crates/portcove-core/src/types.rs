@@ -848,6 +848,11 @@ pub struct PortDefinition {
     pub launch_arguments: Vec<String>,
     #[serde(default)]
     pub runtime_subdirectory: Option<String>,
+    /// Per-platform runtime subdirectories for packages whose wrapper folder is named differently
+    /// on each platform; a listed platform replaces `runtime_subdirectory`. Requires
+    /// n64-recomp-portable capability 6.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub runtime_subdirectory_by_platform: BTreeMap<Platform, String>,
     #[serde(default)]
     pub runtime_source_filename: Option<String>,
     #[serde(default)]
@@ -889,6 +894,21 @@ pub struct PortDefinition {
     pub reviewed_package_layouts: BTreeMap<Platform, ReviewedPackageLayout>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub presentation: Option<PortPresentation>,
+}
+
+impl PortDefinition {
+    /// The runtime subdirectory that applies to `platform`: its own entry, else the default.
+    pub fn runtime_subdirectory_for(&self, platform: Platform) -> Option<&str> {
+        self.runtime_subdirectory_by_platform
+            .get(&platform)
+            .or(self.runtime_subdirectory.as_ref())
+            .map(String::as_str)
+    }
+
+    /// Whether any platform declares a runtime subdirectory.
+    pub fn declares_runtime_subdirectory(&self) -> bool {
+        self.runtime_subdirectory.is_some() || !self.runtime_subdirectory_by_platform.is_empty()
+    }
 }
 
 /// The parts of an extracted package whose change signals changed runtime
