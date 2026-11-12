@@ -900,6 +900,11 @@ during a pass. An unavailable folder waits and keeps its setting. Removing a fol
 `games folder-setups` lists folders with automatic setup turned on, their
 implementation choices, local-copy choice and recent failures, and changes nothing.
 
+Automatic setup never writes to Steam or Playnite. Playnite shows a newly
+prepared game on its own next library refresh; adding it to Steam remains the
+separate per-game review described in
+[integrations](INTEGRATIONS.md#automatic-setup-and-frontend-handoff).
+
 A self-contained installation launches from its verified installed data
 without its registered original, which is then needed only to repair, rebuild
 or prepare again. Portcove decides this by what launch would still hand the
