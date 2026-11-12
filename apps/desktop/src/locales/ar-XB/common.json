@@ -1,0 +1,14 @@
+{
+  "browserFailed": "تعذر فتح المتصفح: <detail/>",
+  "close": "إغلاق",
+  "filter": {
+    "close": "إغلاق الخيارات",
+    "closeLabel": "إغلاق خيارات {{label}}",
+    "summary": "{{label}}: {{value}}"
+  },
+  "gameSearch": {
+    "empty": "لا توجد لعبة أو منفذ يطابق هذا البحث.",
+    "placeholder": "البحث في الألعاب ومشاريع المنافذ…",
+    "show": "عرض الألعاب والمنافذ"
+  }
+}

@@ -501,6 +501,20 @@ export default interface Resources {
       "title": "Portcove commands"
     }
   },
+  "common": {
+    "browserFailed": "Couldn’t open the browser: <detail/>",
+    "close": "Close",
+    "filter": {
+      "close": "Close choices",
+      "closeLabel": "Close {{label}} choices",
+      "summary": "{{label}}: {{value}}"
+    },
+    "gameSearch": {
+      "empty": "No game or port matches this search.",
+      "placeholder": "Search games and port projects…",
+      "show": "Show games and ports"
+    }
+  },
   "counts": {
     "copiedFiles_one": "{{count, number}} file will be copied.",
     "copiedFiles_other": "{{count, number}} files will be copied.",

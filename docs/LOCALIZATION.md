@@ -109,33 +109,35 @@ locale names and fallback plumbing, so it receives extraction and key checks onl
 Migrate a complete surface before listing it, and keep English output identical
 unless the copy change is intended and reviewed.
 
-| Surface                                  | Files                                                      | Namespace           |
-| ---------------------------------------- | ---------------------------------------------------------- | ------------------- |
-| Language settings                        | `components/LanguageSettings.tsx`, `localization.tsx`      | `settings`          |
-| Startup render recovery                  | `ErrorBoundary.tsx`                                        | `shell`             |
-| Interface size                           | `InterfaceSize.tsx`                                        | `shell`             |
-| Application-update notices               | `features/application-update/ApplicationUpdateNotices.tsx` | `applicationUpdate` |
-| Application-update settings              | `features/application-update/ApplicationUpdates.tsx`       | `applicationUpdate` |
-| Official setup information               | `components/OfficialDefinitionUpdates.tsx`                 | `catalogUpdates`    |
-| Official catalog updates                 | `components/OfficialCatalogUpdates.tsx`                    | `catalogUpdates`    |
-| Custom catalog sources and game listings | `components/CatalogUpdates.tsx`                            | `catalogUpdates`    |
-| Uninstall review                         | `components/RemovalReview.tsx`                             | `removal`           |
-| Saved file location removal              | `components/SourceRemoval.tsx`                             | `removal`           |
-| Backup restore and deletion review       | `components/BackupReview.tsx`                              | `backups`           |
-| Backup history                           | `components/BackupHistory.tsx`                             | `backups`           |
-| Backups and updates summary              | `components/ProtectionSummary.tsx`                         | `backups`           |
-| Automatic snapshot setting               | `components/AutomaticSnapshotsSetting.tsx`                 | `backups`           |
-| Game update channel                      | `components/ReleaseChannel.tsx`                            | `gameUpdates`       |
-| Last-launch failure notice               | `components/LaunchFailureNotice.tsx`                       | `launch`            |
-| Library refresh and recovery notices     | `features/workspace/WorkspaceRefreshNotice.tsx`            | `workspace`         |
-| Bug report preview                       | `components/ReportProblem.tsx`                             | `report`            |
-| Game search field                        | `components/PortSearch.tsx`                                | `browsing`          |
-| Command palette chrome                   | `components/CommandPalette.tsx`                            | `commands`          |
-| Operation cancellation control           | `components/OperationCancellation.tsx`                     | `operations`        |
+| Surface                                                         | Files                                                      | Namespace           |
+| --------------------------------------------------------------- | ---------------------------------------------------------- | ------------------- |
+| Language settings                                               | `components/LanguageSettings.tsx`, `localization.tsx`      | `settings`          |
+| Startup render recovery                                         | `ErrorBoundary.tsx`                                        | `shell`             |
+| Interface size                                                  | `InterfaceSize.tsx`                                        | `shell`             |
+| Application-update notices                                      | `features/application-update/ApplicationUpdateNotices.tsx` | `applicationUpdate` |
+| Application-update settings                                     | `features/application-update/ApplicationUpdates.tsx`       | `applicationUpdate` |
+| Official setup information                                      | `components/OfficialDefinitionUpdates.tsx`                 | `catalogUpdates`    |
+| Official catalog updates                                        | `components/OfficialCatalogUpdates.tsx`                    | `catalogUpdates`    |
+| Custom catalog sources and game listings                        | `components/CatalogUpdates.tsx`                            | `catalogUpdates`    |
+| Uninstall review                                                | `components/RemovalReview.tsx`                             | `removal`           |
+| Saved file location removal                                     | `components/SourceRemoval.tsx`                             | `removal`           |
+| Backup restore and deletion review                              | `components/BackupReview.tsx`                              | `backups`           |
+| Backup history                                                  | `components/BackupHistory.tsx`                             | `backups`           |
+| Backups and updates summary                                     | `components/ProtectionSummary.tsx`                         | `backups`           |
+| Automatic snapshot setting                                      | `components/AutomaticSnapshotsSetting.tsx`                 | `backups`           |
+| Game update channel                                             | `components/ReleaseChannel.tsx`                            | `gameUpdates`       |
+| Last-launch failure notice                                      | `components/LaunchFailureNotice.tsx`                       | `launch`            |
+| Library refresh and recovery notices                            | `features/workspace/WorkspaceRefreshNotice.tsx`            | `workspace`         |
+| Bug report preview                                              | `components/ReportProblem.tsx`                             | `report`            |
+| Game search field                                               | `components/PortSearch.tsx`                                | `browsing`          |
+| Command palette chrome                                          | `components/CommandPalette.tsx`                            | `commands`          |
+| Operation cancellation control                                  | `components/OperationCancellation.tsx`                     | `operations`        |
+| Shared dialog, tooltip, filter field and game search primitives | `components/ui/{dialog,tooltip,field,combobox}.tsx`        | `common`            |
+| External link failure                                           | `components/ExternalLink.tsx`                              | `common`            |
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-12 it
-reported 1,551 findings in 71 of 216 analyzed files, measured after the
+reported 1,543 findings in 66 of 216 analyzed files, measured after the
 migrations listed above and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
 and are migrated with the surface that renders them. The count is a work
@@ -143,7 +145,7 @@ inventory, not a coverage claim.
 
 Narrow technical-literal exclusions: the lint ignores the `align`, `aria-live`,
 `aria-atomic`, `aria-autocomplete`, `aria-describedby`, `aria-hidden`, `aria-labelledby`, `data-backup-action`, `data-settings-control`,
-`data-slot`, `dir`, `intent`, `reviewSize`, `size`, `triggerId` and `variant`
+`data-slot`, `dir`, `intent`, `positionMethod`, `reviewSize`, `size`, `triggerId` and `variant`
 attributes, which carry design-system tokens, element ids, ARIA references or ARIA state tokens,
 never player copy.
 Thrown `Error` messages that are caught and never displayed, stable state codes,
