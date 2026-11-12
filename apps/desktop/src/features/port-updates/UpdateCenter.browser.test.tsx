@@ -271,7 +271,7 @@ it("reveals a task shown from elsewhere while Activity is open, but not a retain
     failure: null,
     cancellation: null,
   };
-  const renderTasks = (reviewedActivityId: string | undefined) => (
+  const renderTasks = (reviewedActivityId: string | undefined, reviewedActivityRequest = 0) => (
     <UpdateCenter
       section="tasks"
       generation={1}
@@ -289,6 +289,7 @@ it("reveals a task shown from elsewhere while Activity is open, but not a retain
         terminal_history_limit: 20,
       }}
       reviewedActivityId={reviewedActivityId}
+      reviewedActivityRequest={reviewedActivityRequest}
       onReviewActivity={vi.fn()}
       outcomes={[]}
       diagnosticsRefreshing={false}
@@ -309,6 +310,10 @@ it("reveals a task shown from elsewhere while Activity is open, but not a retain
     expect(row().contains(document.activeElement)).toBe(false);
     await result.rerender(renderTasks(undefined));
     await result.rerender(renderTasks("shown-task"));
+    await expect.poll(() => row().contains(document.activeElement)).toBe(true);
+    // A repeated "Show task" for the same task reveals it again.
+    outside.focus();
+    await result.rerender(renderTasks("shown-task", 1));
     await expect.poll(() => row().contains(document.activeElement)).toBe(true);
   } finally {
     await result.unmount();

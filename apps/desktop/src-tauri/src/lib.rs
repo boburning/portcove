@@ -1223,6 +1223,58 @@ async fn acknowledge_port_readiness(
     .await
 }
 
+/// Turns automatic setup for one saved folder on (with its enrollment
+/// boundary) or off (`None`). Installed games are never changed.
+#[tauri::command]
+async fn set_root_setup_consent(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    root_id: String,
+    enrollment: Option<portcove_core::RootSetupEnrollment>,
+) -> DesktopResult<Option<portcove_core::RootSetupConsent>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        match enrollment {
+            Some(enrollment) => service
+                .set_root_setup_consent(&root_id, enrollment)
+                .map(Some)
+                .map_err(Into::into),
+            None => service
+                .remove_root_setup_consent(&root_id)
+                .map(|_| None)
+                .map_err(Into::into),
+        }
+    })
+    .await
+}
+
+/// Chooses which game a folder sets up for files several games can use.
+#[tauri::command]
+async fn set_root_setup_implementation(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    root_id: String,
+    profile_id: String,
+    port_id: String,
+) -> DesktopResult<portcove_core::RootSetupConsent> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .set_root_setup_implementation(&root_id, &profile_id, &port_id)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn get_root_setup_consents(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<Vec<portcove_core::RootSetupConsent>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.root_setup_consents().map_err(Into::into)
+    })
+    .await
+}
+
 /// Installs every set-up-when-ready game that is ready now, under the player's
 /// standing choice. Each game is re-planned and freshly authorized; none is launched.
 #[tauri::command]
@@ -1793,14 +1845,18 @@ fn observe_launch_completion(
         let (sender, receiver) = std::sync::mpsc::channel::<LaunchObservation>();
         let app = app.clone();
         thread::spawn(move || {
-            let mut pending = Vec::<(Library, String)>::new();
+            let mut pending = Vec::<(Library, String, std::cell::Cell<Option<u64>>)>::new();
             let mut last_observation = std::time::Instant::now();
             loop {
                 if pending.is_empty() {
                     // Nothing to observe: wait for the next launch instead of polling.
                     match receiver.recv() {
                         Ok(observation) => {
-                            pending.push(observation);
+                            pending.push((
+                                observation.0,
+                                observation.1,
+                                std::cell::Cell::new(None),
+                            ));
                             last_observation = std::time::Instant::now();
                         }
                         Err(std::sync::mpsc::RecvError) => break,
@@ -1809,7 +1865,11 @@ fn observe_launch_completion(
                     let interval = launch_observation_interval(last_observation.elapsed());
                     match receiver.recv_timeout(interval) {
                         Ok(observation) => {
-                            pending.push(observation);
+                            pending.push((
+                                observation.0,
+                                observation.1,
+                                std::cell::Cell::new(None),
+                            ));
                             last_observation = std::time::Instant::now();
                         }
                         Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
@@ -1819,18 +1879,31 @@ fn observe_launch_completion(
                     }
                 }
                 while let Ok(observation) = receiver.try_recv() {
-                    pending.push(observation);
+                    pending.push((observation.0, observation.1, std::cell::Cell::new(None)));
                 }
-                let completed =
-                    retain_launch_observations(&mut pending, |(library, request_id)| match library
-                        .launch_request(request_id)
-                    {
-                        Ok(Some(request)) if request.outcome.is_none() => {
-                            LaunchObservationState::Active
+                let completed = retain_launch_observations(
+                    &mut pending,
+                    |(library, request_id, last_sequence)| {
+                        let progress = launch_progress_path(library.root(), request_id);
+                        // Preparation progress (for example unpacking a disc image) is
+                        // reported by the supervisor process; relay each newer step to
+                        // the same operation event the UI already follows.
+                        if let Some(event) = read_launch_progress(&progress, last_sequence.get()) {
+                            last_sequence.set(Some(event.sequence));
+                            emit_operation(&app, event);
                         }
-                        Ok(_) => LaunchObservationState::Complete,
-                        Err(_) => LaunchObservationState::Retry,
-                    });
+                        match library.launch_request(request_id) {
+                            Ok(Some(request)) if request.outcome.is_none() => {
+                                LaunchObservationState::Active
+                            }
+                            Ok(_) => {
+                                let _ = fs::remove_file(&progress);
+                                LaunchObservationState::Complete
+                            }
+                            Err(_) => LaunchObservationState::Retry,
+                        }
+                    },
+                );
                 if completed {
                     let _ = emit_desktop_event::<()>(&app, DESKTOP_EVENT_LIBRARY_CHANGED, ());
                 }
@@ -1957,6 +2030,34 @@ where
 
 fn response_path_for(request_path: &Path) -> PathBuf {
     request_path.with_extension("response.json")
+}
+
+/// Where the supervisor process leaves the latest launch-preparation event for the
+/// UI process. Ephemeral reporting only: it never carries a launch decision.
+fn progress_path_for(request_path: &Path) -> PathBuf {
+    request_path.with_extension("progress.json")
+}
+
+fn launch_progress_path(library_root: &Path, request_id: &str) -> PathBuf {
+    progress_path_for(
+        &library_root
+            .join("launch-requests")
+            .join(format!("{request_id}.json")),
+    )
+}
+
+/// The latest relayed event when it is newer than the last one already shown.
+/// A missing, oversized or malformed file is simply "nothing new".
+fn read_launch_progress(path: &Path, after_sequence: Option<u64>) -> Option<OperationEvent> {
+    const MAX_PROGRESS_BYTES: u64 = 16 * 1024;
+    let metadata = fs::metadata(path).ok()?;
+    if !metadata.is_file() || metadata.len() > MAX_PROGRESS_BYTES {
+        return None;
+    }
+    let event: OperationEvent = serde_json::from_slice(&fs::read(path).ok()?).ok()?;
+    after_sequence
+        .is_none_or(|seen| event.sequence > seen)
+        .then_some(event)
 }
 
 fn publish_json(path: &Path, value: &impl Serialize) -> DesktopResult<()> {
@@ -2281,13 +2382,18 @@ fn run_supervisor_request(request_path: &Path) -> i32 {
     let result = host_startup::open_library_at(&request.library_root)
         .and_then(PortcoveService::new)
         .and_then(|service| {
-            service.supervise_launch_identified(
+            let progress_path = progress_path_for(request_path);
+            service.supervise_launch_observed(
                 IdentifiedLaunchRequest {
                     request_id: &request.request_id,
                     port_id: &request.port_id,
                     source_override: request.source.as_deref(),
                     arguments: &request.arguments,
                     stdio: LaunchStdio::Null,
+                },
+                // Best-effort: a failed progress write never affects the launch.
+                &|event| {
+                    let _ = publish_json(&progress_path, &event);
                 },
                 |session| {
                     let _ = fs::remove_file(request_path);
@@ -3124,6 +3230,9 @@ pub fn run() -> std::process::ExitCode {
             assess_port_intents,
             acknowledge_port_readiness,
             run_standing_setup,
+            set_root_setup_consent,
+            set_root_setup_implementation,
+            get_root_setup_consents,
             cancel_install_batch,
             get_install_batch,
             add_game_file_root,
@@ -3905,6 +4014,45 @@ mod tests {
         assert!(completed);
         assert_eq!(queries.get(), 16);
         assert_eq!(pending.len(), 12);
+    }
+
+    #[test]
+    fn launch_preparation_progress_is_relayed_once_per_newer_event_and_tolerates_bad_files() {
+        let temporary = tempfile::tempdir().unwrap();
+        let request_path = temporary.path().join("launch-requests").join("abc.json");
+        let progress = progress_path_for(&request_path);
+        assert_eq!(progress, launch_progress_path(temporary.path(), "abc"));
+        assert!(progress.ends_with("abc.progress.json"));
+
+        // Missing, malformed and oversized files are simply "nothing new".
+        assert!(read_launch_progress(&progress, None).is_none());
+        fs::create_dir_all(progress.parent().unwrap()).unwrap();
+        fs::write(&progress, b"not json").unwrap();
+        assert!(read_launch_progress(&progress, None).is_none());
+        fs::write(&progress, vec![b' '; 20 * 1024]).unwrap();
+        assert!(read_launch_progress(&progress, None).is_none());
+
+        let operation = OperationCoordinator::new("launch", None);
+        let first = operation.progress_with_unit(
+            "disc.plan",
+            portcove_core::ProgressUnit::Indeterminate,
+            0,
+            None,
+        );
+        let second = operation.progress_with_unit(
+            "disc.extract",
+            portcove_core::ProgressUnit::Bytes,
+            5,
+            Some(10),
+        );
+        assert!(publish_json(&progress, &first).is_ok());
+        let seen = read_launch_progress(&progress, None).expect("the first event is new");
+        assert_eq!(seen.sequence, first.sequence);
+        // The same event is never relayed twice.
+        assert!(read_launch_progress(&progress, Some(seen.sequence)).is_none());
+        assert!(publish_json(&progress, &second).is_ok());
+        let next = read_launch_progress(&progress, Some(seen.sequence)).expect("a newer event");
+        assert_eq!(next.sequence, second.sequence);
     }
 
     #[test]

@@ -393,6 +393,69 @@ pub struct CuratedAcquisitionRecord {
     pub distribution_evidence: CuratedEvidenceReference,
     pub independent_review: CuratedEvidenceReference,
     pub protected_acceptance: CuratedEvidenceReference,
+    /// Record version 2 only: authorized alternate transports for the same
+    /// accepted bytes (#1306). Locations are never identity or authority; the
+    /// accepted size and SHA-256 above still decide every acquisition.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub preserved_locations: Vec<String>,
+}
+
+/// The request URL for an accepted location. Production uses it unchanged;
+/// qualification fixtures serve the same path from their bound local origin.
+pub(crate) fn transport_url(
+    scope: &crate::DefinitionAcquisitionScope,
+    location: &str,
+) -> Result<String> {
+    #[cfg(any(test, feature = "qualification-fixtures"))]
+    if let Some(origin) = &scope.fixture_origin {
+        let url = reqwest::Url::parse(location)
+            .map_err(|_| PortcoveError::verification("invalid curated location"))?;
+        return Ok(format!("{origin}{}", url.path()));
+    }
+    #[cfg(not(any(test, feature = "qualification-fixtures")))]
+    let _ = scope;
+    Ok(location.to_owned())
+}
+
+/// The only release-asset path shape accepted for a preserved location:
+/// `/<owner>/<repo>/releases/download/<tag>/<file>`.
+fn preserved_location_valid(record: &CuratedAcquisitionRecord, value: &str) -> bool {
+    let Some(url) = https_reference(value) else {
+        return false;
+    };
+    // Canonical text only, so duplicate and acquisition-URL comparisons are exact.
+    if url.as_str() != value
+        || url.query().is_some()
+        || url.fragment().is_some()
+        || value == record.acquisition_url
+    {
+        return false;
+    }
+    let Some(segments) = url.path_segments() else {
+        return false;
+    };
+    let segments: Vec<&str> = segments.collect();
+    let [owner, repo, "releases", "download", tag, file] = segments.as_slice() else {
+        return false;
+    };
+    let digest_name = format!("{}.asset", record.sha256);
+    crate::definition_acquisition::valid_github_repository(&format!("{owner}/{repo}"))
+        && curated_tag_valid(tag)
+        && (*file == digest_name || *file == record.filename)
+}
+
+fn curated_tag_valid(tag: &str) -> bool {
+    bounded_text(tag, 255)
+        && tag.split('/').all(|part| {
+            !part.is_empty()
+                && !part.starts_with('.')
+                && !part.ends_with('.')
+                && !part.ends_with(".lock")
+                && !part.contains("..")
+                && part
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
+        })
 }
 
 fn canonical_hash(value: &str, length: usize) -> bool {
@@ -461,24 +524,26 @@ impl CuratedAcquisitionRecord {
                 self.tag.as_str(),
                 self.filename.as_str(),
             ]);
-        let tag_valid = bounded_text(&self.tag, 255)
-            && self.tag.split('/').all(|part| {
-                !part.is_empty()
-                    && !part.starts_with('.')
-                    && !part.ends_with('.')
-                    && !part.ends_with(".lock")
-                    && !part.contains("..")
-                    && part.bytes().all(|byte| {
-                        byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.')
-                    })
-            });
+        let tag_valid = curated_tag_valid(&self.tag);
+        let locations_valid = match self.record_version {
+            1 => self.preserved_locations.is_empty(),
+            2 => {
+                (1..=2).contains(&self.preserved_locations.len())
+                    && self.preserved_locations.first() != self.preserved_locations.get(1)
+                    && self
+                        .preserved_locations
+                        .iter()
+                        .all(|location| preserved_location_valid(self, location))
+            }
+            _ => false,
+        };
         let references = [
             &self.acquisition_evidence,
             &self.distribution_evidence,
             &self.independent_review,
             &self.protected_acceptance,
         ];
-        if self.record_version != 1
+        if !locations_valid
             || self.repository != repository
             || self.upstream_url != upstream
             || self.acquisition_url != expected_acquisition.as_str()
@@ -579,6 +644,7 @@ pub(crate) fn fixture_record() -> CuratedAcquisitionRecord {
         distribution_evidence: evidence(),
         independent_review: evidence(),
         protected_acceptance: evidence(),
+        preserved_locations: Vec::new(),
     }
 }
 
@@ -939,6 +1005,79 @@ mod tests {
                 .insert("trust_me".into(), serde_json::json!(true));
             assert!(serde_json::from_value::<CuratedAcquisitionRecord>(value).is_err());
         }
+    }
+
+    #[test]
+    fn preserved_locations_require_record_version_two_and_canonical_release_assets() {
+        let base = fixture_record();
+        let digest_url = format!(
+            "https://github.com/Owner/portcove-preserved/releases/download/preserved-1/{}.asset",
+            base.sha256
+        );
+        let named_url =
+            "https://github.com/Owner/portcove-preserved/releases/download/preserved-1/game.zip";
+        let with = |version: u32, locations: Vec<String>| CuratedAcquisitionRecord {
+            record_version: version,
+            preserved_locations: locations,
+            ..fixture_record()
+        };
+        for valid in [
+            with(2, vec![digest_url.clone()]),
+            with(2, vec![digest_url.clone(), named_url.into()]),
+        ] {
+            valid.validate(&base.repository, base.platform).unwrap();
+        }
+        let invalid = [
+            with(1, vec![digest_url.clone()]),
+            with(2, Vec::new()),
+            with(2, vec![digest_url.clone(), digest_url.clone()]),
+            with(
+                2,
+                vec![digest_url.clone(), named_url.into(), digest_url.replace("-1", "-2")],
+            ),
+            with(3, vec![digest_url.clone()]),
+            with(2, vec![base.acquisition_url.clone()]),
+            with(2, vec![format!("{digest_url}?token=secret")]),
+            with(2, vec![format!("{digest_url}#fragment")]),
+            with(2, vec![digest_url.replace("https://", "http://")]),
+            with(2, vec![digest_url.replace("https://", "https://user:pass@")]),
+            with(2, vec![digest_url.replace("github.com", "github.com:8443")]),
+            with(2, vec![digest_url.replace("github.com", "140.82.112.3")]),
+            with(2, vec![digest_url.replace("/releases/download/", "/raw/")]),
+            with(2, vec![digest_url.replace("preserved-1", "../tag")]),
+            with(2, vec![digest_url.replace("github.com", "GITHUB.com")]),
+            with(2, vec![digest_url.replace("github.com", "github.com:443")]),
+            with(2, vec![digest_url.replace("/releases/", "/./releases/")]),
+            with(
+                2,
+                vec![
+                    "https://github.com/Owner/portcove-preserved/releases/download/preserved-1/other.zip"
+                        .into(),
+                ],
+            ),
+            with(
+                2,
+                vec![format!(
+                    "https://github.com/Owner/portcove-preserved/releases/download/preserved-1/{}.asset",
+                    "d".repeat(64)
+                )],
+            ),
+        ];
+        for (index, record) in invalid.iter().enumerate() {
+            assert!(
+                record.validate(&base.repository, base.platform).is_err(),
+                "case {index}: {:?}",
+                record.preserved_locations
+            );
+        }
+        // A version-1 record serializes without the field, unchanged for older clients.
+        let encoded = serde_json::to_value(&base).unwrap();
+        assert!(encoded.get("preserved_locations").is_none());
+        // This client parses the field; clients built before record version 2 lack it
+        // and refuse the whole record through `deny_unknown_fields`.
+        let mut newer = encoded;
+        newer["preserved_locations"] = serde_json::json!([digest_url]);
+        assert!(serde_json::from_value::<CuratedAcquisitionRecord>(newer).is_ok());
     }
 
     #[test]

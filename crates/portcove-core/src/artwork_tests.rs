@@ -2345,3 +2345,279 @@ fn cover_derivatives_follow_canonical_library_and_durable_identity() {
     cover_with_fetch(&replacement, &artwork, now, || panic!("copied original")).unwrap();
     assert_eq!(crate::artwork_image::decode_count(), before + 1);
 }
+
+fn coloured_jpeg(rgb: [u8; 3]) -> Vec<u8> {
+    let image =
+        image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(12, 24, image::Rgb(rgb)));
+    let mut bytes = Cursor::new(Vec::new());
+    image
+        .write_to(&mut bytes, image::ImageFormat::Jpeg)
+        .unwrap();
+    bytes.into_inner()
+}
+
+fn retention_mapping(image_id: &str, bytes: &[u8]) -> crate::IgdbArtwork {
+    serde_json::from_value(serde_json::json!({
+        "game_id": 17, "cover_id": 31, "image_id": image_id,
+        "image_sha256": crate::signed_catalog::digest(bytes),
+        "game_slug": "listing-artwork-fixture", "match_kind": "port"
+    }))
+    .unwrap()
+}
+
+fn retention_catalog(listings: &[(&str, Option<&crate::IgdbArtwork>)]) -> crate::Catalog {
+    let listings = listings
+        .iter()
+        .map(|(id, artwork)| {
+            serde_json::json!({
+                "id": id,
+                "name": format!("Retention fixture {id}"),
+                "summary": "Descriptive identity without an operational integration.",
+                "project_url": format!("https://example.invalid/{id}"),
+                "artwork": artwork
+            })
+        })
+        .collect::<Vec<_>>();
+    let document = crate::CatalogListingDocument::from_json(
+        &serde_json::json!({"format_version": 1, "listings": listings}).to_string(),
+    )
+    .unwrap();
+    crate::Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#)
+        .unwrap()
+        .with_listing_document(document)
+        .unwrap()
+}
+
+/// Uses the production publication route, including its artwork lock and retention.
+fn published_cover(
+    service: &PortcoveService,
+    artwork: &crate::IgdbArtwork,
+    fetch: impl FnOnce() -> std::result::Result<Vec<u8>, crate::artwork::IgdbFetchFailure>,
+) -> crate::Result<crate::ArtworkThumbnail> {
+    published_cover_at(service, artwork, std::time::Instant::now(), fetch)
+}
+
+fn published_cover_at(
+    service: &PortcoveService,
+    artwork: &crate::IgdbArtwork,
+    now: std::time::Instant,
+    fetch: impl FnOnce() -> std::result::Result<Vec<u8>, crate::artwork::IgdbFetchFailure>,
+) -> crate::Result<crate::ArtworkThumbnail> {
+    crate::artwork::igdb_thumbnail_with_fetch(
+        service.library(),
+        artwork,
+        0,
+        |original| {
+            let _guard = service.library().try_lock_artwork()?;
+            service.publish_igdb_original(artwork, original)
+        },
+        fetch,
+        || now,
+    )
+}
+
+fn cached_original(service: &PortcoveService, artwork: &crate::IgdbArtwork) -> bool {
+    service
+        .library()
+        .root()
+        .join("artwork-cache")
+        .join(format!("{}.jpg", artwork.image_sha256))
+        .is_file()
+}
+
+fn igdb_cover(service: &PortcoveService, port_id: &str) -> Option<crate::IgdbArtwork> {
+    match service
+        .artwork(port_id, ArtworkSlot::Cover)
+        .unwrap()
+        .resolved_source
+    {
+        ArtworkResolvedSource::IgdbCover { artwork, .. } => Some(artwork),
+        _ => None,
+    }
+}
+
+#[test]
+fn signed_cover_correction_and_withdrawal_retire_unreferenced_cached_originals() {
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service =
+        PortcoveService::new(Library::open(temporary.path().join("library")).unwrap()).unwrap();
+    let (corrected, other) = ("listing-artwork-fixture", "listing-artwork-other");
+    let original_bytes = coloured_jpeg([200, 30, 30]);
+    let corrected_bytes = coloured_jpeg([30, 200, 30]);
+    let other_bytes = coloured_jpeg([30, 30, 200]);
+    let original = retention_mapping("retentionoriginal", &original_bytes);
+    let replacement = retention_mapping("retentionreplacement", &corrected_bytes);
+    let unrelated = retention_mapping("retentionother", &other_bytes);
+    assert_ne!(original.image_sha256, replacement.image_sha256);
+
+    service.replace_catalog_for_test(retention_catalog(&[
+        (corrected, Some(&original)),
+        (other, Some(&unrelated)),
+    ]));
+    published_cover(&service, &original, || Ok(original_bytes.clone())).unwrap();
+    published_cover(&service, &unrelated, || Ok(other_bytes.clone())).unwrap();
+    // A local choice owns a disposable PNG thumbnail in the same directory.
+    let local = image_file(temporary.path(), "local.png", image::ImageFormat::Png);
+    let chosen = service
+        .import_artwork(other, ArtworkSlot::Detail, &local, 0)
+        .unwrap();
+    let local_thumbnail = service
+        .artwork_thumbnail(other, ArtworkSlot::Detail, chosen.choice.revision)
+        .unwrap();
+
+    // Artwork-only correction: the unchanged client resolves only the new identity.
+    service.replace_catalog_for_test(retention_catalog(&[
+        (corrected, Some(&replacement)),
+        (other, Some(&unrelated)),
+    ]));
+    assert_eq!(igdb_cover(&service, corrected), Some(replacement.clone()));
+    // An outage before the replacement arrives never substitutes the retired bytes.
+    let outage = published_cover(&service, &replacement, || Err(transient_cover_error()));
+    assert_eq!(outage.unwrap_err().code, crate::ErrorCode::Network);
+    assert!(cached_original(&service, &original));
+    let cache = service.library().root().join("artwork-cache");
+    let before = fs::read_dir(&cache).unwrap().count();
+
+    // The bounded retry after the 30-second backoff validates and admits the replacement.
+    let retry = std::time::Instant::now() + std::time::Duration::from_secs(31);
+    let shown = published_cover_at(
+        &service,
+        &replacement,
+        retry,
+        || Ok(corrected_bytes.clone()),
+    )
+    .unwrap();
+    assert!(!shown.png.is_empty());
+    assert!(cached_original(&service, &replacement));
+    assert!(
+        !cached_original(&service, &original),
+        "retired original retained"
+    );
+    assert!(cached_original(&service, &unrelated));
+    assert_eq!(fs::read_dir(&cache).unwrap().count(), before);
+    assert_eq!(
+        service
+            .artwork_thumbnail(other, ArtworkSlot::Detail, chosen.choice.revision)
+            .unwrap()
+            .png,
+        local_thumbnail.png
+    );
+
+    // Withdrawal: the port keeps its generated fallback and the bytes retire at
+    // the next remote publication.
+    let fresh_bytes = coloured_jpeg([120, 120, 20]);
+    let fresh = retention_mapping("retentionfresh", &fresh_bytes);
+    service.replace_catalog_for_test(retention_catalog(&[
+        (corrected, None),
+        (other, Some(&unrelated)),
+        ("listing-artwork-fresh", Some(&fresh)),
+    ]));
+    assert_eq!(igdb_cover(&service, corrected), None);
+    published_cover(&service, &fresh, || Ok(fresh_bytes.clone())).unwrap();
+    assert!(
+        !cached_original(&service, &replacement),
+        "withdrawn original retained"
+    );
+    assert!(cached_original(&service, &unrelated));
+    assert!(cached_original(&service, &fresh));
+    assert_eq!(
+        service.artwork(other, ArtworkSlot::Detail).unwrap().choice,
+        chosen.choice
+    );
+    assert!(local.is_file());
+}
+
+#[test]
+fn retained_registration_keeps_its_cached_cover_after_directory_removal() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library_root = temporary.path().join("library");
+    let mut service = PortcoveService::new(Library::open(&library_root).unwrap()).unwrap();
+    let id = "listing-artwork-fixture";
+    let registered_bytes = coloured_jpeg([200, 30, 30]);
+    let registered = retention_mapping("retentionregistered", &registered_bytes);
+    service.replace_catalog_for_test(retention_catalog(&[(id, Some(&registered))]));
+    let working = temporary.path().join("user-owned-game");
+    fs::create_dir(&working).unwrap();
+    let executable = crate::test_fixture::build_probe(&working);
+    let preview = service
+        .preview_user_selected_runtime(id, &executable, &working, &[])
+        .unwrap();
+    let consent = service
+        .authorize_user_selected_runtime(id, &executable, &working, &[], &preview.preview_sha256)
+        .unwrap();
+    service
+        .register_user_selected_runtime(id, &executable, &working, &[], &consent.token)
+        .unwrap();
+    published_cover(&service, &registered, || Ok(registered_bytes.clone())).unwrap();
+
+    // The directory no longer lists the registered identity; its retained
+    // presentation still references the cached cover.
+    let other_bytes = coloured_jpeg([30, 30, 200]);
+    let other = retention_mapping("retentionlisted", &other_bytes);
+    service.replace_catalog_for_test(retention_catalog(&[(
+        "listing-artwork-other",
+        Some(&other),
+    )]));
+    assert!(service.catalog().listing(id).is_err());
+    assert_eq!(igdb_cover(&service, id), Some(registered.clone()));
+    published_cover(&service, &other, || Ok(other_bytes.clone())).unwrap();
+    assert!(cached_original(&service, &registered));
+    assert!(cached_original(&service, &other));
+    assert!(
+        !published_cover(&service, &registered, || panic!(
+            "cached cover must be reused"
+        ))
+        .unwrap()
+        .png
+        .is_empty()
+    );
+}
+
+#[test]
+fn reference_retention_covers_catalog_media_and_keeps_local_thumbnails() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let cache = library.root().join("artwork-cache");
+    fs::create_dir_all(&cache).unwrap();
+    let digest = |label: &str| crate::signed_catalog::digest(label.as_bytes());
+    let (stale, current, published, local) = (
+        digest("stale"),
+        digest("current"),
+        digest("published"),
+        digest("local"),
+    );
+    for (name, bytes) in [
+        (format!("{stale}.image"), b"withdrawn media".as_slice()),
+        (format!("{stale}.jpg"), b"withdrawn cover".as_slice()),
+        (format!("{current}.image"), b"current media".as_slice()),
+        (format!("{local}.png"), b"local thumbnail".as_slice()),
+        (
+            "pending-catalog-media-original".into(),
+            b"staging".as_slice(),
+        ),
+    ] {
+        fs::write(cache.join(name), bytes).unwrap();
+    }
+    let referenced = std::collections::BTreeSet::from([current.clone()]);
+    crate::artwork::publish_cache_file(
+        &library,
+        &cache.join(format!("{published}.image")),
+        "pending-catalog-media-original",
+        crate::artwork_image::MAX_ORIGINAL_BYTES,
+        b"verified media",
+        Some(&referenced),
+    )
+    .unwrap();
+    let mut names = fs::read_dir(&cache)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+        .collect::<Vec<_>>();
+    names.sort();
+    let mut expected = vec![
+        format!("{current}.image"),
+        format!("{local}.png"),
+        format!("{published}.image"),
+    ];
+    expected.sort();
+    assert_eq!(names, expected);
+}

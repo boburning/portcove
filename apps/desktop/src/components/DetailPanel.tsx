@@ -502,6 +502,8 @@ function DetailBody(model: {
       backLabel={model.backLabel}
       favoriteControl={model.favoriteControl}
       managementSupplement={model.managementSupplement}
+      // Before installation, checking setup availability belongs with setup in Game files.
+      supplementSection={model.installed || external ? undefined : "files"}
       port={model.displayPort ?? model.port}
       projectUrl={model.port.project_url}
       openSupport={model.openSupport}

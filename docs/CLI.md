@@ -745,6 +745,15 @@ such as shared preferences, waits for review while the others continue. The batc
 stores no authorization. No game is launched, and an already installed game is not
 reinstalled or updated.
 
+The review also adds up what the ready games need together: known downloads
+(releases, bundled runtimes and required extras) and, for each drive, the
+temporary space every game on it needs against the space free there. A drive can
+be short for the whole batch even when each game fits alone; the review says so,
+and each game is checked for space again before it runs. Games whose space needs
+are unknown are named. Final installed sizes are not estimated. Two games that
+would install into the same folder are never both ready: the later one waits
+until one of them gets a different install folder.
+
 `games batch-cancel BATCH_ID` stops games that haven't started; a running install
 keeps its ordinary cancellation and cleanup boundaries. After an interruption,
 `games batch-resume BATCH_ID` checks committed state first. It never repeats a
@@ -776,7 +785,59 @@ authorized. It is never launched, and an installed game is never reinstalled or
 updated. A failed or interrupted attempt is not retried with the same plan; it
 becomes eligible again when the plan changes. Uninstalling a game is
 remembered, so it is not set up or reported again until you choose a mode for it.
-The desktop app runs the same pass once when a library opens.
+The desktop app runs the same pass after a library opens, after the catalog or
+registered files change, and after a choice is saved. Only one pass runs at a
+time across windows and the CLI; a busy pass is tried again about 30 seconds
+later. Nothing runs while Portcove is closed.
+
+### Set up games from a chosen folder
+
+`games folder-setup ROOT_ID MODE` turns automatic setup on or off for one saved
+game-file folder (`ROOT_ID` comes from `source roots`). It is off by default, and
+adding a folder never turns it on.
+
+| Mode                  | What is set up                                                          |
+| --------------------- | ----------------------------------------------------------------------- |
+| `existing-and-future` | Eligible games already in the folder and any found there later.         |
+| `future-only`         | Only games whose files were not in the folder when you chose this mode. |
+| `off`                 | Nothing; turning it off never changes installed games.                  |
+
+`future-only` lists the folder when you choose it and remembers every file and
+subfolder there, whether or not Portcove recognizes it yet. A file is
+remembered by its path inside the folder and size, and also by its size and
+exact modification time, so renaming or moving it inside the folder doesn't
+make it new. A game stored as a folder counts as already there if its folder
+or any file inside it was. Those files are never set up by this choice, so restarts,
+rescans, repeated events, catalog changes that recognize more files, and clock
+changes never enroll them. The folder must be available when you choose it.
+Relinking the folder to another location remembers the files already there
+too; if that location can't be listed, automatic setup for the folder is
+turned off. Choosing a mode again records a new boundary.
+
+`games setup-ready` handles these folders in the same pass as
+set-up-when-ready games, at most four folder games per pass; later passes
+continue. For each matched file in the folder, Portcove:
+
+- skips a game that is installed, is part of an unfinished batch, or has its own
+  remembered choice (that choice wins, including `ignored` and an uninstall);
+- waits, without installing, when more than one game can use the same files,
+  until you run `games folder-setup-choose ROOT_ID --files PROFILE_ID --game PORT_ID`.
+  It never sets up every fork or switches implementations on its own;
+- registers a file that is not yet registered where it is, after checking its
+  current bytes, and only inside the folder. It never replaces a different copy
+  you already use;
+- then installs the game with an ordinary one-game batch that re-plans and
+  freshly authorizes it. It never launches a game.
+
+Problems that can pass on their own, such as being offline or the game being
+busy with another task, are reported as waiting and are not counted. A game
+whose files can't be registered or whose install fails is tried again only up
+to three times with the same plan or file; it becomes eligible again when that
+changes. Each pass checks or plans at most 32 folder files. Turning automatic
+setup off takes effect before the next file is registered or installed, even
+during a pass. An unavailable folder waits and keeps its setting. Removing a folder ends its automatic setup.
+`games folder-setups` lists folders with automatic setup turned on, their
+implementation choices and recent failures, and changes nothing.
 
 ### Register and inspect
 
@@ -896,13 +957,26 @@ port, each phase is shown on stderr as player-readable progress ("Checking your 
 image", "Reading the disc contents", "Checking free space", "Unpacking game files"
 with bytes completed, "Verifying game files", "Finishing game file setup") before
 the game starts; the game's own streams are untouched, and a port that does not
-unpack a disc prints nothing extra. The same phases are the stable operation-event
-ids `disc.identify`, `disc.plan`, `disc.free-space`, `disc.extract` (unit `bytes`,
-`completed` and `total`), `disc.verify` and `disc.activate`, delivered by core to a
-caller of `supervise_launch_observed`. `exec` rejects `--json` and `--jsonl`
-because it inherits the game's streams, so these events are not JSONL output of
-any CLI command, and the Desktop launch supervisor does not yet forward them
-(issue #4959). Stable error codes (`failure.code` in structured errors) are
+unpack a disc prints nothing extra. The same phases are the stable operation-event ids `disc.identify`, `disc.plan`,
+`disc.free-space`, `disc.extract` (unit `bytes`, `completed` and `total`, reported
+when the whole percent changes) and `disc.verify`, `disc.activate`, followed by a
+closing `launch` step once preparation is done, delivered by core to a caller of
+`supervise_launch_observed`. Ports that do not unpack a disc emit none of them.
+
+Desktop receives the same events. Its launch supervisor runs in a separate process,
+so that process leaves the latest event in an ephemeral
+`launch-requests/<request id>.progress.json` beside the request and response files
+(reporting only, never a launch decision), and Desktop's launch observer relays each
+newer event as the ordinary operation event for that launch, which the Activity view
+shows as "Checking your disc image", "Reading the disc contents", "Checking free
+space", "Unpacking game files" with bytes completed, "Verifying game files" and
+"Finishing game file setup". The closing `launch` step replaces the last unpacking
+step so it is not shown while the game runs.
+
+The CLI offers no JSONL form of these events. `exec` rejects `--json` and `--jsonl`
+because it inherits the game's streams, and no other command prepares a port for
+launch (`launch show` and `launch recover` only report on or recover existing
+sessions), so adding a JSONL command would only duplicate `exec`. Stable error codes (`failure.code` in structured errors) are
 `disc_image_unsupported`, `disc_image_limit`, `disc_product_mismatch` (details
 `found` and `expected`) and `disc_space_insufficient` (details `required_bytes` and
 `available_bytes`). A wrong game is refused before any extraction, and a failure or
@@ -1702,6 +1776,44 @@ resolved by name; an outage reports `unavailable`, never "no update".
 (or `--yes`), and installs exactly the reviewed bytes under a one-use authorization.
 Altered staged bytes, a tampered plan or a newer profile revision refuse without
 changing anything. Reviewed-but-unapplied staging is removed after a day.
+
+### Recipes
+
+```text
+portcove --library PATH --json profile recipe-export PORT_ID PROFILE_ID [--revision N] > recipe.json
+portcove --library PATH --json profile recipe-inspect recipe.json
+portcove --library PATH --json profile recipe-plan recipe.json
+portcove --library PATH --json profile recipe-apply recipe.json --name NAME --expected-plan SHA256 --yes
+```
+
+A recipe (`format` 1) records a profile revision's identity: runtime artifact,
+runtime and definition identities, original inputs by content digest, packages with
+their provider coordinates, enabled state, dependency requirements and typed
+orderings. It never contains original game files, credentials, private machine
+paths, local profile or install IDs, saves or settings, and always lists what it
+cannot reproduce. A recipe is untrusted data and grants no URL, path, script,
+acquisition or execution authority.
+
+`recipe-inspect` is local: no provider account, no network, bounded to 256 KiB. It
+refuses unknown fields at any depth, duplicate keys, an unsupported future format, a
+forged identity digest, unsafe package names, missing dependencies and dependency
+cycles. Export applies the same rules, so a profile with, for example, an enabled
+package whose requirement is disabled must be fixed before it can be shared; the
+refusal names the reason.
+`recipe-plan` reports each input as `available`, `acquirable` or `unavailable`.
+`acquirable` means a complete GameBanana file reference for a game with a reviewed
+binding; its detail names the project and file to review with `provider-plan`. Any
+other provider reference is `unavailable`. The plan holds for a different platform, a missing
+runtime, an original requirement the game does not use, an
+unregistered or different original, or package bytes not in the store.
+`recipe-apply` works only when every input is already present, requires the reviewed
+`plan_sha256`, asks for confirmation, recomputes the plan under the port lock and
+creates a new profile with its own save group. A recipe's provider labels are
+unverified claims: the new profile keeps a label only when this library recorded
+exactly that label for the same bytes and file name, so update checks never follow
+a label the recipe supplied. The plan says when a label is not kept; dropping one
+changes the identity of a later export. Otherwise a round trip reproduces the
+recipe's identity exactly; that is not evidence of gameplay or save compatibility.
 
 Library metadata schema 6 carries profiles, revisions and the selected profile; it is
 emitted only when profiles exist and import validates each profile against its

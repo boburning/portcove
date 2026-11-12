@@ -1057,7 +1057,7 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
                   dismissInvocation={model.operations.dismissInvocation}
                   onActivity={model.ui.view === "updates"}
                   openActivity={(id) => {
-                    model.ui.setReviewedActivityId(id);
+                    model.ui.revealActivity(id);
                     // Also selects the Tasks section, even when Activity is already open.
                     model.setPrimaryView("updates");
                   }}
@@ -1419,6 +1419,7 @@ function CurrentView({
         activities={data.activities}
         activityFeed={data.activityFeed}
         reviewedActivityId={ui.reviewedActivityId}
+        reviewedActivityRequest={ui.reviewedActivityRequest}
         onReviewActivity={ui.setReviewedActivityId}
         outcomes={updates.outcomes}
         batchRead={updates.batchRead}

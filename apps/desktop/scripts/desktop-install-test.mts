@@ -4,7 +4,7 @@ import {
   requiredFixtureValue as required,
   fixtureObject as object,
 } from "./desktop-scenario-state.mts";
-import type { WebDriver } from "selenium-webdriver";
+import type { WebDriver, WebElement } from "selenium-webdriver";
 import type { FileIdentity } from "../../../scripts/development-evidence.mts";
 import type { createInstallFixture } from "./desktop-install-fixture.mts";
 import type { ScenarioContext } from "./desktop-scenario-context.mts";
@@ -915,6 +915,164 @@ export async function installScenarios({
       );
       await element.click();
     };
+    // #4879 native observation: the review/rollback copy, the labelled snapshot
+    // Core took before this real activating update, and the per-library setting.
+    const snapshotReviewText =
+      "Portcove first takes an automatic snapshot of its saves and settings";
+    const snapshotEvidence = async (name: string, target: WebElement) => {
+      await executeBrowserScript(browser, 'arguments[0].scrollIntoView({block:"center"});', target);
+      await captureAccessibilityReport(
+        browser,
+        path.join(output, `${name}-accessibility.json`),
+        artifacts,
+      );
+      const screenshot = path.join(output, `${name}.png`);
+      await writeFile(screenshot, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(screenshot);
+    };
+    const snapshotsEnabled = async () =>
+      transportValue(
+        "desktop_automatic_snapshots_enabled",
+        success(
+          await invoke("get_automatic_snapshots", {
+            generation: (await bootstrap()).generation,
+          }),
+        ),
+      );
+    const backups = async () =>
+      transportValue("backup_inventory", success(await invoke("get_backups", { portId: port.id })));
+    const observeAutomaticSnapshot = async (fromVersion: string, toVersion: string) => {
+      const inventory = await backups();
+      const automatic = inventory.backups.filter((item) => item.automatic);
+      assert.equal(automatic.length, 1, "One activating update must keep one automatic snapshot");
+      const snapshot = required(automatic[0]);
+      const label = required(snapshot.automatic);
+      assert.ok(
+        label.operation === "update" || label.operation === "activation",
+        `An update snapshot must not be labelled ${label.operation}`,
+      );
+      assert.equal(label.from_version, fromVersion);
+      assert.equal(label.to_version, toVersion);
+      assert.equal(
+        await readFile(path.join(snapshot.path, "data", path.basename(save)), "utf8"),
+        await readFile(save, "utf8"),
+        "The snapshot must hold the played version's saved data",
+      );
+      const expected = `Automatic snapshot before ${
+        label.operation === "update" ? "an update" : "activating a saved update"
+      } (${fromVersion} to ${toVersion})`;
+      const savesBefore = await fileIdentity(save);
+
+      await openFixture(port, true);
+      await revealDetailSection(browser, "Saves & backups");
+      const row = `[aria-labelledby="detail-saves-and-storage"] [data-backup-id="${snapshot.id}"]`;
+      const historyLabel = await browser.wait(
+        until.elementLocated(By.css(`${row} [data-automatic-snapshot]`)),
+        15_000,
+      );
+      await browser.wait(
+        async () => (await historyLabel.getText()) === expected,
+        15_000,
+        "Backup history must label the automatic snapshot with its version change",
+      );
+      await snapshotEvidence("native-automatic-snapshot-history", historyLabel);
+
+      await clickVisible(
+        browser,
+        await browser
+          .findElement(By.css(row))
+          .findElement(By.xpath('.//button[normalize-space(.)="Restore"]')),
+      );
+      const restoreReview = await browser.wait(
+        until.elementLocated(By.css('[aria-labelledby="backup-review-title"]')),
+        15_000,
+      );
+      // The review's details render only after Core's preview answers.
+      const reviewLabel = await browser.wait(
+        until.elementLocated(
+          By.css('[aria-labelledby="backup-review-title"] [data-automatic-snapshot]'),
+        ),
+        15_000,
+        "Restore review did not load the snapshot details",
+      );
+      await browser.wait(
+        async () => (await reviewLabel.getText()) === expected,
+        15_000,
+        "Restore review must label the automatic snapshot with its version change",
+      );
+      await snapshotEvidence("native-automatic-snapshot-restore-review", restoreReview);
+      await browser.actions().sendKeys(Key.ESCAPE).perform();
+      await browser.wait(
+        async () =>
+          (await browser.findElements(By.css('[aria-labelledby="backup-review-title"]'))).length ===
+          0,
+        15_000,
+        "Restore review did not close after Escape",
+      );
+      assert.deepEqual(await fileIdentity(save), savesBefore, "Reviewing must not restore");
+      assert.deepEqual(
+        (await backups()).backups.map((item) => item.id).sort(),
+        inventory.backups.map((item) => item.id).sort(),
+      );
+
+      await revealDetailSection(browser, "Versions & updates");
+      const rollback = await visibleButton("Restore previous version");
+      const rollbackText = await rollback.findElement(By.xpath("following-sibling::p[1]"));
+      assert.ok(
+        (await rollbackText.getText()).includes(snapshotReviewText),
+        "The rollback control must say Portcove first takes an automatic snapshot",
+      );
+      await snapshotEvidence("native-automatic-snapshot-rollback-control", rollbackText);
+
+      assert.equal(await snapshotsEnabled(), true, "Automatic snapshots are on by default");
+      await clickVisible(
+        browser,
+        await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')),
+      );
+      // Settings opens on Appearance; the control lives in Library and storage.
+      const storageCategory = await browser.wait(
+        until.elementLocated(
+          By.xpath(
+            '//nav[@aria-label="Settings categories"]//button[normalize-space(.)="Library and storage"]',
+          ),
+        ),
+        15_000,
+      );
+      await clickVisible(browser, storageCategory);
+      const setting = await browser.wait(
+        until.elementLocated(
+          By.xpath(
+            '//label[contains(., "Snapshot saved data before each version change")]//*[@role="checkbox"]',
+          ),
+        ),
+        15_000,
+      );
+      const checked = async (value: boolean) => {
+        await browser.wait(
+          async () =>
+            (await setting.getAttribute("aria-checked")) === String(value) &&
+            (await setting.getAttribute("data-disabled")) === null &&
+            (await snapshotsEnabled()) === value,
+          15_000,
+          `Settings and Core must both report automatic snapshots ${value ? "on" : "off"}`,
+        );
+      };
+      await checked(true);
+      await clickVisible(browser, setting);
+      await checked(false);
+      await snapshotEvidence("native-automatic-snapshot-setting-off", setting);
+      await clickVisible(browser, setting);
+      await checked(true);
+      return {
+        snapshot_id: snapshot.id,
+        label,
+        history_label: expected,
+        setting_round_trip: [true, false, true],
+      };
+    };
     const files = async (root: string): Promise<FileIdentity[]> => {
       const result: FileIdentity[] = [];
       const walk = async (directory: string) => {
@@ -1213,6 +1371,13 @@ export async function installScenarios({
         reviewText.includes(acquired.acquired.id) && reviewText.includes(release.sha256),
         "Fresh UI review must bind the exact acquired archive",
       );
+      if (activate) {
+        assert.ok(
+          reviewText.includes(snapshotReviewText),
+          "An activating update review must say Portcove first takes an automatic snapshot",
+        );
+        await snapshotEvidence("native-automatic-snapshot-update-review", review);
+      }
       await click(activate ? "Update now" : "Prepare update for later");
       const applied = await browser.wait(
         async () => {
@@ -1320,6 +1485,10 @@ export async function installScenarios({
       observations.fresh_apply = await freshApply(true, archiveV2, v2.release);
       assert.equal((await status()).previous?.id, first.active.id);
       assert.equal((await status()).staged, null);
+      observations.automatic_snapshot = await observeAutomaticSnapshot(
+        first.active.version,
+        required((await status()).active).version,
+      );
 
       const v3 = await publish("3.0.0-acquisition", 0x7249b309);
       await play();

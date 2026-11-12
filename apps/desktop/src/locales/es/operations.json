@@ -1,0 +1,9 @@
+{
+  "cancellation": {
+    "cancel": "Cancelar operación",
+    "finishing": "Finalizando de forma segura…",
+    "requested": "Cancelación solicitada",
+    "requestedBody": "Portcove se detendrá cuando el paso actual llegue a un punto seguro.",
+    "requesting": "Solicitando la cancelación…"
+  }
+}

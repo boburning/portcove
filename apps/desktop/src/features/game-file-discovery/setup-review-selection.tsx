@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { PortStatus, ReleaseChannel, SourceRegistrationReference } from "../../types";
 
-export const maxSetupReviewSelection = 16;
+/** Matches the largest batch Core reviews and installs at once. */
+export const maxSetupReviewSelection = 512;
 type Selection = ReturnType<typeof useSelection>;
 const SelectionContext = createContext<Selection | undefined>(undefined);
 
@@ -36,9 +37,16 @@ function useSelection() {
           ? [...previous, id]
           : previous,
     );
+  /** Adds every given game not already selected, up to the limit. */
+  const selectAll = (ids: string[]) =>
+    setSelected((previous) => {
+      const added = ids.filter((id) => !previous.includes(id));
+      return [...previous, ...added].slice(0, maxSetupReviewSelection);
+    });
   return {
     selected,
     toggle,
+    selectAll,
     clear: () => setSelected([]),
     pendingReview,
     requestReview,

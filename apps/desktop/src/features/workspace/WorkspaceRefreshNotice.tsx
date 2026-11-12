@@ -6,6 +6,7 @@ import { errorText, failurePresentation } from "../../view-model";
 import { FailureDetails } from "../../components/FailureDetails";
 import { Icon } from "../../components/ui";
 import { Button } from "../../components/ui/button";
+import { useAppTranslation } from "../../localization";
 
 export function WorkspaceRefreshNotice({
   failure,
@@ -24,6 +25,7 @@ export function WorkspaceRefreshNotice({
   retryRecovery: () => Promise<void>;
   subscriptionFailure?: unknown;
 }) {
+  const { t } = useAppTranslation("workspace");
   const retryButton = useRef<HTMLButtonElement>(null);
   const recoveryRetryButton = useRef<HTMLButtonElement>(null);
   const retryRequested = useRef(false);
@@ -53,12 +55,8 @@ export function WorkspaceRefreshNotice({
         <Icon glyph={AlertTriangle} />
       </span>
       <div data-slot="notice-body">
-        <strong>Library recovery could not finish</strong>
-        <p>
-          {hasSnapshot
-            ? "Showing the last loaded library information. It may be out of date."
-            : "Portcove has not loaded the library information yet."}
-        </p>
+        <strong>{t("recovery.heading")}</strong>
+        <p>{hasSnapshot ? t("recovery.snapshot") : t("notLoaded")}</p>
         <p>{errorText(recoveryFailure.error)}</p>
         {recoveryPresentation && (
           <FailureDetails presentation={recoveryPresentation} code={recoveryCode} />
@@ -73,7 +71,7 @@ export function WorkspaceRefreshNotice({
             void retryRecovery();
           }}
         >
-          Retry recovery
+          {t("recovery.retry")}
         </Button>
       </div>
     </Notice>
@@ -89,18 +87,15 @@ export function WorkspaceRefreshNotice({
           <Icon glyph={AlertTriangle} />
         </span>
         <div data-slot="notice-body">
-          <strong>Live workspace updates are unavailable</strong>
-          <p>
-            Portcove will keep checking activity at a reduced rate. Refresh manually after library
-            changes until the desktop is restarted.
-          </p>
+          <strong>{t("live.heading")}</strong>
+          <p>{t("live.body")}</p>
           <Button
             variant="outline"
             data-focusable
             disabled={refreshing}
             onClick={() => void retry()}
           >
-            {refreshing ? "Refreshing library…" : "Refresh now"}
+            {refreshing ? t("refreshing") : t("live.refresh")}
           </Button>
         </div>
       </Notice>
@@ -125,15 +120,9 @@ export function WorkspaceRefreshNotice({
         </span>
         <div data-slot="notice-body">
           <strong>
-            {hasSnapshot
-              ? "Library information could not be refreshed"
-              : "Library information could not be loaded"}
+            {hasSnapshot ? t("refresh.headingSnapshot") : t("refresh.headingInitial")}
           </strong>
-          <p>
-            {hasSnapshot
-              ? "Showing the last loaded information. It may be out of date."
-              : "Portcove has not loaded the library information yet."}
-          </p>
+          <p>{hasSnapshot ? t("refresh.snapshot") : t("notLoaded")}</p>
           <p>{errorText(error)}</p>
           {presentation && (
             <FailureDetails
@@ -142,11 +131,7 @@ export function WorkspaceRefreshNotice({
               showMutationSummary={showMutationSummary}
             />
           )}
-          <p>
-            {hasSnapshot
-              ? "Retry refresh loads the current information. It does not repeat your last install, move, or other action."
-              : "Retry refresh loads the library information. It does not install, move, or change a game."}
-          </p>
+          <p>{hasSnapshot ? t("refresh.effectSnapshot") : t("refresh.effectInitial")}</p>
           <Button
             ref={retryButton}
             variant="outline"
@@ -157,7 +142,7 @@ export function WorkspaceRefreshNotice({
               void retry();
             }}
           >
-            {refreshing ? "Refreshing library…" : "Retry refresh"}
+            {refreshing ? t("refreshing") : t("refresh.retry")}
           </Button>
         </div>
       </Notice>

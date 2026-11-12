@@ -210,20 +210,20 @@ interface WorkflowRun {
 }
 
 /**
- * The newest completed schedule or push `main` observer run that retains its
- * unexpired checkpoint snapshot, read-only. `readCommitted` returns a file's
- * exact bytes at a commit and throws when the commit or path is unavailable.
+ * The read-only GitHub transport of {@link readUpstreamObservations}: bounded
+ * metadata reads below `/repos/boburning/portcove/` and one artifact archive
+ * download of at most `maxBytes`.
  */
-export async function readUpstreamObservations(
-  readCommitted: (revision: string, file: string) => Buffer,
-): Promise<UpstreamInput> {
+export interface UpstreamTransport {
+  read: (endpoint: string) => Promise<Record<string, unknown>>;
+  download: (endpoint: string, maxBytes: number) => Promise<Buffer>;
+}
+
+/** The maintained GitHub client and artifact transfer under the local developer credential. */
+async function githubTransport(): Promise<UpstreamTransport> {
   const { createGitHubClient } = await import("./github-client.mts");
   const { localDeveloperCredential } = await import("./github-cli.mts");
   const { downloadGitHubArtifactArchive } = await import("./github-artifact-download.mts");
-  const { readCompleteRunArtifactInventoryAsync } =
-    await import("./release-run-artifact-inventory.mts");
-  const { producerEvents, observerStreamingSnapshotLimit, readRecoverableObserverSnapshotArchive } =
-    await import("./observer-checkpoint-artifact.mts");
   const deadline = performance.now() + 120_000;
   const credential = localDeveloperCredential({
     deadline,
@@ -246,9 +246,35 @@ export async function readUpstreamObservations(
       return { consumeBytes() {}, settle() {} };
     },
   });
-  const get = async (endpoint: string) =>
-    (await sdk.request({ method: "GET", url: `https://api.github.com${prefix}/${endpoint}` }))
-      .data as Record<string, unknown>;
+  return {
+    read: async (endpoint) =>
+      (await sdk.request({ method: "GET", url: `https://api.github.com${prefix}/${endpoint}` }))
+        .data as Record<string, unknown>,
+    download: (endpoint, maxBytes) =>
+      downloadGitHubArtifactArchive(endpoint, {
+        credential,
+        deadline: Math.min(deadline, performance.now() + 110_000),
+        maxBytes,
+      }),
+  };
+}
+
+/**
+ * The newest completed schedule or push `main` observer run that retains its
+ * unexpired checkpoint snapshot, read-only. `readCommitted` returns a file's
+ * exact bytes at a commit and throws when the commit or path is unavailable.
+ * The transport defaults to the maintained GitHub client and artifact transfer.
+ */
+export async function readUpstreamObservations(
+  readCommitted: (revision: string, file: string) => Buffer,
+  options: { transport?: UpstreamTransport } = {},
+): Promise<UpstreamInput> {
+  const { readCompleteRunArtifactInventoryAsync } =
+    await import("./release-run-artifact-inventory.mts");
+  const { producerEvents, observerStreamingSnapshotLimit, readRecoverableObserverSnapshotArchive } =
+    await import("./observer-checkpoint-artifact.mts");
+  const transport = options.transport ?? (await githubTransport());
+  const get = transport.read;
   // One server-filtered window per producer trigger, merged newest-first.
   const runs: WorkflowRun[] = [];
   for (const event of producerEvents) {
@@ -319,13 +345,9 @@ export async function readUpstreamObservations(
       throw new MaintenanceStoreError(
         "The observer snapshot configuration differs from its producer source",
       );
-    const archive = await downloadGitHubArtifactArchive(
+    const archive = await transport.download(
       `repos/${repository}/actions/artifacts/${artifact.id}/zip`,
-      {
-        credential,
-        deadline: Math.min(deadline, performance.now() + 110_000),
-        maxBytes: artifact.size_in_bytes,
-      },
+      artifact.size_in_bytes,
     );
     const digest = createHash("sha256").update(archive).digest("hex");
     if (archive.length !== artifact.size_in_bytes || `sha256:${digest}` !== artifact.digest)
@@ -423,8 +445,12 @@ export function upstreamExceptions(
   );
 }
 
-/** One line of observer state: the stored facts, and why the latest checkpoint did not cover the port. */
-export function upstreamSummary(payload: unknown, gap: unknown) {
+/**
+ * One line of observer state: the stored facts, and why the latest checkpoint
+ * did not cover the port. When the source's latest attempt failed, `attempt`
+ * names its source-level gap and `gap` comes from the run before it.
+ */
+export function upstreamSummary(payload: unknown, gap: unknown, attempt?: string | null) {
   const code = (gap as UpstreamGap | null | undefined)?.code;
   return (
     [
@@ -432,7 +458,8 @@ export function upstreamSummary(payload: unknown, gap: unknown) {
         (source) =>
           `${source.repository}: facts ${(source.last_complete_facts_sha256 ?? "unknown").slice(0, 12)}, last change ${source.last_change_at ?? "not recorded"}`,
       ),
-      code ? `latest checkpoint: ${code}` : "",
+      attempt ? `latest attempt failed: ${attempt}` : "",
+      code ? `${attempt ? "previous checkpoint" : "latest checkpoint"}: ${code}` : "",
     ]
       .filter(Boolean)
       .join("; ") || null

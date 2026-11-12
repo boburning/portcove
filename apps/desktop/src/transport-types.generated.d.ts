@@ -807,6 +807,7 @@ export type OutputPendingSetups = PendingSetupRecord[];
  */
 export type ProviderFreshness = "fresh" | "revalidated" | "stale";
 export type ProviderUpdateState = "current" | "newer_files" | "installed_file_removed" | "unavailable";
+export type RecipeInputStatus = "available" | "acquirable" | "unavailable";
 /**
  * One documented outcome in the assessed scope, not a universal judgment about a project.
  */
@@ -952,6 +953,9 @@ export type PortReadiness =
       [k: string]: unknown;
     };
 export type OutputDesktopPortIntents = PortIntent[];
+export type OutputDesktopRootSetupConsent = RootSetupConsent | null;
+export type RootSetupEnrollment = "existing_and_future" | "future_only";
+export type OutputDesktopRootSetupConsents = RootSetupConsent[];
 export type SteamArtworkRoleAction =
   "write" | "replace" | "preserve" | "unchanged" | "unavailable" | "remove" | "preserve_modified" | "absent";
 /**
@@ -1089,9 +1093,11 @@ export interface TransportOutputs {
   preparation_options: PreparationOptions;
   preparation_plan: OutputPreparationPlan;
   profile_inventory: ProfileInventory;
+  profile_recipe: ProfileRecipe;
   profile_revision: ProfileRevision;
   provider_install_plan: OutputProviderInstallPlan;
   provider_update_observation: OutputProviderUpdateObservation;
+  recipe_import_plan: OutputRecipeImportPlan;
   recommendation_metadata: OutputRecommendationMetadata;
   reconcile_batch_outcome: OutputReconcileBatchOutcome;
   reconcile_result: ReconcileResult;
@@ -1172,6 +1178,8 @@ export interface TransportOutputs {
   desktop_port_intents: OutputDesktopPortIntents;
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
+  desktop_root_setup_consent: OutputDesktopRootSetupConsent;
+  desktop_root_setup_consents: OutputDesktopRootSetupConsents;
   desktop_setup_launch_targets: OutputSetupLaunchTargets;
   desktop_source_reuse_review: OutputSourceReuseReview;
   desktop_source_verification_outcome: OutputSourceBatchOutcome;
@@ -2256,6 +2264,12 @@ export interface CuratedAcquisitionRecord {
   filename: string;
   independent_review: CuratedEvidenceReference;
   platform: Platform;
+  /**
+   * Record version 2 only: authorized alternate transports for the same
+   * accepted bytes (#1306). Locations are never identity or authority; the
+   * accepted size and SHA-256 above still decide every acquisition.
+   */
+  preserved_locations?: string[];
   protected_acceptance: CuratedEvidenceReference;
   record_version: number;
   release_id: number;
@@ -4520,6 +4534,47 @@ export interface SourceInspectionProblem {
   tool_id?: string | null;
   [k: string]: unknown;
 }
+export interface ProfileRecipe {
+  format: number;
+  /**
+   * SHA-256 of the recipe's canonical content with this field empty.
+   */
+  identity_sha256: string;
+  loader: LoaderContractRef | null;
+  orderings: TypedOrdering[];
+  originals: RecipeOriginal[];
+  packages: RecipePackage[];
+  port_id: string;
+  runtime: RecipeRuntime;
+  /**
+   * Inputs this recipe cannot reproduce; always stated, never implied.
+   */
+  uncaptured: string[];
+}
+/**
+ * A reference to an original, by content identity only. No path, no payload.
+ */
+export interface RecipeOriginal {
+  requirement_id: string;
+  sha256: string;
+  size: number;
+}
+export interface RecipePackage {
+  enabled: boolean;
+  native_id: string;
+  native_version: string | null;
+  provider: ProviderPackageRef | null;
+  requires: string[];
+  sha256: string;
+  size: number;
+}
+export interface RecipeRuntime {
+  artifact: ArtifactIdentity1;
+  definition: DefinitionSelectionIdentity | null;
+  installed_contract_sha256: string;
+  platform: Platform;
+  runtime: RuntimeIdentity | null;
+}
 export interface OutputProviderInstallPlan {
   conflicts: AssetConflict[];
   conflicts_truncated: boolean;
@@ -4616,6 +4671,29 @@ export interface OutputProviderUpdateObservation {
    * False with `NewerFiles` means files changed under an unchanged version label.
    */
   version_changed: boolean;
+  [k: string]: unknown;
+}
+export interface OutputRecipeImportPlan {
+  can_apply: boolean;
+  /**
+   * Why applying is not possible yet; empty when every input is present.
+   */
+  holds: string[];
+  /**
+   * The exact installation the new profile would bind, when one matches.
+   */
+  install_id: string | null;
+  originals: RecipeInputPlan[];
+  packages: RecipeInputPlan[];
+  plan_sha256: string;
+  recipe: ProfileRecipe;
+  runtime: RecipeInputPlan;
+  [k: string]: unknown;
+}
+export interface RecipeInputPlan {
+  detail: string;
+  name: string;
+  status: RecipeInputStatus;
   [k: string]: unknown;
 }
 export interface OutputRecommendationMetadata {
@@ -5146,7 +5224,46 @@ export interface InstallBatchItem {
   state: InstallBatchItemState;
 }
 export interface OutputDesktopInstallBatchReview {
+  capacity: InstallBatchCapacity;
   items: InstallBatchReviewItem[];
+  [k: string]: unknown;
+}
+/**
+ * Combined needs of the games ready to install.
+ */
+export interface InstallBatchCapacity {
+  /**
+   * Known downloads: releases, bundled runtimes and required extras.
+   */
+  download_bytes: number;
+  /**
+   * Ready games whose space needs could not be estimated.
+   */
+  unknown_space?: string[];
+  volumes: InstallBatchVolume[];
+  [k: string]: unknown;
+}
+/**
+ * Space one volume needs for the games in a batch that will download.
+ */
+export interface InstallBatchVolume {
+  available_bytes?: number | null;
+  /**
+   * A destination on the volume (the first game's).
+   */
+  path: string;
+  port_ids: string[];
+  /**
+   * Sum of the games' temporary space floors on this volume. Final
+   * installed sizes are not known in advance.
+   */
+  required_bytes: number;
+  /**
+   * Whether the volume has room for all of them together; unknown when its
+   * free space could not be observed. Each game is checked again before it runs.
+   */
+  sufficient?: boolean | null;
+  volume_identity?: string | null;
   [k: string]: unknown;
 }
 /**
@@ -5266,6 +5383,43 @@ export interface PortIntentAssessment {
   suppressed?: string | null;
   [k: string]: unknown;
 }
+export interface RootSetupConsent {
+  enabled_at: number;
+  enrollment: RootSetupEnrollment;
+  /**
+   * Files remembered as already in the folder (future-only); they are never
+   * set up by this choice.
+   */
+  existing_files: number;
+  failures?: RootSetupFailure[];
+  format_version: number;
+  /**
+   * Explicit implementation choices. Files several games can use wait
+   * until one is chosen; Portcove never sets up every fork.
+   */
+  implementations?: RootSetupImplementation[];
+  root_id: string;
+  updated_at: number;
+  [k: string]: unknown;
+}
+export interface RootSetupFailure {
+  attempts: number;
+  /**
+   * The install plan, or `source:` and the file, that failed.
+   */
+  plan_sha256: string;
+  port_id: string;
+  reason: string;
+  [k: string]: unknown;
+}
+/**
+ * The game the player chose for files that several implementations can use.
+ */
+export interface RootSetupImplementation {
+  port_id: string;
+  profile_id: string;
+  [k: string]: unknown;
+}
 /**
  * What one standing-setup pass did for each game it considered.
  */
@@ -5284,11 +5438,27 @@ export interface OutputDesktopStandingSetup {
    */
   failures: StandingSetupFailure[];
   not_assessed: number;
+  /**
+   * Matched files in folders with automatic setup that wait for a person
+   * or a requirement.
+   */
+  root_waiting?: RootSetupWaiting[];
   [k: string]: unknown;
 }
 export interface StandingSetupFailure {
   port_id: string;
   reason: string;
+  [k: string]: unknown;
+}
+/**
+ * An eligible-looking file in a consented folder that is waiting for a person
+ * or a requirement.
+ */
+export interface RootSetupWaiting {
+  port_id?: string | null;
+  profile_id: string;
+  reason: string;
+  root_id: string;
   [k: string]: unknown;
 }
 export interface OutputDesktopSteamArtworkApplyResult {

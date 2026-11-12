@@ -9,6 +9,8 @@ use flate2::read::GzDecoder;
 
 use crate::{PortcoveError, Result};
 
+#[cfg(any(test, feature = "archive-fuzzing"))]
+pub mod fuzzing;
 pub(crate) mod sevenz;
 mod xz;
 #[cfg(all(test, target_os = "linux", target_arch = "x86_64"))]
@@ -934,6 +936,10 @@ fn normalize_archive_directories(destination: &Path, deepest: &Path) -> Result<(
 #[cfg(test)]
 #[path = "archive_fuzz_tests.rs"]
 mod fuzz_tests;
+
+#[cfg(test)]
+#[path = "archive_fuzz_seed_tests.rs"]
+mod fuzz_seed_tests;
 
 #[cfg(test)]
 mod tests {

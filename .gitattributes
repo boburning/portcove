@@ -7,6 +7,9 @@
 *.jpg binary
 *.png binary
 
+# Archive fuzz seeds are embedded by a Core test and must stay byte-exact.
+crates/portcove-core/fuzz/seeds/** binary
+
 # Unified diffs need a space context marker for blank upstream lines. Preserve
 # dependency patch payloads; source paths keep normal whitespace checks.
 patches/*.patch whitespace=-blank-at-eol

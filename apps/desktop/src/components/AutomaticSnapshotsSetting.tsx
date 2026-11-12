@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { desktopApi } from "../api";
+import { useAppTranslation } from "../localization";
 import { failurePresentation } from "../view-model";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
@@ -22,7 +23,12 @@ export function AutomaticSnapshotsSetting({
   // `undefined` until Core has answered; a stale answer for another library
   // generation is never shown.
   const [state, setState] = useState<{ generation: number; enabled: boolean } | undefined>();
-  const [problem, setProblem] = useState<string | undefined>();
+  // Core's own summary when it gave one; otherwise which action failed, so the
+  // fallback is translated at render and follows a live language change.
+  const [problem, setProblem] = useState<
+    { action: "read" | "save"; summary: string | undefined } | undefined
+  >();
+  const { t } = useAppTranslation("backups");
   const [saving, setSaving] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const request = useRef(0);
@@ -38,7 +44,7 @@ export function AutomaticSnapshotsSetting({
       },
       (value) => {
         if (request.current === current)
-          setProblem(failurePresentation(value)?.summary ?? "The setting could not be read.");
+          setProblem({ action: "read", summary: failurePresentation(value)?.summary });
       },
     );
     return () => {
@@ -55,7 +61,7 @@ export function AutomaticSnapshotsSetting({
       if (request.current === current) setState({ generation, enabled: stored });
     } catch (value) {
       if (request.current === current)
-        setProblem(failurePresentation(value)?.summary ?? "The setting could not be saved.");
+        setProblem({ action: "save", summary: failurePresentation(value)?.summary });
     } finally {
       if (request.current === current) setSaving(false);
     }
@@ -63,16 +69,8 @@ export function AutomaticSnapshotsSetting({
   return (
     <SettingsRow data-focus-group>
       <div className="grid gap-2">
-        <h3 className="text-base font-semibold">Snapshot saved data before version changes</h3>
-        <p className="text-sm text-pc-muted-foreground">
-          Before an update installs, a saved update is activated, or you restore a previous version,
-          Portcove copies a game&rsquo;s managed saves and settings so you can restore them if the
-          new version misreads them. It skips games whose saves live outside Portcove and games with
-          no saved data yet, and if a snapshot cannot be taken the version change stops. Portcove
-          keeps the newest five automatic snapshots for each game and never removes the ones you
-          take yourself. This applies to every game in this library, starting with the next version
-          change.
-        </p>
+        <h3 className="text-base font-semibold">{t("automaticSnapshots.heading")}</h3>
+        <p className="text-sm text-pc-muted-foreground">{t("automaticSnapshots.description")}</p>
         <label htmlFor={controlId} className="flex items-center gap-2 text-sm">
           <Checkbox
             id={controlId}
@@ -80,14 +78,19 @@ export function AutomaticSnapshotsSetting({
             disabled={enabled === undefined || saving}
             onCheckedChange={(value) => void change(value)}
           />
-          Snapshot saved data before each version change
+          {t("automaticSnapshots.control")}
         </label>
         {problem && (
           <div className="flex flex-wrap items-center gap-2">
-            <p role="alert">{problem}</p>
+            <p role="alert">
+              {problem.summary ??
+                (problem.action === "read"
+                  ? t("automaticSnapshots.readFailed")
+                  : t("automaticSnapshots.saveFailed"))}
+            </p>
             {enabled === undefined && (
               <Button variant="outline" onClick={() => setAttempt((value) => value + 1)}>
-                Try again
+                {t("automaticSnapshots.retry")}
               </Button>
             )}
           </div>

@@ -1,6 +1,7 @@
 import { countMessage } from "../localization";
+import { FolderSetupChoice } from "./FolderSetupChoice";
 import { SettingsRow } from "./ui/patterns";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { desktopApi } from "../api";
 import { pickGameFileFolder } from "../file-picker";
 import { useSetupSource } from "../features/app-shell/use-setup-source";
@@ -439,6 +440,12 @@ function CompletedScan({
   );
 }
 
+/** Whole path components only, so `D:/Games` does not contain `D:/Games2/x`. */
+function isInsideFolder(path: string, folder: string) {
+  const normalize = (value: string) => value.replaceAll("\\", "/").replace(/\/+$/, "");
+  return normalize(path).startsWith(`${normalize(folder)}/`);
+}
+
 function SavedRootRows({
   roots,
   busy,
@@ -447,7 +454,9 @@ function SavedRootRows({
   setRemovingId,
   relink,
   remove,
+  renderSetup,
 }: {
+  renderSetup?: ((root: GameFileRoot) => ReactNode) | undefined;
   roots?: GameFileRoot[] | undefined;
   busy: boolean;
   scanning: boolean;
@@ -475,6 +484,7 @@ function SavedRootRows({
                 ? "Available"
                 : "Unavailable — reconnect or relink this folder"}
             </span>
+            {renderSetup?.(root)}
           </div>
           <div className="actions flex flex-wrap gap-2">
             <Button
@@ -1137,6 +1147,17 @@ export function GameFileLibraries({
         setRemovingId={setRemovingId}
         relink={(root) => void relink(root)}
         remove={(root) => void remove(root)}
+        renderSetup={(root) => (
+          <FolderSetupChoice
+            root={root}
+            generation={generation}
+            ports={ports}
+            candidates={(snapshot?.report.candidates ?? []).filter((candidate) =>
+              isInsideFolder(candidate.path, root.path),
+            )}
+            disabled={Boolean(busy) || scanning}
+          />
+        )}
       />
       {renderScanActions()}
       {busy && <p role="status">{busy}</p>}

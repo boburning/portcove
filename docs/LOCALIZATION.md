@@ -24,9 +24,9 @@ The foundation was implemented on 2026-09-22 with the exact registry packages be
 
 | Package         | Version | Runtime role                                                                         |
 | --------------- | ------: | ------------------------------------------------------------------------------------ |
-| `i18next`       |  26.4.2 | Offline resource lookup, fallback, interpolation, plural rules, and language changes |
-| `react-i18next` | 17.0.15 | React provider, hooks, and safe rich-text composition                                |
-| `i18next-cli`   |  1.74.1 | Development-only extraction, status, lint, and generated TypeScript contracts        |
+| `i18next`       |  26.7.2 | Offline resource lookup, fallback, interpolation, plural rules, and language changes |
+| `react-i18next` | 17.1.13 | React provider, hooks, and safe rich-text composition                                |
+| `i18next-cli`   |  1.85.0 | Development-only extraction, status, lint, and generated TypeScript contracts        |
 
 The official CLI requires Node 22 or newer. It is a development dependency and is absent from production bundles. A bounded Lingui comparison confirmed that it also met the current React and Node floor, but its additional compile and macro layer did not improve this small offline foundation enough to reverse the approved i18next direction. This is not an invitation to repeat the framework comparison during screen migration.
 
@@ -57,7 +57,7 @@ not inline message dictionaries. This adds no supported product language.
 
 Use feature-owned namespaces and semantic keys: `settings:language.saveFailed`, not English sentences as identifiers. Keep technical identifiers, paths, checksums, commands, and product names in logical-direction containers when they appear inside translated copy.
 
-Write complete messages. Do not concatenate translated fragments or attach punctuation outside a translation. Use named interpolation for values, i18next plural forms for counts, and `Trans` only with an explicit component map for limited semantic markup. Never insert translated HTML or use `dangerouslySetInnerHTML`.
+Write complete messages. Do not concatenate translated fragments or attach punctuation outside a translation. Use named interpolation for values, i18next plural forms for counts, and `Trans` only with an explicit component map for limited semantic markup. Never insert translated HTML or use `dangerouslySetInnerHTML`. Pass paths, hashes and other exact user or Core values as the child of a self-closing `Trans` component placeholder (for example `<code/>` with `components={{ code: <code dir="ltr">{path}</code> }}`), never as an interpolated value: `Trans` would substitute `{{…}}` sequences that appear inside a real path.
 
 Context and glossary rules:
 
@@ -121,19 +121,30 @@ unless the copy change is intended and reviewed.
 | Custom catalog sources and game listings | `components/CatalogUpdates.tsx`                            | `catalogUpdates`    |
 | Uninstall review                         | `components/RemovalReview.tsx`                             | `removal`           |
 | Saved file location removal              | `components/SourceRemoval.tsx`                             | `removal`           |
+| Backup restore and deletion review       | `components/BackupReview.tsx`                              | `backups`           |
+| Backup history                           | `components/BackupHistory.tsx`                             | `backups`           |
+| Backups and updates summary              | `components/ProtectionSummary.tsx`                         | `backups`           |
+| Automatic snapshot setting               | `components/AutomaticSnapshotsSetting.tsx`                 | `backups`           |
+| Game update channel                      | `components/ReleaseChannel.tsx`                            | `gameUpdates`       |
+| Last-launch failure notice               | `components/LaunchFailureNotice.tsx`                       | `launch`            |
+| Library refresh and recovery notices     | `features/workspace/WorkspaceRefreshNotice.tsx`            | `workspace`         |
+| Bug report preview                       | `components/ReportProblem.tsx`                             | `report`            |
+| Game search field                        | `components/PortSearch.tsx`                                | `browsing`          |
+| Command palette chrome                   | `components/CommandPalette.tsx`                            | `commands`          |
+| Operation cancellation control           | `components/OperationCancellation.tsx`                     | `operations`        |
 
 Remaining scope is measured with the same linter over every non-test source file
-(temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-11 it
-reported 1,628 findings in 79 of 208 analyzed files, measured after the
+(temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-12 it
+reported 1,551 findings in 71 of 216 analyzed files, measured after the
 migrations listed above and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
 and are migrated with the surface that renders them. The count is a work
 inventory, not a coverage claim.
 
-Narrow technical-literal exclusions: the lint ignores the `aria-live`,
-`aria-atomic`, `aria-describedby`, `aria-labelledby`, `data-settings-control`,
+Narrow technical-literal exclusions: the lint ignores the `align`, `aria-live`,
+`aria-atomic`, `aria-autocomplete`, `aria-describedby`, `aria-hidden`, `aria-labelledby`, `data-backup-action`, `data-settings-control`,
 `data-slot`, `dir`, `intent`, `reviewSize`, `size`, `triggerId` and `variant`
-attributes, which carry design-system tokens, element ids or ARIA references,
+attributes, which carry design-system tokens, element ids, ARIA references or ARIA state tokens,
 never player copy.
 Thrown `Error` messages that are caught and never displayed, stable state codes,
 keyboard key names and product names remain literals.

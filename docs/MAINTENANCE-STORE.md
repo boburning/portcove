@@ -397,6 +397,9 @@ not published.
     `readRecoverableObserverSnapshotArchive` decodes and validates the complete
     snapshot under that configuration, and the snapshot producer must equal the
     run identity, attempt and head commit.
+  - The GitHub reads and the download go through an injectable transport
+    (`UpstreamTransport`); the maintained client is the default, and tests
+    replace it with a stub to prove the selection and binding refusals.
   - The run revision is
     `upstream-observer-run:<run>-<attempt>@<head_sha>#sha256:<artifact digest>`;
     the artifact digest also binds the configuration digest the snapshot
@@ -429,7 +432,10 @@ not published.
   `failed` with one `unavailable` gap and no observations, so the last known
   facts stay current.
 - **Report:** an "Upstream" column shows each source's facts digest and last
-  change, and the latest run's gap code. "Needs attention" lists observer
+  change, and the port's gap code from the latest run that did not fail
+  (`latest checkpoint: <code>`). When the latest run failed, the column shows
+  its source-level gap as `latest attempt failed: <code>` and the port's gap
+  from the run before it as `previous checkpoint: <code>`. "Needs attention" lists observer
   exceptions (`exception_key` set) with their rule, from the stored facts or from
   a gap. The observer's own partial-progress rules (`partialProgressRules`:
   budget, cancellation and quota stops) are routine continuation and stay quiet;
@@ -494,7 +500,11 @@ collection records a `failed` run until the producer retains a snapshot again.
   `invalid-receipt` gap for that request and the run is `partial`.
 - **Report:** a "Hosted intake" table lists each request's classification,
   counts, reconciliation links and linked issues, joined to the issue facts'
-  state and Project status when `--issues` was collected. "Needs attention"
+  state and Project status when `--issues` was collected. Each request's gap
+  comes from the latest run that did not fail (`latest read: <code>`, stored as
+  the entry's `latest_gap`). When the latest run failed, the state shows its
+  source-level gap as `latest attempt failed: <code>` and the request's gap as
+  `previous read: <code>`. "Needs attention"
   reuses the executor's classification: `blocked` shows the receipt's blocker
   code and reconciliation, and `complete_with_holds` shows the owner `process`
   resume condition. Routine `partial` continuation and `submitted` stay quiet,
@@ -538,10 +548,24 @@ names against the registry.
 
 - **Relocation:** a release-health condition is a relocation only when its
   provider is `github` and its rule is one of the monitor's own
-  `originalLocationReasons` (`provider-redirect`, `inaccessible-or-missing`,
-  exported by `scripts/check-catalog-repositories.mts`). Every other condition,
-  including transient `transport` and non-GitHub locations, is
-  `release-health-condition`.
+  `originalLocationReasons` (`provider-redirect`, `inaccessible-or-missing`).
+  They live in the dependency-free `scripts/upstream-location-reasons.mts`,
+  which also types the monitor's reviewed original-location conditions, so the
+  inventory CLI loads without the monitor, its GitHub client or
+  `.github/upstream-health-accounting.json`; a test checks that module closure.
+  Every other condition, including transient `transport` and non-GitHub
+  locations, is `release-health-condition`.
+- **Accounted conditions:** the monitor's triage keeps some accounted conditions
+  visible (`accounted_for` true outside the routine `provider-reported-*` case:
+  a reviewed GitHub original-location condition, or a catalog-declared
+  unavailable original). They keep their kind, `release-health-relocation` or
+  `release-health-condition`, and their dispatch reason, but they need no new
+  relocation evidence or accounting. When every condition of the handoff is
+  accounted, its action says so and its invocation and resume show each
+  condition's own recorded `resume_condition`. When some are not, the registry
+  action applies to the unaccounted ones and names the accounted ones with their
+  recorded resume conditions. With none accounted, the registry entry is shown
+  unchanged. The stored condition and its digest are unchanged.
 - **Scheduled receipt:** `readReleaseHealth` accepts only scheduled `main`
   reports, so the release-health entries offer no `upstream-health.yml`
   dispatch; a dispatched run would never count as the receipt.
@@ -611,8 +635,9 @@ node scripts/maintenance-inventory.mts handoffs --record
 the action, invocation, authority, `dispatch disabled: <reason>; resume:
 <condition>`, the receipt, and the open operation with its fence (marked stale
 when it predates the current sequence). Handoffs are not listed as inventory
-subjects. The changes-only digest includes handoff transitions and names the
-registry action.
+subjects. The changes-only digest includes handoff transitions with their
+recorded condition (`handoff_condition`) and names the same action as the
+report.
 
 **Explicitly disabled:** executor dispatch (every executor is owner-only or needs
 a reviewed change no executor is authorized to deliver, and no delegated
@@ -636,7 +661,8 @@ node scripts/maintenance-inventory.mts acknowledge --digest work/maintenance-dig
 - `digest` reads only pending notifications and writes `digest.json` and
   `digest.md` (format 1). It marks nothing delivered.
   - Each entry names the subject and its previous and new state, and flags a
-    return to an earlier result.
+    return to an earlier result. A handoff entry also carries its recorded
+    condition as `handoff_condition` (null for other subjects).
 - Posting the digest belongs to an existing authorized executor and is not
   automated here; that dispatch stays disabled.
 - `acknowledge` runs with the executor role. It records the delivering
@@ -654,7 +680,12 @@ verifies identical digests and confirms that guards, identity sequences and role
 work on the restored store. A separate case interrupts a migration and proves
 that no partial schema remains and that resume and drift detection work.
 `scripts/maintenance-handoffs.test.mts` checks the registry, its workflows and
-inputs, identities and the per-source projections.
+inputs, identities, the per-source projections, the accounted-condition
+guidance and that the inventory CLI loads without the monitor or its accounting
+file. `scripts/maintenance-upstream.test.mts` drives the observer snapshot
+selection through a stubbed transport: foreign producer runs, passed-over and
+refused artifacts, digest, configuration and producer mismatches, and no
+retained snapshot.
 `scripts/maintenance-inventory.test.mts` drives the read-only path through a
 stub Core CLI, using the collector and report roles. It checks:
 
@@ -667,7 +698,8 @@ stub Core CLI, using the collector and report roles. It checks:
 - per-call isolation and its removal, including under a symlinked `TMPDIR`;
 - coverage, listing and absence facts;
 - release-health, upstream-observation and hosted-intake coverage, quiet
-  recurrence, needs-attention and failed reads;
+  recurrence, needs-attention and failed reads, with per-subject gaps from the
+  latest run that did not fail;
 - executor handoffs: one planned operation per appearance, quiet unchanged reruns
   and replays, no clearing by partial or failed runs, `clear` and
   `planned` to `abandoned` after a complete run, supersession and return

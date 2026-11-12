@@ -2959,6 +2959,38 @@ policy case stays complete; #2440 owns this finite transition. #251 consumes the
 shared contract; #1306 owns preservation/failover, #315 release/distribution
 authority, #246 protected delivery and #254 proposals.
 
+### Artifact preservation capture
+
+`scripts/artifact-preservation.mts` is the maintainer-side capture contract for
+[#1306](https://github.com/boburning/portcove/issues/1306). It covers an
+explicitly declared finite scope of accepted artifacts, keyed by port, platform
+and numeric asset ID, and only for listed distribution bases. Anything outside
+that scope is recorded as `ineligible` and is never fetched. Capture streams the
+original bytes against the accepted size bound, rejects a differing SHA-256
+before publication, and publishes `<sha256>.asset` without replacing an existing
+object. A record becomes `verified` only after a separate complete read of the
+stored object matches the accepted size and SHA-256. Upload success and stream
+hashing never qualify.
+
+A replay or backfill verifies an existing object instead of uploading it again.
+A differing stored object becomes `failed` and is preserved for review, not
+overwritten. Exhausted capacity, including running out of space mid-transfer,
+records a deferred `pending` state and evicts nothing. Each artifact is recorded
+independently, so a storage error on one does not stop a backfill. Inventory
+export includes verified records only, one per accepted identity (one object
+may carry several), in a canonical order that
+gives a stable digest. Restore streams each object through the same bounded
+size and SHA-256 check before publishing it in the target. It then reads the
+target back and never changes accepted identity. Interrupted private
+`.partial-*` staging files are never usable objects. This tooling does not sweep
+abandoned ones automatically.
+
+This tooling grants no authority and changes no client behavior. Core
+acquisition still freshly observes upstream metadata as described in
+[definition delivery](DEFINITION-DELIVERY.md). No backend, credential,
+preserved location or failover path is configured. Those depend on the owner
+decision recorded on #1306.
+
 ## Read-only disappearance reporting
 
 `scripts/check-catalog-repositories.mts` reports six separate facts for each

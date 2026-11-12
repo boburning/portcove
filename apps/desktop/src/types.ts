@@ -136,6 +136,8 @@ export type PortIntentMode = PortIntent["mode"];
 export type PortIntentAssessments = Generated.TransportOutputs["desktop_port_intent_assessments"];
 export type PortIntentAssessment = PortIntentAssessments["assessments"][number];
 export type StandingSetupResult = Generated.TransportOutputs["desktop_standing_setup"];
+export type RootSetupConsent = Generated.TransportOutputs["desktop_root_setup_consents"][number];
+export type RootSetupEnrollment = RootSetupConsent["enrollment"];
 export type PortReadinessAcknowledgement =
   Requests.TransportInputs["desktop_port_readiness_acknowledgements"][number];
 export type InstallBatchRequestItem =

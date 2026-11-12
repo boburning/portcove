@@ -39,6 +39,25 @@ pub struct InstallRequest {
 struct AssetAcquisition<'a> {
     scope: &'a crate::DefinitionAcquisitionScope,
     curated: bool,
+    /// The accepted curated record when `curated`; its preserved locations are
+    /// tried only after the upstream is classified unavailable (#1306).
+    record: Option<crate::curated_acquisition::CuratedAcquisitionRecord>,
+}
+
+fn curated_record(
+    scope: &crate::DefinitionAcquisitionScope,
+    catalog: &crate::Catalog,
+    request: &InstallRequest,
+) -> Result<Option<crate::curated_acquisition::CuratedAcquisitionRecord>> {
+    if scope.curated_checks != Some(1) {
+        return Ok(None);
+    }
+    Ok(catalog
+        .port(&request.port_id)?
+        .release
+        .curated
+        .get(&request.qualification.platform)
+        .cloned())
 }
 
 /// Inputs for one asset's acquisition and extraction within the owned operation.
@@ -1108,23 +1127,20 @@ impl Installer {
                     .as_ref()
                     .ok_or_else(|| PortcoveError::state("acquisition lost retained definition"))?;
                 let catalog = contract.catalog(&request.port_id)?;
-                scope.curated_checks == Some(1)
-                    && catalog
-                        .port(&request.port_id)?
-                        .release
-                        .curated
-                        .contains_key(&request.qualification.platform)
+                curated_record(scope, &catalog, request)?
             }
-            None => false,
+            None => None,
         };
         self.acquire_asset_bytes(
             &request.release.asset,
             &private.join("0.archive"),
             operation,
             emit,
-            scope
-                .as_ref()
-                .map(|scope| AssetAcquisition { scope, curated }),
+            scope.as_ref().map(|scope| AssetAcquisition {
+                scope,
+                curated: curated.is_some(),
+                record: curated,
+            }),
             None,
         )
         .await?;
@@ -1171,13 +1187,12 @@ impl Installer {
                         PortcoveError::state("scoped acquisition lost its retained definition")
                     })?;
                 let catalog = contract.catalog(&request.port_id)?;
-                let curated = scope.curated_checks == Some(1)
-                    && catalog
-                        .port(&request.port_id)?
-                        .release
-                        .curated
-                        .contains_key(&request.qualification.platform);
-                Some(AssetAcquisition { scope, curated })
+                let record = curated_record(scope, &catalog, &request)?;
+                Some(AssetAcquisition {
+                    scope,
+                    curated: record.is_some(),
+                    record,
+                })
             }
             None => None,
         };
@@ -1606,8 +1621,32 @@ impl Installer {
         } else if !restored {
             match scope {
                 Some(scope) => {
-                    self.download_scoped(asset, download_path, operation, emit, Some(scope))
-                        .await?
+                    let upstream = self
+                        .download_scoped(asset, download_path, operation, emit, Some(scope))
+                        .await;
+                    let record = acquisition
+                        .as_ref()
+                        .and_then(|acquisition| acquisition.record.as_ref())
+                        .filter(|record| !record.preserved_locations.is_empty());
+                    match (upstream, record) {
+                        (Ok(()), _) => {}
+                        (Err(error), Some(record))
+                            if error.upstream_failure()
+                                == crate::failure::UpstreamFailure::Unavailable =>
+                        {
+                            self.download_preserved(
+                                asset,
+                                record,
+                                download_path,
+                                operation,
+                                emit,
+                                scope,
+                                error,
+                            )
+                            .await?;
+                        }
+                        (Err(error), _) => return Err(error),
+                    }
                 }
                 None => self.download(asset, download_path, operation, emit).await?,
             }
@@ -1640,6 +1679,65 @@ impl Installer {
             },
             cache_worker,
         ))
+    }
+
+    /// Tries each preserved location in record order after the upstream was
+    /// classified unavailable. Holds and scope are rechecked before every
+    /// attempt; the caller's bounded SHA-256 verifier still decides acceptance,
+    /// so a location can never supply different accepted bytes.
+    #[allow(clippy::too_many_arguments)]
+    async fn download_preserved<F>(
+        &self,
+        asset: &ReleaseAsset,
+        record: &crate::curated_acquisition::CuratedAcquisitionRecord,
+        download_path: &Path,
+        operation: &OperationCoordinator,
+        emit: &mut F,
+        scope: &crate::DefinitionAcquisitionScope,
+        upstream: PortcoveError,
+    ) -> Result<()>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let mut attempts = 0_usize;
+        for location in &record.preserved_locations {
+            operation.checkpoint()?;
+            match std::fs::remove_file(download_path) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(error.into()),
+            }
+            crate::definition_repository::publisher_policy::require_curated_artifact_operation(
+                &scope.library.connection()?,
+                scope.repository_id,
+                record,
+                crate::definition_repository::publisher_policy::CuratedArtifactOperation::Acquisition,
+            )?;
+            let alternate = ReleaseAsset {
+                url: crate::curated_acquisition::transport_url(scope, location)?,
+                ..asset.clone()
+            };
+            attempts += 1;
+            emit(operation.message(
+                "info",
+                format!(
+                    "The original download is unavailable. Trying preserved location {attempts} of {} for {}.",
+                    record.preserved_locations.len(),
+                    asset.name
+                ),
+            ));
+            match self
+                .download_scoped(&alternate, download_path, operation, emit, Some(scope))
+                .await
+            {
+                Ok(()) => return Ok(()),
+                Err(error)
+                    if error.upstream_failure() == crate::failure::UpstreamFailure::Unavailable => {
+                }
+                Err(error) => return Err(error),
+            }
+        }
+        Err(upstream.detail("preserved_attempts", attempts.to_string()))
     }
 
     async fn prepare_asset<F>(
@@ -1798,13 +1896,16 @@ impl Installer {
         validate_download_progress(0, asset.size)?;
         let response = operation
             .interruptible(async {
-                client
-                    .get(&asset.url)
-                    .send()
-                    .await
-                    .map_err(|error| PortcoveError::network(error.to_string()))?
-                    .error_for_status()
-                    .map_err(|error| PortcoveError::network(error.to_string()))
+                let response = client.get(&asset.url).send().await.map_err(|error| {
+                    PortcoveError::network(error.to_string())
+                        .with_upstream(crate::failure::UpstreamObservation::from_reqwest(&error))
+                })?;
+                let status = response.status();
+                response.error_for_status().map_err(|error| {
+                    PortcoveError::network(error.to_string()).with_upstream(Some(
+                        crate::failure::UpstreamObservation::Status(status.as_u16()),
+                    ))
+                })
             })
             .await?;
         let total = response
@@ -1825,7 +1926,10 @@ impl Installer {
                 .interruptible(async { Ok(stream.next().await) })
                 .await?
             {
-                let chunk = chunk.map_err(|error| PortcoveError::network(error.to_string()))?;
+                let chunk = chunk.map_err(|error| {
+                    PortcoveError::network(error.to_string())
+                        .with_upstream(crate::failure::UpstreamObservation::from_reqwest(&error))
+                })?;
                 let next = completed
                     .checked_add(chunk.len() as u64)
                     .ok_or_else(|| PortcoveError::verification("download byte count overflowed"))?;

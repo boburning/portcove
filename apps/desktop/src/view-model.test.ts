@@ -574,6 +574,47 @@ it.each([{ blockers: [] }, { blockers: ["future_blocker" as ReadinessBlocker] }]
   },
 );
 
+it("names each disc-unpacking step for the player and shows unpacking bytes", () => {
+  const step = (phase_id: string, unit: "bytes" | "indeterminate", completed = 0, total = 0) =>
+    ({
+      schema_version: 3,
+      operation_id: "launch-1",
+      parent_operation_id: null,
+      sequence: 1,
+      timestamp_ms: 1,
+      operation: "launch",
+      target: null,
+      type: "progress",
+      phase: phase_id,
+      phase_id,
+      unit,
+      completed,
+      total: unit === "bytes" ? total : null,
+    }) as const;
+  expect(progressPresentation(step("disc.identify", "indeterminate"), "")).toEqual({
+    label: "Checking your disc image",
+    detail: "Making sure it is the right game and region.",
+  });
+  expect(progressPresentation(step("disc.plan", "indeterminate"), "").label).toBe(
+    "Reading the disc contents",
+  );
+  expect(progressPresentation(step("disc.free-space", "indeterminate"), "").label).toBe(
+    "Checking free space",
+  );
+  expect(progressPresentation(step("disc.verify", "indeterminate"), "").label).toBe(
+    "Verifying game files",
+  );
+  expect(progressPresentation(step("disc.activate", "indeterminate"), "").label).toBe(
+    "Finishing game file setup",
+  );
+  const unpacking = progressPresentation(step("disc.extract", "bytes", 1024, 2048), "");
+  expect(unpacking.label).toBe("Unpacking game files");
+  expect(unpacking.detail).toBe("1.0 KiB of 2.0 KiB");
+  expect(unpacking.range?.percent).toBe(50);
+  // The closing event keeps the existing launch wording rather than the last disc step.
+  expect(progressPresentation(step("launch", "indeterminate"), "").label).toBe("Starting game");
+});
+
 it("formats progress from producer units independently of display wording", () => {
   const event = {
     schema_version: 3,

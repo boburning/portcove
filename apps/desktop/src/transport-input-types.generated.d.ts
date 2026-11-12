@@ -116,6 +116,8 @@ export type InstallationContext =
     };
 export type InputDesktopPortIntentMode = "discover_only" | "notify" | "set_up_when_ready" | "ignored";
 export type InputDesktopPortReadinessAcknowledgements = PortReadinessAcknowledgement[];
+export type InputDesktopRootSetupEnrollment = RootSetupEnrollment | null;
+export type RootSetupEnrollment = "existing_and_future" | "future_only";
 /**
  * Separate reviewed Steam artwork action for one owned shortcut.
  */
@@ -153,6 +155,7 @@ export interface TransportInputs {
   desktop_organization_change: InputDesktopOrganizationChange;
   desktop_port_intent_mode: InputDesktopPortIntentMode;
   desktop_port_readiness_acknowledgements: InputDesktopPortReadinessAcknowledgements;
+  desktop_root_setup_enrollment: InputDesktopRootSetupEnrollment;
   desktop_steam_artwork_selection: InputDesktopSteamArtworkSelection;
   desktop_steam_batch_selection: InputDesktopSteamBatchSelection;
   desktop_steam_entry_selection: InputDesktopSteamEntrySelection;

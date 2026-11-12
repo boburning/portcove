@@ -29,7 +29,7 @@ const ACTION: &str = "install_provider_package";
 
 /// Reviewed operational binding between a port and the provider's game identity.
 /// Names and popularity never authorize compatibility; only this binding does.
-fn gamebanana_game(port_id: &str) -> Option<u64> {
+pub(crate) fn gamebanana_game(port_id: &str) -> Option<u64> {
     match port_id {
         "shipwright" => Some(16121),
         #[cfg(test)]
