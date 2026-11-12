@@ -224,6 +224,12 @@ acquisition, staged update composition, inert external-runtime registration,
 artwork picking, appearance restart/refresh recovery, and each of the three
 standalone startup-preferences/startup-library/library-switch recovery journeys.
 This preserves the planner's standalone and incompatible-fixture refusals.
+The update-acquisition group also observes #4879's automatic snapshot surfaces
+after its real activating update of a played fixture: the review and rollback
+copy, exactly one Core snapshot labelled with the from/to versions that holds the
+played save, its Automatic label in history and in a cancelled restore review,
+and the per-library Settings control round-tripping through Core. These are owned
+fixture observations, not real-save (#48) or human-comprehension acceptance.
 
 These scenarios exercise real Core/native mutations in disposable first-party
 fixtures. Streamed installation/update bytes, owned process launch and native
