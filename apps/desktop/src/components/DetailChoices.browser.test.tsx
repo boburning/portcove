@@ -109,3 +109,40 @@ it("does not offer skipping an unverified artifact or saving unreadable choices"
   expect(organization.refresh).toHaveBeenCalledExactlyOnceWith();
   expect(organization.commit).not.toHaveBeenCalled();
 });
+
+it("renders setup and notice choices in the current language with the exact version", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    const organization = choices({
+      update_notices: {
+        sample: {
+          paused: true,
+          skipped_release: { version: "2.0-{{version}}", artifact_sha256: "a".repeat(64) },
+        },
+      },
+    });
+    const status = { ...portStatus(), active: installRecord() };
+    await render(
+      <>
+        <SetupStatement portId="sample" status={status} organization={organization} />
+        <UpdateNoticePreferences portId="sample" status={status} organization={organization} />
+      </>,
+    );
+    await expect
+      .element(page.getByRole("heading", { name: "تذكير الإعداد الخاص بك" }))
+      .toBeVisible();
+    await expect.element(page.getByText("أنهيت الإعداد الأول لهذه اللعبة.")).toBeVisible();
+    await expect.element(page.getByText(/^الإشعارات متوقفة مؤقتًا لهذا المنفذ\./)).toBeVisible();
+    await expect
+      .element(page.getByRole("button", { name: "استئناف إشعارات التحديث" }))
+      .toBeVisible();
+    const version = document.querySelector("p bdi");
+    expect(version?.textContent).toBe("2.0-{{version}}");
+    expect(version?.parentElement?.textContent).toContain("أُخفي الإشعار للإصدار 2.0-{{version}}");
+    expect(document.body.textContent).not.toContain("update notice");
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});

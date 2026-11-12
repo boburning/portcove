@@ -56,6 +56,7 @@ export default defineConfig({
       "src/components/GameSettingsControl.tsx",
       "src/components/SupportBundleExport.tsx",
       "src/features/organization/OrganizationControls.tsx",
+      "src/components/DetailChoices.tsx",
       "src/features/port-actions/BrowsePortObservations.tsx",
       "src/components/ui.tsx",
       "src/components/FailureDetails.tsx",
