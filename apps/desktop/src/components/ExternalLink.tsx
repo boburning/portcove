@@ -39,7 +39,7 @@ export function ExternalLink({
       {error && (
         <span role="alert">
           {/* The failure is exact Core or system text, never interpolated. */}
-          <Trans t={t} i18nKey="browserFailed" components={{ detail: <>{error}</> }} />
+          <Trans t={t} i18nKey="browserFailed" components={{ detail: <bdi>{error}</bdi> }} />
         </span>
       )}
     </>
