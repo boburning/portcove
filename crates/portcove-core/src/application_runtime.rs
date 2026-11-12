@@ -3,8 +3,6 @@
 use std::fs::{self, File, OpenOptions};
 use std::path::{Path, PathBuf};
 
-use fs2::FileExt;
-
 use crate::{PortcoveError, Result};
 
 const APPLICATION_RUNTIME_LOCK_FILE: &str = ".application-runtime.lock";
@@ -26,7 +24,8 @@ pub struct ApplicationUpdateExclusivityGuard {
 impl ApplicationRuntimeGuard {
     pub fn acquire(lock_path: &Path) -> Result<Self> {
         let (file, path) = open_lock(lock_path)?;
-        FileExt::try_lock_shared(&file).map_err(|error| lock_error(error, &path))?;
+        file.try_lock_shared()
+            .map_err(|error| lock_error(error, &path))?;
         Ok(Self { file, path })
     }
 
@@ -38,7 +37,7 @@ impl ApplicationRuntimeGuard {
 impl ApplicationUpdateExclusivityGuard {
     pub fn acquire(lock_path: &Path) -> Result<Self> {
         let (file, path) = open_lock(lock_path)?;
-        FileExt::try_lock_exclusive(&file).map_err(|error| lock_error(error, &path))?;
+        file.try_lock().map_err(|error| lock_error(error, &path))?;
         Ok(Self { file, path })
     }
 
@@ -49,13 +48,13 @@ impl ApplicationUpdateExclusivityGuard {
 
 impl Drop for ApplicationRuntimeGuard {
     fn drop(&mut self) {
-        let _ = FileExt::unlock(&self.file);
+        let _ = self.file.unlock();
     }
 }
 
 impl Drop for ApplicationUpdateExclusivityGuard {
     fn drop(&mut self) {
-        let _ = FileExt::unlock(&self.file);
+        let _ = self.file.unlock();
     }
 }
 
@@ -106,12 +105,12 @@ fn open_lock(lock_path: &Path) -> Result<(File, PathBuf)> {
     Ok((file, path))
 }
 
-fn lock_error(error: std::io::Error, path: &Path) -> PortcoveError {
-    if error.kind() == fs2::lock_contended_error().kind() {
+fn lock_error(error: std::fs::TryLockError, path: &Path) -> PortcoveError {
+    if matches!(error, std::fs::TryLockError::WouldBlock) {
         PortcoveError::conflict("another Portcove process prevents application update replacement")
             .detail("application_runtime_lock", path.display().to_string())
     } else {
-        error.into()
+        std::io::Error::from(error).into()
     }
 }
 

@@ -43,8 +43,8 @@ flexible columns with a 12px gap and no artwork cap, while narrower windows use
 one column. Available width and interface size still determine readable text and
 control wrapping. Library covers use 10px artwork corners, a 24px effective art-to-title gap and
 580 title weight; compact rows and Discover keep their own geometry.
-Cover cards reserve two readable lines for both title and project, aligning chips and actions across mixed-length identities. Both expand on keyboard focus. Full identity wraps below
-40em. Footer actions stay beside the dominant status without overlapping it. Repeated Play controls pair a triangle with a quiet bordered, labeled button, including hover and keyboard focus; the selected game's detail and Continue actions retain signature red emphasis. Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
+Cover cards reserve two readable lines for both title and project (the project reserves one line in desktop windows up to 760px high and expands on hover and keyboard focus), aligning chips and actions across mixed-length identities. Both expand on keyboard focus. Full identity wraps below
+40em. Footer actions stay beside the dominant status without overlapping it. A ready card's Play pairs a triangle with a compact signature-red labeled button, so the primary action is recognizable on arrival; its accessible name adds the game and project ("Play: Title · Project"), as do View task and the setup/review actions. Readiness stays a compact text-and-icon cue, and updates remain secondary while the game is playable. Routine Stable is omitted from Library card chips; a non-Stable channel or a channel that differs from the selected one stays visible. Discover cards likewise omit the chip when Stable is the only offered channel and the selected channel is Stable or unset; Preview, Rolling and mixed channels stay, and the comparison dialog shows every offered channel. (Supersedes the quiet bordered repeated Play; see #5058 L4–L5.) Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
 The quick views read as underlined navigation above the search/filter toolbar.
 Artwork remains contained; neither a crop nor a provider mapping is inferred.
 
@@ -100,6 +100,14 @@ that also includes installed games. Selecting a quick view preserves search and
 unrelated facets.
 
 ## Game details
+
+The detail hero holds identity, concise port/system context, readiness, one
+primary action, Favorite and More. Catalog setup-availability checks and catalog
+update settings are maintenance and appear at the top of the management section
+(Manage, or Game files when Manage is absent), not in the hero. In desktop windows
+up to 760px high (from 761px width) the hero uses a 12.5rem minimum, tighter
+padding and a smaller title clamp so the tabs and initial tab content are visible
+at 1280×720; long titles and enlarged text still grow it. (#5058 D1)
 
 Managed games, registered external installations and catalog/self-service entries
 use one responsive detail composition, bounded at 87.5rem. The complete game title uses the existing large
@@ -409,7 +417,7 @@ an existing registered runtime. Counts follow the actual result unit.
 | Activate a retained checked update   | Apply update · {version}                                              | Calls the existing activation owner; no new review step.                                                                                                           |
 | Retained checked game update         | Update saved for later                                                | A checked staged record is present; it can reuse local bytes without a new download. Partial download/recovery and failed-check states remain distinct.            |
 | Update notices                       | Pause update notices / Resume update notices / Skip this version      | Current scope is the selected Library and port; skip binds the exact version and artifact digest. It changes notices, not installed/staged files or update policy. |
-| Library filtered empty state         | No matching library entries                                           | A Library result counts entries, including separate implementations of one game. Discover can use No matching games for its grouped results.                       |
+| Library filtered empty state         | Nothing in your library matches                                       | A Library result counts entries, including separate implementations of one game. Discover can use No matching games for its grouped results.                       |
 
 **Saves and settings** names that data scope; **Saved data** covers broader declared
 files. **Saves & backups** is the destination. **Steam shortcut** is the integration
@@ -581,8 +589,23 @@ Library uses Title A–Z only when no sort preference exists; explicit legacy Ca
 order and saved sorts remain available. Unreadable stored preferences retain Catalog
 order for explicit recovery and are not replaced without an explicit save. Discover
 retains Suggested order. Everyday
-Library quick views compose existing query and favorites state; collection editing
-and Hidden stay in the collection menu. Clear filters retains search; Reset view
+Library quick views (All, Favorites, Needs attention, Updates) are one exclusive
+choice exposed as a radio group with a single tab stop; arrow, Home and End keys move
+and select. Selecting a view clears the other views' state, never search, the
+selected collection or declared filters; Readiness Ready stays an ordinary filter,
+and only Needs attention replaces it. Every count uses the same base: library
+membership, search, the selected collection, Ready when chosen, and declared
+filters other than the Updates view's own selection. Needs attention counts without
+Ready because selecting it replaces Ready. A count never derives from another
+view's narrowed result; unknown inputs, including an unread collection, stay
+unavailable rather than zero. Updates includes available and downloaded (staged)
+updates and adds no filter chips. A custom Observed updates filter remains an
+ordinary filter with its chips, and the Updates view is unavailable until it is
+cleared, so no view overwrites it. Combined legacy state or an uninterpretable
+Readiness value selects no view. The Filters panel's Readiness counts keep their
+self-excluding filter semantics. Collection editing
+and Hidden stay in the collection menu. (Supersedes the earlier composed-toggle
+quick views; see #5058.) Clear filters retains search; Reset view
 states that it also clears search, quick views and collection selection. At compact
 widths search occupies its own toolbar row.
 
@@ -597,7 +620,11 @@ at the smallest widths. More and Favorite remain independently reachable;
 truly narrow or enlarged content may stack personal controls. Long identities
 wrap and remain accessible in full.
 
-At short desktop heights (up to800px, from761px width), Library covers use a10rem
+At desktop windows up to 760px high (from 761px width, including the 1280×720
+reference), chrome rhythm tightens (toolbar, header, quick views and query rows)
+and the cover project reserves one line instead of two, expanding on focus, so
+the first row's primary actions are visible on arrival without changing cover
+geometry. At short desktop heights (up to800px, from761px width), Library covers use a10rem
 minimum track. The220px artwork cap remains; no obsolete180px cap is reintroduced.
 Ordinary/tall and compact width rules retain their existing density. Rem-based
 minimums continue honoring whole-interface enlargement. The effective cover-to-
@@ -638,7 +665,7 @@ status owns count announcements. Clear filters and Reset view retain distinct
 scopes. Removal labels include the visible filter group and value for speech control. Empty/unavailable results retain accurate recovery; no-match headings use
 22px/1.35 with concise explicit reset scope and natural growth for longer text.
 
-Library starts with Target OS, Original system and Update channels. Other real
+Library starts with Runs on (including Available for this device, which states acquisition availability only), Original system and Update channels. Other real
 groups remain in Advanced filters, which opens for restored advanced selections.
 The Library panel places heading/help in a compact row and keeps closed Advanced
 controls beside the footer where space allows. Explanations, unknown-context

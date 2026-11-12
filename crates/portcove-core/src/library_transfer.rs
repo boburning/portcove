@@ -92,7 +92,7 @@ impl PortcoveService {
             .checked_add(database_bytes)
             .and_then(|size| size.checked_add(64 * 1024 * 1024))
             .ok_or_else(|| PortcoveError::state("library capacity estimate overflowed"))?;
-        let available_bytes = fs2::available_space(
+        let available_bytes = fs4::available_space(
             destination_root
                 .parent()
                 .ok_or_else(|| PortcoveError::usage("destination needs a parent directory"))?,

@@ -7,7 +7,6 @@ use std::{
     sync::{Arc, Mutex, MutexGuard, OnceLock, Weak},
 };
 
-use fs2::FileExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -455,7 +454,7 @@ impl HostPreferenceStore {
             .read(true)
             .write(true)
             .open(lock_path)?;
-        FileExt::lock_exclusive(&file)?;
+        file.lock()?;
         Ok(HostPreferenceLock {
             _file: file,
             _process_guard: process_guard,

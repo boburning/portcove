@@ -6,7 +6,6 @@
 
 use std::{fs, path::Path};
 
-use fs2::FileExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -66,7 +65,9 @@ impl PortabilityAuthority {
 
 /// Oldest reader contract that can carry this metadata without dropping state.
 fn exported_schema(metadata: &LibraryMetadata, base: u32) -> u32 {
-    if !metadata.profiles.is_empty() {
+    if !metadata.library_memberships.is_empty() {
+        7
+    } else if !metadata.profiles.is_empty() {
         6
     } else if !metadata.retained_build_references.is_empty() {
         5
@@ -98,8 +99,8 @@ pub(crate) fn seal(
 pub(crate) fn verify(metadata: &LibraryMetadata, entries: Vec<PortabilityAdmission>) -> Result<()> {
     let entries = canonical_entries(entries)?;
     match (&metadata.portability_authority, entries.is_empty()) {
-        (None, true) if matches!(metadata.schema_version, 1..=3 | 5 | 6) => return Ok(()),
-        (Some(authority), false) if matches!(metadata.schema_version, 4..=6) => {
+        (None, true) if matches!(metadata.schema_version, 1..=3 | 5..=7) => return Ok(()),
+        (Some(authority), false) if matches!(metadata.schema_version, 4..=7) => {
             if authority.format != 1 || authority.entries != entries {
                 return Err(PortcoveError::verification(
                     "portability authority does not match the retained installations",
@@ -250,7 +251,7 @@ fn load_or_create_key_at(
         .read(true)
         .write(true)
         .open(lock_path)?;
-    FileExt::lock_exclusive(&file)?;
+    file.lock()?;
     let result = (|| {
         if let Some(key) = load()? {
             return Ok(key);
@@ -267,7 +268,7 @@ fn load_or_create_key_at(
         }
         Ok(stored)
     })();
-    let unlock = FileExt::unlock(&file).map_err(PortcoveError::from);
+    let unlock = file.unlock().map_err(PortcoveError::from);
     match (result, unlock) {
         (Err(error), _) | (Ok(_), Err(error)) => Err(error),
         (Ok(key), Ok(())) => Ok(key),

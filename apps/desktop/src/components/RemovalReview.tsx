@@ -10,6 +10,7 @@ import { Icon } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./ui/dialog";
 import { ReviewedRemovalFooter } from "./ReviewedRemovalFooter";
+import { useAppTranslation } from "../localization";
 
 export type ApplyRemoval = (expectedPreview: string) => Promise<ReviewOutcome>;
 
@@ -26,6 +27,7 @@ export function RemovalControl({
   busy: boolean;
   apply: ApplyRemoval;
 }) {
+  const { t } = useAppTranslation("removal");
   const [open, setOpen] = useState(false);
   const removal = removalReviewPresentation(status, "remove_managed");
   return (
@@ -37,7 +39,7 @@ export function RemovalControl({
         onClick={() => setOpen(true)}
       >
         <Icon glyph={Trash2} />
-        Uninstall {port.name}
+        {t("uninstallPort", { name: port.name })}
       </Button>
       {removal.blocked && <p role="status">{removal.reason}</p>}
       {open && (
@@ -63,6 +65,7 @@ export function RemovalReviewDialog({
   apply: ApplyRemoval;
   close: () => void;
 }) {
+  const { t } = useAppTranslation("removal");
   const cancelButton = useRef<HTMLButtonElement>(null);
   const {
     preview,
@@ -76,8 +79,7 @@ export function RemovalReviewDialog({
     load: () => desktopApi.previewRemoval(port.id, generation),
     apply: (preview) => apply(preview.preview_sha256),
     close,
-    failureMessage:
-      "Removal did not complete. Review the current installation and any recovery notice before trying again.",
+    failureMessage: t("failure"),
   });
   return (
     <Dialog
@@ -93,50 +95,35 @@ export function RemovalReviewDialog({
         aria-describedby="removal-review-description"
       >
         <DialogTitle id="removal-review-title" className="mb-2 text-xl">
-          Uninstall {gameIdentityLabel(port)}?
+          {t("title", { identity: gameIdentityLabel(port) })}
         </DialogTitle>
         <DialogDescription id="removal-review-description" className="mb-4 leading-relaxed">
-          This removes all installed versions of {port.name} managed by Portcove.
+          {t("description", { name: port.name })}
         </DialogDescription>
-        {pending === "review" && <p role="status">Checking installed versions…</p>}
+        {pending === "review" && <p role="status">{t("checking")}</p>}
         {preview && (
-          <section className="removal-review-details" aria-label="Files removed and data preserved">
+          <section className="removal-review-details" aria-label={t("detailsLabel")}>
             <p className="[overflow-wrap:anywhere]">
-              <strong>
-                Files inside these {preview.managed_paths.length} installation{" "}
-                {preview.managed_paths.length === 1 ? "folder" : "folders"} will be deleted,
-                including retained versions:
-              </strong>
+              <strong>{t("deletedFolders", { count: preview.managed_paths.length })}</strong>
             </p>
             <ul>
               {preview.managed_paths.map((path) => (
-                <li className="[overflow-wrap:anywhere]" key={path}>
+                <li className="[overflow-wrap:anywhere]" dir="ltr" key={path}>
                   {path}
                 </li>
               ))}
             </ul>
+            <p className="[overflow-wrap:anywhere]">{t("settingsRemoved")}</p>
             <p className="[overflow-wrap:anywhere]">
-              This game's saved release-channel and update-policy settings will also be removed.
-              Sign-ins stored only inside installed versions are deleted with those versions.
+              <strong>{t("preservedAt")}</strong>
             </p>
-            <p className="[overflow-wrap:anywhere]">
-              <strong>Saved data will be preserved at:</strong>
+            {/* Paths keep their exact characters in an isolated left-to-right run. */}
+            <p className="[overflow-wrap:anywhere]" dir="ltr">
+              {preview.persistent_data_path}
             </p>
-            <p className="[overflow-wrap:anywhere]">{preview.persistent_data_path}</p>
-            <p className="[overflow-wrap:anywhere]">
-              Portcove keeps the saved data and backups listed here, and your original game files.
-              Saved game-file locations and the original folders used for copied installations are
-              also kept. Other games are unaffected.
-            </p>
-            <p className="[overflow-wrap:anywhere]">
-              The game must be stopped. To use this port again, reinstall it or copy an existing
-              installation. Uninstall cannot be undone.
-            </p>
-            <p className="[overflow-wrap:anywhere]">
-              If interrupted, Portcove retains a recovery journal and checks removal when the
-              library reopens. Review any recovery notice before another attempt; interrupted
-              deletion may finish.
-            </p>
+            <p className="[overflow-wrap:anywhere]">{t("kept")}</p>
+            <p className="[overflow-wrap:anywhere]">{t("irreversible")}</p>
+            <p className="[overflow-wrap:anywhere]">{t("interrupted")}</p>
           </section>
         )}
         <ActionReviewFailure error={error} />
@@ -149,10 +136,10 @@ export function RemovalReviewDialog({
             await review();
           }}
           apply={remove}
-          keepLabel="Cancel"
-          reviewLabel="Review removal again"
-          applyLabel="Uninstall all versions"
-          applyingLabel="Uninstalling…"
+          keepLabel={t("cancel")}
+          reviewLabel={t("reviewAgain")}
+          applyLabel={t("apply")}
+          applyingLabel={t("applying")}
           canApply={preview?.persistent_data_will_be_preserved}
         />
       </DialogContent>

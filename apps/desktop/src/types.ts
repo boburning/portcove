@@ -106,6 +106,9 @@ export type GhostshipRecoveryPlan = Generated.TransportOutputs["ghostship_recove
 export type GhostshipRecoveryResult = Generated.TransportOutputs["ghostship_recovery_result"];
 
 export type AdoptionPreview = Generated.TransportOutputs["adoption_preview"];
+export type LauncherLibraryInventory = Generated.TransportOutputs["launcher_library_inventory"];
+export type LauncherLibraryEntry = LauncherLibraryInventory["entries"][number];
+export type LauncherKind = LauncherLibraryInventory["launcher"];
 export type ExternalRuntimePreview = Generated.TransportOutputs["desktop_external_runtime_preview"];
 export type ExternalRuntimeRelinkPreview =
   Generated.TransportOutputs["desktop_external_runtime_relink_preview"];
@@ -116,6 +119,22 @@ export type ExternalRuntimeRecord = Generated.TransportOutputs["desktop_external
 export type { SourceRecord } from "./transport-types.generated";
 
 export type GameFileRoot = Generated.TransportOutputs["game_file_roots"][number];
+export type LibraryMembership = Generated.TransportOutputs["desktop_library_memberships"][number];
+export type LibraryMembershipOutcome =
+  Generated.TransportOutputs["desktop_library_membership_outcomes"][number];
+export type LibraryMembershipRequest =
+  Requests.TransportInputs["desktop_library_membership_requests"][number];
+export type InstallBatchReview = Generated.TransportOutputs["desktop_install_batch_review"];
+export type InstallBatchRecord = Generated.TransportOutputs["desktop_install_batch"];
+export type PortIntent = Generated.TransportOutputs["desktop_port_intent"];
+export type PortIntentMode = PortIntent["mode"];
+export type PortIntentAssessments = Generated.TransportOutputs["desktop_port_intent_assessments"];
+export type PortIntentAssessment = PortIntentAssessments["assessments"][number];
+export type StandingSetupResult = Generated.TransportOutputs["desktop_standing_setup"];
+export type PortReadinessAcknowledgement =
+  Requests.TransportInputs["desktop_port_readiness_acknowledgements"][number];
+export type InstallBatchRequestItem =
+  Requests.TransportInputs["desktop_install_batch_request_items"][number];
 export type GameFileQueryRefreshRequest = Requests.TransportInputs["game_file_query_request"];
 export type GameFileQuerySnapshot = Generated.TransportOutputs["game_file_query_snapshot"];
 
@@ -267,6 +286,11 @@ export type SteamEntryOperation = SteamEntryReview["operation"];
 export type SteamEntrySelection = Requests.TransportInputs["desktop_steam_entry_selection"];
 export type SteamBatchReview = Generated.TransportOutputs["desktop_steam_batch_review"];
 export type SteamBatchSelection = Requests.TransportInputs["desktop_steam_batch_selection"];
+export type SteamArtworkReview = Generated.TransportOutputs["desktop_steam_artwork_review"];
+export type SteamArtworkApplyResult =
+  Generated.TransportOutputs["desktop_steam_artwork_apply_result"];
+export type SteamArtworkOperation = SteamArtworkReview["operation"];
+export type SteamArtworkSelection = Requests.TransportInputs["desktop_steam_artwork_selection"];
 
 export type GameComparison = Generated.TransportOutputs["desktop_game_comparison"];
 export type BugReportDraft = Generated.TransportOutputs["desktop_bug_report_draft"];

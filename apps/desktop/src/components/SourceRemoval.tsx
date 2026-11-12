@@ -5,6 +5,7 @@ import type { PortDefinition, SourceRecord, SourceRemovalPreview } from "../type
 import { useActionReview } from "../use-action-review";
 import { gameIdentityLabel } from "../port-identity";
 import { Button } from "./ui/button";
+import { useAppTranslation } from "../localization";
 
 type SourceRemovalProps = {
   source: SourceRecord;
@@ -31,6 +32,7 @@ function SourceRemovalForIdentity({
   disabled,
   onRemoved,
 }: SourceRemovalProps) {
+  const { t } = useAppTranslation("removal");
   const identity = `${generation}:${source.profile_id}:${source.path}:${source.sha256}`;
   const [intent, setIntent] = useState<string>();
   const [refreshFailure, setRefreshFailure] = useState<string>();
@@ -72,15 +74,13 @@ function SourceRemovalForIdentity({
           if (!open) setIntent(identity);
         }}
       >
-        Review saved location removal
+        {t("source.review")}
       </Button>
       {refreshFailure === identity && (
         <div className="basis-full">
-          <p role="status">
-            The saved location was removed. Refresh the list to see the current files.
-          </p>
+          <p role="status">{t("source.removedRefresh")}</p>
           <Button data-focusable variant="outline" size="sm" onClick={() => void completed()}>
-            Refresh saved-file list
+            {t("source.refreshList")}
           </Button>
         </div>
       )}
@@ -115,6 +115,7 @@ export function SourceRemovalReview({
   close: () => void;
   onRemoved: () => Promise<unknown>;
 }) {
+  const { t } = useAppTranslation("removal");
   const identity = `${profileId}:${generation}`;
   const active = useRef<string | undefined>(undefined);
   useLayoutEffect(() => {
@@ -133,32 +134,27 @@ export function SourceRemovalReview({
       return true;
     },
     close,
-    failureMessage:
-      "Portcove couldn’t confirm removal. Check the saved file location before trying again.",
+    failureMessage: t("source.failure"),
   });
   return (
     <section
       id={id}
       className="source-removal-review mt-3 min-w-0 basis-full border-t border-pc-border pt-3 text-sm wrap-anywhere"
-      aria-label="Review removal of the saved file location"
+      aria-label={t("source.sectionLabel")}
       aria-busy={Boolean(pending)}
     >
-      <h3 className="text-base">Remove a saved file location</h3>
-      <p>
-        Review the location and affected games below. You’ll be asked to confirm in the next dialog.
-      </p>
-      {pending === "review" && (
-        <p role="status">Checking the saved location and affected entries…</p>
-      )}
+      <h3 className="text-base">{t("source.title")}</h3>
+      <p>{t("source.description")}</p>
+      {pending === "review" && <p role="status">{t("source.checking")}</p>}
       {preview && <SourceRemovalDetails preview={preview} ports={ports} />}
       <ActionReviewFailure error={error} />
       <div className="mt-3 flex flex-wrap gap-2">
         <Button data-focusable variant="outline" disabled={pending === "apply"} onClick={dismiss}>
-          Keep location
+          {t("source.keep")}
         </Button>
         {!preview && (
           <Button data-focusable disabled={Boolean(pending)} onClick={() => void review()}>
-            Check saved location again
+            {t("source.checkAgain")}
           </Button>
         )}
         {preview && (
@@ -168,7 +164,7 @@ export function SourceRemovalReview({
             disabled={Boolean(pending)}
             onClick={() => void execute()}
           >
-            {pending === "apply" ? "Confirm removal in the dialog…" : "Remove saved location…"}
+            {pending === "apply" ? t("source.confirmInDialog") : t("source.remove")}
           </Button>
         )}
       </div>
@@ -183,29 +179,24 @@ function SourceRemovalDetails({
   preview: SourceRemovalPreview;
   ports: PortDefinition[];
 }) {
+  const { t } = useAppTranslation("removal");
   const name = (id: string) => {
     const port = ports.find((port) => port.id === id);
-    return port ? gameIdentityLabel(port) : `Unavailable port (${id})`;
+    return port ? gameIdentityLabel(port) : t("source.unavailablePort", { id });
   };
   return (
-    <div className="source-removal-details" aria-label="Affected entries and preserved files">
+    <div className="source-removal-details" aria-label={t("source.detailsLabel")}>
       <p>
-        <strong>Exact saved location:</strong>
+        <strong>{t("source.exactLocation")}</strong>
       </p>
       <code dir="ltr" className="block break-all whitespace-normal [unicode-bidi:isolate]">
         {preview.source.path}
       </code>
-      <p>
-        Removing this location does not move or delete files at the path above, installed game
-        versions, game saves, backups, or other saved locations. Only this library's location is
-        removed.
-      </p>
+      <p>{t("source.notDeleted")}</p>
       <p role="status">
-        {preview.installed_dependent_port_ids.length} installed{" "}
-        {preview.installed_dependent_port_ids.length === 1 ? "entry may" : "entries may"} ask you to
-        add these files again.
+        {t("source.installedAffected", { count: preview.installed_dependent_port_ids.length })}
       </p>
-      <h4>Installed entries affected</h4>
+      <h4>{t("source.installedHeading")}</h4>
       {preview.installed_dependent_port_ids.length ? (
         <ul>
           {preview.installed_dependent_port_ids.map((id) => (
@@ -213,11 +204,11 @@ function SourceRemovalDetails({
           ))}
         </ul>
       ) : (
-        <p>No installed game currently depends on this location.</p>
+        <p>{t("source.noInstalled")}</p>
       )}
       <details>
         <summary data-focusable className="cursor-pointer py-2">
-          All catalog entries using these files ({preview.dependent_port_ids.length})
+          {t("source.allEntries", { total: preview.dependent_port_ids.length })}
         </summary>
         <ul>
           {preview.dependent_port_ids.map((id) => (
@@ -225,9 +216,7 @@ function SourceRemovalDetails({
           ))}
         </ul>
       </details>
-      <p>
-        If interrupted, reopen Settings and check whether the location remains before trying again.
-      </p>
+      <p>{t("source.interrupted")}</p>
     </div>
   );
 }

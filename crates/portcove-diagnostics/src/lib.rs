@@ -15,9 +15,11 @@ use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{filter::Targets, layer::SubscriberExt};
 
 pub mod events;
+mod panic_record;
 mod sessions;
 pub mod writer;
 
+pub use panic_record::install_panic_hook;
 pub use sessions::{SESSION_LIMIT, SESSION_MARKER, SLOT_NAMES, SessionReport};
 
 /// Maximum caller wait for diagnostic location/session filesystem preparation.
@@ -98,6 +100,7 @@ pub struct HostDiagnostics {
 struct Prepared {
     directory: PathBuf,
     allocation: Option<sessions::Allocation>,
+    panic_record: Option<std::fs::File>,
     report: SessionReport,
     previous: Vec<String>,
     fallback: bool,
@@ -190,9 +193,13 @@ impl HostDiagnostics {
 
     fn prepare_session(directory: PathBuf, session: uuid::Uuid, surface: Surface) -> Prepared {
         let (allocation, report, previous) = sessions::allocate(&directory, session, surface);
+        let panic_record = allocation
+            .as_ref()
+            .and_then(|slot| panic_record::prepare(&slot.directory));
         Prepared {
             directory,
             allocation,
+            panic_record,
             report,
             previous,
             fallback: false,
@@ -300,6 +307,7 @@ impl HostDiagnostics {
         let Ok((producer, guard)) = result else {
             return (self, None);
         };
+        panic_record::publish(prepared.panic_record);
         let mut host = self;
         let previous = prepared.previous;
         host.producer = producer;

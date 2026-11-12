@@ -331,9 +331,9 @@ further bounded operations continue while actual quota and runtime remain.
 Failed reads without accepted page/Core progress are not immediately requeued.
 The new handoff has the existing sixteen-MiB response envelope as its aggregate
 byte budget, with four MiB reserved for the summary and one-day artifact retention.
-The hosted path reserves four MiB of that same sixteen-MiB output envelope for a
-complete inert recovery snapshot, in addition to the existing four-MiB summary
-reserve. Standalone source handoffs use the remaining eight MiB across all batches.
+The output reserves eight MiB separately for a complete inert recovery snapshot.
+The four-MiB summary and eight-MiB standalone handoff limits still apply across
+all batches. Provider request and response budgets are unchanged.
 A hosted opportunity gives source handoffs thirty-two MiB in aggregate,
 proportionate to its forty-minute window; each source file keeps the eight-MiB
 standalone bound, within the sixteen-MiB per-file limit of the manual
@@ -343,9 +343,9 @@ it excludes reports, locks, temporary files and executables. Production format 4
 streams source checkpoint JSON records through one Brotli compressor, preserving
 cross-file redundancy that nested source gzip/base64 cannot share. A fixed binary
 magic and closed header of at most 512 bytes bind record count, complete framed
-byte count and SHA-256. The entire member remains limited to four MiB, with sixteen
-KiB reserved inside that allowance for ZIP framing. Formats 1, 2 and 3 remain
-readable with their original bounds; outer ZIP bounds remain unchanged.
+byte count and SHA-256. The format 4 ZIP is limited to eight MiB, with sixteen KiB reserved for ZIP
+framing. Formats 1, 2 and 3 remain readable within their original four-MiB ZIP
+limit. Record, expansion and recovery metadata bounds are unchanged.
 
 Production snapshot collection projects every referenced GitHub source's legacy
 raw pages to the versioned fact representation before encoding. It validates
@@ -489,14 +489,18 @@ does not erase the earlier cache or original failures. A later real scheduled
 run must demonstrate continued source/page/Core progress separately from fixture
 tests and an individual batch's `made_progress` field.
 
-The November 2 checkpoint-history loss has one explicitly approved fresh-baseline
-opportunity, pinned in source to failed scheduled run `41476042003`, its original
-attempt/source/creation identity, main ancestry anchor `c66e450e`, and the unchanged
-configuration digest. Only its first natural scheduled successor, attempt one,
-may initialize an entirely absent checkpoint tree. Every intervening scheduled
-status consumes that opportunity, including queued, failed and cancelled runs;
-reruns and manual dispatch cannot use it. The known predecessor must still be
-inside the existing twenty-four-hour recovery window. Provider-verified current
+The November 2 checkpoint-history loss's one approved fresh-baseline opportunity
+was consumed and has expired; it cannot be renewed. After snapshot export failures
+left no retained snapshot, the November 11 checkpoint-history loss has one
+explicitly owner-approved fresh-baseline opportunity (Related to #246), approved
+for the upstream source of the #4129 maintenance inventory. It is pinned in source
+to failed scheduled run `43116173426`, its original attempt/source/creation
+identity (`538ce14b`, `2026-11-11T22:58:46Z`), main ancestry anchor `d7f5e10b`,
+and the unchanged configuration digest. Only its first natural scheduled
+successor, attempt one, may initialize an entirely absent checkpoint tree. Every
+intervening scheduled status consumes that opportunity, including queued, failed
+and cancelled runs; reruns and manual dispatch cannot use it. The known
+predecessor must still be inside the existing twenty-four-hour recovery window. Provider-verified current
 run identity, complete ordered history, retained main ancestry, and exact-current-
 source Contents metadata bind the config and both catalog/listing input files.
 Their paths, regular-file type, size and locally computed Git blob identity must

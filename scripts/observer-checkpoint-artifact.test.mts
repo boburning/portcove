@@ -20,6 +20,7 @@ import {
   recoverObserverCheckpointWithSdk,
   snapshotName,
   observerSnapshotLimit,
+  observerStreamingSnapshotLimit,
   encodeObserverSnapshot,
   observerBaselinePermit,
   encodeCompactObserverSnapshot,
@@ -490,7 +491,9 @@ void test("first cutover is explicit but missing history from an earlier deploye
 async function baselineTransport(t: Parameters<typeof directory>[0], realCatalog = false) {
   const root = await directory(t),
     permit = observerBaselinePermit;
-  const clock = Date.parse("2026-11-02T19:01:00Z");
+  // Derived from the pinned permit so re-pinning touches only the constant. Stay
+  // just after the predecessor: later snapshot checks still read the real clock.
+  const clock = Date.parse(permit.after_created_at) + 60000;
   const files = new Map<string, Buffer>([
     [
       "release/upstream-observer.json",
@@ -981,7 +984,7 @@ void test("foreign producers, altered artifact metadata and bounded-read failure
       f.artifact.expired = true;
     },
     (f: ReturnType<typeof transport>) => {
-      f.artifact.size_in_bytes = observerSnapshotLimit + 1;
+      f.artifact.size_in_bytes = observerStreamingSnapshotLimit + 1;
     },
     (f: ReturnType<typeof transport>) => {
       f.artifact.digest = `sha256:${"0".repeat(64)}`;
@@ -1095,15 +1098,23 @@ void test("encoded snapshots retain strict transfer, expansion, digest and envel
   assert.throws(() => encodeObserverSnapshot(good, Date.now() - 1), /deadline exhausted/);
 });
 
-void test("format four recovery retains its exact artifact producer and sequence before cache continuation", async (t) => {
+void test("format four recovery restores an archive above the legacy limit before cache continuation", async (t) => {
   const root = await directory(t),
     f = transport();
   f.value.files["catalog/checkpoint.json"].sequence = 361;
+  Object.assign(f.value.files["catalog/checkpoint.json"], {
+    fixture_entropy: Array.from({ length: 145000 }, (_, index) =>
+      createHash("sha256").update(`snapshot-transfer-${index}`).digest("base64"),
+    ).join(""),
+  });
   const encoded = await encodeStreamingObserverSnapshot(
     validateObserverSnapshot(f.value, config, Date.now()),
     Date.now() + 60000,
   );
   const archive = createAuditZip([["checkpoint.json", encoded.bytes]]);
+  assert.ok(archive.length > observerSnapshotLimit);
+  assert.ok(archive.length <= observerStreamingSnapshotLimit);
+  assert.throws(() => readObserverSnapshotArchive(archive, config, Date.now(), Date.now() + 60000));
   f.artifact.size_in_bytes = archive.length;
   f.artifact.digest = `sha256:${digest(archive)}`;
   let downloads = 0;
@@ -1113,7 +1124,8 @@ void test("format four recovery retains its exact artifact producer and sequence
     current,
     deadline: Date.now() + 60000,
     api: f.api,
-    download: () => {
+    download: (_endpoint, { maxBytes }) => {
+      assert.equal(maxBytes, archive.length);
       downloads++;
       return archive;
     },
@@ -1689,7 +1701,22 @@ void test("gated push runs are not history loss and each trigger window must cov
   gated.publisher();
   const pushedAt = gated.run.created_at;
   gated.run.created_at = new Date(Date.parse(pushedAt) - 60000).toISOString();
-  gated.extraRuns.push({ ...gated.run, id: 205, event: "push", created_at: pushedAt });
+  const newerSource = "f".repeat(40);
+  gated.extraRuns.push({
+    ...gated.run,
+    id: 205,
+    event: "push",
+    head_sha: newerSource,
+    created_at: pushedAt,
+  });
+  const read = gated.api.read;
+  gated.api.read = async (endpoint) => {
+    assert.ok(
+      !endpoint.includes(`/compare/${newerSource}...`),
+      "a push without a matching snapshot has no ancestry evidence to validate",
+    );
+    return read(endpoint);
+  };
   const gatedRoot = await directory(t);
   const restored = await recover(gatedRoot, gated);
   assert.equal(restored.origin, "artifact");

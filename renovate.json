@@ -64,7 +64,6 @@
         "cargo-shear",
         "cargo-deny",
         "cargo-modules",
-        "rscheck-cli",
         "cargo-mutants",
         "cargo-nextest",
         "rust",
@@ -136,14 +135,6 @@
       "matchDatasources": ["github-tags"],
       "matchDepNames": ["aquaproj/aqua-registry"],
       "matchPackageNames": ["aquaproj/aqua-registry"],
-      "enabled": false
-    },
-    {
-      "description": "Do not replace the reviewed SQLite upstream revision automatically",
-      "matchManagers": ["cargo"],
-      "matchDatasources": ["git-refs"],
-      "matchDepNames": ["rusqlite"],
-      "matchPackageNames": ["https://github.com/rusqlite/rusqlite"],
       "enabled": false
     },
     {

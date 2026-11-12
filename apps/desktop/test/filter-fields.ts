@@ -23,7 +23,8 @@ export async function openFilterField(label: string) {
 }
 
 function filterFieldForChoice(name: string) {
-  if (/^(Windows|Linux|Apple silicon|Intel Mac|For this device) \(/.test(name)) return "Target OS";
+  if (/^(Windows|Linux|Apple silicon|Intel Mac|Available for this device) \(/.test(name))
+    return "Runs on";
   if (/^(Stable|Preview|Rolling) \(/.test(name)) return "Update channels";
   if (/^(In my library|Not in my library) \(/.test(name)) return "Library membership";
   if (/^(Available at last check|Matching update staged) \(/.test(name)) return "Observed updates";

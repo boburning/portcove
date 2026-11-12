@@ -10,7 +10,7 @@ import {
   rmSync,
   writeFileSync,
   symlinkSync,
-  readlinkSync,
+  lstatSync,
   statSync,
   readFileSync,
 } from "node:fs";
@@ -252,10 +252,7 @@ void test("quality manifest owns exact unique Rust pins and workflow outputs", (
   };
   assert.deepEqual(githubOutputs(manifest), {
     required_prebuilt: ["just", "cargo-shear", "cargo-deny", "cargo-nextest"].map(spec).join(","),
-    required_all: ["just", "cargo-shear", "cargo-deny", "rscheck-cli", "cargo-nextest"]
-      .map(spec)
-      .join(","),
-    rscheck_spec: spec("rscheck-cli"),
+    required_all: ["just", "cargo-shear", "cargo-deny", "cargo-nextest"].map(spec).join(","),
   });
 });
 
@@ -1073,20 +1070,49 @@ void test("cloud bootstrap accepts only the exact Ruff and actionlint attestatio
   }
 });
 
+function runCloudLinkFixture(
+  helper: "share_directory" | "link_node_tools",
+  source: string,
+  target: string,
+  suffix = "",
+) {
+  const windows = process.platform === "win32";
+  const paths = windows
+    ? 'source_path=$(cygpath -u -- "$1"); target_path=$(cygpath -u -- "$2")'
+    : "source_path=$1; target_path=$2";
+  return spawnSync(
+    "bash",
+    [
+      "-ec",
+      `source scripts/bootstrap-cloud-session.sh; ${paths}; ${helper} "$source_path$3" "$target_path"`,
+      "test",
+      source,
+      target,
+      suffix,
+    ],
+    {
+      cwd: fileURLToPath(new URL("..", import.meta.url)),
+      encoding: "utf8",
+      // Git Bash normally deep-copies ln -s targets. Exercise real symlinks
+      // on the Windows runner just as the Linux cloud bootstrap does.
+      env: windows ? { ...process.env, MSYS: "winsymlinks:nativestrict" } : process.env,
+    },
+  );
+}
+
+function assertCloudLink(
+  link: string,
+  target: string,
+  message = `Expected ${link} to link to ${target}`,
+) {
+  assert.ok(lstatSync(link).isSymbolicLink(), message);
+  assert.equal(realpathSync(link), realpathSync(target), message);
+}
+
 void test("cloud bootstrap shares a directory by symlink and converges or refuses on rerun", () => {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-share-directory-"));
-  const share = (source: string, target: string) =>
-    spawnSync(
-      "bash",
-      [
-        "-c",
-        'source scripts/bootstrap-cloud-session.sh && share_directory "$1" "$2"',
-        "test",
-        source,
-        target,
-      ],
-      { cwd: fileURLToPath(new URL("..", import.meta.url)), encoding: "utf8" },
-    );
+  const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), "portcove-share-directory-")));
+  const share = (source: string, target: string, suffix?: string) =>
+    runCloudLinkFixture("share_directory", source, target, suffix);
   try {
     const source = path.join(directory, "home", ".rustup");
     const target = path.join(directory, "shared", "rustup");
@@ -1095,17 +1121,17 @@ void test("cloud bootstrap shares a directory by symlink and converges or refuse
     writeFileSync(path.join(source, "settings.toml"), "default = 1\n");
 
     assert.equal(
-      share(`${source}//`, target).status,
+      share(source, target, "//").status,
       0,
       "a trailing slash still links the original path",
     );
-    assert.equal(readlinkSync(source), target);
+    assertCloudLink(source, target);
     assert.equal(readFileSync(path.join(source, "settings.toml"), "utf8"), "default = 1\n");
     assert.equal(share(source, target).status, 0, "a rerun is a no-op");
 
     rmSync(source);
     assert.equal(share(source, target).status, 0, "an interrupted move is completed by linking");
-    assert.equal(readlinkSync(source), target);
+    assertCloudLink(source, target);
 
     const other = path.join(directory, "home", ".cargo-bin");
     mkdirSync(other);
@@ -1115,7 +1141,7 @@ void test("cloud bootstrap shares a directory by symlink and converges or refuse
     assert.ok(statSync(other).isDirectory(), "an existing target is never overwritten");
 
     const foreign = path.join(directory, "home", "foreign");
-    symlinkSync(other, foreign);
+    symlinkSync(other, foreign, "dir");
     assert.match(share(foreign, target).stderr, /links elsewhere/u);
     assert.match(
       share(path.join(directory, "missing"), path.join(directory, "absent")).stderr,
@@ -1127,7 +1153,7 @@ void test("cloud bootstrap shares a directory by symlink and converges or refuse
 });
 
 void test("cloud bootstrap links only the tools the pinned Node distribution ships", () => {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-node-tools-"));
+  const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), "portcove-node-tools-")));
   try {
     const destination = path.join(directory, "node");
     const bin = path.join(directory, "link");
@@ -1141,23 +1167,13 @@ void test("cloud bootstrap links only the tools the pinned Node distribution shi
     writeFileSync(imageCorepack, "");
     symlinkSync(imageCorepack, path.join(bin, "corepack"));
 
-    const result = spawnSync(
-      "bash",
-      [
-        "-c",
-        'source scripts/bootstrap-cloud-session.sh && link_node_tools "$1" "$2"',
-        "test",
-        destination,
-        bin,
-      ],
-      { cwd: fileURLToPath(new URL("..", import.meta.url)), encoding: "utf8" },
-    );
+    const result = runCloudLinkFixture("link_node_tools", destination, bin);
     assert.equal(result.status, 0, result.stderr);
     for (const tool of ["node", "npm", "npx"]) {
-      assert.equal(readlinkSync(path.join(bin, tool)), path.join(destination, "bin", tool));
+      assertCloudLink(path.join(bin, tool), path.join(destination, "bin", tool));
     }
-    assert.equal(
-      readlinkSync(path.join(bin, "corepack")),
+    assertCloudLink(
+      path.join(bin, "corepack"),
       imageCorepack,
       "a tool the pinned distribution lacks is never replaced by a dangling link",
     );

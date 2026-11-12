@@ -5,6 +5,8 @@ import type { Perform } from "../features/operations/use-operation-state";
 import { targetInvocationContext } from "../features/operations/invocation-state";
 import { OperationCancellation } from "./OperationCancellation";
 import { Button } from "./ui/button";
+import type { TFunction } from "i18next";
+import { useAppTranslation } from "../localization";
 
 type Props = {
   portId: string;
@@ -16,12 +18,23 @@ type Props = {
   openSettings: () => void;
 };
 
-const outcomes = {
-  selected: "Setup information checked. Review the current setup options before continuing.",
-  ineligible:
-    "The offered setup could not be selected. Review the current setup options and requirements.",
-  revoked: "The publisher withdrew this setup. Review the current options before continuing.",
-};
+const outcomes = { selected: true, ineligible: true, revoked: true } as const;
+type Notice = keyof typeof outcomes | "cancelled";
+/** App-owned failure with a stable code; its message serves diagnostics only. */
+class UnsupportedSetupResult extends Error {}
+
+function noticeCopy(t: TFunction<"catalogUpdates">, notice: Notice) {
+  switch (notice) {
+    case "selected":
+      return t("definition.selected");
+    case "ineligible":
+      return t("definition.ineligible");
+    case "revoked":
+      return t("definition.revoked");
+    case "cancelled":
+      return t("definition.cancelled");
+  }
+}
 
 export function OfficialDefinitionUpdates(props: Props) {
   return <DefinitionControls key={`${props.generation}:${props.portId}`} {...props} />;
@@ -36,10 +49,12 @@ function DefinitionControls({
   onChanged,
   openSettings,
 }: Props) {
+  const { t } = useAppTranslation("catalogUpdates");
   const [submitting, setSubmitting] = useState(false);
   const [operationId, setOperationId] = useState<string>();
-  const [notice, setNotice] = useState<string>();
-  const [error, setError] = useState<string>();
+  const [notice, setNotice] = useState<Notice>();
+  // `unsupported` is app-owned copy; other failures keep Core's diagnostic text.
+  const [error, setError] = useState<{ kind: "unsupported" } | { kind: "text"; text: string }>();
   const owner = useRef({ active: true, pending: false });
   useLayoutEffect(() => {
     const current = { active: true, pending: false };
@@ -58,6 +73,7 @@ function DefinitionControls({
     setNotice(undefined);
     try {
       const result = await perform(
+        // Activity records this name at start; see docs/LOCALIZATION.md.
         `Checking setup availability for ${portName}…`,
         async (reportEvent) => {
           const refreshed = await desktopApi.refreshOfficialDefinition(
@@ -75,7 +91,7 @@ function DefinitionControls({
             refreshed.stable_id !== portId ||
             !Object.hasOwn(outcomes, refreshed.disposition)
           )
-            throw new Error(
+            throw new UnsupportedSetupResult(
               "The setup check returned an unsupported result. Review current setup information.",
             );
           return refreshed;
@@ -93,12 +109,16 @@ function DefinitionControls({
           ),
         },
       );
-      if (current.active && result) setNotice(outcomes[result.disposition]);
+      if (current.active && result) setNotice(result.disposition);
     } catch (value) {
       if (current.active) {
-        if (isCancellation(value))
-          setNotice("Setup check cancelled. Review current setup information before continuing.");
-        else setError(errorText(value));
+        if (isCancellation(value)) setNotice("cancelled");
+        else
+          setError(
+            value instanceof UnsupportedSetupResult
+              ? { kind: "unsupported" }
+              : { kind: "text", text: errorText(value) },
+          );
       }
     } finally {
       current.pending = false;
@@ -112,12 +132,9 @@ function DefinitionControls({
   return (
     <section
       className="grid min-w-0 gap-2 border-t border-pc-border pt-4"
-      aria-label="Official setup information"
+      aria-label={t("definition.section")}
     >
-      <p className="text-sm text-pc-muted-foreground">
-        Check the official catalog for setup options. Checking does not install or replace game
-        files.
-      </p>
+      <p className="text-sm text-pc-muted-foreground">{t("definition.description")}</p>
       <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
@@ -125,18 +142,20 @@ function DefinitionControls({
           disabled={busy || submitting}
           onClick={() => void check()}
         >
-          Check setup availability
+          {t("definition.check")}
         </Button>
         <Button variant="ghost" size="sm" disabled={submitting} onClick={openSettings}>
-          Catalog update settings
+          {t("definition.settings")}
         </Button>
       </div>
-      {submitting && <p role="status">Checking setup availability…</p>}
+      {submitting && <p role="status">{t("definition.checking")}</p>}
       {operationId && (
-        <OperationCancellation operationId={operationId} label="Cancel setup check" />
+        <OperationCancellation operationId={operationId} label={t("definition.cancel")} />
       )}
-      {notice && <p role="status">{notice}</p>}
-      {error && <p role="alert">{error}</p>}
+      {notice && <p role="status">{noticeCopy(t, notice)}</p>}
+      {error && (
+        <p role="alert">{error.kind === "text" ? error.text : t("definition.unsupported")}</p>
+      )}
     </section>
   );
 }

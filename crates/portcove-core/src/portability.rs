@@ -28,6 +28,10 @@ pub struct LibraryMetadata {
     /// Local profiles and revisions; present only under metadata schema 6.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub profiles: Vec<crate::LibraryProfile>,
+    /// Explicit add-only Library entries; present only under metadata schema 7, so
+    /// an older reader refuses the export instead of silently dropping them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub library_memberships: Vec<crate::LibraryMembership>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artwork: Option<crate::ArtworkMetadata>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -161,6 +165,7 @@ impl Library {
             }
         }
         let profiles = crate::profile::export(&transaction)?;
+        let library_memberships = Self::library_memberships_from(&transaction)?;
         let artwork = crate::artwork_store::snapshot(&transaction)?;
         transaction.commit()?;
         let mut metadata = LibraryMetadata {
@@ -187,6 +192,7 @@ impl Library {
             launch_history,
             retained_build_references,
             profiles,
+            library_memberships,
             artwork: Some(artwork),
             portability_authority: None,
         };

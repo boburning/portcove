@@ -558,6 +558,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 serde_json::json!(schema_for_contract::<AdoptionPreview>(contract)),
             ),
             (
+                "launcher_library_inventory",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::LauncherLibraryInventory>(contract)
+                ),
+            ),
+            (
                 "port_removal_preview",
                 serde_json::json!(schema_for_contract::<PortRemovalPreview>(contract)),
             ),
@@ -684,6 +690,18 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
             (
                 "recipe_import_plan",
                 serde_json::json!(schema_for_contract::<portcove_core::RecipeImportPlan>(
+                    contract
+                )),
+            ),
+            (
+                "provider_update_observation",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::ProviderUpdateObservation,
+                >(contract)),
+            ),
+            (
+                "provider_install_plan",
+                serde_json::json!(schema_for_contract::<portcove_core::ProviderInstallPlan>(
                     contract
                 )),
             ),

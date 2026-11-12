@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { FolderInput, FolderOpen, ShieldCheck, X } from "lucide-react";
 import { formatBytes } from "../view-model";
 import { gameIdentityLabel } from "../port-identity";
@@ -20,6 +20,7 @@ export function AdoptionModal({
   adopt,
   pickFolder,
   ports = [],
+  launcherImport,
 }: {
   path: string;
   setPath: (path: string) => void;
@@ -32,6 +33,8 @@ export function AdoptionModal({
   adopt: () => void;
   pickFolder?: () => void;
   ports?: readonly PortDefinition[];
+  /** Optional read-only list of another launcher's apps that fills `path`. */
+  launcherImport?: ReactNode;
 }) {
   const dismiss = () => {
     if (!applying) close();
@@ -92,6 +95,7 @@ export function AdoptionModal({
           <Icon glyph={ShieldCheck} /> Review first, then confirm before copying.
         </p>
         <NavigationHints />
+        {launcherImport}
         <label htmlFor="adopt-path">Existing installation folder</label>
         <div className="flex items-stretch gap-2 [&_input]:min-w-0">
           <Input

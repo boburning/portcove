@@ -28,6 +28,7 @@ import {
   type CatalogQueryContext,
 } from "./catalog-query";
 import { states } from "./game-file-query-context";
+import { isQuickViewUpdateSelection } from "./quick-view-updates";
 import { GameFileFilterControls } from "./GameFileFilterControls";
 import type { GameFileFilterState } from "./use-game-file-filter-context";
 
@@ -35,7 +36,7 @@ import { Checkbox } from "../../components/ui/checkbox";
 import { CompactFilterField } from "../../components/ui/field";
 
 const fixedGroups = [
-  { key: "platforms", label: "Target OS" },
+  { key: "platforms", label: "Runs on" },
   { key: "portOptions", label: "Port options" },
   { key: "channels", label: "Update channels" },
   { key: "installationMethods", label: "Setup methods" },
@@ -73,7 +74,7 @@ function label(group: Group, value: string) {
   if (group === "portOptions") return value === "multiple" ? "Multiple ports" : "Single port";
   if (group === "installationMethods")
     return installationMethodLabels[value as keyof typeof installationMethodLabels] ?? value;
-  if (group === "platforms" && value === "this-device") return "For this device";
+  if (group === "platforms" && value === "this-device") return "Available for this device";
   if (group === "gameFiles") return states[value as keyof typeof states];
   if (group === "updates")
     return value === "available" ? "Available at last check" : "Matching update staged";
@@ -103,8 +104,11 @@ export function CatalogFilters({
   after,
   summary,
   advanced,
+  quickViewUpdates = false,
 }: {
   advanced?: ReactNode;
+  /** The Library Updates quick view owns its update selection; show no chips for it. */
+  quickViewUpdates?: boolean;
   before?: ReactNode;
   after?: ReactNode;
   summary?: ReactNode;
@@ -157,11 +161,14 @@ export function CatalogFilters({
   const result = evaluateCatalogQuery(candidates ?? [], query, context);
   const editable = result.state === "matched";
   const supported = result.state !== "unresolved";
+  const quickViewOwnsUpdates = quickViewUpdates && isQuickViewUpdateSelection(query.updates);
   const selected = supported
     ? groups.flatMap((group) =>
-        group.values
-          .filter((value) => query[group.key]?.includes(value))
-          .map((value) => ({ group: group.key, value })),
+        quickViewOwnsUpdates && group.key === "updates"
+          ? []
+          : group.values
+              .filter((value) => query[group.key]?.includes(value))
+              .map((value) => ({ group: group.key, value })),
       )
     : [];
   const additionalCount = !supported
@@ -272,8 +279,8 @@ export function CatalogFilters({
           >
             <summary className="cursor-pointer py-2 font-medium">Advanced filters</summary>
             <p className="text-sm text-pc-muted-foreground">
-              Route-dependent filters must match the same setup or installation. Unknown facts
-              remain unknown.
+              Setup and installation filters must all match the same way of installing or setting up
+              a game. Projects with unknown facts aren’t counted as matches.
             </p>
             <div className="catalog-filter-groups items-start pt-3">
               {advanced}
@@ -370,7 +377,7 @@ export function CatalogFilters({
     const chosen = supported ? (query[group.key] ?? []) : [];
     const help: Partial<Record<Group, string>> = {
       platforms:
-        "Package targets, not tested device compatibility. For this device uses this PC’s platform; Intel and Apple silicon remain distinct.",
+        "Package targets, not tested device compatibility. Available for this device uses this PC’s platform; Intel and Apple silicon remain distinct.",
       membership:
         "Includes managed installations, registered runtimes and downloads awaiting setup. Membership does not imply readiness.",
       updates:

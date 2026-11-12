@@ -978,6 +978,7 @@ export async function wakeRatifiedController(
     run: (id, retain) => read(() => provider.run(id, retain), retain !== undefined),
     jobs: (id, attempt) => read(() => provider.jobs(id, attempt)),
     ref: (name) => read(() => provider.ref(name)),
+    compareAncestry: (base, head) => read(() => provider.compareAncestry(base, head)),
     file: (filename, revision) => read(() => provider.file(filename, revision)),
     runs: (workflow, filters, page) => read(() => provider.runs(workflow, filters, page)),
     artifacts: (id) => read(() => provider.artifacts(id)),
@@ -995,6 +996,9 @@ export async function wakeRatifiedController(
   };
   const config = inspectControllerWakeConfiguration(raw);
   const manual = environment.GITHUB_EVENT_NAME === "workflow_dispatch";
+  // The manual catalog wake appoints a protected controller tag and an
+  // exact workflow, while application wakes can select a product from main.
+  const fixedCatalogWake = manual && config.publication_purpose === "catalog-publication";
   if (
     environment.GITHUB_ACTIONS !== "true" ||
     environment.GITHUB_SERVER_URL !== "https://github.com" ||
@@ -1026,13 +1030,13 @@ export async function wakeRatifiedController(
     !/^[1-9][0-9]{0,15}$/u.test(environment.GITHUB_RUN_ID ?? "")
   )
     throw new Error("wake-up is outside its fixed default-branch boundary");
+  // Two changed-main checks can each add a comparison, workflow read and
+  // closing ref read within the same original phase and job deadlines.
+  const maximumRequests = config.schema_version === 5 ? 22 : fixedCatalogWake ? 18 : 12;
   let requests = 0;
   const started = performance.now();
   const get = async (operation: () => Promise<unknown>) => {
-    if (
-      ++requests > (config.schema_version === 5 ? 22 : 12) ||
-      performance.now() - started > wakeJobDeadlineMilliseconds
-    )
+    if (++requests > maximumRequests || performance.now() - started > wakeJobDeadlineMilliseconds)
       throw new Error("wake-up collection bound exhausted");
     const result = await operation();
     if (performance.now() - started > wakeJobDeadlineMilliseconds)
@@ -1094,15 +1098,25 @@ export async function wakeRatifiedController(
       performance.now() + Date.parse(job.started_at) + wakeJobDeadlineMilliseconds - Date.now(),
     );
   }
-  const readRefs = async () => {
+  const readMain = async () => {
     const current = await get(() => api.ref("heads/main"));
-    const controller = await get(() => api.ref(config.execution_ref.slice(5)));
     if (
       !isRecord(current) ||
       current.ref !== "refs/heads/main" ||
       !isRecord(current.object) ||
       current.object.type !== "commit" ||
-      current.object.sha !== environment.GITHUB_SHA ||
+      typeof current.object.sha !== "string" ||
+      !/^[a-f0-9]{40}$/u.test(current.object.sha)
+    )
+      throw new Error("wake-up main ref unavailable or unsupported");
+    return current.object.sha;
+  };
+  let verifiedMain = environment.GITHUB_SHA!;
+  const readRefs = async () => {
+    const current = await readMain();
+    const controller = await get(() => api.ref(config.execution_ref.slice(5)));
+    if (
+      (!fixedCatalogWake && current !== environment.GITHUB_SHA) ||
       !isRecord(controller) ||
       controller.ref !== config.execution_ref ||
       !isRecord(controller.object) ||
@@ -1110,6 +1124,23 @@ export async function wakeRatifiedController(
       controller.object.sha !== config.revision
     )
       throw new Error("wake-up source/controller ref changed or unsupported");
+    if (current === verifiedMain) return;
+    const comparison = await get(() => api.compareAncestry(verifiedMain, current));
+    if (
+      !isRecord(comparison) ||
+      comparison.status !== "ahead" ||
+      !isRecord(comparison.merge_base_commit) ||
+      comparison.merge_base_commit.sha !== verifiedMain
+    )
+      throw new Error("manual catalog wake main lost its verified ancestry");
+    if (
+      hash(sourceBytes(await get(() => api.file(workflow, current)), workflow)) !==
+      config.wake_workflow_sha256
+    )
+      throw new Error("manual catalog wake workflow changed on main");
+    if ((await readMain()) !== current)
+      throw new Error("manual catalog wake main changed during verification");
+    verifiedMain = current;
   };
   await readRefs();
   const target = destinationWorkflow(config);

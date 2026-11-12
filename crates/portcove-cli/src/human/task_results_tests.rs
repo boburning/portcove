@@ -386,3 +386,24 @@ fn backup_list_tells_automatic_snapshots_from_manual_ones() {
         "control characters are cleaned"
     );
 }
+
+#[test]
+fn suggested_adopt_paths_stay_literal_in_supported_shells() {
+    assert_eq!(
+        posix_quoted("/games/Jak's $(x) `y`"),
+        "'/games/Jak'\\''s $(x) `y`'"
+    );
+    assert_eq!(
+        powershell_quoted(r"C:\Apps\Jak's $(calc) `x`"),
+        r"'C:\Apps\Jak''s $(calc) `x`'"
+    );
+    // Curly quotes also close a PowerShell single-quoted string.
+    assert_eq!(
+        powershell_quoted("C:\\Apps\\x\u{2019};calc;\u{2018}"),
+        "'C:\\Apps\\x\u{2019}\u{2019};calc;\u{2018}\u{2018}'"
+    );
+    assert_eq!(
+        powershell_quoted("\u{201A}\u{201B}"),
+        "'\u{201A}\u{201A}\u{201B}\u{201B}'"
+    );
+}

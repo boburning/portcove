@@ -9,7 +9,6 @@ use std::fs::{self, File, OpenOptions};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
-use fs2::FileExt;
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -190,7 +189,7 @@ struct ProcessTrustStateLock(PathBuf);
 
 impl Drop for TrustStateLock {
     fn drop(&mut self) {
-        let _ = FileExt::unlock(&self.0);
+        let _ = self.0.unlock();
     }
 }
 
@@ -265,12 +264,12 @@ fn acquire_lock(state_directory: &Path) -> Result<TrustStateLock, TrustedReposit
         .create(true)
         .truncate(false)
         .open(state_directory.join(LOCK_FILE))?;
-    match file.try_lock_exclusive() {
+    match file.try_lock() {
         Ok(()) => {}
-        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+        Err(std::fs::TryLockError::WouldBlock) => {
             return Err(TrustedRepositoryError::Busy);
         }
-        Err(error) => return Err(error.into()),
+        Err(std::fs::TryLockError::Error(error)) => return Err(error.into()),
     }
     Ok(TrustStateLock(file))
 }

@@ -162,21 +162,25 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   const launch = vi.spyOn(desktopApi, "launch");
   expect(document.querySelector(".library-query-tools #port-search")).not.toBeNull();
   expect(document.querySelector(".header-tools #port-search")).toBeNull();
-  expect(document.body.textContent).toContain("12 library entries");
+  expect(document.body.textContent).toContain("12 in your library");
   const portCard = (id: string) =>
     page.elementLocator(
       document
         .querySelector(`[data-detail-game-id="${id}"]`)!
         .closest<HTMLElement>(".collection-entry")!,
     );
-  await portCard("collection-0").getByRole("button", { name: "Play", exact: true }).click();
+  await portCard("collection-0")
+    .getByRole("button", { name: /^Play: / })
+    .click();
   await expect.poll(() => launch.mock.calls[0]).toEqual(["collection-0", "", 1]);
-  await portCard("collection-1").getByRole("button", { name: "Play", exact: true }).click();
+  await portCard("collection-1")
+    .getByRole("button", { name: /^Play: / })
+    .click();
   await expect.poll(() => launch.mock.calls[1]).toEqual(["collection-1", "", 1]);
   await page.getByRole("textbox", { name: "Search your library" }).fill("Super Mario 64");
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
   const summary = document.querySelector(".collection-result-summary")!;
-  expect(summary.textContent).toContain("2 of 12 library entries");
+  expect(summary.textContent).toContain("2 of 12 in your library");
   expect(document.querySelectorAll('[role="status"][aria-label="Search results"]')).toHaveLength(1);
   expect(document.querySelectorAll(".collection-result-summary")).toHaveLength(1);
   expect(document.querySelectorAll(".collection-result-summary button")).toHaveLength(1);
@@ -256,7 +260,7 @@ it.each(["dark", "light"])(
   async (theme) => {
     await page.viewport(380, 844);
     await mount(theme);
-    const group = page.getByRole("group", { name: "Library quick views", exact: true });
+    const group = page.getByRole("radiogroup", { name: "Library quick views", exact: true });
     const controls = [...group.element().querySelectorAll<HTMLButtonElement>("button")];
     expect(controls).toHaveLength(4);
     for (const control of controls) {
@@ -267,11 +271,11 @@ it.each(["dark", "light"])(
       expect(control.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
     }
     await expect
-      .element(group.getByRole("button", { name: "All games", exact: true }))
-      .toHaveAccessibleDescription("12 library entries");
+      .element(group.getByRole("radio", { name: "All", exact: true }))
+      .toHaveAccessibleDescription("Every game in this library scope. 12 games");
     await expect
-      .element(group.getByRole("button", { name: "Needs attention", exact: true }))
-      .toHaveAccessibleDescription(/Recorded setup, repair or readiness needs/);
+      .element(group.getByRole("radio", { name: "Needs attention", exact: true }))
+      .toHaveAccessibleDescription(/Games that need setup, files or repair/);
     expect(getComputedStyle(group.element().querySelector(".browse-count")!).display).toBe("none");
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
     await page.getByRole("button", { name: "Manage collections", exact: true }).click();
@@ -374,7 +378,7 @@ it("keeps artwork favorites separate from details and restores filter focus when
   button.focus();
   await userEvent.keyboard("{Enter}");
   await expect.poll(() => favorite.mock.calls[0]).toEqual(["collection-0", true, 1]);
-  const filter = page.getByRole("button", { name: "Favorites 1", exact: true });
+  const filter = page.getByRole("radio", { name: "Favorites 1", exact: true });
   await filter.click();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(1);
   await expect.element(toggle).toHaveAttribute("aria-pressed", "true");
@@ -382,9 +386,7 @@ it("keeps artwork favorites separate from details and restores filter focus when
   toggle.element().focus();
   await userEvent.keyboard("{Enter}");
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(0);
-  await expect
-    .element(page.getByRole("button", { name: "Favorites 0", exact: true }))
-    .toHaveFocus();
+  await expect.element(page.getByRole("radio", { name: "Favorites 0", exact: true })).toHaveFocus();
   expect(favorite.mock.calls[1]).toEqual(["collection-0", false, 1]);
 });
 
@@ -393,7 +395,7 @@ it("shares the narrow filter row without losing query, independent readiness or 
   await mount("light");
   const search = page.getByRole("textbox", { name: "Search your library" });
   await search.fill("Super Mario 64");
-  const favorites = page.getByRole("button", { name: "Favorites 0", exact: true }).element();
+  const favorites = page.getByRole("radio", { name: "Favorites 0", exact: true }).element();
   const filters = page.getByRole("button", { name: "Filters (0)", exact: true }).element();
   expect(favorites.getBoundingClientRect().bottom).toBeLessThanOrEqual(
     search.element().getBoundingClientRect().top,
@@ -600,7 +602,7 @@ it("keeps an unknown external record distinct from managed readiness and reviews
   expect(document.querySelector(".collection-state")?.textContent).toContain(
     "Readiness unavailable",
   );
-  expect(page.getByRole("button", { name: "Play", exact: true }).query()).toBeNull();
+  expect(page.getByRole("button", { name: /^Play/ }).query()).toBeNull();
   await page.getByRole("button", { name: /^View details:/ }).click();
   expect(select).toHaveBeenCalledWith(port.id, `library:card:${port.id}:review`);
   expect(status.external_runtime).toBe(record);
@@ -931,11 +933,9 @@ it("opens Hidden games and restores Favorites focus when its last entry is shown
   await expect.element(hidden).not.toBeInTheDocument();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(0);
   await expect
-    .element(page.getByRole("heading", { name: "No matching library entries", exact: true }))
+    .element(page.getByRole("heading", { name: "Nothing in your library matches", exact: true }))
     .toBeVisible();
-  await expect
-    .element(page.getByRole("button", { name: "Favorites 0", exact: true }))
-    .toHaveFocus();
+  await expect.element(page.getByRole("radio", { name: "Favorites 0", exact: true })).toHaveFocus();
   await captureParityState("library-hidden-final-entry-restored");
   await page.getByRole("button", { name: "Reset view", exact: true }).click();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
@@ -969,9 +969,7 @@ it("keeps the confirmed favorite state during a pending and rejected write", asy
     .toBeVisible();
   await expect.element(toggle).toBeEnabled();
   await expect.element(toggle).toHaveAttribute("aria-pressed", "false");
-  await expect
-    .element(page.getByRole("button", { name: "Favorites 0", exact: true }))
-    .toBeVisible();
+  await expect.element(page.getByRole("radio", { name: "Favorites 0", exact: true })).toBeVisible();
   await captureParityState("library-favorite-write-rejected");
   const rejection = page.getByText("Favorite choice could not be confirmed", { exact: true });
   rejection.element().scrollIntoView({ block: "center" });

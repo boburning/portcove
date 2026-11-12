@@ -285,7 +285,7 @@ fn retain_inner(worker: &CacheWorker, source: &Path) -> Result<bool> {
     // A full cache is optional capacity, never permission to evict evidence.
     if count == MAX_CACHE_ENTRIES
         || bytes.saturating_add(asset.size) > MAX_CACHE_BYTES
-        || fs2::available_space(root)? < asset.size
+        || fs4::available_space(root)? < asset.size
     {
         return Ok(false);
     }

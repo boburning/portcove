@@ -88,7 +88,9 @@ impl Fixture {
             }
             value
         };
-        let directory = tempfile::tempdir().unwrap();
+        // Offline inputs refuse linked ancestry; macOS temp directories live
+        // under the `/var` -> `/private/var` link, so fixtures use the real path.
+        let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
         let root = directory.path();
         let at = Timestamp::now().to_string();
         let expires = Timestamp::now()

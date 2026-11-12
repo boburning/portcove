@@ -5,7 +5,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use fs2::FileExt;
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
@@ -14,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 47;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 50;
 
 struct Migration {
     version: i64,
@@ -306,7 +305,88 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_47,
         verify: verify_migration_47,
     },
+    Migration {
+        version: 48,
+        name: "explicit add-only library membership",
+        apply: migration_48,
+        verify: verify_migration_48,
+    },
+    Migration {
+        version: 49,
+        name: "confirmed first-install batches",
+        apply: migration_49,
+        verify: verify_migration_49,
+    },
+    Migration {
+        version: 50,
+        name: "remembered game intent",
+        apply: migration_50,
+        verify: verify_migration_50,
+    },
 ];
+
+fn migration_50(transaction: &Transaction<'_>) -> Result<()> {
+    // Intent is consent policy and remembered choices, never an authorization.
+    transaction.execute_batch(
+        "CREATE TABLE port_intents (
+            port_id TEXT PRIMARY KEY CHECK(length(port_id) BETWEEN 1 AND 128),
+            updated_at INTEGER NOT NULL,
+            record_json TEXT NOT NULL CHECK(length(record_json)<=16384)
+        );",
+    )?;
+    verify_migration_50(transaction)
+}
+
+fn verify_migration_50(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "port_intents",
+        &["port_id", "updated_at", "record_json"],
+    )
+}
+
+fn migration_49(transaction: &Transaction<'_>) -> Result<()> {
+    // A batch associates reviewed plan digests with their outcomes. It stores no
+    // authorization and is never an installation or consent record.
+    transaction.execute_batch(
+        "CREATE TABLE install_batches (
+            id TEXT PRIMARY KEY CHECK(length(id)=36),
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            record_json TEXT NOT NULL CHECK(length(record_json)<=524288)
+        );",
+    )?;
+    verify_migration_49(transaction)
+}
+
+fn verify_migration_49(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "install_batches",
+        &["id", "created_at", "updated_at", "record_json"],
+    )
+}
+
+fn migration_48(transaction: &Transaction<'_>) -> Result<()> {
+    // Membership is a saved selection, not an installation, registration or
+    // acquisition record. Retained provenance is display/explanation data only.
+    transaction.execute_batch(
+        "CREATE TABLE library_memberships (
+            port_id TEXT PRIMARY KEY CHECK(length(port_id) BETWEEN 1 AND 128),
+            added_at INTEGER NOT NULL,
+            record_json TEXT NOT NULL CHECK(length(record_json)<=16384)
+        );",
+    )?;
+    verify_migration_48(transaction)
+}
+
+fn verify_migration_48(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "library_memberships",
+        &["port_id", "added_at", "record_json"],
+    )
+}
 
 fn migration_47(transaction: &Transaction<'_>) -> Result<()> {
     crate::profile::migrate_selection(transaction)?;
@@ -684,19 +764,12 @@ impl MigrationLock {
                 return Err(Self::timeout_error(&owner_path, timeout));
             }
             first_attempt = false;
-            match FileExt::try_lock_exclusive(&file) {
+            match file.try_lock() {
                 Ok(()) => break,
-                Err(error)
-                    if Self::is_contention(&error)
-                        || error.kind() == std::io::ErrorKind::Interrupted =>
-                {
-                    let remaining = timeout.saturating_sub(started.elapsed());
-                    if remaining.is_zero() {
-                        return Err(Self::timeout_error(&owner_path, timeout));
-                    }
-                    std::thread::sleep(MIGRATION_LOCK_POLL.min(remaining));
-                }
-                Err(error) => {
+                Err(std::fs::TryLockError::WouldBlock) => {}
+                Err(std::fs::TryLockError::Error(error))
+                    if error.kind() == std::io::ErrorKind::Interrupted => {}
+                Err(std::fs::TryLockError::Error(error)) => {
                     return Err(PortcoveError::state(
                         "could not acquire the library migration lock",
                     )
@@ -704,6 +777,11 @@ impl MigrationLock {
                     .detail("cause", error.to_string()));
                 }
             }
+            let remaining = timeout.saturating_sub(started.elapsed());
+            if remaining.is_zero() {
+                return Err(Self::timeout_error(&owner_path, timeout));
+            }
+            std::thread::sleep(MIGRATION_LOCK_POLL.min(remaining));
         }
 
         let owner = MigrationLockOwner {
@@ -720,12 +798,6 @@ impl MigrationLock {
         // stale metadata must never become migration or lock-recovery authority.
         let _ = Self::publish_owner(&owner_path, &owner);
         Ok(Self { file })
-    }
-
-    fn is_contention(error: &std::io::Error) -> bool {
-        error
-            .raw_os_error()
-            .is_some_and(|code| Some(code) == fs2::lock_contended_error().raw_os_error())
     }
 
     fn publish_owner(path: &Path, owner: &MigrationLockOwner) -> Result<()> {
@@ -769,7 +841,7 @@ impl MigrationLock {
 
 impl Drop for MigrationLock {
     fn drop(&mut self) {
-        let _ = FileExt::unlock(&self.file);
+        let _ = self.file.unlock();
     }
 }
 
@@ -1987,6 +2059,27 @@ mod tests {
 
     use super::*;
 
+    #[test]
+    fn bundled_sqlite_has_the_wal_fix_and_checks_unsigned_values() {
+        let temporary = tempdir().unwrap();
+        let connection = connect(temporary.path()).unwrap();
+        let version: String = connection
+            .query_row("SELECT sqlite_version()", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, rusqlite::version());
+        assert!(rusqlite::version_number() >= 3_054_000, "{version}");
+
+        let overflow = u64::try_from(i64::MAX).unwrap() + 1;
+        assert!(matches!(
+            connection.query_row("SELECT ?1", [overflow], |row| row.get::<_, i64>(0)),
+            Err(rusqlite::Error::ToSqlConversionFailure(_))
+        ));
+        assert!(matches!(
+            connection.query_row("SELECT -1", [], |row| row.get::<_, u64>(0)),
+            Err(rusqlite::Error::IntegralValueOutOfRange(0, -1))
+        ));
+    }
+
     fn prepare_root(root: &Path) {
         fs::create_dir_all(root.join("locks")).unwrap();
     }
@@ -2302,24 +2395,6 @@ mod tests {
                 .file_type()
                 .is_fifo()
         );
-    }
-
-    #[test]
-    fn migration_lock_classifies_only_the_os_contention_code() {
-        let contention = fs2::lock_contended_error();
-        assert!(MigrationLock::is_contention(&contention));
-        assert!(!MigrationLock::is_contention(&std::io::Error::new(
-            contention.kind(),
-            "same kind without the contention OS code",
-        )));
-        #[cfg(windows)]
-        for code in [6, 50] {
-            // Invalid-handle and unsupported-lock errors share the contention
-            // error's broad kind on Windows, but must retain their real cause.
-            let other = std::io::Error::from_raw_os_error(code);
-            assert_eq!(other.kind(), contention.kind());
-            assert!(!MigrationLock::is_contention(&other));
-        }
     }
 
     #[test]
@@ -2836,6 +2911,30 @@ mod tests {
     }
 
     #[test]
+    fn membership_migration_adds_an_empty_table_and_keeps_existing_state() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 47).unwrap();
+        let connection = connect(root).unwrap();
+        let identity: String = connection
+            .query_row("SELECT id FROM library_identity", [], |row| row.get(0))
+            .unwrap();
+        drop(connection);
+        migrate_to(root, 48).unwrap();
+        let connection = connect(root).unwrap();
+        let count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM library_memberships", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        let after: String = connection
+            .query_row("SELECT id FROM library_identity", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!((count, after), (0, identity));
+    }
+
+    #[test]
     fn snapshot_setting_migration_keeps_identity_and_defaults_existing_libraries_on() {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
@@ -2923,6 +3022,9 @@ mod tests {
         schema_44: 44,
         schema_45: 45,
         schema_46: 46,
+        schema_47: 47,
+        schema_48: 48,
+        schema_49: 49,
     }
 
     #[test]

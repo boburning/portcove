@@ -3121,6 +3121,17 @@ mod tests {
         // Keep frozen port facts except the reviewed metadata/runtime/persistence
         // declarations below. Every source contract remains exact.
         let mut expected_ports = legacy.document().ports.clone();
+        let nookery = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "animal-crossing-pc-port")
+            .unwrap();
+        assert_eq!(nookery.name, "Animal Crossing PC Port");
+        assert_eq!(
+            nookery.project_url,
+            "https://github.com/flyngmt/ACGC-PC-Port"
+        );
+        nookery.name = "Animal Crossing — Nookery".into();
+        nookery.project_url = "https://github.com/flyngmt/Nookery".into();
         let shipwright = expected_ports
             .iter_mut()
             .find(|port| port.id == "shipwright")

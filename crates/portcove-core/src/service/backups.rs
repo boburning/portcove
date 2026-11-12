@@ -335,6 +335,10 @@ impl RestoreOperation {
     }
 }
 
+/// Marks a pending deletion that a later backup action or startup recovery already
+/// failed to finish.
+pub(super) const RESUME_FAILED: &str = "could not be finished on retry: ";
+
 /// Internal interpretation of the released deletion envelope, never consent or path authority.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum BackupDeletionPhase {
@@ -802,6 +806,7 @@ impl PortcoveService {
             .collect::<HashSet<_>>();
         let mut problems = pending_deletions
             .iter()
+            .filter(|operation| !self.deletion_finishes_on_next_action(operation))
             .map(|operation| BackupProblem {
                 kind: BackupProblemKind::RecoveryRequired,
                 backup_id: operation
@@ -1045,7 +1050,8 @@ impl PortcoveService {
         };
         if operations.iter().any(|operation| {
             operation.port_id == port_id
-                && (operation.kind == LifecycleOperationKind::DeleteBackup
+                && ((operation.kind == LifecycleOperationKind::DeleteBackup
+                    && !self.deletion_finishes_on_next_action(operation))
                     || (operation.kind == LifecycleOperationKind::Restore
                         && operation.phase != LifecyclePhase::Preparing))
         }) {
@@ -1100,7 +1106,9 @@ impl PortcoveService {
             definition: None,
         };
         if operations.iter().any(|operation| {
-            operation.port_id == port_id && operation.kind == LifecycleOperationKind::DeleteBackup
+            operation.port_id == port_id
+                && operation.kind == LifecycleOperationKind::DeleteBackup
+                && !self.deletion_finishes_on_next_action(operation)
         }) {
             return decision(Availability::Held, Reason::RecoveryRequired);
         }
@@ -1217,7 +1225,11 @@ impl PortcoveService {
         self.catalog.port(port_id)?;
         if action == BackupAction::Restore {
             self.require_completed_restore(port_id)?;
-            self.require_completed_backup_deletion(port_id)?;
+            // Read-only: a deletion the restore itself finishes under its port lock
+            // does not stop the review; any other one still does.
+            if self.has_unfinishable_backup_deletion(port_id)? {
+                self.require_completed_backup_deletion(port_id)?;
+            }
         }
         let backup = self.load_backup(port_id, backup_id)?;
         let backup_data = backup.path.join("data");
@@ -1379,6 +1391,8 @@ impl PortcoveService {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "restore-backup")?;
             self.require_completed_restore(port_id)?;
+            // An interrupted retention prune must not block restoring saves.
+            self.resume_pending_backup_deletions(port_id);
             self.require_completed_backup_deletion(port_id)?;
             let reviewed_runtime = self.collectible_data_review(port_id)?;
             let reviewed_canonical = self.canonical_data_review(port_id)?;
@@ -1599,6 +1613,10 @@ impl PortcoveService {
                 Some(_) => Some(self.library.try_lock_port(port_id, "delete-backup")?),
                 None => None,
             };
+            if authorization_token.is_some() {
+                // Retention already finished pending deletions before its snapshot.
+                self.resume_pending_backup_deletions(port_id);
+            }
             self.require_completed_backup_deletion(port_id)?;
             let candidate = self.load_backup(port_id, backup_id)?;
             if authorization_token.is_none() && candidate.automatic.is_none() {
@@ -1763,6 +1781,54 @@ impl PortcoveService {
         }
     }
 
+    /// Read-only: whether this pending deletion has already moved its backup out of
+    /// view and is expected to be finished, without a judgement call, by the next
+    /// backup, restore, deletion or version change. Such a deletion does not hold
+    /// those actions. One that a later attempt already failed to finish, and every
+    /// other pending deletion, still requires recovery.
+    pub(super) fn deletion_finishes_on_next_action(&self, operation: &LifecycleOperation) -> bool {
+        operation.kind == LifecycleOperationKind::DeleteBackup
+            && operation.backup_deletion.is_none()
+            && !operation
+                .last_error
+                .as_deref()
+                .is_some_and(|error| error.starts_with(RESUME_FAILED))
+            && self
+                .library
+                .require_no_ghostship_recovery(&operation.port_id)
+                .is_ok()
+            && self
+                .validate_backup_deletion_operation(operation)
+                .is_ok_and(|deletion| {
+                    matches!(
+                        deletion.phase,
+                        BackupDeletionPhase::Quarantined
+                            | BackupDeletionPhase::Deleted
+                            | BackupDeletionPhase::CleanupPending
+                    ) && fs::symlink_metadata(&deletion.original)
+                        .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
+                        // Recovery refuses a quarantine holding an unauthorized
+                        // runtime-safety companion; so must this prediction.
+                        && (fs::symlink_metadata(&deletion.quarantine).is_err_and(|error| {
+                            error.kind() == std::io::ErrorKind::NotFound
+                        }) || self
+                            .require_backup_deletion_preimage(&deletion.quarantine, None)
+                            .is_ok())
+                })
+    }
+
+    /// Whether any pending deletion of this port still requires recovery.
+    fn has_unfinishable_backup_deletion(&self, port_id: &str) -> Result<bool> {
+        Ok(OperationStore::new(self.library.clone())
+            .all()?
+            .iter()
+            .any(|operation| {
+                operation.port_id == port_id
+                    && operation.kind == LifecycleOperationKind::DeleteBackup
+                    && !self.deletion_finishes_on_next_action(operation)
+            }))
+    }
+
     /// Best-effort completion of this port's unfinished backup deletions through the
     /// existing recovery. A deletion that cannot be completed stays pending and the
     /// caller's `require_completed_backup_deletion` still refuses with its clear message.
@@ -1775,6 +1841,12 @@ impl PortcoveService {
             operation.port_id == port_id && operation.kind == LifecycleOperationKind::DeleteBackup
         }) {
             let outcome = crate::recovery::recover_backup_deletion(self, &store, &mut operation);
+            if let Err(error) = &outcome {
+                // Stop predicting that the next action finishes it: history shows
+                // recovery as required again, with the cause.
+                operation.last_error = Some(format!("{RESUME_FAILED}{}", error.message));
+                let _ = store.put(&mut operation);
+            }
             let _ = self.library.finish_activity(
                 &operation.id,
                 if outcome.is_ok() {
@@ -1783,7 +1855,7 @@ impl PortcoveService {
                     ActivityStatus::Failed
                 },
                 Some(match outcome {
-                    Ok(()) => "completed by the next backup or version change",
+                    Ok(()) => "completed by a later backup, restore, deletion or version change",
                     Err(_) => "could not be completed; restart Portcove to retry recovery",
                 }),
             );
@@ -2275,6 +2347,41 @@ fn backup_action_fingerprint(
     Ok(hex::encode(Sha256::digest(encoded)))
 }
 
+/// Tells the player that a failed automatic snapshot stopped the version change
+/// before anything changed, and how to continue. The cause stays in the message and
+/// the error keeps its code and details. It is applied only to the backup copy itself;
+/// every other kind carries its own guidance and passes through unchanged.
+pub(super) fn explain_snapshot_failure(mut error: PortcoveError) -> PortcoveError {
+    // Only a copy that failed (file-system errors are `State`; a credential-scan limit
+    // is `Unsupported`) is reworded. Conflicts and verification refusals, such as a
+    // changed producer, a modified retained runtime or a recovery hold, carry their
+    // own remedy, and turning snapshots off would point away from it.
+    if !matches!(
+        error.code,
+        crate::ErrorCode::State | crate::ErrorCode::Unsupported
+    ) {
+        return error;
+    }
+    error.message = format!(
+        "Portcove could not back up this game's saves first, so the version was not changed. {} Try again once that is fixed, or turn off automatic snapshots in Settings > Library to continue without one.",
+        sentence(&error.message)
+    );
+    error.details.insert(
+        "recovery_action".into(),
+        "retry_or_disable_snapshots".into(),
+    );
+    error
+}
+
+fn sentence(cause: &str) -> String {
+    let cause = cause.trim();
+    if cause.ends_with(['.', '!', '?']) {
+        cause.to_owned()
+    } else {
+        format!("{cause}.")
+    }
+}
+
 #[cfg(test)]
 mod assessment_tests {
     use super::*;
@@ -2312,40 +2419,5 @@ mod assessment_tests {
                 .reason,
             PortActionReason::MissingBackup
         );
-    }
-}
-
-/// Tells the player that a failed automatic snapshot stopped the version change
-/// before anything changed, and how to continue. The cause stays in the message and
-/// the error keeps its code and details. It is applied only to the backup copy itself;
-/// every other kind carries its own guidance and passes through unchanged.
-pub(super) fn explain_snapshot_failure(mut error: PortcoveError) -> PortcoveError {
-    // Only a copy that failed (file-system errors are `State`; a credential-scan limit
-    // is `Unsupported`) is reworded. Conflicts and verification refusals, such as a
-    // changed producer, a modified retained runtime or a recovery hold, carry their
-    // own remedy, and turning snapshots off would point away from it.
-    if !matches!(
-        error.code,
-        crate::ErrorCode::State | crate::ErrorCode::Unsupported
-    ) {
-        return error;
-    }
-    error.message = format!(
-        "Portcove could not back up this game's saves first, so the version was not changed. {} Try again once that is fixed, or turn off automatic snapshots in Settings > Library to continue without one.",
-        sentence(&error.message)
-    );
-    error.details.insert(
-        "recovery_action".into(),
-        "retry_or_disable_snapshots".into(),
-    );
-    error
-}
-
-fn sentence(cause: &str) -> String {
-    let cause = cause.trim();
-    if cause.ends_with(['.', '!', '?']) {
-        cause.to_owned()
-    } else {
-        format!("{cause}.")
     }
 }

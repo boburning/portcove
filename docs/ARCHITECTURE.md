@@ -132,6 +132,7 @@ scope; they do not certify later builds.
 | Source, save, backup and library recovery               | Core; [source import interpretation](#source-import-journal-interpretation), [backup service](#backup-service-ownership), [checked backup restoration](#checked-backup-restore-interpretation) and [library model](#library-model). Machine development storage is separate: [development storage](DEVELOPMENT-STORAGE.md). |
 | Artwork, credentials and Steam destinations             | [Shared artwork ownership](#local-artwork-ownership), host credential boundaries and [Steam shortcut boundary](#steam-shortcut-compatibility-boundary); [integration contract](INTEGRATIONS.md) keeps destination and physical-device obligations distinct.                                                                 |
 | Independent definitions, authentication and publication | Core admission and selection; [signed catalog authority](#signed-catalog-authority), [signed catalog contract](SIGNED-CATALOG.md) and [definition delivery](DEFINITION-DELIVERY.md). Content inspection is not publication or activation authority.                                                                         |
+| Maintainer maintenance inventory and history            | Repository tooling over existing owners; [maintenance inventory store](MAINTENANCE-STORE.md). Operational history only; Core, catalog, issues and the Project keep their authority, and players never depend on it.                                                                                                         |
 | Validation, native evidence and review                  | [Quality contract](QUALITY.md), [development tools](DEVELOPMENT-TOOLS.md) and [review/merge contract](CONTRIBUTION-CONVENTIONS.md). Browser, native, installed-package and physical-device results establish different claims.                                                                                              |
 | Proposed structural changes                             | [Evolution policy](#evolution-policy) and [planned consolidation](#planned-public-beta-consolidation); a planned interface is not an implemented capability.                                                                                                                                                                |
 
@@ -205,7 +206,8 @@ block and a 96 MiB decoder budget. It applies the compression ratio to the
 entire indexed output before decoding, including headers and padding. The
 existing archive size and TAR metadata limits also apply. It verifies every
 indexed block and consumes the TAR terminator and up to one 10 KiB record of
-zero padding through the end of the stream before extraction writes. Input
+zero padding through the end of the stream before extraction writes. A
+malformed stream keeps returning its decode failure on subsequent reads. Input
 seeks and reads, TAR scanning and output writes honor the existing
 cancellation checkpoint. NativePortable Linux x86-64 managed release admission
 uses the same TAR.XZ reader when the retained GitHub declaration and exact
@@ -220,8 +222,9 @@ then applies the existing portable-path, collision, size and destination checks.
 Each block's actual decode chain is constructed and dropped before extraction,
 without extracting entries or retaining multiple dictionaries. This catches
 unsupported stream shapes and decoder properties that a codec-name check alone
-cannot reject; final decoding still verifies the available payload checksums.
-Callbacks consume every planned entry exactly once by identity, including
+cannot reject. Final decoding verifies the available payload checksums and
+rejects block output beyond its declared size. Callbacks consume every planned
+entry exactly once by identity, including
 streamless entries that the decoder visits out of header order. Raw reads,
 seeks and output writes retain cooperative cancellation; the awaited worker
 owns its private tree until it stops. This format capability does not broaden
@@ -539,6 +542,20 @@ fixture configured. They grant no core operation or additional capability.
 Ordinary production builds exclude these fixtures
 and the embedded driver. Qualification evidence is labeled separately from
 installed production packages and physical or human observations.
+
+## File coordination and disk-space observations
+
+Core library, migration and application-runtime locks and Desktop update locks
+use the pinned Rust standard library's file locking API. Keep each lock on its
+existing read/write handle and translate the typed contention result separately
+from I/O failures. The supported Unix targets use flock. Windows uses the same
+whole-file LockFileEx range as previous releases, so older and newer processes
+coordinate on the same files.
+
+Disk-capacity queries use fs4 without its optional locking features. Available
+space reflects bytes available to the current caller, including Windows quota
+limits. The total field reports the filesystem total returned by the platform.
+These observations may change after a check, so writes retain their own errors.
 
 ## Repair diagnostic snapshots
 
@@ -1609,8 +1626,8 @@ sanitized errors. Project mutations remain quota-aware and readback-gated;
 ambiguous writes produce recovery evidence rather than automatic replay. The
 migration grants no publication or activation authority.
 
-Core sends GitHub metadata and device requests through Octocrab over its
-configured reqwest clients. The separate device client is anonymous. Core
+Core sends GitHub metadata and device requests through its configured Reqwest
+clients. The separate device client is anonymous. Core
 enforces the metadata body limit and operation deadlines, owns credential and
 cache transitions, and applies its existing separate download policy.
 
@@ -2604,13 +2621,14 @@ For a live desktop switch, the adapter makes its current state unavailable and d
 
 ### Backups
 
-Persistent-data backups use the same per-port lock and canonical user root. A backup is copied into a same-volume temporary directory, rejects symlinks or unsupported entries, flushes every copied file plus its identity/count/size/tree-digest manifest, and is then renamed into `backups/<port-id>/<backup-id>`. That rename is an atomic namespace-visibility boundary for running processes. On Linux filesystems that accept directory `fsync`, core also synchronizes the staged directory tree and relevant library/backup parent directories before the rename, then synchronizes the final parent before returning success; a final-parent sync failure attempts to roll the visible snapshot back to private staging. Other platforms and Linux filesystems that reject directory synchronization explicitly do not receive a sudden-power-loss durability claim. New stages write a bounded preparation identity before copying; the final manifest binds its backup ID to that same staging name. Inventory holds a per-port lock probe while classifying private backup stages; the probe may create the normal lock file but does not rewrite its owner payload. An active owner is not called abandoned, an idle owned stage is reported as recovery-required through backup inventory and doctor, and an unowned or mismatched entry remains explicitly ambiguous. The staged manifest distinguishes an interrupted copy from complete-looking but unpublished data; neither stage is a restorable or verified backup. Lock ownership that cannot be checked remains ambiguous, and no stage is cleaned automatically. Inventory still returns published manifest entries alongside structured per-entry problems, and marks unmatched private deletion data or an incomplete deletion journal as recovery-required; one damaged entry cannot hide healthy backups or prevent an unrelated new snapshot. Restore stages and rehashes the selected tree before mutation, creates an automatic safety backup when current data is non-empty, and records the staged/current/recovery paths before swapping them. Startup can finish either half of an unambiguous process interruption; that journal and same-volume rename boundary do not claim cross-platform power-loss atomicity. Confirmed deletion records the exact bounded original and private quarantine paths before rename, then advances its lifecycle record after quarantine, filesystem removal, and commit. Startup completes an unambiguous authorized deletion, including a partially removed quarantine, but retains ambiguous or out-of-root state for repair review. Backups are intentionally independent of install rollback: they preserve mutable data, while release rollback changes application versions.
+Persistent-data backups use the same per-port lock and canonical user root. A backup is copied into a same-volume temporary directory, rejects symlinks or unsupported entries, flushes every copied file plus its identity/count/size/tree-digest manifest, and is then renamed into `backups/<port-id>/<backup-id>`. That rename is an atomic namespace-visibility boundary for running processes. On Linux filesystems that accept directory `fsync`, core also synchronizes the staged directory tree and relevant library/backup parent directories before the rename, then synchronizes the final parent before returning success; a final-parent sync failure attempts to roll the visible snapshot back to private staging. Other platforms and Linux filesystems that reject directory synchronization explicitly do not receive a sudden-power-loss durability claim. New stages write a bounded preparation identity before copying; the final manifest binds its backup ID to that same staging name. Inventory holds a per-port lock probe while classifying private backup stages; the probe may create the normal lock file but does not rewrite its owner payload. An active owner is not called abandoned, an idle owned stage is reported as recovery-required through backup inventory and doctor, and an unowned or mismatched entry remains explicitly ambiguous. The staged manifest distinguishes an interrupted copy from complete-looking but unpublished data; neither stage is a restorable or verified backup. Lock ownership that cannot be checked remains ambiguous, and no stage is cleaned automatically. Inventory still returns published manifest entries alongside structured per-entry problems, and marks unmatched private deletion data or an incomplete deletion journal as recovery-required; one damaged entry cannot hide healthy backups or prevent an unrelated new snapshot. A validated deletion that has already moved its backup out of view (quarantined or later, original absent, and neither a runtime-safety binding nor an unauthorized runtime-safety companion) is the exception: the next backup, restore, deletion or version change attempts to finish it under the port lock before its own unchanged guard, so inventory and the restore and create assessments do not hold those actions for it. If that attempt or a startup recovery attempt fails, the journal records it and inventory holds again until a later startup recovery finishes the deletion. Doctor lists the deletion until it completes. Restore review stays read-only: it refuses only for a pending deletion that the restore could not finish. Restore stages and rehashes the selected tree before mutation, creates an automatic safety backup when current data is non-empty, and records the staged/current/recovery paths before swapping them. Startup can finish either half of an unambiguous process interruption; that journal and same-volume rename boundary do not claim cross-platform power-loss atomicity. Confirmed deletion records the exact bounded original and private quarantine paths before rename, then advances its lifecycle record after quarantine, filesystem removal, and commit. Startup completes an unambiguous authorized deletion, including a partially removed quarantine, but retains ambiguous or out-of-root state for repair review. Backups are intentionally independent of install rollback: they preserve mutable data, while release rollback changes application versions.
 
 Elsewhere in this document, “atomic rename” describes namespace visibility and the operation's tested process-crash boundary unless an accompanying directory-sync step explicitly extends the claim to supported power-loss durability.
 
 Backup inventory exposes separate Core creation and Restore assessments. Restore
 review eligibility requires a usable snapshot, safe owned locations and no
-post-Preparing restore or pending backup deletion. Unreadable history with no
+post-Preparing restore or pending backup deletion other than one the restore
+itself is expected to finish, as described above. Unreadable history with no
 verified snapshot remains held rather than asserting an empty inventory. Damaged
 identified snapshots do not hide an unrelated usable snapshot. Allowed means a
 selected review may be attempted; it does not grant consent or certify the

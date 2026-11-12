@@ -77,7 +77,8 @@ describe("player-data protection summary", () => {
     const protection = snapshot();
     protection.port_id = "other-port";
     const html = render(protection);
-    expect(html).toContain("Backup information is unavailable");
+    expect(html).toContain("Protection details for this installation aren’t available");
+    expect(html).not.toContain("Backup information is unavailable");
     expect(html).not.toContain("C:/library/user/sample");
     expect(html).not.toContain(declaration.definition_sha256);
   });
@@ -90,7 +91,8 @@ describe("player-data protection summary", () => {
         readState={{ status: "current", hasInventory: true }}
       />,
     );
-    expect(html).toContain("Backup information is unavailable");
+    expect(html).toContain("Protection details for this installation aren’t available");
+    expect(html).not.toContain("Backup information is unavailable");
     expect(html).not.toContain("No completed backup");
   });
 
@@ -122,7 +124,8 @@ describe("player-data protection summary", () => {
       },
     ];
     const html = render(protection);
-    expect(html).toContain("Backup information is unavailable");
+    expect(html).toContain("Protection details for this installation aren’t available");
+    expect(html).not.toContain("Backup information is unavailable");
     expect(html).not.toContain("previous-generation");
   });
   it("does not call a fulfilled unreadable inventory empty", () => {

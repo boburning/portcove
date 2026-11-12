@@ -21,10 +21,12 @@ import { readControllerToolFile } from "./release-controller-tools.mts";
 import {
   retainedCatalogBootstrapClaim,
   retainedCatalogForwardAdoptionClaim,
+  retainedCatalogNativeAdoptionClaim,
 } from "./release-coordinator-checkpoint-authentication.mts";
 import type { CatalogCoordinatorRefusalStage } from "./release-control-step-bridge.mts";
 import {
   inspectTufPublicationFacts,
+  servedNativeBootstrapRenewal,
   standaloneBootstrapAdoption,
   standaloneBootstrapForwardAdoption,
   standaloneBootstrapRenewalAdoption,
@@ -39,28 +41,28 @@ import {
   readPublicApplicationSiteMarker,
 } from "./release-site-readback.mts";
 
+const catalogBootstrapClaims = [
+  { mode: false, claim: retainedCatalogBootstrapClaim },
+  { mode: true, claim: retainedCatalogForwardAdoptionClaim },
+  { mode: "native", claim: retainedCatalogNativeAdoptionClaim },
+] as const;
+
+export function isCatalogBootstrapRecoveryRef(executionRef: string) {
+  return catalogBootstrapClaims.some(({ claim }) => claim.successor_ref === executionRef);
+}
+
 export function selectCatalogBootstrapRecovery(
   executionRef: string,
   attempt: number,
   previous: string,
-  forward: boolean,
+  mode: boolean | "native",
 ) {
-  const claim =
-    executionRef === retainedCatalogForwardAdoptionClaim.successor_ref
-      ? retainedCatalogForwardAdoptionClaim
-      : executionRef === retainedCatalogBootstrapClaim.successor_ref
-        ? retainedCatalogBootstrapClaim
-        : undefined;
-  if (
-    claim &&
-    (forward !== (claim === retainedCatalogForwardAdoptionClaim) ||
-      attempt !== 1 ||
-      previous !== claim.previous)
-  )
+  const selected = catalogBootstrapClaims.find(({ claim }) => claim.successor_ref === executionRef);
+  if (selected && (mode !== selected.mode || attempt !== 1 || previous !== selected.claim.previous))
     throw new Error(
       "claimed bootstrap recovery requires its original predecessor and one successor attempt",
     );
-  return claim;
+  return selected?.claim;
 }
 
 /** This checks the current authenticated coordinator observation; the
@@ -216,19 +218,46 @@ export async function authenticateStandaloneBootstrapAdoption(
   tools: object,
   deadline: number,
   stage: (value: CatalogCoordinatorRefusalStage<"operation">) => void = () => {},
-  forward = false,
+  forward: boolean | "native" = false,
 ) {
   const originalSelection = standaloneBootstrapAdoption;
   const original = immutableApplicationBootstrap;
   const actual = await readApplicationPriorPublication(directory);
   const { discovered, prior } = actual;
   const renewal = discovered.release_id === retainedServedRenewal.release_id;
-  const selected = forward
-    ? standaloneBootstrapForwardAdoption
-    : renewal
-      ? standaloneBootstrapRenewalAdoption
-      : originalSelection;
-  if (forward) {
+  const selected =
+    forward === "native"
+      ? servedNativeBootstrapRenewal
+      : forward
+        ? standaloneBootstrapForwardAdoption
+        : renewal
+          ? standaloneBootstrapRenewalAdoption
+          : originalSelection;
+  if (forward === "native") {
+    const native = servedNativeBootstrapRenewal;
+    assert.equal(discovered.release_id, native.release_id);
+    assert.equal(discovered.custody.opportunity, native.opportunity);
+    assert.equal(discovered.custody.preparation, null);
+    assert.deepEqual(discovered.execution.run, {
+      id: native.run_id,
+      control_commit: native.revision,
+      control_ref: native.ref,
+    });
+    assert.equal(discovered.execution.attempt, 1);
+    assert.equal(discovered.execution.conclusion, "success");
+    assert.equal(discovered.execution.job_id, Number(native.feed_job_id));
+    assert.deepEqual(prior.receipt.producer, discovered.execution.run);
+    assert.equal(prior.receipt.producer_attempt, 1);
+    assert.equal(
+      prior.receipt.site.previous_generation,
+      standaloneBootstrapForwardAdoption.generation,
+    );
+    assert.ok(isRecord(prior.metadata));
+    assert.equal(prior.metadata.purpose, "metadata-renewal");
+    assert.equal(prior.metadata.prior_generation, standaloneBootstrapForwardAdoption.generation);
+    assert.equal(prior.metadata.prior_repository_sha256, native.prior_repository_sha256);
+    await assertSettledRenewalFeed(discovered, deadline, native);
+  } else if (forward) {
     assertRetainedBootstrapForwardRenewal(actual);
     await assertSettledRenewalFeed(discovered, deadline, {
       ref: retainedR56FeedRecovery.next_ref,

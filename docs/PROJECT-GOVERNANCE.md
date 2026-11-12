@@ -618,8 +618,8 @@ independent eligible work in the same active session. An owner-only action is
 reported once with its effect; it does not suspend safe independent work.
 
 Preserve [applicable review](QUALITY.md#review-scope), required exact-head hosted
-CI and explicit acceptance. Local validation beyond the expected non-gating
-`just push-check` is optional under [QUALITY](QUALITY.md#required-hosted-baseline). Reuse evidence only at permitted matching
+CI and explicit acceptance. Local validation is optional under
+[QUALITY](QUALITY.md#required-hosted-baseline). Reuse evidence only at permitted matching
 inputs and scope. A bounded reviewer receives the exact diff/head, relevant
 acceptance/contracts, risks and existing evidence; implementers handle findings
 directly. Where independent review is required, its absence leaves a candidate
@@ -650,10 +650,10 @@ The saved views are entry points into one Project, not independent authorities:
 | Product Outcomes                         | What meaningful outcomes are planned or delivered, grouped by release?                                                        |
 | Required for Beta / Required through 1.0 | Which direct Required outcomes remain?                                                                                        |
 | In Progress                              | Which issues are marked In progress or Validating? Confirm current ownership and actual writer activity on owning issues/PRs. |
-| Next Queue                               | Which unfinished Now/Next work follows, including Required and Planned?                                                       |
+| Next Queue                               | Which selected or executable Now/Next work follows, including Required and Planned?                                           |
 | Planned Additions                        | Which approved non-gating additions remain, across releases?                                                                  |
 | Port Pipeline / Active Port Work         | What is the complete durable port inventory, and which port work is active?                                                   |
-| Blocked & Deferred / Inbox & Triage      | What has a resume condition, and what still needs triage?                                                                     |
+| Blocked & Deferred / Product Triage      | What has a resume condition, and which product reports or requests need triage?                                               |
 
 `roadmap-outcome` is a presentation-only label on canonical finite product and
 engineering outcomes, including completed outcomes. It does not classify every
@@ -668,8 +668,9 @@ complete Port Pipeline retains them. Native children remain expandable; collapse
 row counts must not count integrated parent/child scope as independent value or
 replace complete readiness. In Progress does not infer assignment from
 Now, and neither a status nor a recommended assignment creates a reservation.
-`next` orders the common queue by Horizon, Priority and Project order; the manual
-Next Queue view preserves Project ordering within those selection rules.
+`next` orders the common queue by Horizon, Priority and Project order. The
+saved Next Queue sorts by Horizon ascending, then Priority ascending, with
+manual Project order as the tie-breaker.
 
 Configuration owns names, layouts, filters and visible fields. Supported API
 readback also verifies grouping and sorting; changing those settings still needs

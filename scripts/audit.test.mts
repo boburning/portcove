@@ -65,7 +65,6 @@ const runtime = Object.freeze({
   cargo: "cargo test",
   cargoNextest: "cargo-nextest test",
   cargoShear: "cargo-shear test",
-  rscheck: "rscheck test",
   aqua: "aqua test",
   powershell: "PowerShell test",
   packageManager: "pnpm@test",
@@ -678,7 +677,7 @@ void test("untracked and ambiguously classified inputs conservatively invalidate
     "roadmap",
     "development",
     "release",
-    "rscheck",
+    "rust-portability",
   ] as const)
     assert.ok(unknown.domains.includes(domain));
   const changed = { ...unknown, sha256: createHash("sha256").update("second").digest("hex") };

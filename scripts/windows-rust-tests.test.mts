@@ -705,11 +705,16 @@ void test("ordinary Windows Rust compiles once and joins every execution and liv
   const build = workflowJob("fast_rust");
   const execution = workflowJob("fast_rust_tests");
   const transport = workflowJob("fast_rust_transport");
+  const ordinary =
+    "needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust')";
   for (const producer of [build, execution, transport]) {
     assert.equal(producer["runs-on"], "windows-latest");
+    // Only the partitions are deferred for a draft; the build and live transport always run.
     assert.equal(
       producer.if,
-      "needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust')",
+      producer === execution
+        ? `${ordinary} && needs.classify.outputs.windows_tests_deferred != 'true'`
+        : ordinary,
     );
     assert.equal(producer["continue-on-error"], undefined);
   }
@@ -751,6 +756,11 @@ void test("ordinary Windows Rust compiles once and joins every execution and liv
   assert.ok(Array.isArray(aggregate.needs));
   const gate: Record<string, unknown> = workflowStep("rust", "Require every Rust lane");
   assert.ok(isRecord(gate.env) && typeof gate.env.PORTCOVE_FAST_RESULTS === "string");
+  // The gate sees the same deferral flag as the partitions, so it fails a deferred draft.
+  assert.equal(
+    gate.env.PORTCOVE_WINDOWS_TESTS_DEFERRED,
+    "${{ needs.classify.outputs.windows_tests_deferred }}",
+  );
   const results: unknown = JSON.parse(gate.env.PORTCOVE_FAST_RESULTS);
   assert.ok(isRecord(results));
   assert.deepEqual(Object.keys(results).sort(), [

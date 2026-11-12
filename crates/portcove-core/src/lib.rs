@@ -60,6 +60,7 @@ mod library;
 mod library_access;
 mod library_authority;
 mod library_import;
+mod library_membership;
 mod library_move;
 mod library_transfer;
 mod managed_runtime_policy;
@@ -67,6 +68,7 @@ mod managed_shared_preferences;
 mod managed_tfe;
 mod n64_graphics;
 mod native_external_profile;
+mod native_portable_data;
 mod native_temp;
 mod operation;
 mod output_relocation;
@@ -86,9 +88,13 @@ mod providers;
 pub use provider_observation::inspect_provider_observation;
 mod disc_filesystem;
 mod disc_product;
+mod gamebanana;
 mod mod_package;
+mod mod_provider;
 mod profile;
 mod profile_deploy;
+mod provider_install;
+mod provider_update;
 mod psx;
 #[cfg(feature = "qualification-fixtures")]
 mod qualification_checkpoint;
@@ -232,6 +238,7 @@ pub use game_settings::{
     GameSettingView, GameSettingsContract, GameSettingsFile, GameSettingsFileView,
     GameSettingsFormat, GameSettingsRelease, GameSettingsView, inspect_game_settings_qualification,
 };
+pub use gamebanana::GameBananaClient;
 pub use ghostship_data_store::{GhostshipRecoveryPlan, GhostshipRecoveryResult};
 pub use gitlab::GitlabReleaseProvider;
 pub use host_preferences::{
@@ -251,10 +258,18 @@ pub use library::{
     ApplicationUpdateQuiescenceGuard, Library, LibraryChangeObserver, PortOperationGuard,
 };
 pub use library_import::LibraryImportPlan;
+pub use library_membership::{
+    LIBRARY_MEMBERSHIP_FORMAT_VERSION, LibraryMembership, LibraryMembershipOrigin,
+    LibraryMembershipOutcome, LibraryMembershipOutcomeKind, LibraryMembershipRequest,
+    LibraryMembershipSource, MAX_LIBRARY_MEMBERSHIP_BATCH,
+};
 pub use library_move::LibraryMoveResult;
 pub use library_transfer::{LibraryMovePlan, LibraryTreePlan};
 pub use mod_package::{
     AssetConflict, ModPackageHold, ModPackageInspection, asset_conflicts, inspect_asset_archive,
+};
+pub use mod_provider::{
+    Observed, ProviderFileCandidate, ProviderFreshness, ProviderPage, ProviderProject,
 };
 pub use operation::{OPERATION_EVENT_SCHEMA_VERSION, OperationCoordinator};
 pub use output_relocation::{
@@ -288,6 +303,8 @@ pub use profile::{
     TypedOrdering,
 };
 pub use profile_deploy::LiveMods;
+pub use provider_install::{PlanMember, ProviderInstallPlan};
+pub use provider_update::{ProviderUpdateObservation, ProviderUpdateState};
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;
 pub use recipe::{
@@ -312,11 +329,19 @@ pub use service::{
     CatalogDownloadCandidate, CatalogDownloadCandidates, CatalogDownloadCoverage,
     CatalogDownloadPreview, CatalogDownloadRelease, CatalogDownloadReleaseId,
     CatalogDownloadRequest, CatalogForeignAssetId, CatalogForeignReleaseId,
-    CatalogPackageAssessment, IdentifiedLaunchRequest, InstallOverrides, InstallationProtection,
-    ManagedRouteChangePreview, ManagedRouteChangeResult, PendingSetupRecord, PendingSetupState,
+    CatalogPackageAssessment, GITHUB_LAUNCHER_FORMAT_REVISION, INSTALL_BATCH_FORMAT_VERSION,
+    IdentifiedLaunchRequest, InstallBatchItem, InstallBatchItemState, InstallBatchRecord,
+    InstallBatchRequestItem, InstallBatchReview, InstallBatchReviewItem, InstallBatchSummary,
+    InstallOverrides, InstallationProtection, LauncherAppsRootOrigin, LauncherEntryHints,
+    LauncherEntryStatus, LauncherKind, LauncherLibraryEntry, LauncherLibraryInventory,
+    LauncherLibrarySkippedEntry, LauncherModInventory, MAX_INSTALL_BATCH_ITEMS,
+    MAX_PORT_INTENT_ASSESSMENTS, MAX_STANDING_SETUP_ATTEMPTS, ManagedRouteChangePreview,
+    ManagedRouteChangeResult, PORT_INTENT_FORMAT_VERSION, PendingSetupRecord, PendingSetupState,
     PlayerDataProtection, PortCapabilityFeature, PortCapabilityNotice, PortCapabilityReport,
-    PortCapabilityRoute, PortRemovalPreview, PortcoveService, ProtectionDeclaration,
-    SetupLaunchTarget, SetupLaunchTargets,
+    PortCapabilityRoute, PortIntent, PortIntentAssessment, PortIntentAssessments, PortIntentMode,
+    PortReadiness, PortReadinessAcknowledgement, PortRemovalPreview, PortcoveService,
+    ProtectionDeclaration, QUIVER_FORMAT_REVISION, SetupLaunchTarget, SetupLaunchTargets,
+    StandingSetupFailure, StandingSetupResult,
 };
 pub use signed_catalog::{
     CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope, SignedCatalogPayload,

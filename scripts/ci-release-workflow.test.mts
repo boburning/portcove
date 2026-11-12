@@ -483,7 +483,6 @@ void test("deep audit evidence retains audit status without privilege changes", 
   );
   assert.match(localJob, /^    timeout-minutes: 30$/m);
   assert.match(auditJob, /shared-key: deep-quality-ubuntu-22\.04/u);
-  assert.match(auditJob, /key: quality-rscheck-binaries-v2-ubuntu-22\.04-/u);
   assert.match(deep, /id: fresh-audit/);
   assert.match(
     deep,
@@ -595,4 +594,15 @@ void test("installed file-feed outage keeps public preimages and recovery contro
     !upload.with.path.includes(prefix + "feed-outage-control/**"),
     "Retain only selected public control inputs",
   );
+});
+
+void test("updater rehearsal uses supported hosted macOS images", async () => {
+  const workflow = await readWorkflow(
+    new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
+  );
+  const owner = workflowJob("packages", workflow);
+  const runsOn = String(owner["runs-on"]);
+  assert.match(runsOn, /"macos-aarch64":"macos-15"/u);
+  assert.match(runsOn, /"macos-x86_64":"macos-15-intel"/u);
+  assert.doesNotMatch(runsOn, /macos-14/u);
 });

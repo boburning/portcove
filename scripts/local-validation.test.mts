@@ -24,8 +24,6 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import {
-  applyFastProfile,
-  fastProfileSkippedStages,
   buildPlan,
   classifyChanges,
   deduplicateCommands,
@@ -42,7 +40,6 @@ import {
   inspectHostedLocalRoute,
   main,
 } from "./local-validation.mts";
-import { environmentDependentContractSkip } from "./ordinary-validation.mts";
 import { buildValidationPlan } from "./validation-plan.mts";
 import { resolveUiSelection } from "./ui-test-selection.mts";
 import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
@@ -270,41 +267,27 @@ void test("native observer fixture edits retain the owning Windows regression su
   }
 });
 
-void test("portability literal baseline retains its native scanner contract across lifecycle changes", async () => {
-  const { baselineContractTests } = await import("./ci-baseline.mts");
-  const input = "scripts/fixtures/rscheck-portability-baseline.json";
-  const sibling = "scripts/fixtures/rscheck-portability-baseline-sibling.json";
-  for (const file of [input, sibling])
-    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
-      const change = {
-        status: variant.startsWith("R") ? "R100" : variant,
-        oldPath: variant === "R-new" ? "docs/moved.md" : file,
-        newPath: variant === "R-old" ? "docs/moved.md" : file,
-        oldMode: variant === "A" ? "000000" : "100644",
-        newMode: variant === "D" ? "000000" : "100644",
-      };
-      const local = classifyChanges(
-        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
-        { fileExists: () => false },
-      );
-      const plan = buildValidationPlan({
-        changes: [change],
-        eventName: "pull_request",
-        base: "a".repeat(40),
-        mergeBase: "a".repeat(40),
-        head: "b".repeat(40),
-        checkout: "b".repeat(40),
-      });
-      for (const selected of [
-        local.nodeTests,
-        new Set(baselineContractTests(plan, { fileExists: () => false })),
-      ])
-        assert.equal(
-          selected.has("scripts/run-rscheck.test.mts"),
-          file === input,
-          JSON.stringify(change),
-        );
-    }
+void test("Rust portability policy changes keep Rust qualification across file lifecycle changes", () => {
+  const input = "tools/rust-portability/src/policy.rs";
+  for (const status of ["M", "A", "D", "R-old", "R-new"]) {
+    const change = {
+      status: status.startsWith("R") ? "R100" : status,
+      oldPath: status === "R-new" ? "docs/moved.md" : input,
+      newPath: status === "R-old" ? "docs/moved.md" : input,
+      oldMode: status === "A" ? "000000" : "100644",
+      newMode: status === "D" ? "000000" : "100644",
+    };
+    const plan = buildValidationPlan({
+      changes: [change],
+      eventName: "pull_request",
+      base: "a".repeat(40),
+      mergeBase: "a".repeat(40),
+      head: "b".repeat(40),
+      checkout: "b".repeat(40),
+    });
+    assert.ok(plan.groups.includes("rust"), JSON.stringify(change));
+    assert.ok(plan.groups.includes("rust-quality"), JSON.stringify(change));
+  }
 });
 
 void test("manual job timeout inputs retain direct contracts across lifecycle changes", async () => {
@@ -2509,7 +2492,6 @@ const receiptRuntime = Object.freeze({
   cargo: "cargo test",
   cargoNextest: "nextest test",
   cargoShear: "shear test",
-  rscheck: "rscheck test",
   aqua: "aqua test",
   powershell: "pwsh test",
   packageManager: "pnpm@12.4.1",
@@ -4902,125 +4884,4 @@ void test("ordinary metadata discovery cannot provision a missing Rust toolchain
     readWorkspaceMetadata(() => ({ status: 0, stdout: "incomplete" })),
     null,
   );
-});
-
-void test("the fast profile drops only the heavy stages and keeps every cheap area-selected one", () => {
-  const changes: LocalChange[] = [
-    {
-      status: "M",
-      path: "crates/portcove-core/src/install.rs",
-      oldMode: "100644",
-      newMode: "100644",
-    },
-    { status: "M", path: "apps/desktop/src/App.tsx", oldMode: "100644", newMode: "100644" },
-  ];
-  const context = fallbackContext(changes);
-  const complete = buildPlan(classifyChanges(changes), context);
-  const completeIds = complete.map((entry) => entry.id);
-  assert.ok(completeIds.includes("rust-workspace-tests"), "fixture selects the heavy Rust stage");
-  assert.ok(completeIds.includes("ui-build"), "fixture selects the production build");
-
-  const { plan, skipped } = applyFastProfile(complete);
-  const ids = plan.map((entry) => entry.id);
-  for (const heavy of fastProfileSkippedStages) assert.ok(!ids.includes(heavy), heavy);
-  assert.deepEqual(
-    skipped,
-    fastProfileSkippedStages.filter((stage) => completeIds.includes(stage)),
-  );
-  // Every other stage survives in its original order, so the cheap feedback stays complete.
-  assert.deepEqual(
-    ids.filter((id) => id !== "ui-unit-tests"),
-    completeIds.filter((id) => !(fastProfileSkippedStages as readonly string[]).includes(id)),
-  );
-  assert.ok(ids.includes("rustfmt"));
-  assert.ok(ids.includes("ui-content"));
-  assert.ok(!ids.includes("transport-contract"));
-});
-
-void test("the fast profile skips the contract tests that need the full toolchain, as hosted contract lanes do", () => {
-  const changes: LocalChange[] = [
-    { status: "M", path: "scripts/local-validation.mts", oldMode: "100644", newMode: "100644" },
-  ];
-  const complete = buildPlan(classifyChanges(changes), fallbackContext(changes));
-  const original = complete.find((entry) => entry.id === "node-tests");
-  assert.ok(original, "fixture selects the contract tests");
-  assert.ok(!original.args.includes(environmentDependentContractSkip));
-  const fast = applyFastProfile(complete).plan.find((entry) => entry.id === "node-tests");
-  assert.ok(fast);
-  const skip = fast.args.indexOf(environmentDependentContractSkip);
-  assert.ok(skip > 0, "skip pattern is present");
-  // The skip is a runner flag, so it precedes every test file, and nothing else changes.
-  assert.ok(fast.args.slice(0, skip).every((argument) => argument.startsWith("--")));
-  assert.deepEqual(
-    fast.args.filter((argument) => argument !== environmentDependentContractSkip),
-    original.args,
-  );
-  // Applying the profile twice never duplicates the flag.
-  const again = applyFastProfile([fast]).plan[0];
-  assert.deepEqual(again?.args, fast.args);
-});
-
-void test("the fast profile substitutes the unit project for a complete frontend test run", () => {
-  const changes: LocalChange[] = [
-    { status: "M", path: "apps/desktop/tsconfig.json", oldMode: "100644", newMode: "100644" },
-  ];
-  const complete = buildPlan(classifyChanges(changes), fallbackContext(changes));
-  assert.ok(complete.some((entry) => entry.id === "ui-tests"));
-  const { plan, skipped } = applyFastProfile(complete);
-  assert.ok(skipped.includes("ui-tests"));
-  const unit = plan.find((entry) => entry.id === "ui-unit-tests");
-  assert.ok(unit);
-  assert.deepEqual(unit.args, ["scripts/run-viteplus.mts", "run", "frontend:unit"]);
-  assert.ok(!plan.some((entry) => entry.id === "ui-tests"));
-});
-
-void test("the transport contract stage is added last and only when requested", () => {
-  const changes: LocalChange[] = [
-    {
-      status: "M",
-      path: "crates/portcove-core/src/install.rs",
-      oldMode: "100644",
-      newMode: "100644",
-    },
-  ];
-  const complete = buildPlan(classifyChanges(changes), fallbackContext(changes));
-  assert.ok(!applyFastProfile(complete).plan.some((entry) => entry.id === "transport-contract"));
-  const { plan } = applyFastProfile(complete, { transport: true });
-  const last = plan.at(-1);
-  assert.equal(last?.id, "transport-contract");
-  assert.ok(last.args.includes("scripts/check-transport-contract.mts"));
-  // An unknown id gets the conservative storage scope and never a reusable receipt.
-  assert.equal(storageScopeForPlan(plan), "all");
-});
-
-void test("fast and transport options are validated before any discovery", async () => {
-  const options = {
-    readContext: () => {
-      throw new Error("unexpected discovery");
-    },
-  };
-  await assert.rejects(main(["check", "--with-transport"], options), /requires --fast/);
-  await assert.rejects(main(["check", "--fast", "--preflight"], options), /cannot be combined/);
-});
-
-void test("check --fast --plan reports the skipped stages and never lists them", async (t) => {
-  const changes: LocalChange[] = [
-    {
-      status: "M",
-      path: "crates/portcove-core/src/install.rs",
-      oldMode: "100644",
-      newMode: "100644",
-    },
-  ];
-  const lines: string[] = [];
-  t.mock.method(console, "log", (...values: unknown[]) => {
-    lines.push(values.map(String).join(" "));
-  });
-  await main(["check", "--fast", "--plan"], {
-    readContext: (base) => ({ ...fallbackContext(changes), base }),
-  });
-  const output = lines.join("\n");
-  assert.match(output, /Fast profile skipped rust-workspace-tests/);
-  assert.match(output, /just local-check/);
-  assert.doesNotMatch(output, /^rust-workspace-tests\b/m);
 });

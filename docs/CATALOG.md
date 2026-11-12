@@ -96,6 +96,33 @@ for identified consumers and retirement conditions. Preserve installed runtimes,
 originals, saves, settings, backups and recovery independently of whether the
 builder that created them remains an active feature.
 
+### Upstream listing and distribution requests
+
+Upstream maintainers and rights holders can open a
+[Portcove issue](https://github.com/boburning/portcove/issues/new?template=bug-report.yml)
+to request a listing correction, delisting, or a stop to future acquisition.
+Give the upstream project and Portcove listing or port ID, your relationship to
+the project, a public reference that establishes that relationship, and the
+affected releases, assets or routes. State the requested action and any
+published upstream disposition. Keep private material out of the public issue
+and use the [private security route](../SECURITY.md) for vulnerabilities.
+
+Catalog maintainers acknowledge the request and verify identity, affected scope
+and applicable distribution terms. They record the disposition and communicate
+the affected listing visibility, future acquisition and installed behavior on
+the request. Use the existing [listing and withdrawal owner #233](https://github.com/boburning/portcove/issues/233),
+[exact-byte acquisition owner #315](https://github.com/boburning/portcove/issues/315),
+[installed preservation owner #1306](https://github.com/boburning/portcove/issues/1306)
+and [player-facing withdrawal status owner #4882](https://github.com/boburning/portcove/issues/4882)
+for their respective changes.
+
+Temporary upstream unavailability and metadata expiry follow their existing
+availability and freshness rules. An authenticated revocation or confirmed
+distribution withdrawal follows the applicable trust and acquisition rules.
+Delisting addresses visibility. Previously installed use and exact-byte
+retention remain subject to the applicable permission, trust and preservation
+rules. Preserve player data through the existing lifecycle contract.
+
 ## Port-driven capability selection
 
 Port integration is the product outcome for every console family. Use this

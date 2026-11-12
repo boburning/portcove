@@ -81,8 +81,6 @@ Provision a disposable Linux x86_64 cloud session for Portcove development:
   prebuilt-tools
              .github/quality-tools.json prebuilt tools, verified against the
              install-action manifests at the digest CI reviews
-  source-tools
-             remaining required tools through their existing verified installers
   aqua       .config/tool-bootstrap.json, then the existing quality bootstrap
   browser    the pinned Playwright Chromium shell (needs the Playwright CDN)
   desktop    Linux desktop build prerequisites through apt
@@ -241,34 +239,6 @@ install_prebuilt_tools() {
   done < "$scratch/prebuilt-plan"
 }
 
-# Remaining required tools have no reviewed prebuilt artifact. Cached tools use
-# CI's checksum-verified archived-source installer; others reuse the quality
-# bootstrap's exact-version installer, so neither depends on the Aqua step.
-install_source_tools() {
-  local bin id install spec root
-  bin="${CARGO_HOME:-$HOME/.cargo}/bin"
-  # shellcheck source=scripts/bootstrap-quality-tools.sh
-  source scripts/bootstrap-quality-tools.sh
-  node -e '
-    const m = JSON.parse(require("node:fs").readFileSync(".github/quality-tools.json", "utf8"));
-    for (const t of m.tools) if (t.tier === "required" && t.ci_install !== "prebuilt")
-      console.log([t.id, t.ci_install, [t.crate, t.version, t.command.join(" ")].join("|")].join("|"));
-  ' > "$scratch/source-plan"
-  while IFS='|' read -r id install spec; do
-    if node scripts/quality-tools.mts --verify "$id" >/dev/null 2>&1; then continue; fi
-    if [[ "$install" == cached ]]; then
-      root="$HOME/.local/share/portcove-qualification-$id"
-      [[ ! -e "$root" ]] || { printf 'Remove the unverified %s before reinstalling.\n' "$root" >&2; return 1; }
-      mkdir -p "$(dirname "$root")"
-      python3 -I scripts/install-qualification-rscheck.py .github/quality-tools.json "$root"
-      for executable in "$root"/bin/*; do ln -sfn "$executable" "$bin/$(basename "$executable")"; done
-      node scripts/quality-tools.mts --verify "$id"
-    else
-      install_tool "$spec"
-    fi
-  done < "$scratch/source-plan"
-}
-
 install_aqua() {
   local version record archive bytes sha256 base
   version="$(tr -d '\r\n' < .aqua-version)"
@@ -390,7 +360,6 @@ step frontend install_frontend
 step resources coordinate_resources
 step rust install_rust
 step prebuilt-tools install_prebuilt_tools
-step source-tools install_source_tools
 step aqua install_aqua
 if ! $skip_browser; then step browser install_browser; fi
 if ! $skip_desktop; then step desktop install_desktop; fi

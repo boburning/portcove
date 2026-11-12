@@ -166,6 +166,8 @@ impl PortcoveService {
             || retained.archive_data_compatibility_v1 != to.archive_data_compatibility_v1
             || !Self::equivalent_native_player_root(from, &retained, to, retained_rollback)?
             || retained.windows_temp_directory != to.windows_temp_directory
+            || crate::native_portable_data::directory_name(&retained, platform)
+                != crate::native_portable_data::directory_name(to, platform)
             || retained.launch_from_install_root != to.launch_from_install_root
             || retained.executable_hints.get(&platform) != to.executable_hints.get(&platform)
             || retained.launch_arguments != to.launch_arguments
