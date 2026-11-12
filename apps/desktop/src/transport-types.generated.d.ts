@@ -5111,13 +5111,13 @@ export interface PortIntentAssessment {
   [k: string]: unknown;
 }
 export interface RootSetupConsent {
-  /**
-   * Matched files (`profile_id:sha256`) present when consent was given.
-   * Empty for `existing_and_future`.
-   */
-  baseline?: string[];
   enabled_at: number;
   enrollment: RootSetupEnrollment;
+  /**
+   * Files remembered as already in the folder (future-only); they are never
+   * set up by this choice.
+   */
+  existing_files: number;
   failures?: RootSetupFailure[];
   format_version: number;
   /**
@@ -5131,6 +5131,9 @@ export interface RootSetupConsent {
 }
 export interface RootSetupFailure {
   attempts: number;
+  /**
+   * The install plan, or `source:` and the file, that failed.
+   */
   plan_sha256: string;
   port_id: string;
   reason: string;

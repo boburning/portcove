@@ -24,15 +24,13 @@ fn folder_setup_is_off_by_default_and_records_an_explicit_boundary() {
     assert!(listed.status.success(), "{listed:?}");
     assert_eq!(json_stdout(&listed)["data"], serde_json::json!([]));
 
-    // Future-only needs a complete scan of the folder first.
-    let refused = run(&["--json", "games", "folder-setup", &root_id, "future-only"]);
-    assert!(!refused.status.success(), "{refused:?}");
-    assert!(
-        json_stdout(&run(&["--json", "games", "folder-setups"]))["data"]
-            .as_array()
-            .unwrap()
-            .is_empty()
-    );
+    // Future-only remembers what is already in the folder, recognized or not.
+    std::fs::write(games.join("already-here.bin"), b"data").unwrap();
+    let future = run(&["--json", "games", "folder-setup", &root_id, "future-only"]);
+    assert!(future.status.success(), "{future:?}");
+    let future = json_stdout(&future);
+    assert_eq!(future["data"]["enrollment"], "future_only");
+    assert_eq!(future["data"]["existing_files"], 1);
 
     let enabled = run(&[
         "--json",

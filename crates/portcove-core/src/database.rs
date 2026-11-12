@@ -339,7 +339,12 @@ fn migration_51(transaction: &Transaction<'_>) -> Result<()> {
             root_id TEXT PRIMARY KEY,
             updated_at INTEGER NOT NULL,
             record_json TEXT NOT NULL CHECK(length(record_json)<=524288)
-        );",
+        );
+        CREATE TABLE game_file_root_setup_baseline (
+            root_id TEXT NOT NULL,
+            identity TEXT NOT NULL CHECK(length(identity) BETWEEN 1 AND 4352),
+            PRIMARY KEY(root_id, identity)
+        ) WITHOUT ROWID;",
     )?;
     verify_migration_51(transaction)
 }
@@ -349,6 +354,11 @@ fn verify_migration_51(connection: &Connection) -> Result<()> {
         connection,
         "game_file_root_setup",
         &["root_id", "updated_at", "record_json"],
+    )?;
+    require_columns(
+        connection,
+        "game_file_root_setup_baseline",
+        &["root_id", "identity"],
     )
 }
 

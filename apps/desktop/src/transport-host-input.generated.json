@@ -1049,7 +1049,7 @@
           },
           {
             "const": "future_only",
-            "description": "Only games whose files were not in the folder's last complete scan.",
+            "description": "Only games whose files were not in the folder when consent was given.",
             "type": "string"
           }
         ]

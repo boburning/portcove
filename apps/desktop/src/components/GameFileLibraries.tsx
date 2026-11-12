@@ -440,6 +440,12 @@ function CompletedScan({
   );
 }
 
+/** Whole path components only, so `D:/Games` does not contain `D:/Games2/x`. */
+function isInsideFolder(path: string, folder: string) {
+  const normalize = (value: string) => value.replaceAll("\\", "/").replace(/\/+$/, "");
+  return normalize(path).startsWith(`${normalize(folder)}/`);
+}
+
 function SavedRootRows({
   roots,
   busy,
@@ -1147,7 +1153,7 @@ export function GameFileLibraries({
             generation={generation}
             ports={ports}
             candidates={(snapshot?.report.candidates ?? []).filter((candidate) =>
-              candidate.path.startsWith(root.path),
+              isInsideFolder(candidate.path, root.path),
             )}
             disabled={Boolean(busy) || scanning}
           />

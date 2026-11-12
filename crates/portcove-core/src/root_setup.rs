@@ -3,21 +3,27 @@
 //! A player can let Portcove set up eligible games it finds in one saved
 //! game-file folder. Turning it on is explicit and records a durable
 //! enrollment boundary: either every eligible game already in the folder and
-//! any found later, or only games found later. "Already there" is the set of
-//! matched files in the last complete scan at the moment consent was given,
-//! not a clock time, so restarts, rescans, relinking, duplicate events,
-//! catalog changes and clock changes never enroll existing content.
+//! any found later, or only games found later.
 //!
-//! Consent is policy, never an authorization. Each pass rechecks it, uses
-//! only files inside the folder, never replaces a different copy already in
-//! use, waits when several implementations could use the same files, and runs
-//! each game through an ordinary one-game install batch that re-plans and
-//! authorizes it immediately before acting. It never launches a game.
+//! "Already there" is every regular file in the folder when consent was
+//! given, identified by its path inside the folder and its size, whether or
+//! not the catalog recognized it then. The boundary is that set of files, not
+//! a clock time or a catalog match, so restarts, rescans, duplicate events,
+//! catalog changes and clock changes never enroll existing content. Relinking
+//! the folder adds the new location's existing files to the boundary, or turns
+//! the choice off if that location cannot be listed.
+//!
+//! Consent is policy, never an authorization. Each pass rechecks it right
+//! before registering files and right before installing, uses only files
+//! inside the folder, never replaces a different copy already in use, waits
+//! when several implementations could use the same files, and runs each game
+//! through an ordinary one-game install batch that re-plans and authorizes it
+//! immediately before acting. It never launches a game.
 
 use std::collections::BTreeSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use rusqlite::{OptionalExtension, TransactionBehavior, params};
+use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -30,9 +36,12 @@ use crate::{
 pub const ROOT_SETUP_FORMAT_VERSION: u8 = 1;
 /// Games set up for folder consent in one pass; later passes continue.
 pub const MAX_ROOT_SETUPS_PER_PASS: usize = 4;
-/// Matched files remembered as already present when consent was given.
-pub const MAX_ROOT_SETUP_BASELINE: usize = 4096;
-const MAX_ROOT_SETUP_FAILURES: usize = 64;
+/// Files remembered as already present in a future-only folder.
+pub const MAX_ROOT_SETUP_BASELINE: usize = 200_000;
+/// Matched files a pass plans or checks for folder consent; later passes continue.
+const MAX_ROOT_CANDIDATES_PER_PASS: usize = 32;
+const MAX_BASELINE_DEPTH: usize = 32;
+const MAX_ROOT_SETUP_FAILURES: usize = 256;
 const MAX_ROOT_SETUP_WAITING: usize = 64;
 const MAX_RECORD_BYTES: usize = 512 * 1024;
 
@@ -41,13 +50,14 @@ const MAX_RECORD_BYTES: usize = 512 * 1024;
 pub enum RootSetupEnrollment {
     /// Eligible games already in the folder and any found later.
     ExistingAndFuture,
-    /// Only games whose files were not in the folder's last complete scan.
+    /// Only games whose files were not in the folder when consent was given.
     FutureOnly,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RootSetupFailure {
     pub port_id: String,
+    /// The install plan, or `source:` and the file, that failed.
     pub plan_sha256: String,
     pub attempts: u32,
     pub reason: String,
@@ -67,10 +77,10 @@ pub struct RootSetupConsent {
     pub enrollment: RootSetupEnrollment,
     pub enabled_at: i64,
     pub updated_at: i64,
-    /// Matched files (`profile_id:sha256`) present when consent was given.
-    /// Empty for `existing_and_future`.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub baseline: Vec<String>,
+    /// Files remembered as already in the folder (future-only); they are never
+    /// set up by this choice.
+    #[serde(default)]
+    pub existing_files: u32,
     /// Explicit implementation choices. Files several games can use wait
     /// until one is chosen; Portcove never sets up every fork.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -90,10 +100,6 @@ pub struct RootSetupWaiting {
     pub reason: String,
 }
 
-fn candidate_key(source: &SourceRecord) -> String {
-    format!("{}:{}", source.profile_id, source.sha256)
-}
-
 fn decode(root_id: &str, json: &str) -> Result<RootSetupConsent> {
     let record: RootSetupConsent = serde_json::from_str(json).map_err(|error| {
         PortcoveError::state("stored folder setup choice is invalid")
@@ -107,6 +113,75 @@ fn decode(root_id: &str, json: &str) -> Result<RootSetupConsent> {
         );
     }
     Ok(record)
+}
+
+fn encode(consent: &RootSetupConsent) -> Result<String> {
+    let encoded = serde_json::to_string(consent)?;
+    if encoded.len() > MAX_RECORD_BYTES {
+        return Err(PortcoveError::state(
+            "folder setup choice exceeds its storage limit",
+        ));
+    }
+    Ok(encoded)
+}
+
+/// A file's identity for the enrollment boundary: its path inside the folder
+/// and its size. It does not depend on the catalog or on modification times.
+fn file_identity(relative: &Path, size: u64) -> Result<String> {
+    let relative = crate::path::unicode(relative, "game file")?;
+    Ok(format!("{}\0{size}", relative.replace('\\', "/")))
+}
+
+/// Every regular file in `root` (symbolic links are not followed), bounded.
+fn folder_files(root: &Path) -> Result<BTreeSet<String>> {
+    let mut identities = BTreeSet::new();
+    let mut pending = vec![(root.to_path_buf(), 0usize)];
+    while let Some((directory, depth)) = pending.pop() {
+        let entries = std::fs::read_dir(&directory).map_err(|error| {
+            PortcoveError::usage("this folder could not be listed")
+                .detail("path", directory.display().to_string())
+                .detail("cause", error.to_string())
+        })?;
+        for entry in entries {
+            let entry = entry?;
+            let metadata = std::fs::symlink_metadata(entry.path())?;
+            if metadata.is_dir() {
+                if depth >= MAX_BASELINE_DEPTH {
+                    return Err(PortcoveError::usage(
+                        "this folder is nested too deeply to remember which games are already there",
+                    ));
+                }
+                pending.push((entry.path(), depth + 1));
+            } else if metadata.is_file() {
+                let relative = entry
+                    .path()
+                    .strip_prefix(root)
+                    .map(Path::to_path_buf)
+                    .map_err(|_| PortcoveError::state("a listed file is outside its folder"))?;
+                identities.insert(file_identity(&relative, metadata.len())?);
+                if identities.len() > MAX_ROOT_SETUP_BASELINE {
+                    return Err(PortcoveError::usage(
+                        "this folder has too many files to remember which games are already there",
+                    ));
+                }
+            }
+        }
+    }
+    Ok(identities)
+}
+
+fn insert_baseline(
+    connection: &Connection,
+    root_id: &str,
+    identities: &BTreeSet<String>,
+) -> Result<()> {
+    let mut statement = connection.prepare(
+        "INSERT OR IGNORE INTO game_file_root_setup_baseline(root_id,identity) VALUES (?1,?2)",
+    )?;
+    for identity in identities {
+        statement.execute(params![root_id, identity])?;
+    }
+    Ok(())
 }
 
 impl Library {
@@ -144,13 +219,25 @@ impl Library {
         json.map(|json| decode(root_id, &json)).transpose()
     }
 
-    fn write_root_setup_consent(&self, consent: &RootSetupConsent) -> Result<()> {
-        let encoded = serde_json::to_string(consent)?;
-        if encoded.len() > MAX_RECORD_BYTES {
-            return Err(PortcoveError::state(
-                "folder setup choice exceeds its storage limit",
-            ));
-        }
+    fn root_setup_baseline_contains(&self, root_id: &str, identity: &str) -> Result<bool> {
+        Ok(self
+            .connection()?
+            .query_row(
+                "SELECT 1 FROM game_file_root_setup_baseline WHERE root_id=?1 AND identity=?2",
+                params![root_id, identity],
+                |_| Ok(true),
+            )
+            .optional()?
+            .unwrap_or(false))
+    }
+
+    /// Records a new choice and its boundary, replacing any earlier one.
+    fn replace_root_setup_consent(
+        &self,
+        consent: &RootSetupConsent,
+        baseline: &BTreeSet<String>,
+    ) -> Result<()> {
+        let encoded = encode(consent)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         // Consent belongs to a saved folder; a folder removed meanwhile ends it.
@@ -167,6 +254,11 @@ impl Library {
                 .detail("root_id", &consent.root_id));
         }
         transaction.execute(
+            "DELETE FROM game_file_root_setup_baseline WHERE root_id=?1",
+            [&consent.root_id],
+        )?;
+        insert_baseline(&transaction, &consent.root_id, baseline)?;
+        transaction.execute(
             "INSERT INTO game_file_root_setup(root_id,updated_at,record_json) VALUES (?1,?2,?3)
              ON CONFLICT(root_id) DO UPDATE SET updated_at=excluded.updated_at, record_json=excluded.record_json",
             params![consent.root_id, consent.updated_at, encoded],
@@ -175,19 +267,14 @@ impl Library {
         Ok(())
     }
 
-    /// Ends automatic setup for a folder. Installed games are not changed.
-    pub fn remove_root_setup_consent(&self, root_id: &str) -> Result<bool> {
-        Ok(self.connection()?.execute(
-            "DELETE FROM game_file_root_setup WHERE root_id=?1",
-            [root_id],
-        )? > 0)
-    }
-
-    fn update_root_setup_failures(
+    /// Changes an existing choice in place. Returns `None`, changing nothing,
+    /// when the choice was turned off meanwhile, so a later write can never
+    /// turn it back on.
+    fn update_root_setup_consent<R>(
         &self,
         root_id: &str,
-        change: impl FnOnce(&mut Vec<RootSetupFailure>),
-    ) -> Result<()> {
+        change: impl FnOnce(&mut RootSetupConsent) -> R,
+    ) -> Result<Option<(RootSetupConsent, R)>> {
         let mut connection = self.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let json: Option<String> = transaction
@@ -197,10 +284,9 @@ impl Library {
                 |row| row.get(0),
             )
             .optional()?;
-        // Consent withdrawn meanwhile: nothing to remember.
-        let Some(json) = json else { return Ok(()) };
+        let Some(json) = json else { return Ok(None) };
         let mut consent = decode(root_id, &json)?;
-        change(&mut consent.failures);
+        let result = change(&mut consent);
         if consent.failures.len() > MAX_ROOT_SETUP_FAILURES {
             let excess = consent.failures.len() - MAX_ROOT_SETUP_FAILURES;
             consent.failures.drain(..excess);
@@ -208,13 +294,67 @@ impl Library {
         consent.updated_at = Self::now();
         transaction.execute(
             "UPDATE game_file_root_setup SET updated_at=?2, record_json=?3 WHERE root_id=?1",
-            params![
-                root_id,
-                consent.updated_at,
-                serde_json::to_string(&consent)?
-            ],
+            params![root_id, consent.updated_at, encode(&consent)?],
         )?;
         transaction.commit()?;
+        Ok(Some((consent, result)))
+    }
+
+    /// Ends automatic setup for a folder. Installed games are not changed.
+    pub fn remove_root_setup_consent(&self, root_id: &str) -> Result<bool> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        transaction.execute(
+            "DELETE FROM game_file_root_setup_baseline WHERE root_id=?1",
+            [root_id],
+        )?;
+        let removed = transaction.execute(
+            "DELETE FROM game_file_root_setup WHERE root_id=?1",
+            [root_id],
+        )? > 0;
+        transaction.commit()?;
+        Ok(removed)
+    }
+
+    /// Before a future-only folder moves to `new_path`, remembers the files
+    /// already there, so relinking never enrolls existing content. If the new
+    /// location cannot be listed, automatic setup for the folder is turned off.
+    pub(crate) fn prepare_root_setup_for_relink(
+        &self,
+        root_id: &str,
+        new_path: &Path,
+    ) -> Result<()> {
+        let Some(consent) = self.root_setup_consent(root_id).ok().flatten() else {
+            // No readable choice: an unreadable one must not survive the move.
+            if self.root_setup_consent(root_id).is_err() {
+                self.remove_root_setup_consent(root_id)?;
+            }
+            return Ok(());
+        };
+        if consent.enrollment != RootSetupEnrollment::FutureOnly {
+            return Ok(());
+        }
+        match folder_files(new_path) {
+            Ok(identities) => {
+                let mut connection = self.connection()?;
+                let transaction =
+                    connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+                insert_baseline(&transaction, root_id, &identities)?;
+                let count: i64 = transaction.query_row(
+                    "SELECT count(*) FROM game_file_root_setup_baseline WHERE root_id=?1",
+                    [root_id],
+                    |row| row.get(0),
+                )?;
+                transaction.commit()?;
+                self.update_root_setup_consent(root_id, |consent| {
+                    consent.existing_files = u32::try_from(count).unwrap_or(u32::MAX);
+                })?;
+            }
+            Err(error) => {
+                tracing::warn!(root_id, error = %error.message, "turning off folder setup after relinking to a folder that could not be listed");
+                self.remove_root_setup_consent(root_id)?;
+            }
+        }
         Ok(())
     }
 }
@@ -226,10 +366,18 @@ enum RootCandidate {
     Skip,
 }
 
+enum RootSetupOutcome {
+    Started(InstallBatchRecord),
+    Waiting(String),
+    /// Could not register the files or run the install; recorded and counted.
+    Failed(String),
+    Skipped,
+}
+
 impl PortcoveService {
-    /// Turns on automatic setup for one saved folder. `future_only` records
-    /// the files the last complete scan found there, so only games found
-    /// later are enrolled; it needs a complete current scan of the folder.
+    /// Turns on automatic setup for one saved folder. `future_only` lists the
+    /// folder now and remembers every file in it, so only games whose files
+    /// arrive later are enrolled.
     pub fn set_root_setup_consent(
         &self,
         root_id: &str,
@@ -244,40 +392,15 @@ impl PortcoveService {
                 PortcoveError::not_found("game-file folder is not saved").detail("root_id", root_id)
             })?;
         let baseline = match enrollment {
-            RootSetupEnrollment::ExistingAndFuture => Vec::new(),
+            RootSetupEnrollment::ExistingAndFuture => BTreeSet::new(),
             RootSetupEnrollment::FutureOnly => {
-                let snapshot = self.game_file_scan_snapshot()?.ok_or_else(|| {
-                    PortcoveError::usage(
-                        "scan your game-file folders first, so Portcove knows which games are already there",
-                    )
-                })?;
-                let complete = snapshot.report.limits_reached.is_empty()
-                    && snapshot.freshness == crate::GameFileScanFreshness::InputsMatch
-                    && snapshot.roots.iter().any(|scanned| scanned.id == root.id)
-                    && snapshot.coverage.as_ref().is_none_or(|coverage| {
-                        !coverage.can_resume
-                            && !coverage.restart_required
-                            && coverage.pending_directories == 0
-                    });
-                if !complete {
+                if root.availability != crate::GameFileRootAvailability::Available {
                     return Err(PortcoveError::usage(
-                        "finish scanning this folder first, so Portcove knows which games are already there",
+                        "reconnect this folder first, so Portcove knows which games are already there",
                     )
                     .detail("root_id", root_id));
                 }
-                let keys = snapshot
-                    .report
-                    .candidates
-                    .iter()
-                    .filter(|candidate| candidate.path.starts_with(&root.path))
-                    .map(candidate_key)
-                    .collect::<BTreeSet<_>>();
-                if keys.len() > MAX_ROOT_SETUP_BASELINE {
-                    return Err(PortcoveError::usage(
-                        "this folder has too many matched files to remember which are already there",
-                    ));
-                }
-                keys.into_iter().collect()
+                folder_files(&root.path)?
             }
         };
         let now = Library::now();
@@ -296,11 +419,12 @@ impl PortcoveService {
             enrollment,
             enabled_at: now,
             updated_at: now,
-            baseline,
+            existing_files: u32::try_from(baseline.len()).unwrap_or(u32::MAX),
             implementations,
             failures: Vec::new(),
         };
-        self.library.write_root_setup_consent(&consent)?;
+        self.library
+            .replace_root_setup_consent(&consent, &baseline)?;
         Ok(consent)
     }
 
@@ -321,20 +445,21 @@ impl PortcoveService {
                 .detail("port_id", port_id)
                 .detail("profile_id", profile_id));
         }
-        let mut consent = self.library.root_setup_consent(root_id)?.ok_or_else(|| {
-            PortcoveError::usage("turn on automatic setup for this folder first")
-                .detail("root_id", root_id)
-        })?;
-        consent
-            .implementations
-            .retain(|choice| choice.profile_id != profile_id);
-        consent.implementations.push(RootSetupImplementation {
-            profile_id: profile_id.to_owned(),
-            port_id: port_id.to_owned(),
-        });
-        consent.updated_at = Library::now();
-        self.library.write_root_setup_consent(&consent)?;
-        Ok(consent)
+        self.library
+            .update_root_setup_consent(root_id, |consent| {
+                consent
+                    .implementations
+                    .retain(|choice| choice.profile_id != profile_id);
+                consent.implementations.push(RootSetupImplementation {
+                    profile_id: profile_id.to_owned(),
+                    port_id: port_id.to_owned(),
+                });
+            })?
+            .map(|(consent, ())| consent)
+            .ok_or_else(|| {
+                PortcoveError::usage("turn on automatic setup for this folder first")
+                    .detail("root_id", root_id)
+            })
     }
 
     /// Turns off automatic setup for a folder. Installed games stay installed.
@@ -344,6 +469,30 @@ impl PortcoveService {
 
     pub fn root_setup_consents(&self) -> Result<Vec<RootSetupConsent>> {
         self.library.root_setup_consents()
+    }
+
+    /// Whether this file is still enrolled by the folder's current choice.
+    /// Read fresh, so turning the choice off or narrowing it takes effect
+    /// before the next registration or install.
+    fn still_enrolled(
+        &self,
+        root_id: &str,
+        root_path: &Path,
+        candidate: &SourceRecord,
+    ) -> Result<bool> {
+        let Some(consent) = self.library.root_setup_consent(root_id)? else {
+            return Ok(false);
+        };
+        Ok(match consent.enrollment {
+            RootSetupEnrollment::ExistingAndFuture => true,
+            RootSetupEnrollment::FutureOnly => match current_identity(root_path, &candidate.path) {
+                Some(identity) => !self
+                    .library
+                    .root_setup_baseline_contains(root_id, &identity)?,
+                // A file that can't be checked now is not enrolled now.
+                None => false,
+            },
+        })
     }
 
     /// Folder consent part of a standing-setup pass. The caller holds the
@@ -366,6 +515,7 @@ impl PortcoveService {
         let roots = self.library.game_file_roots()?;
         let mut waiting = Vec::new();
         let mut started = 0;
+        let mut considered = 0;
         for consent in consents {
             // An unavailable folder is not deleted content; it simply waits.
             let Some(root) = roots.iter().find(|root| {
@@ -375,59 +525,55 @@ impl PortcoveService {
                 continue;
             };
             for candidate in &snapshot.report.candidates {
-                if started >= MAX_ROOT_SETUPS_PER_PASS {
+                if started >= MAX_ROOT_SETUPS_PER_PASS || considered >= MAX_ROOT_CANDIDATES_PER_PASS
+                {
                     return Ok(waiting);
                 }
                 if !candidate.path.starts_with(&root.path)
-                    || (consent.enrollment == RootSetupEnrollment::FutureOnly
-                        && consent.baseline.contains(&candidate_key(candidate)))
+                    || !self.still_enrolled(&root.id, &root.path, candidate)?
                 {
                     continue;
                 }
-                match self.root_candidate(&consent, candidate, busy, handled) {
-                    RootCandidate::Skip => {}
+                let port_id = match self.root_candidate(&consent, candidate, busy, handled) {
+                    RootCandidate::Skip => continue,
                     RootCandidate::Waiting(item) => {
                         if waiting.len() < MAX_ROOT_SETUP_WAITING {
                             waiting.push(item);
                         }
+                        continue;
                     }
-                    RootCandidate::Setup { port_id } => {
-                        handled.insert(port_id.clone());
-                        match self
-                            .root_setup_one(&root.id, &root.path, candidate, &port_id, emit)
-                            .await
-                        {
-                            Ok(RootSetupOutcome::Started(record)) => {
-                                started += 1;
-                                batches.push(record);
-                            }
-                            Ok(RootSetupOutcome::Waiting(reason)) => {
-                                if waiting.len() < MAX_ROOT_SETUP_WAITING {
-                                    waiting.push(RootSetupWaiting {
-                                        root_id: root.id.clone(),
-                                        profile_id: candidate.profile_id.clone(),
-                                        port_id: Some(port_id),
-                                        reason,
-                                    });
-                                }
-                            }
-                            Ok(RootSetupOutcome::Skipped) => {}
-                            Err(error) => {
-                                // Counted per file, so a permanent failure
-                                // stops recurring on every refresh.
-                                self.remember_root_failure(
-                                    &root.id,
-                                    &port_id,
-                                    &source_attempt(candidate),
-                                    &error.message,
-                                );
-                                failures.push(crate::StandingSetupFailure {
-                                    port_id,
-                                    reason: error.message,
-                                });
-                            }
+                    RootCandidate::Setup { port_id } => port_id,
+                };
+                considered += 1;
+                let outcome = match self
+                    .root_setup_one(&root.id, &root.path, candidate, &port_id, emit)
+                    .await
+                {
+                    Ok(outcome) => outcome,
+                    Err(error) => RootSetupOutcome::Failed(error.message),
+                };
+                match outcome {
+                    RootSetupOutcome::Started(record) => {
+                        handled.insert(port_id);
+                        started += 1;
+                        batches.push(record);
+                    }
+                    // Another copy of the same game's files may still work.
+                    RootSetupOutcome::Waiting(reason) => {
+                        if waiting.len() < MAX_ROOT_SETUP_WAITING {
+                            waiting.push(RootSetupWaiting {
+                                root_id: root.id.clone(),
+                                profile_id: candidate.profile_id.clone(),
+                                port_id: Some(port_id),
+                                reason,
+                            });
                         }
                     }
+                    RootSetupOutcome::Failed(reason) => {
+                        handled.insert(port_id.clone());
+                        failures.push(crate::StandingSetupFailure { port_id, reason });
+                    }
+                    RootSetupOutcome::Skipped => {}
                 }
             }
         }
@@ -467,16 +613,16 @@ impl PortcoveService {
             (_, Some(port_id)) => port_id,
             ([port_id], None) => port_id.clone(),
             (_, None) => {
-                // A remembered per-game choice for one of them decides; that
-                // game is handled by its own intent, never by folder consent.
-                let chosen = ports.iter().any(|port_id| {
+                // A game the player asked to set up when ready is handled by
+                // its own choice; folder consent never adds another fork.
+                let set_up_elsewhere = ports.iter().any(|port_id| {
                     self.library
                         .port_intent(port_id)
                         .ok()
                         .flatten()
-                        .is_some_and(|intent| intent.mode != PortIntentMode::DiscoverOnly)
+                        .is_some_and(|intent| intent.mode == PortIntentMode::SetUpWhenReady)
                 });
-                if chosen {
+                if set_up_elsewhere {
                     return RootCandidate::Skip;
                 }
                 return waiting(
@@ -516,15 +662,9 @@ impl PortcoveService {
         port_id: &str,
         emit: &mut impl FnMut(OperationEvent),
     ) -> Result<RootSetupOutcome> {
-        // Consent can be withdrawn or narrowed while earlier games run.
         let Some(consent) = self.library.root_setup_consent(root_id)? else {
             return Ok(RootSetupOutcome::Skipped);
         };
-        let key = candidate_key(candidate);
-        if consent.enrollment == RootSetupEnrollment::FutureOnly && consent.baseline.contains(&key)
-        {
-            return Ok(RootSetupOutcome::Skipped);
-        }
         let exhausted = |attempt: &str| {
             consent.failures.iter().any(|failure| {
                 failure.port_id == port_id
@@ -532,7 +672,8 @@ impl PortcoveService {
                     && failure.attempts >= crate::MAX_STANDING_SETUP_ATTEMPTS
             })
         };
-        if exhausted(&source_attempt(candidate)) {
+        let source_key = source_attempt(candidate);
+        if exhausted(&source_key) {
             return Ok(RootSetupOutcome::Skipped);
         }
         // Never retarget a different copy the player is already using.
@@ -545,45 +686,53 @@ impl PortcoveService {
                 ));
             }
             None => {
-                // Folder consent covers registering files inside this folder
-                // where they are, after checking their current bytes.
-                if !candidate.path.starts_with(root_path) {
-                    return Ok(RootSetupOutcome::Skipped);
+                if let Err(error) = self.register_in_folder(root_id, root_path, candidate) {
+                    if error.code == crate::ErrorCode::Conflict {
+                        return Ok(RootSetupOutcome::Waiting(error.message));
+                    }
+                    self.remember_root_failure(root_id, port_id, &source_key, &error.message);
+                    return Ok(RootSetupOutcome::Failed(error.message));
                 }
-                let plan = self.plan_source_import(
-                    &candidate.profile_id,
-                    &candidate.path,
-                    SourceImportMode::UseCurrentLocation,
-                )?;
-                if plan.source.sha256 != candidate.sha256 {
-                    return Ok(RootSetupOutcome::Waiting(
-                        "these files changed since the last scan; scan again".to_owned(),
-                    ));
-                }
-                self.import_source(
-                    &candidate.profile_id,
-                    &candidate.path,
-                    SourceImportMode::UseCurrentLocation,
-                    &plan.plan_sha256,
-                    None,
-                )?;
             }
         }
-        let plan = self.plan_game_install(port_id).await?;
+        // Planning problems (offline, the game busy with another task, a
+        // missing requirement) are waits, never counted failures.
+        let plan = match self.plan_game_install(port_id).await {
+            Ok(plan) => plan,
+            Err(error) => return Ok(RootSetupOutcome::Waiting(error.message)),
+        };
         if let Some(reason) = self.install_plan_hold(&plan) {
             return Ok(RootSetupOutcome::Waiting(reason));
         }
         if exhausted(&plan.plan_sha256) {
             return Ok(RootSetupOutcome::Skipped);
         }
-        let batch = self.start_install_batch(
+        if !self.still_enrolled(root_id, root_path, candidate)? {
+            return Ok(RootSetupOutcome::Skipped);
+        }
+        let batch = match self.start_install_batch(
             &[InstallBatchRequestItem {
                 port_id: port_id.to_owned(),
                 expected_plan_sha256: plan.plan_sha256.clone(),
             }],
             LibraryMembershipOrigin::GameFileDiscovery,
-        )?;
-        let record = self.run_install_batch(&batch.id, &mut *emit).await?;
+        ) {
+            Ok(batch) => batch,
+            Err(error) if error.code == crate::ErrorCode::Conflict => {
+                return Ok(RootSetupOutcome::Waiting(error.message));
+            }
+            Err(error) => {
+                self.remember_root_failure(root_id, port_id, &plan.plan_sha256, &error.message);
+                return Ok(RootSetupOutcome::Failed(error.message));
+            }
+        };
+        let record = match self.run_install_batch(&batch.id, &mut *emit).await {
+            Ok(record) => record,
+            Err(error) => {
+                self.remember_root_failure(root_id, port_id, &plan.plan_sha256, &error.message);
+                return Ok(RootSetupOutcome::Failed(error.message));
+            }
+        };
         for item in &record.items {
             match item.state {
                 InstallBatchItemState::Failed | InstallBatchItemState::Interrupted => {
@@ -596,12 +745,11 @@ impl PortcoveService {
                 }
                 InstallBatchItemState::Ready => {
                     let port_id = item.port_id.clone();
-                    let result = self
-                        .library
-                        .update_root_setup_failures(root_id, |failures| {
-                            failures.retain(|failure| failure.port_id != port_id);
-                        });
-                    if let Err(error) = result {
+                    if let Err(error) = self.library.update_root_setup_consent(root_id, |consent| {
+                        consent
+                            .failures
+                            .retain(|failure| failure.port_id != port_id);
+                    }) {
                         tracing::warn!(root_id, error = %error.message, "could not clear a folder setup failure");
                     }
                 }
@@ -610,53 +758,98 @@ impl PortcoveService {
         }
         Ok(RootSetupOutcome::Started(record))
     }
-}
 
-impl PortcoveService {
+    /// Registers a matched file where it is, after checking its current bytes,
+    /// only while it is inside the folder and still enrolled.
+    fn register_in_folder(
+        &self,
+        root_id: &str,
+        root_path: &Path,
+        candidate: &SourceRecord,
+    ) -> Result<()> {
+        let plan = self.plan_source_import(
+            &candidate.profile_id,
+            &candidate.path,
+            SourceImportMode::UseCurrentLocation,
+        )?;
+        let inside = |path: &Path| {
+            std::fs::canonicalize(path)
+                .ok()
+                .zip(std::fs::canonicalize(root_path).ok())
+                .is_some_and(|(path, root): (PathBuf, PathBuf)| path.starts_with(root))
+        };
+        if plan.source.sha256 != candidate.sha256 {
+            return Err(PortcoveError::conflict(
+                "these files changed since the last scan; scan again",
+            ));
+        }
+        if !inside(&plan.source.path) {
+            return Err(PortcoveError::conflict(
+                "these files are no longer inside the folder; scan again",
+            ));
+        }
+        if !self.still_enrolled(root_id, root_path, candidate)? {
+            return Err(PortcoveError::conflict(
+                "automatic setup for this folder changed; nothing was registered",
+            ));
+        }
+        self.import_source(
+            &candidate.profile_id,
+            &candidate.path,
+            SourceImportMode::UseCurrentLocation,
+            &plan.plan_sha256,
+            None,
+        )?;
+        Ok(())
+    }
+
     /// Counts a failed attempt for one game and plan (or file). Best effort:
     /// if it can't be recorded, a later pass tries again within the limits.
     fn remember_root_failure(&self, root_id: &str, port_id: &str, attempt: &str, reason: &str) {
         let reason = reason.chars().take(512).collect::<String>();
-        let result = self
-            .library
-            .update_root_setup_failures(root_id, |failures| {
-                match failures
-                    .iter_mut()
-                    .find(|failure| failure.port_id == port_id)
-                {
-                    Some(failure) if failure.plan_sha256 == attempt => {
-                        failure.attempts = failure.attempts.saturating_add(1);
-                        failure.reason = reason;
-                    }
-                    Some(failure) => {
-                        failure.plan_sha256 = attempt.to_owned();
-                        failure.attempts = 1;
-                        failure.reason = reason;
-                    }
-                    None => failures.push(RootSetupFailure {
-                        port_id: port_id.to_owned(),
-                        plan_sha256: attempt.to_owned(),
-                        attempts: 1,
-                        reason,
-                    }),
+        let result = self.library.update_root_setup_consent(root_id, |consent| {
+            match consent
+                .failures
+                .iter_mut()
+                .find(|failure| failure.port_id == port_id)
+            {
+                Some(failure) if failure.plan_sha256 == attempt => {
+                    failure.attempts = failure.attempts.saturating_add(1);
+                    failure.reason = reason;
                 }
-            });
+                Some(failure) => {
+                    failure.plan_sha256 = attempt.to_owned();
+                    failure.attempts = 1;
+                    failure.reason = reason;
+                }
+                None => consent.failures.push(RootSetupFailure {
+                    port_id: port_id.to_owned(),
+                    plan_sha256: attempt.to_owned(),
+                    attempts: 1,
+                    reason,
+                }),
+            }
+        });
         if let Err(error) = result {
             tracing::warn!(root_id, error = %error.message, "could not record a folder setup failure");
         }
     }
 }
 
+/// The boundary identity of a file as it is now, or `None` if it can't be read.
+fn current_identity(root_path: &Path, path: &Path) -> Option<String> {
+    let relative = path.strip_prefix(root_path).ok()?;
+    let metadata = std::fs::symlink_metadata(path).ok()?;
+    metadata
+        .is_file()
+        .then(|| file_identity(relative, metadata.len()).ok())
+        .flatten()
+}
+
 /// The failure key for a file that could not be registered: changed bytes
 /// make a new attempt.
 fn source_attempt(source: &SourceRecord) -> String {
-    format!("source:{}", candidate_key(source))
-}
-
-enum RootSetupOutcome {
-    Started(InstallBatchRecord),
-    Waiting(String),
-    Skipped,
+    format!("source:{}:{}", source.profile_id, source.sha256)
 }
 
 #[cfg(test)]
@@ -710,11 +903,18 @@ mod tests {
     }
 
     impl Folder {
+        /// A matched file present in the folder on disk.
         fn file(&self, name: &str, byte: char) -> SourceRecord {
+            self.file_in(&self.root, name, byte)
+        }
+
+        fn file_in(&self, directory: &Path, name: &str, byte: char) -> SourceRecord {
             let sha256 = byte.to_string().repeat(64);
+            let path = directory.join(name);
+            std::fs::write(&path, byte.to_string().repeat(4)).unwrap();
             SourceRecord {
                 profile_id: self.profile.clone(),
-                path: self.root.join(name),
+                path,
                 sha256: sha256.clone(),
                 size: 4,
                 storage_sha256: sha256,
@@ -835,7 +1035,7 @@ mod tests {
         folder.in_use(&existing);
         folder.scanned(vec![existing.clone()]);
         let consent = folder.consent(RootSetupEnrollment::FutureOnly);
-        assert_eq!(consent.baseline, vec![candidate_key(&existing)]);
+        assert_eq!(consent.existing_files, 1);
         // Restarts, rescans and repeated events keep the boundary.
         folder.scanned(vec![existing.clone()]);
         for _ in 0..2 {
@@ -851,30 +1051,102 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn future_only_needs_a_complete_scan_of_the_folder() {
+    async fn future_only_remembers_files_the_catalog_did_not_recognize_yet() {
         let folder = folder();
-        assert!(
-            folder
-                .service
-                .set_root_setup_consent(&folder.root_id, RootSetupEnrollment::FutureOnly)
-                .is_err()
-        );
-        let file = folder.file("game.z64", 'a');
-        let snapshot = crate::source_discovery::complete_test_game_file_scan(
-            folder.service.catalog(),
-            folder.service.library(),
-            vec![file],
-        );
-        let mut partial = snapshot;
-        partial
-            .report
-            .limits_reached
-            .push(crate::SourceDiscoveryLimit::Entries);
+        // The file is in the folder, but no scan has matched it yet.
+        let existing = folder.file("old.z64", 'a');
+        folder.in_use(&existing);
+        folder.scanned(Vec::new());
+        folder.consent(RootSetupEnrollment::FutureOnly);
+        // A catalog update later recognizes it: it is still existing content.
+        folder.scanned(vec![existing]);
+        for _ in 0..2 {
+            assert!(folder.pass().await.batches.is_empty());
+        }
+        assert!(!folder.installed());
+    }
+
+    #[tokio::test]
+    async fn relinking_never_enrolls_what_is_already_at_the_new_location() {
+        let folder = folder();
+        folder.consent(RootSetupEnrollment::FutureOnly);
+        let moved = folder._temporary.path().join("moved");
+        std::fs::create_dir(&moved).unwrap();
+        let existing = folder.file_in(&moved, "old.z64", 'a');
+        folder.in_use(&existing);
         folder
             .service
             .library()
-            .replace_game_file_scan_snapshot(&partial)
+            .relink_game_file_root(&folder.root_id, &moved)
             .unwrap();
+        folder.scanned(vec![existing.clone()]);
+        assert!(folder.pass().await.batches.is_empty());
+        assert!(!folder.installed());
+        assert_eq!(
+            folder.service.root_setup_consents().unwrap()[0].existing_files,
+            1
+        );
+        // A file added after the move is new content.
+        let later = folder.file_in(&moved, "new.z64", 'b');
+        folder.in_use(&later);
+        folder.scanned(vec![existing, later]);
+        assert_eq!(folder.pass().await.batches.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_busy_game_waits_without_counting_a_failure() {
+        let folder = folder();
+        let file = folder.file("game.z64", 'a');
+        folder.in_use(&file);
+        folder.scanned(vec![file]);
+        folder.consent(RootSetupEnrollment::ExistingAndFuture);
+        {
+            let _busy = folder
+                .service
+                .library()
+                .try_lock_port(PORT, "test")
+                .unwrap();
+            for _ in 0..=crate::MAX_STANDING_SETUP_ATTEMPTS {
+                let result = folder.pass().await;
+                assert!(
+                    result.batches.is_empty() && result.failures.is_empty(),
+                    "{result:?}"
+                );
+                assert_eq!(result.root_waiting.len(), 1);
+            }
+        }
+        assert!(
+            folder.service.root_setup_consents().unwrap()[0]
+                .failures
+                .is_empty()
+        );
+        assert_eq!(folder.pass().await.batches.len(), 1);
+        assert!(folder.installed());
+    }
+
+    #[tokio::test]
+    async fn turning_folder_setup_off_cannot_be_undone_by_a_later_choice() {
+        let folder = folder();
+        folder.consent(RootSetupEnrollment::ExistingAndFuture);
+        assert!(
+            folder
+                .service
+                .remove_root_setup_consent(&folder.root_id)
+                .unwrap()
+        );
+        assert!(
+            folder
+                .service
+                .set_root_setup_implementation(&folder.root_id, &folder.profile, PORT)
+                .is_err()
+        );
+        assert!(folder.service.root_setup_consents().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn future_only_needs_the_folder_to_be_available() {
+        let folder = folder();
+        std::fs::remove_dir(&folder.root).unwrap();
         assert!(
             folder
                 .service
@@ -992,10 +1264,11 @@ mod tests {
         folder.in_use(&file);
         folder.scanned(vec![file]);
         folder.consent(RootSetupEnrollment::ExistingAndFuture);
-        std::fs::remove_dir(&folder.root).unwrap();
+        std::fs::remove_dir_all(&folder.root).unwrap();
         assert!(folder.pass().await.batches.is_empty());
         assert_eq!(folder.service.root_setup_consents().unwrap().len(), 1);
         std::fs::create_dir(&folder.root).unwrap();
+        folder.file("game.z64", 'a');
         assert_eq!(folder.pass().await.batches.len(), 1);
     }
 }

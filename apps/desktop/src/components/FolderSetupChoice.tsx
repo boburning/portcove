@@ -8,9 +8,15 @@ import type {
   SourceRecord,
 } from "../types";
 import { errorText } from "../view-model";
-import { requestStandingSetup } from "../features/game-file-discovery/use-standing-setup";
+import {
+  onStandingSetupPass,
+  requestStandingSetup,
+} from "../features/game-file-discovery/use-standing-setup";
 
 type Choice = RootSetupEnrollment | "off";
+
+/** Core stops retrying a game at this many failures with the same plan or file. */
+const maxAttempts = 3;
 
 const choices: { value: Choice; label: string; detail: string }[] = [
   {
@@ -28,7 +34,7 @@ const choices: { value: Choice; label: string; detail: string }[] = [
     value: "future_only",
     label: "Only set up games added later",
     detail:
-      "Games already in this folder are left alone. Portcove needs a complete scan of the folder first.",
+      "Portcove remembers every file in this folder now and leaves those games alone, even if it recognizes them later.",
   },
 ];
 
@@ -62,15 +68,19 @@ export function FolderSetupChoice({
 
   useEffect(() => {
     const expected = generation;
-    desktopApi
-      .rootSetupConsents(expected)
-      .then((consents) => {
-        if (owner.current === expected)
-          setConsent(consents.find((candidate) => candidate.root_id === root.id) ?? null);
-      })
-      .catch((value: unknown) => {
-        if (owner.current === expected) setError(errorText(value));
-      });
+    const load = () =>
+      desktopApi
+        .rootSetupConsents(expected)
+        .then((consents) => {
+          if (owner.current === expected)
+            setConsent(consents.find((candidate) => candidate.root_id === root.id) ?? null);
+        })
+        .catch((value: unknown) => {
+          if (owner.current === expected) setError(errorText(value));
+        });
+    void load();
+    // A pass may record failures; show them without reopening the folder.
+    return onStandingSetupPass(() => void load());
   }, [generation, root.id]);
 
   const save = async (change: () => Promise<RootSetupConsent | null>) => {
@@ -163,13 +173,15 @@ export function FolderSetupChoice({
             </label>
           );
         })}
-      {consent?.failures?.map((failure) => (
-        <p key={failure.port_id}>
-          {ports.find((port) => port.id === failure.port_id)?.name ?? failure.port_id} didn't finish
-          setting up: {failure.reason}. Portcove tries again when its files, catalog or requirements
-          change.
-        </p>
-      ))}
+      {consent?.failures
+        ?.filter((failure) => failure.attempts >= maxAttempts)
+        .map((failure) => (
+          <p key={failure.port_id}>
+            {ports.find((port) => port.id === failure.port_id)?.name ?? failure.port_id} didn't
+            finish setting up after {failure.attempts} tries: {failure.reason}. Portcove tries again
+            when the game's files or setup change.
+          </p>
+        ))}
       {error && <p role="alert">{error}</p>}
     </fieldset>
   );

@@ -8866,19 +8866,19 @@
     "$defs": {
       "RootSetupConsent": {
         "properties": {
-          "baseline": {
-            "description": "Matched files (`profile_id:sha256`) present when consent was given.\nEmpty for `existing_and_future`.",
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
           "enabled_at": {
             "format": "int64",
             "type": "integer"
           },
           "enrollment": {
             "$ref": "#/$defs/RootSetupEnrollment"
+          },
+          "existing_files": {
+            "default": 0,
+            "description": "Files remembered as already in the folder (future-only); they are never\nset up by this choice.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
           },
           "failures": {
             "items": {
@@ -8912,7 +8912,8 @@
           "root_id",
           "enrollment",
           "enabled_at",
-          "updated_at"
+          "updated_at",
+          "existing_files"
         ],
         "type": "object"
       },
@@ -8925,7 +8926,7 @@
           },
           {
             "const": "future_only",
-            "description": "Only games whose files were not in the folder's last complete scan.",
+            "description": "Only games whose files were not in the folder when consent was given.",
             "type": "string"
           }
         ]
@@ -8938,6 +8939,7 @@
             "type": "integer"
           },
           "plan_sha256": {
+            "description": "The install plan, or `source:` and the file, that failed.",
             "type": "string"
           },
           "port_id": {
@@ -8987,19 +8989,19 @@
     "$defs": {
       "RootSetupConsent": {
         "properties": {
-          "baseline": {
-            "description": "Matched files (`profile_id:sha256`) present when consent was given.\nEmpty for `existing_and_future`.",
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
           "enabled_at": {
             "format": "int64",
             "type": "integer"
           },
           "enrollment": {
             "$ref": "#/$defs/RootSetupEnrollment"
+          },
+          "existing_files": {
+            "default": 0,
+            "description": "Files remembered as already in the folder (future-only); they are never\nset up by this choice.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
           },
           "failures": {
             "items": {
@@ -9033,7 +9035,8 @@
           "root_id",
           "enrollment",
           "enabled_at",
-          "updated_at"
+          "updated_at",
+          "existing_files"
         ],
         "type": "object"
       },
@@ -9046,7 +9049,7 @@
           },
           {
             "const": "future_only",
-            "description": "Only games whose files were not in the folder's last complete scan.",
+            "description": "Only games whose files were not in the folder when consent was given.",
             "type": "string"
           }
         ]
@@ -9059,6 +9062,7 @@
             "type": "integer"
           },
           "plan_sha256": {
+            "description": "The install plan, or `source:` and the file, that failed.",
             "type": "string"
           },
           "port_id": {

@@ -1074,8 +1074,8 @@ pub(crate) fn root_setup_consent(value: Option<&portcove_core::RootSetupConsent>
             "eligible games already in it and any found later".to_owned()
         }
         portcove_core::RootSetupEnrollment::FutureOnly => format!(
-            "only games found later ({} matched files already there are left alone)",
-            consent.baseline.len()
+            "only games added later ({} files already there are left alone)",
+            consent.existing_files
         ),
     };
     let mut lines = vec![format!(

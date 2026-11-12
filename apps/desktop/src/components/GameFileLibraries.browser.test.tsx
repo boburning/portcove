@@ -1929,7 +1929,7 @@ it("keeps automatic folder setup off until the player chooses its boundary", asy
     enrollment: "future_only" as const,
     enabled_at: 2,
     updated_at: 2,
-    baseline: ["game:" + "b".repeat(64)],
+    existing_files: 1,
   };
   vi.spyOn(desktopApi, "setRootSetupConsent").mockResolvedValue(consent);
   vi.spyOn(desktopApi, "runStandingSetup").mockResolvedValue({
@@ -1959,6 +1959,7 @@ it("asks which game to set up when several games can use a folder's files", asyn
     enrollment: "existing_and_future" as const,
     enabled_at: 2,
     updated_at: 2,
+    existing_files: 0,
   };
   vi.mocked(desktopApi.rootSetupConsents).mockResolvedValue([consent]);
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({
