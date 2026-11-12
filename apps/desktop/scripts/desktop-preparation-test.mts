@@ -1187,7 +1187,7 @@ export async function preparationScenarios({
     await clickVisible(browser, await browser.findElement(card));
     if (waitForPreparation) {
       await revealDetailSection(browser, "Game files");
-      await browser.wait(until.elementLocated(setupReviewButton), 15_000);
+      await browser.wait(until.elementLocated(setupReviewButton()), 15_000);
     }
   }
   async function openReadinessOptions(filters: WebElement) {
@@ -1319,10 +1319,10 @@ export async function preparationScenarios({
       "review must not move versions",
     );
     await revealDetailSection(browser, "Game files");
-    await browser.findElement(setupReviewButton).click();
+    await browser.findElement(setupReviewButton()).click();
     const preparationDialog = By.css('[aria-labelledby="preparation-review-title"]');
     await browser.wait(until.elementLocated(preparationDialog), 15_000);
-    await browser.wait(until.elementLocated(setupConfirmButton), 15_000);
+    await browser.wait(until.elementLocated(setupConfirmButton()), 15_000);
     assert.equal(
       required((await status(port.id)).active).id,
       install.id,
@@ -1364,7 +1364,7 @@ export async function preparationScenarios({
     );
     await assertPrimaryReviewAction(
       browser,
-      await browser.findElement(setupConfirmButton),
+      await browser.findElement(setupConfirmButton()),
       await browser.findElement(button("Cancel review")),
     );
     await assertCompactReview(browser, '[aria-labelledby="preparation-review-title"]');
@@ -1395,7 +1395,7 @@ export async function preparationScenarios({
         "Preparation review did not reach actual native 400% enlargement",
       );
       await assertCompactReview(browser, '[aria-labelledby="preparation-review-title"]');
-      const confirm = await browser.findElement(setupConfirmButton);
+      const confirm = await browser.findElement(setupConfirmButton());
       await executeBrowserScript(
         browser,
         (element) => {
@@ -1478,7 +1478,7 @@ export async function preparationScenarios({
       );
       await browser.manage().window().setRect(reviewWindow);
     }
-    await clickVisible(browser, await browser.findElement(setupReviewButton));
+    await clickVisible(browser, await browser.findElement(setupReviewButton()));
     await browser.wait(until.elementLocated(preparationDialog), 15_000);
     await browser.actions().sendKeys(Key.ESCAPE).perform();
     await browser.wait(
@@ -1500,9 +1500,9 @@ export async function preparationScenarios({
       install.id,
       "dismissal must not prepare",
     );
-    await browser.findElement(setupReviewButton).click();
+    await browser.findElement(setupReviewButton()).click();
     await browser.wait(until.elementLocated(preparationDialog), 15_000);
-    await browser.findElement(setupConfirmButton).click();
+    await browser.findElement(setupConfirmButton()).click();
     await browser.wait(async () => required((await status(port.id)).readiness).launchable, 15_000);
     const prepared = await status(port.id);
     assert.notEqual(required(prepared.active).id, install.id);
@@ -3179,9 +3179,9 @@ export async function preparationScenarios({
           bytes: bytes.length,
         });
       }
-      await browser.findElement(setupReviewButton).click();
-      await browser.wait(until.elementLocated(setupConfirmButton), 15_000);
-      await browser.findElement(setupConfirmButton).click();
+      await browser.findElement(setupReviewButton()).click();
+      await browser.wait(until.elementLocated(setupConfirmButton()), 15_000);
+      await browser.findElement(setupConfirmButton()).click();
       let observedFailure: ActivityRecord | undefined;
       await browser.wait(
         async () => {
@@ -3333,9 +3333,9 @@ export async function preparationScenarios({
           sha256: createHash("sha256").update(bytes).digest("hex"),
         });
       }
-      await browser.findElement(setupReviewButton).click();
-      await browser.wait(until.elementLocated(setupConfirmButton), 15_000);
-      await browser.findElement(setupConfirmButton).click();
+      await browser.findElement(setupReviewButton()).click();
+      await browser.wait(until.elementLocated(setupConfirmButton()), 15_000);
+      await browser.findElement(setupConfirmButton()).click();
       let activity: ActivityRecord | undefined;
       await browser.wait(
         async () => {
@@ -3492,7 +3492,7 @@ export async function preparationScenarios({
         15_000,
         "The restored detail must expose one enabled cancellation control",
       );
-      assert.equal((await browser.findElements(setupConfirmButton)).length, 0);
+      assert.equal((await browser.findElements(setupConfirmButton())).length, 0);
       const cancellable = (await activities()).filter(
         (item) => item.target_id === port.id && item.cancellation,
       );

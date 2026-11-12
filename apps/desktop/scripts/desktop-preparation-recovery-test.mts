@@ -1007,9 +1007,9 @@ async function beginLivePreparation({
   port: Pick<PortDefinition, "id">;
   message: string;
 }) {
-  await browser.findElement(setupReviewButton).click();
-  await browser.wait(until.elementLocated(setupConfirmButton), 15_000);
-  await browser.findElement(setupConfirmButton).click();
+  await browser.findElement(setupReviewButton()).click();
+  await browser.wait(until.elementLocated(setupConfirmButton()), 15_000);
+  await browser.findElement(setupConfirmButton()).click();
   let activity: ActivityRecord | undefined;
   let checkpoint: string | undefined;
   await browser.wait(

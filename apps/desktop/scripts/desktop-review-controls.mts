@@ -312,12 +312,14 @@ export async function selectPrimaryNavigation(
 // The detail hero, the Game files review opener and the review confirmation all
 // read "Finish setup"; these name the tab's opener and the dialog's confirmation
 // by their owning region instead of by label alone.
-export const setupReviewButton = By.xpath(
-  '//section[@aria-label="Finish setup"]//button[normalize-space(.)="Finish setup" and not(@hidden) and not(ancestor::*[@hidden or @inert])]',
-);
-export const setupConfirmButton = By.xpath(
-  '//*[@aria-labelledby="preparation-review-title"]//button[normalize-space(.)="Finish setup"]',
-);
+export const setupReviewButton = () =>
+  By.xpath(
+    '//section[@aria-label="Finish setup"]//button[normalize-space(.)="Finish setup" and not(@hidden) and not(ancestor::*[@hidden or @inert])]',
+  );
+export const setupConfirmButton = () =>
+  By.xpath(
+    '//*[@aria-labelledby="preparation-review-title"]//button[normalize-space(.)="Finish setup"]',
+  );
 
 export function reviewControls(browser: WebDriver) {
   return {
