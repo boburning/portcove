@@ -212,6 +212,7 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
         "continuation_prefix_sha256,continuation_stop_sha256,max_lanes,request_id,wall_seconds",
         "continuation_prefix_sha256,continuation_stop_sha256,max_lanes,request_id,retry_stop_sha256,wall_seconds",
         "continuation_prefix_sha256,continuation_stop_sha256,max_lanes,next_prefix_sha256,next_stop_sha256,request_id,retry_stop_sha256,wall_seconds",
+        "continuation_prefix_sha256,continuation_stop_sha256,max_lanes,next_prefix_sha256,next_stop_sha256,request_id,wall_seconds",
       ].includes(Object.keys(partition).sort().join(",")) ||
       ("retry_stop_sha256" in partition &&
         (typeof partition.retry_stop_sha256 !== "string" ||
@@ -781,11 +782,16 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
   const resumeSuffix =
     partitionScope?.next_prefix_sha256 && partitionScope.next_stop_sha256
       ? {
-          previous_attempt: path.join(requestDirectory, "technical-4"),
+          previous_attempt: path.join(
+            requestDirectory,
+            partitionScope.retry_stop_sha256 ? "technical-4" : "technical-2",
+          ),
           stop_sha256: partitionScope.next_stop_sha256,
           manifest_path: path.join(
             path.dirname(configurationPath),
-            "application-proposal-suffix.json",
+            partitionScope.retry_stop_sha256
+              ? "application-proposal-suffix.json"
+              : `application-proposal-suffix-${partitionScope.request_id}.json`,
           ),
           sha256: partitionScope.next_prefix_sha256,
         }
@@ -879,7 +885,14 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
     if (capacityDigest(currentConfiguration) !== capacityDigest(config))
       throw new Error("semantic worker setup changed");
     const fresh = await readRemoteCoordinatorSnapshot(directory, namespace, {
-      transport,
+      transport:
+        partitionDeadline === undefined
+          ? transport
+          : {
+              credential: { token: sourceToken },
+              deadline: Math.min(partitionDeadline, performance.now() + 120_000),
+              requireDirect: true,
+            },
     });
     if (capacityDigest(inspectSemanticWorkerRequest(fresh.input)) !== capacityDigest(selected))
       throw new Error(
