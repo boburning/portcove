@@ -105,7 +105,9 @@
     "alexbeav-suikoden-recomp-usa-psx",
     "alexbeav-silent-bomber-recomp-europe-psx",
     "alexbeav-mortal-kombat-trilogy-recomp-usa-psx",
-    "njh-1001-wipeout2k97xl-usa-psx"
+    "njh-1001-wipeout2k97xl-usa-psx",
+    "alexbeav-armored-core-master-of-arena-recomp-usa-psx",
+    "alexbeav-fear-effect-2-retro-helix-recomp-usa-rev-1-psx"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -403,6 +405,8 @@
     "alexbeav-suikoden-recomp",
     "alexbeav-silent-bomber-recomp",
     "alexbeav-mortal-kombat-trilogy-recomp",
-    "njh-1001-wipeout2k97xl"
+    "njh-1001-wipeout2k97xl",
+    "alexbeav-armored-core-master-of-arena-recomp",
+    "alexbeav-fear-effect-2-retro-helix-recomp"
   ]
 }

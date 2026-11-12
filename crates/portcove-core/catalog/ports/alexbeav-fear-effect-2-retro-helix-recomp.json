@@ -3,11 +3,11 @@
   "listing": {
     "id": "alexbeav-fear-effect-2-retro-helix-recomp",
     "name": "Fear Effect 2: Retro Helix / Alexbeav PSXRecomp",
-    "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+    "summary": "Build and play Fear Effect 2: Retro Helix on Windows or Linux with your own matching USA four-disc set and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp",
     "issue_number": 1594,
     "listed_at": "2026-10-23",
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp#readme",
     "artwork": {
@@ -21,45 +21,128 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Unpack the setup kit",
-          "instruction": "Choose the official ZIP for your system from the upstream releases and extract it to a writable folder. On Mac, use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Follow the setup instructions included in your kit."
+          "title": "Use the exact original files",
+          "instruction": "Use your own Fear Effect 2: Retro Helix (USA) (Rev 1) four-disc set (SLUS-01266, SLUS-01275, SLUS-01276, SLUS-01277), each disc with its single data track, and your own retail SCPH-1001 BIOS."
         },
         {
-          "title": "Install the build tools",
-          "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+          "title": "Set up the managed Windows or Linux player",
+          "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play; to change discs, quit the game and choose Play with the next disc."
         },
         {
-          "title": "Supply the matching original files",
-          "instruction": "Use the four USA Rev 1 discs in order, SLUS-01266, SLUS-01275, SLUS-01276 and SLUS-01277. In the upstream launcher’s Disc Selection, use Browse For Disc to assign every image to its numbered slot before starting setup with Disc 1. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+          "title": "Prepare a separate Mac copy",
+          "instruction": "Choose the official Mac ZIP from the upstream releases: -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon, and extract it. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
         },
         {
-          "title": "Build and add the player",
-          "instruction": "From the kit folder, run Fear_Effect_2_Retro_Helix (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Fear_Effect_2_Retro_Helix (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+          "title": "Build and add the completed Mac player",
+          "instruction": "Run Fear_Effect_2_Retro_Helix from the kit folder, assign every disc in Disc Selection and choose Generate & rebuild. In Portcove, select build-release/Fear_Effect_2_Retro_Helix as the player and build-release as its start folder."
         }
       ],
       "warnings": [
-        "Portcove has not verified native setup, gameplay or save compatibility for this kit.",
-        "The v0.1.0 kit can assign the discs during setup. Its game configuration says switching discs during play is unimplemented."
+        "Portcove checks each disc's data track and track count. Keep every disc intact.",
+        "The kit cannot swap discs during play. Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
       ],
       "help_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp#readme",
       "references": [
         {
-          "title": "Linux and Mac compatibility",
-          "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-        },
-        {
-          "title": "Updates and backups",
-          "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+          "title": "Keep the original files and your data",
+          "instruction": "Keep your discs and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
         }
       ]
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp/releases",
+    "recommended_download_channel": "stable",
+    "original_game_title": "Fear Effect 2: Retro Helix",
     "download_asset_hints": {
       "linux-x86-64": ["feareffect2retrohelix-", "-linux-x64.zip"],
       "macos-aarch64": ["feareffect2retrohelix-", "-macos-arm64.zip"],
       "macos-x86-64": ["feareffect2retrohelix-", "-macos-x64.zip"],
       "windows-x86-64": ["feareffect2retrohelix-", "-windows-x64.zip"]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "github",
+      "repository": "alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["feareffect2retrohelix-", "-windows-x64.zip"],
+        "linux-x86-64": ["feareffect2retrohelix-", "-linux-x64.zip"]
+      }
     },
-    "recommended_download_channel": "stable"
+    "source_profile": "alexbeav-fear-effect-2-retro-helix-recomp-usa-rev-1-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Fear_Effect_2_Retro_Helix.exe"],
+      "linux-x86-64": ["Fear_Effect_2_Retro_Helix"]
+    },
+    "persistent_paths": [
+      "saves",
+      "settings.toml",
+      "settings.toml.bad",
+      "input.ini",
+      "keybinds.ini",
+      "config.ini",
+      "disc.cfg",
+      "bios.cfg",
+      "mods/installed",
+      "mods/packages",
+      "mods/.staging",
+      "mods/state.toml",
+      "mods/state.toml.tmp",
+      "overlay-captures",
+      "overlay_captures.json",
+      "overlay_captures.json.d",
+      "overlay_captures.addendum.jsonl"
+    ],
+    "runtime_mutable_paths": [
+      "cache",
+      "psx_freeze_heartbeat.json",
+      "psx_freeze_heartbeat.json.tmp",
+      "psx_last_run_report.json",
+      "psx_cps_exit_trace.json",
+      "netplay_lan_lobby.txt",
+      "psx_crash.txt"
+    ],
+    "runtime_mutable_file_patterns": [
+      {
+        "prefix": "psx_freeze_dump_psx-runtime_",
+        "suffix": ".json"
+      },
+      {
+        "prefix": "overlay_captures.json.",
+        "suffix": ".tmp"
+      }
+    ],
+    "launch_environment": {
+      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+    },
+    "launch_arguments": ["--no-launcher"],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "alexbeav-fear-effect-2-retro-helix-recomp-usa-rev-1-psx",
+          "label": "Fear Effect 2: Retro Helix (USA) (Rev 1) four-disc set",
+          "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-1001-bios",
+          "label": "PlayStation SCPH-1001 BIOS",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Provide your own single-track CHDs for SLUS-01266, SLUS-01275, SLUS-01276, SLUS-01277 in disc order and retail SCPH-1001 BIOS. Portcove verifies each disc's data track and builds a private player with its registered toolchain, retaining its declared saves, settings and installed mods. Choose the disc when you choose Play; the kit cannot swap discs during play, so quit and choose Play again with the next disc. Bundled mods belong to the runtime version. Windows and Linux package and source fit were statically inspected. Native build, disc switching, gameplay and save compatibility remain unobserved."
+    },
+    "bios_source_profile": "psx-scph-1001-bios",
+    "runtime_source_filename": "runtime-discs",
+    "runtime_source_materialization": "psx-raw-set"
   }
 }
