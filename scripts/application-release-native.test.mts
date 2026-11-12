@@ -1764,7 +1764,7 @@ void test("private reusable jobs pass only their own protected environment secre
     assert.deepEqual(job.secrets, { [key]: "$" + "{{ secrets." + key + " }}" });
     checked++;
   }
-  assert.equal(checked, 13);
+  assert.equal(checked, 16);
 });
 
 void test("metadata jobs explicitly require each direct producer despite optional skipped ancestors", async () => {
@@ -1804,13 +1804,13 @@ void test("metadata renewal traverses existing protected metadata jobs while exc
     "source",
     "tools",
     "context",
-    "protection_metadata",
+    "renewal_protection_metadata",
     "releases",
     "preview",
     "stable",
-    "protection_snapshot",
+    "renewal_protection_snapshot",
     "snapshot",
-    "protection_timestamp",
+    "renewal_protection_timestamp",
     "timestamp",
     "assemble",
     "publication_prepare",
@@ -1825,7 +1825,15 @@ void test("metadata renewal traverses existing protected metadata jobs while exc
       name,
     );
   }
-  for (const name of ["package", "native", "protection_payload", "payload"]) {
+  for (const name of [
+    "package",
+    "native",
+    "protection_payload",
+    "payload",
+    "protection_metadata",
+    "protection_snapshot",
+    "protection_timestamp",
+  ]) {
     const job: unknown = workflow.jobs[name];
     assert.ok(
       isRecord(job) && typeof job.if === "string" && !job.if.includes("inputs.mode == 'renew'"),
