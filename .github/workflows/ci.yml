@@ -130,6 +130,11 @@ jobs:
           PORTCOVE_QUALIFICATION_CALLER: ${{ inputs.qualification_caller || '' }}
           PORTCOVE_CALLER_WORKFLOW: ${{ inputs.caller_workflow || '' }}
         run: node scripts/select-ci-plan.mts
+      # A visible, machine-readable marker: ci-supersede.mts reads this step's conclusion to
+      # tell a deferred draft run from one that will run its partitions.
+      - name: Defer Windows test partitions for draft
+        if: steps.plan.outputs.windows_tests_deferred == 'true'
+        run: echo "Windows test partitions are deferred while this pull request is a draft."
       - name: Retain the exact validation plan
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

@@ -345,12 +345,15 @@ workspace and runs the live transport comparison, and the required `rust` result
 then fails with "Deferred by draft policy, not a test failure", so a head never
 carries a passing `rust` result without its partitions. Marking the pull request
 ready does not start a second CI run on the same head, which would duplicate every
-required context: the supersede workflow instead re-runs that head's run (cancelling
-it first if it is still active) when it deferred, and the new attempt reads the
-ready state and executes the partitions. That step is best effort; if it does not
-happen, use "Re-run all jobs" on the head's CI run; re-running only failed jobs keeps the
-draft classification. Push, qualification, release and reused plans
-never defer.
+required context: the supersede workflow instead re-runs that head's run only when it
+actually deferred (cancelling it first if it is still active), and the new attempt
+reads the ready state and executes the partitions. The classifier records the
+decision as its "Defer Windows test partitions for draft" step, so an active run is
+decided as soon as it is classified, even before its Windows build finishes; a run
+that has not classified yet reads the ready state itself, and a run that did not
+defer is left to finish. The re-run is best effort; if it does not happen, use "Re-run
+all jobs" on the head's CI run; re-running only failed jobs keeps the draft
+classification. Push, qualification, release and reused plans never defer.
 
 Retain failures, diagnose the smallest useful reproduction, and repeat only
 invalidated obligations. Preserve assertions, coverage, cleanup and finite

@@ -99,6 +99,52 @@ export function deferredWindowsRun(listing: unknown): boolean {
   );
 }
 
+export const deferralMarkerStep = "Defer Windows test partitions for draft";
+
+/**
+ * What a ready_for_review event should do with the head's own CI run. The classifier records its
+ * decision as the deferral marker step (success: deferred; skipped: not deferred), so an active
+ * run is decided as soon as it is classified, even while its Windows build is still pending and no
+ * partition job exists yet. A run that has not classified yet reads the live (ready) state itself.
+ * Heads without the marker fall back conservatively: a Rust build that is still pending is
+ * cancelled and re-run. A completed run uses the job-outcome detector.
+ */
+export function readyForReviewAction(
+  run: unknown,
+  listing: unknown,
+): "wait" | "none" | "rerun" | "cancel-and-rerun" {
+  const status = isRecord(run) ? run.status : undefined;
+  if (status === "completed") return deferredWindowsRun(listing) ? "rerun" : "none";
+  const jobs =
+    isRecord(listing) && Array.isArray(listing.jobs) ? listing.jobs.filter(isRecord) : [];
+  const classify = jobs.filter((job) => job.name === "classify-ci-plan");
+  const classified = classify[0];
+  if (classify.length !== 1 || classified?.status !== "completed") return "wait";
+  if (classified.conclusion !== "success") return "none";
+  const steps = Array.isArray(classified.steps) ? classified.steps.filter(isRecord) : [];
+  const marker = steps.filter((step) => step.name === deferralMarkerStep);
+  if (marker.length === 1) {
+    if (marker[0]?.conclusion === "success") return "cancel-and-rerun";
+    if (marker[0]?.conclusion === "skipped") return "none";
+    return "wait";
+  }
+  // Without the marker: deferral shows only after the build, through skipped partitions.
+  const partitions = jobs.filter(
+    (job) =>
+      typeof job.name === "string" &&
+      (job.name.startsWith("fast-rust-test (windows-x86_64,") || job.name === "fast_rust_tests"),
+  );
+  const builds = jobs.filter((job) => job.name === "fast-rust-build (windows-x86_64)");
+  const build = builds[0];
+  if (builds.length !== 1 || build?.conclusion === "skipped") return "none";
+  if (build?.status !== "completed") return partitions.length ? "none" : "cancel-and-rerun";
+  return build.conclusion === "success" &&
+    partitions.length > 0 &&
+    partitions.every((job) => job.status === "completed" && job.conclusion === "skipped")
+    ? "cancel-and-rerun"
+    : "none";
+}
+
 async function main() {
   const token = process.env.GH_TOKEN ?? "";
   const pullRequest = Number(process.env.PR_NUMBER);
@@ -116,9 +162,12 @@ async function main() {
   )
     throw new Error("Missing or malformed pull request identity");
   let requests = 0;
+  const clientDeadline = performance.now() + 4 * 60_000;
+  // Leave room for the cancel/re-run requests after any wait.
+  const waitUntil = clientDeadline - 20_000;
   const sdk = await createGitHubClient({
     credential: { kind: "explicit", token },
-    deadline: performance.now() + 4 * 60_000,
+    deadline: clientDeadline,
     maxBytes: 8 * 1024 * 1024,
     headers: { accept: "application/vnd.github+json", "x-github-api-version": "2022-11-28" },
     environmentProxy: true,
@@ -160,31 +209,38 @@ async function main() {
           request: { portcove: { replay: "safe-read", attempts: 0 } },
         })
       ).data as unknown;
-    let cancelled = false;
-    for (let wait = 0; ; wait += 1) {
-      const run = await get(`${root}/runs/${own}`);
-      const status = isRecord(run) ? run.status : undefined;
-      if (status === "completed") break;
-      if (wait === 0) {
-        console.log(`Cancelling run ${own} so its draft attempt can be re-run`);
-        await sdk.request({
-          method: "POST",
-          url: `${root}/runs/${own}/cancel`,
-          request: { portcove: { replay: "once", attempts: 0 } },
-        });
-        cancelled = true;
-      }
-      if (wait >= 15)
-        throw new Error(`Run ${own} did not finish; re-run it to execute the Windows partitions`);
+    let action: ReturnType<typeof readyForReviewAction> = "wait";
+    while (action === "wait") {
+      action = readyForReviewAction(
+        await get(`${root}/runs/${own}`),
+        await get(`${root}/runs/${own}/jobs?filter=latest&per_page=100`),
+      );
+      if (action !== "wait") break;
+      if (performance.now() + 10_000 > waitUntil)
+        throw new Error(`Run ${own} did not classify in time; re-run all jobs if it deferred`);
       await new Promise((resolve) => setTimeout(resolve, 10000));
     }
-    // A run cancelled here never completed its plan, so it is always re-run.
-    if (
-      !cancelled &&
-      !deferredWindowsRun(await get(`${root}/runs/${own}/jobs?filter=latest&per_page=100`))
-    ) {
-      console.log(`Run ${own} did not defer its Windows partitions; nothing to re-run`);
+    if (action === "none") {
+      console.log(`Run ${own} is not deferred (or ran its partitions); leaving it to finish`);
       return;
+    }
+    if (action === "cancel-and-rerun") {
+      console.log(`Cancelling deferred run ${own} so its new attempt starts at once`);
+      await sdk.request({
+        method: "POST",
+        url: `${root}/runs/${own}/cancel`,
+        request: { portcove: { replay: "once", attempts: 0 } },
+      });
+      // Cancelled runs still start their always() gate jobs, so allow the remaining budget.
+      for (;;) {
+        const run = await get(`${root}/runs/${own}`);
+        if (isRecord(run) && run.status === "completed") break;
+        if (performance.now() + 10_000 > waitUntil)
+          throw new Error(
+            `Run ${own} did not finish cancelling; re-run all jobs to run the partitions`,
+          );
+        await new Promise((resolve) => setTimeout(resolve, 10000));
+      }
     }
     console.log(`Re-running run ${own} to execute its deferred Windows partitions`);
     await sdk.request({

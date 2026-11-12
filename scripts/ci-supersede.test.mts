@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import { deferredWindowsRun, ownRunId, supersededRunIds } from "./ci-supersede.mts";
+import {
+  deferralMarkerStep,
+  deferredWindowsRun,
+  ownRunId,
+  readyForReviewAction,
+  supersededRunIds,
+} from "./ci-supersede.mts";
+import { workflowStep } from "./ci-workflow-fixture.mts";
 
 const run = (id: number, ...pulls: number[]) => ({
   id,
@@ -108,4 +115,102 @@ void test("only a run that deferred its Windows partitions for a draft is re-run
   assert.equal(deferredWindowsRun({ jobs: deferred.slice(0, 2) }), false);
   assert.equal(deferredWindowsRun({ jobs: [...deferred, job("rust", "failure")] }), false);
   assert.throws(() => deferredWindowsRun({}), /malformed/u);
+});
+
+void test("ready_for_review re-runs only a run that actually deferred its Windows partitions", () => {
+  const job = (
+    name: string,
+    conclusion: string | null,
+    status = "completed",
+    steps?: unknown[],
+  ) => ({
+    name,
+    status,
+    conclusion,
+    ...(steps ? { steps } : {}),
+  });
+  const marker = (conclusion: string | null, status = "completed") => ({
+    name: deferralMarkerStep,
+    status,
+    conclusion,
+  });
+  const classified = (...steps: unknown[]) =>
+    job("classify-ci-plan", "success", "completed", steps);
+  const buildPending = job("fast-rust-build (windows-x86_64)", null, "queued");
+  const partition = (conclusion: string | null, status = "completed") =>
+    job("fast-rust-test (windows-x86_64, ${{ matrix.partition }})", conclusion, status);
+  const active = { status: "in_progress" };
+  const done = { status: "completed" };
+
+  // An unclassified run reads the live (ready) state itself.
+  assert.equal(readyForReviewAction(active, { jobs: [] }), "wait");
+  assert.equal(
+    readyForReviewAction(active, { jobs: [job("classify-ci-plan", null, "in_progress")] }),
+    "wait",
+  );
+  // The marker decides at once, even while the build is pending and no partition job exists.
+  assert.equal(
+    readyForReviewAction(active, { jobs: [classified(marker("success")), buildPending] }),
+    "cancel-and-rerun",
+  );
+  assert.equal(
+    readyForReviewAction(active, { jobs: [classified(marker("skipped")), buildPending] }),
+    "none",
+  );
+  assert.equal(
+    readyForReviewAction(active, { jobs: [classified(marker(null, "in_progress"))] }),
+    "wait",
+  );
+  assert.equal(
+    readyForReviewAction(active, { jobs: [job("classify-ci-plan", "failure")] }),
+    "none",
+  );
+  // Heads without the marker fall back to the job graph, conservatively while the build pends.
+  assert.equal(
+    readyForReviewAction(active, { jobs: [classified(), buildPending] }),
+    "cancel-and-rerun",
+  );
+  assert.equal(
+    readyForReviewAction(active, {
+      jobs: [
+        classified(),
+        job("fast-rust-build (windows-x86_64)", "success"),
+        partition("skipped"),
+      ],
+    }),
+    "cancel-and-rerun",
+  );
+  for (const jobs of [
+    // Non-Rust plan: the build is skipped.
+    [classified(), job("fast-rust-build (windows-x86_64)", "skipped"), partition("skipped")],
+    // Partitions running, or skipped because the build failed.
+    [
+      classified(),
+      job("fast-rust-build (windows-x86_64)", "success"),
+      partition(null, "in_progress"),
+    ],
+    [classified(), job("fast-rust-build (windows-x86_64)", "failure"), partition("skipped")],
+  ])
+    assert.equal(readyForReviewAction(active, { jobs }), "none");
+  // A completed run follows the job-outcome detector.
+  assert.equal(
+    readyForReviewAction(done, {
+      jobs: [
+        classified(marker("success")),
+        job("rust", "failure"),
+        job("fast-rust-build (windows-x86_64)", "success"),
+        partition("skipped"),
+      ],
+    }),
+    "rerun",
+  );
+  assert.equal(
+    readyForReviewAction(done, { jobs: [classified(), job("rust", "success")] }),
+    "none",
+  );
+});
+
+void test("the classifier records deferral as the marker step the supersede script reads", () => {
+  const step = workflowStep("classify", deferralMarkerStep);
+  assert.equal(step.if, "steps.plan.outputs.windows_tests_deferred == 'true'");
 });
