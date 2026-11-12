@@ -940,6 +940,26 @@ export default interface Resources {
       "managedInstall": "Managed setup",
       "managedLaunch": "Managed launch"
     },
+    "setupReviews": {
+      "add": "Add {{total}} selected to Library",
+      "choiceNote_one": "One game has more than one version that can use the same files. Select the version you want; selecting all leaves them out.",
+      "choiceNote_other": "{{count}} games have more than one version that can use the same files. Select the version you want; selecting all leaves them out.",
+      "clear": "Clear setup selection",
+      "counts": "<status>{{selected}} selected</status> · {{eligible}} eligible",
+      "countsWithChoice_one": "<status>{{selected}} selected</status> · {{eligible}} eligible · {{count}} game needs a version choice",
+      "countsWithChoice_other": "<status>{{selected}} selected</status> · {{eligible}} eligible · {{count}} games need a version choice",
+      "heading": "Select games for setup review",
+      "intro": "Select games to review their setup, one at a time or together. Selecting a game doesn't register files or install anything.",
+      "label": "Selected setup reviews",
+      "remove": "Remove <name/> from selection",
+      "returnNote": "Return here after each review to continue.",
+      "review": "Review <name/> setup",
+      "reviewInstall": "Review installing {{total}} selected",
+      "selectAll": "Select all {{total}} eligible",
+      "selectMore": "Select {{total}} more eligible",
+      "unavailable": "Setup review is unavailable in the current view. Refresh the workspace and folders, or check game details for remaining requirements.",
+      "unvalidated": "Validation has not run for a selected input. Review setup requirements before continuing."
+    },
     "state": {
       "filesAvailable": "Compatible complete files available",
       "filesMissing": "Files missing",
