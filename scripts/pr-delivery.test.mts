@@ -1005,6 +1005,8 @@ void test("check-run pagination admits only this repository's bound numeric-id L
     [repositoryId + 1, repositoryId, repository],
     [repositoryId, repositoryId + 1, repository],
     [repositoryId, repositoryId, "other/repo"],
+    // A bound id never admits a longer id sharing its digits.
+    [12, 1, repository],
   ] as const) {
     const refused = await scenario(linked, bound, fullName);
     await assert.rejects(

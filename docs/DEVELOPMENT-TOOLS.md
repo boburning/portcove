@@ -253,8 +253,8 @@ unknown, with the exact missing observation recorded; do not silently
 substitute an empty array.
 
 GitHub may link later REST pages through `/repositories/{id}/…` instead of
-`/repos/{owner}/{repo}/…`, for example check runs with `filter=all` beyond 100
-retained attempts. The delivery helper follows such a `Link` only after binding
+`/repos/{owner}/{repo}/…`, for example check runs with `filter=all` beyond one
+100-result page. The delivery helper follows such a `Link` only after binding
 `{id}` from an authenticated `GET /repos/{owner}/{repo}` whose `full_name` is
 this repository, never from the `Link` itself. A different id is refused as
 outside the admitted scope. The closing-inventory timeline reads take only the
