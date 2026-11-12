@@ -18,5 +18,28 @@
     "refresh": "Actualizar la instalación actual",
     "reviewing": "Revisando la copia administrada",
     "title": "¿Usar una copia administrada de <name/>?"
+  },
+  "selfService": {
+    "another": {
+      "body": "Sigue usando tu instalación actual mientras preparas otra copia. La descarga no cambia sus archivos ni sus detalles de inicio. Revisa el nuevo programa del juego antes de cambiar. Consulta las instrucciones del proyecto sobre ubicaciones de partidas compartidas.",
+      "summary": "Descargar otra versión o paquete"
+    },
+    "label": "Configurar e iniciar",
+    "launchDetails": "Detalles de inicio",
+    "pending": {
+      "attention": "La descarga requiere atención",
+      "notReady": "Esta descarga guardada no está lista para configurarse.",
+      "ready": "Descargado · termina la configuración",
+      "readyBody": "Tu descarga está lista para configurarse. Si aún necesitas configurarla, abre la carpeta de descarga y sigue la guía del proyecto. Luego vuelve aquí y elige el programa del juego.",
+      "review": "Revisa la carpeta de descarga. Para volver a descargar, quita primero esta entrada de configuración. Tus archivos permanecerán donde están."
+    },
+    "play": "Jugar",
+    "projectLink": "Sitio web del proyecto",
+    "registeredNote": "Portcove abre el programa que aparece en Detalles de inicio. Usa las herramientas del proyecto para actualizar esta instalación. Descargar otra versión deja esta elección como está.",
+    "setupGuide": "Guía de configuración en el sitio web del proyecto",
+    "upstreamHeading": "Configurar desde el proyecto original",
+    "upstreamLabel": "Instrucciones de configuración del proyecto original",
+    "useExisting": "Usar una instalación existente",
+    "versionsLink": "Versiones y actualizaciones en el sitio web del proyecto"
   }
 }

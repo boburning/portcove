@@ -18,5 +18,28 @@
     "refresh": "Refresh current installation",
     "reviewing": "Reviewing managed copy",
     "title": "Use a managed copy of <name/>?"
+  },
+  "selfService": {
+    "another": {
+      "body": "Keep using your current installation while preparing another copy. Downloading leaves its files and launch details unchanged. Review the new game program before switching. Check the project’s instructions for any shared save locations.",
+      "summary": "Download another version or package"
+    },
+    "label": "Set up and launch",
+    "launchDetails": "Launch details",
+    "pending": {
+      "attention": "Download needs attention",
+      "notReady": "This saved download is not ready for setup.",
+      "ready": "Downloaded · finish setup",
+      "readyBody": "Your download is ready for setup. If you still need to set it up, open the download folder and follow the project’s guide. Then return here and choose the game program.",
+      "review": "Review the download folder. To download again, remove this setup entry first. Your files will stay where they are."
+    },
+    "play": "Play",
+    "projectLink": "Project website",
+    "registeredNote": "Portcove opens the program shown in Launch details. Use the project’s tools to update this installation. Downloading another version leaves this choice as it is.",
+    "setupGuide": "Setup guide on the project’s website",
+    "upstreamHeading": "Set up from upstream",
+    "upstreamLabel": "Upstream setup instructions",
+    "useExisting": "Use an existing installation",
+    "versionsLink": "Versions and updates on the project’s website"
   }
 }

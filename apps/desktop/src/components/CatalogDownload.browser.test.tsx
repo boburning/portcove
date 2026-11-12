@@ -1510,3 +1510,28 @@ it("renders accepted GitLab listing observations through the shared descriptive 
   await expect.element(evidence.getByText("game-windows-x64.zip", { exact: false })).toBeVisible();
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
 });
+
+it("shows the saved-download setup state in the current language with an exact path", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    await root.rerender(
+      <SelfServiceSetup
+        entry={{ ...entry, pendingSetup: saved }}
+        status={status}
+        generation={9}
+        perform={perform}
+        onChanged={changed}
+      />,
+    );
+    await expect.element(page.getByRole("region", { name: "الإعداد والتشغيل" })).toBeInTheDocument();
+    expect(document.body.textContent).toContain("تم التنزيل · أكمل الإعداد");
+    expect(document.body.textContent).toContain("تنزيلك جاهز للإعداد.");
+    const paths = [...document.querySelectorAll("code")].map((node) => node.textContent);
+    expect(paths).toContain(saved.path);
+    expect(document.body.textContent).not.toContain("Downloaded · finish setup");
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});

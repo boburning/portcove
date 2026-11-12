@@ -2,6 +2,7 @@ import { upstreamUpdatesDestination } from "../features/browsing/upstream-links"
 import { Play } from "lucide-react";
 import { useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { desktopApi } from "../api";
+import { useAppTranslation } from "../localization";
 import { listingActionAssessment, type CatalogEntry } from "../features/browsing/catalog-entry";
 import {
   presentPortAction,
@@ -38,6 +39,7 @@ export function SelfServiceSetup({
   onChanged,
   render,
 }: SelfServiceSetupProps) {
+  const { t } = useAppTranslation("installation");
   const updates =
     entry.listing &&
     upstreamUpdatesDestination(entry.listing.project_url, entry.listing.release_url);
@@ -92,7 +94,7 @@ export function SelfServiceSetup({
         aria-busy={launch.allowed && busy}
         onClick={play}
       >
-        <Icon glyph={Play} className="fill-current" /> Play
+        <Icon glyph={Play} className="fill-current" /> {t("selfService.play")}
       </Button>
     </div>
   ) : null;
@@ -101,14 +103,14 @@ export function SelfServiceSetup({
       id="detail-self-service-setup"
       tabIndex={-1}
       className="self-service-setup grid gap-4"
-      aria-label="Set up and launch"
+      aria-label={t("selfService.label")}
     >
       {!registered && entry.listing?.manual_setup && (
-        <div className="grid gap-3" aria-label="Upstream setup instructions">
-          <h3>Set up from upstream</h3>
+        <div className="grid gap-3" aria-label={t("selfService.upstreamLabel")}>
+          <h3>{t("selfService.upstreamHeading")}</h3>
+          {/* External ownership is the guidance default for this non-owning route. */}
           <AuthoredPreparationGuidance
             port={entry}
-            ownership="external"
             setup={{ manual_setup: entry.listing.manual_setup }}
           />
         </div>
@@ -117,21 +119,15 @@ export function SelfServiceSetup({
         <Notice intent={needsRecovery ? "warning" : "info"}>
           <div data-slot="notice-body">
             <strong>
-              {needsRecovery ? "Download needs attention" : "Downloaded · finish setup"}
+              {needsRecovery ? t("selfService.pending.attention") : t("selfService.pending.ready")}
             </strong>
             {needsRecovery ? (
               <>
-                <p>{pending.reason || "This saved download is not ready for setup."}</p>
-                <p>
-                  Review the download folder. To download again, remove this setup entry first. Your
-                  files will stay where they are.
-                </p>
+                <p>{pending.reason || t("selfService.pending.notReady")}</p>
+                <p>{t("selfService.pending.review")}</p>
               </>
             ) : (
-              <p>
-                Your download is ready for setup. If you still need to set it up, open the download
-                folder and follow the project’s guide. Then return here and choose the game program.
-              </p>
+              <p>{t("selfService.pending.readyBody")}</p>
             )}
             <code className="[overflow-wrap:anywhere]">{pending.path}</code>
           </div>
@@ -161,13 +157,11 @@ export function SelfServiceSetup({
             aria-controls={editorId}
             onClick={showEditor}
           >
-            Use an existing installation
+            {t("selfService.useExisting")}
           </Button>
         ) : null}
         {!registered && entry.listing?.setup_url && (
-          <ExternalLink href={entry.listing.setup_url}>
-            Setup guide on the project’s website
-          </ExternalLink>
+          <ExternalLink href={entry.listing.setup_url}>{t("selfService.setupGuide")}</ExternalLink>
         )}
       </ActionRow>
       {pending && (
@@ -182,14 +176,10 @@ export function SelfServiceSetup({
       {registered?.user_selected && !pending && (
         <details>
           <summary data-focusable className="cursor-pointer py-2 font-medium">
-            Download another version or package
+            {t("selfService.another.summary")}
           </summary>
           <div className="grid gap-3 pt-2">
-            <p>
-              Keep using your current installation while preparing another copy. Downloading leaves
-              its files and launch details unchanged. Review the new game program before switching.
-              Check the project’s instructions for any shared save locations.
-            </p>
+            <p>{t("selfService.another.body")}</p>
             <CatalogDownloadControl
               libraryRoot={libraryRoot}
               entry={routeEntry}
@@ -207,14 +197,9 @@ export function SelfServiceSetup({
       )}
       {registered && entry.listing && (
         <div className="grid gap-2 text-sm">
-          <p>
-            Portcove opens the program shown in Launch details. Use the project’s tools to update
-            this installation. Downloading another version leaves this choice as it is.
-          </p>
+          <p>{t("selfService.registeredNote")}</p>
           <ExternalLink href={updates!.url}>
-            {updates!.releases
-              ? "Versions and updates on the project’s website"
-              : "Project website"}
+            {updates!.releases ? t("selfService.versionsLink") : t("selfService.projectLink")}
           </ExternalLink>
         </div>
       )}
@@ -226,7 +211,7 @@ export function SelfServiceSetup({
       {(registered || ((editorOpen || pending?.state === "downloaded") && !needsRecovery)) && (
         <div id={editorId} className="grid gap-3 border-t border-pc-border pt-4">
           <h2 ref={editorHeading} tabIndex={-1} className="text-base">
-            Launch details
+            {t("selfService.launchDetails")}
           </h2>
           <UserSelectedRuntimeControl
             libraryRoot={libraryRoot}
