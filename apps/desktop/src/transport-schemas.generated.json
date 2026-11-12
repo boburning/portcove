@@ -28644,7 +28644,7 @@
       },
       "provider": {
         "default": null,
-        "description": "The mod provider this game has a reviewed binding for (`gamebanana`), if any.",
+        "description": "The mod provider this game has a reviewed binding for (`gamebanana` or\n`thunderstore`), if any.",
         "type": [
           "string",
           "null"
@@ -39900,7 +39900,7 @@
     "properties": {
       "freshness": {
         "$ref": "#/$defs/ProviderFreshness",
-        "description": "`stale` means GameBanana could not be reached and this is earlier data."
+        "description": "`stale` means the provider could not be reached and this is earlier data."
       },
       "game_name": {
         "description": "The game's catalog name, for presentation.",
@@ -39982,6 +39982,13 @@
           },
           "file_name": {
             "type": "string"
+          },
+          "runs_code": {
+            "description": "What the package runs if installed (Recomp code); empty for asset mods.",
+            "items": {
+              "$ref": "#/$defs/RecompExecution"
+            },
+            "type": "array"
           },
           "sha256": {
             "type": "string"
@@ -40080,6 +40087,26 @@
           "project"
         ],
         "type": "object"
+      },
+      "RecompExecution": {
+        "description": "What the package would run on the player's machine if enabled.",
+        "oneOf": [
+          {
+            "const": "recompiled_code",
+            "description": "Recompiled game code (`mod_binary.bin`/`mod_syms.bin`).",
+            "type": "string"
+          },
+          {
+            "const": "native_libraries",
+            "description": "Host libraries named in `native_libraries`, loaded from the mods folder.",
+            "type": "string"
+          },
+          {
+            "const": "external_code",
+            "description": "An offline package whose code comes from a sibling library file.",
+            "type": "string"
+          }
+        ]
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -40501,7 +40528,7 @@
         "type": "string"
       },
       "newer_files": {
-        "description": "Candidates in ascending file-ID order; more than one is ambiguous.",
+        "description": "Candidates oldest first (GameBanana file ID, Thunderstore publish date);\nmore than one is ambiguous.",
         "items": {
           "$ref": "#/$defs/ProviderFileCandidate"
         },

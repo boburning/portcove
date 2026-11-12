@@ -336,7 +336,7 @@ export const desktopApi = {
       page,
       generation,
     }),
-  providerProject: (portId: string, projectId: number, generation: number) =>
+  providerProject: (portId: string, projectId: string, generation: number) =>
     invoke<import("./types").ProviderProjectView>("get_provider_project", {
       portId,
       projectId,
@@ -345,8 +345,8 @@ export const desktopApi = {
   planProviderInstall: (
     portId: string,
     profileId: string,
-    projectId: number,
-    fileId: number,
+    projectId: string,
+    fileId: string,
     generation: number,
   ) =>
     invoke<import("./types").ProviderInstallPlan>("plan_provider_install", {
@@ -362,6 +362,7 @@ export const desktopApi = {
     expectedPlanSha256: string,
     plan: import("./types").ProviderInstallPlan,
     generation: number,
+    allowCode = false,
   ) =>
     invoke<import("./types").ModSetupRevision>("apply_provider_install", {
       portId,
@@ -369,6 +370,7 @@ export const desktopApi = {
       expectedPlanSha256,
       plan,
       generation,
+      allowCode,
     }),
   discardProviderInstall: (
     portId: string,

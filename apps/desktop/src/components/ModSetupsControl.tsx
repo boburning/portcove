@@ -9,7 +9,7 @@ import { errorText } from "../view-model";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
-import { ModProviderBrowser } from "./ModProviderBrowser";
+import { ModProviderBrowser, providerName } from "./ModProviderBrowser";
 import { ActionRow, Notice } from "./ui/patterns";
 
 type Props = {
@@ -143,7 +143,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   // Games without reviewed mod support show nothing, including while loading.
   if (!view?.supported) return null;
   if (busy) return <p role="status">{t("mods.busy")}</p>;
-  // The GameBanana browser's work or open review locks every other change, so a
+  // The provider browser's work or open review locks every other change, so a
   // review always lands on the setup and revision it was made for.
   const locked = working || !fresh || browserBusy;
 
@@ -213,7 +213,11 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
             </Notice>
           )}
           {nativeMessage && <p className="text-sm">{nativeMessage}</p>}
-          {browserBusy && <p className="text-sm">{t("mods.browse.lockNote")}</p>}
+          {browserBusy && (
+            <p className="text-sm">
+              {t("mods.browse.lockNote", { provider: providerName(view.provider ?? "") })}
+            </p>
+          )}
           {heldUpdates.length > 0 && (
             <Notice intent="info">
               <div data-slot="notice-body">
@@ -232,7 +236,12 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                     </li>
                   ))}
                 </ul>
-                <p>{t("mods.held.next", { count: heldUpdates.length })}</p>
+                <p>
+                  {t("mods.held.next", {
+                    count: heldUpdates.length,
+                    provider: providerName(view.provider ?? ""),
+                  })}
+                </p>
               </div>
             </Notice>
           )}
@@ -410,10 +419,11 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                   </div>
                 </Notice>
               )}
-              {view.provider === "gamebanana" && (
+              {view.provider && (
                 <ModProviderBrowser
                   key={selected.profile.id}
                   portId={portId}
+                  provider={view.provider}
                   generation={generation}
                   profileId={selected.profile.id}
                   profileName={selected.profile.display_name}

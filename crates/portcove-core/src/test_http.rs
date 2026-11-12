@@ -2,7 +2,9 @@ use crate::Result;
 mod requests;
 pub(crate) use requests::HttpServer;
 pub(crate) use requests::serve_routed_http_with_budget;
-pub(crate) use requests::{serve_http, serve_http_bytes, serve_routed_http};
+pub(crate) use requests::{
+    serve_http, serve_http_bytes, serve_routed_http, serve_routed_http_bytes,
+};
 use std::{
     io::{self, Read, Write},
     net::{TcpListener, TcpStream},

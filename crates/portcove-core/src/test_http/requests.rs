@@ -71,6 +71,14 @@ pub(crate) fn serve_http_bytes(responses: Vec<Vec<u8>>) -> (String, Receiver<Str
     serve_requests(expected, Some(expected), move |_| responses.next().unwrap())
 }
 
+/// Routes each request to raw response bytes; for binary bodies.
+pub(crate) fn serve_routed_http_bytes(
+    request_limit: usize,
+    response: impl FnMut(&str) -> Vec<u8> + Send + 'static,
+) -> (String, Receiver<String>, HttpServer) {
+    serve_requests(request_limit, None, response)
+}
+
 pub(crate) fn serve_routed_http(
     request_limit: usize,
     response: impl Fn(&str) -> String + Send + 'static,

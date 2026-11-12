@@ -1945,14 +1945,27 @@ Whether the runtime falls back to `mods.json.bak` when `mods.json` is missing or
 unreadable is not established; Portcove reads and writes only `mods.json`, and both
 files are kept with each profile.
 
-### Installing from GameBanana
+### Installing from GameBanana and Thunderstore
 
 ```text
 portcove --library PATH --json profile provider-browse PORT_ID [--page N]
 portcove --library PATH --json profile provider-project PORT_ID PROJECT_ID
 portcove --library PATH --json profile provider-plan PORT_ID PROFILE_ID PROJECT_ID FILE_ID > plan.json
-portcove --library PATH --json profile provider-apply PORT_ID PROFILE_ID plan.json --expected-plan SHA256 --yes
+portcove --library PATH --json profile provider-apply PORT_ID PROFILE_ID plan.json --expected-plan SHA256 [--allow-mod-code] --yes
 ```
+
+A game has at most one reviewed provider binding, and the same commands work for
+either provider. Ship of Harkinian is bound to GameBanana game 16121, where a mod is
+a number and a file is a number. Zelda 64: Recompiled is bound to the Thunderstore
+community `zelda-64-recompiled`, where a mod is `NAMESPACE-NAME` and a file is one
+of its versions (`1.2.0`); Thunderstore offers no digest, so the computed SHA-256 is
+the only byte identity, and a version Thunderstore no longer offers cannot be
+installed. Thunderstore listings are read once per community, conditionally and
+cached, and shown in Thunderstore's order. Desktop browses either provider the same
+way; when a reviewed file contains mods that run code, it names them, says Portcove
+can't tell whether the code is safe, and installs only through **Allow their code and
+install** (or **Allow its code and install** for one mod), which consents to exactly
+that reviewed plan.
 
 Desktop's Setups and mods panel offers the same flow for the setup in use when the
 game has a binding: find mods, show a mod's files, review a file (the same plan,
@@ -1960,20 +1973,24 @@ shown before anything changes) and install it only after an explicit Install;
 Cancel discards the review. Stale data offers no review.
 
 `provider-browse` and `provider-project` only read. `provider-browse` lists one page
-(20 mods, most downloaded first, pages 1–50) of the bound game's GameBanana mods and
-says when more pages exist; `provider-project` shows one mod's files with the file
-IDs `provider-plan` takes, refusing a mod from another game. Provider text is
+(20 mods, pages 1–50; GameBanana's most downloaded first) of the bound game's mods
+and says when more pages exist; `provider-project` shows one mod's files or versions
+with the IDs `provider-plan` takes, refusing a mod from another game. Provider text is
 sanitized presentation data: names, popularity and version labels never establish
 compatibility, and a `stale` result is earlier data from an outage.
 
-`provider-plan` needs a reviewed port-to-game binding (currently Ship of Harkinian,
-GameBanana game 16121) and a current provider observation; cached data from an
-outage never produces a plan. It refuses another game's project, an obsolete or
-archived file and a file the provider's scan reports as infected, and it checks the
-file type before downloading. It downloads privately (following only the provider's
-own hosts, enforcing the declared size), unwraps only `.o2r`/`.otr` members from a
-zip wrapper, inspects them without executing anything, and reports replacements and
-asset-path conflicts against the profile's enabled packages. The plan binds the
+`provider-plan` needs a reviewed binding and a current provider observation; cached
+data from an outage never produces a plan. It refuses another game's project, an
+obsolete or archived file and a file the provider's scan reports as infected, and it
+checks a GameBanana file's type before downloading (a Thunderstore version is always
+a zip). It downloads privately (following only the
+provider's own hosts, enforcing the declared size), unwraps only the loader's package
+members (`.o2r`/`.otr`, or `.nrm`) from a zip wrapper, inspects them without
+executing anything, and reports replacements and asset-path conflicts against the
+profile's enabled packages. Recomp members are reviewed as local installs are: named
+by manifest mod ID, another game's mod refused, and each member's `runs_code` lists
+the code it would run; their entries are not compared for conflicts, because which of
+two Recomp mods wins is not established. The plan binds the
 computed SHA-256 of the actual bytes. The provider's MD5 and scan results are shown
 as unverified claims. A displayed version label does not identify bytes; the file ID
 and computed digest do.
@@ -1987,6 +2004,9 @@ resolved by name; an outage reports `unavailable`, never "no update".
 
 `provider-apply` takes the saved plan and its `plan_sha256`, asks for confirmation
 (or `--yes`), and installs exactly the reviewed bytes under a one-use authorization.
+A plan whose members run code is refused as `usage` unless `--allow-mod-code` is
+given; then consent is recorded for exactly those members' reviewed digests, as for
+`install-package --allow-mod-code`.
 Altered staged bytes, a tampered plan or a newer profile revision that changed more
 than the mod order refuse without changing anything. Reviewed-but-unapplied staging older than a day is removed at the next review or
 when the game's setups are read, and Desktop discards a review it leaves.
@@ -2015,8 +2035,9 @@ cycles. Export applies the same rules, so a profile with, for example, an enable
 package whose requirement is disabled must be fixed before it can be shared; the
 refusal names the reason.
 `recipe-plan` reports each input as `available`, `acquirable` or `unavailable`.
-`acquirable` means a complete GameBanana file reference for a game with a reviewed
-binding; its detail names the project and file to review with `provider-plan`. Any
+`acquirable` means a complete file reference to the provider this game has a
+reviewed binding for; its detail names the project and file to review with
+`provider-plan`. Any
 other provider reference is `unavailable`. The plan holds for a different platform, a missing
 runtime, an original requirement the game does not use, an
 unregistered or different original, or package bytes not in the store.
@@ -2032,7 +2053,7 @@ recipe's identity exactly; that is not evidence of gameplay or save compatibilit
 #### Unattended updates
 
 `profile policy PORT_ID PROFILE_ID automatic-eligible` lets the standing pass
-(`games setup-ready`) install a newer GameBanana file for that setup without asking
+(`games setup-ready`) install a newer provider file for that setup without asking
 again. Desktop runs the same pass only while at least one game is set to install
 when ready or a folder has automatic setup; otherwise run `games setup-ready`. Setups with the other policies
 (`review-updates`, the default, and `keep-current`) are never contacted. The policy
@@ -2041,17 +2062,20 @@ file with the same checks as `provider-plan`, and authorizes and applies that ex
 plan at once.
 
 Updates are decided per installed provider file. One is applied only when the
-observation is current, the provider offers exactly one newer file, every mod from
+observation is current, the provider offers exactly one newer file (for Thunderstore,
+whose versions form one line, the highest of the versions published after and
+numbered above the installed one), every mod from
 the installed file is on, the newer file contains exactly the same mods, and no
 asset that two enabled mods both change gets a different winner (an overlap that
-already exists and stays the same does not hold an update). Several newer files, a
+already exists and stays the same does not hold an update). Several newer GameBanana files, a
 mod that is off and an obsolete project are held before anything is downloaded.
 Results are reported in `mod_updates`, one per installed file:
 
 - `applied`: the newer file is the setup's next revision. The earlier revision,
   with the earlier file, stays recoverable; saves and settings are not touched.
 - `held`: it needs the player's review (for example the newer file adds or drops a
-  mod, or changes which mod wins an asset); nothing changed and its staging is
+  mod, changes which mod wins an asset, or contains a mod that runs code, which
+  always waits for the player's consent); nothing changed and its staging is
   discarded. A hold found by comparing the newer file with the setup is remembered
   for that setup revision and candidate file, so it is not downloaded again until
   either changes.

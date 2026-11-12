@@ -4432,7 +4432,8 @@ export interface OutputModSetupsView {
   package_types: string[];
   port_id: string;
   /**
-   * The mod provider this game has a reviewed binding for (`gamebanana`), if any.
+   * The mod provider this game has a reviewed binding for (`gamebanana` or
+   * `thunderstore`), if any.
    */
   provider: string | null;
   /**
@@ -4916,7 +4917,7 @@ export interface RecipeRuntime {
 }
 export interface OutputProviderBrowsePage {
   /**
-   * `stale` means GameBanana could not be reached and this is earlier data.
+   * `stale` means the provider could not be reached and this is earlier data.
    */
   freshness: "fresh" | "revalidated" | "stale";
   /**
@@ -5054,6 +5055,10 @@ export interface AssetConflict {
 export interface PlanMember {
   asset_count: number;
   file_name: string;
+  /**
+   * What the package runs if installed (Recomp code); empty for asset mods.
+   */
+  runs_code?: RecompExecution[];
   sha256: string;
   size: number;
   [k: string]: unknown;
@@ -5104,7 +5109,8 @@ export interface OutputProviderUpdateObservation {
   installed_version: string | null;
   native_id: string;
   /**
-   * Candidates in ascending file-ID order; more than one is ambiguous.
+   * Candidates oldest first (GameBanana file ID, Thunderstore publish date);
+   * more than one is ambiguous.
    */
   newer_files: ProviderFileCandidate[];
   observed_version: string | null;

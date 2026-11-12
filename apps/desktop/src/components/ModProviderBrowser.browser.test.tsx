@@ -89,7 +89,12 @@ const plan = {
 
 async function render(
   onInstalled = vi.fn(),
-  options: { disabled?: boolean; onBusyChange?: (busy: boolean) => void } = {},
+  options: {
+    disabled?: boolean;
+    onBusyChange?: (busy: boolean) => void;
+    provider?: string;
+    portId?: string;
+  } = {},
 ) {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const host = document.createElement("div");
@@ -99,7 +104,8 @@ async function render(
   await act(async () =>
     root.render(
       <ModProviderBrowser
-        portId="shipwright"
+        portId={options.portId ?? "shipwright"}
+        provider={options.provider ?? "gamebanana"}
         generation={7}
         profileId="default"
         profileName="Default"
@@ -140,7 +146,7 @@ it("browses, reviews a file and installs only the confirmed plan", async () => {
   expect(applied).not.toHaveBeenCalled();
 
   await act(async () => button(host, "Review pack.zip").click());
-  expect(planned).toHaveBeenCalledWith("shipwright", "default", 42, 10, 7);
+  expect(planned).toHaveBeenCalledWith("shipwright", "default", "42", "10", 7);
   expect(host.textContent).toContain("Replaces your installed HD Link.otr");
   expect(host.textContent).toContain("GameBanana's MD5");
   expect(host.textContent).toContain("game’s mods folder changes as soon as you install");
@@ -148,7 +154,7 @@ it("browses, reviews a file and installs only the confirmed plan", async () => {
   expect(applied).not.toHaveBeenCalled();
 
   await act(async () => button(host, "Install").click());
-  expect(applied).toHaveBeenCalledWith("shipwright", "default", plan.plan_sha256, plan, 7);
+  expect(applied).toHaveBeenCalledWith("shipwright", "default", plan.plan_sha256, plan, 7, false);
   expect(onInstalled).toHaveBeenCalledWith("Installed hd-link.o2r from HD Link into Default.");
 });
 
@@ -266,4 +272,79 @@ it("presents the browser in the active locale with provider text kept exact", as
   } finally {
     await localization.changeLanguage("en");
   }
+});
+
+it("names Thunderstore and asks before installing a reviewed mod that runs code", async () => {
+  const thunderPage = {
+    ...browse(),
+    port_id: "zelda64-recomp",
+    game_name: "Zelda 64: Recompiled",
+    provider: "thunderstore",
+    page: {
+      ...browse().page,
+      projects: [
+        {
+          ...browse().page.projects[0],
+          provider: "thunderstore",
+          project_id: "Owner-Timer",
+          name: "Timer",
+          version: "1.1.0",
+        },
+      ],
+    },
+  } as unknown as ProviderBrowsePage;
+  vi.spyOn(desktopApi, "browseProviderMods").mockResolvedValue(thunderPage);
+  const projectView = {
+    ...project(),
+    port_id: "zelda64-recomp",
+    project: {
+      ...thunderPage.page.projects[0],
+      files: [
+        { ...project().project.files[0], file_id: "1.1.0", file_name: "Owner-Timer-1.1.0.zip" },
+      ],
+      unreadable_files: 0,
+    },
+  } as unknown as ProviderProjectView;
+  const projectRead = vi.spyOn(desktopApi, "providerProject").mockResolvedValue(projectView);
+  const codePlan = {
+    ...plan,
+    port_id: "zelda64-recomp",
+    project_name: "Timer",
+    replaces: [],
+    unverified_claims: [],
+    members: [
+      {
+        file_name: "speed_timer.nrm",
+        sha256: "a".repeat(64),
+        size: 2048,
+        asset_count: 0,
+        runs_code: ["recompiled_code"],
+      },
+    ],
+  } as unknown as ProviderInstallPlan;
+  const planned = vi.spyOn(desktopApi, "planProviderInstall").mockResolvedValue(codePlan);
+  const applied = vi
+    .spyOn(desktopApi, "applyProviderInstall")
+    .mockResolvedValue({} as Awaited<ReturnType<typeof desktopApi.applyProviderInstall>>);
+  const { host } = await render(vi.fn(), { provider: "thunderstore", portId: "zelda64-recomp" });
+
+  await act(async () => button(host, "Find mods on Thunderstore…").click());
+  expect(host.textContent).not.toContain("GameBanana");
+  await act(async () => button(host, "Show files of Timer").click());
+  expect(projectRead).toHaveBeenCalledWith("zelda64-recomp", "Owner-Timer", 7);
+  await act(async () => button(host, "Review Owner-Timer-1.1.0.zip").click());
+  expect(planned).toHaveBeenCalledWith("zelda64-recomp", "default", "Owner-Timer", "1.1.0", 7);
+  expect(host.textContent).toContain("speed_timer.nrm runs its own code inside the game");
+  expect(host.textContent).toContain("speed_timer.nrm");
+  expect([...host.querySelectorAll("button")].some((b) => b.textContent === "Install")).toBe(false);
+
+  await act(async () => button(host, "Allow its code and install").click());
+  expect(applied).toHaveBeenCalledWith(
+    "zelda64-recomp",
+    "default",
+    codePlan.plan_sha256,
+    codePlan,
+    7,
+    true,
+  );
 });
