@@ -1,7 +1,8 @@
 use std::{cell::Cell, collections::BTreeMap, path::Path};
 
 use super::{
-    DiscImage, DiscPlan, MAX_IMAGE_BYTES, ensure_free_space, fixtures::*, required_free_bytes,
+    DiscImage, DiscPlan, MAX_IMAGE_BYTES, ensure_free_space, fixtures::*, parse_iso_record,
+    required_free_bytes,
 };
 use crate::{DiscImageFormat, ErrorCode, PortcoveError, Result};
 
@@ -558,4 +559,45 @@ fn extraction_refuses_an_existing_destination_and_changed_sources() {
             .is_err()
     );
     assert_eq!(std::fs::read(existing.join("keep.txt")).unwrap(), b"keep");
+}
+
+/// One directory record for `A.BIN;1` followed by the given system-use bytes.
+fn iso_record_with_system_use(area: &[u8]) -> Vec<u8> {
+    let name = b"A.BIN;1";
+    let minimal = (33 + name.len()).div_ceil(2) * 2;
+    let mut record = vec![0_u8; minimal];
+    record[0] = (minimal + area.len()) as u8;
+    record[2..6].copy_from_slice(&20_u32.to_le_bytes());
+    record[6..10].copy_from_slice(&20_u32.to_be_bytes());
+    record[10..14].copy_from_slice(&5_u32.to_le_bytes());
+    record[14..18].copy_from_slice(&5_u32.to_be_bytes());
+    record[32] = name.len() as u8;
+    record[33..33 + name.len()].copy_from_slice(name);
+    record.extend_from_slice(area);
+    record
+}
+
+#[test]
+fn iso9660_accepts_zero_padding_xa_and_susp_but_not_other_system_use_bytes() {
+    // No system-use area at all.
+    assert!(parse_iso_record(&iso_record_with_system_use(&[])).is_ok());
+    // Plain zero padding, as written by Sony PS2 mastering, of any length.
+    for length in [1_usize, 14, 40] {
+        assert!(parse_iso_record(&iso_record_with_system_use(&vec![0; length])).is_ok());
+    }
+    // A CD-XA tail.
+    let mut xa = [0_u8; 14];
+    xa[6..8].copy_from_slice(b"XA");
+    assert!(parse_iso_record(&iso_record_with_system_use(&xa)).is_ok());
+    // A well-formed SUSP entry.
+    assert!(parse_iso_record(&iso_record_with_system_use(&[b'R', b'R', 5, 1, 0x81])).is_ok());
+    // Anything else, such as a following record swallowed by a corrupted
+    // length, is still refused.
+    let mut swallowed = vec![0_u8; 14];
+    swallowed[0] = 34;
+    swallowed[5] = 1;
+    assert!(parse_iso_record(&iso_record_with_system_use(&swallowed)).is_err());
+    let mut mixed = vec![0_u8; 14];
+    mixed[13] = 7;
+    assert!(parse_iso_record(&iso_record_with_system_use(&mixed)).is_err());
 }

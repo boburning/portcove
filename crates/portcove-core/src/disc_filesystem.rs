@@ -304,14 +304,17 @@ fn parse_iso_record(record: &[u8]) -> Result<IsoRecord> {
         ));
     }
     let name_length = usize::from(record[32]);
-    // Bytes after the name are a system-use area. Only a CD-XA tail or a chain of
-    // well-formed SUSP/Rock Ridge entries that exactly fills the record is
-    // accepted, so a corrupted length can never swallow the records after it.
+    // Bytes after the name are a system-use area. Only a CD-XA tail, a chain of
+    // well-formed SUSP/Rock Ridge entries, or plain zero padding (as Sony PS2
+    // mastering writes) that exactly fills the record is accepted. A zero area
+    // holds no data, and a following record starts with a non-zero length, so a
+    // corrupted length can never swallow the records after it.
     let minimal = (33 + name_length).div_ceil(2) * 2;
     if record.len() != minimal {
         let area = record.get(minimal..).unwrap_or_default();
         let xa_tail = area.len() == 14 && &area[6..8] == b"XA";
-        if !xa_tail && !is_susp_chain(area) {
+        let zero_padding = area.iter().all(|byte| *byte == 0);
+        if !xa_tail && !zero_padding && !is_susp_chain(area) {
             return Err(invalid(
                 "a directory record has a system-use area Portcove cannot read",
             ));
