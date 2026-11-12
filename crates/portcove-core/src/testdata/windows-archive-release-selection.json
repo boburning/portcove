@@ -1547,6 +1547,33 @@
         "wc1-re-v0.9.8-macos-arm64-sdl2.zip",
         "wc1-re-v0.9.9-macos-arm64-sdl2.zip"
       ]
+    },
+    "colin-mcrae-rally-2-opencmr2": {
+      "inventory": "opencmr2",
+      "repository_id": 1413279818,
+      "selected_assets": ["OpenCMR2-Windows-x64.zip", "OpenCMR2-Windows-x64.zip"],
+      "linux_selected_assets": ["OpenCMR2-Linux-x86_64.tar.gz", "OpenCMR2-Linux-x86_64.tar.gz"],
+      "macos_aarch64_selected_assets": ["OpenCMR2-macOS-arm64.zip", "OpenCMR2-macOS-arm64.zip"]
+    },
+    "starlancer-openreliant": {
+      "inventory": "openreliant",
+      "repository_id": 1378937518,
+      "selected_assets": [
+        "openreliant-v1.0.0-windows-x86_64.zip",
+        "openreliant-v1.0.1-windows-x86_64.zip"
+      ],
+      "linux_selected_assets": [
+        "openreliant-v1.0.0-linux-x86_64.tar.gz",
+        "openreliant-v1.0.1-linux-x86_64.tar.gz"
+      ],
+      "macos_x86_64_selected_assets": [
+        "openreliant-v1.0.0-macos-x86_64.tar.gz",
+        "openreliant-v1.0.1-macos-x86_64.tar.gz"
+      ],
+      "macos_aarch64_selected_assets": [
+        "openreliant-v1.0.0-macos-aarch64.tar.gz",
+        "openreliant-v1.0.1-macos-aarch64.tar.gz"
+      ]
     }
   },
   "inventories": {
@@ -9067,6 +9094,298 @@
           }
         ]
       }
+    ],
+    "opencmr2": [
+      {
+        "id": 437812406,
+        "tag_name": "v1.8.7",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-07T20:07:47Z",
+        "assets": [
+          {
+            "id": 721800434,
+            "name": "OpenCMR2-Android.apk",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-Android.apk",
+            "size": 15214540,
+            "digest": "sha256:618dd3086a8fed832d7195a77e54bf5dd31c0efc88bed36af568cf8c7221cba0"
+          },
+          {
+            "id": 721800440,
+            "name": "OpenCMR2-Linux-arm64.tar.gz",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-Linux-arm64.tar.gz",
+            "size": 9356728,
+            "digest": "sha256:ec50eb9b2ef6effa1f28b9c1c52a70d6e858d4b68926e8231f10feedf0611b5b"
+          },
+          {
+            "id": 721800439,
+            "name": "OpenCMR2-Linux-arm64.tar.gz.sha256",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-Linux-arm64.tar.gz.sha256",
+            "size": 94,
+            "digest": "sha256:519bb8bd45a2d7a64a0595f9967eed359cdf24145da68090081faeee271fe233"
+          },
+          {
+            "id": 721800438,
+            "name": "OpenCMR2-Linux-i686.tar.gz",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-Linux-i686.tar.gz",
+            "size": 9775865,
+            "digest": "sha256:2e3d41e61dba666f10057d5add8bd2619bf91ac94218e7f77d7913639334a0e4"
+          },
+          {
+            "id": 721800436,
+            "name": "OpenCMR2-Linux-i686.tar.gz.sha256",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-Linux-i686.tar.gz.sha256",
+            "size": 93,
+            "digest": "sha256:846668d663b38c244e223824819f72c513095000bc68ec72be40a920bb8c0199"
+          },
+          {
+            "id": 721800464,
+            "name": "OpenCMR2-Linux-x86_64.tar.gz",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-Linux-x86_64.tar.gz",
+            "size": 9697385,
+            "digest": "sha256:f0edd0d8eaa56e7aa001131867403d0b361515bdfc4be0b03ffd509df571a910"
+          },
+          {
+            "id": 721800469,
+            "name": "OpenCMR2-Linux-x86_64.tar.gz.sha256",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-Linux-x86_64.tar.gz.sha256",
+            "size": 95,
+            "digest": "sha256:9808a1b406d7b5686194c6154c6d06afcfede187db433a57c3e8d9709d0c12a0"
+          },
+          {
+            "id": 721800499,
+            "name": "OpenCMR2-macOS-arm64.zip",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-macOS-arm64.zip",
+            "size": 2576140,
+            "digest": "sha256:a07f71f40b77be9ccc740c535994e873ad3d90259d47e4ab29df8dc98964626d"
+          },
+          {
+            "id": 721800510,
+            "name": "OpenCMR2-macOS-arm64.zip.sha256",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-macOS-arm64.zip.sha256",
+            "size": 91,
+            "digest": "sha256:08947028faea24eb006a6a3915c681ecb839bec33eadcf218dd2fb91d0233302"
+          },
+          {
+            "id": 721800491,
+            "name": "OpenCMR2-Windows-x64.zip",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-Windows-x64.zip",
+            "size": 2970029,
+            "digest": "sha256:577e361d179d41842e98746d139cb372927880a11fc1dd2fc4e6956abd718b70"
+          },
+          {
+            "id": 721800492,
+            "name": "OpenCMR2-Windows-x64.zip.sha256",
+            "browser_download_url": "https://github.com/pablocpas/OpenCMR2/releases/download/v1.8.7/OpenCMR2-Windows-x64.zip.sha256",
+            "size": 92,
+            "digest": "sha256:9081240568d3008e01d33bdc139af519a757f9b2815dfcc169b9f6377184fed9"
+          }
+        ]
+      },
+      {
+        "id": 999600000,
+        "tag_name": "v1.8.8",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999600100,
+            "name": "OpenCMR2-Android.apk",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-Android.apk",
+            "size": 15214540,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999600101,
+            "name": "OpenCMR2-Linux-arm64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-Linux-arm64.tar.gz",
+            "size": 9356728,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999600102,
+            "name": "OpenCMR2-Linux-arm64.tar.gz.sha256",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-Linux-arm64.tar.gz.sha256",
+            "size": 94,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999600103,
+            "name": "OpenCMR2-Linux-i686.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-Linux-i686.tar.gz",
+            "size": 9775865,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999600104,
+            "name": "OpenCMR2-Linux-i686.tar.gz.sha256",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-Linux-i686.tar.gz.sha256",
+            "size": 93,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          {
+            "id": 999600105,
+            "name": "OpenCMR2-Linux-x86_64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-Linux-x86_64.tar.gz",
+            "size": 9697385,
+            "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "id": 999600106,
+            "name": "OpenCMR2-Linux-x86_64.tar.gz.sha256",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-Linux-x86_64.tar.gz.sha256",
+            "size": 95,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999600107,
+            "name": "OpenCMR2-macOS-arm64.zip",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-macOS-arm64.zip",
+            "size": 2576140,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999600108,
+            "name": "OpenCMR2-macOS-arm64.zip.sha256",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-macOS-arm64.zip.sha256",
+            "size": 91,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999600109,
+            "name": "OpenCMR2-Windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-Windows-x64.zip",
+            "size": 2970029,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999600110,
+            "name": "OpenCMR2-Windows-x64.zip.sha256",
+            "browser_download_url": "https://downloads.example.invalid/v1.8.8/OpenCMR2-Windows-x64.zip.sha256",
+            "size": 92,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          }
+        ]
+      }
+    ],
+    "openreliant": [
+      {
+        "id": 440297139,
+        "tag_name": "v1.0.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-10T11:51:21Z",
+        "assets": [
+          {
+            "id": 731308682,
+            "name": "openreliant-v1.0.0-linux-aarch64.tar.gz",
+            "browser_download_url": "https://github.com/OpenReliant/openreliant/releases/download/v1.0.0/openreliant-v1.0.0-linux-aarch64.tar.gz",
+            "size": 9814941,
+            "digest": "sha256:c24b6156a985366c70a2337a6c548270c10a6f55a7821999bac7611cddecece2"
+          },
+          {
+            "id": 731308684,
+            "name": "openreliant-v1.0.0-linux-x86_64.tar.gz",
+            "browser_download_url": "https://github.com/OpenReliant/openreliant/releases/download/v1.0.0/openreliant-v1.0.0-linux-x86_64.tar.gz",
+            "size": 10444840,
+            "digest": "sha256:e39fa619d0d4565cd21db1f4218cd349729c0c839eaa545ddbbc03043e6ef073"
+          },
+          {
+            "id": 731308688,
+            "name": "openreliant-v1.0.0-macos-aarch64.tar.gz",
+            "browser_download_url": "https://github.com/OpenReliant/openreliant/releases/download/v1.0.0/openreliant-v1.0.0-macos-aarch64.tar.gz",
+            "size": 9463328,
+            "digest": "sha256:390ae959f866133ce0d250f8171b8eac20ae981e8ee3d49342541e28992ef90c"
+          },
+          {
+            "id": 731308691,
+            "name": "openreliant-v1.0.0-macos-x86_64.tar.gz",
+            "browser_download_url": "https://github.com/OpenReliant/openreliant/releases/download/v1.0.0/openreliant-v1.0.0-macos-x86_64.tar.gz",
+            "size": 9898689,
+            "digest": "sha256:f64d7d220570feae2b37e89a31f2893b167239fba41fbd380f9fae8c0b624df0"
+          },
+          {
+            "id": 731308685,
+            "name": "openreliant-v1.0.0-sha256sums.txt",
+            "browser_download_url": "https://github.com/OpenReliant/openreliant/releases/download/v1.0.0/openreliant-v1.0.0-sha256sums.txt",
+            "size": 631,
+            "digest": "sha256:5662367df5dc8787cd67a39aae9281611480931ee6d09573e54a743ce51cf2f3"
+          },
+          {
+            "id": 731308709,
+            "name": "openreliant-v1.0.0-windows-aarch64.zip",
+            "browser_download_url": "https://github.com/OpenReliant/openreliant/releases/download/v1.0.0/openreliant-v1.0.0-windows-aarch64.zip",
+            "size": 9302212,
+            "digest": "sha256:47d3819535c1d80ae42d7516fb5182ac6c74b2df2dded92c069485f280148e13"
+          },
+          {
+            "id": 731308741,
+            "name": "openreliant-v1.0.0-windows-x86_64.zip",
+            "browser_download_url": "https://github.com/OpenReliant/openreliant/releases/download/v1.0.0/openreliant-v1.0.0-windows-x86_64.zip",
+            "size": 10143749,
+            "digest": "sha256:a204af41848aa62d0074bb184386349dd9661e184768d1decdba4ed3dc16da32"
+          }
+        ]
+      },
+      {
+        "id": 999600001,
+        "tag_name": "v1.0.1",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999600200,
+            "name": "openreliant-v1.0.1-linux-aarch64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/v1.0.1/openreliant-v1.0.1-linux-aarch64.tar.gz",
+            "size": 9814941,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999600201,
+            "name": "openreliant-v1.0.1-linux-x86_64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/v1.0.1/openreliant-v1.0.1-linux-x86_64.tar.gz",
+            "size": 10444840,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999600202,
+            "name": "openreliant-v1.0.1-macos-aarch64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/v1.0.1/openreliant-v1.0.1-macos-aarch64.tar.gz",
+            "size": 9463328,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999600203,
+            "name": "openreliant-v1.0.1-macos-x86_64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/v1.0.1/openreliant-v1.0.1-macos-x86_64.tar.gz",
+            "size": 9898689,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999600204,
+            "name": "openreliant-v1.0.1-sha256sums.txt",
+            "browser_download_url": "https://downloads.example.invalid/v1.0.1/openreliant-v1.0.1-sha256sums.txt",
+            "size": 631,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          {
+            "id": 999600205,
+            "name": "openreliant-v1.0.1-windows-aarch64.zip",
+            "browser_download_url": "https://downloads.example.invalid/v1.0.1/openreliant-v1.0.1-windows-aarch64.zip",
+            "size": 9302212,
+            "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "id": 999600206,
+            "name": "openreliant-v1.0.1-windows-x86_64.zip",
+            "browser_download_url": "https://downloads.example.invalid/v1.0.1/openreliant-v1.0.1-windows-x86_64.zip",
+            "size": 10143749,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      }
     ]
   },
   "other_zip_assets": [
@@ -10174,6 +10493,16 @@
       "inventory": "wc1_re",
       "release_index": 1,
       "asset": "wc1-re-v0.9.9-win32-msvc420.zip"
+    },
+    {
+      "inventory": "openreliant",
+      "release_index": 0,
+      "asset": "openreliant-v1.0.0-windows-aarch64.zip"
+    },
+    {
+      "inventory": "openreliant",
+      "release_index": 1,
+      "asset": "openreliant-v1.0.1-windows-aarch64.zip"
     }
   ]
 }

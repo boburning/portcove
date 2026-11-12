@@ -16873,7 +16873,8 @@
       "original_game_title": "Colin McRae Rally 2.0",
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -51376,7 +51377,9 @@
       "original_game_title": "Starlancer",
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
