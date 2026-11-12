@@ -48036,10 +48036,20 @@
             {
               "title": "Use a prepared upstream Linux copy",
               "instruction": "For Linux, use the official Linux x64 archive as an upstream-owned copy. In its extracted player folder, deliberately run ./mgs_mobile --install \"<your Metal.Gear.Solid.n-gage>\" and wait for successful completion, then register mgs_mobile as the player with that folder as its working directory. The Linux player has no Windows-style first-Play picker. Portcove does not run this preparation command during discovery and does not manage replacement or backups of this external copy."
+            },
+            {
+              "title": "Set up the Android player",
+              "instruction": "Use the official ARM64 APK on Android 7 or later. Open the app and select your own Metal.Gear.Solid.n-gage in its file picker. Keep the original separately. The app prepares its game files in its own storage."
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1"
+          "help_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1",
+          "references": [
+            {
+              "title": "Keep the Android app data",
+              "instruction": "Install compatible updates over the same upstream app and signer. The app normally stores its files in Android/data/org.mgsmobile.port/files, with internal app storage as a fallback. Before clearing data or uninstalling, keep an accessible backup of any saves and settings you can export or copy."
+            }
+          ]
         },
         "artwork": {
           "game_id": 41041,
