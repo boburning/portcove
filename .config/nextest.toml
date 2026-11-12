@@ -171,7 +171,7 @@ slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
 success-output = "immediate"
 
 # Qualification 43090604192/1 Intel job 130795135036 terminated this same
-# lifecycle at the 120s default on both nextest tries without an assertion
+# lifecycle at the 120s default (its single zero-retry attempt) without an assertion
 # failure; ARM job 130788166154 passed it in 55.9s. Give Intel macOS the same
 # finite 180s Windows room, keeping every assertion, cleanup and zero retries.
 [[profile.default.overrides]]

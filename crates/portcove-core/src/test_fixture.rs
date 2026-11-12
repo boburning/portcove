@@ -647,8 +647,6 @@ pub(crate) fn admitted_indexed_catalog(catalog: &crate::Catalog, port_id: &str) 
     catalog
 }
 
-/// Create a valid catalog with one source-backed port that did not exist when
-/// the embedded client catalog was built.
 /// Make a fixture port also declare the running host, reusing the platform-keyed
 /// facts of a platform the port already declares (Linux first, for Unix naming).
 ///
@@ -656,7 +654,9 @@ pub(crate) fn admitted_indexed_catalog(catalog: &crate::Catalog, port_id: &str) 
 /// host the real port does not ship for (for example macOS), they would otherwise
 /// fail before reaching the behavior under test. Hosts the port already declares
 /// are unchanged, so Windows and Linux coverage stays byte-identical. The real
-/// embedded catalog is never modified.
+/// embedded catalog is never modified. Per-platform `release` routes and
+/// validation records are not projected; use a port without them, or extend
+/// this before relying on them.
 pub(crate) fn declare_host_platform(port: &mut crate::PortDefinition) {
     use crate::Platform;
 
@@ -715,6 +715,8 @@ pub(crate) fn host_declared_embedded_catalog(port_ids: &[&str]) -> crate::Catalo
     host_declared_catalog(&crate::Catalog::embedded().unwrap(), port_ids)
 }
 
+/// Create a valid catalog with one source-backed port that did not exist when
+/// the embedded client catalog was built.
 pub(crate) fn post_client_catalog() -> (crate::Catalog, String) {
     let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
     let mut port = document
