@@ -89,6 +89,11 @@ pub(crate) enum ProfileCommand {
         /// Revision you reviewed; a newer revision makes the install stale.
         #[arg(long)]
         expected_revision: u64,
+        /// Allow a mod that runs its own code inside the game, for exactly the
+        /// package with this SHA-256 (shown when the install is refused). Records
+        /// your choice; it does not establish that the code is safe.
+        #[arg(long, value_name = "SHA256")]
+        allow_mod_code: Option<String>,
     },
     /// Enable or disable an installed package as a new revision.
     SetPackage {
@@ -715,10 +720,22 @@ pub(crate) async fn execute(
             profile_id,
             file,
             expected_revision,
+            allow_mod_code,
         } => render_read_success(
             mode,
             name,
-            service.install_mod_package(&port_id, &profile_id, &file, expected_revision)?,
+            match allow_mod_code {
+                Some(sha256) => service.install_mod_package_allowing_code(
+                    &port_id,
+                    &profile_id,
+                    &file,
+                    expected_revision,
+                    &sha256,
+                )?,
+                None => {
+                    service.install_mod_package(&port_id, &profile_id, &file, expected_revision)?
+                }
+            },
             |revision| format!("Package installed\n{}", revision_line(revision)),
         ),
         ProfileCommand::SetPackage {

@@ -401,7 +401,7 @@ impl PortcoveService {
                 .detail("package", &member.file_name));
             }
             // The same loader review a local install gets.
-            let item = inspect_for_port(&plan.port_id, path, Some(plan.provider.clone()))?;
+            let item = inspect_for_port(&plan.port_id, path, Some(plan.provider.clone()), None)?;
             if item.inspection.sha256 != member.sha256 {
                 return Err(PortcoveError::verification(
                     "the reviewed package bytes changed during inspection; plan again",

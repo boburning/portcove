@@ -1715,7 +1715,7 @@ portcove --library PATH --json profile ensure-default PORT_ID
 portcove --library PATH --json profile copy PORT_ID PROFILE_ID NAME [--current-build]
 portcove --library PATH --json profile revisions PORT_ID PROFILE_ID
 portcove --library PATH --json profile policy PORT_ID PROFILE_ID keep-current|review-updates|automatic-eligible
-portcove --library PATH --json profile install-package PORT_ID PROFILE_ID FILE --expected-revision N
+portcove --library PATH --json profile install-package PORT_ID PROFILE_ID FILE --expected-revision N [--allow-mod-code SHA256]
 portcove --library PATH --json profile set-package PORT_ID PROFILE_ID NATIVE_ID on|off --expected-revision N
 portcove --library PATH --json profile activate PORT_ID PROFILE_ID
 portcove --library PATH --json profile live PORT_ID
@@ -1806,9 +1806,19 @@ package with an installed mod's ID replaces it. An ID that some supported system
 cannot use as a file name (a device name such as `NUL`, or one too long) is refused
 before anything is stored. The manifest's version is recorded with the package.
 
-Only mods that change assets are installed. A package that carries recompiled
-code, host libraries or other executable files, or that names another game, is
-refused with nothing recorded; running mod code needs its own review first.
+A package that names another game is refused with nothing recorded. A package
+that carries recompiled game code (`mod_binary.bin`/`mod_syms.bin`, which the
+runtime recompiles and runs inside the game) is refused as `usage` until the player
+allows code for those exact bytes: the refusal's `sha256` detail names them, and
+`install-package ... --allow-mod-code SHA256` installs the package only when that
+digest matches. The consent is kept per game in the library and covers only those
+bytes, so a later version, a recipe or a hand-written revision with other bytes
+needs its own consent; Portcove checks it again before placing any package in
+`mods`, so code without consent is never deployed by any route. Consent records the
+player's choice; it does not establish that the code is safe, who wrote it, or
+that it works with the installed build. Packages that load code from outside
+themselves (`native_libraries` host libraries, `*.offline.nrm`) or contain files an
+operating system runs directly stay refused, even with consent.
 
 Required dependencies become package requirements. A mod needing a mod that is not
 installed is refused until that mod is installed, and a mod that is on cannot be

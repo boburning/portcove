@@ -103,6 +103,10 @@ impl Layout {
     fn journal(&self) -> PathBuf {
         self.store().join("switch.json")
     }
+    /// Package digests whose code the player explicitly allowed to run.
+    fn code_consent(&self) -> PathBuf {
+        self.store().join("code-consent.json")
+    }
     fn pending(&self) -> PathBuf {
         self.store().join("restore-pending")
     }
@@ -134,6 +138,123 @@ pub(crate) struct StagedPackage {
     pub native_version: Option<String>,
     /// Native IDs of packages this one needs, from its own metadata.
     pub requires: Vec<String>,
+    /// True when the package runs code and the player allowed these exact bytes.
+    pub code_consent: bool,
+}
+
+const MAX_CODE_CONSENTS: usize = 4096;
+
+/// Digests the player allowed to run code in this library, for this game.
+fn consented_code(layout: &Layout) -> Result<BTreeSet<String>> {
+    let path = layout.code_consent();
+    if !path.try_exists()? {
+        return Ok(BTreeSet::new());
+    }
+    if fs::metadata(&path)?.len() > (MAX_CODE_CONSENTS as u64) * 80 {
+        return Err(PortcoveError::state(
+            "the mod code consent record exceeds its bound",
+        ));
+    }
+    let digests: BTreeSet<String> = serde_json::from_slice(&fs::read(&path)?)?;
+    if digests.len() > MAX_CODE_CONSENTS || digests.iter().any(|sha| !is_sha256(sha)) {
+        return Err(PortcoveError::state(
+            "the mod code consent record is not readable",
+        ));
+    }
+    Ok(digests)
+}
+
+fn is_sha256(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+}
+
+fn record_code_consent(layout: &Layout, sha256: &str) -> Result<()> {
+    let mut digests = consented_code(layout)?;
+    if !digests.insert(sha256.to_owned()) {
+        return Ok(());
+    }
+    if digests.len() > MAX_CODE_CONSENTS {
+        return Err(PortcoveError::state(
+            "too many mods with allowed code are recorded",
+        ));
+    }
+    fs::create_dir_all(layout.store())?;
+    crate::durability::write_bytes_atomically(
+        &layout.code_consent(),
+        &serde_json::to_vec(&digests)?,
+        true,
+    )
+}
+
+/// What a Recomp package runs, in words a player can review.
+fn describe_execution(execution: &[crate::RecompExecution]) -> String {
+    execution
+        .iter()
+        .map(|kind| match kind {
+            crate::RecompExecution::RecompiledCode => {
+                "game code the Recomp runtime recompiles and runs"
+            }
+            crate::RecompExecution::NativeLibraries => "libraries the operating system loads",
+            crate::RecompExecution::ExternalCode => "code from a separate library file",
+        })
+        .collect::<Vec<_>>()
+        .join("; ")
+}
+
+/// Only recompiled game code, which runs inside the Recomp runtime, can be
+/// allowed. Host libraries and offline packages load code outside the reviewed
+/// package and stay refused.
+fn require_admissible_code(recomp: &crate::RecompModInspection) -> Result<()> {
+    if recomp
+        .holds
+        .contains(&crate::RecompModHold::HostExecutableFiles)
+        || recomp
+            .execution
+            .iter()
+            .any(|kind| *kind != crate::RecompExecution::RecompiledCode)
+    {
+        return Err(PortcoveError::unsupported(
+            "this mod loads code from outside its package, such as system libraries; Portcove does not install that kind of mod; nothing was installed",
+        )
+        .detail("mod", &recomp.native_id)
+        .detail("runs", describe_execution(&recomp.execution)));
+    }
+    Ok(())
+}
+
+fn code_consent_required(recomp: &crate::RecompModInspection) -> PortcoveError {
+    PortcoveError::usage(
+        "this mod runs its own code inside the game; it is installed only when you allow code for these exact bytes; nothing was installed",
+    )
+    .detail("mod", &recomp.native_id)
+    .detail("runs", describe_execution(&recomp.execution))
+    .detail("sha256", &recomp.sha256)
+}
+
+/// Before a stored Recomp package is placed in the mods folder: a package whose
+/// bytes run code is placed only when the player allowed those exact bytes.
+fn require_deployable_code(layout: &Layout, stored: &Path, sha256: &str) -> Result<()> {
+    let Some(game) = native_mod_list::recomp_game(&layout.port_id()) else {
+        return Ok(());
+    };
+    let recomp = crate::inspect_recomp_mod(stored, game)?;
+    if recomp.execution.is_empty() && recomp.holds.is_empty() {
+        return Ok(());
+    }
+    if recomp.holds.contains(&crate::RecompModHold::OtherGame) {
+        return Err(PortcoveError::unsupported(
+            "a stored mod is made for a different game; nothing was changed",
+        )
+        .detail("mod", &recomp.native_id));
+    }
+    require_admissible_code(&recomp)?;
+    if !consented_code(layout)?.contains(sha256) {
+        return Err(code_consent_required(&recomp));
+    }
+    Ok(())
 }
 
 /// Reviews a private package copy under the port's loader contract, without
@@ -142,6 +263,7 @@ pub(crate) fn inspect_for_port(
     port_id: &str,
     private: PathBuf,
     provider: Option<crate::ProviderPackageRef>,
+    allow_code_sha256: Option<&str>,
 ) -> Result<StagedPackage> {
     let Some(game) = native_mod_list::recomp_game(port_id) else {
         let inspection = inspect_asset_archive(&private)?;
@@ -151,21 +273,22 @@ pub(crate) fn inspect_for_port(
             provider,
             native_version: None,
             requires: Vec::new(),
+            code_consent: false,
         });
     };
     let recomp = crate::inspect_recomp_mod(&private, game)?;
-    if let Some(hold) = recomp.holds.first() {
-        return Err(match hold {
-            crate::RecompModHold::OtherGame => PortcoveError::unsupported(
-                "this mod is made for a different game; nothing was installed",
-            )
-            .detail("game", &recomp.game_id),
-            crate::RecompModHold::ExecutableContent
-            | crate::RecompModHold::HostExecutableFiles => PortcoveError::unsupported(
-                "this mod runs its own code. Portcove installs only mods that change assets for this game until running mod code is reviewed; nothing was installed",
-            )
-            .detail("mod", &recomp.native_id),
-        });
+    if recomp.holds.contains(&crate::RecompModHold::OtherGame) {
+        return Err(PortcoveError::unsupported(
+            "this mod is made for a different game; nothing was installed",
+        )
+        .detail("game", &recomp.game_id));
+    }
+    let runs_code = !recomp.holds.is_empty() || !recomp.execution.is_empty();
+    if runs_code {
+        require_admissible_code(&recomp)?;
+        if allow_code_sha256 != Some(recomp.sha256.as_str()) {
+            return Err(code_consent_required(&recomp));
+        }
     }
     let file_name = format!("{}.nrm", recomp.native_id);
     // The manifest, not a file on disk, now names the file: refuse a name some
@@ -195,6 +318,7 @@ pub(crate) fn inspect_for_port(
         inspection,
         provider,
         native_version: Some(recomp.native_version),
+        code_consent: runs_code,
         requires: recomp
             .dependencies
             .iter()
@@ -310,6 +434,7 @@ fn deploy(layout: &Layout, from: Option<&ProfileRevision>, to: &ProfileRevision)
             )
             .detail("package", &package.native_id));
         }
+        require_deployable_code(layout, &stored, &package.sha256)?;
         to_place.push((stored, live));
     }
     if let Some(from) = from {
@@ -723,6 +848,44 @@ impl PortcoveService {
         source: &Path,
         expected_revision: u64,
     ) -> Result<ProfileRevision> {
+        self.install_mod_package_with(port_id, profile_id, source, expected_revision, None)
+    }
+
+    /// Like [`Self::install_mod_package`], and the player allows the package to
+    /// run its own code. The consent names the package's SHA-256: other bytes,
+    /// including a later version, need their own consent. It records the
+    /// player's choice; it does not establish that the code is safe or who
+    /// wrote it.
+    pub fn install_mod_package_allowing_code(
+        &self,
+        port_id: &str,
+        profile_id: &str,
+        source: &Path,
+        expected_revision: u64,
+        code_sha256: &str,
+    ) -> Result<ProfileRevision> {
+        if !is_sha256(code_sha256) {
+            return Err(PortcoveError::usage(
+                "allowing mod code needs the package's lowercase SHA-256",
+            ));
+        }
+        self.install_mod_package_with(
+            port_id,
+            profile_id,
+            source,
+            expected_revision,
+            Some(code_sha256),
+        )
+    }
+
+    fn install_mod_package_with(
+        &self,
+        port_id: &str,
+        profile_id: &str,
+        source: &Path,
+        expected_revision: u64,
+        allow_code_sha256: Option<&str>,
+    ) -> Result<ProfileRevision> {
         let layout = self.deploy_layout(port_id)?;
         let _guard = self.library.try_lock_port(port_id, "install-mod-package")?;
         self.recover_switch_locked(port_id, &layout)?;
@@ -735,7 +898,7 @@ impl PortcoveService {
             .ok_or_else(|| PortcoveError::usage("the package path has no file name"))?;
         let private = staging.path().join(file_name);
         fs::copy(source, &private)?;
-        let staged = inspect_for_port(port_id, private, None)?;
+        let staged = inspect_for_port(port_id, private, None, allow_code_sha256)?;
         self.install_staged_locked(port_id, profile_id, expected_revision, vec![staged])
     }
 
@@ -808,6 +971,9 @@ impl PortcoveService {
                         "package bytes changed while being stored; nothing was installed",
                     ));
                 }
+            }
+            if item.code_consent {
+                record_code_consent(&layout, &inspection.sha256)?;
             }
             let package = ResolvedPackage {
                 native_id: inspection.file_name.clone(),

@@ -1003,8 +1003,13 @@ fn recomp_mods_that_run_code_or_belong_to_another_game_are_refused() {
         .service
         .install_mod_package(RECOMP, &w.default, &code, 1)
         .unwrap_err();
-    assert_eq!(error.code, crate::ErrorCode::Unsupported);
+    assert_eq!(error.code, crate::ErrorCode::Usage);
     assert!(error.message.contains("runs its own code"));
+    assert_eq!(
+        error.details.get("sha256").map(String::as_str),
+        Some(sha256_file(&code).unwrap().as_str()),
+        "the refusal names the bytes to allow"
+    );
     let other = archive(
         &w.scratch,
         "other.nrm",
@@ -1267,4 +1272,103 @@ fn an_upgraded_copy_uses_the_current_build_and_leaves_the_pinned_setup_on_its_ow
         .unwrap()
         .unwrap();
     assert_eq!(chosen.id, "first");
+
+fn recomp_code_runs_only_for_the_exact_bytes_the_player_allowed() {
+    let w = recomp_world();
+    let code = w.nrm(
+        "code.nrm",
+        "speedrun_timer",
+        &[],
+        &[("mod_binary.bin", b"\0"), ("mod_syms.bin", b"\0")],
+    );
+    let sha = sha256_file(&code).unwrap();
+    // Consent for other bytes does not cover this package.
+    let error = w
+        .service
+        .install_mod_package_allowing_code(RECOMP, &w.default, &code, 1, &"0".repeat(64))
+        .unwrap_err();
+    assert!(error.message.contains("runs its own code"));
+    assert_eq!(w.revision(), 1);
+    let installed = w
+        .service
+        .install_mod_package_allowing_code(RECOMP, &w.default, &code, 1, &sha)
+        .unwrap();
+    assert_eq!(installed.packages[0].native_id, "speedrun_timer.nrm");
+    assert_eq!(w.live(), ["speedrun_timer.nrm"]);
+    assert_eq!(w.list()["enabled_mods"], serde_json::json!(["speedrun_timer"]));
+
+    // A later version is new bytes and needs its own consent.
+    let newer = w.nrm(
+        "code2.nrm",
+        "speedrun_timer",
+        &[],
+        &[("mod_binary.bin", b"\x01"), ("mod_syms.bin", b"\0")],
+    );
+    let error = w
+        .service
+        .install_mod_package(RECOMP, &w.default, &newer, w.revision())
+        .unwrap_err();
+    assert!(error.message.contains("runs its own code"));
+    assert_eq!(w.live(), ["speedrun_timer.nrm"], "the allowed version stays");
+
+    // Libraries loaded by the operating system are never admitted, even with consent.
+    let manifest = br#"{"game_id":"mm","id":"native_helper","display_name":"N","version":"1.0.0",
+        "authors":["a"],"minimum_recomp_version":"1.0.0","native_libraries":{"helper":["run"]}}"#;
+    let native = archive(&w.scratch, "native.nrm", &[("mod.json", manifest.as_slice())]);
+    let error = w
+        .service
+        .install_mod_package_allowing_code(
+            RECOMP,
+            &w.default,
+            &native,
+            w.revision(),
+            &sha256_file(&native).unwrap(),
+        )
+        .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Unsupported);
+    assert!(error.message.contains("outside its package"));
+}
+
+#[test]
+fn stored_code_without_consent_is_never_placed_by_any_route() {
+    let w = recomp_world();
+    let code = w.nrm(
+        "code.nrm",
+        "speedrun_timer",
+        &[],
+        &[("mod_binary.bin", b"\0"), ("mod_syms.bin", b"\0")],
+    );
+    let sha = sha256_file(&code).unwrap();
+    // Bytes reach the store without consent (for example through a recipe or a
+    // hand-written revision); placing them is still refused.
+    let layout = w.service.deploy_layout(RECOMP).unwrap();
+    let stored = layout.package(&sha, "speedrun_timer.nrm");
+    fs::create_dir_all(stored.parent().unwrap()).unwrap();
+    fs::copy(&code, &stored).unwrap();
+    let other = w
+        .service
+        .copy_profile(RECOMP, &w.default, "Forged")
+        .unwrap();
+    w.service
+        .create_profile_revision(
+            RECOMP,
+            &other.id,
+            &crate::ProfileRevisionRequest {
+                expected_revision: 1,
+                packages: Some(vec![ResolvedPackage {
+                    native_id: "speedrun_timer.nrm".into(),
+                    native_version: Some("1.0.0".into()),
+                    provider: None,
+                    sha256: sha.clone(),
+                    size: fs::metadata(&code).unwrap().len(),
+                    enabled: true,
+                    requires: Vec::new(),
+                }]),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let error = w.service.activate_profile(RECOMP, &other.id).unwrap_err();
+    assert!(error.message.contains("runs its own code"), "{error:?}");
+    assert!(!w.user().join("mods").join("speedrun_timer.nrm").exists());
 }
