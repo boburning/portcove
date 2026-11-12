@@ -887,6 +887,18 @@ fn offline_or_removed_folder_leaves_local_play_untouched() {
         .push_portable_saves_to_folder(PORT, &missing, preview.content_sha256.as_deref().unwrap())
         .unwrap_err();
     assert_eq!(error.code, crate::ErrorCode::NotFound);
+    let digest = preview.content_sha256.as_deref().unwrap();
+    for error in [
+        pc.service
+            .preview_folder_save_import(PORT, &missing, digest, Default::default())
+            .unwrap_err(),
+        pc.service
+            .mark_folder_saves_superseded(PORT, &missing, digest)
+            .unwrap_err(),
+    ] {
+        assert_eq!(error.code, crate::ErrorCode::NotFound, "{error}");
+        assert!(error.to_string().contains("not available"), "{error}");
+    }
     assert!(
         !missing.exists(),
         "Portcove never creates the player's folder"
