@@ -793,9 +793,12 @@ adding a folder never turns it on.
 | `future-only`         | Only games whose files were not in the folder when you chose this mode. |
 | `off`                 | Nothing; turning it off never changes installed games.                  |
 
-`future-only` lists the folder when you choose it and remembers every file
-there by its path inside the folder and its size, whether or not Portcove
-recognizes it yet. Those files are never set up by this choice, so restarts,
+`future-only` lists the folder when you choose it and remembers every file and
+subfolder there, whether or not Portcove recognizes it yet. A file is
+remembered by its path inside the folder and size, and also by its size and
+exact modification time, so renaming or moving it inside the folder doesn't
+make it new. A game stored as a folder counts as already there if its folder
+or any file inside it was. Those files are never set up by this choice, so restarts,
 rescans, repeated events, catalog changes that recognize more files, and clock
 changes never enroll them. The folder must be available when you choose it.
 Relinking the folder to another location remembers the files already there

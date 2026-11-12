@@ -125,45 +125,72 @@ fn encode(consent: &RootSetupConsent) -> Result<String> {
     Ok(encoded)
 }
 
-/// A file's identity for the enrollment boundary: its path inside the folder
-/// and its size. It does not depend on the catalog or on modification times.
-fn file_identity(relative: &Path, size: u64) -> Result<String> {
-    let relative = crate::path::unicode(relative, "game file")?;
-    Ok(format!("{}\0{size}", relative.replace('\\', "/")))
+/// A file's identities for the enrollment boundary. Neither depends on the
+/// catalog. `p:` is its path inside the folder and size; `t:` is its size and
+/// exact modification time, which renaming or moving it inside the folder
+/// keeps. A file matching either is treated as already there.
+fn file_identities(relative: &Path, metadata: &std::fs::Metadata) -> Result<Vec<String>> {
+    let relative = crate::path::unicode(relative, "game file")?.replace('\\', "/");
+    let size = metadata.len();
+    let mut identities = vec![format!("p:{relative}\0{size}")];
+    if let Some(modified) = metadata
+        .modified()
+        .ok()
+        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+    {
+        identities.push(format!("t:{size}\0{}", modified.as_nanos()));
+    }
+    Ok(identities)
 }
 
-/// Every regular file in `root` (symbolic links are not followed), bounded.
+/// A folder's identity: its path inside the root. Games stored as folders
+/// also match through the files inside them.
+fn directory_identity(relative: &Path) -> Result<String> {
+    Ok(format!(
+        "d:{}",
+        crate::path::unicode(relative, "game folder")?.replace('\\', "/")
+    ))
+}
+
+fn unreadable(path: &Path, error: impl std::fmt::Display) -> PortcoveError {
+    PortcoveError::usage(
+        "some files in this folder could not be read, so Portcove can't tell which games are already there",
+    )
+    .detail("path", path.display().to_string())
+    .detail("cause", error.to_string())
+}
+
+/// Every regular file and folder in `root` (symbolic links are not
+/// followed), bounded.
 fn folder_files(root: &Path) -> Result<BTreeSet<String>> {
     let mut identities = BTreeSet::new();
     let mut pending = vec![(root.to_path_buf(), 0usize)];
     while let Some((directory, depth)) = pending.pop() {
-        let entries = std::fs::read_dir(&directory).map_err(|error| {
-            PortcoveError::usage("this folder could not be listed")
-                .detail("path", directory.display().to_string())
-                .detail("cause", error.to_string())
-        })?;
+        let entries =
+            std::fs::read_dir(&directory).map_err(|error| unreadable(&directory, error))?;
         for entry in entries {
-            let entry = entry?;
-            let metadata = std::fs::symlink_metadata(entry.path())?;
+            let path = entry.map_err(|error| unreadable(&directory, error))?.path();
+            let metadata =
+                std::fs::symlink_metadata(&path).map_err(|error| unreadable(&path, error))?;
+            let relative = path
+                .strip_prefix(root)
+                .map(Path::to_path_buf)
+                .map_err(|_| PortcoveError::state("a listed file is outside its folder"))?;
             if metadata.is_dir() {
                 if depth >= MAX_BASELINE_DEPTH {
                     return Err(PortcoveError::usage(
                         "this folder is nested too deeply to remember which games are already there",
                     ));
                 }
-                pending.push((entry.path(), depth + 1));
+                identities.insert(directory_identity(&relative)?);
+                pending.push((path, depth + 1));
             } else if metadata.is_file() {
-                let relative = entry
-                    .path()
-                    .strip_prefix(root)
-                    .map(Path::to_path_buf)
-                    .map_err(|_| PortcoveError::state("a listed file is outside its folder"))?;
-                identities.insert(file_identity(&relative, metadata.len())?);
-                if identities.len() > MAX_ROOT_SETUP_BASELINE {
-                    return Err(PortcoveError::usage(
-                        "this folder has too many files to remember which games are already there",
-                    ));
-                }
+                identities.extend(file_identities(&relative, &metadata)?);
+            }
+            if identities.len() > MAX_ROOT_SETUP_BASELINE {
+                return Err(PortcoveError::usage(
+                    "this folder has too many files to remember which games are already there",
+                ));
             }
         }
     }
@@ -341,7 +368,7 @@ impl Library {
                     connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
                 insert_baseline(&transaction, root_id, &identities)?;
                 let count: i64 = transaction.query_row(
-                    "SELECT count(*) FROM game_file_root_setup_baseline WHERE root_id=?1",
+                    "SELECT count(*) FROM game_file_root_setup_baseline WHERE root_id=?1 AND identity LIKE 'p:%'",
                     [root_id],
                     |row| row.get(0),
                 )?;
@@ -419,7 +446,13 @@ impl PortcoveService {
             enrollment,
             enabled_at: now,
             updated_at: now,
-            existing_files: u32::try_from(baseline.len()).unwrap_or(u32::MAX),
+            existing_files: u32::try_from(
+                baseline
+                    .iter()
+                    .filter(|identity| identity.starts_with("p:"))
+                    .count(),
+            )
+            .unwrap_or(u32::MAX),
             implementations,
             failures: Vec::new(),
         };
@@ -485,10 +518,21 @@ impl PortcoveService {
         };
         Ok(match consent.enrollment {
             RootSetupEnrollment::ExistingAndFuture => true,
-            RootSetupEnrollment::FutureOnly => match current_identity(root_path, &candidate.path) {
-                Some(identity) => !self
-                    .library
-                    .root_setup_baseline_contains(root_id, &identity)?,
+            RootSetupEnrollment::FutureOnly => match current_identities(root_path, &candidate.path)
+            {
+                Some(identities) => {
+                    let mut existing = false;
+                    for identity in &identities {
+                        if self
+                            .library
+                            .root_setup_baseline_contains(root_id, identity)?
+                        {
+                            existing = true;
+                            break;
+                        }
+                    }
+                    !existing
+                }
                 // A file that can't be checked now is not enrolled now.
                 None => false,
             },
@@ -836,14 +880,43 @@ impl PortcoveService {
     }
 }
 
-/// The boundary identity of a file as it is now, or `None` if it can't be read.
-fn current_identity(root_path: &Path, path: &Path) -> Option<String> {
+/// Files a folder-shaped game is matched through, at most.
+const MAX_DIRECTORY_MEMBERS: usize = 1024;
+
+/// The boundary identities of a matched file or game folder as it is now, or
+/// `None` if it can't be read. A game folder that existed, or that holds a
+/// file that existed (even renamed or moved), counts as already there.
+fn current_identities(root_path: &Path, path: &Path) -> Option<Vec<String>> {
     let relative = path.strip_prefix(root_path).ok()?;
     let metadata = std::fs::symlink_metadata(path).ok()?;
-    metadata
-        .is_file()
-        .then(|| file_identity(relative, metadata.len()).ok())
-        .flatten()
+    if metadata.is_file() {
+        return file_identities(relative, &metadata).ok();
+    }
+    if !metadata.is_dir() {
+        return None;
+    }
+    let mut identities = vec![directory_identity(relative).ok()?];
+    let mut pending = vec![path.to_path_buf()];
+    let mut members = 0;
+    while let Some(directory) = pending.pop() {
+        for entry in std::fs::read_dir(&directory).ok()? {
+            let entry_path = entry.ok()?.path();
+            let entry_metadata = std::fs::symlink_metadata(&entry_path).ok()?;
+            if entry_metadata.is_dir() {
+                pending.push(entry_path);
+            } else if entry_metadata.is_file() {
+                identities.extend(
+                    file_identities(entry_path.strip_prefix(root_path).ok()?, &entry_metadata)
+                        .ok()?,
+                );
+                members += 1;
+                if members >= MAX_DIRECTORY_MEMBERS {
+                    return Some(identities);
+                }
+            }
+        }
+    }
+    Some(identities)
 }
 
 /// The failure key for a file that could not be registered: changed bytes
@@ -911,7 +984,9 @@ mod tests {
         fn file_in(&self, directory: &Path, name: &str, byte: char) -> SourceRecord {
             let sha256 = byte.to_string().repeat(64);
             let path = directory.join(name);
-            std::fs::write(&path, byte.to_string().repeat(4)).unwrap();
+            // Distinct sizes, so files never share an identity by chance.
+            let size = 4 + usize::from(byte as u8 - b'a');
+            std::fs::write(&path, byte.to_string().repeat(size)).unwrap();
             SourceRecord {
                 profile_id: self.profile.clone(),
                 path,
@@ -1064,6 +1139,52 @@ mod tests {
             assert!(folder.pass().await.batches.is_empty());
         }
         assert!(!folder.installed());
+    }
+
+    #[tokio::test]
+    async fn renaming_or_moving_an_existing_file_does_not_enroll_it() {
+        let folder = folder();
+        let existing = folder.file("zelda.z64", 'a');
+        folder.consent(RootSetupEnrollment::FutureOnly);
+        let nested = folder.root.join("N64");
+        std::fs::create_dir(&nested).unwrap();
+        let moved = nested.join("Zelda (USA).z64");
+        std::fs::rename(&existing.path, &moved).unwrap();
+        let renamed = SourceRecord {
+            path: moved,
+            ..existing
+        };
+        folder.in_use(&renamed);
+        folder.scanned(vec![renamed]);
+        assert!(folder.pass().await.batches.is_empty());
+        assert!(!folder.installed());
+    }
+
+    #[tokio::test]
+    async fn games_stored_as_folders_follow_the_same_boundary() {
+        let folder = folder();
+        let old_game = folder.root.join("Old Game");
+        std::fs::create_dir(&old_game).unwrap();
+        let old_member = folder.file_in(&old_game, "data.bin", 'a');
+        folder.consent(RootSetupEnrollment::FutureOnly);
+        let existing = SourceRecord {
+            path: old_game,
+            ..old_member
+        };
+        folder.in_use(&existing);
+        folder.scanned(vec![existing]);
+        assert!(folder.pass().await.batches.is_empty());
+        // A game folder added later is new content and is set up.
+        let new_game = folder.root.join("New Game");
+        std::fs::create_dir(&new_game).unwrap();
+        let new_member = folder.file_in(&new_game, "data.bin", 'b');
+        let added = SourceRecord {
+            path: new_game,
+            ..new_member
+        };
+        folder.in_use(&added);
+        folder.scanned(vec![added]);
+        assert_eq!(folder.pass().await.batches.len(), 1);
     }
 
     #[tokio::test]
