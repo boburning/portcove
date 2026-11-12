@@ -34464,7 +34464,7 @@
           },
           {
             "title": "Set up MDK on Linux",
-            "instruction": "Choose mdk-linux-x64.tar.gz or mdk-linux-arm64.tar.gz from the stable releases. Use a Vulkan driver and keep libSDL3.so beside mdk_sdl. Point MDK_DATA_DIR or the [paths] mdk entry in mdk_paths.cfg at your complete original installation. The inspected v1.2.6 x86-64 player needs glibc 2.43 or later and its ARM64 sibling needs glibc 2.38 or later."
+            "instruction": "On x86-64 Linux, Portcove can install and update the official mdk-linux-x64.tar.gz player. For an ARM64 copy you maintain, choose mdk-linux-arm64.tar.gz from the stable releases. Use a Vulkan driver and keep libSDL3.so beside mdk_sdl. Point MDK_DATA_DIR or the [paths] mdk entry in mdk_paths.cfg at your complete original installation. The inspected v1.2.6 x86-64 player needs glibc 2.43 or later and its ARM64 sibling needs glibc 2.38 or later."
           },
           {
             "title": "Set up MDK on an Apple silicon Mac",
@@ -34476,13 +34476,13 @@
           }
         ],
         "warnings": [
-          "Optional HD texture generation downloads and starts a separate upscaling tool. Let it finish, or cancel and confirm it has stopped before updating, backing up or removing the player. You and upstream maintain the Linux, Mac and Android copies."
+          "Optional HD texture generation downloads and starts a separate upscaling tool. Let it finish, or cancel and confirm it has stopped before updating, backing up or removing the player. You and upstream maintain the Linux ARM64, Mac and Android copies."
         ],
         "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/main/README.md",
         "references": [
           {
             "title": "Keep your desktop files",
-            "instruction": "For a Linux or Mac copy you maintain, keep settings.cfg, saves, mods, captures and custom exports. Keep the whole MDK_USER_DIR if you set it, or the actual user-data fallback if the player folder is read-only. On first portable start, upstream can copy settings and saves from an older personal profile. Keep both copies until you know which one the player uses. Keep mdk_paths.cfg and your originals separately."
+            "instruction": "For a Linux ARM64 or Mac copy you maintain, keep settings.cfg, saves, mods, captures and custom exports. Keep the whole MDK_USER_DIR if you set it, or the actual user-data fallback if the player folder is read-only. On first portable start, upstream can copy settings and saves from an older personal profile. Keep both copies until you know which one the player uses. Keep mdk_paths.cfg and your originals separately."
           }
         ]
       },
@@ -34493,9 +34493,6 @@
         "macos-aarch64"
       ],
       "download_asset_hints": {
-        "linux-x86-64": [
-          "mdk-linux-x64.tar.gz"
-        ],
         "macos-aarch64": [
           "mdk-osx-arm64.zip"
         ]

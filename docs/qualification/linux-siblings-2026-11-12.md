@@ -1,6 +1,6 @@
-# Linux x86-64 siblings for five managed titles
+# Managed platform siblings for seven titles
 
-Dated package evidence for five managed Linux x86-64 routes added on November 12,
+Dated package evidence for new managed platform routes added on November 12,
 2026, under #2926. Each route reuses an established adapter and the title's
 existing Windows contract. No new runtime capability is introduced.
 
@@ -124,6 +124,19 @@ Core extraction refuses the dangling link with "archive links and special files
 are not allowed". This is a demonstrated package failure, not missing
 knowledge. Reconsider when upstream ships a Linux archive whose links all
 resolve inside the package. Windows management is unchanged.
+
+## MDK / mdk-sdl (#1775), `native-portable`
+
+`mdk-linux-x64.tar.gz` v1.2.6 (5,153,514 bytes, provider SHA-256 `4b983ef1…`
+matched) has tag commit `1094e273b33c3bae6a06c5b04d0381ebc5f143c3`. The archive
+holds `mdk_sdl`, `libSDL3.so` and `icon.png`, and passed Core layout inspection.
+The NativeAOT player needs only libc, libm and the loader, but requires glibc
+2.43. Exact source in `UserFolders.Choose` keeps settings, saves and mods beside
+the executable whenever that folder is writable, as on Windows. The fallback is
+`~/.local/share/mdk-sdl` on Linux, and a first portable run copies older data
+from there. The Windows persistence contract therefore applies unchanged. The
+listing's upstream-owned Linux x86-64 entry moves to the managed integration.
+Linux ARM64 and Apple silicon stay upstream-owned setup.
 
 ## Not observed
 
