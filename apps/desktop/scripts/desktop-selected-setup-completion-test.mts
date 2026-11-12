@@ -4,7 +4,6 @@ import { observeVisibleTarget } from "./browser-readiness.mts";
 import { prepareCaptureTarget, requireUnchangedCaptureTarget } from "../test/capture-target.ts";
 import { errorMessage } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
-import { gameIdentityLabel } from "../src/port-identity.ts";
 import {
   captureSettledVisual,
   observePreparationCompletion,
@@ -23,7 +22,9 @@ import {
   assertCompactReview,
   assertPrimaryReviewAction,
   captureAccessibilityReport,
+  clearCatalogFilters,
   reviewControls,
+  selectCatalogPort,
   selectPrimaryNavigation,
   selectGameFilesSettings,
   setupConfirmButton,
@@ -594,49 +595,12 @@ export async function selectedSetupCompletionScenario({
           5_000,
         );
         await enlargedStage("choose-inputs");
-        await click(By.css('button[aria-label="Choose a game or port"]'));
-        const query = await browser.findElement(By.id("port-search"));
+        // Add games sends game choice to Discover, where the exact port is chosen.
+        await click(By.css('button[aria-label="Browse games"]'));
+        const query = await browser.wait(until.elementLocated(By.id("port-search")), 5_000);
         await query.sendKeys(port.name);
-        await browser.wait(until.elementLocated(By.css('[role="option"]')), 5_000);
-        const options = await browser.findElements(By.css('[role="option"]'));
-        const projectDescription = `Port project: ${port.name} · ${port.id}`;
-        const descriptions = await Promise.all(options.map((option) => option.getText()));
-        assert.equal(
-          descriptions.filter((text) => text.split(/\r?\n/u).includes(projectDescription)).length,
-          1,
-        );
-        async function highlightExactSetupProject() {
-          let highlightedExactPort = false;
-          for (let index = 0; index <= options.length; index++) {
-            await query.sendKeys(Key.ARROW_DOWN);
-            const activeId = await query.getAttribute("aria-activedescendant");
-            if (!activeId) continue;
-            const active = await browser.findElement(By.id(activeId));
-            if ((await active.getText()).split(/\r?\n/u).includes(projectDescription)) {
-              highlightedExactPort = true;
-              break;
-            }
-          }
-          assert.equal(
-            highlightedExactPort,
-            true,
-            "Keyboard selection must highlight the exact stable port project",
-          );
-        }
-        await highlightExactSetupProject();
-        await query.sendKeys(Key.ENTER);
-        await browser.wait(
-          async () => (await query.getAttribute("aria-expanded")) === "false",
-          5_000,
-        );
-        assert.equal(await query.getAttribute("value"), gameIdentityLabel(port));
-        // Reopen to observe the committed ID through the selected option, rather
-        // than inferring identity from a possibly duplicated display title.
-        await query.sendKeys(Key.ARROW_DOWN);
-        await browser.wait(
-          async () => (await query.getAttribute("aria-expanded")) === "true",
-          5_000,
-        );
+        await clearCatalogFilters(browser);
+        await selectCatalogPort(browser, port.id);
         {
           await browser.wait(
             () =>
@@ -647,38 +611,34 @@ export async function selectedSetupCompletionScenario({
             10_000,
           );
           const enlarged = await executeBrowserScript(browser, () => {
-            const input = document.querySelector<HTMLInputElement>("#port-search");
-            const list = document.getElementById(input?.getAttribute("aria-controls") ?? "");
-            const selectedOption = list?.querySelector('[role="option"][aria-selected="true"]');
-            const project = [...(selectedOption?.querySelectorAll("span") ?? [])]
-              .map((span) => span.textContent ?? "")
-              .find((text) => text.startsWith("Port project: "));
+            const detail = document.querySelector<HTMLElement>(
+              "[data-detail-workspace][data-detail-port-id]",
+            );
             return {
               width: innerWidth,
               height: innerHeight,
               client: document.documentElement.clientWidth,
               scroll: document.documentElement.scrollWidth,
-              query: input?.value,
-              selected: project?.slice(project.lastIndexOf(" · ") + 3),
-              selected_project: project,
+              query: document.querySelector<HTMLInputElement>("#port-search")?.value,
+              selected: detail?.dataset.detailPortId,
+              heading: detail?.querySelector("h1")?.textContent?.trim(),
             };
           });
           assert.ok(enlarged.width <= 240 && enlarged.scroll <= enlarged.client + 1);
-          assert.equal(enlarged.query, gameIdentityLabel(port));
+          assert.equal(enlarged.query, port.name);
           assert.equal(enlarged.selected, port.id);
-          assert.equal(enlarged.selected_project, projectDescription);
           const receipt = path.join(output, "add-games-native-400.json");
           await writeFile(receipt, JSON.stringify(enlarged, null, 2), { flag: "wx" });
           artifacts.push(receipt);
         }
-        await query.sendKeys(Key.ESCAPE);
+        // Add games keeps its workspace while the player browses elsewhere.
         await selectPrimaryNavigation(browser, "Settings");
         await selectPrimaryNavigation(browser, "Library");
-        assert.equal(
-          await browser.findElement(By.id("port-search")).getAttribute("value"),
-          gameIdentityLabel(port),
+        await browser.wait(
+          until.elementLocated(By.xpath('//h1[normalize-space(.)="Add games"]')),
+          5_000,
         );
-        await click(By.css('button[aria-label="Find games in a folder"]'));
+        await click(By.css('button[aria-label="Scan a folder"]'));
       }
       await browser.wait(until.elementLocated(By.id(setupHeading)), 5_000);
       await enlargedStage("scan-and-recognize");

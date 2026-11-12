@@ -218,7 +218,10 @@ describe("desktop components", () => {
       html.indexOf('data-settings-group="game-files"'),
     );
     expect(libraryStorage).toContain("Snapshot saved data before version changes");
-    expect(html.indexOf("Game-file libraries")).toBeLessThan(html.indexOf("Game files and BIOS"));
+    expect(html).toContain("Folders Portcove scans");
+    expect(html.indexOf("Folders Portcove scans")).toBeLessThan(
+      html.indexOf("Game files and BIOS"),
+    );
     expect(html.indexOf("Game files and BIOS")).toBeLessThan(html.indexOf("Disc tools"));
     expect(html.indexOf("Portcove updates")).toBeLessThan(html.indexOf("Official catalog updates"));
     expect(html.indexOf("Official catalog updates")).toBeLessThan(html.indexOf("Game catalog"));

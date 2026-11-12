@@ -3272,11 +3272,12 @@ try {
       ),
       5_000,
     );
-    for (const name of [
-      "Choose a game or port",
-      "Find games in a folder",
-      "Use an existing installation",
-    ])
+    assert.equal(
+      (await browser.findElements(By.css('[aria-label="Ways to add games"] button'))).length,
+      3,
+      "Add games must offer exactly three routes",
+    );
+    for (const name of ["Browse games", "Scan a folder", "Use an existing installation"])
       assert.equal(
         await browser.findElement(By.css(`button[aria-label="${name}"]`)).isDisplayed(),
         true,

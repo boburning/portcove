@@ -432,9 +432,7 @@ function workspaceSourceIntakeReturnFocus(portId: string) {
   return (
     detail?.querySelector<HTMLButtonElement>(".primary-actions button:not(:disabled)") ??
     detail?.querySelector<HTMLButtonElement>(".detail-back") ??
-    document.querySelector<HTMLButtonElement>(
-      'section[aria-label="Add games workspace"]:not([hidden]) #add-games-check-files',
-    )
+    null
   );
 }
 
@@ -1155,7 +1153,6 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
                   perform={model.operations.perform}
                   onAdded={model.data.refreshAfterMutation}
                   onOpenPort={model.openPortDetails}
-                  onCheckFiles={model.openSourceIntake}
                   onBrowseCatalog={() => model.setPrimaryView("catalog")}
                   onCopyInstallation={() => model.ui.setAdoptOpen(true)}
                   setupSource={model.setupSource}

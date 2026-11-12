@@ -691,6 +691,7 @@ export function GameFileLibraries({
   onOpenPort,
   setupSource,
   setSetupSource,
+  scanAfterAdd = false,
 }: {
   instanceId?: string;
   generation: number;
@@ -703,6 +704,8 @@ export function GameFileLibraries({
   onOpenPort?: ((portId: string, originKey: string) => void) | undefined;
   setupSource?: SourceRecord | undefined;
   setSetupSource?: ((source?: SourceRecord) => void) | undefined;
+  /** One intention: choosing a folder also scans the saved folders. */
+  scanAfterAdd?: boolean;
 }) {
   const headingId = `${instanceId}-heading`;
   const returnOrigin = `${instanceId}-setup`;
@@ -844,8 +847,9 @@ export function GameFileLibraries({
       );
     }
   };
-  const add = () =>
-    run("Choosing folder…", async () => {
+  const add = () => {
+    const outcome = { saved: false };
+    return run("Choosing folder…", async () => {
       const path = await pickGameFileFolder("");
       if (!path || !accepts()) return;
       const currentRoots = await refreshRoots();
@@ -859,9 +863,13 @@ export function GameFileLibraries({
       }
       await desktopApi.addGameFileRoot(path, generation);
       if (!accepts()) return;
+      outcome.saved = true;
       setPlan(undefined);
       await refreshAfterRootChange("Folder saved.");
+    }).then(() => {
+      if (outcome.saved && scanAfterAdd && accepts()) void scan();
     });
+  };
   const relink = (root: GameFileRoot) =>
     run("Choosing replacement…", async () => {
       const path = await pickGameFileFolder(root.path);
@@ -980,7 +988,7 @@ export function GameFileLibraries({
   const renderHeading = () => (
     <div className="settings-title flex items-center justify-between gap-[12px]">
       <h2 className="m-0 flex items-center gap-2" ref={heading} id={headingId} tabIndex={-1}>
-        Game-file libraries
+        Folders Portcove scans
       </h2>
       <Button
         data-focusable
@@ -995,7 +1003,7 @@ export function GameFileLibraries({
         }
         onClick={() => void add()}
       >
-        Add folder
+        {scanAfterAdd ? "Choose folder to scan" : "Add folder"}
       </Button>
     </div>
   );
