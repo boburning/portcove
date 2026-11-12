@@ -68,6 +68,7 @@ struct AssetPreparation<'a> {
     acquisition: Option<AssetAcquisition<'a>>,
     acquired: Option<&'a Path>,
     requires_tar_xz: bool,
+    tar_xz_allow_file_links: bool,
     unwrap_inner_archive: bool,
 }
 
@@ -87,6 +88,7 @@ pub struct InstallQualification {
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     platform: Platform,
     requires_tar_xz: bool,
+    native_mac_bundle_tar_xz: bool,
     executable_hints: Vec<String>,
     runtime_subdirectory: Option<String>,
     external_profile_policy: Option<crate::ExternalProfilePolicy>,
@@ -244,6 +246,7 @@ impl InstallQualification {
             retained_contract: None,
             platform,
             requires_tar_xz: port.release.requires_tar_xz(platform),
+            native_mac_bundle_tar_xz: crate::runtime::native_mac_bundle_tar_xz(port, platform),
             executable_hints,
             runtime_subdirectory: port.runtime_subdirectory.clone(),
             external_profile_policy: port.external_profile_policy,
@@ -251,7 +254,9 @@ impl InstallQualification {
             persistent_file_patterns: port.persistent_file_patterns.clone(),
             runtime_mutable_paths: port.runtime_mutable_paths.clone(),
             runtime_mutable_file_patterns: port.runtime_mutable_file_patterns.clone(),
-            persistence_at_install_root: crate::runtime::persistence_at_install_root(port),
+            persistence_at_install_root: crate::runtime::persistence_at_install_root(
+                port, platform,
+            ),
             runtime: port.bundled_runtime.get(&platform).cloned(),
             runtime_origin: RuntimeOrigin::VerifiedDownload,
             generated_metadata: crate::adapter::generated_metadata(port)?,
@@ -974,6 +979,8 @@ impl Installer {
             .to_ascii_lowercase()
             .ends_with(".tar.xz");
         if requires_tar_xz != request.qualification.requires_tar_xz
+            || request.qualification.native_mac_bundle_tar_xz
+                != crate::runtime::native_mac_bundle_tar_xz(port, request.qualification.platform)
             || is_tar_xz != requires_tar_xz
             || (requires_tar_xz && request.qualification.retained_contract.is_none())
         {
@@ -1210,6 +1217,7 @@ impl Installer {
                         .map(|inputs| inputs.path(&request.release.asset))
                         .transpose()?,
                     requires_tar_xz: request.qualification.requires_tar_xz,
+                    tar_xz_allow_file_links: !request.qualification.native_mac_bundle_tar_xz,
                     // Only macOS and Linux routes with a declared executable unwrap a
                     // package that publishes one inner archive; other payload shapes
                     // stay as extracted.
@@ -1222,6 +1230,23 @@ impl Installer {
                 emit,
             )
             .await?;
+        let payload_root = if request.qualification.native_mac_bundle_tar_xz {
+            let contract = request
+                .qualification
+                .retained_contract
+                .as_ref()
+                .ok_or_else(|| {
+                    PortcoveError::verification("native Mac bundle lost its retained catalog")
+                })?;
+            let catalog = contract.catalog(&request.port_id)?;
+            crate::package_layout::native_mac_bundle_root(
+                &payload_root,
+                catalog.port(&request.port_id)?,
+                request.qualification.platform,
+            )?
+        } else {
+            payload_root
+        };
         if request.qualification.managed_shared_preferences.is_some() {
             let catalog = request
                 .qualification
@@ -1393,6 +1418,7 @@ impl Installer {
                         .map(|inputs| inputs.path(&runtime.asset))
                         .transpose()?,
                     requires_tar_xz: false,
+                    tar_xz_allow_file_links: true,
                     unwrap_inner_archive: false,
                 },
                 operation,
@@ -1427,10 +1453,10 @@ impl Installer {
             let port = catalog.port(&request.port_id)?.clone();
             let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
             let working = crate::adapter::launch_working_directory(
-                port.adapter,
                 &port,
                 &payload_root,
                 &selected,
+                request.qualification.platform,
             )?;
             emit(operation.message("info", "Sealing the reviewed runtime originals"));
             run_managed_install_worker(lifecycle, operation, move |operation| {
@@ -1756,6 +1782,7 @@ impl Installer {
             acquisition,
             acquired,
             requires_tar_xz,
+            tar_xz_allow_file_links,
             unwrap_inner_archive,
         } = input;
         let (artifact, cache_worker) = self
@@ -1781,6 +1808,7 @@ impl Installer {
                     &extraction_path,
                     &extraction_root,
                     expected_size,
+                    tar_xz_allow_file_links,
                     &checkpoint,
                 )
             } else {
@@ -3740,10 +3768,10 @@ pub(crate) fn check_retained_runtime_paths(install: &InstallRecord, target: &Pat
     crate::runtime_path_policy::check_executable(port, platform, &executable)?;
     let observed_executable = install.path.join(&manifest.selected_executable);
     let observed_working = crate::adapter::launch_working_directory(
-        port.adapter,
         port,
         &install.path,
         &observed_executable,
+        platform,
     )?;
     let relative = observed_working.strip_prefix(&install.path).map_err(|_| {
         PortcoveError::verification("runtime working directory escaped its installation")
@@ -3938,16 +3966,14 @@ fn verified_manifest_with_budget(
                     "sealed runtime originals have no authenticated input receipt",
                 ));
             }
-            if manifest.platform.is_none() {
-                return Err(PortcoveError::verification(
-                    "sealed originals have no recorded host",
-                ));
-            }
+            let platform = manifest.platform.ok_or_else(|| {
+                PortcoveError::verification("sealed originals have no recorded host")
+            })?;
             let working = crate::adapter::launch_working_directory(
-                port.adapter,
                 port,
                 &install.path,
                 &install.path.join(&manifest.selected_executable),
+                platform,
             )?;
             for output in crate::preparation::source::outputs(port) {
                 let relative = manifest_relative(&install.path, &working.join(output))?;
@@ -4165,6 +4191,15 @@ pub(crate) fn resolve_declared_executable(
         "declared executable",
         allow_one_wrapper,
     )?;
+    if qualification.native_mac_bundle_tar_xz {
+        let relative = manifest_relative(root, &executable)?;
+        let owned_executable = fs::canonicalize(root)?.join(relative);
+        if !crate::permissions::is_platform_binary(&owned_executable, platform)? {
+            return Err(PortcoveError::verification(
+                "the Mac bundle executable has no matching Mach-O architecture",
+            ));
+        }
+    }
     match qualification.external_profile_policy {
         Some(crate::ExternalProfilePolicy::Z2rsDesktopV1) => {
             crate::native_external_profile::z2rs::require_unix_player(&executable, platform)?;
@@ -4884,7 +4919,7 @@ mod tests {
             fs::write(&package, &payload).unwrap();
             let root = temporary.path().join("payload");
             fs::create_dir(&root).unwrap();
-            extract_tar_xz_with_checkpoint(&package, &root, payload.len() as u64, &|| Ok(()))
+            extract_tar_xz_with_checkpoint(&package, &root, payload.len() as u64, true, &|| Ok(()))
                 .unwrap();
             let program = root.join("publisher").join(player);
             assert!(resolve_declared_executable(&root, &qualification).is_err());

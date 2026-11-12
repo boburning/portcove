@@ -5719,19 +5719,19 @@ mod tests {
             assert_eq!(port.launch_arguments, ["--no-launcher"]);
             let selected = runtime.join(executable);
             let working = crate::adapter::launch_working_directory(
-                port.adapter,
                 port,
                 root.path(),
                 &selected,
+                Platform::WindowsX86_64,
             )
             .unwrap();
             assert_eq!(working, runtime);
             assert!(
                 crate::adapter::launch_working_directory(
-                    port.adapter,
                     port,
                     root.path(),
-                    &root.path().join(executable)
+                    &root.path().join(executable),
+                    Platform::WindowsX86_64,
                 )
                 .is_err()
             );

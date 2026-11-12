@@ -27,7 +27,7 @@ impl PortcoveService {
             ));
         }
         self.managed_install_root(port_id, &active.path)?;
-        let root = crate::runtime::working_root(&port, &active);
+        let root = crate::runtime::working_root(&port, &active, Platform::current()?);
         crate::path::refuse_symlink_ancestors(&root)?;
         if !fs::symlink_metadata(&root)?.is_dir() {
             return Err(PortcoveError::verification(
@@ -169,6 +169,8 @@ impl PortcoveService {
             || crate::native_portable_data::directory_name(&retained, platform)
                 != crate::native_portable_data::directory_name(to, platform)
             || retained.launch_from_install_root != to.launch_from_install_root
+            || crate::runtime::native_mac_bundle_tar_xz(&retained, platform)
+                != crate::runtime::native_mac_bundle_tar_xz(to, platform)
             || retained.executable_hints.get(&platform) != to.executable_hints.get(&platform)
             || retained.launch_arguments != to.launch_arguments
             || retained.launch_environment != to.launch_environment

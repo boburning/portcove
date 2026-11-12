@@ -305,6 +305,14 @@ and a required Linux TAR.XZ asset hint. That route accepts only matching TAR.XZ
 players and uses the same bounded reader as downloaded setup. Independent
 definitions require NativePortable capability 8 for this declaration.
 
+NativePortable capability 26 adds checked Mac TAR.XZ app bundles through
+`release.tar_xz_platforms`. Each declared Mac route needs its own mandatory
+GitHub archive hints, a single exact `.app/Contents/MacOS/` executable and a
+reviewed package layout. Core accepts the bundle directly or in one outer
+wrapper, refuses archive links, and checks the selected Mach-O architecture.
+Launch and declared player data use the installed folder beside the app.
+Windows and Linux routes keep their creating working-directory contracts.
+
 Native portable capability 10 supports official sibling packages on an
 original-bound Native6 definition with `windows_temp_directory`. Every platform
 keeps the same verified original-file mapping and private profile namespace.

@@ -41,7 +41,7 @@ pub(crate) fn require_manual_setup(port: &PortDefinition, install: &InstallRecor
         return Ok(());
     }
     validate_manual_marker(port)?;
-    let marker = crate::runtime::working_root(port, install)
+    let marker = crate::runtime::working_root(port, install, crate::Platform::current()?)
         .join(port.setup_marker.as_ref().expect("validated manual marker"));
     let ready = crate::external_runtime::read_single_link_metadata(&marker, 64 * 1024)
         .ok()

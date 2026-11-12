@@ -645,6 +645,8 @@ pub struct ReleaseSpec {
     /// Native8: select the checked TAR.XZ player archive on Linux x86-64.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub linux_tar_xz: bool,
+    // Native26 also uses this field for reviewed Mac app bundles. The
+    // declaration keeps its existing transport schema description.
     /// GeneratedCache3: select a checked TAR.XZ player archive on the declared Mac routes.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tar_xz_platforms: Vec<Platform>,

@@ -38,7 +38,7 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
         let supported_route = (port.adapter == AdapterKind::NativePortable
             && (port.platforms == [Platform::WindowsX86_64]
                 || crate::native_temp::has_sibling_platforms(port)
-                || windows_with_linux_tar_xz(port)))
+                || windows_with_checked_tar_xz_siblings(port)))
             || (port.adapter == AdapterKind::LibultrashipPortable
                 && port.platforms.contains(&Platform::WindowsX86_64));
         return if supported_route
@@ -94,12 +94,16 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     Ok(())
 }
 
-/// A Windows-first native archive whose only other platform is the managed Linux TAR.XZ.
-fn windows_with_linux_tar_xz(port: &PortDefinition) -> bool {
-    port.platforms.len() == 2
-        && port.platforms.contains(&Platform::WindowsX86_64)
+/// The Windows rule still applies only to its native archive. Siblings must
+/// use the independently validated Linux or Mac TAR.XZ contracts.
+fn windows_with_checked_tar_xz_siblings(port: &PortDefinition) -> bool {
+    port.platforms.contains(&Platform::WindowsX86_64)
         && port.platforms.contains(&Platform::LinuxX86_64)
         && port.release.linux_tar_xz
+        && port.platforms.iter().all(|platform| {
+            matches!(platform, Platform::WindowsX86_64 | Platform::LinuxX86_64)
+                || crate::runtime::native_mac_bundle_tar_xz(port, *platform)
+        })
 }
 
 pub(crate) fn minimum_capability(port: &PortDefinition) -> u32 {
