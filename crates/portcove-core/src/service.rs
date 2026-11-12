@@ -133,9 +133,9 @@ mod port_intent;
 #[path = "root_setup.rs"]
 mod root_setup;
 pub use install_batch::{
-    INSTALL_BATCH_FORMAT_VERSION, InstallBatchItem, InstallBatchItemState, InstallBatchRecord,
-    InstallBatchRequestItem, InstallBatchReview, InstallBatchReviewItem, InstallBatchSummary,
-    MAX_INSTALL_BATCH_ITEMS,
+    INSTALL_BATCH_FORMAT_VERSION, InstallBatchCapacity, InstallBatchItem, InstallBatchItemState,
+    InstallBatchRecord, InstallBatchRequestItem, InstallBatchReview, InstallBatchReviewItem,
+    InstallBatchSummary, InstallBatchVolume, MAX_INSTALL_BATCH_ITEMS,
 };
 pub use port_intent::{
     MAX_PORT_INTENT_ASSESSMENTS, MAX_STANDING_SETUP_ATTEMPTS, PORT_INTENT_FORMAT_VERSION,

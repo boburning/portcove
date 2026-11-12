@@ -109,9 +109,116 @@ pub struct InstallBatchReviewItem {
     pub hold: Option<String>,
 }
 
+/// Space one volume needs for the games in a batch that will download.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct InstallBatchVolume {
+    /// A destination on the volume (the first game's).
+    pub path: std::path::PathBuf,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub volume_identity: Option<String>,
+    /// Sum of the games' temporary space floors on this volume. Final
+    /// installed sizes are not known in advance.
+    pub required_bytes: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub available_bytes: Option<u64>,
+    /// Whether the volume has room for all of them together; unknown when its
+    /// free space could not be observed. Each game is checked again before it runs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sufficient: Option<bool>,
+    pub port_ids: Vec<String>,
+}
+
+/// What the games ready to install in a batch need together.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct InstallBatchCapacity {
+    /// Known downloads: releases, bundled runtimes and required extras.
+    pub download_bytes: u64,
+    pub volumes: Vec<InstallBatchVolume>,
+    /// Ready games whose space needs could not be estimated.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unknown_space: Vec<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct InstallBatchReview {
     pub items: Vec<InstallBatchReviewItem>,
+    /// Combined needs of the games ready to install.
+    #[serde(default)]
+    pub capacity: InstallBatchCapacity,
+}
+
+/// Holds a ready game that would install into the same folder as an earlier
+/// game in the batch; different games never share an install folder.
+fn hold_shared_destinations(items: &mut [InstallBatchReviewItem]) {
+    let mut claimed = std::collections::BTreeMap::<std::path::PathBuf, String>::new();
+    for item in items.iter_mut() {
+        let Some(plan) = item.plan.as_ref().filter(|_| item.hold.is_none()) else {
+            continue;
+        };
+        let destination = plan.plan.output_location.effective_output_directory.clone();
+        match claimed.get(&destination) {
+            Some(first) => {
+                item.hold = Some(format!(
+                    "it would install into the same folder as {first}; choose a different install folder for one of them"
+                ));
+            }
+            None => {
+                claimed.insert(destination, item.port_id.clone());
+            }
+        }
+    }
+}
+
+/// Combined download and space needs of the ready games. Games on the same
+/// volume add up, so a volume can be short even when each game alone fits.
+pub(crate) fn batch_capacity(items: &[InstallBatchReviewItem]) -> InstallBatchCapacity {
+    let mut capacity = InstallBatchCapacity::default();
+    for item in items {
+        let Some(plan) = item.plan.as_ref().filter(|_| item.hold.is_none()) else {
+            continue;
+        };
+        if plan.plan.action != crate::InstallPlanAction::Download {
+            continue;
+        }
+        capacity.download_bytes = capacity
+            .download_bytes
+            .saturating_add(plan.plan.download_bytes);
+        let Some(space) = plan.plan.temporary_space.as_ref() else {
+            capacity.unknown_space.push(item.port_id.clone());
+            continue;
+        };
+        let existing = capacity.volumes.iter_mut().find(|volume| {
+            match (&volume.volume_identity, &space.volume_identity) {
+                (Some(left), Some(right)) => left == right,
+                _ => volume.path == space.path,
+            }
+        });
+        match existing {
+            Some(volume) => {
+                volume.required_bytes = volume.required_bytes.saturating_add(space.required_bytes);
+                // The smallest observation is the most cautious.
+                volume.available_bytes = match (volume.available_bytes, space.available_bytes) {
+                    (Some(left), Some(right)) => Some(left.min(right)),
+                    _ => None,
+                };
+                volume.port_ids.push(item.port_id.clone());
+            }
+            None => capacity.volumes.push(InstallBatchVolume {
+                path: space.path.clone(),
+                volume_identity: space.volume_identity.clone(),
+                required_bytes: space.required_bytes,
+                available_bytes: space.available_bytes,
+                sufficient: None,
+                port_ids: vec![item.port_id.clone()],
+            }),
+        }
+    }
+    for volume in &mut capacity.volumes {
+        volume.sufficient = volume
+            .available_bytes
+            .map(|available| available >= volume.required_bytes);
+    }
+    capacity
 }
 
 fn validate_selection(port_ids: impl Iterator<Item = String>) -> Result<()> {
@@ -321,7 +428,9 @@ impl PortcoveService {
             };
             items.push(item);
         }
-        Ok(InstallBatchReview { items })
+        hold_shared_destinations(&mut items);
+        let capacity = batch_capacity(&items);
+        Ok(InstallBatchReview { items, capacity })
     }
 
     /// Persists exactly the reviewed games and their plan digests, and saves
@@ -625,6 +734,98 @@ mod tests {
         let again = service.run_install_batch(&batch.id, |_| {}).await.unwrap();
         assert_eq!(again.items, finished.items);
         assert_eq!(service.status(PORT).unwrap().active.unwrap().id, active.id);
+    }
+
+    /// A ready item derived from a real plan, with its own game, size,
+    /// destination and space observation.
+    fn ready_item(
+        base: &GameInstallPlan,
+        port_id: &str,
+        bytes: u64,
+        destination: &str,
+        volume: Option<&str>,
+        available: Option<u64>,
+    ) -> InstallBatchReviewItem {
+        let mut plan = base.clone();
+        plan.plan.port_id = port_id.to_owned();
+        plan.plan.action = crate::InstallPlanAction::Download;
+        plan.plan.download_bytes = bytes;
+        plan.plan.output_location.effective_output_directory = destination.into();
+        plan.plan.temporary_space = volume.map(|volume| crate::InstallSpaceRequirement {
+            path: destination.into(),
+            required_bytes: bytes,
+            available_bytes: available,
+            volume_identity: Some(volume.to_owned()),
+            sufficient: available.map(|available| available >= bytes),
+        });
+        InstallBatchReviewItem {
+            port_id: port_id.to_owned(),
+            plan: Some(plan),
+            hold: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn the_review_adds_up_needs_per_volume_and_names_unknown_estimates() {
+        let (_temporary, service, _digest) = reviewed_service().await;
+        let base = service.plan_game_install(PORT).await.unwrap();
+        let mut items = vec![
+            // Each fits alone on volume A (100 free), but not together.
+            ready_item(&base, "one", 60, "/a/one", Some("A"), Some(100)),
+            ready_item(&base, "two", 50, "/a/two", Some("A"), Some(100)),
+            ready_item(&base, "three", 10, "/b/three", Some("B"), Some(1000)),
+            ready_item(&base, "four", 7, "/c/four", None, None),
+            InstallBatchReviewItem {
+                port_id: "held".into(),
+                plan: None,
+                hold: Some("waiting".into()),
+            },
+        ];
+        hold_shared_destinations(&mut items);
+        let capacity = batch_capacity(&items);
+        assert_eq!(capacity.download_bytes, 127);
+        assert_eq!(capacity.unknown_space, vec!["four".to_owned()]);
+        let a = &capacity.volumes[0];
+        assert_eq!((a.required_bytes, a.sufficient), (110, Some(false)));
+        assert_eq!(a.port_ids, vec!["one".to_owned(), "two".to_owned()]);
+        assert_eq!(capacity.volumes[1].sufficient, Some(true));
+    }
+
+    #[tokio::test]
+    async fn different_games_never_share_an_install_folder() {
+        let (_temporary, service, _digest) = reviewed_service().await;
+        let base = service.plan_game_install(PORT).await.unwrap();
+        let mut items = vec![
+            ready_item(&base, "one", 10, "/games/shared", Some("A"), Some(100)),
+            ready_item(&base, "two", 10, "/games/shared", Some("A"), Some(100)),
+        ];
+        hold_shared_destinations(&mut items);
+        assert!(items[0].hold.is_none());
+        assert!(
+            items[1]
+                .hold
+                .as_deref()
+                .unwrap()
+                .contains("same folder as one")
+        );
+        // A held game adds nothing to the batch's needs.
+        assert_eq!(batch_capacity(&items).download_bytes, 10);
+    }
+
+    #[tokio::test]
+    async fn a_reviewed_batch_reports_its_capacity() {
+        let (_temporary, service, _digest) = reviewed_service().await;
+        let review = service
+            .plan_install_batch(&[PORT.to_owned()])
+            .await
+            .unwrap();
+        let plan = review.items[0].plan.as_ref().unwrap();
+        // An existing copy is activated, so nothing is downloaded.
+        if plan.plan.action == crate::InstallPlanAction::Download {
+            assert_eq!(review.capacity.download_bytes, plan.plan.download_bytes);
+        } else {
+            assert_eq!(review.capacity, InstallBatchCapacity::default());
+        }
     }
 
     #[tokio::test]

@@ -4907,6 +4907,35 @@
         ],
         "type": "object"
       },
+      "InstallBatchCapacity": {
+        "description": "What the games ready to install in a batch need together.",
+        "properties": {
+          "download_bytes": {
+            "description": "Known downloads: releases, bundled runtimes and required extras.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unknown_space": {
+            "description": "Ready games whose space needs could not be estimated.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "volumes": {
+            "items": {
+              "$ref": "#/$defs/InstallBatchVolume"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "download_bytes",
+          "volumes"
+        ],
+        "type": "object"
+      },
       "InstallBatchReviewItem": {
         "description": "One game in a batch review: its exact plan, or why it cannot run yet.",
         "properties": {
@@ -4932,6 +4961,54 @@
         },
         "required": [
           "port_id"
+        ],
+        "type": "object"
+      },
+      "InstallBatchVolume": {
+        "description": "Space one volume needs for the games in a batch that will download.",
+        "properties": {
+          "available_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "path": {
+            "description": "A destination on the volume (the first game's).",
+            "type": "string"
+          },
+          "port_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "required_bytes": {
+            "description": "Sum of the games' temporary space floors on this volume. Final\ninstalled sizes are not known in advance.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "sufficient": {
+            "description": "Whether the volume has room for all of them together; unknown when its\nfree space could not be observed. Each game is checked again before it runs.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "volume_identity": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "path",
+          "required_bytes",
+          "port_ids"
         ],
         "type": "object"
       },
@@ -5396,6 +5473,14 @@
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
+      "capacity": {
+        "$ref": "#/$defs/InstallBatchCapacity",
+        "default": {
+          "download_bytes": 0,
+          "volumes": []
+        },
+        "description": "Combined needs of the games ready to install."
+      },
       "items": {
         "items": {
           "$ref": "#/$defs/InstallBatchReviewItem"
@@ -5404,7 +5489,8 @@
       }
     },
     "required": [
-      "items"
+      "items",
+      "capacity"
     ],
     "title": "InstallBatchReview",
     "type": "object"
