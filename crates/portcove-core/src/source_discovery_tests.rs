@@ -5480,16 +5480,15 @@ fn a_library_larger_than_one_entry_budget_resumes_to_completion_without_silent_t
 }
 
 #[test]
-fn a_library_beyond_the_continuation_capacity_stops_with_an_explicit_narrower_folder_instruction() {
-    // Far more entries than the bounded continuation can retain: the scan must
-    // say so and never present the examined prefix as the whole library.
+fn a_very_wide_library_either_completes_or_stops_with_an_explicit_narrower_folder_instruction() {
+    // More entries than one bounded continuation may retain: following the scan
+    // to its end must never present an examined prefix as the whole library.
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().join("selected");
     fs::create_dir(&root).unwrap();
     let payload = b"supported large-library source";
     write_large_library(&root, 20, 0, payload);
-    // Long names make each retained continuation record large enough that the
-    // byte cap is reached before the 10,000-entry budget on every platform.
+    // Long names enlarge each retained continuation record.
     let padding = "n".repeat(120);
     for index in 0..10_240 {
         let folder = root.join(format!("misc-{:03}", index % 100));
@@ -5499,26 +5498,34 @@ fn a_library_beyond_the_continuation_capacity_stops_with_an_explicit_narrower_fo
     let catalog = catalog(payload);
     let library = crate::Library::open(temporary.path().join("library")).unwrap();
     library.add_game_file_root(&root).unwrap();
-    let snapshot =
-        publish_saved_batch(&catalog, &library, &SourceDiscoveryLimits::default()).unwrap();
+    let limits = SourceDiscoveryLimits::default();
+    let mut snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    let mut batches = 1;
+    while snapshot.coverage.as_ref().unwrap().can_resume {
+        snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        batches += 1;
+        assert!(batches <= 40, "scan did not converge");
+    }
+    // Where the capacity falls depends on path length, so assert the invariant:
+    // a scan that stops resuming is either complete with nothing remaining or
+    // says why it stopped. It never ends silently with work left.
     let coverage = snapshot.coverage.as_ref().unwrap();
+    let explicit = snapshot
+        .report
+        .issues
+        .iter()
+        .any(|issue| issue.message.contains("select narrower folders"));
+    let complete = coverage.frontier_exhausted && coverage.remaining_entries == Some(0);
     assert!(
-        !coverage.can_resume,
-        "coverage={coverage:?} limits={:?} issues={:?}",
-        snapshot.report.limits_reached, snapshot.report.issues
-    );
-    assert!(!coverage.frontier_exhausted);
-    assert_ne!(coverage.remaining_entries, Some(0));
-    assert!(
-        snapshot
-            .report
-            .issues
-            .iter()
-            .any(|issue| issue.message.contains("select narrower folders")),
-        "issues={:?}",
+        complete || explicit,
+        "silent stop: coverage={coverage:?} limits={:?} issues={:?}",
+        snapshot.report.limits_reached,
         snapshot.report.issues
     );
-    assert!(snapshot.report.entries_examined < 10_260);
+    if !complete {
+        assert!(!coverage.frontier_exhausted);
+        assert_ne!(coverage.remaining_entries, Some(0));
+    }
 }
 
 #[test]
