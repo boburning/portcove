@@ -16,7 +16,40 @@
       "game_slug": "diddy-kong-racing",
       "match_kind": "underlying-game"
     },
-    "issue_number": 54
+    "issue_number": 54,
+    "platforms": [
+      "linux-x86-64"
+    ],
+    "release_url": "https://github.com/ThatGuyMcd/DKR-R/releases",
+    "setup_url": "https://github.com/ThatGuyMcd/DKR-R#readme",
+    "download_asset_hints": {
+      "linux-x86-64": [
+        "dkr-r-",
+        "-linux-x86_64.appimage"
+      ]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Open the Linux AppImage",
+          "instruction": "Choose the official x86-64, ARM64 or Steam Deck package for your device. Mark the AppImage executable and open it. Check the upstream platform guide for your release’s Vulkan and system-library requirements."
+        },
+        {
+          "title": "Add your original game",
+          "instruction": "In Play, choose Add a ROM and select your own clean US v1.0 or US Rev A/v1.1 original. Some older mods need US v1.0 when you install them."
+        }
+      ],
+      "warnings": [
+        "Use DKR-R’s upstream launcher and update instructions for your Linux copy. Back up the active profile before replacing the package or switching profile locations."
+      ],
+      "help_url": "https://github.com/ThatGuyMcd/DKR-R/blob/main/docs/PLATFORMS.md",
+      "references": [
+        {
+          "title": "Find your DKR-R profile",
+          "instruction": "Linux normally uses $XDG_CONFIG_HOME/dkr-port or ~/.config/dkr-port. Portable mode uses dkr-runtime-data beside the application. Changing modes selects a different profile on the next launch. Use DKR-R’s Save Manager to export progress and back up your settings and installed content separately."
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

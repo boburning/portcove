@@ -660,6 +660,72 @@ mod tests {
     }
 
     #[test]
+    fn diddy_kong_upstream_downloads_keep_distinct_package_and_platform_choices() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let golden = catalog.listing("diddy-kong-racing-golden-balloon").unwrap();
+        let dkr = catalog.listing("dkr-r").unwrap();
+        for (listing, platforms) in [
+            (
+                golden,
+                &[
+                    Platform::WindowsX86_64,
+                    Platform::LinuxX86_64,
+                    Platform::MacosAarch64,
+                ][..],
+            ),
+            (dkr, &[Platform::WindowsX86_64, Platform::LinuxX86_64][..]),
+        ] {
+            assert_eq!(listing.platforms, platforms);
+            assert_eq!(
+                catalog.port(&listing.id).unwrap().platforms,
+                [Platform::WindowsX86_64]
+            );
+        }
+
+        for version in ["1.8.0", "1.8.1"] {
+            let mut tarball = asset(2, &format!("Golden-Balloon-{version}-linux-x86_64.tar.gz"));
+            tarball.can_extract = true;
+            let assets = [
+                asset(
+                    1,
+                    &format!("Golden-Balloon-{version}-linux-x86_64.AppImage"),
+                ),
+                tarball,
+                asset(
+                    3,
+                    &format!("Golden-Balloon-{version}-macos-arm64-unsigned.dmg"),
+                ),
+            ];
+            for (platform, expected) in [(Platform::LinuxX86_64, 1u64), (Platform::MacosAarch64, 3)]
+            {
+                assert_eq!(
+                    recommend_packages(
+                        &assets,
+                        platform,
+                        &golden.download_asset_hints[&platform],
+                        true
+                    )
+                    .1,
+                    Some(expected.into()),
+                );
+            }
+        }
+
+        for version in ["1.0.15", "1.0.16"] {
+            let assets = [
+                asset(1, &format!("DKR-R-{version}-Linux-x86_64.AppImage")),
+                asset(2, &format!("DKR-R-{version}-SteamDeck-x86_64.AppImage")),
+                asset(3, &format!("DKR-R-{version}-Linux-aarch64.AppImage")),
+            ];
+            let platform = Platform::LinuxX86_64;
+            let hints = &dkr.download_asset_hints[&platform];
+            let (assessments, recommendation) = recommend_packages(&assets, platform, hints, true);
+            assert_eq!(recommendation, Some(1.into()));
+            assert_eq!(assessments[2].suitability, "incompatible");
+        }
+    }
+
+    #[test]
     fn versioned_macos_names_recommend_the_openomf_apple_silicon_package() {
         let catalog = crate::Catalog::embedded().unwrap();
         let listing = catalog.listing("omf2097-openomf").unwrap();
