@@ -36369,15 +36369,6 @@
         "match_kind": "underlying-game"
       },
       "original_game_title": "Zombies Ate My Neighbors",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
-      "download_asset_hints": {
-        "linux-x86-64": [
-          "zamn-linux-x86_64.tar.gz"
-        ]
-      },
       "release_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port/releases/latest",
       "manual_setup": {
         "steps": [
@@ -36390,8 +36381,8 @@
             "instruction": "Open the installed zamn_launcher.exe and select your original ROM in the game settings. Keep zamn.exe and SDL2 beside the launcher."
           },
           {
-            "title": "Run the upstream Linux launcher",
-            "instruction": "Extract zamn-linux-x86_64.tar.gz and run ./zamn_launcher from the extracted zamn folder. Keep the launcher, zamn and the bundled SDL2 library together. On Linux you can type the ROM path or drop the file onto the launcher."
+            "title": "Start the managed Linux player",
+            "instruction": "Open the installed zamn_launcher and select your original ROM in the launcher; you can type the ROM path or drop the file onto it. Keep the launcher, zamn and the bundled SDL2 library together."
           }
         ],
         "warnings": [
@@ -36409,6 +36400,10 @@
         ],
         "help_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port"
       },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
       "availability": "unknown"
     },
     {

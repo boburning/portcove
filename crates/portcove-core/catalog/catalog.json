@@ -46775,7 +46775,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -46783,12 +46784,18 @@
         "asset_hints": {
           "windows-x86-64": [
             "zamn-windows-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "zamn-linux-x86_64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "zamn_launcher.exe"
+        ],
+        "linux-x86-64": [
+          "zamn_launcher"
         ]
       },
       "persistent_paths": [
@@ -46803,7 +46810,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Use your own USA 1,048,576-byte Zombies Ate My Neighbors ROM. Upstream's compatibility SHA-256 is b27e2e957fa760f4f483e2af30e03062034a6c0066984f2e284cc2cb430b2059; Core does not acquire, authenticate or import it. Keep the original outside the engine directory. The normal Windows entry is zamn_launcher.exe: select your ROM and settings there, then use its Play button. Keep zamn.exe, SDL2 and the whole package together. The normal launcher tracks and reaps its child and returns to its settings UI after the game exits; close both before maintenance. This source review is not an installed full-session or forced-exit certification. Core preserves default local zamn.ini, zamn.quicksave, zamn.hiscore and their atomic .tmp companions. Explicit config, high-score, capture, movie and other user-selected paths can be external and remain outside Core backup/removal. Preserve every effective creating path and complete old runtime before updating or restoring; the quicksave ROM/structure checks do not promise compatibility across future builds. Upstream mixes native game logic with hardware emulation; no complete-native, gameplay or real-save acceptance is implied. Core owns engine replacement, upstream owns ROM selection and settings.",
+        "manual_preparation": "Use your own USA 1,048,576-byte Zombies Ate My Neighbors ROM. Upstream's compatibility SHA-256 is b27e2e957fa760f4f483e2af30e03062034a6c0066984f2e284cc2cb430b2059; Core does not acquire, authenticate or import it. Keep the original outside the engine directory. The normal entry is zamn_launcher.exe on Windows and zamn_launcher on Linux x86-64 (the Linux build is experimental upstream and needs glibc 2.38 or later): select your ROM and settings there, then use its Play button. Keep the game binary (zamn.exe or zamn), SDL2 and the whole package together. The normal launcher tracks and reaps its child and returns to its settings UI after the game exits; close both before maintenance. This source review is not an installed full-session or forced-exit certification. Core preserves default local zamn.ini, zamn.quicksave, zamn.hiscore and their atomic .tmp companions. Explicit config, high-score, capture, movie and other user-selected paths can be external and remain outside Core backup/removal. Preserve every effective creating path and complete old runtime before updating or restoring; the quicksave ROM/structure checks do not promise compatibility across future builds. Upstream mixes native game logic with hardware emulation; no complete-native, gameplay or real-save acceptance is implied. Core owns engine replacement, upstream owns ROM selection and settings.",
         "original_game_title": "Zombies Ate My Neighbors",
         "manual_setup": {
           "steps": [
@@ -46816,8 +46823,8 @@
               "instruction": "Open the installed zamn_launcher.exe and select your original ROM in the game settings. Keep zamn.exe and SDL2 beside the launcher."
             },
             {
-              "title": "Run the upstream Linux launcher",
-              "instruction": "Extract zamn-linux-x86_64.tar.gz and run ./zamn_launcher from the extracted zamn folder. Keep the launcher, zamn and the bundled SDL2 library together. On Linux you can type the ROM path or drop the file onto the launcher."
+              "title": "Start the managed Linux player",
+              "instruction": "Open the installed zamn_launcher and select your original ROM in the launcher; you can type the ROM path or drop the file onto it. Keep the launcher, zamn and the bundled SDL2 library together."
             }
           ],
           "warnings": [

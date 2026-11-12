@@ -3213,6 +3213,20 @@ mod tests {
                 port.release.asset_hints.remove(&Platform::LinuxX86_64);
             }
         }
+        // Zombies Ate My Neighbors' exact 20261028 Linux package keeps the Windows
+        // player-data contract and adds a reviewed fresh Linux route.
+        let zamn = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "moshferatu-zombies-ate-my-neighbors-pc-port")
+            .unwrap();
+        assert_eq!(zamn.platforms, [Platform::WindowsX86_64]);
+        zamn.platforms.push(Platform::LinuxX86_64);
+        zamn.release.asset_hints.insert(
+            Platform::LinuxX86_64,
+            vec!["zamn-linux-x86_64.tar.gz".into()],
+        );
+        zamn.executable_hints
+            .insert(Platform::LinuxX86_64, vec!["zamn_launcher".into()]);
         for (id, platform, hints) in [
             (
                 "2ship2harkinian",
