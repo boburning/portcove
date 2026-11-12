@@ -14,12 +14,18 @@ use crate::{Library, PortcoveError, PortcoveService, Result};
 
 mod destination;
 mod igdb_cache;
+mod steamgriddb;
 pub use destination::{
     ARTWORK_HANDOFF_SCHEMA, DestinationArtworkBytes, DestinationArtworkContent,
     DestinationArtworkHandoff, DestinationArtworkRole, DestinationArtworkSource,
     DestinationArtworkUnavailableReason,
 };
 pub use igdb_cache::IGDB_ARTWORK_WORK_LIMIT;
+pub use steamgriddb::{
+    STEAMGRIDDB_API_ORIGIN, SteamGridDbAuthor, SteamGridDbCandidate, SteamGridDbFailure,
+    SteamGridDbGame, SteamGridDbKeyStatus, clear_steamgriddb_key, search_steamgriddb_games,
+    set_steamgriddb_key, steamgriddb_candidates, steamgriddb_key_status,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]

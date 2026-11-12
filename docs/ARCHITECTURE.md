@@ -716,6 +716,19 @@ cropped or resized from another. There is no new durable store, provider or dest
 The [integration contract](INTEGRATION-AUTHOR.md#destination-artwork-handoff) owns
 consumer negotiation and preview/replacement/cleanup obligations.
 
+The optional SteamGridDB provider client is also Core-owned (#527; owner decision
+2026-11-12: player-supplied keys only). Each player's own key is stored under a
+SteamGridDB-scoped operating-system secure-store entry. It is never read back for
+display or accepted from process arguments or the environment, and it is sent as a
+bearer token only to `https://www.steamgriddb.com/api/v2` by a client that follows
+no redirects. Game search and per-role candidate listing request static PNG/JPEG
+images with `nsfw`, `humor` and `epilepsy` filtered out. Core rechecks each result,
+keeps only image and thumbnail URLs on `https://cdn2.steamgriddb.com`, bounds
+responses and counts, and maps missing, rejected, rate-limited (with `Retry-After`),
+unavailable and malformed responses to explicit outcomes. Candidates are proposals
+with author attribution; they establish no game identity, selection or Steam write.
+No project key exists, and no CLI or Desktop surface exposes the client yet.
+
 Core owns independent cover/detail choices, copied local originals, deterministic
 generated fallbacks, bounded raster decoding and disposable thumbnails. SQLite
 schema 24 records assets and monotonic choice revisions; older writers refuse the
