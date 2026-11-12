@@ -40,7 +40,7 @@
       "references": [
         {
           "title": "Check the inspected stable packages",
-          "instruction": "The 0.8.6 AppImage player needs glibc 2.34 or later. The separate 0.8.6 Linux TAR.GZ needs glibc 2.43 and system libraries. The loose 0.8.6 Apple Silicon ZIP needs macOS 14 and Homebrew libepoxy, confuse, enet, sdl2_mixer, libxmp, libpng, opusfile, miniupnpc, libnatpmp and sdl2-compat. The binary loads specific library versions from /opt/homebrew. The macOS 15 app layout was observed on the separate rolling channel."
+          "instruction": "The inspected 0.8.6 AppImage needs glibc 2.38 or later for its bundled libraries. The separate 0.8.6 Linux TAR.GZ needs glibc 2.43 and system libraries. The loose 0.8.6 Apple Silicon ZIP needs macOS 14 and Homebrew libepoxy, confuse, enet, sdl2_mixer, libxmp, libpng, opusfile, miniupnpc, libnatpmp and sdl2-compat. The binary loads specific library versions from /opt/homebrew. The macOS 15 app layout was observed on the separate rolling channel."
         },
         {
           "title": "Find the effective OpenOMF profile",
