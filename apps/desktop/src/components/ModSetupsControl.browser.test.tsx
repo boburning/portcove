@@ -46,6 +46,7 @@ function view(overrides: Partial<ModSetupsView> = {}): ModSetupsView {
     supported: true,
     package_types: ["o2r", "otr"],
     later_mods_take_priority: true,
+    held_updates: [],
     inventory: {
       port_id: "shipwright",
       profiles: [
@@ -203,4 +204,31 @@ it("offers to read again when the view cannot be refreshed after a change", asyn
   await act(async () => button(host, "Read setups again").click());
   expect(read).toHaveBeenCalledTimes(3);
   expect(button(host, "Use Clean").disabled).toBe(false);
+});
+
+it("explains a held unattended update for the setup in use", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(
+    view({
+      held_updates: [
+        {
+          profile_id: "default",
+          native_ids: ["hd.o2r"],
+          project_id: "42",
+          candidate_file_id: "11",
+          reason: "the newer file changes which mods it contains",
+        },
+        {
+          profile_id: "clean",
+          native_ids: ["other.o2r"],
+          project_id: "43",
+          candidate_file_id: "12",
+          reason: "not for the setup in use",
+        },
+      ],
+    }),
+  );
+  const host = await render();
+  expect(host.textContent).toContain("waits for your review, so Portcove kept the current version");
+  expect(host.textContent).toContain("hd.o2r: the newer file changes which mods it contains");
+  expect(host.textContent).not.toContain("not for the setup in use");
 });

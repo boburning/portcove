@@ -1277,6 +1277,10 @@ pub struct ModSetupsView {
     /// None until the installed game has its default setup.
     pub inventory: Option<crate::ProfileInventory>,
     pub live: Option<LiveMods>,
+    /// Unattended provider updates waiting for the player's review, for each
+    /// setup's current revision.
+    #[serde(default)]
+    pub held_updates: Vec<crate::HeldModUpdate>,
 }
 
 impl PortcoveService {
@@ -1290,11 +1294,15 @@ impl PortcoveService {
                 later_mods_take_priority: false,
                 inventory: None,
                 live: None,
+                held_updates: Vec::new(),
             });
         };
         let inventory = self.profile_inventory(port_id)?;
         let has_profiles = !inventory.profiles.is_empty();
+        let held_updates =
+            crate::provider_auto_update::held_updates(&self.deploy_layout(port_id)?, &inventory);
         Ok(ModSetupsView {
+            held_updates,
             port_id: port_id.into(),
             supported: true,
             later_mods_take_priority: matches!(

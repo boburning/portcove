@@ -195,6 +195,59 @@ fn hold_key(
     )
 }
 
+/// An unattended update the player has to review, remembered for a setup's
+/// current revision.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct HeldModUpdate {
+    pub profile_id: String,
+    /// The setup's mods from the installed provider file.
+    pub native_ids: Vec<String>,
+    pub project_id: String,
+    pub candidate_file_id: String,
+    pub reason: String,
+}
+
+/// Held updates that still apply to each setup's current revision.
+pub(crate) fn held_updates(
+    layout: &Layout,
+    inventory: &crate::ProfileInventory,
+) -> Vec<HeldModUpdate> {
+    let mut held = Vec::new();
+    for (key, reason) in read_holds(layout) {
+        let parts = key.split('|').collect::<Vec<_>>();
+        let [profile_id, revision, project, file, candidate] = parts.as_slice() else {
+            continue;
+        };
+        let Some(view) = inventory.profiles.iter().find(|view| {
+            view.profile.id == *profile_id && view.revision.revision.to_string() == *revision
+        }) else {
+            continue;
+        };
+        let native_ids = view
+            .revision
+            .packages
+            .iter()
+            .filter(|package| {
+                package.provider.as_ref().is_some_and(|provider| {
+                    provider.project == *project && provider.file.as_deref() == Some(*file)
+                })
+            })
+            .map(|package| package.native_id.clone())
+            .collect::<Vec<_>>();
+        if native_ids.is_empty() {
+            continue;
+        }
+        held.push(HeldModUpdate {
+            profile_id: (*profile_id).to_owned(),
+            native_ids,
+            project_id: (*project).to_owned(),
+            candidate_file_id: (*candidate).to_owned(),
+            reason,
+        });
+    }
+    held
+}
+
 fn read_holds(layout: &Layout) -> BTreeMap<String, String> {
     std::fs::read(layout.store().join(HOLDS_FILE))
         .ok()

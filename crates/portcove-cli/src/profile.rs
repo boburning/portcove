@@ -766,6 +766,19 @@ pub(crate) async fn execute(
                 if let Some(live) = &view.live {
                     lines.push(live_text(live));
                 }
+                for held in &view.held_updates {
+                    lines.push(format!(
+                        "Update for {} (GameBanana mod {}, file {}) waits for your review: {}",
+                        held.native_ids
+                            .iter()
+                            .map(|name| clean(name))
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                        clean(&held.project_id),
+                        clean(&held.candidate_file_id),
+                        clean(&held.reason)
+                    ));
+                }
                 lines.join("\n")
             })
         }

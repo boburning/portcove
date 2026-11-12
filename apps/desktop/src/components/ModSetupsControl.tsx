@@ -125,6 +125,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   const selectedId = view.live?.profile_id ?? undefined;
   const selected = setups.find((entry) => entry.profile.id === selectedId);
   const nativeMessage = nativeListMessage(view.live);
+  const heldUpdates = (view.held_updates ?? []).filter((held) => held.profile_id === selectedId);
   const blocked = Boolean(
     view.live && (view.live.unmanaged.length > 0 || view.live.changed_owned.length > 0),
   );
@@ -186,6 +187,24 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
             </Notice>
           )}
           {nativeMessage && <p className="text-sm">{nativeMessage}</p>}
+          {heldUpdates.length > 0 && (
+            <Notice intent="info">
+              <div data-slot="notice-body">
+                <p>
+                  {heldUpdates.length === 1
+                    ? "A mod update for this setup waits for your review, so Portcove kept the current version:"
+                    : "Mod updates for this setup wait for your review, so Portcove kept the current versions:"}
+                </p>
+                <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
+                  {heldUpdates.map((held) => (
+                    <li key={`${held.project_id}-${held.candidate_file_id}`}>
+                      {held.native_ids.join(", ")}: {held.reason}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </Notice>
+          )}
           <ul aria-label="Setups" className="m-0 grid list-none gap-2 p-0">
             {setups.map((entry) => (
               <SetupRow

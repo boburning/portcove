@@ -477,3 +477,30 @@ async fn unknown_files_in_the_live_mods_folder_defer_before_downloading() {
     };
     assert!(reason.contains("did not add"), "{reason}");
 }
+
+#[tokio::test]
+async fn a_held_update_is_shown_with_the_setup_until_the_setup_changes() {
+    let w = world();
+    w.install_first(&wrapper(&[("hd-link.o2r", "objects/link.bin", b"v1")]))
+        .await;
+    w.allow_automatic();
+    let next = wrapper(&[
+        ("hd-link.o2r", "objects/link.bin", b"v2"),
+        ("extra.o2r", "objects/extra.bin", b"new"),
+    ]);
+    w.pass_with_update(&next).await;
+    let view = w.service.mod_setups(PORT).unwrap();
+    assert_eq!(view.held_updates.len(), 1, "{:?}", view.held_updates);
+    let held = &view.held_updates[0];
+    assert_eq!(held.profile_id, w.profile);
+    assert_eq!(held.native_ids, ["hd-link.o2r"]);
+    assert_eq!(held.candidate_file_id, "11");
+    assert!(held.reason.contains("extra.o2r"));
+
+    // A new revision of the setup means the held comparison no longer applies.
+    let current = w.revision().revision;
+    w.service
+        .set_mod_package_enabled(PORT, &w.profile, "hd-link.o2r", false, current)
+        .unwrap();
+    assert!(w.service.mod_setups(PORT).unwrap().held_updates.is_empty());
+}
