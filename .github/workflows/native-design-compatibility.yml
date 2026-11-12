@@ -790,6 +790,28 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Owned product scenario plan failed.' }
           just desktop-verify @scenarioArguments --require-clean
           if ($LASTEXITCODE -ne 0) { throw 'Owned native product scenario failed; retain original evidence.' }
+      # Read-only failure diagnostics: the application's own bounded host
+      # diagnostics and Windows' record of an application exit, which the
+      # driver-side evidence cannot observe.
+      - name: Print application startup diagnostics after a failure
+        if: failure()
+        shell: pwsh
+        run: |
+          $roots = @($env:PORTCOVE_OUTPUT_DIR, $env:PORTCOVE_TEMP_DIR, (Join-Path $env:LOCALAPPDATA 'Portcove')) |
+            Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+          foreach ($root in $roots) {
+            Get-ChildItem -LiteralPath $root -Recurse -Directory -Filter diagnostics -ErrorAction SilentlyContinue |
+              Select-Object -First 8 | ForEach-Object {
+                Get-ChildItem -LiteralPath $_.FullName -Recurse -File -ErrorAction SilentlyContinue |
+                  Where-Object Length -le 4MB | Select-Object -First 16 | ForEach-Object {
+                    "==== $($_.FullName) ($($_.Length) bytes)"
+                    Get-Content -LiteralPath $_.FullName -Tail 200
+                  }
+              }
+          }
+          "==== Windows Application log errors since job start"
+          Get-WinEvent -FilterHashtable @{ LogName = 'Application'; Level = 1, 2; StartTime = (Get-Date).AddHours(-2) } -MaxEvents 30 -ErrorAction SilentlyContinue |
+            Format-List TimeCreated, ProviderName, Id, Message
       - name: Require the isolated singleton Settings entry evidence
         if: matrix.selection == 'owned-steam'
         shell: pwsh
