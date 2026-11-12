@@ -764,8 +764,12 @@ it("labels the gallery and preview in the current language with exact credits", 
       .toBeVisible();
     const credits = [...document.querySelectorAll(".media-credit bdi")].map((n) => n.textContent);
     expect(credits).toContain("Studio {{credit}}");
-    await page.getByRole("button", { name: `تكبير لقطة الشاشة 1: ${first.caption}` }).click();
-    await expect.element(page.getByText("معاينة الصورة · لقطة الشاشة 1 من 1")).toBeVisible();
+    // Digit shape follows the resolved locale's ICU data, so build it the same way.
+    const one = new Intl.NumberFormat("ar-XB").format(1);
+    await page.getByRole("button", { name: `تكبير لقطة الشاشة ${one}: ${first.caption}` }).click();
+    await expect
+      .element(page.getByText(`معاينة الصورة · لقطة الشاشة ${one} من ${one}`))
+      .toBeVisible();
     await expect.element(page.getByRole("button", { name: "التالي" })).toBeDisabled();
   } finally {
     await localization.changeLanguage("en");
