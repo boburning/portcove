@@ -604,6 +604,46 @@ reviewed bytes or the exact earlier file, and says so in the review. It writes
 nothing when no operation is pending; anything that matches neither side is
 preserved and the review refuses with recovery required.
 
+#### Compatibility, maintenance and recovery boundary
+
+Revalidated on 2026-11-12 against Steam ROM Manager's default branch (`master` as
+read that day; no commit was pinned). Neither the shortcut file nor the artwork
+naming is an official Valve interface.
+
+| Portcove writes in the selected profile's `config` folder                                                                                                               | Purpose                                                                                                                      |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `shortcuts.vdf`                                                                                                                                                         | Only entries carrying this library and game's Portcove ownership marker; unrelated entries and unknown fields are preserved. |
+| `grid/<AppID>p.png\|jpg`, `grid/<AppID>_hero.png\|jpg`                                                                                                                  | Portrait and hero art for an owned shortcut, from the selected imported originals.                                           |
+| `portcove-steam-artwork.json`                                                                                                                                           | Which art files Portcove wrote, so cleanup touches only unchanged Portcove art.                                              |
+| `shortcuts.vdf.portcove-backup-<sha256>`, `portcove-steam-artwork-backup-<sha256>.<ext>`                                                                                | Content-addressed backups of every shortcut file and art file Portcove replaced or removed; Portcove never deletes them.     |
+| `shortcuts.vdf.portcove-lock`                                                                                                                                           | Empty per-profile lock that serializes Portcove shortcut and artwork changes; it stays in place.                             |
+| `shortcuts.vdf.portcove-journal.json`, `shortcuts.vdf.portcove-{replace,original}.tmp`, `portcove-steam-artwork.journal.json`, `grid/.*.portcove-{staged,original}.tmp` | In-progress publication state, removed when an operation finishes or is settled.                                             |
+
+`<AppID>` is the unsigned 32-bit shortcut AppID, `crc32(exe + name) | 0x80000000`,
+which Steam ROM Manager also uses for the same grid names (`<id>p`, `<id>`,
+`<id>_hero`, `<id>_logo`, `<id>_icon`). Steam ROM Manager still reads and writes
+`shortcuts.vdf` directly through `steam-shortcut-editor`. Portcove takes neither
+project as a dependency. It does not write landscape (`<id>.<ext>` or the 64-bit-id
+copy some tools add), logo, icon or `screenshots.vdf`.
+
+**Supported Steam versions:** none is qualified yet. All evidence so far uses
+controlled fixtures. A Steam version enters this contract only through an actual
+Desktop Steam observation under #292 (or a Steam Deck observation under #217) that
+records the exact client build.
+
+**Maintenance:** Portcove maintainers own this writer
+(`apps/desktop/src-tauri/src/steam_entries.rs` and `steam_artwork.rs`). If Steam
+changes either format, the writer refuses with a malformed or conflict result and
+writes nothing; it never guesses. A format change is adopted only after
+requalifying against an actual Steam client.
+
+**Recovery:** the next shortcut or artwork review for the profile settles any
+interrupted operation automatically and says so. When settling cannot prove the
+prior or reviewed state, every file is kept and the review names the journal. To
+recover by hand, close Steam and copy the named content-addressed backup back to
+`shortcuts.vdf` or the art file's name. Deleting backups is the player's choice
+once Steam shows the expected state.
+
 Controlled
 host and renderer tests prove the
 review/apply contract and isolated shortcut-file behavior. Native positive-path
