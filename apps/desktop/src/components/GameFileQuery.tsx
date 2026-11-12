@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { useGameFileObservation } from "../features/browsing/use-game-file-observation";
+import { Trans } from "react-i18next";
+import { useAppTranslation } from "../localization";
+import {
+  GameFileCheckError,
+  useGameFileObservation,
+} from "../features/browsing/use-game-file-observation";
 import { GameFileObservationSummary } from "../features/browsing/GameFileObservationSummary";
 import type { PortDefinition, ReleaseChannel } from "../types";
 import { defaultPortPlatform, platformLabel, releaseChannelPresentation } from "../view-model";
@@ -9,9 +14,11 @@ import { OperationCancellation } from "./OperationCancellation";
 
 import {
   acceptedGameFileQuery,
-  routes,
-  states,
-  reasons,
+  gameFileReasonLabel,
+  gameFileRouteLabel,
+  gameFileStateLabel,
+  gameFileCheckFailureText,
+  routeValues,
   type Route,
 } from "../features/browsing/game-file-query-context";
 export { acceptedGameFileQuery } from "../features/browsing/game-file-query-context";
@@ -47,7 +54,7 @@ export function GameFileQueryControl({
     }),
     accept: (snapshot, _request, library, now) => {
       if (!acceptedGameFileQuery(snapshot, selected, library, now))
-        throw new Error("The game-file observation no longer matches this selection. Check again.");
+        throw new GameFileCheckError("selection_mismatch");
       return snapshot;
     },
   });
@@ -57,26 +64,31 @@ export function GameFileQueryControl({
     await observation.refresh();
   };
   const projection = current?.routes[0];
+  const { t } = useAppTranslation("gameFiles");
   return (
-    <section className="my-4 grid gap-3" aria-label="Selected route game files">
-      <h2>Game files for this setup or launch option</h2>
+    <section className="my-4 grid gap-3" aria-label={t("query.label")}>
+      <h2>{t("query.heading")}</h2>
       <ChoiceSelect
-        label="Setup or launch option"
+        label={t("query.route")}
         value={route}
-        options={routes}
+        options={routeValues.map((value) => ({ value, label: gameFileRouteLabel(t, value) }))}
         disabled={pending || busy}
         onChange={setRoute}
       />
       <ChoiceSelect
-        label="Target platform"
+        label={t("query.platform")}
         value={platform}
         options={port.platforms.map((value) => ({ value, label: platformLabel(value) }))}
         disabled={pending || busy}
         onChange={setPlatform}
       />
       <p>
-        Channel: {releaseChannelPresentation(channel).label}. This check observes connected files;
-        setup and launch still require their own reviews and prerequisites.
+        {/* The channel name follows the shared channel-label migration. */}
+        <Trans
+          t={t}
+          i18nKey="query.channelScope"
+          components={{ channel: <>{releaseChannelPresentation(channel).label}</> }}
+        />
       </p>
       <Button
         data-focusable
@@ -86,19 +98,19 @@ export function GameFileQueryControl({
           void check();
         }}
       >
-        {pending ? "Checking game files…" : "Check files for this option"}
+        {pending ? t("query.checking") : t("query.check")}
       </Button>
       {pending && operationId && (
         <OperationCancellation
           key={operationId}
           operationId={operationId}
-          label="Cancel game-file check"
+          label={t("query.cancel")}
         />
       )}
-      {projection && <p role="status">{states[projection.state]}</p>}
-      {projection && <p>{reasons[projection.reason]}</p>}
+      {projection && <p role="status">{gameFileStateLabel(t, projection.state)}</p>}
+      {projection && <p>{gameFileReasonLabel(t, projection.reason)}</p>}
       <GameFileObservationSummary observation={observation.presentation} />
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert">{gameFileCheckFailureText(t, error)}</p>}
     </section>
   );
 }

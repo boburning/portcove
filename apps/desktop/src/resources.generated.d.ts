@@ -592,6 +592,21 @@ export default interface Resources {
     "updates_zero": "No updates available"
   },
   "gameFiles": {
+    "controls": {
+      "cancel": "Cancel game-file filter check",
+      "channel": "Channel",
+      "check": "Check game-file filters",
+      "checking": "Checking game-file filters…",
+      "description": "Check game files for this setup option, platform and channel. Changing filters alone does not scan files or install anything.",
+      "legend": "Game files to check",
+      "platform": "Platform",
+      "route": "Setup option"
+    },
+    "failure": {
+      "catalogMismatch": "The complete game-file observation no longer matches this context. Check again.",
+      "catalogTooLarge": "This catalog is too large to check all game files at once. Game-file filters are unavailable.",
+      "selectionMismatch": "The game-file observation no longer matches this selection. Check again."
+    },
     "filterObservation": {
       "completeSet": "Complete set: <identity/>",
       "heading": "Game-file filter results",
@@ -646,6 +661,16 @@ export default interface Resources {
       "label": "Preliminary game-file selections",
       "notValidated": "Validation has not run."
     },
+    "query": {
+      "cancel": "Cancel game-file check",
+      "channelScope": "Channel: <channel/>. This check observes connected files; setup and launch still require their own reviews and prerequisites.",
+      "check": "Check files for this option",
+      "checking": "Checking game files…",
+      "heading": "Game files for this setup or launch option",
+      "label": "Selected route game files",
+      "platform": "Target platform",
+      "route": "Setup or launch option"
+    },
     "ready": {
       "dismiss": "Dismiss <game/>",
       "heading": "Ready for you",
@@ -655,6 +680,57 @@ export default interface Resources {
       "reviewUpdate": "Review <game/> update",
       "update": "<game/> has an update available: <version/>. Nothing was downloaded or changed.",
       "updateUnknownVersion": "<game/> has an update available: a newer version. Nothing was downloaded or changed."
+    },
+    "reason": {
+      "completeCompatibleObservation": "A complete set of compatible game files was found for this setup or launch option.",
+      "contractNotReviewed": "File requirements have not been reviewed for this setup or launch option.",
+      "explicitEmptyRequirements": "This action needs no files added to Portcove. The game may still ask for original files.",
+      "identityNotAdmitted": "These game files have not been accepted for this setup or launch option.",
+      "noConnectedRegistration": "No saved game-file location is connected for this setup or launch option.",
+      "observationStale": "The file-check result is out of date. Check again.",
+      "observationUnavailable": "No current file-check result is available.",
+      "profileContextChanged": "The selected game files or setup option changed. Check again.",
+      "releaseNotBound": "We haven’t confirmed whether this file-check result applies to the selected version.",
+      "routeNotOffered": "The selected route is not offered.",
+      "sourceNeedsChecking": "The connected files need checking.",
+      "storageAbsenceUnconfirmed": "Portcove could not confirm whether the files are present. They are not confirmed missing.",
+      "variantNotSupported": "The observed file variant does not match this route."
+    },
+    "route": {
+      "externalLaunch": "Existing installation launch",
+      "externalRegistration": "Existing installation setup",
+      "managedInstall": "Managed setup",
+      "managedLaunch": "Managed launch"
+    },
+    "state": {
+      "filesAvailable": "Compatible complete files available",
+      "filesMissing": "Files missing",
+      "needsChecking": "Needs checking",
+      "noFilesRequired": "No files to add in Portcove",
+      "unavailableContext": "Unavailable context"
+    },
+    "summary": {
+      "cancelled": "The latest check was cancelled. No current file check is available.",
+      "catalogHistory": "Catalog check history",
+      "catalogScope_one": "Catalog ({{count}} port)",
+      "catalogScope_other": "Catalog ({{count}} ports)",
+      "checkingCatalog": "Checking game files for the catalog…",
+      "checkingSelected": "Checking game files for this setup…",
+      "expired": "The file check expired. Check again.",
+      "expiredCatalog": "The previous file check expired. To check again, open Filters → Check game-file filters.",
+      "expiredSelected": "The previous file check expired. Use Check files for this option to check again.",
+      "failed": "The latest check failed. No current file check is available.",
+      "informationalCatalog": "The previous check is informational only. To check again, open Filters → Check game-file filters.",
+      "informationalSelected": "The previous check is informational only. Use Check files for this option to check again.",
+      "lastChecked": "Last checked: <time/>",
+      "missingCatalog": "Check game files before using game-file filters.",
+      "missingSelected": "No current game-file check for this selection. Check again.",
+      "previousCheck": "Previous check: <time/>",
+      "readyCatalog": "Game-file checks are ready to use in Filters.",
+      "readySelected": "Game-file check is current.",
+      "selectedHistory": "Selected-route check history",
+      "selectedScope": "Selected port",
+      "waiting": "Waiting for the previous check to finish."
     }
   },
   "gameUpdates": {
