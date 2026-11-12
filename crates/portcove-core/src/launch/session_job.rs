@@ -690,17 +690,17 @@ mod tests {
         let id = session_id();
         let system = system_directory();
         let install = tempfile::tempdir().unwrap();
-        // cmd.exe starts ping and exits; both images live outside the install.
-        let mut command = Command::new(system.join("cmd.exe"));
+        // ping lives outside the install. It is the direct child, so no shell
+        // quoting or detached start can keep the fixture from ending.
+        let mut command = Command::new(system.join("ping.exe"));
         command
-            .args(["/d", "/c", "start \"\" /b ping -n 30 127.0.0.1"])
+            .args(["-n", "30", "127.0.0.1"])
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null());
         let (mut child, mut job) = SessionJob::spawn(&mut command, &id, install.path()).unwrap();
-        let status = job.wait_for_child(&mut child);
-        // While ping still runs in the job, nothing holds the session. Poll
-        // with a deadline and keep what held it, so a failure explains itself.
+        // While ping runs in the job, nothing holds the session. Poll with a
+        // deadline and keep what held it, so a failure explains itself.
         let deadline = Instant::now() + Duration::from_secs(20);
         let mut observed = None;
         let mut last_holding = Vec::new();
@@ -720,7 +720,7 @@ mod tests {
         // SAFETY: the test-created job handle has full access; this stops
         // only the fixture's own processes.
         unsafe { TerminateJobObject(job.job.as_raw_handle(), 1) };
-        assert!(status.unwrap().success());
+        let _ = child.wait();
         assert!(
             observed.is_some(),
             "ping outside the install should run without holding the session; last holding: {last_holding:?}"
