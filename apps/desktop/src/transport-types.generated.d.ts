@@ -5102,7 +5102,46 @@ export interface InstallBatchItem {
   state: InstallBatchItemState;
 }
 export interface OutputDesktopInstallBatchReview {
+  capacity: InstallBatchCapacity;
   items: InstallBatchReviewItem[];
+  [k: string]: unknown;
+}
+/**
+ * Combined needs of the games ready to install.
+ */
+export interface InstallBatchCapacity {
+  /**
+   * Known downloads: releases, bundled runtimes and required extras.
+   */
+  download_bytes: number;
+  /**
+   * Ready games whose space needs could not be estimated.
+   */
+  unknown_space?: string[];
+  volumes: InstallBatchVolume[];
+  [k: string]: unknown;
+}
+/**
+ * Space one volume needs for the games in a batch that will download.
+ */
+export interface InstallBatchVolume {
+  available_bytes?: number | null;
+  /**
+   * A destination on the volume (the first game's).
+   */
+  path: string;
+  port_ids: string[];
+  /**
+   * Sum of the games' temporary space floors on this volume. Final
+   * installed sizes are not known in advance.
+   */
+  required_bytes: number;
+  /**
+   * Whether the volume has room for all of them together; unknown when its
+   * free space could not be observed. Each game is checked again before it runs.
+   */
+  sufficient?: boolean | null;
+  volume_identity?: string | null;
   [k: string]: unknown;
 }
 /**

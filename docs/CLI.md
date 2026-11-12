@@ -745,6 +745,15 @@ such as shared preferences, waits for review while the others continue. The batc
 stores no authorization. No game is launched, and an already installed game is not
 reinstalled or updated.
 
+The review also adds up what the ready games need together: known downloads
+(releases, bundled runtimes and required extras) and, for each drive, the
+temporary space every game on it needs against the space free there. A drive can
+be short for the whole batch even when each game fits alone; the review says so,
+and each game is checked for space again before it runs. Games whose space needs
+are unknown are named. Final installed sizes are not estimated. Two games that
+would install into the same folder are never both ready: the later one waits
+until one of them gets a different install folder.
+
 `games batch-cancel BATCH_ID` stops games that haven't started; a running install
 keeps its ordinary cancellation and cleanup boundaries. After an interruption,
 `games batch-resume BATCH_ID` checks committed state first. It never repeats a
