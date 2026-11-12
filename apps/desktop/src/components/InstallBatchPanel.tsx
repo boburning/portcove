@@ -1,5 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import type { TFunction } from "i18next";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
+import { useAppTranslation } from "../localization";
 import { errorText, formatBytes } from "../view-model";
 import type { InstallBatchRecord, InstallBatchReview, PortDefinition } from "../types";
 import { Button } from "./ui/button";
@@ -14,15 +17,42 @@ type Phase =
 const stillRunning = (record: InstallBatchRecord) =>
   record.items.some((item) => item.state === "running" || item.state === "queued");
 
-const stateLabel: Record<InstallBatchRecord["items"][number]["state"], string> = {
-  queued: "Not started",
-  running: "Installing",
-  ready: "Installed",
-  held: "Waiting for review",
-  failed: "Couldn't install",
-  cancelled: "Cancelled",
-  interrupted: "Interrupted. Review its installation again",
-};
+function stateLabel(
+  t: TFunction<"installation">,
+  state: InstallBatchRecord["items"][number]["state"],
+): string {
+  switch (state) {
+    case "queued":
+      return t("batch.state.queued");
+    case "running":
+      return t("batch.state.running");
+    case "ready":
+      return t("batch.state.ready");
+    case "held":
+      return t("batch.state.held");
+    case "failed":
+      return t("batch.state.failed");
+    case "cancelled":
+      return t("batch.state.cancelled");
+    case "interrupted":
+      return t("batch.state.interrupted");
+  }
+}
+
+/** Game names stay exact; only the conjunction between the last two is copy. */
+function gameList(t: TFunction<"installation">, names: string[]): ReactNode {
+  if (names.length <= 1) return <bdi>{names[0]}</bdi>;
+  return (
+    <Trans
+      t={t}
+      i18nKey="batch.list"
+      components={{
+        rest: <bdi>{names.slice(0, -1).join(", ")}</bdi>,
+        last: <bdi>{names.at(-1)}</bdi>,
+      }}
+    />
+  );
+}
 
 /**
  * One review and one confirmation for first installs of several games. Core
@@ -47,6 +77,7 @@ export function InstallBatchPanel({
   const [phase, setPhase] = useState<Phase>(
     portIds?.length ? { kind: "reviewing" } : { kind: "idle" },
   );
+  const { t } = useAppTranslation("installation");
   const [unfinished, setUnfinished] = useState<InstallBatchRecord>();
   const [error, setError] = useState<string>();
   const owner = useRef(generation);
@@ -138,21 +169,17 @@ export function InstallBatchPanel({
   };
 
   return (
-    <section aria-label="Install selected games" className="col-span-full">
+    <section aria-label={t("batch.label")} className="col-span-full">
       {error && <p role="alert">{error}</p>}
       {phase.kind === "idle" && unfinished && (
         <div>
-          <p>
-            A setup batch didn't finish. {unfinished.items.length}{" "}
-            {unfinished.items.length === 1 ? "game was" : "games were"} included. Continuing checks
-            each game again and doesn't repeat finished installs.
-          </p>
+          <p>{t("batch.unfinished", { count: unfinished.items.length })}</p>
           <Button data-focusable onClick={() => void run(unfinished.id, unfinished.items.length)}>
-            Continue setup batch
+            {t("batch.continue")}
           </Button>
         </div>
       )}
-      {phase.kind === "reviewing" && <p role="status">Reviewing selected games…</p>}
+      {phase.kind === "reviewing" && <p role="status">{t("batch.reviewing")}</p>}
       {phase.kind === "review" && (
         <ReviewList
           review={phase.review}
@@ -163,34 +190,33 @@ export function InstallBatchPanel({
       )}
       {phase.kind === "running" && (
         <div>
-          <p role="status">
-            Installing {phase.total} {phase.total === 1 ? "game" : "games"}. Each game is checked
-            again before anything changes. No game will be launched.
-          </p>
+          <p role="status">{t("batch.running", { count: phase.total })}</p>
           <Button data-focusable variant="outline" onClick={() => void cancel(phase.batchId)}>
-            Stop games that haven't started
+            {t("batch.stop")}
           </Button>
         </div>
       )}
       {phase.kind === "finished" && (
         <div>
-          <h3>{stillRunning(phase.record) ? "Setup batch in progress" : "Setup batch results"}</h3>
-          {stillRunning(phase.record) && (
-            <p role="status">
-              Part of this batch is still in progress or its game is busy with another task. Check
-              again later; nothing more was started for those games.
-            </p>
-          )}
+          <h3>{stillRunning(phase.record) ? t("batch.inProgress") : t("batch.results")}</h3>
+          {stillRunning(phase.record) && <p role="status">{t("batch.stillRunning")}</p>}
           <ul>
             {phase.record.items.map((item) => (
               <li key={item.port_id}>
-                <strong>{name(item.port_id)}</strong>: {stateLabel[item.state]}
-                {item.detail ? `. ${item.detail}` : ""}
+                <Trans
+                  t={t}
+                  i18nKey={item.detail ? "batch.resultDetail" : "batch.result"}
+                  values={{ state: stateLabel(t, item.state) }}
+                  components={{
+                    name: <strong>{name(item.port_id)}</strong>,
+                    detail: <>{item.detail}</>,
+                  }}
+                />
               </li>
             ))}
           </ul>
           <Button data-focusable onClick={onDone}>
-            Done
+            {t("batch.done")}
           </Button>
         </div>
       )}
@@ -209,33 +235,49 @@ function ReviewList({
   onConfirm: (review: InstallBatchReview) => void;
   onCancel: () => void;
 }) {
+  const { t } = useAppTranslation("installation");
   const ready = review.items.filter((item) => item.plan && !item.hold);
   const waiting = review.items.length - ready.length;
   return (
     <div>
-      <h3>Review installing selected games</h3>
-      <p>
-        {ready.length} ready to install, {waiting} waiting. Every selected game is saved to your
-        Library. Waiting games aren't installed.
-      </p>
+      <h3>{t("batch.reviewHeading")}</h3>
+      <p>{t("batch.reviewSummary", { ready: ready.length, waiting })}</p>
       <BatchCapacity capacity={review.capacity} name={name} />
       <ul>
         {review.items.map((item) => (
           <li key={item.port_id}>
-            <strong>{name(item.port_id)}</strong>:{" "}
-            {item.plan && !item.hold
-              ? `Install ${item.plan.plan.release.version}`
-              : `Waiting. ${item.hold ?? "Review this game's setup."}`}
+            {item.plan && !item.hold ? (
+              <Trans
+                t={t}
+                i18nKey="batch.itemInstall"
+                components={{
+                  name: <strong>{name(item.port_id)}</strong>,
+                  version: <bdi>{item.plan.plan.release.version}</bdi>,
+                }}
+              />
+            ) : item.hold ? (
+              <Trans
+                t={t}
+                i18nKey="batch.itemHeld"
+                components={{ name: <strong>{name(item.port_id)}</strong>, hold: <>{item.hold}</> }}
+              />
+            ) : (
+              <Trans
+                t={t}
+                i18nKey="batch.itemWaiting"
+                components={{ name: <strong>{name(item.port_id)}</strong> }}
+              />
+            )}
           </li>
         ))}
       </ul>
       <Button data-focusable onClick={() => onConfirm(review)}>
         {ready.length
-          ? `Add ${review.items.length} to Library and install ${ready.length}`
-          : `Add ${review.items.length} to Library`}
+          ? t("batch.confirmInstall", { total: review.items.length, ready: ready.length })
+          : t("batch.confirmAdd", { total: review.items.length })}
       </Button>
       <Button data-focusable variant="outline" onClick={onCancel}>
-        Cancel
+        {t("batch.cancel")}
       </Button>
     </div>
   );
@@ -249,34 +291,42 @@ function BatchCapacity({
   capacity: InstallBatchReview["capacity"] | undefined;
   name: (id: string) => string;
 }) {
+  const { t } = useAppTranslation("installation");
   if (!capacity) return null;
-  const names = (ids: string[]) => ids.map(name).join(", ");
   return (
     <div>
       {capacity.download_bytes > 0 && (
-        <p>Downloads together: {formatBytes(capacity.download_bytes)}.</p>
+        <p>{t("batch.downloads", { size: formatBytes(capacity.download_bytes) })}</p>
       )}
       {capacity.volumes.map((volume) => {
         const games = volume.port_ids.map(name);
-        const who =
-          games.length === 1
-            ? `${games[0]} needs`
-            : `${games.slice(0, -1).join(", ")} and ${games.at(-1)} need`;
+        const unknown = volume.available_bytes === undefined || volume.available_bytes === null;
+        const available = unknown ? "" : formatBytes(volume.available_bytes!);
         return (
           <p key={volume.volume_identity ?? volume.path}>
-            {who} {formatBytes(volume.required_bytes)} of temporary space on the same drive
-            {volume.available_bytes === undefined || volume.available_bytes === null
-              ? ". Its free space is unknown; each game is checked before it runs."
-              : volume.sufficient === false
-                ? `, which has ${formatBytes(volume.available_bytes)} free. That isn't enough for all of them; later games may stop for space.`
-                : `, which has ${formatBytes(volume.available_bytes)} free.`}
+            <Trans
+              t={t}
+              i18nKey={
+                unknown
+                  ? "batch.volumeUnknown"
+                  : volume.sufficient === false
+                    ? "batch.volumeShort"
+                    : "batch.volumeEnough"
+              }
+              count={games.length}
+              values={{ required: formatBytes(volume.required_bytes), available }}
+              components={{ games: <>{gameList(t, games)}</> }}
+            />
           </p>
         );
       })}
       {capacity.unknown_space && capacity.unknown_space.length > 0 && (
         <p>
-          Space needed is unknown for {names(capacity.unknown_space)}. Each is checked before it
-          runs.
+          <Trans
+            t={t}
+            i18nKey="batch.unknownSpace"
+            components={{ games: <bdi>{capacity.unknown_space.map(name).join(", ")}</bdi> }}
+          />
         </p>
       )}
     </div>

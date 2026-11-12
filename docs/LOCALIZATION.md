@@ -167,6 +167,7 @@ unless the copy change is intended and reviewed.
 | Earlier test results on game details: legacy coverage, recorded observation headings, kind and outcome labels, field labels and notes (`testResults.*` keys; recorded methods, editions, releases, contracts, hashes and platform labels stay exact data)                            | `components/DetailQualificationSummary.tsx`                | `gameFiles`         |
 | Game detail shell: section tabs, identity chip labels, more-actions menu, requirements and project/support sidebar (system, platform and channel names stay shared view-model labels; project names and the readiness and installation facts come from callers)                      | `components/DetailLayout.tsx`                              | `detail`            |
 | Ghostship legacy recovery review: action, dialog, field labels, consequences and the app-owned plan-mismatch error (thrown already translated so shared failure presentation stays readable; "Ghostship", paths, ids and sizes stay exact; Core failures stay verbatim)              | `components/GhostshipRecoveryReview.tsx`                   | `backups`           |
+| Several-game install batch: review, per-game plan and hold lines, combined space with plural verb agreement and a translatable list conjunction, running, results and item states (game names, versions and sizes stay exact; Core holds and item details stay verbatim)             | `components/InstallBatchPanel.tsx`                         | `installation`      |
 | Discover card observations (readiness, acquisition and setup-route text follow their producers' migrations)                                                                                                                                                                          | `features/port-actions/BrowsePortObservations.tsx`         | `browsing`          |
 | Navigation hints (keyboard key names stay literal)                                                                                                                                                                                                                                   | `components/ui.tsx`                                        | `common`            |
 | Failure technical details (codes, phases, messages and context values stay verbatim)                                                                                                                                                                                                 | `components/FailureDetails.tsx`                            | `common`            |
@@ -174,7 +175,7 @@ unless the copy change is intended and reviewed.
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-12 it
-reported 1,287 findings in 33 of 218 analyzed files, measured after the
+reported 1,269 findings in 32 of 218 analyzed files, measured after the
 migrations listed above and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
 and are migrated with the surface that renders them. The count is a work

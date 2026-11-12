@@ -141,3 +141,65 @@ it("one confirmation saves every game and installs only the ready ones", async (
   expect(text()).toContain("First: Installed");
   expect(text()).toContain("Second: Couldn't install. Download failed");
 });
+
+it("keeps the exact English space sentences for one game and for three", async () => {
+  const volume = {
+    path: "D:/Games",
+    volume_identity: "D",
+    required_bytes: 2 * 1024 * 1024,
+    available_bytes: null,
+    sufficient: null,
+    port_ids: ["first"],
+  };
+  vi.mocked(desktopApi.planInstallBatch).mockResolvedValue({
+    ...review,
+    capacity: {
+      download_bytes: 0,
+      volumes: [
+        volume,
+        {
+          ...volume,
+          volume_identity: "E",
+          port_ids: ["first", "second", "third"],
+          sufficient: true,
+          available_bytes: 8 * 1024 * 1024,
+        },
+      ],
+    },
+  });
+  await root.rerender(
+    <InstallBatchPanel generation={1} ports={ports} portIds={["first"]} onDone={vi.fn()} />,
+  );
+  await act(async () => {});
+  expect(text()).toContain(
+    "First needs 2.0 MiB of temporary space on the same drive. Its free space is unknown; each game is checked before it runs.",
+  );
+  expect(text()).toContain(
+    "First, Second and Third need 2.0 MiB of temporary space on the same drive, which has 8.0 MiB free.",
+  );
+});
+
+it("reviews the selection in the current language with exact names and versions", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    await root.rerender(
+      <InstallBatchPanel
+        generation={1}
+        ports={ports}
+        portIds={["first", "second", "third"]}
+        onDone={vi.fn()}
+      />,
+    );
+    await act(async () => {});
+    expect(text()).toContain("مراجعة تثبيت الألعاب المحددة");
+    expect(text()).toContain("First: تثبيت 1.0");
+    expect(text()).toContain("Third: قيد الانتظار. Missing files");
+    expect(text()).toContain("First وSecond");
+    expect(button("إلغاء")).toBeTruthy();
+    expect(text()).not.toContain("Review installing selected games");
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
