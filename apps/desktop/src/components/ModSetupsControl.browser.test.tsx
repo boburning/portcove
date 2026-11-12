@@ -3,9 +3,12 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
+import * as picker from "../file-picker";
 import type { ModSetupsView } from "../types";
 import { ModSetupsControl } from "./ModSetupsControl";
 import "../styles/index.css";
+
+vi.mock("../file-picker", { spy: true });
 
 const mounted: { root: Root; host: HTMLElement }[] = [];
 afterEach(async () => {
@@ -440,4 +443,75 @@ it("offers a copy on the current version only for a customized setup on another 
       ),
     ).toBe(false);
   }
+});
+
+it("asks before adding a mod that runs code and binds the choice to the reviewed file", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view({ package_types: ["nrm"] }));
+  vi.mocked(picker.pickModPackagePath).mockResolvedValue("/mods/timer.nrm");
+  const review = vi.spyOn(desktopApi, "reviewModPackageCode").mockResolvedValue({
+    native_id: "speedrun_timer",
+    display_name: "Speedrun Timer",
+    runs: ["recompiled_code"],
+    sha256: "b".repeat(64),
+    already_allowed: false,
+  });
+  const add = vi
+    .spyOn(desktopApi, "addModPackage")
+    .mockResolvedValue({} as Awaited<ReturnType<typeof desktopApi.addModPackage>>);
+  const host = await render();
+  await act(async () => button(host, "Add mod file…").click());
+  expect(review).toHaveBeenCalledWith("shipwright", "/mods/timer.nrm", 7);
+  expect(add).not.toHaveBeenCalled();
+  expect(host.textContent).toContain(
+    "Speedrun Timer (speedrun_timer) runs its own code inside the game",
+  );
+  expect(host.textContent).toContain("(speedrun_timer)");
+  expect([...host.querySelectorAll("code[dir=ltr]")].map((code) => code.textContent)).toContain(
+    "b".repeat(64),
+  );
+
+  // Declining adds nothing.
+  await act(async () => button(host, "Don’t add").click());
+  expect(add).not.toHaveBeenCalled();
+  expect(host.textContent).not.toContain("runs its own code");
+
+  await act(async () => button(host, "Add mod file…").click());
+  await act(async () => button(host, "Allow its code and add").click());
+  expect(add).toHaveBeenCalledWith(
+    "shipwright",
+    "default",
+    "/mods/timer.nrm",
+    3,
+    7,
+    "b".repeat(64),
+  );
+});
+
+it("adds a mod without code, or code allowed before, without asking", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view({ package_types: ["nrm"] }));
+  vi.mocked(picker.pickModPackagePath).mockResolvedValue("/mods/ui.nrm");
+  const review = vi.spyOn(desktopApi, "reviewModPackageCode").mockResolvedValue(null);
+  const add = vi
+    .spyOn(desktopApi, "addModPackage")
+    .mockResolvedValue({} as Awaited<ReturnType<typeof desktopApi.addModPackage>>);
+  const host = await render();
+  await act(async () => button(host, "Add mod file…").click());
+  expect(add).toHaveBeenLastCalledWith("shipwright", "default", "/mods/ui.nrm", 3, 7, null);
+  review.mockResolvedValue({
+    native_id: "speedrun_timer",
+    display_name: "Speedrun Timer",
+    runs: ["recompiled_code"],
+    sha256: "c".repeat(64),
+    already_allowed: true,
+  });
+  await act(async () => button(host, "Add mod file…").click());
+  expect(add).toHaveBeenLastCalledWith(
+    "shipwright",
+    "default",
+    "/mods/ui.nrm",
+    3,
+    7,
+    "c".repeat(64),
+  );
+  expect(host.textContent).not.toContain("runs its own code");
 });

@@ -27680,6 +27680,65 @@
     "title": "ManagedRouteChangeResult",
     "type": "object"
   },
+  "mod_code_review": {
+    "$defs": {
+      "RecompExecution": {
+        "description": "What the package would run on the player's machine if enabled.",
+        "oneOf": [
+          {
+            "const": "recompiled_code",
+            "description": "Recompiled game code (`mod_binary.bin`/`mod_syms.bin`).",
+            "type": "string"
+          },
+          {
+            "const": "native_libraries",
+            "description": "Host libraries named in `native_libraries`, loaded from the mods folder.",
+            "type": "string"
+          },
+          {
+            "const": "external_code",
+            "description": "An offline package whose code comes from a sibling library file.",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "What a mod package would run, shown before the player allows its code.",
+    "properties": {
+      "already_allowed": {
+        "description": "True when these bytes were already allowed in this library.",
+        "type": "boolean"
+      },
+      "display_name": {
+        "description": "The name the mod gives itself; a claim, not verified.",
+        "type": "string"
+      },
+      "native_id": {
+        "description": "The loader's identity for the mod.",
+        "type": "string"
+      },
+      "runs": {
+        "items": {
+          "$ref": "#/$defs/RecompExecution"
+        },
+        "type": "array"
+      },
+      "sha256": {
+        "description": "The exact bytes any consent covers.",
+        "type": "string"
+      }
+    },
+    "required": [
+      "native_id",
+      "display_name",
+      "runs",
+      "sha256",
+      "already_allowed"
+    ],
+    "title": "ModCodeReview",
+    "type": "object"
+  },
   "mod_setups_view": {
     "$defs": {
       "ArtifactIdentity": {

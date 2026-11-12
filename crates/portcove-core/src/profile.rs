@@ -353,6 +353,10 @@ impl PortcoveService {
         };
         // A revision the game could not load unambiguously is never recorded.
         crate::profile_deploy::require_projectable(port_id, &next)?;
+        // Mod code the player has not allowed is never recorded as a setup to run.
+        if let Ok(layout) = self.deploy_layout(port_id) {
+            crate::profile_deploy::require_code_allowed(&layout, &next)?;
+        }
         seal(&mut next)?;
         let mut connection = self.library.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;

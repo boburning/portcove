@@ -1302,6 +1302,13 @@ export default interface Resources {
         "unverifiedHeading": "Portcove doesn’t verify"
       },
       "busy": "Finish the current operation before changing mods.",
+      "code": {
+        "allow": "Allow its code and add",
+        "cancel": "Don’t add",
+        "digest": "Your permission covers only this exact file: <digest />. Portcove asks again for a different file, including a later version.",
+        "intro": "<name /> (<id />) runs its own code inside the game. Portcove can’t tell whether that code is safe, who wrote it or whether it works with this version of the game. Add it only if you trust where it came from.",
+        "runs": "The game’s mod runtime turns the mod’s code into game code and runs it while you play."
+      },
       "copy": "Copy this setup",
       "copyCurrent": "Copy onto the current version",
       "copyIntro": "A copy has the same mods but starts with no saves and the game’s default settings. Your current setup keeps its own.",

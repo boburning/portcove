@@ -1728,7 +1728,7 @@ portcove --library PATH --json profile ensure-default PORT_ID
 portcove --library PATH --json profile copy PORT_ID PROFILE_ID NAME [--current-build]
 portcove --library PATH --json profile revisions PORT_ID PROFILE_ID
 portcove --library PATH --json profile policy PORT_ID PROFILE_ID keep-current|review-updates|automatic-eligible
-portcove --library PATH --json profile install-package PORT_ID PROFILE_ID FILE --expected-revision N
+portcove --library PATH --json profile install-package PORT_ID PROFILE_ID FILE --expected-revision N [--allow-mod-code SHA256]
 portcove --library PATH --json profile set-package PORT_ID PROFILE_ID NATIVE_ID on|off --expected-revision N
 portcove --library PATH --json profile activate PORT_ID PROFILE_ID
 portcove --library PATH --json profile live PORT_ID
@@ -1819,9 +1819,32 @@ package with an installed mod's ID replaces it. An ID that some supported system
 cannot use as a file name (a device name such as `NUL`, or one too long) is refused
 before anything is stored. The manifest's version is recorded with the package.
 
-Only mods that change assets are installed. A package that carries recompiled
-code, host libraries or other executable files, or that names another game, is
-refused with nothing recorded; running mod code needs its own review first.
+A package that names another game is refused with nothing recorded. A package
+that carries recompiled game code (`mod_binary.bin`/`mod_syms.bin`, which the
+runtime recompiles and runs inside the game) is refused as `usage` until the player
+allows code for those exact bytes: the refusal's `sha256` detail names them, and
+`install-package ... --allow-mod-code SHA256` installs the package only when that
+digest matches. The consent is kept per game in the library and covers only those
+bytes, so a later version, a recipe or a hand-written revision with other bytes
+needs its own consent, and other setups may use bytes already allowed. Portcove
+checks it again whenever it records a revision, switches profiles or places
+packages, before anything changes: a revision that would run code without consent
+is refused as `conflict` with nothing changed, and installing the same file again
+with `--allow-mod-code` lets it continue. Portcove therefore never records,
+enables or places mod code without consent. Files a player puts in `mods`
+themselves are not Portcove's: they are reported as files the setup did not add,
+never adopted into a setup that would run them. Provider installs refuse mods that
+run code. Consent records the
+player's choice; it does not establish that the code is safe, who wrote it, or
+that it works with the installed build. Packages that load code from outside
+themselves (`native_libraries` host libraries, `*.offline.nrm`) or contain files an
+operating system runs directly stay refused, even with consent.
+
+Desktop asks the same question: after a package is chosen it reads what the
+package would run, and a package whose code was not allowed before shows the mod's
+name, that it runs code inside the game, that Portcove cannot tell whether the code
+is safe, and the exact SHA-256 the permission covers. Only **Allow its code and
+add** installs it, bound to that digest.
 
 Required dependencies become package requirements. A mod needing a mod that is not
 installed is refused until that mod is installed, and a mod that is on cannot be
