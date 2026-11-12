@@ -8,5 +8,97 @@
     "read": "Leer los ajustes del juego",
     "reading": "Leyendo los ajustes del juego…",
     "reread": "Volver a leer los ajustes"
+  },
+  "editor": {
+    "chooseValue": "Elige un valor",
+    "defaultShown": "Aún no se ha guardado; se muestra el valor predeterminado.",
+    "error": {
+      "choose": "Elige una de las opciones de la lista.",
+      "number": "Escribe un número.",
+      "tooLarge": "Este número es demasiado grande para guardarlo con precisión.",
+      "whole": "Escribe un número entero."
+    },
+    "rangeNumber": "Números de {{minimum}} a {{maximum}}, en pasos de {{step}}.",
+    "rangeWhole": "Números enteros de {{minimum}} a {{maximum}}, en pasos de {{step}}.",
+    "reset": "Restablecer el valor predeterminado…",
+    "review": "Revisar el cambio"
+  },
+  "mods": {
+    "add": "Añadir un archivo de mod…",
+    "blocked": "La carpeta de mods del juego tiene archivos que este perfil no añadió, o archivos que cambiaron fuera de Portcove. Portcove no cambia los mods hasta que se muevan o se restauren, para no sobrescribirlos nunca.",
+    "busy": "Termina la operación en curso antes de cambiar los mods.",
+    "copy": "Copiar este perfil",
+    "copyIntro": "Una copia tiene los mismos mods, pero empieza sin partidas guardadas y con los ajustes predeterminados del juego. Tu perfil actual conserva los suyos.",
+    "copyName": "Nombre del nuevo perfil",
+    "createFirst": "Crear el primer perfil",
+    "empty": "No hay mods. El juego se ejecuta sin cambios en este perfil.",
+    "fromProvider": "<name /> (de <provider />)",
+    "gameChanged": "Este juego cambió. Actualiza sus detalles antes de cambiar los mods.",
+    "heading": "Perfiles y mods",
+    "held": {
+      "intro_one": "Portcove mantuvo la versión actual de un mod porque su actualización necesita tu revisión:",
+      "intro_many": "Portcove mantuvo las versiones actuales de algunos mods porque sus actualizaciones necesitan tu revisión:",
+      "intro_other": "Portcove mantuvo las versiones actuales de algunos mods porque sus actualizaciones necesitan tu revisión:",
+      "item": "<mods />: <reason />",
+      "next": "Desktop aún no puede revisar actualizaciones de mods. Revisa una con la línea de comandos de Portcove (profile provider-plan), o déjala: Portcove vuelve a comprobar cuando este perfil cambia o el mod ofrece otro archivo."
+    },
+    "intro": "Un perfil es un conjunto de mods con sus propias partidas guardadas y ajustes. Al cambiar de perfil, se guardan aparte las partidas y los ajustes del perfil actual y se recuperan los del otro perfil. Desactivar un mod lo quita de la carpeta de mods del juego; su archivo se queda en Portcove para que puedas volver a activarlo.",
+    "inUse": "En uso",
+    "laterPriority": "Los mods que aparecen más abajo en esta lista tienen prioridad cuando dos mods cambian lo mismo.",
+    "loadOrder": "El juego carga los mods en este orden.",
+    "modsIn": "Mods en {{name}}",
+    "modsInHeading": "Mods en <name />",
+    "native": {
+      "differs": "La lista de mods del juego no coincide con este perfil. Portcove restaura los mods y el orden de este perfil antes del próximo inicio.",
+      "notWritten": "Portcove escribe el orden de mods de este perfil en el juego antes del próximo inicio.",
+      "reordered": "Reordenaste los mods en el juego (<order />). Portcove conserva ese orden para este perfil.",
+      "unreadable": "Portcove no pudo leer el archivo de ajustes del juego, así que lo deja sin cambios. Es posible que el juego cargue los mods en su propio orden."
+    },
+    "none": "Este juego aún no tiene ningún perfil. Tus partidas guardadas y ajustes actuales pasan a ser su primer perfil.",
+    "noneOn": "ningún mod activado",
+    "on_one": "{{count}} mod activado",
+    "on_many": "{{count}} mods activados",
+    "on_other": "{{count}} mods activados",
+    "outcome": {
+      "added": "Se añadió un mod a {{name}}.",
+      "copied": "Se creó {{name}} con los mismos mods, sin partidas guardadas y con los ajustes predeterminados.",
+      "createdFirst": "Se creó el primer perfil a partir de tus partidas guardadas y ajustes actuales.",
+      "turnedOff": "Se desactivó {{name}}.",
+      "turnedOn": "Se activó {{name}}.",
+      "using": "Ahora se usa {{name}}."
+    },
+    "reread": "Volver a leer los perfiles",
+    "separator": ", ",
+    "setups": "Perfiles",
+    "use": "Usar {{name}}"
+  },
+  "panel": {
+    "fileUnavailable": "Este archivo de ajustes no está disponible.",
+    "heading": "Ajustes del juego",
+    "intro": "Revisa cada cambio antes de guardarlo. Las demás preferencias no cambian.",
+    "label": "Ajustes del juego",
+    "unavailable": "Los ajustes no están disponibles para esta instalación."
+  },
+  "review": {
+    "again": "Volver a revisar",
+    "cancel": "Cancelar",
+    "current": "Valor guardado actual",
+    "default": "Predeterminado",
+    "description": "Guarda solo esta preferencia para el juego instalado. Es posible que el juego deba reiniciarse para usarla.",
+    "failure": "No se aceptó el cambio. Actualiza los ajustes y vuelve a revisarlos.",
+    "installationChanged": "La instalación cambió. Actualiza los ajustes y vuelve a revisarlos.",
+    "new": "Nuevo valor",
+    "reading": "Leyendo el ajuste actual…",
+    "save": "Guardar el ajuste",
+    "setting": "Ajuste",
+    "technical": "Detalles técnicos",
+    "title": "Revisar el ajuste del juego"
+  },
+  "value": {
+    "notSaved": "Sin guardar",
+    "off": "Desactivado",
+    "on": "Activado",
+    "unavailable": "Valor no disponible",
+    "unrecognized": "Opción no reconocida"
   }
 }

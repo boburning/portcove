@@ -71,6 +71,7 @@ export default interface Resources {
       "saved": "Update settings saved. Saving these settings does not start an update."
     },
     "preferences": {
+      "automaticUnavailable": "Automatic isn't available because this build can't install its own updates.",
       "channelDescription_preview": "Preview receives public test releases and later eligible final releases.",
       "channelDescription_stable": "Stable waits for an eligible production release that is newer than your installed version; it never downgrades Portcove.",
       "channelGroup": "Application update channel",
@@ -1112,6 +1113,96 @@ export default interface Resources {
       "read": "Read game settings",
       "reading": "Reading game settings…",
       "reread": "Read settings again"
+    },
+    "editor": {
+      "chooseValue": "Choose a value",
+      "defaultShown": "Not saved yet; showing the default.",
+      "error": {
+        "choose": "Choose one of the listed options.",
+        "number": "Enter a number.",
+        "tooLarge": "This number is too large to save accurately.",
+        "whole": "Enter a whole number."
+      },
+      "rangeNumber": "Numbers from {{minimum}} to {{maximum}}, in steps of {{step}}.",
+      "rangeWhole": "Whole numbers from {{minimum}} to {{maximum}}, in steps of {{step}}.",
+      "reset": "Reset to default…",
+      "review": "Review change"
+    },
+    "mods": {
+      "add": "Add mod file…",
+      "blocked": "The game’s mods folder has files this setup did not add, or files changed outside Portcove. Portcove does not change mods until they are moved or restored, so they are never overwritten.",
+      "busy": "Finish the current operation before changing mods.",
+      "copy": "Copy this setup",
+      "copyIntro": "A copy has the same mods but starts with no saves and the game’s default settings. Your current setup keeps its own.",
+      "copyName": "New setup name",
+      "createFirst": "Create first setup",
+      "empty": "No mods. The game plays without changes in this setup.",
+      "fromProvider": "<name /> (from <provider />)",
+      "gameChanged": "This game changed. Refresh its details before changing mods.",
+      "heading": "Setups and mods",
+      "held": {
+        "intro_one": "Portcove kept the current version of a mod because its update needs your review:",
+        "intro_other": "Portcove kept the current versions of some mods because their updates need your review:",
+        "item": "<mods />: <reason />",
+        "next": "Desktop can’t review mod updates yet. Review one with the Portcove command line (profile provider-plan), or leave it: Portcove checks again when this setup changes or the mod offers another file."
+      },
+      "inUse": "In use",
+      "intro": "A setup is a set of mods with its own saves and settings. Switching setups puts away the current setup’s saves and settings and brings back the other setup’s. Turning a mod off removes it from the game’s mods folder; its file stays in Portcove so you can turn it on again.",
+      "laterPriority": "Later mods in this list take priority when two mods change the same thing.",
+      "loadOrder": "The game loads mods in this order.",
+      "modsIn": "Mods in {{name}}",
+      "modsInHeading": "Mods in <name />",
+      "native": {
+        "differs": "The game's mod list does not match this setup. Portcove restores this setup's mods and order before the next launch.",
+        "notWritten": "Portcove writes this setup's mod order into the game before the next launch.",
+        "reordered": "You reordered mods in the game (<order />). Portcove keeps that order for this setup.",
+        "unreadable": "Portcove could not read the game's settings file, so it leaves it unchanged. The game may load mods in its own order."
+      },
+      "none": "This game has no setup yet. Your current saves and settings become its first setup.",
+      "noneOn": "no mods on",
+      "on_one": "{{count}} mod on",
+      "on_other": "{{count}} mods on",
+      "outcome": {
+        "added": "Added a mod to {{name}}.",
+        "copied": "Created {{name}} with the same mods, no saves and default settings.",
+        "createdFirst": "Created the first setup from your current saves and settings.",
+        "turnedOff": "Turned off {{name}}.",
+        "turnedOn": "Turned on {{name}}.",
+        "using": "Now using {{name}}."
+      },
+      "reread": "Read setups again",
+      "separator": ", ",
+      "setups": "Setups",
+      "use": "Use {{name}}"
+    },
+    "panel": {
+      "fileUnavailable": "This settings file is unavailable.",
+      "heading": "Game settings",
+      "intro": "Review each change before saving. Other preferences stay as they are.",
+      "label": "Game settings",
+      "unavailable": "Settings are unavailable for this installation."
+    },
+    "review": {
+      "again": "Review again",
+      "cancel": "Cancel",
+      "current": "Current saved value",
+      "default": "Default",
+      "description": "Save this one preference for the installed game. The game may need to restart to use it.",
+      "failure": "The change was not accepted. Refresh settings and review again.",
+      "installationChanged": "The installation changed. Refresh settings and review again.",
+      "new": "New value",
+      "reading": "Reading the current setting…",
+      "save": "Save setting",
+      "setting": "Setting",
+      "technical": "Technical details",
+      "title": "Review game setting"
+    },
+    "value": {
+      "notSaved": "Not saved",
+      "off": "Off",
+      "on": "On",
+      "unavailable": "Value unavailable",
+      "unrecognized": "Unrecognized option"
     }
   },
   "gameUpdates": {

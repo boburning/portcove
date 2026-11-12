@@ -1,6 +1,9 @@
-import { useEffect, useId, useRef, useState } from "react";
+import type { TFunction } from "i18next";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
 import { pickModPackagePath } from "../file-picker";
+import { useAppTranslation } from "../localization";
 import type { LiveMods, ModSetupView, ModSetupsView } from "../types";
 import { errorText } from "../view-model";
 import { Button } from "./ui/button";
@@ -21,25 +24,38 @@ export function ModSetupsControl(props: Props) {
   );
 }
 
-function nativeListMessage(live: LiveMods | null | undefined): string | undefined {
+function nativeListMessage(
+  t: TFunction<"gameSettings">,
+  live: LiveMods | null | undefined,
+): ReactNode {
   const status = live?.native_list;
   switch (status?.state) {
     case "not-written":
-      return "Portcove writes this setup's mod order into the game before the next launch.";
+      return t("mods.native.notWritten");
     case "reordered":
-      return `You reordered mods in the game (${status.native_order.join(", ")}). Portcove keeps that order for this setup.`;
+      return (
+        <Trans
+          t={t}
+          i18nKey="mods.native.reordered"
+          components={{ order: <bdi>{status.native_order.join(t("mods.separator"))}</bdi> }}
+        />
+      );
     case "differs":
-      return "The game's mod list does not match this setup. Portcove restores this setup's mods and order before the next launch.";
+      return t("mods.native.differs");
     case "unreadable":
-      return "Portcove could not read the game's settings file, so it leaves it unchanged. The game may load mods in its own order.";
+      return t("mods.native.unreadable");
     default:
       return undefined;
   }
 }
 
 function BoundModSetupsControl({ portId, generation, busy }: Props) {
+  const { t } = useAppTranslation("gameSettings");
   const [view, setView] = useState<ModSetupsView>();
-  const [error, setError] = useState<string>();
+  // The app-owned mismatch is a code translated at render; Core failure text stays verbatim.
+  const [failure, setFailure] = useState<"gameChanged" | { text: string }>();
+  const error =
+    failure === "gameChanged" ? t("mods.gameChanged") : failure ? failure.text : undefined;
   const [outcome, setOutcome] = useState<string>();
   const [working, setWorking] = useState(false);
   const [request, setRequest] = useState(0);
@@ -64,14 +80,14 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
       (next) => {
         if (!current) return;
         if (next.port_id !== portId) {
-          setError("This game changed. Refresh its details before changing mods.");
+          setFailure("gameChanged");
           return;
         }
         setView(next);
         setFresh(true);
       },
       (failure: unknown) => {
-        if (current) setError(errorText(failure));
+        if (current) setFailure({ text: errorText(failure) });
       },
     );
     return () => {
@@ -80,7 +96,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   }, [portId, generation, busy, request]);
 
   const reread = () => {
-    setError(undefined);
+    setFailure(undefined);
     setRequest((value) => value + 1);
   };
   // Each change is checked again by Core under its lock; the result is re-read
@@ -88,14 +104,14 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   const perform = async (action: () => Promise<unknown>, success: string) => {
     setWorking(true);
     setOutcome(undefined);
-    setError(undefined);
+    setFailure(undefined);
     let succeeded = false;
     try {
       await action();
       setOutcome(success);
       succeeded = true;
     } catch (failure) {
-      setError(errorText(failure));
+      setFailure({ text: errorText(failure) });
     } finally {
       setWorking(false);
       setFresh(false);
@@ -108,23 +124,23 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
     return (
       <section aria-labelledby={headingId}>
         <h3 id={headingId} className="text-base font-semibold">
-          Setups and mods
+          {t("mods.heading")}
         </h3>
         <p role="alert">{error}</p>
         <Button variant="outline" onClick={reread}>
-          Read setups again
+          {t("mods.reread")}
         </Button>
       </section>
     );
   // Games without reviewed mod support show nothing, including while loading.
   if (!view?.supported) return null;
-  if (busy) return <p role="status">Finish the current operation before changing mods.</p>;
+  if (busy) return <p role="status">{t("mods.busy")}</p>;
   const locked = working || !fresh;
 
   const setups = view.inventory?.profiles ?? [];
   const selectedId = view.live?.profile_id ?? undefined;
   const selected = setups.find((entry) => entry.profile.id === selectedId);
-  const nativeMessage = nativeListMessage(view.live);
+  const nativeMessage = nativeListMessage(t, view.live);
   const heldUpdates = (view.held_updates ?? []).filter((held) => held.profile_id === selectedId);
   const blocked = Boolean(
     view.live && (view.live.unmanaged.length > 0 || view.live.changed_owned.length > 0),
@@ -133,39 +149,32 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   return (
     <section aria-labelledby={headingId} className="grid gap-3">
       <h3 id={headingId} className="text-base font-semibold">
-        Setups and mods
+        {t("mods.heading")}
       </h3>
-      <p className="text-sm text-pc-muted-foreground">
-        A setup is a set of mods with its own saves and settings. Switching setups puts away the
-        current setup&rsquo;s saves and settings and brings back the other setup&rsquo;s. Turning a
-        mod off removes it from the game&rsquo;s mods folder; its file stays in Portcove so you can
-        turn it on again.
-      </p>
+      <p className="text-sm text-pc-muted-foreground">{t("mods.intro")}</p>
       {error && <p role="alert">{error}</p>}
       {error && !fresh && !working && (
         <ActionRow>
           <Button variant="outline" onClick={reread}>
-            Read setups again
+            {t("mods.reread")}
           </Button>
         </ActionRow>
       )}
       {outcome && <p role="status">{outcome}</p>}
       {setups.length === 0 ? (
         <ActionRow>
-          <p className="text-sm">
-            This game has no setup yet. Your current saves and settings become its first setup.
-          </p>
+          <p className="text-sm">{t("mods.none")}</p>
           <Button
             variant="outline"
             disabled={locked}
             onClick={() =>
               void perform(
                 () => desktopApi.createDefaultModSetup(portId, generation),
-                "Created the first setup from your current saves and settings.",
+                t("mods.outcome.createdFirst"),
               )
             }
           >
-            Create first setup
+            {t("mods.createFirst")}
           </Button>
         </ActionRow>
       ) : (
@@ -173,11 +182,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
           {blocked && view.live && (
             <Notice intent="warning">
               <div data-slot="notice-body">
-                <p>
-                  The game&rsquo;s mods folder has files this setup did not add, or files changed
-                  outside Portcove. Portcove does not change mods until they are moved or restored,
-                  so they are never overwritten.
-                </p>
+                <p>{t("mods.blocked")}</p>
                 <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
                   {[...view.live.unmanaged, ...view.live.changed_owned].map((name) => (
                     <li key={name}>{name}</li>
@@ -190,27 +195,26 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
           {heldUpdates.length > 0 && (
             <Notice intent="info">
               <div data-slot="notice-body">
-                <p>
-                  {heldUpdates.length === 1
-                    ? "Portcove kept the current version of a mod because its update needs your review:"
-                    : "Portcove kept the current versions of some mods because their updates need your review:"}
-                </p>
+                <p>{t("mods.held.intro", { count: heldUpdates.length })}</p>
                 <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
                   {heldUpdates.map((held) => (
                     <li key={`${held.project_id}-${held.candidate_file_id}`}>
-                      {held.native_ids.join(", ")}: {held.reason}
+                      <Trans
+                        t={t}
+                        i18nKey="mods.held.item"
+                        components={{
+                          mods: <bdi>{held.native_ids.join(t("mods.separator"))}</bdi>,
+                          reason: <bdi>{held.reason}</bdi>,
+                        }}
+                      />
                     </li>
                   ))}
                 </ul>
-                <p>
-                  Desktop can&rsquo;t review mod updates yet. Review one with the Portcove command
-                  line (<code>profile provider-plan</code>), or leave it: Portcove checks again when
-                  this setup changes or the mod offers another file.
-                </p>
+                <p>{t("mods.held.next")}</p>
               </div>
             </Notice>
           )}
-          <ul aria-label="Setups" className="m-0 grid list-none gap-2 p-0">
+          <ul aria-label={t("mods.setups")} className="m-0 grid list-none gap-2 p-0">
             {setups.map((entry) => (
               <SetupRow
                 key={entry.profile.id}
@@ -220,17 +224,26 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                 onUse={() =>
                   void perform(
                     () => desktopApi.useModSetup(portId, entry.profile.id, generation),
-                    `Now using ${entry.profile.display_name}.`,
+                    t("mods.outcome.using", { name: entry.profile.display_name }),
                   )
                 }
               />
             ))}
           </ul>
           {selected && (
-            <section aria-label={`Mods in ${selected.profile.display_name}`} className="grid gap-2">
-              <h4 className="text-sm font-semibold">Mods in {selected.profile.display_name}</h4>
+            <section
+              aria-label={t("mods.modsIn", { name: selected.profile.display_name })}
+              className="grid gap-2"
+            >
+              <h4 className="text-sm font-semibold">
+                <Trans
+                  t={t}
+                  i18nKey="mods.modsInHeading"
+                  components={{ name: <bdi>{selected.profile.display_name}</bdi> }}
+                />
+              </h4>
               {(selected.revision.packages ?? []).length === 0 ? (
-                <p className="text-sm">No mods. The game plays without changes in this setup.</p>
+                <p className="text-sm">{t("mods.empty")}</p>
               ) : (
                 <ul className="m-0 grid list-none gap-1 p-0">
                   {inOverrideOrder(selected).map((item) => (
@@ -251,22 +264,32 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                                   generation,
                                 ),
                               value
-                                ? `Turned on ${item.native_id}.`
-                                : `Turned off ${item.native_id}.`,
+                                ? t("mods.outcome.turnedOn", { name: item.native_id })
+                                : t("mods.outcome.turnedOff", { name: item.native_id }),
                             )
                           }
                         />
-                        {item.native_id}
-                        {item.provider ? ` (from ${item.provider.provider})` : ""}
+                        {item.provider ? (
+                          <span>
+                            <Trans
+                              t={t}
+                              i18nKey="mods.fromProvider"
+                              components={{
+                                name: <bdi>{item.native_id}</bdi>,
+                                provider: <bdi>{item.provider.provider}</bdi>,
+                              }}
+                            />
+                          </span>
+                        ) : (
+                          <bdi>{item.native_id}</bdi>
+                        )}
                       </label>
                     </li>
                   ))}
                 </ul>
               )}
               <p className="text-sm text-pc-muted-foreground">
-                {view.later_mods_take_priority
-                  ? "Later mods in this list take priority when two mods change the same thing."
-                  : "The game loads mods in this order."}
+                {view.later_mods_take_priority ? t("mods.laterPriority") : t("mods.loadOrder")}
               </p>
               <ActionRow>
                 <Button
@@ -287,21 +310,18 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                             selected.profile.current_revision,
                             generation,
                           ),
-                        `Added a mod to ${selected.profile.display_name}.`,
+                        t("mods.outcome.added", { name: selected.profile.display_name }),
                       );
                     })()
                   }
                 >
-                  Add mod file…
+                  {t("mods.add")}
                 </Button>
               </ActionRow>
-              <p className="text-sm text-pc-muted-foreground">
-                A copy has the same mods but starts with no saves and the game&rsquo;s default
-                settings. Your current setup keeps its own.
-              </p>
+              <p className="text-sm text-pc-muted-foreground">{t("mods.copyIntro")}</p>
               <ActionRow>
                 <label htmlFor={copyId} className="text-sm">
-                  New setup name
+                  {t("mods.copyName")}
                 </label>
                 <Input
                   id={copyId}
@@ -316,13 +336,13 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                     const name = copyName.trim();
                     void perform(
                       () => desktopApi.copyModSetup(portId, selected.profile.id, name, generation),
-                      `Created ${name} with the same mods, no saves and default settings.`,
+                      t("mods.outcome.copied", { name }),
                     ).then((created) => {
                       if (created) setCopyName("");
                     });
                   }}
                 >
-                  Copy this setup
+                  {t("mods.copy")}
                 </Button>
               </ActionRow>
             </section>
@@ -358,6 +378,7 @@ function SetupRow({
   disabled: boolean;
   onUse: () => void;
 }) {
+  const { t } = useAppTranslation("gameSettings");
   const enabled = (entry.revision.packages ?? []).filter((item) => item.enabled).length;
   return (
     <li className="flex flex-wrap items-center gap-2 rounded-pc-md border border-pc-border p-2">
@@ -365,14 +386,14 @@ function SetupRow({
         <span className="font-semibold">{entry.profile.display_name}</span>
         <span className="text-sm text-pc-muted-foreground">
           {" "}
-          · {enabled === 0 ? "no mods on" : enabled === 1 ? "1 mod on" : `${enabled} mods on`}
+          · {enabled === 0 ? t("mods.noneOn") : t("mods.on", { count: enabled })}
         </span>
       </span>
       {inUse ? (
-        <span className="text-sm font-semibold">In use</span>
+        <span className="text-sm font-semibold">{t("mods.inUse")}</span>
       ) : (
         <Button variant="outline" disabled={disabled} onClick={onUse}>
-          Use {entry.profile.display_name}
+          {t("mods.use", { name: entry.profile.display_name })}
         </Button>
       )}
     </li>
