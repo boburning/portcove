@@ -1833,14 +1833,20 @@ portcove launcher-library adopt --launcher quiver DATA_ROOT
 portcove --json --non-interactive launcher-library adopt --launcher github-launcher DATA_ROOT --app "Game A" --app "Game B" --yes
 ```
 
-Without `--app`, the batch holds every `ready-to-review` app. `--app` selects by
-launcher name or folder name and refuses an unknown, ambiguous or not-ready
+Without `--app`, the batch holds every `ready-to-review` app, leaving out one
+that repeats a folder or game already in the batch and naming it so it can be
+copied separately; an app that cannot be reviewed refuses the whole batch, so
+name the others with `--app`. `--app` selects by
+launcher name or folder name (ignoring `duplicate` entries) and refuses an unknown, ambiguous or not-ready
 app. A batch holds at most 32 installations, each folder once and each game
 once. The review is the ordinary adoption review of every app, shown together:
 files, size, managed destination, the current active version that stays
-installed, saved files that replace matching files in Portcove with no backup
-first, and unsupported items left in the original. One consent binds the
-reviewed `batch_sha256` (`adoption_batch_preview` in `schema export`).
+installed, saved files copied in (and, when Portcove already holds saved files
+for that game, that matching ones are replaced with no backup first), and
+unsupported items left in the original. One consent binds the reviewed
+`batch_sha256`. The human output shows this review before asking; like `adopt`,
+JSON output with `--yes` confirms without printing it, so JSON callers should
+inspect the apps first with `launcher-library inspect`.
 
 After consent, each app is reviewed again just before it is copied. An app whose
 folder or destination changed is reported `changed` and not copied; an app
@@ -1848,8 +1854,10 @@ whose ordinary adoption fails is reported `failed`. Each copy is the same
 journaled adoption as `adopt`, so other apps are unaffected and interrupted
 work follows the ordinary adoption recovery. The `launcher-library.adopt`
 result (`adoption_batch_result`) lists every app's outcome. Originals and the
-launcher's files are never modified. Run the command again to review apps that
-were not copied; an app already copied refuses a second identical copy.
+launcher's files are never modified. The command succeeds when the batch ran,
+even if some apps were not copied; each app's `outcome` is authoritative. Copied
+apps stay listed as ready, so review the rest by naming them with `--app`; the
+human result prints that command.
 
 ## Reviewed first installation
 

@@ -2659,13 +2659,19 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 &data_root,
                 apps_root.as_deref(),
             )?;
-            let items = launcher_batch_items(&inventory, &apps)?;
+            let (items, left_out) = launcher_batch_items(&inventory, &apps)?;
             let preview = service.preview_adoption_batch(&items)?;
             if mode == OutputMode::Human {
                 println!(
                     "{}",
                     human::adoption_batch_preview(&preview, service.catalog())
                 );
+                if !left_out.is_empty() {
+                    println!(
+                        "\nLeft out because they repeat a folder or game already in this batch: {}\nCopy them separately with --app after this batch.",
+                        left_out.join(", ")
+                    );
+                }
             }
             require_confirmation(
                 "Copy these installations into Portcove? Originals will be left untouched.",
@@ -3221,10 +3227,12 @@ where
 }
 
 /// Launcher apps to copy: every app ready to review, or exactly those named.
+/// Returns the items and, for the default selection, apps left out because they
+/// would repeat a folder or game already in the batch.
 fn launcher_batch_items(
     inventory: &portcove_core::LauncherLibraryInventory,
     names: &[String],
-) -> Result<Vec<portcove_core::AdoptionBatchItem>> {
+) -> Result<(Vec<portcove_core::AdoptionBatchItem>, Vec<String>)> {
     let item = |entry: &portcove_core::LauncherLibraryEntry| {
         entry
             .install_path
@@ -3233,27 +3241,41 @@ fn launcher_batch_items(
             .map(|(source, port_id)| portcove_core::AdoptionBatchItem { source, port_id })
     };
     if names.is_empty() {
-        let items = inventory
-            .entries
-            .iter()
-            .filter_map(item)
-            .collect::<Vec<_>>();
+        let mut items = Vec::new();
+        let mut left_out = Vec::new();
+        let mut ports = std::collections::BTreeSet::new();
+        for entry in &inventory.entries {
+            let Some(candidate) = item(entry) else {
+                continue;
+            };
+            let label = if entry.name.trim().is_empty() {
+                entry.folder_name.clone()
+            } else {
+                entry.name.clone()
+            };
+            if entry.shares_folder_with.is_some() || !ports.insert(candidate.port_id.clone()) {
+                left_out.push(label);
+            } else {
+                items.push(candidate);
+            }
+        }
         if items.is_empty() {
             return Err(PortcoveError::not_found(
                 "no app in this launcher library is ready to review; run launcher-library inspect for details",
             ));
         }
-        return Ok(items);
+        return Ok((items, left_out));
     }
-    names
+    let items = names
         .iter()
         .map(|name| {
             let matches = inventory
                 .entries
                 .iter()
                 .filter(|entry| {
-                    entry.name.eq_ignore_ascii_case(name)
-                        || entry.folder_name.eq_ignore_ascii_case(name)
+                    entry.status != portcove_core::LauncherEntryStatus::Duplicate
+                        && (entry.name.eq_ignore_ascii_case(name)
+                            || entry.folder_name.eq_ignore_ascii_case(name))
                 })
                 .collect::<Vec<_>>();
             match matches.as_slice() {
@@ -3274,7 +3296,8 @@ fn launcher_batch_items(
                 ))),
             }
         })
-        .collect()
+        .collect::<Result<Vec<_>>>()?;
+    Ok((items, Vec::new()))
 }
 
 fn render_read_success<T, F>(mode: OutputMode, command: &str, data: T, renderer: F) -> Result<()>

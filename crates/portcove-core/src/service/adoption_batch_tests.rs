@@ -142,6 +142,18 @@ fn consent_binds_exactly_the_reviewed_items() {
             .adopt_batch(&items, &tampered, &authorization.token)
             .is_err()
     );
+    // A consent for one review cannot run a later, freshly computed review.
+    let first_consent = service
+        .authorize_adoption_batch(&items, &preview.batch_sha256)
+        .unwrap();
+    fs::write(items[0].source.join("readme.txt"), b"changed").unwrap();
+    let second = service.preview_adoption_batch(&items).unwrap();
+    assert_ne!(second.batch_sha256, preview.batch_sha256);
+    assert!(
+        service
+            .adopt_batch(&items, &second, &first_consent.token)
+            .is_err()
+    );
     // A forged token copies nothing.
     assert!(service.adopt_batch(&items, &preview, "ungranted").is_err());
     for item in &items {

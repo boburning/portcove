@@ -23,7 +23,8 @@ pub struct AdoptionBatchPreview {
     pub items: Vec<AdoptionPreview>,
     pub total_files: usize,
     pub total_bytes: u64,
-    /// Items whose copy replaces matching saved files already in Portcove.
+    /// Items that import saved files while Portcove already holds saved files for
+    /// that game, so matching files there are replaced.
     pub items_replacing_saved_files: usize,
     pub original_will_be_modified: bool,
     /// Binds the item list and every item's reviewed plan.
@@ -97,10 +98,10 @@ impl PortcoveService {
             items_replacing_saved_files: previews
                 .iter()
                 .filter(|preview| {
-                    preview
-                        .destination
-                        .as_ref()
-                        .is_some_and(|destination| !destination.imported_user_data_paths.is_empty())
+                    preview.destination.as_ref().is_some_and(|destination| {
+                        !destination.imported_user_data_paths.is_empty()
+                            && destination.current_user_data_files > 0
+                    })
                 })
                 .count(),
             original_will_be_modified: false,
@@ -215,7 +216,13 @@ fn validate_batch(items: &[AdoptionBatchItem]) -> Result<()> {
     let mut sources = std::collections::BTreeSet::new();
     let mut ports = std::collections::BTreeSet::new();
     for item in items {
-        if !sources.insert(&item.source) {
+        // Windows and default macOS volumes compare folder names case-insensitively.
+        let folder = if cfg!(any(windows, target_os = "macos")) {
+            PathBuf::from(item.source.to_string_lossy().to_lowercase())
+        } else {
+            item.source.clone()
+        };
+        if !sources.insert(folder) {
             return Err(PortcoveError::conflict(format!(
                 "{} appears more than once in the batch",
                 item.source.display()

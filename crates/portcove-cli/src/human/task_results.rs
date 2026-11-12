@@ -343,9 +343,15 @@ pub(crate) fn adoption_batch_preview(preview: &AdoptionBatchPreview, catalog: &C
                     clean(&install.version)
                 ));
             }
+            let replaces = destination.current_user_data_files > 0;
             for path in &destination.imported_user_data_paths {
                 text.push_str(&format!(
-                    "\nSaved file replaced in Portcove, with no backup first: {}",
+                    "\n{}: {}",
+                    if replaces {
+                        "Saved file copied in; a matching file in Portcove is replaced, with no backup first"
+                    } else {
+                        "Saved file copied in"
+                    },
                     clean(&path.display().to_string())
                 ));
             }
@@ -356,6 +362,9 @@ pub(crate) fn adoption_batch_preview(preview: &AdoptionBatchPreview, catalog: &C
                 item.copy_plan.skipped_entries.len()
             ));
         }
+    }
+    if preview.items_replacing_saved_files > 0 {
+        text.push_str("\n\nRemoving a copy later does not restore replaced saved files. Create a backup first if you need them.");
     }
     text.push_str("\n\nEach installation is checked again just before it is copied. One that changed after this review is held, not copied. Stop the games before copying.");
     text
@@ -393,12 +402,27 @@ pub(crate) fn adoption_batch_result(result: &AdoptionBatchResult, catalog: &Cata
             text.push_str(&format!("\n{}", clean(message)));
         }
     }
-    if result
+    let remaining = result
         .items
         .iter()
-        .any(|item| item.outcome != AdoptionBatchItemOutcome::Copied)
-    {
-        text.push_str("\n\nNext step: run the same command again to review the installations that were not copied.");
+        .filter(|item| item.outcome != AdoptionBatchItemOutcome::Copied)
+        .map(|item| {
+            item.source
+                .file_name()
+                .map(|name| clean(&name.to_string_lossy()))
+                .unwrap_or_default()
+        })
+        .collect::<Vec<_>>();
+    if !remaining.is_empty() {
+        // Copied apps stay listed as ready; name only the rest so they are not copied again.
+        text.push_str(&format!(
+            "\n\nNext step: review the installations that were not copied with {}.",
+            remaining
+                .iter()
+                .map(|name| format!("--app \"{name}\""))
+                .collect::<Vec<_>>()
+                .join(" ")
+        ));
     }
     text
 }
