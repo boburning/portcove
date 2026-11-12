@@ -854,7 +854,17 @@ read rechecks that digest before reusing or deriving a thumbnail. A missing, cha
 unreachable image falls back in the renderer without blocking library or port
 operations. The catalog mapping is presentation data, so a reviewed signed
 catalog update can correct it without changing the installed app. An absent
-mapping retains the generated fallback. Provider terms and image withdrawal
+mapping retains the generated fallback. Cached remote originals are named by
+their catalog content digest, so a corrected or withdrawn mapping is never
+resolved from its earlier bytes. Each remote-original publication, under the
+artwork lock, also removes cached IGDB and catalog-media originals that no
+currently resolvable port references: the current catalog plus retained
+installed, registered and unfinished-setup identities. Local-import thumbnails
+and interrupted staging keep their own repair paths. If those references cannot
+be established, or an entry cannot be removed, it is retained and only the
+64 MiB size bound applies. Each service judges references from its own catalog
+snapshot, so processes holding different catalogs may refetch each other's
+covers; that costs network only, never a local choice. Provider terms and image withdrawal
 remain separate from local file integrity and executable trust.
 
 The [independent definition delivery contract](DEFINITION-DELIVERY.md) keeps
