@@ -761,10 +761,12 @@ exports. Originals remain until explicit unused-image removal. Thumbnail failure
 cannot prevent choosing a validated original. On-demand PNG thumbnails fit within
 384 by 576 pixels and 1 MiB each, and show the original as displayed: Core applies
 its embedded EXIF/PNG orientation to the bounded derivative only, and ignores older
-unoriented cache entries (thumbnail format version 1) so they are rebuilt. A local asset's
-recorded `width` and `height` remain the stored pixel axes of the unmodified
-original, because the destination handoff compares them with the decoded bytes;
-wide roles separately refuse an original whose orientation turns it a quarter turn. Fetched catalog-default IGDB JPEG originals
+unoriented cache entries (thumbnail format version 1) so they are rebuilt. The
+same shared decoder orients IGDB cover and catalog-media derivatives. Recorded
+`width` and `height` (local assets and catalog media) remain the stored pixel
+axes of the unmodified original, because the destination handoff compares them
+with the decoded bytes; the hero role separately refuses an original whose
+orientation turns it a quarter turn. Fetched catalog-default IGDB JPEG originals
 are limited to 16 MiB each. Their separate 64 MiB cache verifies content hashes,
 rebuilds missing/corrupt entries, and evicts entries in deterministic filename order.
 One bounded pending file for each kind is recognized for interrupted-write retry
