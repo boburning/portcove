@@ -5,6 +5,69 @@
     "project": "Upstream project",
     "steam": "Steam shortcut"
   },
+  "capabilities": {
+    "assessment": "Assessment details",
+    "backupNone": "Latest completed backup: None recorded. Review Saves & backups for effective coverage and exclusions.",
+    "backupRecorded": "Latest completed backup: Recorded; restore verifies the selected snapshot. Review Saves & backups for effective coverage and exclusions.",
+    "externalRuntime": "Updates handled upstream · Backups not managed by Portcove",
+    "feature": {
+      "audio": "Audio",
+      "backup": "Backup",
+      "controls": "Controls",
+      "gameplay": "Gameplay",
+      "launch": "Launch",
+      "originalFiles": "Original-file checking",
+      "performance": "Performance",
+      "previousVersion": "Previous-version recovery",
+      "restore": "Restore",
+      "saveCompatibility": "Save compatibility",
+      "settings": "Settings",
+      "setup": "Setup",
+      "updates": "Game updates"
+    },
+    "features": "Features and setup routes",
+    "heading": "What works and known issues",
+    "intro": "Availability and testing are separate. Each action checks its own current requirements.",
+    "label": "What works and known issues",
+    "mode": {
+      "automatic": "Available in Portcove",
+      "manual": "Manual",
+      "unavailable": "Unavailable in Portcove",
+      "unknown": "Unknown"
+    },
+    "notice": {
+      "current": "Applies to this route",
+      "edition": "edition {{edition}}",
+      "exact": "Exact context required",
+      "file": "artifact {{sha256}}",
+      "heading": "{{feature}} · {{evidence}} · {{applicability}}",
+      "historical": "Historical / different scope",
+      "release": "release {{release}}",
+      "scope": "Scope: {{scope}}.",
+      "separator": " · ",
+      "source": "Source",
+      "versionSpecific": "Version-specific evidence: check this exact scope before applying it to your copy. Later releases do not inherit a failure or a fix."
+    },
+    "noticesUnavailable": "Optional known-issue notices are unavailable. Setup and launch retain their current assessments.",
+    "observations": {
+      "intro": "These results describe the exact game edition, version, files and device that were checked. This summary has not matched those conditions to your copy, so the results remain historical.",
+      "source": "Evidence source",
+      "summary": "Historical observations and exact applicability"
+    },
+    "path": {
+      "acceptedExternal": "Accepted prepared package",
+      "existingCopy": "Explicit existing-copy selection",
+      "installed": "Current installation",
+      "managed": "Managed setup",
+      "notInstalled": "Not installed · operation prerequisites",
+      "upstreamSetup": "Upstream setup and saved downloads",
+      "userSelected": "Your selected installation"
+    },
+    "refresh": "Refresh feature details",
+    "settingsPartial": "Settings are supported; some configuration files are not initialized or available. Open Settings for their current reasons.",
+    "unavailable": "Feature details are unavailable. Use the current action assessments and setup instructions.",
+    "untested": "{{mode}} · Not tested by this report"
+  },
   "identity": {
     "label": "Game and port identity",
     "offeredChannel": "Offered update channel",
