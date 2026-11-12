@@ -141,10 +141,12 @@ unless the copy change is intended and reviewed.
 | Game hero label and image-credits summary                                                                                  | `components/GameHero.tsx`                                  | `browsing`          |
 | Brand mascot alternative text (product name stays literal)                                                                 | `components/Brand.tsx`                                     | `common`            |
 | Identity icon (no copy of its own)                                                                                         | `features/identity/IdentityIcon.tsx`                       | —                   |
+| Game-file filter observation (state, reason and route labels follow the shared `game-file-query-context` migration)        | `components/GameFileFilterObservation.tsx`                 | `gameFiles`         |
+| Preliminary game-file selections                                                                                           | `components/PreliminarySourceSelections.tsx`               | `gameFiles`         |
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-12 it
-reported 1,528 findings in 59 of 216 analyzed files, measured after the
+reported 1,518 findings in 57 of 216 analyzed files, measured after the
 migrations listed above and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
 and are migrated with the surface that renders them. The count is a work

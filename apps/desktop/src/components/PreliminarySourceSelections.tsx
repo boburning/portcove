@@ -1,5 +1,6 @@
 import type { SourceInspectionReport, SourceProfile, SourceRecord } from "../types";
 import type { ReactNode } from "react";
+import { useAppTranslation } from "../localization";
 import { Button } from "./ui/button";
 
 type Inspection = NonNullable<SourceInspectionReport["inspection"]>;
@@ -33,15 +34,13 @@ export function PreliminarySourceSelections({
   renderActions?: (candidate: SourceRecord) => ReactNode;
   headingLevel?: 3 | 4;
 }) {
+  const { t } = useAppTranslation("gameFiles");
   if (selections.length === 0) return null;
   const Heading = headingLevel === 4 ? "h4" : "h3";
   return (
-    <section aria-label="Preliminary game-file selections">
-      <Heading>Preliminary selections</Heading>
-      <p>
-        These files are not exact matches. Validation has not run, and compatibility is not
-        confirmed. Review a selection before deciding whether to save its location.
-      </p>
+    <section aria-label={t("preliminary.label")}>
+      <Heading>{t("preliminary.heading")}</Heading>
+      <p>{t("preliminary.description")}</p>
       {selections.map((selection) => {
         const candidate = preliminarySelectionRecord(selection);
         const profile = profiles.find((item) => item.id === selection.profile_id);
@@ -54,14 +53,10 @@ export function PreliminarySourceSelections({
             key={`${selection.profile_id}:${selection.path}`}
           >
             <strong>{profile?.label ?? selection.profile_id}</strong>
-            <code className="block [overflow-wrap:anywhere] whitespace-normal">
+            <code dir="ltr" className="block [overflow-wrap:anywhere] whitespace-normal">
               {selection.path}
             </code>
-            <p>
-              {candidate
-                ? "Validation has not run."
-                : "Selection details are unavailable or inconsistent. Search again before reviewing this file."}
-            </p>
+            <p>{candidate ? t("preliminary.notValidated") : t("preliminary.inconsistent")}</p>
             {candidate && profile && renderActions ? (
               renderActions(candidate)
             ) : (
@@ -74,7 +69,7 @@ export function PreliminarySourceSelections({
                   if (candidate && profile) onReview(candidate);
                 }}
               >
-                Check these files
+                {t("preliminary.check")}
               </Button>
             )}
           </div>
