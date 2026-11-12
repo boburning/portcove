@@ -3,7 +3,11 @@ import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import type { LauncherLibraryEntry, LauncherLibraryInventory } from "../types";
-import { LauncherLibraryImport, launcherEntryCanBeReviewed } from "./LauncherLibraryImport";
+import {
+  LauncherLibraryImport,
+  entryDetails,
+  launcherEntryCanBeReviewed,
+} from "./LauncherLibraryImport";
 
 function entry(overrides: Partial<LauncherLibraryEntry>): LauncherLibraryEntry {
   return {
@@ -37,7 +41,11 @@ const inventory: LauncherLibraryInventory = {
   apps_root: "C:\\Apps",
   apps_root_origin: "settings",
   entries: [
-    entry({ not_carried_over: ["custom launch command"] }),
+    entry({
+      not_carried_over: ["custom launch command"],
+      user_data_paths: ["saves"],
+      mods: { records: 2, providers: ["gamebanana"], readable: true },
+    }),
     entry({
       index: 1,
       name: "Shared",
@@ -102,6 +110,8 @@ it("lists a chosen launcher's apps and hands only reviewable ones to the copy re
       .element(page.getByText("3 apps listed · 1 ready to review · 1 unreadable entry skipped"))
       .toBeVisible();
     await expect.element(page.getByText("Not carried over: custom launch command")).toBeVisible();
+    await expect.element(page.getByText("Saves and settings found: saves")).toBeVisible();
+    await expect.element(page.getByText(/^2 launcher mod records, listed only/)).toBeVisible();
     expect(page.getByRole("button", { name: "Review copying Other" }).elements()).toHaveLength(0);
     // No app is missing its folder, so no apps-folder recovery is offered.
     expect(page.getByLabelText("Apps folder, if it moved").elements()).toHaveLength(0);
@@ -168,4 +178,49 @@ it("offers a moved apps folder and lists again with it when apps were not found"
     await act(async () => root.unmount());
     container.remove();
   }
+});
+
+it("names saves, mod records and version labels without trusting them", () => {
+  expect(entryDetails(entry({}))).toEqual([]);
+  expect(
+    entryDetails(
+      entry({
+        user_data_paths: ["saves", "config.ini"],
+        mods: { records: 1, providers: ["gamebanana"], readable: true },
+        hints: {
+          preferred_version: "v9",
+          installed_version_label: "v1.2.3",
+          selected_executable: "other.exe",
+        },
+      }),
+    ),
+  ).toEqual([
+    "Saves and settings found: saves, config.ini",
+    "1 launcher mod record, listed only; it is not copied as a mod or turned on",
+    "Installed version label: v1.2.3 (not verified)",
+    "Launcher version setting: v9 (not verified)",
+  ]);
+  expect(
+    entryDetails(
+      entry({
+        user_data_paths: ["a", "b", "c", "d", "e", "f", "g"],
+        mods: { records: 3, providers: [], readable: true },
+      }),
+    ),
+  ).toEqual([
+    "Saves and settings found: a, b, c, d, e, and 2 more saves and settings",
+    "3 launcher mod records, listed only; they are not copied as mods or turned on",
+  ]);
+  expect(entryDetails(entry({ user_data_paths: ["a", "b", "c", "d", "e"] }))).toEqual([
+    "Saves and settings found: a, b, c, d, e",
+  ]);
+  expect(entryDetails(entry({ user_data_paths: ["a", "b", "c", "d", "e", "f"] }))).toEqual([
+    "Saves and settings found: a, b, c, d, e, and 1 more save or setting",
+  ]);
+  expect(entryDetails(entry({ mods: { records: 0, providers: [], readable: false } }))).toEqual([
+    "Launcher mod records could not be read",
+  ]);
+  expect(entryDetails(entry({ mods: { records: 0, providers: [], readable: true } }))).toEqual([
+    "No launcher mod records",
+  ]);
 });
