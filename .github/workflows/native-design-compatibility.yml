@@ -733,6 +733,39 @@ jobs:
         uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.native-quality-pins.outputs.required_prebuilt }}
+      # Owner-approved on 2026-11-12 for #4879: windows-2022 registers WebView2
+      # 131, below the application's floor, so Portcove correctly refuses to
+      # start. Update to the serviced Evergreen runtime before bootstrap selects
+      # the matching driver. Microsoft's Authenticode signature is verified
+      # before execution; Server 2022 remains no supported-baseline claim.
+      - name: Provision the serviced Evergreen WebView2 runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Import-Module ./scripts/windows-webview-driver-policy.psm1
+          $minimum = [string]((Get-Content apps/desktop/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).bundle.windows.minimumWebview2Version)
+          if ($minimum -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw 'Application WebView2 floor is unreadable.' }
+          $before = Get-WebViewRuntimeVersion
+          $record = [ordered]@{ minimum = $minimum; before = $before }
+          if ([version]$before -lt [version]$minimum) {
+            $installer = Join-Path $env:RUNNER_TEMP 'MicrosoftEdgeWebview2Setup.exe'
+            Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile $installer -UseBasicParsing
+            $signature = Get-AuthenticodeSignature -LiteralPath $installer
+            if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') {
+              throw "Evergreen bootstrapper signature is not a valid Microsoft signature: $($signature.Status)"
+            }
+            $record.installer_sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash
+            $record.installer_signer = $signature.SignerCertificate.Subject
+            $process = Start-Process -FilePath $installer -ArgumentList '/silent', '/install' -Wait -PassThru
+            $record.installer_exit_code = $process.ExitCode
+            if ($process.ExitCode -ne 0) { throw "Evergreen bootstrapper exited $($process.ExitCode)." }
+          }
+          $record.after = Get-WebViewRuntimeVersion
+          $record | ConvertTo-Json | Set-Content "$env:PORTCOVE_OUTPUT_DIR/webview2-runtime.json"
+          $record | ConvertTo-Json
+          if ([version]$record.after -lt [version]$minimum) {
+            throw "WebView2 $($record.after) remains below the application floor $minimum."
+          }
       - name: Install locked packages and existing pinned native tools
         shell: pwsh
         run: |

@@ -224,6 +224,14 @@ acquisition, staged update composition, inert external-runtime registration,
 artwork picking, appearance restart/refresh recovery, and each of the three
 standalone startup-preferences/startup-library/library-switch recovery journeys.
 This preserves the planner's standalone and incompatible-fixture refusals.
+Public `windows-2022` registers WebView2 below the application's floor, so the
+application correctly refuses to start there. With owner approval (2026-11-12,
+#4879), each group first downloads Microsoft's Evergreen bootstrapper, requires a
+valid Microsoft Authenticode signature before running it, records its digest and
+the before/after runtime versions, and refuses to continue below the floor.
+Driver bootstrap then matches the updated runtime. This makes the fixture
+observable; Server 2022 with a provisioned runtime is not the Windows 11 26H2
+first-beta baseline.
 The update-acquisition group also observes #4879's automatic snapshot surfaces
 after its real activating update of a played fixture: the review and rollback
 copy, exactly one Core snapshot labelled with the from/to versions that holds the
