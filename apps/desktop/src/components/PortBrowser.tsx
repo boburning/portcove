@@ -1377,7 +1377,7 @@ function PortCardStatus({
       : port.pendingSetup
         ? "Continue setup"
         : reviewSetup
-          ? "Set up"
+          ? "Finish setup"
           : "View details";
   return (
     <div className="collection-actions mt-0 flex min-h-8 flex-wrap items-center justify-end gap-1 pt-0 text-xs">

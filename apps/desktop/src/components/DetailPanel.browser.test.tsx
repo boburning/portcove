@@ -240,6 +240,94 @@ it("keeps Core's allowed launch while source-record readback is pending", async 
   expect(props.inspectSource).not.toHaveBeenCalled();
 });
 
+it("offers a read-only Check again as the primary action while setup is unknown", async () => {
+  const port = { ...portDefinition(), source_profile: null, bios_source_profile: null };
+  const noop = vi.fn();
+  let settle: () => void = () => undefined;
+  const checkAgain = vi.fn(() => new Promise<void>((resolve) => (settle = resolve)));
+  const actions = {
+    activate: noop,
+    backup: noop,
+    check: async () => undefined,
+    close: noop,
+    deleteBackup: noop,
+    dismissInstallReview: noop,
+    install: noop,
+    launch: noop,
+    openUserData: noop,
+    reviewInstall: noop,
+    restoreBackup: noop,
+    rollback: noop,
+    remove: noop,
+    setChannel: async () => undefined,
+    setPolicy: async () => undefined,
+    verify: noop,
+  };
+  await render(
+    <DetailPanel
+      port={port}
+      status={undefined}
+      sourcePath=""
+      setSourcePath={noop}
+      checkAgain={checkAgain}
+      actions={actions}
+    />,
+  );
+  expect(document.querySelector("[data-detail-readiness]")?.textContent).toContain(
+    "Can't check right now",
+  );
+  const check = page.getByRole("button", { name: "Check again", exact: true });
+  await expect.element(check).toHaveAttribute("data-variant", "primary");
+  const deferred = [...document.querySelectorAll<HTMLButtonElement>("button")].filter((button) =>
+    /^(Install|Finish setup)\b/.test(button.textContent ?? ""),
+  );
+  expect(deferred.length).toBeGreaterThan(0);
+  expect(deferred.map((button) => button.dataset.variant)).toEqual(deferred.map(() => "outline"));
+  await check.click();
+  await expect.element(page.getByRole("button", { name: "Checking…", exact: true })).toBeDisabled();
+  settle();
+  await expect
+    .element(page.getByRole("button", { name: "Check again", exact: true }))
+    .toBeEnabled();
+  expect(checkAgain).toHaveBeenCalledTimes(1);
+  expect(actions.install).not.toHaveBeenCalled();
+});
+
+it("keeps the unknown setup state without Check again when no reread is available", async () => {
+  const port = { ...portDefinition(), source_profile: null, bios_source_profile: null };
+  const noop = vi.fn();
+  await render(
+    <DetailPanel
+      port={port}
+      status={undefined}
+      sourcePath=""
+      setSourcePath={noop}
+      actions={{
+        activate: noop,
+        backup: noop,
+        check: async () => undefined,
+        close: noop,
+        deleteBackup: noop,
+        dismissInstallReview: noop,
+        install: noop,
+        launch: noop,
+        openUserData: noop,
+        reviewInstall: noop,
+        restoreBackup: noop,
+        rollback: noop,
+        remove: noop,
+        setChannel: async () => undefined,
+        setPolicy: async () => undefined,
+        verify: noop,
+      }}
+    />,
+  );
+  expect(document.querySelector("[data-detail-readiness]")?.textContent).toContain(
+    "Can't check right now",
+  );
+  expect(page.getByRole("button", { name: "Check again", exact: true }).query()).toBeNull();
+});
+
 it("keeps an unknown external installation's folder and maintenance facts distinct from readiness", async () => {
   await page.viewport(960, 640);
   const port = portDefinition();
@@ -286,7 +374,7 @@ it("keeps an unknown external installation's folder and maintenance facts distin
   );
   // Folder ownership is a Manage fact; selecting it never establishes launch readiness.
   expect(document.querySelector("[data-detail-readiness]")?.textContent).toContain(
-    "Readiness unavailable",
+    "Can't check right now",
   );
   await page.getByRole("tab", { name: "Manage", exact: true }).click();
   const ownership = page.getByRole("heading", { name: "External installation", exact: true });
@@ -553,7 +641,7 @@ it.each(["busy", "missing_runtime", "invalid_installation"] as const)(
     expect(
       notices.querySelector(busy ? '[role="status"]' : "[data-detail-reason]")?.textContent?.trim(),
     ).toBeTruthy();
-    expect(primary.textContent).toContain(busy ? "Play" : "Set up");
+    expect(primary.textContent).toContain(busy ? "Play" : "Finish setup");
     await captureParityState(`detail-hero-${state}-and-staged-fixture`);
     await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
     const apply = page.getByRole("button", { name: "Apply update · 2.0", exact: true });

@@ -1,3 +1,4 @@
+import { canonicalIdentityId, identityLabel } from "../identity/identity-style";
 import { gameUpdateAcquisitionLabel } from "../port-updates/acquisition-presentation";
 import type { PortStatus, PortDefinition } from "../../types";
 import type { CatalogEntry } from "../browsing/catalog-entry";
@@ -87,7 +88,7 @@ export function readinessPresentation(
     setup: { label: "Setup needed", action: "Finish setup", tone: "setup" },
     staged: { label: "Ready to play", action: "View details", tone: "ready" },
     unknown: {
-      label: "Readiness unavailable",
+      label: "Can't check right now",
       action: "View details",
       tone: "setup",
     },
@@ -181,8 +182,7 @@ export function gameFilesPresentation(
   )
     return {
       title: "Setup needed",
-      description:
-        "Select the game files or BIOS identified by the current requirements, then review setup.",
+      description: missingInputDescription(port, readiness.blockers),
     };
   if (readiness?.pending_setup)
     return {
@@ -239,4 +239,23 @@ export function gameFilesPresentation(
     description:
       "No current file assessment is available here. Check the project instructions and recorded input details.",
   };
+}
+
+/** Names what the player owns, not the requirement's role; unknown titles stay generic. */
+function missingInputDescription(
+  port: Pick<PortDefinition, "presentation">,
+  blockers: readonly string[],
+) {
+  const title = port.presentation?.original_game_title?.trim();
+  const systems = [
+    ...new Set(
+      (port.presentation?.original_game?.source_editions ?? [])
+        .map((edition) => edition.system)
+        .filter((system): system is string => Boolean(system))
+        .map((system) => identityLabel(canonicalIdentityId(system))),
+    ),
+  ];
+  if (title && blockers.includes("missing_source") && !blockers.includes("missing_bios"))
+    return `You need your own copy of ${title}${systems.length === 1 ? ` (${systems[0]})` : ""}. Portcove checks that it's a supported version and never changes it.`;
+  return "Choose your own copy of the game files or BIOS this port needs, then finish setup. Portcove never changes them.";
 }

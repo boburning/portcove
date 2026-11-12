@@ -301,7 +301,7 @@ describe("desktop components", () => {
     // Without a device target, the default order is explained rather than left implicit.
     expect(cards).toContain("Games appear in catalog order.");
     expect(cards).toContain("Sort");
-    expect(cards).toContain("Setup status unknown");
+    expect(cards).toContain("Can&#x27;t check right now");
     expect(cards).toContain("Installation status unknown");
     expect(cards).toContain("Windows");
     expect(cards).not.toContain(port.summary);
@@ -497,7 +497,7 @@ describe("desktop components", () => {
       label: "Runtime required",
       action: "View installation",
     },
-    { readiness: null, label: "Readiness unavailable", action: "View installation" },
+    { readiness: null, label: "Can't check right now", action: "View installation" },
   ] satisfies { readiness: PortStatus["readiness"]; label: string; action: string }[])(
     "prioritizes a prepared update while retaining $label eligibility and exact installation review in Discover",
     ({ readiness, label, action }) => {
@@ -526,7 +526,9 @@ describe("desktop components", () => {
       )?.[0];
       expect(card).toBeDefined();
       expect(card).toContain("Sample Port");
-      expect(card?.includes(`${label}</span>`)).toBe(label !== "Ready to play");
+      expect(card?.includes(`${label.replaceAll("'", "&#x27;")}</span>`)).toBe(
+        label !== "Ready to play",
+      );
       expect(card).toContain("Update saved for later</span>");
       expect(card).toContain(`${action}<`);
       expect(card).toContain(`data-detail-origin="catalog:card:${port.id}:details"`);

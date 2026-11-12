@@ -109,7 +109,7 @@ const actionReasons: Record<string, string> = {
   incompatible_bios:
     "This BIOS edition is not supported by the installed version. Choose a supported BIOS file.",
   missing_runtime: "A required runtime component is missing.",
-  preparation_required: "Prepare game data before playing.",
+  preparation_required: "Finish setup before playing.",
   shared_preferences_review_required:
     "Windows account or shared preferences location changed. Remove the managed installation while keeping saves and settings, then review a fresh installation. Leave the shared preferences file in place.",
   shared_preferences_unavailable:
@@ -263,7 +263,7 @@ export function catalogSetupPresentation(status: PortStatus | undefined) {
       action,
       route,
       availability: "unknown",
-      reason: "Setup status unknown. View details for current requirements.",
+      reason: "Can't check setup right now. View details for current requirements.",
     };
     const assessments = status?.port_actions;
     if (!Array.isArray(assessments)) return unknown;
@@ -343,7 +343,7 @@ export function catalogSetupPresentation(status: PortStatus | undefined) {
     : routes.some((route) => route.availability === "waiting")
       ? "Setup needs review"
       : routes.some((route) => route.availability === "unknown")
-        ? "Setup status unknown"
+        ? "Can't check right now"
         : routes.some((route) => route.availability === "held")
           ? "Setup on hold"
           : "Setup unavailable";

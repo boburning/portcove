@@ -35,7 +35,9 @@ it.each([undefined, portStatus(), { ...portStatus(), port_actions: [] }])(
         actions={actions}
       />,
     );
-    expect(host.querySelector("[data-detail-readiness]")?.textContent).toBe("Setup status unknown");
+    expect(host.querySelector("[data-detail-readiness]")?.textContent).toBe(
+      "Can't check right now",
+    );
     expect(host.textContent).not.toContain("Available to install");
     expect(host.textContent).not.toContain("Unsupported");
   },
@@ -64,7 +66,7 @@ it("keeps an assessed eligible, untested managed route available to install", ()
     />,
   );
   expect(host.textContent).toContain("Available to install");
-  expect(host.textContent).not.toContain("Setup status unknown");
+  expect(host.textContent).not.toContain("Can't check right now");
 });
 
 it("preserves known missing inputs when managed setup has no action assessment", () => {
@@ -99,7 +101,7 @@ it("preserves external runtime preparation without a managed setup assessment", 
   expect(host.querySelector("[data-detail-readiness]")?.textContent).toBe(
     "Prepare your installation",
   );
-  expect(host.textContent).not.toContain("Setup status unknown");
+  expect(host.textContent).not.toContain("Can't check right now");
 });
 
 it("shows a core-held managed setup reason before installation review", () => {
@@ -183,7 +185,7 @@ it.each([true, false])(
     const primary = host.querySelector<HTMLButtonElement>(".primary-actions button")!;
     expect(primary.disabled).toBe(true);
     expect(primary.textContent).not.toContain("Choose required source");
-    expect(host.textContent).toContain("Readiness unavailable");
+    expect(host.textContent).toContain("Can't check right now");
     expect(host.textContent).not.toContain("Ready to launch");
   },
 );

@@ -1050,7 +1050,7 @@ async function verifyLongTitleCatalogDetail(theme: string) {
     assert.equal(layout.title, "Castlevania: Legacy of Darkness");
     assert.equal(layout.project, "Castlevania: Legacy of Darkness Recompiled");
     assert.equal(layout.titleFits, true, JSON.stringify(layout));
-    assert.equal(layout.action.label, "Set up");
+    assert.equal(layout.action.label, "Finish setup");
     assert.equal(layout.horizontalOverflow, false);
     assert.ok(
       layout.action.top >= 0 &&
@@ -4119,7 +4119,7 @@ try {
         "Manage",
       ]);
       assert.equal(hierarchy.selected, "Game files");
-      assert.equal(hierarchy.action, "Set up");
+      assert.equal(hierarchy.action, "Finish setup");
       assert.equal(hierarchy.actionInHero, true);
       assert.equal(hierarchy.titleFits, true);
       assert.equal(hierarchy.actionFits, true);

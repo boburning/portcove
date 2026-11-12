@@ -136,7 +136,7 @@ describe("Library card overflow", () => {
       ),
     );
     const review = [...host.querySelectorAll<HTMLButtonElement>("button")].find((button) =>
-      button.getAttribute("aria-label")?.startsWith("Set up:"),
+      button.getAttribute("aria-label")?.startsWith("Finish setup:"),
     );
     expect(review).toBeDefined();
     await act(async () => review!.click());

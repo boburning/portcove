@@ -858,6 +858,7 @@ function useWorkspace(props: WorkspaceProps) {
           refreshAfterMutation={() => {
             void data.refreshAfterMutation();
           }}
+          checkAgain={data.refresh}
           openSourceIntake={openSourceIntake}
           openHostTool={openHostTool}
           openLibraryStorage={() => {
@@ -1757,6 +1758,7 @@ function SelectedPortPanel({
   activities,
   libraryGeneration,
   refreshAfterMutation,
+  checkAgain,
   openSourceIntake,
   openHostTool,
   openLibraryStorage,
@@ -1780,6 +1782,7 @@ function SelectedPortPanel({
   activities: ActivityRecord[];
   libraryGeneration: number;
   refreshAfterMutation: () => void;
+  checkAgain: () => Promise<unknown>;
   openSourceIntake: (portId: string, profileId: string, paths?: string[]) => void;
   openHostTool: (toolId: string) => void;
   openLibraryStorage: () => void;
@@ -1849,7 +1852,7 @@ function SelectedPortPanel({
             }),
           {
             context: {
-              action: "Prepare game data",
+              action: "Finish setup",
               target: { kind: "port", id: model.port.id, label: gameIdentityLabel(model.port) },
               libraryGeneration,
               exclusionScope: "target",
@@ -1892,6 +1895,7 @@ function SelectedPortPanel({
         installPlanning.invalidate();
         refreshAfterMutation();
       }}
+      checkAgain={checkAgain}
       pickSource={pickSource}
       pickSourceArchive={pickArchive}
       busy={operations.busy}

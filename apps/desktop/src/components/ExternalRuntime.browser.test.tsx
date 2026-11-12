@@ -1029,7 +1029,7 @@ it("does not invent a cause for an unknown external route hold", async () => {
     />,
   );
   expect(document.body.textContent).toContain(
-    "Setup status unknown. View details for current requirements.",
+    "Can't check setup right now. View details for current requirements.",
   );
   expect(document.body.textContent).not.toContain("future_reason");
   await captureParityState("external-unknown-route-held-fixture");
@@ -1076,7 +1076,7 @@ it.each([
     />,
   );
   expect(document.body.textContent).toContain(
-    "Setup status unknown. View details for current requirements.",
+    "Can't check setup right now. View details for current requirements.",
   );
   expect(document.body.querySelector("button")?.disabled).toBe(true);
   await click("Choose game folder");

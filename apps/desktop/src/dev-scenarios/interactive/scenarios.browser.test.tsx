@@ -41,8 +41,12 @@ async function mount(journey: string) {
   ).body.innerHTML;
   await act(async () => startInteractiveScenarios());
 }
-async function click(label: string) {
-  const button = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+// The hero, the Game files review opener and the review confirmation all read
+// "Finish setup", so those callers scope to the owning region.
+async function click(label: string, within = "body") {
+  const button = [
+    ...(document.querySelector(within)?.querySelectorAll<HTMLButtonElement>("button") ?? []),
+  ].find(
     (item) =>
       !item.hidden &&
       (item.getAttribute("aria-label") === label || item.textContent?.trim() === label),
@@ -90,7 +94,7 @@ it("gives every disposable detail route five real tabs and binds external Play t
     .element(page.getByRole("button", { name: "Play", exact: true }))
     .not.toBeInTheDocument();
   expect(document.querySelector("[data-detail-readiness]")?.textContent).toBe(
-    "Readiness unavailable",
+    "Can't check right now",
   );
   expect(document.querySelector("#detail-self-service-setup")?.textContent).not.toContain(
     "ready to launch when available",
@@ -456,29 +460,29 @@ it.each(["game", "bios"] as const)(
 it("reviews preparation, preserves progress until cancellation, and shows controlled failure", async () => {
   await mount("setup");
   await click("View details for Harbor Adventure");
-  await click("Review setup");
+  await click("Finish setup", ".preparation-control");
   expect(document.querySelector('[role="dialog"]')?.textContent).toContain("fixture/owned.iso");
-  await click("Prepare game data");
+  await click("Finish setup", "[role=dialog]");
   expect(document.body.textContent).toContain("Fixture preparation is waiting");
-  await click("Cancel preparation");
+  await click("Cancel setup");
   expect(document.body.textContent).toContain("Cancellation requested");
   expect((await desktopApi.activities()).records[0]?.status).toBe("running");
   await click("Settle fixture cancellation");
   expect(document.body.textContent).toContain(
     "Setup didn’t finish. Check the selected game files before starting again.",
   );
-  await click("Review setup");
-  await click("Prepare game data");
+  await click("Finish setup", ".preparation-control");
+  await click("Finish setup", "[role=dialog]");
   await click("Fail fixture preparation");
   expect(document.body.textContent).toContain("The demo setup did not finish");
-  expect(document.body.textContent).not.toContain("Game data is prepared");
+  expect(document.body.textContent).not.toContain("Setup is finished");
 });
 
 it("revisits the original running task after browsing another game and records its exact completion", async () => {
   await mount("activity");
   await click("View details for Harbor Adventure");
-  await click("Review setup");
-  await click("Prepare game data");
+  await click("Finish setup", ".preparation-control");
+  await click("Finish setup", "[role=dialog]");
   const retained = await desktopApi.previewPreparationCleanup("fixture-retained-orchard", 1);
   await click("Back to Library");
   await click("View details for Orchard Quest");
