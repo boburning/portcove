@@ -484,3 +484,30 @@ it("prioritizes interrupted-transfer recovery and excludes generic reload until 
 vi.mock("../file-picker", { spy: true });
 
 vi.mock("../reload-workspace", () => ({ reloadWorkspace: vi.fn() }));
+
+it("presents the restore review and its recovery in the active locale", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    await click("الاستعادة من نسخة مكتبة");
+    const dialog = () => document.body.querySelector('[role="dialog"]')?.textContent ?? "";
+    expect(dialog()).toContain("استخدم تصديرًا تثق به.");
+    expect(dialog()).toContain(`الوجهة: ${plan.destination_root}`);
+    expect(document.querySelector<HTMLInputElement>("#import-metadata")?.placeholder).toBe(
+      "اختر ملف معلومات المكتبة",
+    );
+    await click("اختيار ملف");
+    await click("اختيار مجلد");
+    await click("مراجعة الاستعادة");
+    expect(document.querySelector("[aria-label='خطة استعادة المكتبة']")).not.toBeNull();
+    await click("استعادة هذه المكتبة");
+    expect(document.body.textContent).toContain("Copied file changed");
+    const recovery = document.querySelector("[aria-label='استرداد استعادة المكتبة']");
+    expect(recovery?.querySelector("h2")?.textContent).toBe("إنهاء استعادة المكتبة المتوقفة");
+    expect(recovery?.querySelector("bdi[dir=ltr]")?.textContent).toBe(plan.destination_root);
+    expect(button("استئناف الاستعادة").disabled).toBe(false);
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});

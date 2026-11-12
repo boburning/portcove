@@ -21,6 +21,38 @@
     "title": "Idioma",
     "unavailable": "Traducción no disponible"
   },
+  "libraryRestore": {
+    "busy": {
+      "choosing": "Eligiendo tu exportación… Mantén Portcove abierto hasta que termine.",
+      "copying": "Copiando y verificando la biblioteca restaurada… Mantén Portcove abierto hasta que termine.",
+      "recovering": "Recuperando la restauración… Mantén Portcove abierto hasta que termine.",
+      "reviewing": "Revisando la restauración… Mantén Portcove abierto hasta que termine."
+    },
+    "chooseFile": "Elegir archivo",
+    "chooseFolder": "Elegir carpeta",
+    "close": "Cerrar",
+    "closeRefreshes": "Al cerrar esta revisión de la restauración, la biblioteca se actualiza antes de continuar.",
+    "content": "Copia de la carpeta original de la biblioteca",
+    "contentPlaceholder": "Elige la carpeta copiada de la biblioteca",
+    "description": "Necesitas un archivo de información de la biblioteca y una copia aparte de la carpeta original de la biblioteca. Restaura en una biblioteca nueva o vacía. Revisa primero el destino y los archivos copiados. Portcove copia y verifica el contenido restaurado antes de abrir la biblioteca. Una revisión por sí sola no verifica que la copia de recuperación esté completa. Los originales se quedan donde están.",
+    "destination": "Destino: <path />",
+    "metadata": "Archivo de información de la biblioteca",
+    "metadataPlaceholder": "Elige el archivo de información de la biblioteca",
+    "open": "Restaurar desde una copia de la biblioteca",
+    "plan": "Plan de restauración de la biblioteca",
+    "recovery": {
+      "busy": "Recuperando la restauración de la biblioteca…",
+      "destination": "Destino de la restauración: <path />",
+      "heading": "Terminar la restauración interrumpida de la biblioteca",
+      "intro": "Reanuda la restauración para verificar y terminar de abrir la biblioteca copiada. La exportación de Portcove no cambia. Las copias incompletas siguen cerradas hasta que la recuperación se complete.",
+      "label": "Recuperación de la restauración de la biblioteca",
+      "resume": "Reanudar la restauración"
+    },
+    "restore": "Restaurar esta biblioteca",
+    "review": "Revisar la restauración",
+    "title": "Restaurar desde una copia de la biblioteca",
+    "trust": "<strong>Usa una exportación de confianza.</strong> Revisa su origen, el destino, el espacio necesario, las versiones instaladas, las ubicaciones de los archivos guardados y los archivos copiados antes de restaurarla."
+  },
   "supportReport": {
     "collecting": "Recopilando los diagnósticos disponibles…",
     "contentsLimits": "Es posible que este informe no incluya todas las entradas del registro ni todas las tareas. Puede faltar actividad o salida del registro anterior o posterior.",
