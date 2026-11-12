@@ -55,11 +55,7 @@ export function IdentityChips({
           </Chip>
         ))}
       {port.platforms.map((platform) => (
-        <Chip
-          key={platform}
-          style={identityStyle(platform.split("-")[0]!)}
-          title={t("discover.chip.platform")}
-        >
+        <Chip key={platform} title={t("discover.chip.platform")}>
           <IdentityIcon name={platform.split("-")[0]!} />
           {platformLabel(platform)}
         </Chip>

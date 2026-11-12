@@ -353,10 +353,9 @@ export function CatalogFilters({
           {supported &&
             selected.map(({ group, value }) => (
               <ChipButton
-                style={identityStyle(
-                  group === "platforms" ? (value.split("-")[0] ?? value) : value,
-                  group === "channels",
-                )}
+                style={
+                  group === "platforms" ? undefined : identityStyle(value, group === "channels")
+                }
                 key={`${group}:${value}`}
                 data-focusable
                 size="sm"
@@ -464,10 +463,11 @@ export function CatalogFilters({
               />
               <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-sm">
                 <Chip
-                  style={identityStyle(
-                    group.key === "platforms" ? (value.split("-")[0] ?? value) : value,
-                    group.key === "channels",
-                  )}
+                  style={
+                    group.key === "platforms"
+                      ? undefined
+                      : identityStyle(value, group.key === "channels")
+                  }
                 >
                   {["originalSystems", "platforms", "channels"].includes(group.key) && (
                     <IdentityIcon

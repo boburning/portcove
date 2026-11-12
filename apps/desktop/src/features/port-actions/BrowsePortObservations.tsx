@@ -45,7 +45,7 @@ export function BrowsePortObservations({
       <span className="text-pc-muted-foreground">{cardInstallationLabel(port, status)}</span>
       {summary.showReadiness && (
         <span
-          className={`readiness ${state.tone} inline-flex items-start gap-1.5 font-medium text-pc-muted-foreground [&.ready]:text-pc-success-foreground [&.setup]:text-pc-warning-foreground [&.staged]:text-pc-interactive-foreground`}
+          className={`readiness ${state.tone} inline-flex items-start gap-1.5 font-medium text-pc-muted-foreground [&.ready]:text-pc-success-foreground [&.setup]:text-pc-warning-foreground`}
         >
           <Icon glyph={state.tone === "ready" ? CheckCircle2 : Wrench} size="sm" />
           {state.label}
