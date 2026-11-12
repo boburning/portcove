@@ -615,3 +615,30 @@ it("retains unsupported restored update values until reset", async () => {
   await click("Clear filters");
   expect(current).toBe("all");
 });
+
+it("labels filters, groups and chips in the current language", async () => {
+  const { initializeLocalization } = await import("../../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    await root.rerender(
+      <Fixture view="library" initial={{ version: 1, portOptions: ["single"] }} />,
+    );
+    const button = (name: string) =>
+      [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+        (item) => item.getAttribute("aria-label") === name || item.textContent?.trim() === name,
+      )!;
+    await act(async () => button("عوامل التصفية (1)").click());
+    const panel = document.querySelector<HTMLElement>(".catalog-filter-panel")!;
+    expect(panel.querySelector("h2")?.textContent).toBe("عوامل تصفية المكتبة");
+    const primary = panel.querySelector(":scope > .catalog-filter-groups")!;
+    expect(
+      [...primary.querySelectorAll(".compact-filter-field > span")].map((node) => node.textContent),
+    ).toEqual(["يعمل على", "النظام الأصلي", "قنوات التحديث"]);
+    await act(async () => button("تم").click());
+    expect(document.body.textContent).toContain("خيارات المنفذ: منفذ واحد");
+    expect(document.body.textContent).not.toContain("Port options");
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
