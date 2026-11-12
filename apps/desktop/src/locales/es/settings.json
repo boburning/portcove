@@ -20,5 +20,50 @@
     "system": "Predeterminado del sistema",
     "title": "Idioma",
     "unavailable": "Traducción no disponible"
+  },
+  "supportReport": {
+    "collecting": "Recopilando los diagnósticos disponibles…",
+    "contentsLimits": "Es posible que este informe no incluya todas las entradas del registro ni todas las tareas. Puede faltar actividad o salida del registro anterior o posterior.",
+    "contentsSummary": "Ver el contenido del informe de soporte",
+    "create": "Crear un informe de soporte",
+    "creating": "Creando el informe de soporte…",
+    "examples": "Los identificadores de adaptaciones y herramientas, las marcas de tiempo y otros detalles del sistema pueden quedar después de ocultar los valores sensibles.",
+    "examplesSummary": "Ejemplos de detalles que pueden quedar",
+    "failed": "La exportación del informe de soporte no terminó. Inténtalo de nuevo.",
+    "intro": "Crea un informe de soporte con los registros recientes disponibles, el historial de operaciones y los detalles del sistema. Se excluyen el contenido de los archivos del juego y las credenciales guardadas, pero pueden quedar rutas, nombres de archivo y otros metadatos. Revisa el informe de soporte antes de compartirlo.",
+    "libraryUnavailable": "La biblioteca no estaba disponible durante la recopilación. Las secciones disponibles se muestran abajo.",
+    "openFolder": "Abrir la carpeta del informe de soporte",
+    "openFolderFailed": "No se pudo abrir la carpeta. El informe de soporte sigue guardado en la ubicación indicada arriba.",
+    "reason": {
+      "boundedSnapshot": "Solo se incluyó parte del registro. Pueden faltar entradas anteriores o posteriores.",
+      "captureIncomplete": "Es posible que falten algunos mensajes de configuración posteriores.",
+      "captureNotCollected": "No se incluyeron los mensajes de configuración guardados.",
+      "captureTruncated": "Se omitió parte de la salida capturada al alcanzar el límite de captura.",
+      "deadline": "La recopilación se detuvo al alcanzar el límite de tiempo.",
+      "incompleteRecord": "Se dejó fuera una entrada del registro sin terminar.",
+      "invalidRecord": "Se omitieron registros no válidos.",
+      "readFailed": "La fuente de diagnóstico no se pudo leer por completo; el contenido que falte es desconocido.",
+      "recordLimit": "Se omitieron algunos registros para respetar el límite de registros.",
+      "sectionLimit": "Se omitieron algunos datos para respetar el límite de tamaño de la sección.",
+      "totalLimit": "Se omitieron algunos datos para respetar el límite de tamaño del informe.",
+      "unavailable": "La fuente de diagnóstico no estaba disponible; su contenido es desconocido.",
+      "unsafeFile": "Un archivo no se pudo leer de forma segura y se omitió."
+    },
+    "savedComplete": "Informe de soporte guardado en <path/>. Solo se guardaron los diagnósticos disponibles dentro de los límites de recopilación.",
+    "savedPartial": "Informe de soporte guardado en <path/>. Algunos diagnósticos son parciales o se omitieron. Revisa los detalles de la recopilación abajo.",
+    "section": {
+      "activities": "Historial de actividad reciente",
+      "activityCapture": "Salida de la preparación",
+      "doctor": "Comprobaciones del sistema y de la biblioteca",
+      "runtimeLog": "Registro de ejecución",
+      "startup": "Diagnósticos de inicio"
+    },
+    "sectionsLabel": "Secciones del informe de soporte",
+    "sectionSummary": "{{section}}: {{status}}",
+    "status": {
+      "included": "Incluida",
+      "omitted": "Omitida",
+      "partial": "Incluida parcialmente"
+    }
   }
 }

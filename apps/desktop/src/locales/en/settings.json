@@ -19,5 +19,50 @@
     "system": "System default",
     "title": "Language",
     "unavailable": "Translation unavailable"
+  },
+  "supportReport": {
+    "collecting": "Collecting available diagnostics…",
+    "contentsLimits": "This report may not include every log entry or task. Older or later activity and log output may be missing.",
+    "contentsSummary": "View support report contents",
+    "create": "Create a support report",
+    "creating": "Creating support report…",
+    "examples": "Port and tool identifiers, timestamps, and other system details can remain after sensitive values are redacted.",
+    "examplesSummary": "Examples of details that may remain",
+    "failed": "Support report export did not finish. Try again.",
+    "intro": "Create a support report with available recent logs, operation history, and system details. Game-file contents and saved credentials are excluded, but paths, file names, and other metadata may remain. Review the support report before sharing it.",
+    "libraryUnavailable": "The library was unavailable during collection. Available sections are listed below.",
+    "openFolder": "Open support report folder",
+    "openFolderFailed": "Couldn’t open the folder. The support report is still saved at the location shown above.",
+    "reason": {
+      "boundedSnapshot": "Only part of the log was included. Earlier or later entries may be missing.",
+      "captureIncomplete": "Some later setup messages may be missing.",
+      "captureNotCollected": "Saved setup messages weren’t included.",
+      "captureTruncated": "Some captured output was omitted when the capture limit was reached.",
+      "deadline": "Collection stopped at the time limit.",
+      "incompleteRecord": "An unfinished log entry was left out.",
+      "invalidRecord": "Invalid records were omitted.",
+      "readFailed": "The diagnostic source could not be fully read; any missing contents are unknown.",
+      "recordLimit": "Some records were omitted to stay within the record limit.",
+      "sectionLimit": "Some data was omitted to stay within the section size limit.",
+      "totalLimit": "Some data was omitted to stay within the report size limit.",
+      "unavailable": "The diagnostic source was unavailable; its contents are unknown.",
+      "unsafeFile": "A file could not be safely read and was omitted."
+    },
+    "savedComplete": "Support report saved to <path/>. Only the available diagnostics within collection limits were saved.",
+    "savedPartial": "Support report saved to <path/>. Some diagnostics are partial or omitted. Review the collection details below.",
+    "section": {
+      "activities": "Recent activity history",
+      "activityCapture": "Preparation output",
+      "doctor": "System and library checks",
+      "runtimeLog": "Runtime log",
+      "startup": "Startup diagnostics"
+    },
+    "sectionsLabel": "Support report sections",
+    "sectionSummary": "{{section}}: {{status}}",
+    "status": {
+      "included": "Included",
+      "omitted": "Omitted",
+      "partial": "Partially included"
+    }
   }
 }
