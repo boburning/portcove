@@ -602,6 +602,11 @@ export default interface Resources {
       "platform": "Platform",
       "route": "Setup option"
     },
+    "failure": {
+      "catalogMismatch": "The complete game-file observation no longer matches this context. Check again.",
+      "catalogTooLarge": "This catalog is too large to check all game files at once. Game-file filters are unavailable.",
+      "selectionMismatch": "The game-file observation no longer matches this selection. Check again."
+    },
     "filterObservation": {
       "completeSet": "Complete set: <identity/>",
       "heading": "Game-file filter results",

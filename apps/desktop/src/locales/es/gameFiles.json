@@ -9,6 +9,11 @@
     "platform": "Plataforma",
     "route": "Opción de configuración"
   },
+  "failure": {
+    "catalogMismatch": "La observación completa de archivos del juego ya no coincide con este contexto. Vuelve a comprobar.",
+    "catalogTooLarge": "Este catálogo es demasiado grande para comprobar todos los archivos del juego a la vez. Los filtros de archivos del juego no están disponibles.",
+    "selectionMismatch": "La observación de archivos del juego ya no coincide con esta selección. Vuelve a comprobar."
+  },
   "filterObservation": {
     "completeSet": "Conjunto completo: <identity/>",
     "heading": "Resultados del filtro de archivos del juego",
@@ -90,11 +95,11 @@
     "explicitEmptyRequirements": "Esta acción no necesita añadir archivos a Portcove. Aun así, el juego puede pedir los archivos originales.",
     "identityNotAdmitted": "Estos archivos del juego no se han aceptado para esta opción de configuración o inicio.",
     "noConnectedRegistration": "No hay ninguna ubicación guardada de archivos del juego conectada a esta opción de configuración o inicio.",
-    "observationStale": "El resultado de la comprobación de archivos está desactualizado. Vuelve a comprobarlo.",
+    "observationStale": "El resultado de la comprobación de archivos está desactualizado. Vuelve a comprobar.",
     "observationUnavailable": "No hay ningún resultado actual de comprobación de archivos.",
-    "profileContextChanged": "Los archivos del juego o la opción de configuración seleccionados cambiaron. Vuelve a comprobarlo.",
-    "releaseNotBound": "Aún no hemos confirmado si este resultado de comprobación se aplica a la versión seleccionada.",
-    "routeNotOffered": "La ruta seleccionada no está disponible.",
+    "profileContextChanged": "Los archivos del juego o la opción de configuración seleccionados cambiaron. Vuelve a comprobar.",
+    "releaseNotBound": "Aún no hemos confirmado si este resultado de comprobación de archivos se aplica a la versión seleccionada.",
+    "routeNotOffered": "La ruta seleccionada no se ofrece.",
     "sourceNeedsChecking": "Hay que comprobar los archivos conectados.",
     "storageAbsenceUnconfirmed": "Portcove no pudo confirmar si los archivos están presentes. No se ha confirmado que falten.",
     "variantNotSupported": "La variante de archivo observada no coincide con esta ruta."
@@ -120,7 +125,7 @@
     "catalogScope_other": "Catálogo ({{count}} adaptaciones)",
     "checkingCatalog": "Comprobando los archivos del juego para el catálogo…",
     "checkingSelected": "Comprobando los archivos del juego para esta configuración…",
-    "expired": "La comprobación de archivos caducó. Vuelve a comprobarlo.",
+    "expired": "La comprobación de archivos caducó. Vuelve a comprobar.",
     "expiredCatalog": "La comprobación de archivos anterior caducó. Para volver a comprobar, abre Filtros → Comprobar los filtros de archivos del juego.",
     "expiredSelected": "La comprobación de archivos anterior caducó. Usa Comprobar los archivos para esta opción para volver a comprobar.",
     "failed": "La última comprobación falló. No hay ninguna comprobación de archivos actual.",
@@ -128,7 +133,7 @@
     "informationalSelected": "La comprobación anterior es solo informativa. Usa Comprobar los archivos para esta opción para volver a comprobar.",
     "lastChecked": "Última comprobación: <time/>",
     "missingCatalog": "Comprueba los archivos del juego antes de usar los filtros de archivos del juego.",
-    "missingSelected": "No hay una comprobación actual de archivos del juego para esta selección. Vuelve a comprobarlo.",
+    "missingSelected": "No hay una comprobación actual de archivos del juego para esta selección. Vuelve a comprobar.",
     "previousCheck": "Comprobación anterior: <time/>",
     "readyCatalog": "Las comprobaciones de archivos del juego están listas para usar en Filtros.",
     "readySelected": "La comprobación de archivos del juego está al día.",

@@ -147,9 +147,9 @@ unless the copy change is intended and reviewed.
 | Ready-game notices                                                                                                         | `components/ReadyGameNotices.tsx`                          | `gameFiles`         |
 | Per-game setup intent choice                                                                                               | `components/SetupIntentChoice.tsx`                         | `gameFiles`         |
 | Shared game-file route, state and reason labels                                                                            | `features/browsing/game-file-query-context.ts`             | `gameFiles`         |
-| Game-file filter controls                                                                                                  | `features/browsing/GameFileFilterControls.tsx`             | `gameFiles`         |
-| Selected-route game-file check                                                                                             | `components/GameFileQuery.tsx`                             | `gameFiles`         |
-| Game-file check summary                                                                                                    | `features/browsing/GameFileObservationSummary.tsx`         | `gameFiles`         |
+| Game-file filter controls (platform and channel labels follow the shared view-model migration)                             | `features/browsing/GameFileFilterControls.tsx`             | `gameFiles`         |
+| Selected-route game-file check (platform and channel labels follow the shared view-model migration)                        | `components/GameFileQuery.tsx`                             | `gameFiles`         |
+| Game-file check summary (platform and channel labels follow the shared view-model migration)                               | `features/browsing/GameFileObservationSummary.tsx`         | `gameFiles`         |
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-12 it

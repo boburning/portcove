@@ -1,4 +1,4 @@
-import { useGameFileObservation } from "./use-game-file-observation";
+import { useGameFileObservation, GameFileCheckError } from "./use-game-file-observation";
 import { useMemo, useState } from "react";
 import type {
   CatalogDocument,
@@ -43,14 +43,10 @@ export function useGameFileFilterContext({
     contextKey: key,
     generation,
     request: () => (catalog ? gameFileFilterRequest(catalog.ports, selection) : undefined),
-    refusal:
-      "This catalog is too large to check all game files at once. Game-file filters are unavailable.",
+    refusal: "catalog_too_large",
     accept: (snapshot, request, library, now) => {
       const accepted = gameFileFilterContext(snapshot, request, library, libraryKey ?? "", now);
-      if (!accepted)
-        throw new Error(
-          "The complete game-file observation no longer matches this context. Check again.",
-        );
+      if (!accepted) throw new GameFileCheckError("catalog_mismatch");
       return accepted;
     },
   });

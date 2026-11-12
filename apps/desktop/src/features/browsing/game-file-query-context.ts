@@ -1,4 +1,5 @@
 import type { TFunction } from "i18next";
+import type { GameFileCheckFailure } from "./use-game-file-observation";
 import type {
   GameFileQueryRefreshRequest,
   GameFileQuerySnapshot,
@@ -42,7 +43,7 @@ const knownReasons: Record<Reason, true> = {
 };
 
 /** Labels by static key, so extraction keeps every form and a live language change re-renders. */
-export function gameFileRouteLabel(t: TFunction<"gameFiles">, route: Route["route"]) {
+export function gameFileRouteLabel(t: TFunction<"gameFiles">, route: Route["route"]): string {
   switch (route) {
     case "managed_install":
       return t("route.managedInstall");
@@ -55,7 +56,7 @@ export function gameFileRouteLabel(t: TFunction<"gameFiles">, route: Route["rout
   }
 }
 
-export function gameFileStateLabel(t: TFunction<"gameFiles">, state: State) {
+export function gameFileStateLabel(t: TFunction<"gameFiles">, state: State): string {
   switch (state) {
     case "files_available":
       return t("state.filesAvailable");
@@ -70,7 +71,7 @@ export function gameFileStateLabel(t: TFunction<"gameFiles">, state: State) {
   }
 }
 
-export function gameFileReasonLabel(t: TFunction<"gameFiles">, reason: Reason) {
+export function gameFileReasonLabel(t: TFunction<"gameFiles">, reason: Reason): string {
   switch (reason) {
     case "complete_compatible_observation":
       return t("reason.completeCompatibleObservation");
@@ -98,6 +99,22 @@ export function gameFileReasonLabel(t: TFunction<"gameFiles">, reason: Reason) {
       return t("reason.routeNotOffered");
     case "profile_context_changed":
       return t("reason.profileContextChanged");
+  }
+}
+
+/** App-owned failures translate by code; Core's own summary stays verbatim. */
+export function gameFileCheckFailureText(
+  t: TFunction<"gameFiles">,
+  failure: GameFileCheckFailure,
+): string {
+  if ("message" in failure) return failure.message;
+  switch (failure.code) {
+    case "selection_mismatch":
+      return t("failure.selectionMismatch");
+    case "catalog_mismatch":
+      return t("failure.catalogMismatch");
+    case "catalog_too_large":
+      return t("failure.catalogTooLarge");
   }
 }
 

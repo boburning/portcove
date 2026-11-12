@@ -1,6 +1,7 @@
 import { expect, it } from "vite-plus/test";
 import { initializeLocalization } from "../../localization";
 import {
+  gameFileCheckFailureText,
   gameFileReasonLabel,
   gameFileRouteLabel,
   gameFileStateLabel,
@@ -27,6 +28,27 @@ it("labels every route, state and reason through the catalog in the current lang
     const arabic = localization.getFixedT(null, "gameFiles");
     expect(gameFileStateLabel(arabic, "files_missing")).toBe("الملفات مفقودة");
     expect(arabic("summary.catalogScope", { count: 2 })).toBe("الكتالوج (منفذان)");
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
+
+it("translates app-owned check failures by code and keeps Core's summary verbatim", async () => {
+  const localization = initializeLocalization(["en-US"]);
+  const t = localization.getFixedT(null, "gameFiles");
+  expect(gameFileCheckFailureText(t, { code: "catalog_too_large" })).toBe(
+    "This catalog is too large to check all game files at once. Game-file filters are unavailable.",
+  );
+  expect(gameFileCheckFailureText(t, { code: "selection_mismatch" })).toBe(
+    "The game-file observation no longer matches this selection. Check again.",
+  );
+  expect(gameFileCheckFailureText(t, { message: "Core {{x}} failure" })).toBe("Core {{x}} failure");
+  try {
+    await localization.changeLanguage("ar-XB");
+    const arabic = localization.getFixedT(null, "gameFiles");
+    expect(gameFileCheckFailureText(arabic, { code: "catalog_mismatch" })).toBe(
+      "لم يعد الرصد الكامل لملفات اللعبة يطابق هذا السياق. افحص مرة أخرى.",
+    );
   } finally {
     await localization.changeLanguage("en");
   }

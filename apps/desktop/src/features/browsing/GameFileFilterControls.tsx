@@ -4,7 +4,11 @@ import { OperationCancellation } from "../../components/OperationCancellation";
 import { Button } from "../../components/ui/button";
 import { platformLabel, releaseChannelPresentation } from "../../view-model";
 import { useAppTranslation } from "../../localization";
-import { gameFileRouteLabel, routeValues } from "./game-file-query-context";
+import {
+  gameFileCheckFailureText,
+  gameFileRouteLabel,
+  routeValues,
+} from "./game-file-query-context";
 import type { GameFileFilterState } from "./use-game-file-filter-context";
 
 export function GameFileFilterControls({ state }: { state: GameFileFilterState }) {
@@ -58,7 +62,7 @@ export function GameFileFilterControls({ state }: { state: GameFileFilterState }
         />
       )}
       <GameFileObservationSummary observation={state.observation} catalog />
-      {state.error && <p role="alert">{state.error}</p>}
+      {state.error && <p role="alert">{gameFileCheckFailureText(t, state.error)}</p>}
     </fieldset>
   );
 }

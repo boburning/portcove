@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { Trans } from "react-i18next";
 import { useAppTranslation } from "../localization";
-import { useGameFileObservation } from "../features/browsing/use-game-file-observation";
+import {
+  GameFileCheckError,
+  useGameFileObservation,
+} from "../features/browsing/use-game-file-observation";
 import { GameFileObservationSummary } from "../features/browsing/GameFileObservationSummary";
 import type { PortDefinition, ReleaseChannel } from "../types";
 import { defaultPortPlatform, platformLabel, releaseChannelPresentation } from "../view-model";
@@ -14,6 +17,7 @@ import {
   gameFileReasonLabel,
   gameFileRouteLabel,
   gameFileStateLabel,
+  gameFileCheckFailureText,
   routeValues,
   type Route,
 } from "../features/browsing/game-file-query-context";
@@ -50,7 +54,7 @@ export function GameFileQueryControl({
     }),
     accept: (snapshot, _request, library, now) => {
       if (!acceptedGameFileQuery(snapshot, selected, library, now))
-        throw new Error("The game-file observation no longer matches this selection. Check again.");
+        throw new GameFileCheckError("selection_mismatch");
       return snapshot;
     },
   });
@@ -106,7 +110,7 @@ export function GameFileQueryControl({
       {projection && <p role="status">{gameFileStateLabel(t, projection.state)}</p>}
       {projection && <p>{gameFileReasonLabel(t, projection.reason)}</p>}
       <GameFileObservationSummary observation={observation.presentation} />
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert">{gameFileCheckFailureText(t, error)}</p>}
     </section>
   );
 }
