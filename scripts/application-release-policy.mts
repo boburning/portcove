@@ -130,8 +130,17 @@ export function applicationReleaseRemainingMinutes(
       Object.fromEntries(
         Object.entries(ordinary)
           .filter(([name]) => !payloadWork.has(name))
-          // Each renewal observer also needs attested setup and artifact upload.
-          .map(([name, minutes]) => [name, name.startsWith("protection_") ? 3 : minutes]),
+          .flatMap(([name, minutes]) => {
+            // Old observer names remain readable for charged historical runs.
+            if (/^protection_(metadata|snapshot|timestamp) \/ execute$/u.test(name))
+              return [
+                [name, 0],
+                [`renewal_${name}`, 6],
+              ];
+            if (/^(releases|preview|stable|snapshot|timestamp) \/ execute$/u.test(name))
+              return [[name, 5]];
+            return [[name, name.startsWith("protection_") ? 3 : minutes]];
+          }),
       ),
     );
   }
