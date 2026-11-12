@@ -161,38 +161,38 @@ pub(crate) enum ProfileCommand {
         #[arg(long)]
         yes: bool,
     },
-    /// Browse a game's GameBanana mods, most downloaded first; reads only.
+    /// Browse a game's mods on its reviewed provider (GameBanana or Thunderstore); reads only.
     ProviderBrowse {
-        /// Catalog port ID with a reviewed GameBanana binding.
+        /// Catalog port ID with a reviewed provider binding.
         port_id: String,
         /// Page number, from 1.
         #[arg(long, default_value_t = 1)]
         page: u32,
     },
-    /// Show one GameBanana mod's files and the IDs `provider-plan` takes; reads only.
+    /// Show one mod's files or versions and the IDs `provider-plan` takes; reads only.
     ProviderProject {
-        /// Catalog port ID with a reviewed GameBanana binding.
+        /// Catalog port ID with a reviewed provider binding.
         port_id: String,
-        /// GameBanana Mod ID from `provider-browse`.
-        project_id: u64,
+        /// Mod ID from `provider-browse`: a GameBanana number or a Thunderstore NAMESPACE-NAME.
+        project_id: String,
     },
-    /// Check installed GameBanana packages for newer files, same-version changes or removals.
+    /// Check installed provider packages for newer files, same-version changes or removals.
     ProviderUpdates {
         /// Catalog port ID owning the profile.
         port_id: String,
         /// Profile ID from `profile list`.
         profile_id: String,
     },
-    /// Review one GameBanana file for a profile: downloads privately, inspects, prints the plan.
+    /// Review one provider file for a profile: downloads privately, inspects, prints the plan.
     ProviderPlan {
         /// Catalog port ID owning the profile.
         port_id: String,
         /// Profile ID from `profile list`.
         profile_id: String,
-        /// GameBanana Mod ID.
-        project_id: u64,
-        /// GameBanana file ID from the project's file list.
-        file_id: u64,
+        /// Mod ID: a GameBanana number or a Thunderstore NAMESPACE-NAME.
+        project_id: String,
+        /// A GameBanana file ID or a Thunderstore version, from `provider-project`.
+        file_id: String,
     },
     /// Install exactly the reviewed plan; changed bytes or a newer revision refuse.
     ProviderApply {
@@ -205,6 +205,10 @@ pub(crate) enum ProfileCommand {
         /// `plan_sha256` of the plan you reviewed.
         #[arg(long)]
         expected_plan: String,
+        /// Allow the code of packages the plan reports as running code inside the game,
+        /// for exactly the reviewed bytes. Records your choice; not a safety claim.
+        #[arg(long)]
+        allow_mod_code: bool,
         /// Confirm the reviewed install without a prompt; the digest check still applies.
         #[arg(long)]
         yes: bool,
@@ -385,12 +389,33 @@ fn read_plan(path: &PathBuf) -> Result<portcove_core::ProviderInstallPlan> {
         .map_err(|error| PortcoveError::usage(format!("invalid plan file: {error}")))
 }
 
+/// A provider's name for people, from its recorded identity.
+fn provider_label(provider: &str) -> &str {
+    match provider {
+        "gamebanana" => "GameBanana",
+        "thunderstore" => "Thunderstore",
+        other => other,
+    }
+}
+
+/// What the provider calls one downloadable item of a mod.
+fn file_noun(provider: &str) -> &'static str {
+    if provider == "thunderstore" {
+        "version"
+    } else {
+        "file"
+    }
+}
+
 fn plan_text(plan: &portcove_core::ProviderInstallPlan) -> String {
+    let provider = plan.provider.provider.as_str();
     let mut lines = vec![
         format!(
-            "Review GameBanana install: {} (project {}, file {})",
+            "Review {} install: {} (project {}, {} {})",
+            provider_label(provider),
             clean(&plan.project_name),
             clean(&plan.provider.project),
+            file_noun(provider),
             clean(&plan.file.file_id)
         ),
         format!(
@@ -401,12 +426,26 @@ fn plan_text(plan: &portcove_core::ProviderInstallPlan) -> String {
     ];
     for member in &plan.members {
         lines.push(format!(
-            "  package {} ({} assets, {} bytes, SHA-256 {})",
+            "  package {} ({} assets, {} bytes, SHA-256 {}){}",
             clean(&member.file_name),
             member.asset_count,
             member.size,
-            clean(&member.sha256)
+            clean(&member.sha256),
+            if member.runs_code.is_empty() {
+                ""
+            } else {
+                "; runs its own code inside the game"
+            }
         ));
+    }
+    if plan
+        .members
+        .iter()
+        .any(|member| !member.runs_code.is_empty())
+    {
+        lines.push(
+            "This file includes a mod that runs its own code. Portcove can't tell whether that code is safe; apply with `--allow-mod-code` only if you trust where it came from.".into(),
+        );
     }
     for name in &plan.replaces {
         lines.push(format!("  replaces installed {}", clean(name)));
@@ -426,10 +465,15 @@ fn plan_text(plan: &portcove_core::ProviderInstallPlan) -> String {
     lines.join("\n")
 }
 
-fn stale_note(freshness: portcove_core::ProviderFreshness, observed_at: i64) -> Option<String> {
+fn stale_note(
+    provider: &str,
+    freshness: portcove_core::ProviderFreshness,
+    observed_at: i64,
+) -> Option<String> {
     (freshness == portcove_core::ProviderFreshness::Stale).then(|| {
         format!(
-            "GameBanana couldn't be reached, so this is earlier data from {}.",
+            "{} couldn't be reached, so this is earlier data from {}.",
+            provider_label(provider),
             crate::human::utc_time(observed_at)
         )
     })
@@ -442,20 +486,32 @@ pub(crate) fn provider_browse_text(result: &portcove_core::ProviderBrowsePage) -
     } else {
         format!("{} in total", page.total)
     };
+    let provider = provider_label(&result.provider);
+    let order = if result.provider == "thunderstore" {
+        "in Thunderstore's order"
+    } else {
+        "most downloaded first"
+    };
     let mut lines = vec![format!(
-        "GameBanana mods for {}, page {} ({total}, most downloaded first)",
+        "{provider} mods for {}, page {} ({total}, {order})",
         clean(&result.game_name),
         page.page
     )];
-    lines.extend(stale_note(result.freshness, result.observed_at));
+    lines.extend(stale_note(
+        &result.provider,
+        result.freshness,
+        result.observed_at,
+    ));
     if page.projects.is_empty() {
         lines.push("No mods on this page.".into());
     }
     match result.other_game_records {
         0 => {}
-        1 => lines.push("1 mod GameBanana labels as another game isn't listed.".into()),
+        1 => lines.push(format!(
+            "1 mod {provider} labels as another game isn't listed."
+        )),
         count => lines.push(format!(
-            "{count} mods GameBanana labels as another game aren't listed."
+            "{count} mods {provider} labels as another game aren't listed."
         )),
     }
     for project in &page.projects {
@@ -478,7 +534,7 @@ pub(crate) fn provider_browse_text(result: &portcove_core::ProviderBrowsePage) -
                 page.page + 1
             ));
         } else {
-            lines.push("More mods are listed on GameBanana itself.".into());
+            lines.push(format!("More mods are listed on {provider} itself."));
         }
     }
     if !page.projects.is_empty() {
@@ -492,13 +548,15 @@ pub(crate) fn provider_browse_text(result: &portcove_core::ProviderBrowsePage) -
 
 pub(crate) fn provider_project_text(view: &portcove_core::ProviderProjectView) -> String {
     let project = &view.project;
+    let provider = provider_label(&project.provider);
+    let noun = file_noun(&project.provider);
     let mut lines = vec![format!(
-        "{} — GameBanana mod {} for {}",
+        "{} — {provider} mod {} for {}",
         clean(&project.name),
         clean(&project.project_id),
         clean(&view.game_name)
     )];
-    let stale = stale_note(view.freshness, view.observed_at);
+    let stale = stale_note(&project.provider, view.freshness, view.observed_at);
     lines.extend(stale.clone());
     if project.obsolete {
         lines.push("Its author marked it obsolete, so Portcove won't install it.".into());
@@ -508,38 +566,45 @@ pub(crate) fn provider_project_text(view: &portcove_core::ProviderProjectView) -
     }
     for file in &project.files {
         lines.push(format!(
-            "  file {} — {} ({}){}{}",
+            "  {noun} {} — {} ({}){}{}",
             clean(&file.file_id),
             clean(&file.file_name),
             crate::human::format_bytes(file.size),
-            if file.archived {
-                "; archived, so it can't be installed"
-            } else {
-                ""
+            match (file.archived, noun) {
+                (false, _) => "",
+                (true, "version") => "; no longer offered, so it can't be installed",
+                (true, _) => "; archived, so it can't be installed",
             },
             file.claimed_scan
                 .as_deref()
-                .map(|scan| format!("; GameBanana's scan says {} (not verified)", clean(scan)))
+                .map(|scan| format!("; {provider}'s scan says {} (not verified)", clean(scan)))
                 .unwrap_or_default()
         ));
     }
     match project.unreadable_files {
         0 => {}
-        1 => {
-            lines.push("1 more file on GameBanana couldn't be read safely and isn't listed.".into())
-        }
+        1 => lines.push(format!(
+            "1 more {noun} on {provider} couldn't be read safely and isn't listed."
+        )),
         count => lines.push(format!(
-            "{count} more files on GameBanana couldn't be read safely and aren't listed."
+            "{count} more {noun}s on {provider} couldn't be read safely and aren't listed."
         )),
     }
     let installable = !project.obsolete && project.files.iter().any(|file| !file.archived);
     if stale.is_some() {
-        lines.push("Try again when GameBanana can be reached before reviewing a file.".into());
+        lines.push(format!(
+            "Try again when {provider} can be reached before reviewing a {noun}."
+        ));
     } else if installable {
         lines.push(format!(
-            "Review a file for a setup: `portcove profile provider-plan {} PROFILE_ID {} FILE_ID`.",
+            "Review a {noun} for a setup: `portcove profile provider-plan {} PROFILE_ID {} {}`.",
             clean(&view.port_id),
-            clean(&project.project_id)
+            clean(&project.project_id),
+            if noun == "version" {
+                "VERSION"
+            } else {
+                "FILE_ID"
+            }
         ));
     }
     lines.join("\n")
@@ -578,7 +643,7 @@ pub(crate) async fn execute(
             port_id,
             project_id,
         } => {
-            let view = service.provider_project(&port_id, project_id).await?;
+            let view = service.provider_project(&port_id, &project_id).await?;
             render_read_success(mode, name, view, provider_project_text)
         }
         ProfileCommand::ProviderUpdates {
@@ -628,7 +693,7 @@ pub(crate) async fn execute(
             file_id,
         } => {
             let plan = service
-                .plan_provider_install(&port_id, &profile_id, project_id, file_id)
+                .plan_provider_install(&port_id, &profile_id, &project_id, &file_id)
                 .await?;
             render_read_success(mode, name, plan, plan_text)
         }
@@ -637,6 +702,7 @@ pub(crate) async fn execute(
             profile_id,
             plan_file,
             expected_plan,
+            allow_mod_code,
             yes,
         } => {
             let plan = read_plan(&plan_file)?;
@@ -658,7 +724,11 @@ pub(crate) async fn execute(
                 yes,
                 non_interactive,
             )?;
-            let authorization = service.authorize_provider_install(&plan)?;
+            let authorization = if allow_mod_code {
+                service.authorize_provider_install_allowing_code(&plan)?
+            } else {
+                service.authorize_provider_install(&plan)?
+            };
             render_read_success(
                 mode,
                 name,
@@ -973,6 +1043,29 @@ mod provider_text_tests {
             observed_at: 0,
             freshness,
         }
+    }
+
+    #[test]
+    fn thunderstore_text_names_the_provider_and_its_versions() {
+        let mut thunderstore = project(false, 1, true);
+        thunderstore.provider = "thunderstore".into();
+        thunderstore.project_id = "Owner-Timer".into();
+        thunderstore.files[0].file_id = "1.1.0".into();
+        thunderstore.files[0].claimed_scan = None;
+        thunderstore.files.push(ProviderFileCandidate {
+            file_id: "1.0.0".into(),
+            archived: false,
+            ..thunderstore.files[0].clone()
+        });
+        let text = provider_project_text(&view(thunderstore.clone(), ProviderFreshness::Stale));
+        assert!(text.contains("Thunderstore mod Owner-Timer"), "{text}");
+        assert!(text.contains("version 1.1.0"));
+        assert!(text.contains("no longer offered"));
+        assert!(text.contains("1 more version on Thunderstore"));
+        assert!(text.contains("Thunderstore couldn't be reached"));
+        assert!(!text.contains("GameBanana"));
+        let text = provider_project_text(&view(thunderstore, ProviderFreshness::Fresh));
+        assert!(text.contains("provider-plan shipwright PROFILE_ID Owner-Timer VERSION"));
     }
 
     #[test]

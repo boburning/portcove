@@ -181,7 +181,7 @@ pub(crate) async fn get_provider_project(
         generation,
         move |service| async move {
             service
-                .provider_project(&port_id, project_id)
+                .provider_project(&port_id, &project_id.to_string())
                 .await
                 .map_err(Into::into)
         },
@@ -205,7 +205,12 @@ pub(crate) async fn plan_provider_install(
         generation,
         move |service| async move {
             service
-                .plan_provider_install(&port_id, &profile_id, project_id, file_id)
+                .plan_provider_install(
+                    &port_id,
+                    &profile_id,
+                    &project_id.to_string(),
+                    &file_id.to_string(),
+                )
                 .await
                 .map_err(Into::into)
         },
