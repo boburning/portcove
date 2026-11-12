@@ -1641,6 +1641,22 @@ impl Library {
         Ok(())
     }
 
+    /// Replaces the explanation of an unfinished session, for example the game
+    /// processes a tracked handoff still waits for. Finishing replaces it.
+    pub(crate) fn note_active_launch_session(&self, id: &str, message: &str) -> Result<()> {
+        let changed = self.connection()?.execute(
+            "UPDATE launch_sessions SET message=?2, updated_at=?3
+             WHERE id=?1 AND outcome IS NULL",
+            params![id, message, Self::now()],
+        )?;
+        if changed == 0 {
+            return Err(PortcoveError::state(format!(
+                "launch session {id} was not found"
+            )));
+        }
+        Ok(())
+    }
+
     pub(crate) fn finish_launch_session(
         &self,
         id: &str,

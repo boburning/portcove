@@ -9,7 +9,7 @@ use crate::{
 };
 use portcove_core::{
     BugReportDraft, BugReportField, BugReportInputs, BugReportLink, Platform, PortcoveService,
-    ReportKind, ReportRedactions, draft_report, report_link,
+    ReportKind, ReportRedactions, SubmittedReport, draft_report, report_issue, report_link,
 };
 
 fn environment(names: &[&str]) -> Option<String> {
@@ -120,6 +120,28 @@ pub(crate) async fn open_bug_report(
         Ok(link)
     })
     .await
+}
+
+/// Files the player's final text as an issue under their GitHub sign-in. Core
+/// builds and redacts the issue and holds the token; the webview sees only the
+/// created issue's number and link.
+#[tauri::command]
+pub(crate) async fn submit_report(
+    state: tauri::State<'_, DesktopState>,
+    fields: Vec<BugReportField>,
+    kind: ReportKind,
+) -> DesktopResult<SubmittedReport> {
+    let state = state.inner().clone();
+    let issue = blocking_worker({
+        let state = state.clone();
+        move || {
+            let redactions = redactions(&service(&state)?);
+            Ok(report_issue(kind, &fields, &redactions)?)
+        }
+    })
+    .await?;
+    let request = crate::ready(&state)?.github.submit_report(&issue);
+    Ok(request.await?)
 }
 
 #[cfg(test)]

@@ -25,7 +25,7 @@ import {
   releaseChannelPresentation,
   type DetailDestination,
 } from "../../view-model";
-import type { PortStatus } from "../../types";
+import type { PortDefinition, PortStatus } from "../../types";
 import { IdentityIcon } from "../identity/IdentityIcon";
 import { identityLabel, identityStyle } from "../identity/identity-style";
 import type { CatalogEntry } from "./catalog-entry";
@@ -55,11 +55,7 @@ export function IdentityChips({
           </Chip>
         ))}
       {port.platforms.map((platform) => (
-        <Chip
-          key={platform}
-          style={identityStyle(platform.split("-")[0]!)}
-          title={t("discover.chip.platform")}
-        >
+        <Chip key={platform} title={t("discover.chip.platform")}>
           <IdentityIcon name={platform.split("-")[0]!} />
           {platformLabel(platform)}
         </Chip>
@@ -85,7 +81,10 @@ export function GroupedDiscover({
   favorites,
   onFavoriteToggle,
   nativeSourceDrag = { active: false, pathCount: 0 },
+  devicePlatform,
 }: {
+  /** Known only when Core reports this device; otherwise platforms stay listed. */
+  devicePlatform?: PortDefinition["platforms"][number] | undefined;
   layout?: CollectionLayout;
   organization?: Organization | undefined;
   favorites?: ReturnType<typeof useFavorites> | undefined;
@@ -168,6 +167,7 @@ export function GroupedDiscover({
             statuses={statuses}
             descriptionPrefix={descriptionPrefix}
             nativeSourceDrag={nativeSourceDrag}
+            devicePlatform={devicePlatform}
             organization={organization}
             favorite={favorite}
             open={open}
@@ -216,6 +216,13 @@ export function GroupedDiscover({
                   const describedBy =
                     observation.input || observation.setup ? descriptionId : undefined;
                   const dropEligible = sourceDropEligible(port, status, nativeSourceDrag);
+                  // With one port there is nothing to compare an absence against; rows
+                  // without a value are omitted. Several ports keep every row aligned.
+                  const single = comparison.ports.length === 1;
+                  const setupLabel = installationMethodLabel(port);
+                  const setupKnown = setupLabel !== "Unavailable in this catalog";
+                  const filesListed = Boolean(port.presentation?.source_requirements?.length);
+                  const ownershipKnown = Boolean(status?.active || status?.external_runtime);
                   return (
                     <article
                       key={port.id}
@@ -232,34 +239,44 @@ export function GroupedDiscover({
                         <h3>{gameProjectLabel(port) || port.name}</h3>
                         <p>{port.summary}</p>
                         <IdentityChips port={port} includeUnknown />
-                        {!port.platforms.length && <p>{t("discover.compare.noPlatform")}</p>}
-                        {!port.channels?.length && <p>{t("discover.compare.noChannel")}</p>}
+                        {!single && !port.platforms.length && (
+                          <p>{t("discover.compare.noPlatform")}</p>
+                        )}
+                        {!single && !port.channels?.length && (
+                          <p>{t("discover.compare.noChannel")}</p>
+                        )}
                         {!matching.some((candidate) => candidate.id === port.id) && (
                           <p className="text-sm text-pc-muted-foreground">
                             {t("discover.compare.outsideFilters")}
                           </p>
                         )}
                       </header>
-                      <div>
-                        <h4>{t("discover.compare.setup")}</h4>
-                        <p>{installationMethodLabel(port)}</p>
-                      </div>
-                      <div>
-                        <h4>{t("discover.compare.files")}</h4>
-                        {port.presentation?.source_requirements?.length ? (
-                          <ul>
-                            {port.presentation.source_requirements.map((requirement) => (
-                              <li key={requirement.profile_id}>{requirement.label}</li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p>{t("discover.compare.filesUnlisted")}</p>
-                        )}
-                      </div>
-                      <div>
-                        <h4>{t("discover.compare.updates")}</h4>
-                        {renderComparisonOwnership(t, status)}
-                      </div>
+                      {(!single || setupKnown) && (
+                        <div>
+                          <h4>{t("discover.compare.setup")}</h4>
+                          <p>{setupLabel}</p>
+                        </div>
+                      )}
+                      {(!single || filesListed) && (
+                        <div>
+                          <h4>{t("discover.compare.files")}</h4>
+                          {port.presentation?.source_requirements?.length ? (
+                            <ul>
+                              {port.presentation.source_requirements.map((requirement) => (
+                                <li key={requirement.profile_id}>{requirement.label}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p>{t("discover.compare.filesUnlisted")}</p>
+                          )}
+                        </div>
+                      )}
+                      {(!single || ownershipKnown) && (
+                        <div>
+                          <h4>{t("discover.compare.updates")}</h4>
+                          {renderComparisonOwnership(t, status)}
+                        </div>
+                      )}
                       <div className="min-w-0">
                         <GameComparisonEvidence
                           comparison={evidence}
@@ -347,6 +364,7 @@ function DiscoverGameCard({
   statuses,
   descriptionPrefix,
   nativeSourceDrag,
+  devicePlatform,
   organization,
   favorite,
   open,
@@ -357,6 +375,7 @@ function DiscoverGameCard({
   statuses: ReadonlyMap<string, PortStatus>;
   descriptionPrefix: string;
   nativeSourceDrag: NativeSourceDragState;
+  devicePlatform?: PortDefinition["platforms"][number] | undefined;
   organization?: Organization | undefined;
   favorite: (port: CatalogEntry, card?: boolean) => ReactNode;
   open: (port: CatalogEntry, originKey: string) => void;
@@ -449,17 +468,29 @@ function DiscoverGameCard({
         {artworkNotice && <p className="text-xs text-pc-muted-foreground">{artworkNotice}</p>}
         {/* Most catalog ports offer only Stable; that chip does not help choose a game.
             Preview, Rolling, mixed channels and a differing selected channel stay visible. */}
+        {/* On a known device, platform chips repeat on every card; show only the
+            exception. Without a known device, the platforms stay listed. */}
         {exact && (
           <IdentityChips
-            port={
-              first.channels?.length === 1 &&
+            port={{
+              ...first,
+              ...(devicePlatform ? { platforms: [] } : {}),
+              ...(first.channels?.length === 1 &&
               first.channels[0] === "stable" &&
               (!status?.channel || status.channel === "stable")
-                ? { ...first, channels: [] }
-                : first
-            }
+                ? { channels: [] }
+                : {}),
+            }}
           />
         )}
+        {exact &&
+          devicePlatform &&
+          first.platforms.length > 0 &&
+          !first.platforms.includes(devicePlatform) && (
+            <p className="m-0 text-xs text-pc-muted-foreground">
+              {t("discover.unavailableFor", { platform: platformLabel(devicePlatform) })}
+            </p>
+          )}
       </div>
       <DiscoverGameObservation
         group={actionGroup}

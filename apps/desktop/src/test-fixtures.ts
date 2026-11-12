@@ -79,6 +79,7 @@ export function artworkState(
       initials: "SF",
       palette_index: 4,
     },
+    attribution: [],
   };
 }
 

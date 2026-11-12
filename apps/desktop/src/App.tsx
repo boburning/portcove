@@ -1,3 +1,4 @@
+import { readyToPlayAfter } from "./features/operations/ready-to-play";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { ArrowLeft, Heart } from "lucide-react";
 import { gameGroupId } from "./features/browsing/original-game";
@@ -431,9 +432,7 @@ function workspaceSourceIntakeReturnFocus(portId: string) {
   return (
     detail?.querySelector<HTMLButtonElement>(".primary-actions button:not(:disabled)") ??
     detail?.querySelector<HTMLButtonElement>(".detail-back") ??
-    document.querySelector<HTMLButtonElement>(
-      'section[aria-label="Add games workspace"]:not([hidden]) #add-games-check-files',
-    )
+    null
   );
 }
 
@@ -1075,6 +1074,19 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
                       ? () => model.openPortDetails(id, "error:preparation-review")
                       : undefined;
                   }}
+                  readyToPlay={(record) => {
+                    const { target } = record.context;
+                    const port = model.data.catalog?.ports.find((entry) => entry.id === target.id);
+                    if (!readyToPlayAfter(record, model.model.statusMap.get(target.id), port))
+                      return undefined;
+                    return () =>
+                      launchKnownPort(
+                        target.id,
+                        port,
+                        model.operations.perform,
+                        model.bootstrap.generation,
+                      );
+                  }}
                   operation={model.operations.operation}
                   busy={model.operations.busy}
                   featureNotices={
@@ -1127,7 +1139,6 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
                   perform={model.operations.perform}
                   onAdded={model.data.refreshAfterMutation}
                   onOpenPort={model.openPortDetails}
-                  onCheckFiles={model.openSourceIntake}
                   onBrowseCatalog={() => model.setPrimaryView("catalog")}
                   onCopyInstallation={() => model.ui.setAdoptOpen(true)}
                   setupSource={model.setupSource}

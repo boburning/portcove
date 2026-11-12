@@ -256,6 +256,11 @@ export type SourceVerificationMethod = "catalog-identity" | "upstream-validator"
 export type UpdatePolicy = "notify" | "stage" | "automatic";
 export type ArtworkImageFormat = "png" | "jpeg";
 export type OutputArtworkAssets = LocalArtworkAsset[];
+/**
+ * A remote provider an image was chosen from; a local import has none.
+ */
+export type ArtworkProvider = "steamgriddb";
+export type DestinationArtworkRole = "portrait_cover" | "landscape_cover" | "hero_banner";
 export type ArtworkAvailability = "fallback" | "available" | "unavailable";
 export type ArtworkSlot = "cover" | "detail";
 /**
@@ -555,7 +560,6 @@ export type DestinationArtworkContent =
     };
 export type DestinationArtworkUnavailableReason =
   ("role_not_provided" | "no_local_original" | "selected_original_unavailable") | "selected_image_not_wide";
-export type DestinationArtworkRole = "portrait_cover" | "landscape_cover" | "hero_banner";
 export type DestinationArtworkSource =
   | {
       asset: LocalArtworkAsset;
@@ -939,6 +943,8 @@ export type SourceImportOutcome =
 export type SourceInboxResolutionState =
   "registered" | "exact_match" | "approval_required" | "unresolved" | "conflict" | "incomplete";
 export type SourceReuseCompatibility = "listed_identity" | "potential" | "incompatible" | "unavailable";
+export type OutputSteamgriddbCandidates = SteamGridDbCandidate[];
+export type OutputSteamgriddbGames = SteamGridDbGame[];
 export type OutputDesktopAdoptionBatchResult = AdoptionBatchResult | null;
 export type OutputDesktopApplicationUpdateCheckPhase = "checking" | "acquiring-and-verifying" | "staged" | "complete";
 export type ApplicationChannel = "preview" | "stable";
@@ -1229,6 +1235,9 @@ export interface TransportOutputs {
   source_reuse_review: OutputSourceReuseReview;
   source_verification: SourceVerification;
   status: PortStatus;
+  steamgriddb_candidates: OutputSteamgriddbCandidates;
+  steamgriddb_games: OutputSteamgriddbGames;
+  steamgriddb_key_status: OutputSteamgriddbKeyStatus;
   storage: StorageSummary;
   update_batch_outcome: OutputUpdateBatchOutcome;
   update_check: UpdateCheck;
@@ -1290,6 +1299,7 @@ export interface TransportOutputs {
   desktop_steam_entry_apply_result: OutputDesktopSteamEntryApplyResult;
   desktop_steam_entry_review: OutputDesktopSteamEntryReview;
   desktop_steam_profiles: OutputDesktopSteamProfiles;
+  desktop_submitted_report: OutputDesktopSubmittedReport;
   desktop_support_bundle_export: OutputDesktopSupportBundleExport;
   desktop_update_check_outcome: OutputCheckBatchOutcome;
   desktop_workspace_snapshot: OutputDesktopWorkspaceSnapshot;
@@ -1811,6 +1821,10 @@ export interface OutputArtworkCacheClear {
   [k: string]: unknown;
 }
 export interface OutputArtworkState {
+  /**
+   * Provider credits for the selected image; empty for a purely local import.
+   */
+  attribution: ArtworkAttribution[];
   availability: ArtworkAvailability;
   choice: ArtworkChoice;
   generated_fallback: GeneratedArtworkFallback;
@@ -1818,6 +1832,26 @@ export interface OutputArtworkState {
   resolved_source: ArtworkResolvedSource;
   selection: LocalArtworkAsset | null;
   [k: string]: unknown;
+}
+/**
+ * Where a provider image came from and who made it. Recorded per origin, never
+ * replaced by a later identical import, and shown wherever the image is credited.
+ */
+export interface ArtworkAttribution {
+  /**
+   * The provider's identity for this image.
+   */
+  asset_id: number;
+  author_name: string;
+  author_steam64: string | null;
+  fetched_at: number;
+  /**
+   * The provider's game the image was listed under; a proposal, not port identity.
+   */
+  game_id: number;
+  provider: ArtworkProvider;
+  role: DestinationArtworkRole;
+  source_url: string;
 }
 export interface ArtworkChoice {
   asset_sha256: string | null;
@@ -2174,6 +2208,13 @@ export interface PortDefinition {
    * The upstream process must preserve the reviewed working directory.
    */
   windows_temp_directory?: string | null;
+  /**
+   * Reviewed Windows tracked handoff: the game can restart into a successor
+   * from its own process tree, so the session also waits for job members
+   * whose image lies in the install root. Without it, the original process
+   * is the whole session.
+   */
+  windows_tracked_handoff?: boolean;
   [k: string]: unknown;
 }
 /**
@@ -3015,6 +3056,11 @@ export interface OutputDestinationArtworkBytes {
  * synthesized, cropped or resized from another role or cache.
  */
 export interface DestinationArtworkHandoff {
+  /**
+   * Provider credits for the selected local image, shown by a destination that
+   * presents the image; empty for a purely local import and every other source.
+   */
+  attribution: ArtworkAttribution[];
   choice: ArtworkChoice | null;
   content: DestinationArtworkContent;
   handoff_schema: number;
@@ -3966,15 +4012,15 @@ export interface LibraryMetadata {
   exported_at: number;
   launch_history: LibraryLaunchHistory[];
   /**
-   * Explicit add-only Library entries; present only under metadata schema 7, so
-   * an older reader refuses the export instead of silently dropping them.
+   * Explicit add-only Library entries; present only under metadata schema 7 or 8,
+   * so an older reader refuses the export instead of silently dropping them.
    */
   library_memberships?: LibraryMembership[];
   original_root: string;
   port_settings: LibraryPortSettings[];
   portability_authority?: PortabilityAuthority | null;
   /**
-   * Local profiles and revisions; present only under metadata schema 6.
+   * Local profiles and revisions; present only under metadata schema 6 or later.
    */
   profiles?: LibraryProfile[];
   retained_build_references?: RetainedBuildReference[];
@@ -3985,6 +4031,19 @@ export interface LibraryMetadata {
 export interface ArtworkMetadata {
   assets: LocalArtworkAsset[];
   choices: ArtworkChoice[];
+  /**
+   * Assets that exist only because a provider image was chosen; no local import
+   * of the same bytes was made. Present only under library metadata schema 8.
+   */
+  provider_only_assets?: string[];
+  /**
+   * Provider provenance; present only under library metadata schema 8.
+   */
+  providers?: ArtworkProviderRecord[];
+}
+export interface ArtworkProviderRecord {
+  asset_sha256: string;
+  attribution: ArtworkAttribution;
 }
 export interface LibraryContentRoot {
   kind: LibraryContentKind;
@@ -5534,6 +5593,40 @@ export interface SourceRegistrationReference {
   profile_id: string;
   reference_sha256: string;
 }
+/**
+ * A proposed static image for one role, with attribution. Not a selection.
+ */
+export interface SteamGridDbCandidate {
+  author: SteamGridDbAuthor;
+  height: number;
+  id: number;
+  mime: string;
+  role: DestinationArtworkRole;
+  score: number;
+  style: string;
+  thumb: string;
+  url: string;
+  width: number;
+  [k: string]: unknown;
+}
+export interface SteamGridDbAuthor {
+  name: string;
+  steam64: string | null;
+  [k: string]: unknown;
+}
+export interface SteamGridDbGame {
+  id: number;
+  name: string;
+  verified: boolean;
+  [k: string]: unknown;
+}
+export interface OutputSteamgriddbKeyStatus {
+  /**
+   * Whether a player key is stored; the key itself is never returned.
+   */
+  configured: boolean;
+  [k: string]: unknown;
+}
 export interface OutputUpdateBatchOutcome {
   error: FailureReport | null;
   ok: boolean;
@@ -5695,7 +5788,21 @@ export interface OutputDesktopBootstrapStatus {
  * The exact text that will appear in the issue form, after redaction.
  */
 export interface OutputDesktopBugReportDraft {
+  /**
+   * Dropdowns the player picks; empty for a bug report.
+   */
+  choices: ReportChoice[];
   fields: BugReportField[];
+  [k: string]: unknown;
+}
+/**
+ * A dropdown from the issue form. Its value travels as a field with the same id
+ * and must be one of `options`.
+ */
+export interface ReportChoice {
+  id: string;
+  label: string;
+  options: string[];
   [k: string]: unknown;
 }
 export interface BugReportField {
@@ -6182,6 +6289,14 @@ export interface OutputDesktopSteamEntryReview {
   steam_root: string;
   steam_user_id: string;
   writes_required: boolean;
+  [k: string]: unknown;
+}
+/**
+ * An issue GitHub created from a submitted report.
+ */
+export interface OutputDesktopSubmittedReport {
+  number: number;
+  url: string;
   [k: string]: unknown;
 }
 export interface OutputDesktopSupportBundleExport {

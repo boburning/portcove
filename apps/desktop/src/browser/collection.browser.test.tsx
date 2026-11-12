@@ -462,11 +462,12 @@ it.each(["dark", "light"])(
       expect(getComputedStyle(image).objectFit).toBe("contain");
     const action = first.querySelector<HTMLButtonElement>('[data-detail-origin$=":details"]')!;
     await userEvent.click(action);
+    // Discover defaults to Title A–Z, so the first card is the alphabetically first game.
     await expect
       .poll(() =>
         document.querySelector("[data-detail-port-id]")?.getAttribute("data-detail-port-id"),
       )
-      .toBe("collection-0");
+      .toBe("collection-2");
   },
 );
 
@@ -500,10 +501,11 @@ it.each(["dark", "light"])(
     await userEvent.click(
       first.querySelector<HTMLButtonElement>('[data-detail-origin$=":details"]')!,
     );
+    // Discover defaults to Title A–Z, so the first card is the alphabetically first game.
     await expect
       .poll(() =>
         document.querySelector("[data-detail-port-id]")?.getAttribute("data-detail-port-id"),
       )
-      .toBe("collection-0");
+      .toBe("collection-2");
   },
 );

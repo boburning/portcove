@@ -21732,6 +21732,28 @@
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Extract the complete official Windows package into a folder you manage outside the Portcove library. Use upstream’s launcher to select your own supported Diddy Kong Racing original. Select the top-level DKR-R.exe with that release folder as its working directory; leave libexec and helpers intact. Optional --rom and --config arguments belong to your selected upstream profile. DKR-R or you manage runtime updates, saves, settings and backups. Portcove only registers, launches and removes the registration. Existing Portcove-managed installations keep their retained contracts; do not move their files into this route.",
         "original_game_title": "Diddy Kong Racing",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Open the Linux AppImage",
+              "instruction": "Choose the official x86-64, ARM64 or Steam Deck package for your device. Mark the AppImage executable and open it. Check the upstream platform guide for your release’s Vulkan and system-library requirements."
+            },
+            {
+              "title": "Add your original game",
+              "instruction": "In Play, choose Add a ROM and select your own clean US v1.0 or US Rev A/v1.1 original. Some older mods need US v1.0 when you install them."
+            }
+          ],
+          "warnings": [
+            "Use DKR-R’s upstream launcher and update instructions for your Linux copy. Back up the active profile before replacing the package or switching profile locations."
+          ],
+          "help_url": "https://github.com/ThatGuyMcd/DKR-R/blob/main/docs/PLATFORMS.md",
+          "references": [
+            {
+              "title": "Find your DKR-R profile",
+              "instruction": "Linux normally uses $XDG_CONFIG_HOME/dkr-port or ~/.config/dkr-port. Portable mode uses dkr-runtime-data beside the application. Changing modes selects a different profile on the next launch. Use DKR-R’s Save Manager to export progress and back up your settings and installed content separately."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 2723,
           "cover_id": 88723,
@@ -26824,6 +26846,32 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Diddy Kong Racing",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Open Golden Balloon on Linux",
+              "instruction": "Put the official x86-64 AppImage in a writable folder, mark it executable and open it. For the tarball, extract the whole archive and open AppRun inside Golden-Balloon.AppDir. Keep the folder together so the player can find its bundled libraries."
+            },
+            {
+              "title": "Install the Apple Silicon app",
+              "instruction": "Open the official ARM64 DMG and copy the app to Applications. If macOS blocks the unsigned app, follow the first-launch instructions in the upstream README."
+            },
+            {
+              "title": "Choose your original game",
+              "instruction": "Select your own Diddy Kong Racing US 1.1 or European 1.1 original. On Linux, browse inside the game, drag the file onto the launcher or paste its path. On Mac, use the file picker."
+            }
+          ],
+          "warnings": [
+            "Use the upstream package to install and update on Linux and Mac. Keep your saves, settings and add-ons backed up before replacing the package."
+          ],
+          "help_url": "https://github.com/akratch/goldenballoon#readme",
+          "references": [
+            {
+              "title": "Find the data you need to back up",
+              "instruction": "Keep the per-user profile or the active portable folder. On Linux, follow the upstream portable-data instructions for your package. Include saves, settings, ghosts and any custom content you want to keep."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 412063,
           "cover_id": 588536,
@@ -47988,10 +48036,20 @@
             {
               "title": "Use a prepared upstream Linux copy",
               "instruction": "For Linux, use the official Linux x64 archive as an upstream-owned copy. In its extracted player folder, deliberately run ./mgs_mobile --install \"<your Metal.Gear.Solid.n-gage>\" and wait for successful completion, then register mgs_mobile as the player with that folder as its working directory. The Linux player has no Windows-style first-Play picker. Portcove does not run this preparation command during discovery and does not manage replacement or backups of this external copy."
+            },
+            {
+              "title": "Set up the Android player",
+              "instruction": "Use the official ARM64 APK on Android 7 or later. Open the app and select your own Metal.Gear.Solid.n-gage in its file picker. Keep the original separately. The app prepares its game files in its own storage."
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1"
+          "help_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1",
+          "references": [
+            {
+              "title": "Keep the Android app data",
+              "instruction": "Install compatible updates over the same upstream app and signer. The app normally stores its files in Android/data/org.mgsmobile.port/files, with internal app storage as a fallback. Before clearing data or uninstalling, keep an accessible backup of any saves and settings you can export or copy."
+            }
+          ]
         },
         "artwork": {
           "game_id": 41041,

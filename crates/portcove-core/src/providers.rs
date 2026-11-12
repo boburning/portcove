@@ -190,6 +190,7 @@ mod tests {
             mod_package_policy: None,
             game_settings: None,
             windows_shipwright_persistence: false,
+            windows_tracked_handoff: false,
             managed_shared_preferences: None,
             managed_shared_preferences_save_id: None,
             source_environment: None,

@@ -537,6 +537,71 @@ impl From<DestinationArtworkRoleArg> for portcove_core::DestinationArtworkRole {
 }
 
 #[derive(Debug, Subcommand)]
+pub(crate) enum SteamGridDbCommand {
+    /// Show whether a SteamGridDB API key is saved; the key itself is never shown.
+    Status,
+    /// Save your SteamGridDB API key in this host's secure credential store.
+    #[command(
+        after_help = "With --non-interactive, artwork steamgriddb set-key requires --stdin. Never place a key in command-line arguments."
+    )]
+    SetKey {
+        #[arg(
+            long,
+            help = "Read the key from standard input without placing it in argv"
+        )]
+        stdin: bool,
+    },
+    /// Remove the saved SteamGridDB API key from this host.
+    ClearKey,
+    /// Search SteamGridDB games by name; matches are proposals, not identities.
+    Search {
+        /// Game name to search for, up to 120 characters.
+        term: String,
+    },
+    /// Choose one SteamGridDB image for a port's cover or detail image.
+    #[command(
+        after_help = "Cover uses portrait images and detail uses hero images. Portcove looks the image up again with your key, downloads it without sending your key, and keeps the artist credit with the copy in your library. The previous choice is replaced only if the image is valid and the choice revision has not changed."
+    )]
+    Choose {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Artwork slot to change; cover is the library image and detail is the detail view image.
+        #[arg(long, value_enum, default_value = "cover")]
+        slot: ArtworkSlotArg,
+        /// SteamGridDB game ID from `artwork steamgriddb search`.
+        #[arg(long)]
+        game: u64,
+        /// SteamGridDB image ID from `artwork steamgriddb candidates`.
+        #[arg(long)]
+        candidate: u64,
+        /// Require the artwork revision to match the value previously read.
+        #[arg(long)]
+        expected_revision: Option<u64>,
+    },
+    /// List proposed static images for one SteamGridDB game and destination role.
+    Candidates {
+        /// SteamGridDB game ID from `artwork steamgriddb search`.
+        game_id: u64,
+        /// Destination image role to propose images for.
+        #[arg(long, value_enum)]
+        role: DestinationArtworkRoleArg,
+    },
+}
+
+impl SteamGridDbCommand {
+    pub(crate) fn name(&self) -> &'static str {
+        match self {
+            Self::Status => "artwork.steamgriddb.status",
+            Self::SetKey { .. } => "artwork.steamgriddb.set-key",
+            Self::ClearKey => "artwork.steamgriddb.clear-key",
+            Self::Search { .. } => "artwork.steamgriddb.search",
+            Self::Candidates { .. } => "artwork.steamgriddb.candidates",
+            Self::Choose { .. } => "artwork.steamgriddb.choose",
+        }
+    }
+}
+
+#[derive(Debug, Subcommand)]
 pub(crate) enum ArtworkCommand {
     /// Observe a semantic destination role without fetching or writing artwork.
     Handoff {
@@ -599,6 +664,14 @@ pub(crate) enum ArtworkCommand {
     ClearCache,
     /// List imported artwork assets no longer referenced by a port.
     Unused,
+    /// Look up proposed artwork on SteamGridDB with your own API key.
+    #[command(
+        after_help = "SteamGridDB lookups use only your own API key from steamgriddb.com/profile/preferences/api. Portcove never ships a key. Results are proposals with author attribution; they choose no artwork and write nothing to Steam."
+    )]
+    Steamgriddb {
+        #[command(subcommand)]
+        command: SteamGridDbCommand,
+    },
     /// Delete one unreferenced imported asset after confirmation.
     RemoveUnused {
         /// Full SHA-256 of an unused imported asset from `artwork unused`; referenced assets cannot be removed.
@@ -617,6 +690,7 @@ impl ArtworkCommand {
             Self::Show { .. } => "artwork.show",
             Self::Import { .. } => "artwork.import",
             Self::Reset { .. } => "artwork.reset",
+            Self::Steamgriddb { command } => command.name(),
             Self::ClearCache => "artwork.clear-cache",
             Self::Unused => "artwork.unused",
             Self::RemoveUnused { .. } => "artwork.remove-unused",

@@ -3304,6 +3304,7 @@ pub fn run() -> std::process::ExitCode {
             automatic_snapshots::set_automatic_snapshots,
             bug_report::preview_bug_report,
             bug_report::open_bug_report,
+            bug_report::submit_report,
             get_launch_failure,
             get_doctor_report,
             set_host_tool_path,

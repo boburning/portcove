@@ -381,7 +381,7 @@ The CLI API schema version is independent of the Portcove release version.
 
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
 current or retained listing. `capabilities` advertises `port_capability_schema`
-and `listing_formats` independently from API schema 88 and event schema 3.
+and `listing_formats` independently from API schema 89 and event schema 3.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -666,7 +666,7 @@ Authentication is optional. Anonymous operation remains supported, while a GitHu
 portcove auth login
 ```
 
-`auth login` uses GitHub's device authorization flow with Portcove's public GitHub App client ID. `PORTCOVE_GITHUB_CLIENT_ID` can override it at runtime or build time; an explicitly empty override disables device login. Its polling wait is asynchronous, follows GitHub's pending and slowdown intervals, reports expiry or denial as typed errors, and can be cancelled with Ctrl-C. Authentication calls fail after ten seconds without a connection, fifteen seconds without response progress, or sixty seconds overall; a retry starts a new intent, so an older delayed token or device completion cannot replace it or a later logout.
+`auth login` uses GitHub's device authorization flow with Portcove's public GitHub App client ID. Desktop can use this sign-in, or a configured token, to submit a reviewed bug report or feedback as an issue on `boburning/portcove` under the signed-in account, only when the player chooses Submit. `PORTCOVE_GITHUB_CLIENT_ID` can override it at runtime or build time; an explicitly empty override disables device login. Its polling wait is asynchronous, follows GitHub's pending and slowdown intervals, reports expiry or denial as typed errors, and can be cancelled with Ctrl-C. Authentication calls fail after ten seconds without a connection, fifteen seconds without response progress, or sixty seconds overall; a retry starts a new intent, so an older delayed token or device completion cannot replace it or a later logout.
 
 #### Supply a token
 
@@ -1187,6 +1187,46 @@ bytes. Catalog defaults, a non-wide Detail image and the unprovided landscape ro
 remain explicitly unavailable, without provider requests or disposable-cache export.
 See the [destination contract](INTEGRATION-AUTHOR.md#destination-artwork-handoff)
 for commands, strict schemas, byte validation and destination preview obligations.
+
+### SteamGridDB artwork suggestions
+
+```text
+portcove artwork steamgriddb set-key
+portcove --json --non-interactive artwork steamgriddb set-key --stdin
+portcove --json artwork steamgriddb status
+portcove --json artwork steamgriddb search "<game name>"
+portcove --json artwork steamgriddb candidates <game-id> --role portrait-cover
+portcove --json artwork steamgriddb choose <port-id> --slot cover --game <game-id> --candidate <image-id> --expected-revision <revision>
+portcove --json artwork steamgriddb clear-key
+```
+
+SteamGridDB lookups use only your own API key, created at
+steamgriddb.com/profile/preferences/api. Portcove ships no key. `set-key` prompts
+without echo, or reads standard input with `--stdin`. `--non-interactive` requires
+`--stdin`, and the key is never accepted as an argument or environment variable.
+Core keeps the key in this host's secure credential store and sends it only to the
+fixed SteamGridDB API origin. `status`, `set-key` and `clear-key` return only
+`configured`; the key is never shown.
+
+`search` returns up to 50 matching games. `candidates` returns up to 50 static PNG
+or JPEG images for `portrait-cover`, `landscape-cover` or `hero-banner`, each with
+its CDN URL, size, style and author attribution. Both are suggestions: they choose
+no artwork, establish no game identity, download no image bytes and write nothing
+to Steam. Results flagged as adult, humor or epilepsy-risk are excluded. A missing
+key or a rejected key is a usage error, and a missing game is not-found. Rate
+limiting reports `retry_after_seconds` when SteamGridDB provides it, and an
+unavailable service is a network error. Malformed responses fail verification.
+`choose` copies one listed image into your library for a port's `cover` (portrait
+images) or `detail` (hero images) slot and returns `artwork_state`. Core looks the image
+up again with your key, downloads it from SteamGridDB's image server without your key,
+and keeps it only if it decodes as a static PNG or JPEG matching its listed type and
+size. The artist credit is stored with the copy and shown in `artwork_state.attribution`
+and the destination handoff. An image no longer on the game's first listing page is
+not-found, and a changed choice revision is a conflict; in both cases the current
+artwork is kept. The copy is library artwork like a local import: `reset` returns to
+the default and `remove-unused` deletes it once nothing selects it. Library exports
+that contain chosen SteamGridDB images use metadata schema 8.
+See [the provider client limits](ARCHITECTURE.md#local-artwork-ownership).
 
 ## Export and restore a library
 

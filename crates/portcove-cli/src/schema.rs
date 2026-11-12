@@ -160,6 +160,24 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 ),
             ),
             (
+                "steamgriddb_key_status",
+                serde_json::json!(schema_for_contract::<portcove_core::SteamGridDbKeyStatus>(
+                    contract
+                )),
+            ),
+            (
+                "steamgriddb_games",
+                serde_json::json!(schema_for_contract::<Vec<portcove_core::SteamGridDbGame>>(
+                    contract
+                )),
+            ),
+            (
+                "steamgriddb_candidates",
+                serde_json::json!(schema_for_contract::<
+                    Vec<portcove_core::SteamGridDbCandidate>,
+                >(contract)),
+            ),
+            (
                 "api_response_port_status",
                 serde_json::json!(schema_for_contract::<ApiResponse<PortStatus>>(contract)),
             ),

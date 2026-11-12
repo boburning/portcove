@@ -9,8 +9,10 @@ import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 import { transportValue, transportValues } from "./transport-values.mts";
 import {
   captureAccessibilityReport,
+  clearCatalogFilters,
   clickVisible,
   reviewControls,
+  selectCatalogPort,
   selectPrimaryNavigation,
 } from "./desktop-review-controls.mts";
 import { captureKeyboardTarget } from "./desktop-capture-target.mts";
@@ -252,18 +254,17 @@ export async function registeredSourceReuseScenario(context: Context) {
       assert.deepEqual(sources(), []);
       await selectPrimaryNavigation(browser, "Library");
       await click(button("Add games"));
-      await click(By.css('button[aria-label="Choose a game"]'));
+      // Add games sends game choice to Discover; the exact port's details own its file check.
+      await click(By.css('button[aria-label="Browse games"]'));
       const search = await browser.wait(until.elementLocated(By.id("port-search")), 15000);
       await search.sendKeys(fixture.ports[0]!.name);
-      const projectDescription = `Port project: ${fixture.ports[0]!.name} · ${portIds[0]}`;
-      const option = await browser.wait(
-        until.elementLocated(
-          By.xpath(`//*[@role="option"][.//*[normalize-space(.)="${projectDescription}"]]`),
+      await clearCatalogFilters(browser);
+      await selectCatalogPort(browser, portIds[0]);
+      await click(
+        By.xpath(
+          `//*[@data-detail-workspace and @data-detail-port-id="${portIds[0]}"]//*[contains(@class,"primary-actions")]//button[normalize-space(.)="Select game files"]`,
         ),
-        15000,
       );
-      await clickVisible(browser, option);
-      await click(By.id("add-games-check-files"));
       await click(button("Choose game files to check"));
       await confirmNative(
         "Choose game files",
@@ -514,8 +515,13 @@ export async function installRegisteredSourceAndPlay(
   try {
     const dialogSelector = By.css('[role="dialog"][aria-describedby="install-review-description"]');
     if (role === "first" && !(await browser.findElements(dialogSelector)).length) {
+      // The first route returns to the game's details, where setup is reviewed.
       const firstReview = await browser.wait(
-        until.elementLocated(By.css('button[data-detail-origin="add-games:selected-setup"]')),
+        until.elementLocated(
+          By.xpath(
+            `//*[@data-detail-workspace and @data-detail-port-id="${port.id}"]//button[normalize-space(.)="Review installation" and not(ancestor::*[@hidden or @inert])]`,
+          ),
+        ),
         15000,
       );
       await clickVisible(browser, firstReview);

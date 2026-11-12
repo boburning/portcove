@@ -2,7 +2,7 @@ import { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
-import { portDefinition, portStatus } from "../../test-fixtures";
+import { installedLaunchStatus, portDefinition, portStatus } from "../../test-fixtures";
 import type { LibraryOrganization, OrganizationChange } from "../../types";
 import { OrganizationControls, type Organization } from "../organization/OrganizationControls";
 import { GroupedLibrary } from "./GroupedLibrary";
@@ -507,4 +507,171 @@ it("names a chosen port in a multi-port group with its matching project and acti
   } finally {
     await localization.changeLanguage("en");
   }
+});
+
+it("on a known device, replaces Discover platform chips with an exception for excluded ports", async () => {
+  const windowsOnly = { ...portDefinition(), id: "windows-only", name: "Windows only" };
+  const linuxOnly = {
+    ...portDefinition(),
+    id: "linux-only",
+    name: "Linux only",
+    platforms: ["linux-x86-64" as const],
+  };
+  const unlisted = { ...portDefinition(), id: "unlisted", name: "Unlisted", platforms: [] };
+  const ports = [windowsOnly, linuxOnly, unlisted];
+  const card = (id: string) =>
+    [...document.querySelectorAll<HTMLElement>(".discover-game")].find((item) =>
+      (JSON.parse(item.dataset.discoverPortIds!) as string[]).includes(id),
+    )!;
+  const platformChips = (id: string) =>
+    [...card(id).querySelectorAll('[title="Runs on"]')].map((chip) => chip.textContent?.trim());
+  const screen = await render(
+    <GroupedDiscover
+      all={ports}
+      matching={ports}
+      statuses={new Map()}
+      onSelect={vi.fn()}
+      onFavoriteToggle={vi.fn()}
+      devicePlatform="windows-x86-64"
+    />,
+  );
+  for (const id of ["windows-only", "linux-only", "unlisted"])
+    expect(platformChips(id)).toEqual([]);
+  // Only a port whose listed platforms exclude this device names the exception.
+  expect(card("linux-only").textContent).toContain("Not available for Windows");
+  expect(card("windows-only").textContent).not.toContain("Not available for");
+  // An unlisted platform is unknown, not a known exclusion.
+  expect(card("unlisted").textContent).not.toContain("Not available for");
+
+  await screen.rerender(
+    <GroupedDiscover
+      all={ports}
+      matching={ports}
+      statuses={new Map()}
+      onSelect={vi.fn()}
+      onFavoriteToggle={vi.fn()}
+    />,
+  );
+  // Without a known device, every card keeps listing its platforms.
+  expect(platformChips("windows-only")).toEqual(["Windows"]);
+  expect(platformChips("linux-only")).toEqual(["Linux"]);
+  expect(document.body.textContent).not.toContain("Not available for");
+});
+
+it("names the device exception in the active locale", async () => {
+  const { initializeLocalization } = await import("../../localization");
+  const localization = initializeLocalization(["en-US"]);
+  const linuxOnly = {
+    ...portDefinition(),
+    id: "linux-only",
+    name: "Linux only",
+    platforms: ["linux-x86-64" as const],
+  };
+  try {
+    await render(
+      <GroupedDiscover
+        all={[linuxOnly]}
+        matching={[linuxOnly]}
+        statuses={new Map()}
+        onSelect={vi.fn()}
+        onFavoriteToggle={vi.fn()}
+        devicePlatform="macos-aarch64"
+      />,
+    );
+    expect(document.body.textContent).toContain("Not available for Apple silicon");
+    await localization.changeLanguage("es");
+    await expect
+      .poll(() => document.body.textContent)
+      .toContain("No disponible para Apple silicon");
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
+
+it("omits empty rows from a single-port review while a comparison keeps every row aligned", async () => {
+  const bare = {
+    ...first,
+    platforms: [],
+    channels: [],
+    presentation: { ...first.presentation, source_requirements: [] },
+  };
+  const rows = () => [...document.querySelectorAll("[role=dialog] h4")].map((h) => h.textContent);
+  const dialogText = () => document.querySelector("[role=dialog]")?.textContent ?? "";
+
+  const single = await render(
+    <GroupedDiscover
+      all={[bare]}
+      matching={[bare]}
+      statuses={new Map([[bare.id, { ...portStatus(), port_id: bare.id }]])}
+      onSelect={vi.fn()}
+      onFavoriteToggle={vi.fn()}
+    />,
+  );
+  await page.getByRole("button", { name: "Why this port?", exact: true }).click();
+  await expect.element(page.getByRole("dialog")).toBeVisible();
+  // No setup method, no listed files and no installation: nothing to show for those rows.
+  expect(rows()).not.toContain("How to set it up");
+  expect(rows()).not.toContain("Required files");
+  expect(rows()).not.toContain("Who handles updates");
+  expect(dialogText()).not.toContain("No platform is listed.");
+  expect(dialogText()).not.toContain("No update channel is listed.");
+  expect(dialogText()).not.toContain("Unavailable in this catalog");
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+
+  // A single port with values keeps those rows.
+  const described = {
+    ...first,
+    presentation: {
+      ...first.presentation,
+      installation_method: "portable-package" as const,
+      source_requirements: [
+        {
+          role: "game" as const,
+          profile_id: "fixture-copy",
+          label: "Your fixture copy",
+          verification: "catalog-identity" as const,
+        },
+      ],
+    },
+  };
+  await single.rerender(
+    <GroupedDiscover
+      all={[described]}
+      matching={[described]}
+      statuses={new Map([[described.id, installedLaunchStatus()]])}
+      onSelect={vi.fn()}
+      onFavoriteToggle={vi.fn()}
+    />,
+  );
+  await page.getByRole("button", { name: "Why this port?", exact: true }).click();
+  await expect.element(page.getByRole("dialog")).toBeVisible();
+  expect(rows()).toEqual(
+    expect.arrayContaining(["How to set it up", "Required files", "Who handles updates"]),
+  );
+  expect(dialogText()).toContain("Download and install");
+  expect(dialogText()).toContain("Your fixture copy");
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+
+  // Two ports keep every row, including the absences, so they line up for comparison.
+  const other = { ...bare, id: "other-port", name: "Other project" };
+  await single.rerender(
+    <GroupedDiscover
+      all={[bare, other]}
+      matching={[bare, other]}
+      statuses={new Map()}
+      onSelect={vi.fn()}
+      onFavoriteToggle={vi.fn()}
+    />,
+  );
+  await page.getByRole("button", { name: "Compare ports", exact: true }).click();
+  await expect.element(page.getByRole("dialog")).toBeVisible();
+  const headings = rows();
+  for (const row of ["How to set it up", "Required files", "Who handles updates"])
+    expect(headings.filter((heading) => heading === row)).toHaveLength(2);
+  expect(dialogText().split("No platform is listed.")).toHaveLength(3);
+  expect(dialogText().split("No update channel is listed.")).toHaveLength(3);
+  expect(dialogText()).toContain("Unavailable in this catalog");
+  expect(dialogText()).toContain("Requirements are not listed here.");
 });

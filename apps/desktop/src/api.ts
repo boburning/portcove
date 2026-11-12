@@ -17,6 +17,7 @@ import type {
   BugReportField,
   BugReportLink,
   ReportKind,
+  SubmittedReport,
   InstallInput,
   LaunchResult,
   LaunchSessionView,
@@ -1227,6 +1228,9 @@ export const desktopApi = {
   /** Opens the reviewed form, or only returns its text when `copyOnly` is set. */
   openBugReport: (fields: BugReportField[], kind: ReportKind, copyOnly: boolean) =>
     invoke<BugReportLink>("open_bug_report", { fields, kind, copyOnly }),
+  /** Files the reviewed text as an issue under the player's GitHub sign-in. */
+  submitReport: (fields: BugReportField[], kind: ReportKind) =>
+    invoke<SubmittedReport>("submit_report", { fields, kind }),
   launchFailure: (portId: string, generation: number) =>
     invoke<LaunchSessionView | null>("get_launch_failure", { portId, generation }),
   previewAdoption: (path: string, generation: number, portId?: string) =>
