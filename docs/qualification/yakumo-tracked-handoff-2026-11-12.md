@@ -65,13 +65,30 @@ The pinned source decides where data goes. Upstream file links:
   `copy_user_data()` copies and keeps existing targets. It does not remove
   the source.
 - Shipped fonts, translations and overlays are read beside the executable
-  (app_paths.cpp). Nothing in the files reviewed writes beside the executable
-  outside `data`.
+  (app_paths.cpp).
+- A full search of the pinned host tree found every writer under
+  `user_data_directory()`: `logs`, `save-backups`, `transfer`, `translations`,
+  `fonts`, `screenshots`, `textures`, `mods`, `mods.ini`,
+  `gamecontrollerdb.txt`, `pipeline_cache.bin`, `settings.ini`, `EBOOT.ELF`,
+  `disc.iso` and `.yakumo-write-check`. Dear ImGui's `imgui.ini` and log file
+  are turned off (ui/layer.cpp L165-166). The relative fallbacks for logs and
+  save backups (ui/menu.cpp L1411-1416, ui/save_screen.cpp L105-111) run only
+  when `user_data_directory()` throws. Startup resolves and write-checks that
+  folder in `prepare_data_directory()` before the game starts, so a later call
+  returns the same folder.
+- Some locations are outside by the player's choice: a texture pack used from
+  its own folder (`texture_pack_folder` in settings), save exports or
+  backups sent to a folder the player picks, and a `MHP3RD_MODS_DIR`
+  override.
+- A positional game-folder argument or `MHP3RD_GAME_DIR` makes `locate_game()`
+  (main.cpp L230-234) play from that folder and its own saves instead of the
+  data folder.
 
 The declared persistent path is `data`. `portable.txt` stays an immutable
 package member, so Portcove adds no marker. The managed warnings ask players
-to leave `MHP3RD_DATA_DIR` and `MHP3RD_PORTABLE` unset. Portcove does not
-clear those variables.
+to leave `MHP3RD_DATA_DIR`, `MHP3RD_GAME_DIR`, `MHP3RD_MODS_DIR` and
+`MHP3RD_PORTABLE` unset and to add no `--data-dir` or game-folder argument.
+Portcove does not clear those variables.
 
 ## Restarts and the tracked handoff
 
@@ -84,20 +101,23 @@ successor as a new process and ends the caller. The successor is the same
 program inside the installation and is created from the game's own process,
 so the session job tracks it.
 
-`restart_for_setup()` falls back to `_execlp(program, ...)` with `argv[0]`
-only when the executable path cannot be read. A program found that way
-through `PATH` could lie outside the installation and would not hold the
-session. Linux and macOS use `execv`, which keeps the process identity, but
-this route offers Windows only.
+`restart_for_setup()` calls `_execlp(program, ...)` with `argv[0]` when the
+executable path cannot be read or when `_wexecv` returns
+(installer.cpp L501-504). Core starts the game with an absolute program path,
+so `argv[0]` is absolute and no `PATH` search takes place. The fallback
+either starts the same `Yakumo.exe` again or fails. Linux and macOS use
+`execv`, which keeps the process identity, but this route offers Windows only.
 
 ## Definition delivery
 
 The integration declares `windows_tracked_handoff: true` beside the
 native-portable adapter. Core's catalog check accepts it because Windows uses
-the native `Yakumo.exe`. Delivered definitions must require native-portable 28. Core's indexed-definition reader refuses an entry below that, whatever the
-adapter. No repository script emits indexed definition entries; the Core test
-fixture helper does. That helper now raises a native-portable entry to 28 and
-adds a native-portable 28 requirement for another adapter. Format-1 signed
+the native `Yakumo.exe`. Delivered definitions must require version 28 of
+native-portable. Core's indexed-definition reader refuses an entry below that,
+whatever the adapter. No repository script emits indexed definition entries;
+the Core test fixture helper does. That helper now raises a native-portable
+entry to version 28 and adds a native-portable 28 requirement for another
+adapter. Format-1 signed
 catalogs cannot carry the field. The format-1 test payload now drops it like
 Shipwright persistence, and verification keeps the compiled value.
 
@@ -129,8 +149,8 @@ All Portcove checks used inert fixtures. No upstream program was run.
 - Neither the tracked handoff with the actual program nor gameplay, saves,
   save import, backup or restore of real data was observed.
 - No original disc, EBOOT or save file was used.
-- The source review covers the files linked above, not the whole repository.
-  Other writers beside the executable are not excluded.
+- The writer survey is a static search of the pinned source. Actual file
+  writes during a session were not observed.
 - Rendering, multiplayer, controller and save compatibility claims remain
   upstream claims.
 - Supported status, admission and protected delivery are not claimed.

@@ -30,7 +30,7 @@
       "steps": [
         {
           "title": "Complete the exact owned-input preparation upstream",
-          "instruction": "Yakumo needs the PSP UMD image from your own Monster Hunter Portable 3rd HD Ver. PS3 release (NPJB-40001) as an uncompressed ISO. The ordinary PSP edition, a whole PS3 disc image and compressed CSO files are different inputs. For a Windows copy you prepared yourself, let Yakumo prepare the game there and keep Yakumo.exe in its complete creating folder with its overlay libraries, FFmpeg DLLs and other files. Retain supported literal --data-dir or existing game-directory arguments only if that working copy already uses them; do not silently change the creating data or save roots."
+          "instruction": "Yakumo needs the PSP UMD image from your own Monster Hunter Portable 3rd HD Ver. PS3 release (NPJB-40001) as an uncompressed ISO. The ordinary PSP edition, a whole PS3 disc image and compressed CSO files are different inputs. For a Windows copy you prepared yourself, let Yakumo prepare the game there and keep Yakumo.exe in its complete creating folder with its overlay libraries, FFmpeg DLLs and other files. If that working copy already starts with supported literal --data-dir or game-folder arguments, enter the same arguments when you select it instead of leaving them empty; do not silently change the creating data or save roots."
         },
         {
           "title": "Set up Yakumo on Linux, Steam Deck, Mac or Android",
@@ -57,7 +57,7 @@
       "working_directory": "executable-parent",
       "arguments": [],
       "data_locations": [
-        "the profile the copy actually uses: data beside Yakumo.exe when portable.txt or a data folder is present, otherwise %APPDATA%\\Yakumo\\MHP3rd, or a --data-dir or MHP3RD_DATA_DIR root; plus any disc image used in place"
+        "the data folder the copy actually uses, chosen in this order: a --data-dir folder, the MHP3RD_DATA_DIR folder, data beside Yakumo.exe when portable.txt or a data folder is there (unless MHP3RD_PORTABLE=0), then %APPDATA%\\Yakumo\\MHP3rd; plus any game folder it starts with and any disc image used in place"
       ]
     },
     "managed_native": {
@@ -66,7 +66,7 @@
         "instruction": "On first Play, choose the uncompressed PSP UMD ISO from your own Monster Hunter Portable 3rd HD Ver. PS3 release (NPJB-40001) and let Yakumo prepare the game. If Yakumo copies the image, the copy is kept and backed up with the managed data. If you use the image where it is, keep it at a stable location outside the managed runtime and back it up yourself."
       },
       "warnings": [
-        "Yakumo keeps the managed copy's settings, saves, save backups and prepared game in its data folder. Leave MHP3RD_DATA_DIR and MHP3RD_PORTABLE unset and add no --data-dir argument, so that data stays where Portcove preserves it.",
+        "Yakumo keeps the managed copy's settings, saves, save backups and prepared game in its data folder. Leave MHP3RD_DATA_DIR, MHP3RD_GAME_DIR, MHP3RD_MODS_DIR and MHP3RD_PORTABLE unset, and add no --data-dir or game-folder argument. Otherwise Yakumo can play from or save to a folder Portcove does not keep.",
         "Restart Now after a save import and Set Up Game Data Again restart Yakumo. On Windows, Portcove keeps the session open until the restarted Yakumo closes.",
         "If you already use Yakumo, the first Play of the managed copy can offer to copy your data from %APPDATA%\\Yakumo\\MHP3rd. The original files stay where they are."
       ]

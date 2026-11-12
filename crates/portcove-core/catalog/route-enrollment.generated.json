@@ -107,7 +107,7 @@
         "working_directory": "executable-parent",
         "arguments": [],
         "data_locations": [
-          "the profile the copy actually uses: data beside Yakumo.exe when portable.txt or a data folder is present, otherwise %APPDATA%\\Yakumo\\MHP3rd, or a --data-dir or MHP3RD_DATA_DIR root; plus any disc image used in place"
+          "the data folder the copy actually uses, chosen in this order: a --data-dir folder, the MHP3RD_DATA_DIR folder, data beside Yakumo.exe when portable.txt or a data folder is there (unless MHP3RD_PORTABLE=0), then %APPDATA%\\Yakumo\\MHP3rd; plus any game folder it starts with and any disc image used in place"
         ],
         "executable": "Yakumo.exe"
       },
