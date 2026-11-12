@@ -245,8 +245,13 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
         | Commands::Plan { .. }
         | Commands::Paths { .. }
         | Commands::RemovePreview { .. }
-        | Commands::LauncherLibrary { .. }
+        | Commands::LauncherLibrary {
+            command: LauncherLibraryCommand::Inspect { .. },
+        }
         | Commands::Capabilities => ReadOnly,
+        Commands::LauncherLibrary {
+            command: LauncherLibraryCommand::Adopt { .. },
+        } => Recovering,
         Commands::Cancel { .. }
         | Commands::About
         | Commands::Check(_)
@@ -471,6 +476,7 @@ mod tests {
             "reconcile",
             "install p",
             "adopt dir --port p",
+            "launcher-library adopt --launcher quiver dir --yes",
             "ensure p",
             "update p",
             "verify p",

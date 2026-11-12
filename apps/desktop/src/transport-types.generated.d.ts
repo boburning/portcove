@@ -61,6 +61,7 @@ export type OutputActivityDiagnostic = ActivityDiagnostic[];
 export type ReleaseChannel = "stable" | "beta" | "rolling";
 export type RuntimeOrigin = "verified_download" | "adopted_tree";
 export type OutputLocationSource = "request_override" | "port_setting" | "library_default";
+export type AdoptionBatchItemOutcome = "copied" | "changed" | "failed";
 /**
  * Durable acquisition state. No phase grants permission to prepare or activate.
  */
@@ -1008,7 +1009,9 @@ export interface TransportOutputs {
   about: OutputAbout;
   activity: ActivityFeed;
   activity_diagnostic: OutputActivityDiagnostic;
-  adoption_preview: OutputAdoptionPreview;
+  adoption_batch_preview: OutputAdoptionBatchPreview;
+  adoption_batch_result: OutputAdoptionBatchResult;
+  adoption_preview: AdoptionPreview;
   api_response_port_status: OutputApiResponsePortStatus;
   artwork_assets: OutputArtworkAssets;
   artwork_cache_clear: OutputArtworkCacheClear;
@@ -1290,7 +1293,26 @@ export interface DiagnosticStream {
   truncated: boolean;
   [k: string]: unknown;
 }
-export interface OutputAdoptionPreview {
+export interface OutputAdoptionBatchPreview {
+  /**
+   * Binds the item list and every item's reviewed plan.
+   */
+  batch_sha256: string;
+  /**
+   * The ordinary adoption review of each item, in batch order.
+   */
+  items: AdoptionPreview[];
+  /**
+   * Items that import saved files while Portcove already holds saved files for
+   * that game, so matching files there are replaced.
+   */
+  items_replacing_saved_files: number;
+  original_will_be_modified: boolean;
+  total_bytes: number;
+  total_files: number;
+  [k: string]: unknown;
+}
+export interface AdoptionPreview {
   application_files_will_be_copied: boolean;
   copy_plan: AdoptionCopyPlan;
   destination: AdoptionDestinationPreview | null;
@@ -1370,6 +1392,19 @@ export interface PortOutputLocation {
   port_id: string;
   selection_source: OutputLocationSource;
   user_data_root: string;
+  [k: string]: unknown;
+}
+export interface OutputAdoptionBatchResult {
+  batch_sha256: string;
+  items: AdoptionBatchItemResult[];
+  [k: string]: unknown;
+}
+export interface AdoptionBatchItemResult {
+  install: InstallRecord | null;
+  message: string | null;
+  outcome: AdoptionBatchItemOutcome;
+  port_id: string;
+  source: string;
   [k: string]: unknown;
 }
 export interface OutputApiResponsePortStatus {

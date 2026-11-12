@@ -2364,6 +2364,7 @@ impl CapabilityDocument {
                 "installation.reference-remove".into(),
                 "adopt".into(),
                 "launcher-library.inspect".into(),
+                "launcher-library.adopt".into(),
                 "games".into(),
                 "games.list".into(),
                 "games.add".into(),

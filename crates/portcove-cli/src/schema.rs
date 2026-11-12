@@ -564,6 +564,18 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 ),
             ),
             (
+                "adoption_batch_preview",
+                serde_json::json!(schema_for_contract::<portcove_core::AdoptionBatchPreview>(
+                    contract
+                )),
+            ),
+            (
+                "adoption_batch_result",
+                serde_json::json!(schema_for_contract::<portcove_core::AdoptionBatchResult>(
+                    contract
+                )),
+            ),
+            (
                 "port_removal_preview",
                 serde_json::json!(schema_for_contract::<PortRemovalPreview>(contract)),
             ),
