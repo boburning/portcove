@@ -1,6 +1,8 @@
 import { cn } from "cn";
 import { useState, type ReactNode } from "react";
+import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
+import { useAppTranslation } from "../localization";
 import { errorText } from "../view-model";
 
 export function ExternalLink({
@@ -13,6 +15,7 @@ export function ExternalLink({
   children: ReactNode;
 }) {
   const [error, setError] = useState<string>();
+  const { t } = useAppTranslation("common");
   const open = () => {
     setError(undefined);
     void desktopApi.openExternalUrl(href).catch((value) => setError(errorText(value)));
@@ -33,7 +36,12 @@ export function ExternalLink({
       >
         {children}
       </a>
-      {error && <span role="alert">Couldn’t open the browser: {error}</span>}
+      {error && (
+        <span role="alert">
+          {/* The failure is exact Core or system text, never interpolated. */}
+          <Trans t={t} i18nKey="browserFailed" components={{ detail: <>{error}</> }} />
+        </span>
+      )}
     </>
   );
 }

@@ -1,0 +1,14 @@
+{
+  "browserFailed": "Couldn’t open the browser: <detail/>",
+  "close": "Close",
+  "filter": {
+    "close": "Close choices",
+    "closeLabel": "Close {{label}} choices",
+    "summary": "{{label}}: {{value}}"
+  },
+  "gameSearch": {
+    "empty": "No game or port matches this search.",
+    "placeholder": "Search games and port projects…",
+    "show": "Show games and ports"
+  }
+}

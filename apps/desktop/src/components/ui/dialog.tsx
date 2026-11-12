@@ -7,6 +7,7 @@ import { controlClassName, floatingMotion } from "./control-style";
 
 import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
+import { useAppTranslation } from "../../localization";
 
 const overlayClassName =
   "fixed inset-0 z-(--layer-floating) bg-pc-scrim transition-opacity duration-(--duration-slow) ease-(--ease-standard) data-starting-style:opacity-0 data-ending-style:opacity-0 motion-reduce:transition-none";
@@ -64,6 +65,7 @@ function DialogContent({
   portaled?: boolean;
   reviewSize?: keyof typeof reviewWidths;
 }) {
+  const { t } = useAppTranslation("common");
   const content = (
     <>
       {children}
@@ -73,7 +75,7 @@ function DialogContent({
           render={<Button variant="secondary" className="absolute end-4 top-4" size="icon-sm" />}
         >
           <XIcon />
-          <span className="sr-only">Close</span>
+          <span className="sr-only">{t("close")}</span>
         </DialogPrimitive.Close>
       )}
     </>
@@ -131,6 +133,7 @@ function DialogFooter({
 }: React.ComponentProps<"div"> & {
   showCloseButton?: boolean;
 }) {
+  const { t } = useAppTranslation("common");
   return (
     <div
       data-slot="dialog-footer"
@@ -142,7 +145,9 @@ function DialogFooter({
     >
       {children}
       {showCloseButton && (
-        <DialogPrimitive.Close render={<Button variant="outline" />}>Close</DialogPrimitive.Close>
+        <DialogPrimitive.Close render={<Button variant="outline" />}>
+          {t("close")}
+        </DialogPrimitive.Close>
       )}
     </div>
   );

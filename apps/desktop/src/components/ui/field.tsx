@@ -5,6 +5,7 @@ import { Button } from "./button";
 import { Field as FieldPrimitive } from "@base-ui/react/field";
 import { Fieldset as FieldsetPrimitive } from "@base-ui/react/fieldset";
 import { controlClassName } from "./control-style";
+import { useAppTranslation } from "../../localization";
 
 /** Only pass fieldError for a field-specific validation result, never an operation failure. */
 export function Field({
@@ -74,6 +75,7 @@ export function CompactFilterField({
   help?: string | undefined;
   children: ReactNode;
 }) {
+  const { t } = useAppTranslation("common");
   return (
     <Popover.Root
       onOpenChange={(_open, details) => {
@@ -86,7 +88,7 @@ export function CompactFilterField({
       <div className="compact-filter-field grid min-w-0 content-start gap-1.5">
         <span className="text-sm font-medium">{label}</span>
         <Popover.Trigger
-          aria-label={`${label}: ${value}`}
+          aria-label={t("filter.summary", { label, value })}
           render={
             <Button
               data-focusable
@@ -118,9 +120,9 @@ export function CompactFilterField({
             </fieldset>
             <Popover.Close
               render={<Button variant="ghost" size="sm" className="mt-2" />}
-              aria-label={`Close ${label} choices`}
+              aria-label={t("filter.closeLabel", { label })}
             >
-              Close choices
+              {t("filter.close")}
             </Popover.Close>
           </Popover.Popup>
         </Popover.Positioner>

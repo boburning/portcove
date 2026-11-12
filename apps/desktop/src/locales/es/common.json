@@ -1,0 +1,14 @@
+{
+  "browserFailed": "No se pudo abrir el navegador: <detail/>",
+  "close": "Cerrar",
+  "filter": {
+    "close": "Cerrar opciones",
+    "closeLabel": "Cerrar las opciones de {{label}}",
+    "summary": "{{label}}: {{value}}"
+  },
+  "gameSearch": {
+    "empty": "Ningún juego ni adaptación coincide con esta búsqueda.",
+    "placeholder": "Buscar juegos y proyectos de adaptación…",
+    "show": "Mostrar juegos y adaptaciones"
+  }
+}
