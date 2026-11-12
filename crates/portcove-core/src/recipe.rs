@@ -565,7 +565,7 @@ impl PortcoveService {
                     (
                         RecipeInputStatus::Acquirable,
                         format!(
-                            "review GameBanana project {project}, file {file} with `profile provider-plan`; the recipe's label is a claim until those bytes match"
+                            "review GameBanana project {project}, file {file} with `profile provider-plan`; the new profile keeps the recipe's label only if this library records exactly that label for those bytes"
                         ),
                     )
                 } else if package.provider.is_some() {

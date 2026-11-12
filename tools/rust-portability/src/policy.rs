@@ -403,6 +403,8 @@ const SCOPED: &[(&str, &[&str])] = &[
         "crates/portcove-core/src/native_external_profile.rs",
         &["/tmp", "/custom/libs"],
     ),
+    // An exact rooted package name that recipe inspection must reject.
+    ("crates/portcove-core/src/recipe_tests.rs", &["/etc/passwd"]),
 ];
 
 pub fn allows(file: &str, value: &str) -> bool {

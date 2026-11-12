@@ -968,8 +968,8 @@ fn profiles_from(connection: &Connection, port_id: &str) -> Result<Vec<Profile>>
 }
 
 /// Whether a stored revision of this port records exactly `provider` for these
-/// package bytes and file name. Only revisions whose stored JSON names the digest
-/// are read, and each is verified against its recorded identity.
+/// package bytes and file name. One query finds the revisions whose stored JSON
+/// names the digest; each is verified against its recorded identity.
 pub(crate) fn provider_label_recorded(
     connection: &Connection,
     port_id: &str,
@@ -977,23 +977,25 @@ pub(crate) fn provider_label_recorded(
     native_id: &str,
     provider: &ProviderPackageRef,
 ) -> Result<bool> {
-    for profile in profiles_from(connection, port_id)? {
-        let revisions = connection
-            .prepare(
-                "SELECT revision FROM profile_revisions
-                 WHERE profile_id=?1 AND instr(revision_json, ?2) > 0 ORDER BY revision",
-            )?
-            .query_map(params![profile.id, sha256], |row| row.get::<_, u64>(0))?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        for revision in revisions {
-            let stored = revision_from(connection, &profile.id, revision)?;
-            if stored.packages.iter().any(|package| {
-                package.sha256 == sha256
-                    && package.native_id == native_id
-                    && package.provider.as_ref() == Some(provider)
-            }) {
-                return Ok(true);
-            }
+    let candidates = connection
+        .prepare(
+            "SELECT r.profile_id, r.revision FROM profile_revisions r
+             JOIN profiles p ON p.id = r.profile_id
+             WHERE p.port_id=?1 AND instr(r.revision_json, ?2) > 0
+             ORDER BY r.profile_id, r.revision",
+        )?
+        .query_map(params![port_id, sha256], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, u64>(1)?))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    for (profile_id, revision) in candidates {
+        let stored = revision_from(connection, &profile_id, revision)?;
+        if stored.packages.iter().any(|package| {
+            package.sha256 == sha256
+                && package.native_id == native_id
+                && package.provider.as_ref() == Some(provider)
+        }) {
+            return Ok(true);
         }
     }
     Ok(false)
