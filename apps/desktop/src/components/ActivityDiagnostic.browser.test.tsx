@@ -417,3 +417,31 @@ it.each(["success", "failure"])(
     ]);
   },
 );
+
+it("shows the preparation log in the current language and keeps captured output verbatim", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    const capture = fixture();
+    capture[0].stdout = { text: "", observed_bytes: 0, truncated: true };
+    capture[0].stderr.text = "{{limit}} literal stderr";
+    vi.spyOn(desktopApi, "activityDiagnostic").mockResolvedValue(capture);
+    await root.rerender(<ActivityDiagnostic activityId="owned" generation={1} />);
+    expect(host.querySelector("summary")?.textContent).toBe("عرض سجل التحضير");
+    await open();
+    await expect.poll(() => host.querySelector("h3")?.textContent).toBe("تشغيل إعداد اللعبة");
+    expect(host.textContent).toContain("حُذف بعض الإخراج لأنه تجاوز حد الالتقاط البالغ");
+    const fields = [...host.querySelectorAll<HTMLTextAreaElement>("textarea")];
+    expect(fields.map((field) => field.value)).toEqual([
+      "لم يُلتقط أي إخراج قياسي.",
+      "{{limit}} literal stderr",
+    ]);
+    expect([...host.querySelectorAll("button")].map((button) => button.textContent)).toEqual([
+      "نسخ السجل المحفوظ",
+      "تحديث السجل الملتقط",
+    ]);
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});

@@ -907,6 +907,38 @@ export default interface Resources {
       "requested": "Cancellation requested",
       "requestedBody": "Portcove will stop after the current step reaches a safe stopping point.",
       "requesting": "Requesting cancellation…"
+    },
+    "diagnostic": {
+      "availabilityUnknown": "Current log availability is unknown.",
+      "availabilityUnknownWithPrevious": "Current log availability is unknown. Showing the last loaded capture; it may have changed since it was read.",
+      "cancelled": "Log read cancelled",
+      "clipboardUnavailable": "Clipboard unavailable. Select and copy the retained log below.",
+      "complete": "Both output streams ended. Saved output is shown below.",
+      "copied": "Copied",
+      "copiedStatus": "Retained log copied.",
+      "copy": "Copy retained log",
+      "incomplete": "Only the output saved before the last observation is available. Later output may be missing.",
+      "lastSaved": "Last saved: {{time}}",
+      "loadFailed": "Preparation log could not be loaded",
+      "manualCopy": "Retained log for manual copy",
+      "none": "No retained diagnostic capture is available. Older activity details may be available in a redacted support report in Settings.",
+      "phase": {
+        "extract": "Preparing game files",
+        "other": "Preparation log",
+        "setup": "Running game setup"
+      },
+      "reading": "Reading the retained log…",
+      "readingWithPrevious": "Reading the retained log… Showing the last loaded capture while the current log is checked.",
+      "refresh": "Refresh captured log",
+      "retry": "Retry log read",
+      "stderr": "Standard error",
+      "stderrEmpty": "No standard error was captured.",
+      "stderrLabel": "Preparation standard error",
+      "stdout": "Standard output",
+      "stdoutEmpty": "No standard output was captured.",
+      "stdoutLabel": "Preparation standard output",
+      "truncated": "Some output was omitted because it exceeded the {{limit}} capture limit per stream.",
+      "view": "View preparation log"
     }
   },
   "organization": {

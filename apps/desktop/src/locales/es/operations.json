@@ -5,5 +5,37 @@
     "requested": "Cancelación solicitada",
     "requestedBody": "Portcove se detendrá cuando el paso actual llegue a un punto seguro.",
     "requesting": "Solicitando la cancelación…"
+  },
+  "diagnostic": {
+    "availabilityUnknown": "Se desconoce la disponibilidad actual del registro.",
+    "availabilityUnknownWithPrevious": "Se desconoce la disponibilidad actual del registro. Se muestra la última captura cargada; puede haber cambiado desde que se leyó.",
+    "cancelled": "Lectura del registro cancelada",
+    "clipboardUnavailable": "El portapapeles no está disponible. Selecciona y copia el registro conservado de abajo.",
+    "complete": "Ambos flujos de salida terminaron. La salida guardada se muestra abajo.",
+    "copied": "Copiado",
+    "copiedStatus": "Registro conservado copiado.",
+    "copy": "Copiar el registro conservado",
+    "incomplete": "Solo está disponible la salida guardada antes de la última observación. Puede faltar salida posterior.",
+    "lastSaved": "Último guardado: {{time}}",
+    "loadFailed": "No se pudo cargar el registro de preparación",
+    "manualCopy": "Registro conservado para copiar manualmente",
+    "none": "No hay ninguna captura de diagnóstico conservada. Es posible que haya detalles de actividad más antiguos en un informe de soporte con datos ocultos en Ajustes.",
+    "phase": {
+      "extract": "Preparando los archivos del juego",
+      "other": "Registro de preparación",
+      "setup": "Ejecutando la configuración del juego"
+    },
+    "reading": "Leyendo el registro conservado…",
+    "readingWithPrevious": "Leyendo el registro conservado… Se muestra la última captura cargada mientras se comprueba el registro actual.",
+    "refresh": "Actualizar el registro capturado",
+    "retry": "Reintentar la lectura del registro",
+    "stderr": "Error estándar",
+    "stderrEmpty": "No se capturó ningún error estándar.",
+    "stderrLabel": "Error estándar de la preparación",
+    "stdout": "Salida estándar",
+    "stdoutEmpty": "No se capturó ninguna salida estándar.",
+    "stdoutLabel": "Salida estándar de la preparación",
+    "truncated": "Se omitió parte de la salida porque superó el límite de captura de {{limit}} por flujo.",
+    "view": "Ver el registro de preparación"
   }
 }
