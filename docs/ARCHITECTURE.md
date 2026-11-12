@@ -1244,9 +1244,9 @@ revalidation; continuing a scan grants no additional setup authority.
 Desktop also keeps an ephemeral selection of up to 512 independent ports (the
 Core batch bound) for setup review within the current library workspace.
 "Select all eligible" adds every currently reviewable port except ports that
-share a source profile with another reviewable port; those alternative
-implementations are counted as needing a version choice and are selected
-individually. A matching observed game or BIOS source
+share a source profile with another catalog port, even one that is installed
+or blocked; those alternative implementations are counted as games needing a
+version choice and are selected individually. A matching observed game or BIOS source
 must already be registered, and current Core action availability must allow
 installation before a selected item can request its existing game-details review.
 The explicit review request is consumed once after the matching detail is active

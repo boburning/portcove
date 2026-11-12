@@ -234,9 +234,11 @@ it("selects every eligible game at once but leaves versions of the same game to 
       </SetupReviewSelectionProvider>,
     ),
   );
-  expect(element.textContent).toContain("0 selected · 20 eligible · 2 need a version choice");
+  expect(element.textContent).toContain("0 selected · 20 eligible · 1 game needs a version choice");
   await act(async () => button("Select all 20 eligible").click());
   expect(element.textContent).toContain("20 selected · 20 eligible");
+  // Focus stays in the section after the button goes away.
+  expect(element.contains(document.activeElement)).toBe(true);
   await act(async () => button("Review installing 20 selected").click());
   const chosen = install.mock.calls[0]![0] as string[];
   expect(chosen).toHaveLength(20);
@@ -298,4 +300,40 @@ it("offers independent Core-eligible ports when a scanned BIOS completes previou
   await act(async () => render());
   expect(button("Review Port 0 setup").disabled).toBe(false);
   expect(element.textContent).toContain("1 selected ·");
+});
+
+it("still asks for a version choice when the other version is already installed", async () => {
+  const versions = ["a", "b"].map((suffix) => ({
+    ...portDefinition(),
+    id: `fork-${suffix}`,
+    name: `Fork ${suffix}`,
+    source_profile: "shared",
+  }));
+  const reviewable = { ...fixtureValue(statuses.get("p0"), "status"), port_id: "fork-b" };
+  const installed = { ...reviewable, port_id: "fork-a", port_actions: [] };
+  const file = { ...source, profile_id: "shared" };
+  await act(async () =>
+    root.render(
+      <SetupReviewSelectionProvider>
+        <GameFileSetupReviews
+          ports={versions}
+          statuses={
+            new Map([
+              ["fork-a", installed],
+              ["fork-b", reviewable],
+            ])
+          }
+          candidates={[file]}
+          registeredSources={[file]}
+          current
+          busy={false}
+          onOpenPort={vi.fn()}
+        />
+      </SetupReviewSelectionProvider>,
+    ),
+  );
+  expect(element.textContent).toContain("0 selected · 0 eligible · 1 game needs a version choice");
+  expect(
+    [...element.querySelectorAll("button")].some((item) => item.textContent?.startsWith("Select")),
+  ).toBe(false);
 });

@@ -86,42 +86,53 @@ export function GameFileSetupReviews({
   const available = compatible.filter((port) => canReview(port.id));
   // Several versions that can use the same files are never selected together
   // automatically; the player chooses between them.
+  // Versions are counted across every catalog game using the same files, so a
+  // lone reviewable version whose sibling is installed or blocked still waits
+  // for the player's choice.
   const versions = new Map<string, number>();
-  for (const port of available)
+  for (const port of ports)
     if (port.source_profile)
       versions.set(port.source_profile, (versions.get(port.source_profile) ?? 0) + 1);
   const needsChoice = available.filter(
     (port) => port.source_profile && (versions.get(port.source_profile) ?? 0) > 1,
   );
+  const choiceGames = new Set(needsChoice.map((port) => port.source_profile)).size;
   const eligible = available.filter((port) => !needsChoice.includes(port));
   const unselectedEligible = eligible.filter((port) => !selected.includes(port.id));
+  const room = Math.max(0, maxSetupReviewSelection - selected.length);
+  const toSelect = Math.min(unselectedEligible.length, room);
   if (!available.length && !selected.length) return null;
   return (
     <section ref={section} aria-label="Selected setup reviews" className="col-span-full">
-      <h3>Select ports for setup review</h3>
+      <h3>Select games for setup review</h3>
       <p>
         Select games to review their setup, one at a time or together. Selecting a game doesn't
         register files or install anything.
       </p>
-      <p role="status">
-        {selected.length} selected · {eligible.length} eligible
-        {needsChoice.length > 0 && ` · ${needsChoice.length} need a version choice`}
+      <p>
+        <span role="status">{selected.length} selected</span> · {eligible.length} eligible
+        {choiceGames > 0 &&
+          ` · ${choiceGames} ${choiceGames === 1 ? "game needs" : "games need"} a version choice`}
       </p>
-      {needsChoice.length > 0 && (
+      {choiceGames > 0 && (
         <p>
-          More than one version can use the same files for {needsChoice.length}{" "}
-          {needsChoice.length === 1 ? "game" : "games"}. Select the version you want; selecting all
-          leaves them out.
+          {choiceGames === 1 ? "One game has" : `${choiceGames} games have`} more than one version
+          that can use the same files. Select the version you want; selecting all leaves them out.
         </p>
       )}
-      {unselectedEligible.length > 0 && (
+      {toSelect > 0 && (
         <Button
           data-focusable
           variant="outline"
-          disabled={selected.length >= maxSetupReviewSelection}
-          onClick={() => selectAll(unselectedEligible.map((port) => port.id))}
+          onClick={() => {
+            // The button disappears once everything is selected; keep focus in the section.
+            restoreFocus.current = true;
+            selectAll(unselectedEligible.map((port) => port.id));
+          }}
         >
-          Select all {eligible.length} eligible
+          {toSelect === unselectedEligible.length && toSelect === eligible.length
+            ? `Select all ${toSelect} eligible`
+            : `Select ${toSelect} more eligible`}
         </Button>
       )}
       {available.map((port) => (
