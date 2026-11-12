@@ -17,16 +17,11 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 54,
-    "platforms": [
-      "linux-x86-64"
-    ],
+    "platforms": ["linux-x86-64"],
     "release_url": "https://github.com/ThatGuyMcd/DKR-R/releases",
     "setup_url": "https://github.com/ThatGuyMcd/DKR-R#readme",
     "download_asset_hints": {
-      "linux-x86-64": [
-        "dkr-r-",
-        "-linux-x86_64.appimage"
-      ]
+      "linux-x86-64": ["dkr-r-", "-linux-x86_64.appimage"]
     },
     "manual_setup": {
       "steps": [

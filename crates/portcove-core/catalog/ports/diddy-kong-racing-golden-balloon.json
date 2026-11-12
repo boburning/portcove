@@ -17,21 +17,12 @@
       "match_kind": "port"
     },
     "issue_number": 321,
-    "platforms": [
-      "linux-x86-64",
-      "macos-aarch64"
-    ],
+    "platforms": ["linux-x86-64", "macos-aarch64"],
     "release_url": "https://github.com/akratch/goldenballoon/releases",
     "setup_url": "https://github.com/akratch/goldenballoon#readme",
     "download_asset_hints": {
-      "linux-x86-64": [
-        "golden-balloon-",
-        "-linux-x86_64.appimage"
-      ],
-      "macos-aarch64": [
-        "golden-balloon-",
-        "-macos-arm64-unsigned.dmg"
-      ]
+      "linux-x86-64": ["golden-balloon-", "-linux-x86_64.appimage"],
+      "macos-aarch64": ["golden-balloon-", "-macos-arm64-unsigned.dmg"]
     },
     "manual_setup": {
       "steps": [

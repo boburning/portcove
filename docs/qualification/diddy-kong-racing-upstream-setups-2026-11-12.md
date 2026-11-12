@@ -13,10 +13,10 @@ bind the package and original-game facts to source
 `2b69e748ec04f87a4dc6f032c598726de1b0e813`. The download bytes matched the
 publisher's SHA-256 for each asset.
 
-| Asset ID | Package | SHA-256 |
-| --- | --- | --- |
-| 638366865 | `Golden-Balloon-1.8.0-linux-x86_64.AppImage` | `7c0fd8912f35d455e9c3c4892e53561a42b608547dac8e7df2c861d9a2df9bb3` |
-| 638366889 | `Golden-Balloon-1.8.0-linux-x86_64.tar.gz` | `75a7aea7e0d6b290f1af82c928c569974d503770df06dca3d2ed8704b1910070` |
+| Asset ID  | Package                                         | SHA-256                                                            |
+| --------- | ----------------------------------------------- | ------------------------------------------------------------------ |
+| 638366865 | `Golden-Balloon-1.8.0-linux-x86_64.AppImage`    | `7c0fd8912f35d455e9c3c4892e53561a42b608547dac8e7df2c861d9a2df9bb3` |
+| 638366889 | `Golden-Balloon-1.8.0-linux-x86_64.tar.gz`      | `75a7aea7e0d6b290f1af82c928c569974d503770df06dca3d2ed8704b1910070` |
 | 638366830 | `Golden-Balloon-1.8.0-macos-arm64-unsigned.dmg` | `a2218d8071cb4368f4e94879562fb9c3d19fae2559f27a8191deb1357c1b7e31` |
 
 The AppImage has an x86-64 Type 2 ELF header. Its SquashFS and the tarball both
@@ -41,11 +41,11 @@ is source `d2925302d961b46a8492cb3da2169f290ea724b6`. The complete download byte
 matched the publisher's SHA-256 and the ELF Type 2 AppImage headers matched the
 advertised architecture.
 
-| Asset ID | Package | SHA-256 |
-| --- | --- | --- |
-| 724962889 | `DKR-R-1.0.15-Linux-x86_64.AppImage` | `fd089e2d1c2eea0ee489c399100b904aa840b9252750dfa762361c5f907410a0` |
+| Asset ID  | Package                                  | SHA-256                                                            |
+| --------- | ---------------------------------------- | ------------------------------------------------------------------ |
+| 724962889 | `DKR-R-1.0.15-Linux-x86_64.AppImage`     | `fd089e2d1c2eea0ee489c399100b904aa840b9252750dfa762361c5f907410a0` |
 | 724963720 | `DKR-R-1.0.15-SteamDeck-x86_64.AppImage` | `fd089e2d1c2eea0ee489c399100b904aa840b9252750dfa762361c5f907410a0` |
-| 724962533 | `DKR-R-1.0.15-Linux-aarch64.AppImage` | `ffcd35426ccc4dab42402f732c697cdd80dcfad39101e82899ae86819a89f910` |
+| 724962533 | `DKR-R-1.0.15-Linux-aarch64.AppImage`    | `ffcd35426ccc4dab42402f732c697cdd80dcfad39101e82899ae86819a89f910` |
 
 The publisher's [platform notes](https://github.com/ThatGuyMcd/DKR-R/blob/d2925302d961b46a8492cb3da2169f290ea724b6/docs/PLATFORMS.md)
 record Vulkan, glibc 2.38 and GLIBCXX_3.4.32 for these packages. There is no
