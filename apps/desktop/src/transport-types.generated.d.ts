@@ -1283,6 +1283,7 @@ export interface TransportOutputs {
   desktop_steam_entry_apply_result: OutputDesktopSteamEntryApplyResult;
   desktop_steam_entry_review: OutputDesktopSteamEntryReview;
   desktop_steam_profiles: OutputDesktopSteamProfiles;
+  desktop_submitted_report: OutputDesktopSubmittedReport;
   desktop_support_bundle_export: OutputDesktopSupportBundleExport;
   desktop_update_check_outcome: OutputCheckBatchOutcome;
   desktop_workspace_snapshot: OutputDesktopWorkspaceSnapshot;
@@ -5632,7 +5633,21 @@ export interface OutputDesktopBootstrapStatus {
  * The exact text that will appear in the issue form, after redaction.
  */
 export interface OutputDesktopBugReportDraft {
+  /**
+   * Dropdowns the player picks; empty for a bug report.
+   */
+  choices: ReportChoice[];
   fields: BugReportField[];
+  [k: string]: unknown;
+}
+/**
+ * A dropdown from the issue form. Its value travels as a field with the same id
+ * and must be one of `options`.
+ */
+export interface ReportChoice {
+  id: string;
+  label: string;
+  options: string[];
   [k: string]: unknown;
 }
 export interface BugReportField {
@@ -6119,6 +6134,14 @@ export interface OutputDesktopSteamEntryReview {
   steam_root: string;
   steam_user_id: string;
   writes_required: boolean;
+  [k: string]: unknown;
+}
+/**
+ * An issue GitHub created from a submitted report.
+ */
+export interface OutputDesktopSubmittedReport {
+  number: number;
+  url: string;
   [k: string]: unknown;
 }
 export interface OutputDesktopSupportBundleExport {

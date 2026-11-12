@@ -16,7 +16,7 @@
   "feedback": {
     "copied": "Estos comentarios son demasiado largos para un enlace, así que se copiaron. Abre el formulario de comentarios en GitHub y pégalos.",
     "copyFailed": "Estos comentarios son demasiado largos para un enlace y no se pudieron copiar automáticamente. Selecciona y copia el texto de abajo y pégalo en el formulario de comentarios de GitHub.",
-    "description": "Esto es todo lo que se rellenará en un formulario de comentarios de GitHub. Describe con tus palabras lo que pasó. En GitHub también eliges qué intentabas hacer y hasta dónde llegaste. Portcove no envía nada por sí mismo, y las rutas de carpetas y tu nombre de usuario se sustituyen.",
+    "description": "Esto es todo lo que irá en una incidencia de comentarios de GitHub. Elige qué intentabas hacer y hasta dónde llegaste, y describe con tus palabras lo que pasó. No se envía nada hasta que elijas cómo enviarlo, y las rutas de carpetas y tu nombre de usuario se sustituyen.",
     "title": "Enviar comentarios"
   },
   "problem": {
@@ -24,10 +24,18 @@
     "close": "Cerrar",
     "copied": "Este informe es demasiado largo para un enlace, así que se copió. Abre un nuevo informe de error en GitHub y pégalo.",
     "copyFailed": "Este informe es demasiado largo para un enlace y no se pudo copiar automáticamente. Selecciona y copia el texto de abajo y pégalo en un nuevo informe de error en GitHub.",
-    "description": "Esto es todo lo que se rellenará en un informe de error de GitHub. Portcove no envía nada por sí mismo: lo revisas aquí y luego lo envías en GitHub. Las rutas de carpetas y tu nombre de usuario se sustituyen.",
+    "description": "Esto es todo lo que irá en un informe de error de GitHub. No se envía nada hasta que elijas cómo enviarlo: desde tu cuenta de GitHub si has iniciado sesión, en GitHub o como texto copiado. Las rutas de carpetas y tu nombre de usuario se sustituyen.",
     "open": "Informar de un problema",
     "prepareFailed": "No se pudo preparar el informe. Inténtalo de nuevo.",
     "submit": "Abrir en GitHub",
     "title": "Informar de un problema"
+  },
+  "send": {
+    "button": "Enviar como {{login}}",
+    "choose": "Elige una respuesta",
+    "done": "Enviado como incidencia n.º {{number}} desde tu cuenta de GitHub. Las respuestas aparecerán allí.",
+    "failed": "No se pudo enviar el informe. Tu texto sigue aquí; inténtalo de nuevo, ábrelo en GitHub o cópialo.",
+    "needs": "Para enviarlo, responde a cada pregunta y describe lo que pasó.",
+    "view": "Ver en GitHub"
   }
 }

@@ -30,7 +30,7 @@ const unsupportedByReason: Record<string, string[]> = {
     dismiss_application_update_notice download_application_update
     download_catalog_package export_library_metadata forget_pending_setup
     import_artwork import_library import_source install_port logout_github
-    move_library open_bug_report open_external_url open_host_tool_official_site
+    move_library open_bug_report open_external_url open_host_tool_official_site submit_report
     open_manual_setup_folder open_pending_setup_folder open_source_evidence
     open_source_inbox open_support_report_folder open_user_data
     poll_github_device_login recheck_host_tool

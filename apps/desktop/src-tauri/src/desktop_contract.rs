@@ -568,6 +568,7 @@ pub fn export_transport_schemas() -> Value {
             "automatic_snapshots_enabled": output::<bool>(),
             "bug_report_draft": output::<portcove_core::BugReportDraft>(),
             "bug_report_link": output::<portcove_core::BugReportLink>(),
+            "submitted_report": output::<portcove_core::SubmittedReport>(),
             "application_update_preferences": output::<ApplicationUpdatePreferences>(),
             "application_update_production_transition": output::<ApplicationUpdateProductionTransition>(),
             "application_update_production_transition_result": output::<ApplicationUpdateProductionTransitionResult>(),

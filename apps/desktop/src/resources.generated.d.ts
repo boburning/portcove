@@ -1917,7 +1917,7 @@ export default interface Resources {
     "feedback": {
       "copied": "This feedback is too long for a link, so it was copied instead. Open the feedback form on GitHub and paste it in.",
       "copyFailed": "This feedback is too long for a link and could not be copied automatically. Select and copy the text below, then paste it into the feedback form on GitHub.",
-      "description": "This is everything that will be filled into a GitHub feedback form. Describe what happened in your own words. On GitHub, you also choose what you were trying to do and how far you got. Portcove sends nothing itself, and folder paths and your user name are replaced.",
+      "description": "This is everything that will go into a GitHub feedback issue. Choose what you were trying to do and how far you got, then describe what happened in your own words. Nothing is sent until you choose how to send it, and folder paths and your user name are replaced.",
       "title": "Send feedback"
     },
     "problem": {
@@ -1925,11 +1925,19 @@ export default interface Resources {
       "close": "Close",
       "copied": "This report is too long for a link, so it was copied instead. Open a new bug report on GitHub and paste it in.",
       "copyFailed": "This report is too long for a link and could not be copied automatically. Select and copy the text below, then paste it into a new bug report on GitHub.",
-      "description": "This is everything that will be filled into a GitHub bug report. Portcove sends nothing itself: you review it here, then submit it on GitHub. Folder paths and your user name are replaced.",
+      "description": "This is everything that will go into a GitHub bug report. Nothing is sent until you choose how to send it: from your GitHub account if you're signed in, on GitHub, or as copied text. Folder paths and your user name are replaced.",
       "open": "Report a problem",
       "prepareFailed": "The report could not be prepared. Try again.",
       "submit": "Open on GitHub",
       "title": "Report a problem"
+    },
+    "send": {
+      "button": "Submit as {{login}}",
+      "choose": "Choose an answer",
+      "done": "Sent as issue #{{number}} from your GitHub account. Replies will appear there.",
+      "failed": "The report could not be submitted. Your text is still here; try again, open it on GitHub or copy it.",
+      "needs": "To submit, answer each question and describe what happened.",
+      "view": "View on GitHub"
     }
   },
   "settings": {

@@ -313,4 +313,5 @@ export type BugReportDraft = Generated.TransportOutputs["desktop_bug_report_draf
 export type BugReportLink = Generated.TransportOutputs["desktop_bug_report_link"];
 export type BugReportField = Requests.TransportInputs["desktop_bug_report_field"];
 export type ReportKind = Requests.TransportInputs["desktop_report_kind"];
+export type SubmittedReport = Generated.TransportOutputs["desktop_submitted_report"];
 export type GameComparisonRequest = Requests.TransportInputs["desktop_game_comparison_request"];

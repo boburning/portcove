@@ -1924,8 +1924,9 @@ export function SettingsView(props: SettingsViewProps) {
         <h2>Report a problem or send feedback</h2>
         <p>
           Tell us when something broke, or when something was hard, confusing or missing. You review
-          the pre-filled text before anything is sent. Portcove sends nothing itself, and folder
-          paths and your user name are replaced.
+          the pre-filled text, and nothing is sent until you choose how: from your GitHub account
+          when signed in, on GitHub, or as copied text. Folder paths and your user name are
+          replaced.
         </p>
         <ReportProblem key={generation} generation={generation} />
       </SettingsRow>

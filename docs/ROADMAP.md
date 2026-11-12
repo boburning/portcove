@@ -192,9 +192,10 @@ or ports.
 
 This route is permanent, not limited to the beta. Use **Report a problem or send
 feedback** in game details or **Settings > Advanced** and choose what to report,
-or **Report a problem** in the failed-launch notice. Either choice opens a
-reviewed, pre-filled GitHub form or copies the text for players who prefer
-another channel. Directly on GitHub, use the
+or **Report a problem** in the failed-launch notice. Either choice shows a
+reviewed draft that a player signed in to GitHub can submit from their own
+account; otherwise it opens a pre-filled GitHub form or copies the text for
+players who prefer another channel. Directly on GitHub, use the
 [bug form](https://github.com/boburning/portcove/issues/new?template=bug-report.yml)
 when something broke, or the
 [feedback form](https://github.com/boburning/portcove/issues/new?template=feedback.yml)
@@ -230,9 +231,10 @@ When selecting work, the friction evidence for an owning issue is the number of
 distinct players linked to it and their blocking levels, read from those link
 comments. Count what is linked. Do not infer demand from silence, from one
 player's repeated reports, or from a missing label. Feedback never establishes
-catalog support, qualification or a release gate. Feedback reports carry the
-ordinary `needs-triage` label and a `[Feedback]` title; find them by that title,
-since `projects:` in a form applies only when the reporter has write access. A player without a GitHub account can send the text
+catalog support, qualification or a release gate. Reports carry a `[Feedback]`
+or `[Bug]` title and ask for `needs-triage`; find them by title, since GitHub
+drops labels and `projects:` when the reporter lacks write access, including for
+reports submitted from Portcove. A player without a GitHub account can send the text
 through any channel; a maintainer or agent files it on their behalf and notes
 that it was relayed. Count each relayed report as a separate player unless the
 relay note identifies the same player, and never count by the filer's account.

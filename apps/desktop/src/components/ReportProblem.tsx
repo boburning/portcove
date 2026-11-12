@@ -1,7 +1,14 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { copyText } from "../clipboard";
-import type { BugReportDraft, BugReportField, BugReportLink, ReportKind } from "../types";
+import type {
+  BugReportDraft,
+  BugReportField,
+  BugReportLink,
+  GithubAuthStatus,
+  ReportKind,
+  SubmittedReport,
+} from "../types";
 import { useAppTranslation } from "../localization";
 import { failurePresentation } from "../view-model";
 import { Button } from "./ui/button";
@@ -13,6 +20,17 @@ const textareaClassName =
 /** Fields the player may edit; the others, including the game, are shown as facts. */
 const editableFields = new Set(["observed", "evidence", "happened", "expected", "context"]);
 
+const selectClassName =
+  "w-full min-w-0 rounded-pc-md border border-pc-input bg-[var(--color-bg-inset)] px-3 py-2 text-sm font-normal text-pc-foreground focus-visible:outline-2 focus-visible:outline-offset-2";
+
+type ReportChoice = BugReportDraft["choices"][number];
+
+/** The player's own account; Core refuses to submit without it. */
+const storyField = (kind: ReportKind) => (kind === "feedback" ? "happened" : "observed");
+
+const valueOf = (fields: BugReportField[], id: string) =>
+  fields.find((field) => field.id === id)?.value ?? "";
+
 /** Why text was copied: the player asked, or it was too long for a link. */
 type CopyReason = "asked" | "too_long";
 
@@ -21,9 +39,16 @@ type Phase =
   | { kind: "choosing" }
   // A choice made inside the dialog keeps it open while the draft loads.
   | { kind: "loading"; report: ReportKind; inDialog: boolean }
-  // `error` keeps the player's text on screen when opening or copying failed.
-  | { kind: "ready"; report: ReportKind; fields: BugReportField[]; error?: string | undefined }
-  | { kind: "opening"; report: ReportKind; fields: BugReportField[] }
+  // `error` keeps the player's text on screen when opening, copying or submitting failed.
+  | {
+      kind: "ready";
+      report: ReportKind;
+      fields: BugReportField[];
+      choices: ReportChoice[];
+      error?: string | undefined;
+    }
+  | { kind: "opening"; report: ReportKind; fields: BugReportField[]; choices: ReportChoice[] }
+  | { kind: "submitted"; report: ReportKind; issue: SubmittedReport }
   | { kind: "copied"; report: ReportKind; reason: CopyReason }
   | {
       kind: "copy_failed";
@@ -37,8 +62,9 @@ type Phase =
 /**
  * Shows exactly what a pre-filled GitHub bug report or feedback form will contain,
  * lets the player edit the free-text parts, then opens the form or copies the
- * text. Unless `problemOnly` is set, the player first chooses which one to send.
- * Portcove sends nothing itself.
+ * text. A player signed in to GitHub can also submit it from their own account;
+ * Core builds the issue and holds the token. Nothing is sent until the player
+ * chooses. Unless `problemOnly` is set, the player first chooses which kind.
  */
 export function ReportProblem({
   portId,
@@ -46,6 +72,9 @@ export function ReportProblem({
   problemOnly = false,
   preview = desktopApi.previewBugReport,
   open = desktopApi.openBugReport,
+  submitReport = desktopApi.submitReport,
+  authStatus = desktopApi.githubAuthStatus,
+  openIssue = desktopApi.openExternalUrl,
 }: {
   portId?: string | undefined;
   generation: number;
@@ -57,9 +86,14 @@ export function ReportProblem({
     kind: ReportKind,
   ) => Promise<BugReportDraft>;
   open?: (fields: BugReportField[], kind: ReportKind, copyOnly: boolean) => Promise<BugReportLink>;
+  submitReport?: (fields: BugReportField[], kind: ReportKind) => Promise<SubmittedReport>;
+  authStatus?: () => Promise<GithubAuthStatus>;
+  openIssue?: (url: string) => Promise<void>;
 }) {
   const report: ReportKind | undefined = problemOnly ? "problem" : undefined;
   const [phase, setPhase] = useState<Phase>({ kind: "closed" });
+  // The GitHub account Submit would use; unknown or signed out offers no Submit.
+  const [login, setLogin] = useState<string>();
   const { t } = useAppTranslation("report");
   // Only the newest request may update the dialog; closing or switching games
   // invalidates an earlier preview that is still loading.
@@ -77,10 +111,26 @@ export function ReportProblem({
   const load = (kind: ReportKind, inDialog: boolean) => {
     const current = ++request.current;
     setPhase({ kind: "loading", report: kind, inDialog });
+    setLogin(undefined);
+    // A status read that throws or rejects just leaves Submit hidden.
+    Promise.resolve()
+      .then(authStatus)
+      .then(
+        (status) => {
+          if (request.current === current)
+            setLogin(status.authenticated ? (status.login ?? undefined) : undefined);
+        },
+        () => undefined,
+      );
     preview(portId, generation, kind).then(
       (draft) => {
         if (request.current === current)
-          setPhase({ kind: "ready", report: kind, fields: draft.fields });
+          setPhase({
+            kind: "ready",
+            report: kind,
+            fields: draft.fields,
+            choices: draft.choices,
+          });
       },
       (value) => {
         if (request.current === current)
@@ -96,8 +146,30 @@ export function ReportProblem({
     if (report) load(report, false);
     else setPhase({ kind: "choosing" });
   };
-  const submit = async (kind: ReportKind, fields: BugReportField[], copyOnly: boolean) => {
-    setPhase({ kind: "opening", report: kind, fields });
+  const send = async (kind: ReportKind, fields: BugReportField[], choices: ReportChoice[]) => {
+    const current = request.current;
+    setPhase({ kind: "opening", report: kind, fields, choices });
+    try {
+      const issue = await submitReport(fields, kind);
+      if (request.current === current) setPhase({ kind: "submitted", report: kind, issue });
+    } catch (value) {
+      if (request.current === current)
+        setPhase({
+          kind: "ready",
+          report: kind,
+          fields,
+          choices,
+          error: failurePresentation(value)?.summary ?? t("send.failed"),
+        });
+    }
+  };
+  const submit = async (
+    kind: ReportKind,
+    fields: BugReportField[],
+    choices: ReportChoice[],
+    copyOnly: boolean,
+  ) => {
+    setPhase({ kind: "opening", report: kind, fields, choices });
     try {
       const link = await open(fields, kind, copyOnly);
       if (link.url && !copyOnly) {
@@ -122,6 +194,7 @@ export function ReportProblem({
         kind: "ready",
         report: kind,
         fields,
+        choices,
         error: failurePresentation(value)?.summary ?? t("copy.openFailed"),
       });
     }
@@ -154,7 +227,27 @@ export function ReportProblem({
         ? t("feedback.copyFailed")
         : t("problem.copyFailed");
   const finished =
-    phase.kind === "copied" || phase.kind === "copy_failed" || phase.kind === "failed";
+    phase.kind === "copied" ||
+    phase.kind === "copy_failed" ||
+    phase.kind === "failed" ||
+    phase.kind === "submitted";
+  const edit = (id: string, value: string) => {
+    if (!draft) return;
+    const known = draft.fields.some((field) => field.id === id);
+    const label = draft.choices.find((choice) => choice.id === id)?.label ?? id;
+    setPhase({
+      kind: "ready",
+      report: draft.report,
+      choices: draft.choices,
+      fields: known
+        ? draft.fields.map((field) => (field.id === id ? { ...field, value } : field))
+        : [...draft.fields, { id, label, value }],
+    });
+  };
+  const readyToSend =
+    draft !== undefined &&
+    valueOf(draft.fields, storyField(draft.report)).trim() !== "" &&
+    draft.choices.every((choice) => choice.options.includes(valueOf(draft.fields, choice.id)));
   return (
     <>
       <Button data-focusable variant="outline" onClick={start} disabled={phase.kind === "loading"}>
@@ -194,32 +287,47 @@ export function ReportProblem({
           {phase.kind === "loading" && <p role="status">{t("choice.preparing")}</p>}
           {draft && (
             <div className="grid gap-3">
-              {draft.fields.map((field) =>
-                editableFields.has(field.id) ? (
-                  <label key={field.id} className="grid gap-1 text-sm font-semibold">
-                    {field.label}
-                    <textarea
-                      className={textareaClassName}
-                      value={field.value}
-                      disabled={phase.kind === "opening"}
-                      onChange={(event) =>
-                        setPhase({
-                          kind: "ready",
-                          report: draft.report,
-                          fields: draft.fields.map((other) =>
-                            other.id === field.id ? { ...other, value: event.target.value } : other,
-                          ),
-                        })
-                      }
-                    />
-                  </label>
-                ) : (
-                  <p key={field.id} className="text-sm">
-                    <span className="font-semibold">{field.label}:</span> {field.value}
-                  </p>
-                ),
-              )}
+              {draft.choices.map((choice) => (
+                <label key={choice.id} className="grid gap-1 text-sm font-semibold">
+                  {choice.label}
+                  <select
+                    className={selectClassName}
+                    value={valueOf(draft.fields, choice.id)}
+                    disabled={phase.kind === "opening"}
+                    onChange={(event) => edit(choice.id, event.target.value)}
+                  >
+                    <option value="">{t("send.choose")}</option>
+                    {choice.options.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+              {draft.fields
+                .filter((field) => !draft.choices.some((choice) => choice.id === field.id))
+                .map((field) =>
+                  editableFields.has(field.id) ? (
+                    <label key={field.id} className="grid gap-1 text-sm font-semibold">
+                      {field.label}
+                      <textarea
+                        className={textareaClassName}
+                        value={field.value}
+                        disabled={phase.kind === "opening"}
+                        onChange={(event) => edit(field.id, event.target.value)}
+                      />
+                    </label>
+                  ) : (
+                    <p key={field.id} className="text-sm">
+                      <span className="font-semibold">{field.label}:</span> {field.value}
+                    </p>
+                  ),
+                )}
             </div>
+          )}
+          {phase.kind === "submitted" && (
+            <p role="status">{t("send.done", { number: phase.issue.number })}</p>
           )}
           {phase.kind === "copied" && (
             <p role="status">{copiedMessage(phase.report, phase.reason)}</p>
@@ -231,6 +339,9 @@ export function ReportProblem({
             </div>
           )}
           {phase.kind === "ready" && phase.error && <p role="alert">{phase.error}</p>}
+          {login && draft && !readyToSend && (
+            <p className="text-sm text-[var(--color-text-secondary)]">{t("send.needs")}</p>
+          )}
           {phase.kind === "failed" && (
             <p role="alert">{phase.summary ?? t("problem.prepareFailed")}</p>
           )}
@@ -238,22 +349,36 @@ export function ReportProblem({
             <Button variant="secondary" disabled={phase.kind === "opening"} onClick={close}>
               {finished ? t("problem.close") : t("problem.cancel")}
             </Button>
+            {phase.kind === "submitted" && (
+              <Button variant="primary" onClick={() => void openIssue(phase.issue.url)}>
+                {t("send.view")}
+              </Button>
+            )}
             {draft && (
               <>
                 <Button
                   variant="outline"
                   disabled={phase.kind === "opening"}
-                  onClick={() => void submit(draft.report, draft.fields, true)}
+                  onClick={() => void submit(draft.report, draft.fields, draft.choices, true)}
                 >
                   {t("copy.button")}
                 </Button>
                 <Button
-                  variant="primary"
+                  variant={login ? "outline" : "primary"}
                   disabled={phase.kind === "opening"}
-                  onClick={() => void submit(draft.report, draft.fields, false)}
+                  onClick={() => void submit(draft.report, draft.fields, draft.choices, false)}
                 >
                   {t("problem.submit")}
                 </Button>
+                {login && (
+                  <Button
+                    variant="primary"
+                    disabled={phase.kind === "opening" || !readyToSend}
+                    onClick={() => void send(draft.report, draft.fields, draft.choices)}
+                  >
+                    {t("send.button", { login })}
+                  </Button>
+                )}
               </>
             )}
           </DialogFooter>
