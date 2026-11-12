@@ -115,6 +115,7 @@ beforeEach(async () => {
   vi.spyOn(desktopApi, "gameFileScanSnapshot").mockResolvedValue(null);
   vi.spyOn(desktopApi, "scanGameFileRoots").mockResolvedValue(snapshot);
   vi.spyOn(desktopApi, "importSource");
+  vi.spyOn(desktopApi, "rootSetupConsents").mockResolvedValue([]);
   vi.mocked(picker.pickGameFileFolder).mockResolvedValue("E:/More Games");
   const host = document.createElement("div");
   document.body.append(host);
@@ -1919,4 +1920,68 @@ it("keeps a roots-only add preflight from confirming an older observation after 
   expect(document.body.textContent).toContain("save failed");
   expect(button("Review game files").disabled).toBe(true);
   expect(document.body.textContent).not.toContain("Saved roots and catalog match this snapshot");
+});
+
+it("keeps automatic folder setup off until the player chooses its boundary", async () => {
+  const consent = {
+    format_version: 1,
+    root_id: saved.id,
+    enrollment: "future_only" as const,
+    enabled_at: 2,
+    updated_at: 2,
+    baseline: ["game:" + "b".repeat(64)],
+  };
+  vi.spyOn(desktopApi, "setRootSetupConsent").mockResolvedValue(consent);
+  vi.spyOn(desktopApi, "runStandingSetup").mockResolvedValue({
+    already_running: false,
+    assessments: [],
+    not_assessed: 0,
+    batches: [],
+    failures: [],
+  });
+  await act(async () => {});
+  const off = document.querySelector<HTMLInputElement>('input[type="radio"][value="off"]');
+  expect(off?.checked).toBe(true);
+  const futureOnly = document.querySelector<HTMLInputElement>(
+    'input[type="radio"][value="future_only"]',
+  );
+  await act(async () => futureOnly?.click());
+  expect(desktopApi.setRootSetupConsent).toHaveBeenCalledWith(saved.id, "future_only", 1);
+  expect(
+    document.querySelector<HTMLInputElement>('input[type="radio"][value="future_only"]')?.checked,
+  ).toBe(true);
+});
+
+it("asks which game to set up when several games can use a folder's files", async () => {
+  const consent = {
+    format_version: 1,
+    root_id: saved.id,
+    enrollment: "existing_and_future" as const,
+    enabled_at: 2,
+    updated_at: 2,
+  };
+  vi.mocked(desktopApi.rootSetupConsents).mockResolvedValue([consent]);
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({
+    ...snapshot,
+    report: { ...snapshot.report, limits_reached: [] },
+  });
+  vi.spyOn(desktopApi, "setRootSetupImplementation").mockResolvedValue({
+    ...consent,
+    implementations: [{ profile_id: "game", port_id: "second" }],
+  });
+  const first = { ...portDefinition(), id: "first", name: "First", source_profile: "game" };
+  const second = { ...portDefinition(), id: "second", name: "Second", source_profile: "game" };
+  // Remount so the folder list loads the scan and folder choices above.
+  await root.rerender(null);
+  await root.rerender(<GameFileLibraries generation={1} ports={[first, second]} profiles={[]} />);
+  await act(async () => {});
+  const select = [...document.querySelectorAll<HTMLSelectElement>("select")].find((item) =>
+    [...item.options].some((option) => option.value === "second"),
+  );
+  expect(select).toBeDefined();
+  await act(async () => {
+    select!.value = "second";
+    select!.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  expect(desktopApi.setRootSetupImplementation).toHaveBeenCalledWith(saved.id, "game", "second", 1);
 });

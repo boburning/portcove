@@ -946,6 +946,9 @@ export type PortReadiness =
       [k: string]: unknown;
     };
 export type OutputDesktopPortIntents = PortIntent[];
+export type OutputDesktopRootSetupConsent = RootSetupConsent | null;
+export type RootSetupEnrollment = "existing_and_future" | "future_only";
+export type OutputDesktopRootSetupConsents = RootSetupConsent[];
 export type SteamArtworkRoleAction =
   "write" | "replace" | "preserve" | "unchanged" | "unavailable" | "remove" | "preserve_modified" | "absent";
 /**
@@ -1163,6 +1166,8 @@ export interface TransportOutputs {
   desktop_port_intents: OutputDesktopPortIntents;
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
+  desktop_root_setup_consent: OutputDesktopRootSetupConsent;
+  desktop_root_setup_consents: OutputDesktopRootSetupConsents;
   desktop_setup_launch_targets: OutputSetupLaunchTargets;
   desktop_source_reuse_review: OutputSourceReuseReview;
   desktop_source_verification_outcome: OutputSourceBatchOutcome;
@@ -5105,6 +5110,40 @@ export interface PortIntentAssessment {
   suppressed?: string | null;
   [k: string]: unknown;
 }
+export interface RootSetupConsent {
+  /**
+   * Matched files (`profile_id:sha256`) present when consent was given.
+   * Empty for `existing_and_future`.
+   */
+  baseline?: string[];
+  enabled_at: number;
+  enrollment: RootSetupEnrollment;
+  failures?: RootSetupFailure[];
+  format_version: number;
+  /**
+   * Explicit implementation choices. Files several games can use wait
+   * until one is chosen; Portcove never sets up every fork.
+   */
+  implementations?: RootSetupImplementation[];
+  root_id: string;
+  updated_at: number;
+  [k: string]: unknown;
+}
+export interface RootSetupFailure {
+  attempts: number;
+  plan_sha256: string;
+  port_id: string;
+  reason: string;
+  [k: string]: unknown;
+}
+/**
+ * The game the player chose for files that several implementations can use.
+ */
+export interface RootSetupImplementation {
+  port_id: string;
+  profile_id: string;
+  [k: string]: unknown;
+}
 /**
  * What one standing-setup pass did for each game it considered.
  */
@@ -5123,11 +5162,27 @@ export interface OutputDesktopStandingSetup {
    */
   failures: StandingSetupFailure[];
   not_assessed: number;
+  /**
+   * Matched files in folders with automatic setup that wait for a person
+   * or a requirement.
+   */
+  root_waiting?: RootSetupWaiting[];
   [k: string]: unknown;
 }
 export interface StandingSetupFailure {
   port_id: string;
   reason: string;
+  [k: string]: unknown;
+}
+/**
+ * An eligible-looking file in a consented folder that is waiting for a person
+ * or a requirement.
+ */
+export interface RootSetupWaiting {
+  port_id?: string | null;
+  profile_id: string;
+  reason: string;
+  root_id: string;
   [k: string]: unknown;
 }
 export interface OutputDesktopSteamArtworkApplyResult {

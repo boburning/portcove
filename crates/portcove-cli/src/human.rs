@@ -1030,7 +1030,7 @@ pub(crate) fn standing_setup(value: &portcove_core::StandingSetupResult) -> Stri
         .map(port_readiness_line)
         .collect::<Vec<_>>();
     if value.batches.is_empty() {
-        lines.push("No set-up-when-ready game was ready, so nothing was installed.".to_owned());
+        lines.push("No game was ready for automatic setup, so nothing was installed.".to_owned());
     }
     for batch in &value.batches {
         lines.push(install_batch(batch));
@@ -1042,6 +1042,19 @@ pub(crate) fn standing_setup(value: &portcove_core::StandingSetupResult) -> Stri
             clean(&failure.reason)
         ));
     }
+    for waiting in &value.root_waiting {
+        lines.push(format!(
+            "Folder {}: {} files{} are waiting - {}",
+            clean(&waiting.root_id),
+            clean(&waiting.profile_id),
+            waiting
+                .port_id
+                .as_deref()
+                .map(|port_id| format!(" for {}", clean(port_id)))
+                .unwrap_or_default(),
+            clean(&waiting.reason)
+        ));
+    }
     if value.not_assessed > 0 {
         lines.push(format!(
             "{} more choices were not assessed; one pass covers the first 512 choices by game ID.",
@@ -1049,6 +1062,53 @@ pub(crate) fn standing_setup(value: &portcove_core::StandingSetupResult) -> Stri
         ));
     }
     lines.join("\n")
+}
+
+pub(crate) fn root_setup_consent(value: Option<&portcove_core::RootSetupConsent>) -> String {
+    let Some(consent) = value else {
+        return "Automatic setup is off for this folder. Installed games were not changed."
+            .to_owned();
+    };
+    let scope = match consent.enrollment {
+        portcove_core::RootSetupEnrollment::ExistingAndFuture => {
+            "eligible games already in it and any found later".to_owned()
+        }
+        portcove_core::RootSetupEnrollment::FutureOnly => format!(
+            "only games found later ({} matched files already there are left alone)",
+            consent.baseline.len()
+        ),
+    };
+    let mut lines = vec![format!(
+        "Automatic setup is on for folder {}: {scope}. Run `portcove games setup-ready` to set up what is ready now; no game is launched.",
+        clean(&consent.root_id)
+    )];
+    for choice in &consent.implementations {
+        lines.push(format!(
+            "{} files set up {}",
+            clean(&choice.profile_id),
+            clean(&choice.port_id)
+        ));
+    }
+    for failure in &consent.failures {
+        lines.push(format!(
+            "{}: setup failed {} times - {}",
+            clean(&failure.port_id),
+            failure.attempts,
+            clean(&failure.reason)
+        ));
+    }
+    lines.join("\n")
+}
+
+pub(crate) fn root_setup_consents(values: &[portcove_core::RootSetupConsent]) -> String {
+    if values.is_empty() {
+        return "No folder has automatic setup turned on.".to_owned();
+    }
+    values
+        .iter()
+        .map(|consent| root_setup_consent(Some(consent)))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 pub(crate) fn game_file_roots(roots: &[GameFileRoot]) -> String {

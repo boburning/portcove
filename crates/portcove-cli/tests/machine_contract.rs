@@ -37,6 +37,9 @@ mod update_inventory;
 #[path = "machine_contract/launcher_library.rs"]
 mod launcher_library;
 
+#[path = "machine_contract/folder_setup.rs"]
+mod folder_setup;
+
 #[cfg(all(windows, feature = "qualification-fixtures"))]
 #[path = "machine_contract/source_discovery.rs"]
 mod source_discovery_contract;

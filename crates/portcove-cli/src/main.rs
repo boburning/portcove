@@ -1684,6 +1684,46 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     human::standing_setup(value)
                 })?;
             }
+            GamesCommand::FolderSetup {
+                root_id,
+                mode: folder_mode,
+            } => {
+                let enrollment = match folder_mode {
+                    FolderSetupMode::ExistingAndFuture => {
+                        Some(portcove_core::RootSetupEnrollment::ExistingAndFuture)
+                    }
+                    FolderSetupMode::FutureOnly => {
+                        Some(portcove_core::RootSetupEnrollment::FutureOnly)
+                    }
+                    FolderSetupMode::Off => None,
+                };
+                let consent = match enrollment {
+                    Some(enrollment) => Some(service.set_root_setup_consent(&root_id, enrollment)?),
+                    None => {
+                        service.remove_root_setup_consent(&root_id)?;
+                        None
+                    }
+                };
+                render_read_success(mode, "games.folder-setup", consent, |value| {
+                    human::root_setup_consent(value.as_ref())
+                })?;
+            }
+            GamesCommand::FolderSetupChoose {
+                root_id,
+                profile_id,
+                port_id,
+            } => render_read_success(
+                mode,
+                "games.folder-setup-choose",
+                Some(service.set_root_setup_implementation(&root_id, &profile_id, &port_id)?),
+                |value| human::root_setup_consent(value.as_ref()),
+            )?,
+            GamesCommand::FolderSetups => render_read_success(
+                mode,
+                "games.folder-setups",
+                service.root_setup_consents()?,
+                |value| human::root_setup_consents(value),
+            )?,
         },
         Commands::Launch {
             command: LaunchCommand::Show { .. },
@@ -3487,6 +3527,9 @@ fn command_name(command: &Commands) -> &'static str {
             GamesCommand::Intents => "games.intents",
             GamesCommand::IntentsAcknowledge { .. } => "games.intents-acknowledge",
             GamesCommand::SetupReady => "games.setup-ready",
+            GamesCommand::FolderSetup { .. } => "games.folder-setup",
+            GamesCommand::FolderSetupChoose { .. } => "games.folder-setup-choose",
+            GamesCommand::FolderSetups => "games.folder-setups",
         },
         Commands::Launch { command } => match command {
             LaunchCommand::Show { .. } => "launch.show",
@@ -4819,6 +4862,9 @@ mod tests {
             "games.intents",
             "games.intents-acknowledge",
             "games.setup-ready",
+            "games.folder-setup",
+            "games.folder-setup-choose",
+            "games.folder-setups",
         ] {
             assert!(capabilities.commands.iter().any(|command| command == name));
         }

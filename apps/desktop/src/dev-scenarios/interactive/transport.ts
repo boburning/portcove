@@ -188,6 +188,10 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       requireArgs("get_port_intents", args, { generation });
       return [];
     },
+    get_root_setup_consents: (args) => {
+      requireArgs("get_root_setup_consents", args, { generation });
+      return [];
+    },
     assess_port_intents: (args) => {
       requireArgs("assess_port_intents", args, { generation });
       return { assessments: [], not_assessed: 0 };

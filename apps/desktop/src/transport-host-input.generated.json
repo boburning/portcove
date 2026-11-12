@@ -1038,6 +1038,34 @@
     "title": "Array_of_PortReadinessAcknowledgement",
     "type": "array"
   },
+  "root_setup_enrollment": {
+    "$defs": {
+      "RootSetupEnrollment": {
+        "oneOf": [
+          {
+            "const": "existing_and_future",
+            "description": "Eligible games already in the folder and any found later.",
+            "type": "string"
+          },
+          {
+            "const": "future_only",
+            "description": "Only games whose files were not in the folder's last complete scan.",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "anyOf": [
+      {
+        "$ref": "#/$defs/RootSetupEnrollment"
+      },
+      {
+        "type": "null"
+      }
+    ],
+    "title": "Nullable_RootSetupEnrollment"
+  },
   "steam_artwork_selection": {
     "$defs": {
       "SteamArtworkOperation": {

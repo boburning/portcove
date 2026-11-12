@@ -41,6 +41,7 @@ const unsupportedByReason: Record<string, string[]> = {
     restart_to_apply_application_update restore_backup revoke_catalog_key
     rollback_catalog rollback_port run_install_batch start_install_batch cancel_install_batch
     set_port_intent acknowledge_port_readiness run_standing_setup
+    set_root_setup_consent set_root_setup_implementation
     set_application_update_preferences set_channel
     set_default_library set_github_token set_host_tool_path set_locale_preference
     set_output_location set_policy trust_catalog_key use_cached_catalog
