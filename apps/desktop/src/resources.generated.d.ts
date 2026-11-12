@@ -876,6 +876,28 @@ export default interface Resources {
     }
   },
   "organization": {
+    "choices": {
+      "notices": {
+        "heading": "Library update notices",
+        "introActive": "Show notices for new releases. These choices only affect notices for this port in this library. They do not change your update policy, pause downloads, or hide a downloaded update. You can still review and apply available updates here.",
+        "introPaused": "Notices are paused for this port. These choices only affect notices for this port in this library. They do not change your update policy, pause downloads, or hide a downloaded update. You can still review and apply available updates here.",
+        "label": "Library update notice choices",
+        "pause": "Pause update notices",
+        "resume": "Resume update notices",
+        "skip": "Hide the update notice for this version",
+        "skipLabel": "Hide the update notice for this version: {{version}}",
+        "skipped": "Notice hidden for <version/> and this download. We’ll show the notice again if the publisher replaces the download.",
+        "unskip": "Show this update notice again"
+      },
+      "readFailed": "Saved choices could not be read.",
+      "refresh": "Refresh choices",
+      "setup": {
+        "confirm": "I’ve finished this game’s first-time setup.",
+        "explanation": "This optional reminder doesn’t check your files, test the game, or change whether Play is available. A replacement installation needs its own reminder.",
+        "label": "Your setup reminder"
+      },
+      "writeFailed": "Portcove couldn’t confirm that your choice was saved."
+    },
     "collection": {
       "withCount": "<name/> ({{total}})"
     },
