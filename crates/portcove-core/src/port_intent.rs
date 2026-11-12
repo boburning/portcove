@@ -746,6 +746,19 @@ impl PortcoveService {
             }) {
                 continue;
             }
+            // Only games set up under standing consent are settled, because
+            // only they have an attempt limit for interruptions. Other batches
+            // stay in progress for the player to continue or review.
+            let all_standing = running.iter().all(|port_id| {
+                self.library
+                    .port_intent(port_id)
+                    .ok()
+                    .flatten()
+                    .is_some_and(|intent| intent.mode == PortIntentMode::SetUpWhenReady)
+            });
+            if !all_standing {
+                continue;
+            }
             match self.reconcile_install_batch(&batch.id) {
                 Ok(record) => {
                     for item in record.items.iter().filter(|item| {
@@ -1482,9 +1495,10 @@ mod tests {
                 .failed_attempts,
             0
         );
+        // Not standing consent: left in progress for the player, as before.
         assert_eq!(
             service.install_batch(&batch_id).unwrap().unwrap().items[0].state,
-            InstallBatchItemState::Interrupted
+            InstallBatchItemState::Running
         );
     }
 

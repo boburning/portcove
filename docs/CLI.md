@@ -811,9 +811,10 @@ committed state, before starting anything: an install that was committed counts
 as ready, and a game with nothing committed and no unfinished install or update
 journal is marked interrupted. A game whose earlier work hasn't finished
 recovering stays in progress and waits with that reason; nothing new starts for
-it and nothing is counted. For a set-up-when-ready game an interruption counts
-as a failed attempt with that plan (a player's own interrupted install never
-does), so it is set up afresh (re-planned and freshly authorized) on the next
+it and nothing is counted. Only batches whose in-progress games are all
+set-up-when-ready games are settled this way; other interrupted batches stay in
+progress for you to continue with `games batch-resume`. For a set-up-when-ready
+game an interruption counts as a failed attempt with that plan, so it is set up afresh (re-planned and freshly authorized) on the next
 pass, and repeated interruptions stop at the same three-attempt limit. Batches
 another process is still running, and games another operation holds, are left
 alone.
