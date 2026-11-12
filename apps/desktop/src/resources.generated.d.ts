@@ -359,6 +359,21 @@ export default interface Resources {
     }
   },
   "browsing": {
+    "alternatives": {
+      "external": "External installation · <version/>",
+      "heading": "Other ports for this game ({{total}})",
+      "independence": "Each project keeps its own files and installation. Choosing one does not transfer saves or choose a release.",
+      "managed": "Managed installation · <version/>",
+      "notInstalled": "Not installed",
+      "originalFiles": "Original files: <files/>",
+      "originalFilesUnknown": "Original files: Check project setup instructions",
+      "runsOn": "Runs on: <platforms/>",
+      "runsOnUnknown": "Runs on: Not recorded",
+      "sourceEditions": "Source editions: <editions/>",
+      "stateUnavailable": "Installation state unavailable",
+      "view": "View <name/>",
+      "viewing": "<name/> · Viewing"
+    },
     "hero": {
       "continueLabel": "{{title}} recently played",
       "credits": "Image credits",
@@ -373,6 +388,30 @@ export default interface Resources {
     "maintenance": {
       "offer": "Current managed offer",
       "reconsider": "Reconsider when: <condition/>"
+    },
+    "match": {
+      "channelUnknown": "Channel unknown",
+      "choose": "Choose a version to inspect. Each choice matches all selected filters.",
+      "heading": "Matching versions for your filters",
+      "installedBuild": "Installed build",
+      "label": "Matching browsing contexts",
+      "lostChoice": "Your previous choice is no longer current. Choose a matching version to inspect.",
+      "methodUnknown": "Saved setup method unknown",
+      "noCheck": "No current game-file check for this version. Check again.",
+      "noDetails": "This game matches your filters. Version details are unavailable; Portcove checks requirements before setup or launch.",
+      "noLongerMatches": "This port no longer matches your filters.",
+      "platformUnknown": "Platform unknown",
+      "savedInstallation": "<method/>. This is your matching saved installation. Portcove checks the current requirements again before setup or launch.",
+      "setup": "Setup",
+      "setupOption": "<method/>. This setup option matches your filters. Portcove checks the current requirements again before setup or launch.",
+      "unavailable": "These filter results are unavailable. Return to Filters to update your choices or check again."
+    },
+    "observations": {
+      "available": "Update available at last check",
+      "channel": "Selected update channel: <channel/>",
+      "retired": "Retired upstream",
+      "staged": "Update saved for later",
+      "updateDetails": "Update details"
     },
     "search": {
       "clear": "Clear search",
