@@ -344,7 +344,7 @@ fn migration_51(transaction: &Transaction<'_>) -> Result<()> {
             root_id TEXT NOT NULL,
             identity TEXT NOT NULL CHECK(length(identity) BETWEEN 1 AND 4352),
             PRIMARY KEY(root_id, identity)
-        ) WITHOUT ROWID;",
+        );",
     )?;
     verify_migration_51(transaction)
 }

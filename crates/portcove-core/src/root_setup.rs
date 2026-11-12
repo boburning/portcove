@@ -953,9 +953,12 @@ mod tests {
         let library = Library::open(temporary.path().join("library")).unwrap();
         register_zelda_install(&library, "v1", false);
         let service = service_with_release(library, "v1");
-        let root = temporary.path().join("games");
-        std::fs::create_dir(&root).unwrap();
-        let root_id = service.library().add_game_file_root(&root).unwrap().id;
+        let folder = temporary.path().join("games");
+        std::fs::create_dir(&folder).unwrap();
+        // Use the folder as Core stores it (canonical; `\\?\` on Windows), as
+        // a real scan reports matched files under it.
+        let saved = service.library().add_game_file_root(&folder).unwrap();
+        let (root_id, root) = (saved.id, saved.path);
         let profile = service
             .catalog()
             .port(PORT)
@@ -1200,13 +1203,15 @@ mod tests {
         folder.consent(RootSetupEnrollment::FutureOnly);
         let moved = folder._temporary.path().join("moved");
         std::fs::create_dir(&moved).unwrap();
+        let moved = std::fs::canonicalize(&moved).unwrap();
         let existing = folder.file_in(&moved, "old.z64", 'a');
         folder.in_use(&existing);
-        folder
+        let relinked = folder
             .service
             .library()
             .relink_game_file_root(&folder.root_id, &moved)
             .unwrap();
+        assert_eq!(relinked.path, moved);
         folder.scanned(vec![existing.clone()]);
         assert!(folder.pass().await.batches.is_empty());
         assert!(!folder.installed());
