@@ -1970,7 +1970,15 @@ impl PortcoveService {
         } else {
             source
         };
-        add_source_blocker(&mut blockers, source_blocking, false);
+        // A self-contained installation launches without its original, which
+        // only repair, rebuild or preparation needs (owner decision on #966).
+        let self_contained = match &status.active {
+            Some(active) => crate::preparation::self_contained_launch(&self.library, port, active)?,
+            None => false,
+        };
+        if !self_contained {
+            add_source_blocker(&mut blockers, source_blocking, false);
+        }
         add_source_blocker(&mut blockers, bios, true);
         let required_source_extension = if port.release.provider == ReleaseSource::UserPrepared {
             Platform::current().ok().and_then(|platform| {
@@ -2055,6 +2063,11 @@ impl PortcoveService {
                     .source_profile
                     .as_ref()
                     .and_then(|profile| registered_sources.get(profile));
+                let source = if self_contained {
+                    crate::preparation::ReceiptSource::NotConsulted
+                } else {
+                    source.into()
+                };
                 return self
                     .validate_preparation_receipt(port, active, source)
                     .is_err();

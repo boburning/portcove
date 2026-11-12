@@ -12,6 +12,67 @@ pub(crate) fn managed(port: &PortDefinition) -> bool {
     ) && !port.setup_output_paths.is_empty()
 }
 
+/// Which original a receipt check compares. Launch of a self-contained
+/// installation does not consult the original at all.
+#[derive(Clone, Copy)]
+pub(crate) enum ReceiptSource<'a> {
+    Original(Option<&'a SourceRecord>),
+    NotConsulted,
+}
+
+impl<'a> From<Option<&'a SourceRecord>> for ReceiptSource<'a> {
+    fn from(source: Option<&'a SourceRecord>) -> Self {
+        Self::Original(source)
+    }
+}
+
+impl<'a> ReceiptSource<'a> {
+    /// The consulted original, if any.
+    pub(crate) fn original(self) -> Option<&'a SourceRecord> {
+        match self {
+            Self::Original(source) => source,
+            Self::NotConsulted => None,
+        }
+    }
+
+    /// True when the original was not consulted, or matches `expected`.
+    pub(crate) fn matches(self, expected: impl Fn(&SourceRecord) -> bool) -> bool {
+        match self {
+            Self::NotConsulted => true,
+            Self::Original(source) => source.is_some_and(expected),
+        }
+    }
+}
+
+/// Owner decision on #966: when installed, manifest-covered data already
+/// holds every game input, the registered original is needed only to repair,
+/// rebuild or prepare again, so launch neither requires nor reads it. This
+/// covers sealed source-only preparations, prepared upstream/Libultraship
+/// outputs, managed PS1 raw sets (the BIOS is still read at launch) and
+/// retained cartridge builds.
+pub(crate) fn self_contained_launch(
+    library: &crate::Library,
+    port: &PortDefinition,
+    install: &InstallRecord,
+) -> Result<bool> {
+    if port.adapter == AdapterKind::PsxRecompManaged {
+        return Ok(port.runtime_source_materialization
+            == Some(crate::RuntimeSourceMaterialization::PsxRawSet));
+    }
+    let installer = Installer::new(library.clone())?;
+    if super::source::eligible(port) {
+        return Ok(installer.retained_preparation_mode(install)?
+            == Some(super::PreparationMode::SourceOnly));
+    }
+    if managed(port) && managed_mode(port, install) == Some(super::PreparationMode::Default) {
+        return Ok(true);
+    }
+    Ok(!port.release.managed_build.is_empty()
+        && installer
+            .read_verified_member(install, crate::cartridge_build::RECEIPT, 1024 * 1024)
+            .is_ok())
+}
+
 pub(crate) fn managed_install(port: &PortDefinition, install: &InstallRecord) -> bool {
     managed_mode(port, install).is_some()
 }
@@ -33,12 +94,13 @@ pub(crate) fn managed_mode(
 }
 
 impl PortcoveService {
-    pub(crate) fn validate_preparation_receipt(
+    pub(crate) fn validate_preparation_receipt<'a>(
         &self,
         port: &PortDefinition,
         install: &InstallRecord,
-        source: Option<&SourceRecord>,
+        source: impl Into<ReceiptSource<'a>>,
     ) -> Result<()> {
+        let source = source.into();
         if !managed_install(port, install) {
             return Ok(());
         }
@@ -51,13 +113,14 @@ impl PortcoveService {
 
     /// Content interpretation only. The caller must establish the registered
     /// root or exact journal-owned staging location before supplying its catalog.
-    pub(crate) fn validate_preparation_receipt_in_retained_catalog(
+    pub(crate) fn validate_preparation_receipt_in_retained_catalog<'a>(
         &self,
         catalog: &crate::Catalog,
         install: &InstallRecord,
-        source: Option<&SourceRecord>,
+        source: impl Into<ReceiptSource<'a>>,
         expected_plan: Option<&super::PreparationPlan>,
     ) -> Result<()> {
+        let source = source.into();
         let port = catalog.port(&install.port_id)?;
         if super::source::eligible(port) {
             return super::source::validate(
@@ -114,7 +177,10 @@ impl PortcoveService {
             Ok(bytes) => bytes,
             Err(error) if error.code == crate::ErrorCode::NotFound && !legacy => {
                 return crate::adapter::validate_completed_legacy_setup(
-                    port, install, &working, source,
+                    port,
+                    install,
+                    &working,
+                    source.original(),
                 );
             }
             Err(error) => return Err(error),
@@ -138,7 +204,7 @@ impl PortcoveService {
             catalog.source_profile(profile)?,
         ))?);
         let inputs = &receipt.inputs;
-        let source_matches = source.is_some_and(|source| {
+        let source_matches = source.matches(|source| {
             source.profile_id == inputs.source.profile_id
                 && source.path == inputs.source.path
                 && source.sha256 == inputs.source.sha256

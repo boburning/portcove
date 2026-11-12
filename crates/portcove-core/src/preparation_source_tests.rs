@@ -418,6 +418,50 @@ async fn assert_source_only_install_survives_two_launches(zip_source: bool) {
     assert!(fixture.service.prepare_launch(PORT, None).is_err());
 }
 
+/// Owner decision on #966: a sealed install holds every game input, so it
+/// launches while its registered original is disconnected; the original is
+/// needed only to prepare or rebuild again.
+async fn assert_sealed_install_launches_without_its_original(zip_source: bool) {
+    let fixture = Fixture::new(zip_source);
+    let install = fixture.install(true).await;
+    let parked = fixture.source.path.with_extension("parked");
+    fs::rename(&fixture.source.path, &parked).unwrap();
+    let readiness = fixture.service.status(PORT).unwrap().readiness.unwrap();
+    assert!(
+        !readiness
+            .blockers
+            .contains(&crate::LaunchBlocker::MissingSource),
+        "{:?}",
+        readiness.blockers
+    );
+    let outcome = fixture
+        .service
+        .supervise_launch(
+            PORT,
+            None,
+            &["--observe-launch".into()],
+            LaunchStdio::Null,
+            |_| {},
+        )
+        .unwrap();
+    assert!(outcome.successful);
+    assert!(fixture.service.verify(PORT).unwrap().valid);
+    // Installed data is still the launch authority.
+    fs::write(install.path.join(FILES[0].0), b"modified sealed original").unwrap();
+    assert!(fixture.service.prepare_launch(PORT, None).is_err());
+    fs::rename(&parked, &fixture.source.path).unwrap();
+}
+
+#[tokio::test]
+async fn sealed_directory_install_launches_without_its_original() {
+    assert_sealed_install_launches_without_its_original(false).await;
+}
+
+#[tokio::test]
+async fn sealed_zip_install_launches_without_its_original() {
+    assert_sealed_install_launches_without_its_original(true).await;
+}
+
 #[tokio::test]
 async fn source_only_directory_install_survives_two_launches_and_full_verify() {
     assert_source_only_install_survives_two_launches(false).await;
