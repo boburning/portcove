@@ -355,7 +355,9 @@ it("renders the support report receipt in the current language and keeps the pat
     await root.rerender(<SupportBundleExport createSupportBundle={vi.fn(async () => exported)} />);
     await click("إنشاء تقرير دعم");
     const status = fixtureValue(host.querySelector('[role="status"]'), "receipt");
-    expect(status.textContent).toContain("حُفظ تقرير الدعم في");
+    expect(status.textContent).toBe(
+      `حُفظ تقرير الدعم في ${exported.path}. بعض التشخيصات جزئية أو محذوفة. راجع تفاصيل الجمع أدناه.`,
+    );
     expect(status.querySelector("code")?.textContent).toBe(exported.path);
     await page.getByText("عرض محتويات تقرير الدعم", { exact: true }).click();
     for (const text of [
