@@ -193,6 +193,9 @@ or ports.
 Use **Report a problem** in game details, the failed-launch notice, or
 **Settings > Advanced**, or open the
 [GitHub bug form](https://github.com/boburning/portcove/issues/new?template=bug-report.yml).
+When something worked but was hard, slow or confusing, or for an idea, use the
+[beta feedback form](https://github.com/boburning/portcove/issues/new?template=beta-feedback.yml)
+instead: what the player was trying to do, how far they got and what they expected.
 Review and redact the draft before submitting it. Include the Portcove version,
 platform, game or port where relevant, the step that failed, and what happened.
 An error message or redacted screenshot can help when available. Keep
@@ -212,6 +215,24 @@ failure under the existing selection rules. Use the reported scope, severity,
 availability of a workaround, and any verified reproduction. Escalate immediate
 security or data-loss hazards through their existing owners. Comparative
 usability research remains with [#255](https://github.com/boburning/portcove/issues/255).
+
+Feedback reports are evidence, not a second backlog. At triage, link each one to
+the issue that owns the problem, creating that issue through the intake procedure
+when none exists. Record the reported blocking level ("couldn't finish",
+"difficult", "confusing", "idea") in a comment on the feedback issue that links
+the owner, then close it as a duplicate of the owner, unless it becomes the owner.
+The owner's timeline lists each linked report through its cross-reference.
+
+When selecting work, the friction evidence for an owning issue is the number of
+distinct players linked to it and their blocking levels, read from those link
+comments. Count what is linked. Do not infer demand from silence, from one
+player's repeated reports, or from a missing label. Feedback never establishes
+catalog support, qualification or a release gate. The `projects:` and labels in
+the form apply only when GitHub accepts them, so triage searches by template
+title as well as by label. A player without a GitHub account can send the text
+through any channel; a maintainer or agent files it on their behalf and notes
+that it was relayed. Count each relayed report as a separate player unless the
+relay note identifies the same player, and never count by the filer's account.
 
 ## Port admission and later verification
 

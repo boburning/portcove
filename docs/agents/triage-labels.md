@@ -7,9 +7,12 @@
 | ready-for-agent | ready-for-agent | Fully specified for agent implementation |
 | ready-for-human | ready-for-human | Requires human implementation            |
 | wontfix         | wontfix         | Will not be actioned                     |
-| beta-feedback   | beta-feedback   | Player friction report; link to an owner |
 
 Use these exact strings when an engineering skill names a triage role.
+
+The `beta-feedback` label marks a player friction report from the beta feedback
+form. It is a report type, not a triage role; triage follows
+[beta feedback and triage](../ROADMAP.md#beta-feedback-and-triage).
 
 Labels are supplementary annotations. Missing labels do not establish missing
 triage or unfinished work. `ready-for-agent` describes specification completeness;

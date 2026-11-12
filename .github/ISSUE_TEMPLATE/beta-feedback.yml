@@ -12,13 +12,13 @@ body:
       value: |
         Thanks for trying Portcove. Use this form when something worked but was hard, slow or
         confusing, or for an idea. If something broke or behaved incorrectly, use **Bug report**
-        instead. We reply here, on this issue.
+        instead. Replies and links to related work appear on this issue.
   - type: dropdown
     id: journey
     attributes:
       label: What were you trying to do?
       options:
-        - Find a game or choose between versions
+        - Find a game or choose a port
         - Set up game files
         - Install a game
         - Play a game
@@ -75,7 +75,12 @@ body:
     validations:
       required: true
   - type: textarea
-    id: contact
+    id: context
+    attributes:
+      label: Portcove details
+      description: Optional. Portcove can fill this in. Remove personal folder paths and other private details before posting.
+  - type: textarea
+    id: notes
     attributes:
       label: Anything else?
-      description: Optional. Remove personal folder paths and other private details before posting.
+      description: Optional. This issue is public, so leave out private details.

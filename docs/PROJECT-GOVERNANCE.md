@@ -464,7 +464,7 @@ lease system or reporting framework. Short-lived non-writing reviewers are allow
 
 Choose worthwhile port work from the entire backlog independently of release
 commitment. Start with the Port Pipeline and current canonical issue evidence.
-Consider player value and observed demand (including [beta feedback](#beta-feedback) linked to an owning issue), attributable usable upstream artifacts,
+Consider player value and observed demand (including [beta feedback](ROADMAP.md#beta-feedback-and-triage) linked to an owning issue), attributable usable upstream artifacts,
 supported managed routes, reuse across integrations, shared gaps worth closing,
 actual investigation and maintenance costs, and concrete acquisition,
 compatibility, process and preservation holds. Retain uncertainty where evidence
@@ -507,24 +507,6 @@ predecessors. Separate scope additions and bookkeeping corrections from delivere
 acceptance; PR totals are supporting activity, not a release forecast. Reuse the
 existing cadence and receipts, with no mandatory daily census, new reporting
 service or recurring automation. Instructions alone do not prove adoption.
-
-## Beta feedback
-
-Players report friction with the `beta-feedback.yml` issue form: what they were
-trying to do, how far they got and what they expected. Bugs keep the bug-report
-form. Feedback issues are evidence, not a second backlog. At triage, link each one
-to the issue that owns the problem, creating that issue through ordinary intake
-when none exists. Then close the feedback issue as linked, unless it becomes the owner.
-Record the reported blocking level ("couldn't finish", "difficult", "confusing",
-"idea") in the link comment.
-
-When selecting work, the friction evidence for an owning issue is the number of
-distinct reporters linked to it and their blocking levels. Count what is linked;
-do not infer demand from silence, from one reporter's repeated reports, or from a
-missing label. Feedback never establishes catalog support, qualification or a
-release gate. Players without a GitHub account can copy the prepared text from
-Desktop and send it any way they like; a maintainer or agent files it on their
-behalf and notes that it was relayed.
 
 ## Pickup, consumption and execution upkeep
 
