@@ -363,7 +363,8 @@ Rust, frontend and catalog producers therefore run
 reads `refs/pull/<number>/head` from the remote and fails the job with a "Superseded"
 error when that head differs from the head the run validates. The job has done no
 work for that head, so nothing is lost; the failure lands on a commit that is no
-longer the head and cannot satisfy or block a required context for the current one.
+longer that pull request's head and cannot satisfy a required context. CI health
+excludes such an attempt from the first-attempt pass rate, as it does a cancelled one.
 An unreadable or missing head keeps the job running. Push, qualification and release
 callers have no pull request and never stop. `windows-helper-contracts` keeps its
 fixed admitted step list and is left to the supersede workflow.
