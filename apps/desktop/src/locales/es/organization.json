@@ -1,0 +1,56 @@
+{
+  "collection": {
+    "withCount": "<name/> ({{total, number}})"
+  },
+  "edit": {
+    "create": "Crear colección",
+    "nameLabel": "Nombre de la colección",
+    "note": "Las colecciones organizan las entradas. Quitar una colección conserva todos los juegos y archivos.",
+    "remove": "Quitar colección",
+    "summary": "Editar colecciones"
+  },
+  "failure": {
+    "read": "No se pudieron leer las elecciones guardadas. Los juegos se muestran sin elecciones de ocultación ni de colecciones.",
+    "refresh": "No se pudieron actualizar las elecciones guardadas. Se muestran tus últimas elecciones confirmadas.",
+    "reload": "Volver a cargar las elecciones",
+    "write": "Portcove no pudo confirmar los cambios. Se muestran tus últimas elecciones confirmadas."
+  },
+  "group": {
+    "discover": "Colecciones de Descubrir",
+    "library": "Colecciones de la Biblioteca"
+  },
+  "menu": {
+    "hide": "Ocultar de la Biblioteca",
+    "show": "Mostrar en la Biblioteca"
+  },
+  "save": {
+    "label": "Guardar {{game}} para más tarde",
+    "removeTitle": "Quitar juego guardado",
+    "save": "Guardar",
+    "saved": "Guardado",
+    "title": "Guardar para más tarde"
+  },
+  "sidebar": {
+    "collectionLabel": "Colección: {{name}}",
+    "createFirst": "Crea tu primera colección",
+    "failureRead": "No se pudieron actualizar las colecciones. Abre Administrar colecciones para volver a intentarlo.",
+    "failureWrite": "Portcove no pudo confirmar los cambios en las colecciones. Se muestran tus últimas colecciones confirmadas.",
+    "hiddenGames": "Juegos ocultos",
+    "loading": "Cargando colecciones…",
+    "manage": "Administrar colecciones"
+  },
+  "title": "Colecciones",
+  "trigger": {
+    "all": "Colecciones",
+    "allGames": "Colecciones · Todos los juegos",
+    "collection": "Colecciones · <name/>",
+    "hidden": "Colecciones · Ocultos",
+    "unavailable": "Colecciones · Colección no disponible"
+  },
+  "view": {
+    "all": "Todos los juegos",
+    "followed": "Seguidos",
+    "hidden": "Ocultos",
+    "saved": "Guardados"
+  }
+}
