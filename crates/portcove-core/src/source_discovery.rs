@@ -2,6 +2,7 @@ use crate::{
     ActivityOperation, ActivityTargetKind, Catalog, GameFileRootAvailability,
     GameFileScanFreshness, GameFileScanSnapshot, PortcoveError, PortcoveService, Result,
     SourceProfile, SourceRecord,
+    game_file_root::{GameFileScanMatchRow, GameFileScanMatchWrite},
     source_file::{HashBudget, read_identity},
 };
 
@@ -19,16 +20,89 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const CURRENT_SCAN_FORMAT_VERSION: u32 = 12;
+pub(crate) const CURRENT_SCAN_FORMAT_VERSION: u32 = 13;
+const CONTINUATION_FORMAT_VERSION: u32 = 3;
 const MAX_CONTINUATION_RECORDS: usize = 16_384;
 const MAX_CONTINUATION_BYTES: usize = 4 * 1024 * 1024;
 const MAX_RESUME_CHECKS: u32 = 100_000;
-/// Safety ceiling for matches one saved-folder scan retains across batches.
+/// Safety ceiling for matches (exact and preliminary combined) one
+/// saved-folder scan retains across batches, in library rows.
 /// `max_candidates` bounds each batch; reaching this ceiling ends the scan as
 /// safety-limited, never as "no more matches".
-/// It equals the largest per-request allowance, which the 8 MiB snapshot
-/// already holds alongside a full continuation.
-pub const MAX_SCAN_CANDIDATES: usize = 512;
+pub const MAX_SCAN_MATCHES: usize = 100_000;
+/// Safety ceiling for the stored bytes of one saved-folder scan's matches.
+pub const MAX_SCAN_MATCH_BYTES: u64 = 256 * 1024 * 1024;
+/// One stored match record. A larger record reaches the scan ceiling; it is
+/// never silently dropped.
+const MAX_SCAN_MATCH_RECORD_BYTES: usize = 256 * 1024;
+/// The snapshot keeps at most this preview of its matches inline.
+const MAX_SCAN_PREVIEW_MATCHES: usize = 512;
+const MAX_SCAN_PREVIEW_BYTES: usize = 2 * 1024 * 1024;
+const EMPTY_MATCH_CHAIN: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+
+#[derive(Debug, Clone, Copy)]
+struct ScanMatchCeiling {
+    matches: usize,
+    bytes: u64,
+}
+
+#[cfg(test)]
+thread_local! {
+    static TEST_SCAN_MATCH_CEILING: std::cell::Cell<Option<ScanMatchCeiling>> =
+        const { std::cell::Cell::new(None) };
+}
+
+/// Lowers the scan-wide match ceiling for this test thread, so tests can
+/// reach it without 100,000 files.
+#[cfg(test)]
+fn set_test_scan_match_ceiling(matches: usize, bytes: u64) {
+    TEST_SCAN_MATCH_CEILING.with(|ceiling| ceiling.set(Some(ScanMatchCeiling { matches, bytes })));
+}
+
+fn scan_match_ceiling() -> ScanMatchCeiling {
+    #[cfg(test)]
+    if let Some(ceiling) = TEST_SCAN_MATCH_CEILING.with(std::cell::Cell::get) {
+        return ceiling;
+    }
+    ScanMatchCeiling {
+        matches: MAX_SCAN_MATCHES,
+        bytes: MAX_SCAN_MATCH_BYTES,
+    }
+}
+
+/// Chains one stored match row onto its kind's digest, binding the
+/// continuation to the exact rows it was published with.
+fn chain_match_row(previous: &str, row: &crate::game_file_root::GameFileScanMatchRow) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(previous.as_bytes());
+    hasher.update([row.kind]);
+    hasher.update(row.ordinal.to_be_bytes());
+    for field in [&row.profile_id, &row.path, &row.record_json] {
+        hasher.update((field.len() as u64).to_be_bytes());
+        hasher.update(field.as_bytes());
+    }
+    hex::encode(hasher.finalize())
+}
+
+/// The continuation's digest of the report preview and its match totals.
+fn report_digest(
+    report: &SourceDiscoveryReport,
+    matches: Option<&crate::GameFileScanMatchSummary>,
+) -> Result<String> {
+    Ok(hex::encode(Sha256::digest(serde_json::to_vec(&(
+        report, matches,
+    ))?)))
+}
+
+/// The row-backed match summary of a current-format snapshot. Older formats
+/// keep every match inline in the report.
+pub(crate) fn scan_match_summary(
+    snapshot: &GameFileScanSnapshot,
+) -> Option<&crate::GameFileScanMatchSummary> {
+    (snapshot.format_version == CURRENT_SCAN_FORMAT_VERSION)
+        .then_some(snapshot.matches.as_ref())
+        .flatten()
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -98,12 +172,17 @@ struct ScanContinuation {
     pending: VecDeque<ScanDirectory>,
     observed: BTreeMap<PathBuf, Option<ScanEntryStamp>>,
     retained_bytes: usize,
+    /// Rows stored for this scan so far, their record bytes and, per kind,
+    /// the chained digest of every row in ordinal order.
+    match_count: u32,
+    match_bytes: u64,
+    matches_sha256: [String; 2],
 }
 
 impl ScanContinuation {
     fn new(roots: &[PathBuf], outputs_sha256: String) -> Self {
         Self {
-            format_version: 2,
+            format_version: CONTINUATION_FORMAT_VERSION,
             platform: std::env::consts::OS.into(),
             outputs_sha256,
             report_sha256: String::new(),
@@ -119,6 +198,9 @@ impl ScanContinuation {
                 .collect(),
             observed: BTreeMap::new(),
             retained_bytes: 1024,
+            match_count: 0,
+            match_bytes: 0,
+            matches_sha256: [EMPTY_MATCH_CHAIN.into(), EMPTY_MATCH_CHAIN.into()],
         }
     }
 
@@ -147,20 +229,19 @@ impl ScanContinuation {
     }
 
     /// After a batch has been validated, a finished folder is never listed
-    /// again, so only the unfinished frontier and the matched paths keep their
-    /// stamps. Storage then follows the frontier, not the whole scan. A
-    /// finished non-matching file that changes later is picked up by the next
-    /// scan, exactly like a change made after a scan completes; matched files
-    /// are still rechecked here and are re-verified before any use.
-    fn forget_completed(&mut self, matches: &BTreeSet<&Path>) -> Result<()> {
+    /// again, so only the unfinished frontier keeps its stamps. Storage then
+    /// follows the frontier, not the whole scan or its matches (which live in
+    /// library rows). A finished file that changes later, matched or not, is
+    /// picked up by the next scan, exactly like a change made after a scan
+    /// completes; every match is re-verified from current bytes before use.
+    fn forget_completed(&mut self) -> Result<()> {
         let frontier = self
             .pending
             .iter()
             .map(|directory| (directory.path.as_path(), &directory.seen))
             .collect::<BTreeMap<_, _>>();
         self.observed.retain(|path, _| {
-            matches.contains(path.as_path())
-                || frontier.contains_key(path.as_path())
+            frontier.contains_key(path.as_path())
                 || path
                     .parent()
                     .zip(path.file_name())
@@ -299,6 +380,33 @@ impl ObservationReuse {
         key: &str,
     ) -> Option<crate::source_file::FileIdentity> {
         self.lookup(path, representation, key).ok().flatten()
+    }
+}
+
+/// Matches a resumed saved scan stored in earlier batches. Lookups by
+/// profile and path keep a match from being recorded twice across batches.
+struct PriorMatches {
+    connection: rusqlite::Connection,
+    scan_id: String,
+    counts: [u32; 2],
+    bytes: u64,
+}
+
+impl PriorMatches {
+    fn lookup(&self, kind: u8, profile_id: &str, path: &Path) -> Result<Option<String>> {
+        use rusqlite::OptionalExtension;
+        let Some(path) = path.to_str() else {
+            return Ok(None);
+        };
+        Ok(self
+            .connection
+            .query_row(
+                "SELECT record_json FROM game_file_scan_matches
+                 WHERE scan_id=?1 AND kind=?2 AND profile_id=?3 AND path=?4",
+                rusqlite::params![self.scan_id, kind, profile_id, path],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?)
     }
 }
 
@@ -447,13 +555,14 @@ impl PortcoveService {
                 &operation,
                 &mut emit,
             )
-            .and_then(|(snapshot, expected_outputs, expected_payload)| {
+            .and_then(|(snapshot, expected_outputs, expected_payload, matches)| {
                 publish_game_file_scan(
                     self.library(),
                     &operation,
                     &snapshot,
                     &expected_outputs,
                     expected_payload.as_deref(),
+                    &matches,
                 )?;
                 current_game_file_scan(self.catalog(), self.library())?.ok_or_else(|| {
                     PortcoveError::state("game-file scan snapshot disappeared after publication")
@@ -466,6 +575,28 @@ impl PortcoveService {
 
     pub fn game_file_scan_snapshot(&self) -> Result<Option<GameFileScanSnapshot>> {
         current_game_file_scan(self.catalog(), self.library())
+    }
+
+    /// One page of the current saved-folder scan's retained matches, in
+    /// stored order. Paging a scan that has since been replaced is a
+    /// conflict, so a caller never mixes two scans.
+    pub fn game_file_scan_matches(
+        &self,
+        query: &crate::GameFileScanMatchQuery,
+    ) -> Result<crate::GameFileScanMatchPage> {
+        if query.limit == 0 || query.limit > crate::MAX_GAME_FILE_SCAN_MATCH_PAGE {
+            return Err(PortcoveError::usage(
+                "a scan match page holds 1 to 512 matches",
+            ));
+        }
+        if query
+            .scan_id
+            .as_deref()
+            .is_some_and(|id| uuid::Uuid::parse_str(id).is_err())
+        {
+            return Err(PortcoveError::usage("scan identity is invalid"));
+        }
+        self.library().game_file_scan_match_page(query)
     }
 }
 
@@ -495,6 +626,7 @@ fn publish_game_file_scan(
     snapshot: &GameFileScanSnapshot,
     expected_outputs: &[crate::library::OutputRootRecord],
     expected_payload: Option<&str>,
+    matches: &GameFileScanMatchWrite,
 ) -> Result<()> {
     operation.begin_publication()?;
     library.replace_game_file_scan_snapshot_if_outputs_match(
@@ -502,6 +634,7 @@ fn publish_game_file_scan(
         expected_outputs,
         &snapshot.roots,
         expected_payload,
+        matches,
     )
 }
 
@@ -524,8 +657,15 @@ fn build_game_file_scan_with_registry(
     operation: &crate::OperationCoordinator,
 ) -> Result<(GameFileScanSnapshot, Vec<crate::library::OutputRootRecord>)> {
     build_game_file_scan_with_registry_events(catalog, library, limits, operation, &mut |_| {})
-        .map(|(snapshot, outputs, _)| (snapshot, outputs))
+        .map(|(snapshot, outputs, _, _)| (snapshot, outputs))
 }
+
+type PreparedGameFileScan = (
+    GameFileScanSnapshot,
+    Vec<crate::library::OutputRootRecord>,
+    Option<String>,
+    GameFileScanMatchWrite,
+);
 
 fn build_game_file_scan_with_registry_events(
     catalog: &Catalog,
@@ -533,11 +673,7 @@ fn build_game_file_scan_with_registry_events(
     limits: &SourceDiscoveryLimits,
     operation: &crate::OperationCoordinator,
     emit: &mut dyn FnMut(crate::OperationEvent),
-) -> Result<(
-    GameFileScanSnapshot,
-    Vec<crate::library::OutputRootRecord>,
-    Option<String>,
-)> {
+) -> Result<PreparedGameFileScan> {
     let roots = library.game_file_roots()?;
     let expected_payload = library.stored_game_file_scan_payload()?;
     // An explicit scan can replace an unreadable old report. Keep its raw bytes
@@ -564,6 +700,7 @@ fn build_game_file_scan_with_registry_events(
         .filter(|snapshot| snapshot.continuation.is_some());
     let continuation = if let Some(snapshot) = resumed {
         let validated = validate_continuation(
+            library,
             snapshot,
             &roots,
             limits,
@@ -584,11 +721,13 @@ fn build_game_file_scan_with_registry_events(
                 coverage.remaining_entries = None;
                 invalidated.freshness = GameFileScanFreshness::InputsChanged;
                 operation.begin_publication()?;
+                // The prior report and its match rows stay readable.
                 library.replace_game_file_scan_snapshot_if_outputs_match(
                     &invalidated,
                     &expected_outputs,
                     &roots,
                     expected_payload.as_deref(),
+                    &GameFileScanMatchWrite::Unchanged,
                 )?;
                 return Err(PortcoveError::conflict(
                     "saved scan continuation is stale or invalid; repeat the scan to start fresh",
@@ -624,7 +763,24 @@ fn build_game_file_scan_with_registry_events(
             .collect(),
         limits: limits.clone(),
     };
-    let previous_report = resumed.map(|snapshot| snapshot.report.clone());
+    // Earlier batches' matches live in rows; the batch starts with none
+    // inline and looks earlier ones up by profile and path.
+    let prior_summary = resumed.and_then(|snapshot| snapshot.matches.clone());
+    let previous_report = resumed.map(|snapshot| {
+        let mut report = snapshot.report.clone();
+        report.candidates.clear();
+        report.preliminary_selections.clear();
+        report
+    });
+    let prior_matches = match (&continuation, &prior_summary) {
+        (Some(cursor), Some(summary)) => Some(PriorMatches {
+            connection: library.connection()?,
+            scan_id: summary.scan_id.clone(),
+            counts: [summary.exact_matches, summary.preliminary_selections],
+            bytes: cursor.match_bytes,
+        }),
+        _ => None,
+    };
     let initial_entries = previous_report
         .as_ref()
         .map_or(0, |report| report.entries_examined);
@@ -638,6 +794,7 @@ fn build_game_file_scan_with_registry_events(
         previous_report,
         continuation.or_else(|| Some(ScanContinuation::new(&request.roots, outputs_identity))),
         initial_checks,
+        prior_matches,
     )?;
     let report = &mut batch.report;
     for root in roots
@@ -691,12 +848,80 @@ fn build_game_file_scan_with_registry_events(
         can_resume,
         restart_required: false,
     };
+    let batch_number = coverage.batches;
+    let (scan_id, prior_counts, prior_preview) = match &prior_summary {
+        Some(summary) if resumed.is_some() => (
+            summary.scan_id.clone(),
+            [summary.exact_matches, summary.preliminary_selections],
+            resumed.map(|snapshot| &snapshot.report),
+        ),
+        _ => (uuid::Uuid::new_v4().to_string(), [0, 0], None),
+    };
+    let new_exact = std::mem::take(&mut batch.report.candidates);
+    let new_preliminary = std::mem::take(&mut batch.report.preliminary_selections);
+    let mut rows = Vec::with_capacity(new_exact.len() + new_preliminary.len());
+    for (index, record) in new_exact.iter().enumerate() {
+        rows.push(match_row(
+            0,
+            prior_counts[0] as usize + index,
+            &record.profile_id,
+            &record.path,
+            batch_number,
+            serde_json::to_string(record)?,
+        )?);
+    }
+    for (index, selection) in new_preliminary.iter().enumerate() {
+        rows.push(match_row(
+            1,
+            prior_counts[1] as usize + index,
+            &selection.profile_id,
+            &selection.path,
+            batch_number,
+            serde_json::to_string(selection)?,
+        )?);
+    }
+    let totals = [
+        prior_counts[0] + new_exact.len() as u32,
+        prior_counts[1] + new_preliminary.len() as u32,
+    ];
+    let (preview_exact, preview_preliminary) = scan_preview(
+        prior_preview,
+        prior_counts,
+        &new_exact,
+        &new_preliminary,
+        totals,
+    )?;
+    let preview_complete =
+        preview_exact.len() as u32 == totals[0] && preview_preliminary.len() as u32 == totals[1];
+    batch.report.candidates = preview_exact;
+    batch.report.preliminary_selections = preview_preliminary;
+    let summary = crate::GameFileScanMatchSummary {
+        scan_id: scan_id.clone(),
+        exact_matches: totals[0],
+        preliminary_selections: totals[1],
+        preview_complete,
+    };
     let continuation = if can_resume {
         let cursor = batch.continuation.as_mut().unwrap();
-        cursor.report_sha256 = hex::encode(Sha256::digest(serde_json::to_vec(&batch.report)?));
+        for row in &rows {
+            let chain = &mut cursor.matches_sha256[usize::from(row.kind)];
+            *chain = chain_match_row(chain, row);
+            cursor.match_bytes += row.record_json.len() as u64;
+        }
+        cursor.match_count = totals[0] + totals[1];
+        cursor.report_sha256 = report_digest(&batch.report, Some(&summary))?;
         Some(serde_json::to_value(cursor)?)
     } else {
         None
+    };
+    let matches = if prior_preview.is_some() {
+        GameFileScanMatchWrite::Append {
+            scan_id,
+            expected_counts: prior_counts,
+            rows,
+        }
+    } else {
+        GameFileScanMatchWrite::Fresh { scan_id, rows }
     };
     Ok((
         GameFileScanSnapshot {
@@ -709,10 +934,84 @@ fn build_game_file_scan_with_registry_events(
             freshness: GameFileScanFreshness::InputsMatch,
             coverage: Some(coverage),
             continuation,
+            matches: Some(summary),
         },
         expected_outputs,
         expected_payload,
+        matches,
     ))
+}
+
+fn match_row(
+    kind: u8,
+    ordinal: usize,
+    profile_id: &str,
+    path: &Path,
+    batch: u32,
+    record_json: String,
+) -> Result<GameFileScanMatchRow> {
+    Ok(GameFileScanMatchRow {
+        kind,
+        ordinal: u32::try_from(ordinal)
+            .map_err(|_| PortcoveError::state("scan match ordinal reached its limit"))?,
+        profile_id: profile_id.to_owned(),
+        path: crate::path::unicode(path, "game-file match")?,
+        batch,
+        record_json,
+    })
+}
+
+/// The first matches in page order (exact matches, then preliminary
+/// selections, each by ordinal) that fit the preview bounds. Built from the
+/// prior preview and this batch: a prior preview that stopped short already
+/// holds every match that can come before the new ones.
+fn scan_preview(
+    prior: Option<&SourceDiscoveryReport>,
+    prior_counts: [u32; 2],
+    new_exact: &[SourceRecord],
+    new_preliminary: &[crate::SourceInspection],
+    totals: [u32; 2],
+) -> Result<(Vec<SourceRecord>, Vec<crate::SourceInspection>)> {
+    let (prior_exact, prior_preliminary) = prior.map_or((&[][..], &[][..]), |report| {
+        (&report.candidates[..], &report.preliminary_selections[..])
+    });
+    let mut count = 0;
+    let mut bytes = 0;
+    let mut fits = |len: usize| {
+        if count + 1 > MAX_SCAN_PREVIEW_MATCHES || bytes + len > MAX_SCAN_PREVIEW_BYTES {
+            return false;
+        }
+        count += 1;
+        bytes += len;
+        true
+    };
+    let mut exact = Vec::new();
+    let new_exact = if prior_exact.len() as u32 == prior_counts[0] {
+        new_exact
+    } else {
+        &[]
+    };
+    for record in prior_exact.iter().chain(new_exact) {
+        if !fits(serde_json::to_vec(record)?.len()) {
+            break;
+        }
+        exact.push(record.clone());
+    }
+    let mut preliminary = Vec::new();
+    if exact.len() as u32 == totals[0] {
+        let new_preliminary = if prior_preliminary.len() as u32 == prior_counts[1] {
+            new_preliminary
+        } else {
+            &[]
+        };
+        for selection in prior_preliminary.iter().chain(new_preliminary) {
+            if !fits(serde_json::to_vec(selection)?.len()) {
+                break;
+            }
+            preliminary.push(selection.clone());
+        }
+    }
+    Ok((exact, preliminary))
 }
 
 // A malformed optional checkpoint must not make an otherwise valid prior report unreadable.
@@ -746,7 +1045,7 @@ fn prior_scan_for_reuse(payload: &str) -> Result<Option<GameFileScanSnapshot>> {
     }
 }
 
-fn decode_game_file_scan(payload: &str) -> Result<GameFileScanSnapshot> {
+pub(crate) fn decode_game_file_scan(payload: &str) -> Result<GameFileScanSnapshot> {
     match serde_json::from_str(payload) {
         Ok(snapshot) => Ok(snapshot),
         Err(original) => {
@@ -781,7 +1080,9 @@ fn output_registry_sha256(outputs: &[crate::library::OutputRootRecord]) -> Resul
     Ok(hex::encode(Sha256::digest(serde_json::to_vec(&records)?)))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn validate_continuation(
+    library: &crate::Library,
     snapshot: &GameFileScanSnapshot,
     roots: &[crate::GameFileRoot],
     limits: &SourceDiscoveryLimits,
@@ -812,7 +1113,16 @@ fn validate_continuation(
                         .as_ref()
                         .map_or(0, |coverage| coverage.batches),
                 )
-        || snapshot.report.candidate_count() > MAX_SCAN_CANDIDATES
+        || snapshot.report.candidate_count() > MAX_SCAN_PREVIEW_MATCHES
+        || snapshot.matches.as_ref().is_none_or(|summary| {
+            uuid::Uuid::parse_str(&summary.scan_id).is_err()
+                || summary.scan_id.len() != 36
+                || summary.exact_matches as usize + summary.preliminary_selections as usize
+                    >= scan_match_ceiling().matches
+                || snapshot.report.candidates.len() > summary.exact_matches as usize
+                || snapshot.report.preliminary_selections.len()
+                    > summary.preliminary_selections as usize
+        })
         || value
             .get("observed")
             .and_then(serde_json::Value::as_object)
@@ -827,13 +1137,14 @@ fn validate_continuation(
             "scan inputs or bounded continuation state changed",
         ));
     }
+    let summary = snapshot.matches.as_ref().unwrap();
     let mut cursor: ScanContinuation = serde_json::from_value(value.clone())?;
-    if cursor.format_version != 2
+    if cursor.format_version != CONTINUATION_FORMAT_VERSION
         || cursor.platform != std::env::consts::OS
         || cursor.outputs_sha256 != outputs_identity
-        || cursor.report_sha256
-            != hex::encode(Sha256::digest(serde_json::to_vec(&snapshot.report)?))
-        || snapshot.report.candidate_count() >= MAX_SCAN_CANDIDATES
+        || cursor.report_sha256 != report_digest(&snapshot.report, Some(summary))?
+        || cursor.match_count != summary.exact_matches + summary.preliminary_selections
+        || cursor.match_bytes >= scan_match_ceiling().bytes
         || snapshot.report.entries_examined as usize + snapshot.report.searched_roots.len()
             < cursor.observed.len()
         || cursor.pending.is_empty()
@@ -949,7 +1260,89 @@ fn validate_continuation(
             "scan continuation exceeds its construction charge",
         ));
     }
+    validate_match_rows(
+        library,
+        summary,
+        &cursor,
+        snapshot
+            .coverage
+            .as_ref()
+            .map_or(0, |coverage| coverage.batches),
+        operation,
+    )?;
     Ok(cursor)
+}
+
+/// The stored rows must be exactly the ones the continuation was published
+/// with: contiguous ordinals per kind, the recorded counts and bytes, and the
+/// chained digest. Anything else restarts the scan; the prior report and its
+/// rows stay readable.
+fn validate_match_rows(
+    library: &crate::Library,
+    summary: &crate::GameFileScanMatchSummary,
+    cursor: &ScanContinuation,
+    batches: u32,
+    operation: &crate::OperationCoordinator,
+) -> Result<()> {
+    let connection = library.connection()?;
+    let foreign: i64 = connection.query_row(
+        "SELECT count(*) FROM game_file_scan_matches WHERE scan_id<>?1",
+        [&summary.scan_id],
+        |row| row.get(0),
+    )?;
+    let mut statement = connection.prepare(
+        "SELECT kind,ordinal,profile_id,path,path_key,batch,record_json
+         FROM game_file_scan_matches WHERE scan_id=?1 ORDER BY kind,ordinal",
+    )?;
+    let mut rows = statement.query([&summary.scan_id])?;
+    let mut next = [0u32; 2];
+    let mut bytes = 0u64;
+    let mut chains = [EMPTY_MATCH_CHAIN.to_owned(), EMPTY_MATCH_CHAIN.to_owned()];
+    let mut seen = 0u64;
+    let mut valid = foreign == 0;
+    while valid && let Some(row) = rows.next()? {
+        if seen.is_multiple_of(1024) {
+            operation.checkpoint()?;
+        }
+        seen += 1;
+        let kind: i64 = row.get(0)?;
+        let batch: i64 = row.get(5)?;
+        let path_key: String = row.get(4)?;
+        let Some(kind) = u8::try_from(kind).ok().filter(|kind| *kind < 2) else {
+            valid = false;
+            break;
+        };
+        let stored = GameFileScanMatchRow {
+            kind,
+            ordinal: row.get(1)?,
+            profile_id: row.get(2)?,
+            path: row.get(3)?,
+            batch: u32::try_from(batch).unwrap_or(0),
+            record_json: row.get(6)?,
+        };
+        let slot = usize::from(kind);
+        if stored.ordinal != next[slot]
+            || stored.batch == 0
+            || stored.batch > batches
+            || path_key != crate::game_file_root::path_key(&stored.path)
+        {
+            valid = false;
+            break;
+        }
+        next[slot] += 1;
+        bytes += stored.record_json.len() as u64;
+        chains[slot] = chain_match_row(&chains[slot], &stored);
+    }
+    if !valid
+        || next != [summary.exact_matches, summary.preliminary_selections]
+        || bytes != cursor.match_bytes
+        || chains != cursor.matches_sha256
+    {
+        return Err(PortcoveError::state(
+            "saved scan matches no longer match their continuation",
+        ));
+    }
+    Ok(())
 }
 
 fn current_game_file_scan(
@@ -984,6 +1377,7 @@ fn current_game_file_scan(
     if snapshot.format_version < CURRENT_SCAN_FORMAT_VERSION {
         snapshot.coverage = None;
         snapshot.continuation = None;
+        snapshot.matches = None;
     }
     snapshot.freshness = if snapshot.continuation.as_ref() != Some(&serde_json::Value::Null)
         && !snapshot
@@ -1032,7 +1426,54 @@ pub(crate) fn complete_test_game_file_scan(
         freshness: GameFileScanFreshness::InputsMatch,
         coverage: None,
         continuation: None,
+        matches: None,
     }
+}
+
+/// Publishes a complete current scan whose `candidates` are stored as match
+/// rows behind a bounded preview, for tests that need matches beyond it.
+#[cfg(test)]
+pub(crate) fn publish_test_game_file_scan_rows(
+    catalog: &Catalog,
+    library: &crate::Library,
+    candidates: Vec<crate::SourceRecord>,
+) -> GameFileScanSnapshot {
+    let mut snapshot = complete_test_game_file_scan(catalog, library, Vec::new());
+    let scan_id = uuid::Uuid::new_v4().to_string();
+    let rows = candidates
+        .iter()
+        .enumerate()
+        .map(|(ordinal, record)| {
+            match_row(
+                0,
+                ordinal,
+                &record.profile_id,
+                &record.path,
+                1,
+                serde_json::to_string(record).unwrap(),
+            )
+            .unwrap()
+        })
+        .collect();
+    let total = candidates.len() as u32;
+    let (preview, _) = scan_preview(None, [0, 0], &candidates, &[], [total, 0]).unwrap();
+    snapshot.matches = Some(crate::GameFileScanMatchSummary {
+        scan_id: scan_id.clone(),
+        exact_matches: total,
+        preliminary_selections: 0,
+        preview_complete: preview.len() as u32 == total,
+    });
+    snapshot.report.candidates = preview;
+    library
+        .replace_game_file_scan_snapshot_if_outputs_match(
+            &snapshot,
+            &library.output_roots().unwrap(),
+            &snapshot.roots,
+            library.stored_game_file_scan_payload().unwrap().as_deref(),
+            &GameFileScanMatchWrite::Fresh { scan_id, rows },
+        )
+        .unwrap();
+    snapshot
 }
 
 fn catalog_sha256(catalog: &Catalog) -> Result<String> {
@@ -1100,6 +1541,12 @@ struct Discovery<'a> {
     batch_hash_limited: bool,
     /// Matches already retained when this batch started.
     batch_start_candidates: usize,
+    /// A resumed saved scan's matches from earlier batches, in rows.
+    prior_matches: Option<PriorMatches>,
+    /// Stored record bytes of this batch's matches (saved scans only).
+    batch_match_bytes: u64,
+    /// A match could not be stored within the scan's byte ceiling.
+    match_bytes_exhausted: bool,
     /// Checkpoint charge and records carried into this batch.
     batch_start_storage: (usize, usize),
     /// Folders this batch finished; their stamps are forgotten at batch end.
@@ -1218,6 +1665,7 @@ fn scan_with_events<'a>(
         None,
         None,
         0,
+        None,
     )
     .map(|batch| batch.report)
 }
@@ -1233,6 +1681,7 @@ fn scan_with_continuation<'a>(
     previous: Option<SourceDiscoveryReport>,
     mut continuation: Option<ScanContinuation>,
     initial_checks: u32,
+    prior_matches: Option<PriorMatches>,
 ) -> Result<ScanBatch> {
     validate_request(request)?;
     let mut roots = Vec::new();
@@ -1354,6 +1803,9 @@ fn scan_with_continuation<'a>(
         terminal_limited: false,
         batch_hash_limited: false,
         batch_start_candidates: 0,
+        prior_matches,
+        batch_match_bytes: 0,
+        match_bytes_exhausted: false,
         batch_start_storage: (0, 0),
         folders_finished: 0,
         storage_deferred: false,
@@ -1486,20 +1938,7 @@ fn scan_with_continuation<'a>(
         .ok_or_else(|| PortcoveError::state("scan hash byte counter reached its limit"))?;
     discovery.report.limits_reached = discovery.reached.into_iter().collect();
     if let Some(cursor) = &mut discovery.continuation {
-        let matches = discovery
-            .report
-            .candidates
-            .iter()
-            .map(|record| record.path.as_path())
-            .chain(
-                discovery
-                    .report
-                    .preliminary_selections
-                    .iter()
-                    .map(|selection| selection.path.as_path()),
-            )
-            .collect::<BTreeSet<_>>();
-        cursor.forget_completed(&matches)?;
+        cursor.forget_completed()?;
     }
     discovery.report.candidates.sort_by(|left, right| {
         (&left.profile_id, &left.path).cmp(&(&right.profile_id, &right.path))
@@ -1514,6 +1953,7 @@ fn scan_with_continuation<'a>(
     if let (Some(reuse), Some(library)) = (discovery.reuse.take(), output_library) {
         observations_reused = reuse.reused;
         drop(reuse.connection);
+        drop(discovery.prior_matches.take());
         // A cache write failure only costs a later rehash; it never fails the scan.
         let _ = library.record_game_file_observations(&reuse.fresh);
     }
@@ -1544,13 +1984,62 @@ impl Discovery<'_> {
     }
 
     /// No more matches can be kept in this unit: the exact bound for one-off
-    /// discovery, or the scan's safety ceiling for saved folders.
+    /// discovery, or the scan's safety ceilings for saved folders.
     fn unit_full(&self) -> bool {
         if self.resumable() {
-            self.report.candidate_count() >= MAX_SCAN_CANDIDATES
+            let ceiling = scan_match_ceiling();
+            let (count, bytes) = self.prior_matches.as_ref().map_or((0, 0), |prior| {
+                (
+                    prior.counts[0] as usize + prior.counts[1] as usize,
+                    prior.bytes,
+                )
+            });
+            self.match_bytes_exhausted
+                || count + self.report.candidate_count() >= ceiling.matches
+                || bytes + self.batch_match_bytes >= ceiling.bytes
         } else {
             self.report.candidate_count() >= self.limits.max_candidates as usize
         }
+    }
+
+    /// The stored size of a new saved-scan match, or `None` when storing it
+    /// would pass the scan's safety ceiling (which then ends the scan).
+    fn admit_match_bytes(&mut self, record: &impl Serialize) -> Result<Option<u64>> {
+        if !self.resumable() {
+            return Ok(Some(0));
+        }
+        let size = serde_json::to_vec(record)?.len();
+        let prior = self.prior_matches.as_ref().map_or(0, |prior| prior.bytes);
+        if size > MAX_SCAN_MATCH_RECORD_BYTES
+            || prior + self.batch_match_bytes + size as u64 > scan_match_ceiling().bytes
+        {
+            self.match_bytes_exhausted = true;
+            self.candidates_exhausted();
+            return Ok(None);
+        }
+        Ok(Some(size as u64))
+    }
+
+    /// The record an earlier batch of this scan stored for the same profile
+    /// and path, if any.
+    fn prior_match<T: serde::de::DeserializeOwned>(
+        &self,
+        kind: u8,
+        profile_id: &str,
+        path: &Path,
+    ) -> Result<Option<T>> {
+        let Some(prior) = &self.prior_matches else {
+            return Ok(None);
+        };
+        prior
+            .lookup(kind, profile_id, path)?
+            .map(|json| {
+                serde_json::from_str(&json).map_err(|error| {
+                    PortcoveError::state("stored scan match is invalid")
+                        .detail("cause", error.to_string())
+                })
+            })
+            .transpose()
     }
 
     /// A full batch continues; reaching the scan ceiling ends coverage.
@@ -1600,10 +2089,13 @@ impl Discovery<'_> {
     }
 
     fn record_candidate(&mut self, candidate: SourceRecord) -> Result<()> {
-        if let Some(previous) = self.report.candidates.iter().find(|previous| {
+        let earlier = match self.report.candidates.iter().find(|previous| {
             previous.profile_id == candidate.profile_id && previous.path == candidate.path
         }) {
-            let mut earlier = previous.clone();
+            Some(previous) => Some(previous.clone()),
+            None => self.prior_match::<SourceRecord>(0, &candidate.profile_id, &candidate.path)?,
+        };
+        if let Some(mut earlier) = earlier {
             let mut current = candidate;
             earlier.updated_at = 0;
             current.updated_at = 0;
@@ -1618,6 +2110,9 @@ impl Discovery<'_> {
             self.candidates_exhausted();
             return Ok(());
         }
+        let Some(bytes) = self.admit_match_bytes(&candidate)? else {
+            return Ok(());
+        };
         let operation = self
             .budget
             .operation
@@ -1626,15 +2121,23 @@ impl Discovery<'_> {
         operation.checkpoint()?;
         (self.emit)(operation.source_candidate(&candidate));
         operation.checkpoint()?;
+        self.batch_match_bytes += bytes;
         self.report.candidates.push(candidate);
         Ok(())
     }
 
     fn record_preliminary(&mut self, inspection: crate::SourceInspection) -> Result<()> {
-        if let Some(previous) = self.report.preliminary_selections.iter().find(|previous| {
+        let earlier = match self.report.preliminary_selections.iter().find(|previous| {
             previous.profile_id == inspection.profile_id && previous.path == inspection.path
         }) {
-            let mut earlier = previous.clone();
+            Some(previous) => Some(previous.clone()),
+            None => self.prior_match::<crate::SourceInspection>(
+                1,
+                &inspection.profile_id,
+                &inspection.path,
+            )?,
+        };
+        if let Some(mut earlier) = earlier {
             let mut current = inspection;
             if let Some(record) = &mut earlier.record {
                 record.updated_at = 0;
@@ -1653,6 +2156,10 @@ impl Discovery<'_> {
             self.candidates_exhausted();
             return Ok(());
         }
+        let Some(bytes) = self.admit_match_bytes(&inspection)? else {
+            return Ok(());
+        };
+        self.batch_match_bytes += bytes;
         self.report.preliminary_selections.push(inspection);
         Ok(())
     }

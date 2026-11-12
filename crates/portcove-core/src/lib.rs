@@ -240,7 +240,8 @@ pub use game_file_query::{
 };
 pub use game_file_root::{
     GameFileRoot, GameFileRootAvailability, GameFileScanCoverage, GameFileScanFreshness,
-    GameFileScanSnapshot,
+    GameFileScanMatchKind, GameFileScanMatchPage, GameFileScanMatchQuery, GameFileScanMatchSummary,
+    GameFileScanSnapshot, MAX_GAME_FILE_SCAN_MATCH_PAGE,
 };
 pub use game_recommendations::{
     ComparisonEdition, ComparisonFreshness, ComparisonPort, ComparisonRelease,
@@ -386,8 +387,8 @@ pub use source_batch::{
 };
 pub use source_catalog::*;
 pub use source_discovery::{
-    SourceDiscoveryIssue, SourceDiscoveryLimit, SourceDiscoveryLimits, SourceDiscoveryReport,
-    SourceDiscoveryRequest,
+    MAX_SCAN_MATCH_BYTES, MAX_SCAN_MATCHES, SourceDiscoveryIssue, SourceDiscoveryLimit,
+    SourceDiscoveryLimits, SourceDiscoveryReport, SourceDiscoveryRequest,
 };
 pub use source_import::{
     SourceImportMode, SourceImportOutcome, SourceImportPlan, SourceImportResult,
