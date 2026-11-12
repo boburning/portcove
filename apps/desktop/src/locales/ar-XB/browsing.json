@@ -25,6 +25,29 @@
     "refresh": "تحديث الخيارات",
     "unconfirmed": "تعذر على Portcove تأكيد حفظ اختيارك. حدّث الخيارات للتحقق."
   },
+  "library": {
+    "allPorts_zero": "جميع المنافذ ({{count, number}}) · المطابقة: {{matching, number}}",
+    "allPorts_one": "جميع المنافذ ({{count, number}}) · المطابقة: {{matching, number}}",
+    "allPorts_two": "جميع المنافذ ({{count, number}}) · المطابقة: {{matching, number}}",
+    "allPorts_few": "جميع المنافذ ({{count, number}}) · المطابقة: {{matching, number}}",
+    "allPorts_many": "جميع المنافذ ({{count, number}}) · المطابقة: {{matching, number}}",
+    "allPorts_other": "جميع المنافذ ({{count, number}}) · المطابقة: {{matching, number}}",
+    "choiceFiltered": "المنفذ المفضل لديك خارج عوامل التصفية هذه. يمكنك عرض المنافذ المطابقة أدناه.",
+    "choiceReadFailed": "تعذرت قراءة اختيارك للتنفيذ. تظل إجراءات التثبيت الحالية متاحة.",
+    "choiceStale": "لم يعد المنفذ الذي اخترته ضمن مجموعة اللعبة هذه. اختر منفذًا من القائمة.",
+    "choosePrompt": "اختر المنفذ الذي سيُعرض لهذه اللعبة. راجع تعليمات إعداده بشأن مواقع الحفظ المشتركة قبل التبديل.",
+    "chosen": "<name/> · اختيارك",
+    "chosenOutside": "<name/> · اختيارك · خارج عوامل التصفية الحالية",
+    "independence": "اختيار مشروع لا يحدد إصدارًا ولا ينقل الحفظ ولا يستبدل تثبيتًا آخر.",
+    "outside": "<name/> · خارج عوامل التصفية الحالية",
+    "portCount_zero": "{{count, number}} منفذ",
+    "portCount_one": "منفذ واحد ({{count, number}})",
+    "portCount_two": "منفذان ({{count, number}})",
+    "portCount_few": "{{count, number}} منافذ",
+    "portCount_many": "{{count, number}} منفذًا",
+    "portCount_other": "{{count, number}} منفذ",
+    "portsLabel": "منافذ {{title}}"
+  },
   "maintenance": {
     "offer": "العرض المُدار الحالي",
     "reconsider": "إعادة النظر عندما: <condition/>"

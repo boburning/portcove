@@ -1,4 +1,7 @@
 import { Fragment, useRef, type ReactNode } from "react";
+import type { TFunction } from "i18next";
+import { Trans } from "react-i18next";
+import { useAppTranslation } from "../../localization";
 import type { PortStatus } from "../../types";
 import { Button } from "../../components/ui/button";
 import { gameProjectLabel, gameTitle } from "../../port-identity";
@@ -62,6 +65,7 @@ function LibraryGame({
   onSelect: (portId: string, originKey?: string) => void;
   layout: CollectionLayout;
 }) {
+  const { t } = useAppTranslation("browsing");
   const preferences = organization?.snapshot?.preferred_port_by_game;
   const root = useRef<HTMLElement>(null);
   const restore = (trigger: HTMLButtonElement) =>
@@ -79,7 +83,7 @@ function LibraryGame({
       ref={root}
       tabIndex={-1}
       className="min-w-0"
-      aria-label={`${gameTitle(first)} ports`}
+      aria-label={t("library.portsLabel", { title: gameTitle(first) })}
       data-library-game-id={group.id}
       data-detail-return-group={group.id}
     >
@@ -90,20 +94,21 @@ function LibraryGame({
       )}
       <details className="mt-2 rounded-pc-md border border-pc-border px-3 py-2 text-sm">
         <summary data-focusable className="cursor-pointer">
-          All {group.ports.length} ports · {group.matchingPorts.length} matching
+          {t("library.allPorts", {
+            count: group.ports.length,
+            matching: group.matchingPorts.length,
+          })}
         </summary>
-        <p className="my-2 text-xs text-pc-muted-foreground">
-          Choosing a project does not select a release, transfer saves or replace another
-          installation.
-        </p>
+        <p className="my-2 text-xs text-pc-muted-foreground">{t("library.independence")}</p>
         {group.ports.map((port) => (
           <div key={port.id} className="grid gap-2 border-t border-pc-border py-3">
             <p>
-              {gameProjectLabel(port) || port.name}
-              {choice.preferredPortId === port.id ? " · Your choice" : ""}
-              {!group.matchingPorts.some((match) => match.id === port.id)
-                ? " · Outside current filters"
-                : ""}
+              <AlternativeName
+                t={t}
+                name={gameProjectLabel(port) || port.name}
+                chosen={choice.preferredPortId === port.id}
+                outside={!group.matchingPorts.some((match) => match.id === port.id)}
+              />
             </p>
             <ImplementationFacts port={port} status={statuses.get(port.id)} />
             <ImplementationChoice port={port} organization={organization} onSelected={restore} />
@@ -114,15 +119,18 @@ function LibraryGame({
               data-detail-origin={`library:alternative:${port.id}`}
               onClick={() => onSelect(port.id, `library:alternative:${port.id}`)}
             >
-              View {gameProjectLabel(port) || port.name}
+              <Trans
+                t={t}
+                i18nKey="alternatives.view"
+                components={{ name: <bdi>{gameProjectLabel(port) || port.name}</bdi> }}
+              />
             </Button>
           </div>
         ))}
       </details>
       {organization?.failure === "read" && (
         <p role="status" className="mt-2 text-xs text-pc-warning-foreground">
-          Your implementation choice could not be read. Existing installation actions remain
-          available.
+          {t("library.choiceReadFailed")}
         </p>
       )}
     </section>
@@ -144,6 +152,7 @@ function LibraryChoicePrompt({
   organization: Organization | undefined;
   restore: (trigger: HTMLButtonElement) => void;
 }) {
+  const { t } = useAppTranslation("browsing");
   const { element, visible } = useArtworkVisibility();
   const { display } = useArtwork(first.id, "cover", visible);
   return (
@@ -167,7 +176,7 @@ function LibraryChoicePrompt({
               {gameTitle(first)}
             </h2>
             <p className="collection-project text-pc-muted-foreground">
-              {group.ports.length} ports
+              {t("library.portCount", { count: group.ports.length })}
             </p>
           </div>
         </div>
@@ -175,10 +184,10 @@ function LibraryChoicePrompt({
       <div className="library-entry-footer">
         <p className="collection-state text-xs text-pc-muted-foreground">
           {choice.reason === "stale"
-            ? "Your chosen port is no longer in this game group. Choose a port from the list."
+            ? t("library.choiceStale")
             : choice.reason === "filtered"
-              ? "Your preferred port is outside these filters. You can view matching ports below."
-              : "Choose the port to show for this game. Check its setup instructions for shared save locations before switching."}
+              ? t("library.choiceFiltered")
+              : t("library.choosePrompt")}
         </p>
         <div className="collection-actions flex flex-wrap gap-2">
           {group.matchingPorts.map((port) => (
@@ -193,4 +202,24 @@ function LibraryChoicePrompt({
       </div>
     </article>
   );
+}
+
+/** One complete message per marker combination; the project name stays exact. */
+function AlternativeName({
+  t,
+  name,
+  chosen,
+  outside,
+}: {
+  t: TFunction<"browsing">;
+  name: string;
+  chosen: boolean;
+  outside: boolean;
+}) {
+  const components = { name: <bdi>{name}</bdi> };
+  if (chosen && outside)
+    return <Trans t={t} i18nKey="library.chosenOutside" components={components} />;
+  if (chosen) return <Trans t={t} i18nKey="library.chosen" components={components} />;
+  if (outside) return <Trans t={t} i18nKey="library.outside" components={components} />;
+  return <bdi>{name}</bdi>;
 }

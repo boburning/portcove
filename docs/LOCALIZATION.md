@@ -152,6 +152,8 @@ unless the copy change is intended and reviewed.
 | Game-file check summary (platform and channel labels follow the shared view-model migration)                                                                      | `features/browsing/GameFileObservationSummary.tsx`         | `gameFiles`         |
 | Matching versions for browsing filters (platform, channel and installation-method labels follow the shared view-model migration)                                  | `features/browsing/BrowsingMatchDetails.tsx`               | `browsing`          |
 | Other ports for a game and implementation facts (platform labels follow the shared view-model migration; requirement labels and edition titles stay catalog data) | `features/browsing/GameAlternatives.tsx`                   | `browsing`          |
+| Grouped library entries, alternative markers and implementation-choice prompts (project names stay exact)                                                         | `features/browsing/GroupedLibrary.tsx`                     | `browsing`          |
+| Game settings entry, reading and installation-changed states (Core failure text stays verbatim)                                                                   | `components/GameSettingsControl.tsx`                       | `gameSettings`      |
 | Discover card observations (readiness, acquisition and setup-route text follow their producers' migrations)                                                       | `features/port-actions/BrowsePortObservations.tsx`         | `browsing`          |
 | Navigation hints (keyboard key names stay literal)                                                                                                                | `components/ui.tsx`                                        | `common`            |
 | Failure technical details (codes, phases, messages and context values stay verbatim)                                                                              | `components/FailureDetails.tsx`                            | `common`            |
@@ -159,7 +161,7 @@ unless the copy change is intended and reviewed.
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-12 it
-reported 1,485 findings in 48 of 218 analyzed files, measured after the
+reported 1,469 findings in 46 of 218 analyzed files, measured after the
 migrations listed above and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
 and are migrated with the surface that renders them. The count is a work

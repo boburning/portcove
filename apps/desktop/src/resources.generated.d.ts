@@ -385,6 +385,21 @@ export default interface Resources {
       "refresh": "Refresh choices",
       "unconfirmed": "Portcove couldn’t confirm that your choice was saved. Refresh choices to check."
     },
+    "library": {
+      "allPorts_one": "All {{count, number}} port · {{matching, number}} matching",
+      "allPorts_other": "All {{count, number}} ports · {{matching, number}} matching",
+      "choiceFiltered": "Your preferred port is outside these filters. You can view matching ports below.",
+      "choiceReadFailed": "Your implementation choice could not be read. Existing installation actions remain available.",
+      "choiceStale": "Your chosen port is no longer in this game group. Choose a port from the list.",
+      "choosePrompt": "Choose the port to show for this game. Check its setup instructions for shared save locations before switching.",
+      "chosen": "<name/> · Your choice",
+      "chosenOutside": "<name/> · Your choice · Outside current filters",
+      "independence": "Choosing a project does not select a release, transfer saves or replace another installation.",
+      "outside": "<name/> · Outside current filters",
+      "portCount_one": "{{count, number}} port",
+      "portCount_other": "{{count, number}} ports",
+      "portsLabel": "{{title}} ports"
+    },
     "maintenance": {
       "offer": "Current managed offer",
       "reconsider": "Reconsider when: <condition/>"
@@ -802,6 +817,18 @@ export default interface Resources {
       "selectedHistory": "Selected-route check history",
       "selectedScope": "Selected port",
       "waiting": "Waiting for the previous check to finish."
+    }
+  },
+  "gameSettings": {
+    "control": {
+      "busy": "Finish the current operation before reviewing game settings.",
+      "heading": "Game settings",
+      "installationChanged": "This installation changed. Refresh its details before editing settings.",
+      "intro": "Check the settings offered by this installed version.",
+      "label": "Game settings",
+      "read": "Read game settings",
+      "reading": "Reading game settings…",
+      "reread": "Read settings again"
     }
   },
   "gameUpdates": {
