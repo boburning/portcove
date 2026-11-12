@@ -5,17 +5,16 @@ import type { FailureDisplay } from "../view-model";
 import { FailureDetails } from "./FailureDetails";
 import { NavigationHints } from "./ui";
 
-const presentation = (mutation_state: string): FailureDisplay =>
-  ({
-    mutation_state,
-    phase: "verify",
-    presentation_key: "fixture",
-    recovery_actions: [],
-    summary: "Core summary",
-    technical_context: {},
-    technical_message: "Core technical message",
-    tone: "error",
-  }) as FailureDisplay;
+const presentation = (mutation_state: string): FailureDisplay => ({
+  mutation_state,
+  phase: "verify",
+  presentation_key: "fixture",
+  recovery_actions: [],
+  summary: "Core summary",
+  technical_context: {},
+  technical_message: "Core technical message",
+  tone: "error",
+});
 
 async function inArabicPreview(render: () => string): Promise<string> {
   const { initializeLocalization } = await import("../localization");
