@@ -682,8 +682,37 @@ pub(crate) enum GamesCommand {
         #[arg(long = "item", value_name = "PORT_ID=PLAN_SHA256", required = true)]
         items: Vec<String>,
     },
-    /// Install every set-up-when-ready game that is ready now. Never launches a game.
+    /// Install every set-up-when-ready game that is ready now, and eligible games in
+    /// folders with automatic setup turned on. Never launches a game.
     SetupReady,
+    /// Turn automatic setup for one saved game-file folder on or off. Off by default.
+    FolderSetup {
+        /// Folder ID from `source roots`.
+        root_id: String,
+        /// existing-and-future, future-only (needs a complete current scan) or off.
+        #[arg(value_enum)]
+        mode: FolderSetupMode,
+    },
+    /// Choose which game to set up from a folder for files several games can use.
+    FolderSetupChoose {
+        /// Folder ID from `source roots`.
+        root_id: String,
+        /// Source profile of the files, as shown by `games setup-ready`.
+        #[arg(long = "files", value_name = "PROFILE_ID")]
+        profile_id: String,
+        /// Catalog port ID to set up for those files.
+        #[arg(long = "game", value_name = "PORT_ID")]
+        port_id: String,
+    },
+    /// List folders with automatic setup turned on; changes nothing.
+    FolderSetups,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub(crate) enum FolderSetupMode {
+    ExistingAndFuture,
+    FutureOnly,
+    Off,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]

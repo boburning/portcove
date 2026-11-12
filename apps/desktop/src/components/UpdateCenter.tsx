@@ -133,6 +133,7 @@ function useUpdateCenter({
   refreshDiagnostics,
   cleanupChanged = refreshDiagnostics,
   reviewedActivityId,
+  reviewedActivityRequest,
   onReviewActivity,
   perform,
   onLaunch,
@@ -151,6 +152,8 @@ function useUpdateCenter({
   refreshDiagnostics: () => Promise<unknown>;
   cleanupChanged?: () => Promise<unknown>;
   reviewedActivityId?: string | undefined;
+  /** Increments for each explicit reveal request, so repeats focus the row again. */
+  reviewedActivityRequest?: number | undefined;
   onReviewActivity?: (activityId: string) => void;
   perform?: Perform | undefined;
   onLaunch?: ((portId: string) => void) | undefined;
@@ -185,13 +188,17 @@ function useUpdateCenter({
   }, [reviewedActivity]);
   // "Show task" while Activity is already open changes only the reviewed ID; reveal
   // that row then. Mounting with a retained ID does not move focus.
-  const revealedFromElsewhere = useRef(reviewedActivityId);
+  const revealedFromElsewhere = useRef({
+    id: reviewedActivityId,
+    request: reviewedActivityRequest,
+  });
   useEffect(() => {
-    if (revealedFromElsewhere.current === reviewedActivityId) return;
-    revealedFromElsewhere.current = reviewedActivityId;
+    const previous = revealedFromElsewhere.current;
+    if (previous.id === reviewedActivityId && previous.request === reviewedActivityRequest) return;
+    revealedFromElsewhere.current = { id: reviewedActivityId, request: reviewedActivityRequest };
     if (!reviewedActivityId) return;
     return focusActivityRow(reviewedActivityId);
-  }, [reviewedActivityId]);
+  }, [reviewedActivityId, reviewedActivityRequest]);
   useEffect(() => {
     const refreshNow = () => setNowSeconds(Date.now() / 1000);
     refreshNow();

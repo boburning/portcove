@@ -803,6 +803,12 @@ export type OutputPendingSetups = PendingSetupRecord[];
 export type RetainedBuildAvailability = "verified" | "missing" | "changed" | "held" | "unavailable";
 export type OriginalAvailability = "verified" | "missing" | "changed";
 /**
+ * How current an observation is. A confirmed empty result is `Fresh`; an outage
+ * that falls back to earlier data is `Stale`, never an empty list.
+ */
+export type ProviderFreshness = "fresh" | "revalidated" | "stale";
+export type ProviderUpdateState = "current" | "newer_files" | "installed_file_removed" | "unavailable";
+/**
  * One documented outcome in the assessed scope, not a universal judgment about a project.
  */
 export type RecommendationOutcome =
@@ -947,6 +953,9 @@ export type PortReadiness =
       [k: string]: unknown;
     };
 export type OutputDesktopPortIntents = PortIntent[];
+export type OutputDesktopRootSetupConsent = RootSetupConsent | null;
+export type RootSetupEnrollment = "existing_and_future" | "future_only";
+export type OutputDesktopRootSetupConsents = RootSetupConsent[];
 export type SteamArtworkRoleAction =
   "write" | "replace" | "preserve" | "unchanged" | "unavailable" | "remove" | "preserve_modified" | "absent";
 /**
@@ -1086,6 +1095,8 @@ export interface TransportOutputs {
   preparation_plan: OutputPreparationPlan;
   profile_inventory: OutputProfileInventory;
   profile_revision: ProfileRevision;
+  provider_install_plan: OutputProviderInstallPlan;
+  provider_update_observation: OutputProviderUpdateObservation;
   recommendation_metadata: OutputRecommendationMetadata;
   reconcile_batch_outcome: OutputReconcileBatchOutcome;
   reconcile_result: ReconcileResult;
@@ -1166,6 +1177,8 @@ export interface TransportOutputs {
   desktop_port_intents: OutputDesktopPortIntents;
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
+  desktop_root_setup_consent: OutputDesktopRootSetupConsent;
+  desktop_root_setup_consents: OutputDesktopRootSetupConsents;
   desktop_setup_launch_targets: OutputSetupLaunchTargets;
   desktop_source_reuse_review: OutputSourceReuseReview;
   desktop_source_verification_outcome: OutputSourceBatchOutcome;
@@ -2282,6 +2295,12 @@ export interface CuratedAcquisitionRecord {
   filename: string;
   independent_review: CuratedEvidenceReference;
   platform: Platform;
+  /**
+   * Record version 2 only: authorized alternate transports for the same
+   * accepted bytes (#1306). Locations are never identity or authority; the
+   * accepted size and SHA-256 above still decide every acquisition.
+   */
+  preserved_locations?: string[];
   protected_acceptance: CuratedEvidenceReference;
   record_version: number;
   release_id: number;
@@ -4492,6 +4511,104 @@ export interface OriginalStatus {
   binding: OriginalBinding;
   [k: string]: unknown;
 }
+export interface OutputProviderInstallPlan {
+  conflicts: AssetConflict[];
+  conflicts_truncated: boolean;
+  /**
+   * Computed from the actual downloaded bytes.
+   */
+  download_sha256: string;
+  download_size: number;
+  /**
+   * Profile revision this plan was reviewed against.
+   */
+  expected_revision: number;
+  file: ProviderFileCandidate;
+  /**
+   * Entries of the provider's wrapper that are not packages and were not read.
+   */
+  ignored_entries: number;
+  members: PlanMember[];
+  plan_sha256: string;
+  port_id: string;
+  profile_id: string;
+  project_name: string;
+  provider: ProviderPackageRef;
+  /**
+   * Installed packages with the same native ID but different bytes.
+   */
+  replaces: string[];
+  /**
+   * What this plan relies on without verifying.
+   */
+  unverified_claims: string[];
+  [k: string]: unknown;
+}
+/**
+ * Several packages claim the same asset path.
+ */
+export interface AssetConflict {
+  path: string;
+  /**
+   * Packages providing the path, in the supplied precedence order.
+   */
+  providers: string[];
+  /**
+   * The provider that takes effect under that order.
+   */
+  winner: string;
+  [k: string]: unknown;
+}
+/**
+ * A provider's own claims about one downloadable file. The checksum is the
+ * provider's claim; an MD5 or any provider-supplied digest never authenticates
+ * a publisher.
+ */
+export interface ProviderFileCandidate {
+  added_at: number;
+  archived: boolean;
+  claimed_md5: string | null;
+  /**
+   * Provider scan outcomes, as claimed ("clean", "infected", ...). Not an assurance.
+   */
+  claimed_scan: string | null;
+  /**
+   * Canonical download location derived from `file_id`, never a provider-supplied URL.
+   */
+  download_url: string;
+  /**
+   * Provider file identity; distinct from the project and from any version label.
+   */
+  file_id: string;
+  file_name: string;
+  size: number;
+  [k: string]: unknown;
+}
+export interface PlanMember {
+  asset_count: number;
+  file_name: string;
+  sha256: string;
+  size: number;
+  [k: string]: unknown;
+}
+export interface OutputProviderUpdateObservation {
+  freshness: ProviderFreshness | null;
+  installed_version: string | null;
+  native_id: string;
+  /**
+   * Candidates in ascending file-ID order; more than one is ambiguous.
+   */
+  newer_files: ProviderFileCandidate[];
+  observed_version: string | null;
+  provider: ProviderPackageRef;
+  reason: string | null;
+  state: ProviderUpdateState;
+  /**
+   * False with `NewerFiles` means files changed under an unchanged version label.
+   */
+  version_changed: boolean;
+  [k: string]: unknown;
+}
 export interface OutputRecommendationMetadata {
   capabilities: RecommendationCapabilityObservation[];
   format_version: number;
@@ -5140,6 +5257,43 @@ export interface PortIntentAssessment {
   suppressed?: string | null;
   [k: string]: unknown;
 }
+export interface RootSetupConsent {
+  enabled_at: number;
+  enrollment: RootSetupEnrollment;
+  /**
+   * Files remembered as already in the folder (future-only); they are never
+   * set up by this choice.
+   */
+  existing_files: number;
+  failures?: RootSetupFailure[];
+  format_version: number;
+  /**
+   * Explicit implementation choices. Files several games can use wait
+   * until one is chosen; Portcove never sets up every fork.
+   */
+  implementations?: RootSetupImplementation[];
+  root_id: string;
+  updated_at: number;
+  [k: string]: unknown;
+}
+export interface RootSetupFailure {
+  attempts: number;
+  /**
+   * The install plan, or `source:` and the file, that failed.
+   */
+  plan_sha256: string;
+  port_id: string;
+  reason: string;
+  [k: string]: unknown;
+}
+/**
+ * The game the player chose for files that several implementations can use.
+ */
+export interface RootSetupImplementation {
+  port_id: string;
+  profile_id: string;
+  [k: string]: unknown;
+}
 /**
  * What one standing-setup pass did for each game it considered.
  */
@@ -5158,11 +5312,27 @@ export interface OutputDesktopStandingSetup {
    */
   failures: StandingSetupFailure[];
   not_assessed: number;
+  /**
+   * Matched files in folders with automatic setup that wait for a person
+   * or a requirement.
+   */
+  root_waiting?: RootSetupWaiting[];
   [k: string]: unknown;
 }
 export interface StandingSetupFailure {
   port_id: string;
   reason: string;
+  [k: string]: unknown;
+}
+/**
+ * An eligible-looking file in a consented folder that is waiting for a person
+ * or a requirement.
+ */
+export interface RootSetupWaiting {
+  port_id?: string | null;
+  profile_id: string;
+  reason: string;
+  root_id: string;
   [k: string]: unknown;
 }
 export interface OutputDesktopSteamArtworkApplyResult {

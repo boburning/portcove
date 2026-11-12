@@ -128,6 +128,10 @@ pub struct StandingSetupResult {
     pub batches: Vec<InstallBatchRecord>,
     /// Games that could not start; the others were not affected.
     pub failures: Vec<StandingSetupFailure>,
+    /// Matched files in folders with automatic setup that wait for a person
+    /// or a requirement.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub root_waiting: Vec<crate::RootSetupWaiting>,
 }
 
 impl PortIntent {
@@ -458,6 +462,7 @@ impl PortcoveService {
                     not_assessed: 0,
                     batches: Vec::new(),
                     failures: Vec::new(),
+                    root_waiting: Vec::new(),
                 });
             }
             Err(error) => return Err(error),
@@ -470,6 +475,12 @@ impl PortcoveService {
             .collect::<std::collections::BTreeSet<_>>();
         let mut batches = Vec::new();
         let mut failures = Vec::new();
+        // Games with their own remembered choice are never handled by folder consent.
+        let mut handled = assessed
+            .assessments
+            .iter()
+            .map(|assessment| assessment.port_id.clone())
+            .collect::<std::collections::BTreeSet<_>>();
         for assessment in &assessed.assessments {
             let PortReadiness::Ready { plan_sha256, .. } = &assessment.readiness else {
                 continue;
@@ -499,12 +510,24 @@ impl PortcoveService {
                 }
             }
         }
+        // A folder pass error leaves the per-game results intact.
+        let root_waiting = match self
+            .run_root_setup(&busy, &mut handled, &mut batches, &mut failures, &mut emit)
+            .await
+        {
+            Ok(waiting) => waiting,
+            Err(error) => {
+                tracing::warn!(error = %error.message, "folder setup pass did not finish");
+                Vec::new()
+            }
+        };
         Ok(StandingSetupResult {
             already_running: false,
             assessments: assessed.assessments,
             not_assessed: assessed.not_assessed,
             batches,
             failures,
+            root_waiting,
         })
     }
 

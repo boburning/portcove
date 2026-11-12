@@ -4948,6 +4948,13 @@
           "platform": {
             "$ref": "#/$defs/Platform"
           },
+          "preserved_locations": {
+            "description": "Record version 2 only: authorized alternate transports for the same\naccepted bytes (#1306). Locations are never identity or authority; the\naccepted size and SHA-256 above still decide every acquisition.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "protected_acceptance": {
             "$ref": "#/$defs/CuratedEvidenceReference"
           },
@@ -29898,6 +29905,13 @@
           "platform": {
             "$ref": "#/$defs/Platform"
           },
+          "preserved_locations": {
+            "description": "Record version 2 only: authorized alternate transports for the same\naccepted bytes (#1306). Locations are never identity or authority; the\naccepted size and SHA-256 above still decide every acquisition.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "protected_acceptance": {
             "$ref": "#/$defs/CuratedEvidenceReference"
           },
@@ -37233,6 +37247,427 @@
     "title": "ProfileRevision",
     "type": "object"
   },
+  "provider_install_plan": {
+    "$defs": {
+      "AssetConflict": {
+        "description": "Several packages claim the same asset path.",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "providers": {
+            "description": "Packages providing the path, in the supplied precedence order.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "winner": {
+            "description": "The provider that takes effect under that order.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "providers",
+          "winner"
+        ],
+        "type": "object"
+      },
+      "PlanMember": {
+        "properties": {
+          "asset_count": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "file_name",
+          "sha256",
+          "size",
+          "asset_count"
+        ],
+        "type": "object"
+      },
+      "ProviderFileCandidate": {
+        "description": "A provider's own claims about one downloadable file. The checksum is the\nprovider's claim; an MD5 or any provider-supplied digest never authenticates\na publisher.",
+        "properties": {
+          "added_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "claimed_md5": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "claimed_scan": {
+            "description": "Provider scan outcomes, as claimed (\"clean\", \"infected\", ...). Not an assurance.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "download_url": {
+            "description": "Canonical download location derived from `file_id`, never a provider-supplied URL.",
+            "type": "string"
+          },
+          "file_id": {
+            "description": "Provider file identity; distinct from the project and from any version label.",
+            "type": "string"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "file_id",
+          "file_name",
+          "size",
+          "added_at",
+          "download_url",
+          "claimed_md5",
+          "archived",
+          "claimed_scan"
+        ],
+        "type": "object"
+      },
+      "ProviderPackageRef": {
+        "additionalProperties": false,
+        "description": "A provider's own coordinates. Provider IDs never double as native loader IDs.",
+        "properties": {
+          "file": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "project"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "conflicts": {
+        "items": {
+          "$ref": "#/$defs/AssetConflict"
+        },
+        "type": "array"
+      },
+      "conflicts_truncated": {
+        "type": "boolean"
+      },
+      "download_sha256": {
+        "description": "Computed from the actual downloaded bytes.",
+        "type": "string"
+      },
+      "download_size": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "expected_revision": {
+        "description": "Profile revision this plan was reviewed against.",
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "file": {
+        "$ref": "#/$defs/ProviderFileCandidate"
+      },
+      "ignored_entries": {
+        "description": "Entries of the provider's wrapper that are not packages and were not read.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "members": {
+        "items": {
+          "$ref": "#/$defs/PlanMember"
+        },
+        "type": "array"
+      },
+      "plan_sha256": {
+        "type": "string"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "profile_id": {
+        "type": "string"
+      },
+      "project_name": {
+        "type": "string"
+      },
+      "provider": {
+        "$ref": "#/$defs/ProviderPackageRef"
+      },
+      "replaces": {
+        "description": "Installed packages with the same native ID but different bytes.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "unverified_claims": {
+        "description": "What this plan relies on without verifying.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "port_id",
+      "profile_id",
+      "expected_revision",
+      "provider",
+      "project_name",
+      "file",
+      "download_sha256",
+      "download_size",
+      "members",
+      "ignored_entries",
+      "replaces",
+      "conflicts",
+      "conflicts_truncated",
+      "unverified_claims",
+      "plan_sha256"
+    ],
+    "title": "ProviderInstallPlan",
+    "type": "object"
+  },
+  "provider_update_observation": {
+    "$defs": {
+      "ProviderFileCandidate": {
+        "description": "A provider's own claims about one downloadable file. The checksum is the\nprovider's claim; an MD5 or any provider-supplied digest never authenticates\na publisher.",
+        "properties": {
+          "added_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "claimed_md5": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "claimed_scan": {
+            "description": "Provider scan outcomes, as claimed (\"clean\", \"infected\", ...). Not an assurance.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "download_url": {
+            "description": "Canonical download location derived from `file_id`, never a provider-supplied URL.",
+            "type": "string"
+          },
+          "file_id": {
+            "description": "Provider file identity; distinct from the project and from any version label.",
+            "type": "string"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "file_id",
+          "file_name",
+          "size",
+          "added_at",
+          "download_url",
+          "claimed_md5",
+          "archived",
+          "claimed_scan"
+        ],
+        "type": "object"
+      },
+      "ProviderFreshness": {
+        "description": "How current an observation is. A confirmed empty result is `Fresh`; an outage\nthat falls back to earlier data is `Stale`, never an empty list.",
+        "oneOf": [
+          {
+            "enum": [
+              "fresh"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "revalidated",
+            "description": "The provider confirmed its cached copy is unchanged (HTTP 304).",
+            "type": "string"
+          },
+          {
+            "const": "stale",
+            "description": "The provider could not be reached or is backing off; this is earlier data.",
+            "type": "string"
+          }
+        ]
+      },
+      "ProviderPackageRef": {
+        "additionalProperties": false,
+        "description": "A provider's own coordinates. Provider IDs never double as native loader IDs.",
+        "properties": {
+          "file": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "project"
+        ],
+        "type": "object"
+      },
+      "ProviderUpdateState": {
+        "oneOf": [
+          {
+            "const": "current",
+            "description": "The installed file is still offered and nothing newer exists.",
+            "type": "string"
+          },
+          {
+            "const": "newer_files",
+            "description": "One or more files were added after the installed one.",
+            "type": "string"
+          },
+          {
+            "const": "installed_file_removed",
+            "description": "The provider no longer offers the installed file.",
+            "type": "string"
+          },
+          {
+            "const": "unavailable",
+            "description": "No current observation: an outage, backoff or stale data. Not \"no update\".",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "freshness": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ProviderFreshness"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "installed_version": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "native_id": {
+        "type": "string"
+      },
+      "newer_files": {
+        "description": "Candidates in ascending file-ID order; more than one is ambiguous.",
+        "items": {
+          "$ref": "#/$defs/ProviderFileCandidate"
+        },
+        "type": "array"
+      },
+      "observed_version": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "provider": {
+        "$ref": "#/$defs/ProviderPackageRef"
+      },
+      "reason": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "state": {
+        "$ref": "#/$defs/ProviderUpdateState"
+      },
+      "version_changed": {
+        "description": "False with `NewerFiles` means files changed under an unchanged version label.",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "native_id",
+      "provider",
+      "state",
+      "installed_version",
+      "observed_version",
+      "version_changed",
+      "newer_files",
+      "freshness",
+      "reason"
+    ],
+    "title": "ProviderUpdateObservation",
+    "type": "object"
+  },
   "recommendation_metadata": {
     "$defs": {
       "ControlsOutcome": {
@@ -41371,6 +41806,13 @@
           },
           "platform": {
             "$ref": "#/$defs/Platform"
+          },
+          "preserved_locations": {
+            "description": "Record version 2 only: authorized alternate transports for the same\naccepted bytes (#1306). Locations are never identity or authority; the\naccepted size and SHA-256 above still decide every acquisition.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "protected_acceptance": {
             "$ref": "#/$defs/CuratedEvidenceReference"

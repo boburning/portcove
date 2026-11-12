@@ -23,7 +23,8 @@ const settleMilliseconds = 1500;
 const busyRetryMilliseconds = 30_000;
 
 /**
- * Catch-up for the player's standing set-up-when-ready choices: once a
+ * Catch-up for the player's standing set-up-when-ready choices and folders
+ * with automatic setup turned on: once a
  * library has loaded, whenever the catalog or registered files change, and
  * whenever a choice is saved. Core decides which games are ready, re-plans and
  * authorizes each one, allows one pass at a time and never launches a game;
@@ -55,8 +56,11 @@ export function useStandingSetupCatchUp(
     running.current = true;
     const expected = generation;
     try {
-      const intents = await desktopApi.portIntents(expected);
-      if (intents.some((intent) => intent.mode === "set_up_when_ready")) {
+      const [intents, folders] = await Promise.all([
+        desktopApi.portIntents(expected),
+        desktopApi.rootSetupConsents(expected),
+      ]);
+      if (folders.length || intents.some((intent) => intent.mode === "set_up_when_ready")) {
         const result = await desktopApi.runStandingSetup(expected, () => undefined);
         if (result.batches.length && current.current === expected) await changed.current();
         // Another window or the CLI is running a pass; check again after it.

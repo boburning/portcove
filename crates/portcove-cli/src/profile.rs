@@ -113,6 +113,39 @@ pub(crate) enum ProfileCommand {
         /// Catalog port ID.
         port_id: String,
     },
+    /// Check installed GameBanana packages for newer files, same-version changes or removals.
+    ProviderUpdates {
+        /// Catalog port ID owning the profile.
+        port_id: String,
+        /// Profile ID from `profile list`.
+        profile_id: String,
+    },
+    /// Review one GameBanana file for a profile: downloads privately, inspects, prints the plan.
+    ProviderPlan {
+        /// Catalog port ID owning the profile.
+        port_id: String,
+        /// Profile ID from `profile list`.
+        profile_id: String,
+        /// GameBanana Mod ID.
+        project_id: u64,
+        /// GameBanana file ID from the project's file list.
+        file_id: u64,
+    },
+    /// Install exactly the reviewed plan; changed bytes or a newer revision refuse.
+    ProviderApply {
+        /// Catalog port ID owning the profile.
+        port_id: String,
+        /// Profile ID from `profile list`.
+        profile_id: String,
+        /// JSON plan saved from `profile provider-plan`.
+        plan_file: PathBuf,
+        /// `plan_sha256` of the plan you reviewed.
+        #[arg(long)]
+        expected_plan: String,
+        /// Confirm the reviewed install without a prompt; the digest check still applies.
+        #[arg(long)]
+        yes: bool,
+    },
     /// Append a successor revision from a reviewed JSON request file (`-` reads stdin).
     Revise {
         /// Catalog port ID owning the profile.
@@ -137,15 +170,78 @@ impl ProfileCommand {
             Self::SetPackage { .. } => "profile.set-package",
             Self::Activate { .. } => "profile.activate",
             Self::Live { .. } => "profile.live",
+            Self::ProviderUpdates { .. } => "profile.provider-updates",
+            Self::ProviderPlan { .. } => "profile.provider-plan",
+            Self::ProviderApply { .. } => "profile.provider-apply",
         }
     }
 
     pub(crate) fn mutates(&self) -> bool {
         !matches!(
             self,
-            Self::List { .. } | Self::Revisions { .. } | Self::Live { .. }
+            Self::List { .. }
+                | Self::Revisions { .. }
+                | Self::Live { .. }
+                | Self::ProviderUpdates { .. }
         )
     }
+}
+
+fn read_plan(path: &PathBuf) -> Result<portcove_core::ProviderInstallPlan> {
+    let mut bytes = Vec::new();
+    std::fs::File::open(path)?
+        .take(MAX_REQUEST_BYTES + 1)
+        .read_to_end(&mut bytes)?;
+    if bytes.len() as u64 > MAX_REQUEST_BYTES {
+        return Err(PortcoveError::usage("plan file exceeds 256 KiB"));
+    }
+    // `data` wrappers from `--json` output are accepted as well as the bare plan.
+    let value: serde_json::Value = serde_json::from_slice(&bytes)
+        .map_err(|error| PortcoveError::usage(format!("invalid plan file: {error}")))?;
+    let plan = value.get("data").cloned().unwrap_or(value);
+    serde_json::from_value(plan)
+        .map_err(|error| PortcoveError::usage(format!("invalid plan file: {error}")))
+}
+
+fn plan_text(plan: &portcove_core::ProviderInstallPlan) -> String {
+    let mut lines = vec![
+        format!(
+            "Review GameBanana install: {} (project {}, file {})",
+            clean(&plan.project_name),
+            clean(&plan.provider.project),
+            clean(&plan.file.file_id)
+        ),
+        format!(
+            "Download: {} bytes, SHA-256 {}",
+            plan.download_size,
+            clean(&plan.download_sha256)
+        ),
+    ];
+    for member in &plan.members {
+        lines.push(format!(
+            "  package {} ({} assets, {} bytes, SHA-256 {})",
+            clean(&member.file_name),
+            member.asset_count,
+            member.size,
+            clean(&member.sha256)
+        ));
+    }
+    for name in &plan.replaces {
+        lines.push(format!("  replaces installed {}", clean(name)));
+    }
+    for conflict in &plan.conflicts {
+        lines.push(format!(
+            "  asset {} is provided by {}; {} wins",
+            clean(&conflict.path),
+            conflict.providers.join(", "),
+            clean(&conflict.winner)
+        ));
+    }
+    for claim in &plan.unverified_claims {
+        lines.push(format!("  not verified: {}", clean(claim)));
+    }
+    lines.push(format!("Plan SHA-256: {}", clean(&plan.plan_sha256)));
+    lines.join("\n")
 }
 
 fn read_request(path: &PathBuf) -> Result<ProfileRevisionRequest> {
@@ -165,13 +261,99 @@ fn read_request(path: &PathBuf) -> Result<ProfileRevisionRequest> {
         .map_err(|error| PortcoveError::usage(format!("invalid revision request: {error}")))
 }
 
-pub(crate) fn execute(
+pub(crate) async fn execute(
     command: ProfileCommand,
     service: &PortcoveService,
     mode: OutputMode,
+    non_interactive: bool,
 ) -> Result<()> {
     let name = command.name();
     match command {
+        ProfileCommand::ProviderUpdates {
+            port_id,
+            profile_id,
+        } => {
+            let updates = service
+                .check_provider_updates(&port_id, &profile_id)
+                .await?;
+            render_read_success(mode, name, updates, |updates| {
+                if updates.is_empty() {
+                    return "No installed package came from a provider.".into();
+                }
+                updates
+                    .iter()
+                    .map(|update| {
+                        let candidates = update
+                            .newer_files
+                            .iter()
+                            .map(|file| clean(&file.file_id))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        format!(
+                            "{}: {:?}{}{}",
+                            clean(&update.native_id),
+                            update.state,
+                            if candidates.is_empty() {
+                                String::new()
+                            } else {
+                                format!(" (candidate files: {candidates})")
+                            },
+                            update
+                                .reason
+                                .as_deref()
+                                .map(|reason| format!(" — {}", clean(reason)))
+                                .unwrap_or_default()
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            })
+        }
+        ProfileCommand::ProviderPlan {
+            port_id,
+            profile_id,
+            project_id,
+            file_id,
+        } => {
+            let plan = service
+                .plan_provider_install(&port_id, &profile_id, project_id, file_id)
+                .await?;
+            render_read_success(mode, name, plan, plan_text)
+        }
+        ProfileCommand::ProviderApply {
+            port_id,
+            profile_id,
+            plan_file,
+            expected_plan,
+            yes,
+        } => {
+            let plan = read_plan(&plan_file)?;
+            if plan.port_id != port_id || plan.profile_id != profile_id {
+                return Err(PortcoveError::usage(
+                    "the plan was reviewed for a different port or profile",
+                ));
+            }
+            if plan.plan_sha256 != expected_plan {
+                return Err(PortcoveError::conflict(
+                    "the plan differs from the one you reviewed; review it again",
+                ));
+            }
+            if mode == OutputMode::Human {
+                println!("{}", plan_text(&plan));
+            }
+            crate::require_confirmation(
+                "Install exactly these reviewed packages into this profile?",
+                yes,
+                non_interactive,
+            )?;
+            let authorization = service.authorize_provider_install(&plan)?;
+            render_read_success(
+                mode,
+                name,
+                service.apply_provider_install(&plan, &authorization.token)?,
+                |revision| format!("Packages installed\n{}", revision_line(revision)),
+            )
+        }
         ProfileCommand::List { port_id } => {
             render_read_success(mode, name, service.profile_inventory(&port_id)?, inventory)
         }

@@ -49,6 +49,7 @@ export function DetailLayout({
   backLabel,
   favoriteControl,
   managementSupplement,
+  supplementSection,
   port,
   projectUrl,
   openSupport,
@@ -70,6 +71,8 @@ export function DetailLayout({
   favoriteControl?: ReactNode;
   /** Maintenance content (catalog checks) shown at the top of the management section. */
   managementSupplement?: ReactNode;
+  /** Where the supplement opens; defaults to the management section. */
+  supplementSection?: DetailSection | undefined;
   port: Identity;
   projectUrl?: string | undefined;
   openSupport?: (() => void) | undefined;
@@ -395,7 +398,7 @@ export function DetailLayout({
             ) : (
               <>
                 {/* Catalog checks are maintenance; they live with management, not the hero. */}
-                {section === managementSection && managementSupplement && (
+                {section === (supplementSection ?? managementSection) && managementSupplement && (
                   <div className="detail-management-supplement mb-6">{managementSupplement}</div>
                 )}
                 {panels[section]}

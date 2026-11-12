@@ -8862,6 +8862,248 @@
     "title": "BatchOutcome",
     "type": "object"
   },
+  "root_setup_consent": {
+    "$defs": {
+      "RootSetupConsent": {
+        "properties": {
+          "enabled_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "enrollment": {
+            "$ref": "#/$defs/RootSetupEnrollment"
+          },
+          "existing_files": {
+            "default": 0,
+            "description": "Files remembered as already in the folder (future-only); they are never\nset up by this choice.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "failures": {
+            "items": {
+              "$ref": "#/$defs/RootSetupFailure"
+            },
+            "type": "array"
+          },
+          "format_version": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "implementations": {
+            "description": "Explicit implementation choices. Files several games can use wait\nuntil one is chosen; Portcove never sets up every fork.",
+            "items": {
+              "$ref": "#/$defs/RootSetupImplementation"
+            },
+            "type": "array"
+          },
+          "root_id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "format_version",
+          "root_id",
+          "enrollment",
+          "enabled_at",
+          "updated_at",
+          "existing_files"
+        ],
+        "type": "object"
+      },
+      "RootSetupEnrollment": {
+        "oneOf": [
+          {
+            "const": "existing_and_future",
+            "description": "Eligible games already in the folder and any found later.",
+            "type": "string"
+          },
+          {
+            "const": "future_only",
+            "description": "Only games whose files were not in the folder when consent was given.",
+            "type": "string"
+          }
+        ]
+      },
+      "RootSetupFailure": {
+        "properties": {
+          "attempts": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "plan_sha256": {
+            "description": "The install plan, or `source:` and the file, that failed.",
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "plan_sha256",
+          "attempts",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "RootSetupImplementation": {
+        "description": "The game the player chose for files that several implementations can use.",
+        "properties": {
+          "port_id": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "port_id"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "anyOf": [
+      {
+        "$ref": "#/$defs/RootSetupConsent"
+      },
+      {
+        "type": "null"
+      }
+    ],
+    "title": "Nullable_RootSetupConsent"
+  },
+  "root_setup_consents": {
+    "$defs": {
+      "RootSetupConsent": {
+        "properties": {
+          "enabled_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "enrollment": {
+            "$ref": "#/$defs/RootSetupEnrollment"
+          },
+          "existing_files": {
+            "default": 0,
+            "description": "Files remembered as already in the folder (future-only); they are never\nset up by this choice.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "failures": {
+            "items": {
+              "$ref": "#/$defs/RootSetupFailure"
+            },
+            "type": "array"
+          },
+          "format_version": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "implementations": {
+            "description": "Explicit implementation choices. Files several games can use wait\nuntil one is chosen; Portcove never sets up every fork.",
+            "items": {
+              "$ref": "#/$defs/RootSetupImplementation"
+            },
+            "type": "array"
+          },
+          "root_id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "format_version",
+          "root_id",
+          "enrollment",
+          "enabled_at",
+          "updated_at",
+          "existing_files"
+        ],
+        "type": "object"
+      },
+      "RootSetupEnrollment": {
+        "oneOf": [
+          {
+            "const": "existing_and_future",
+            "description": "Eligible games already in the folder and any found later.",
+            "type": "string"
+          },
+          {
+            "const": "future_only",
+            "description": "Only games whose files were not in the folder when consent was given.",
+            "type": "string"
+          }
+        ]
+      },
+      "RootSetupFailure": {
+        "properties": {
+          "attempts": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "plan_sha256": {
+            "description": "The install plan, or `source:` and the file, that failed.",
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "plan_sha256",
+          "attempts",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "RootSetupImplementation": {
+        "description": "The game the player chose for files that several implementations can use.",
+        "properties": {
+          "port_id": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "port_id"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "$ref": "#/$defs/RootSetupConsent"
+    },
+    "title": "Array_of_RootSetupConsent",
+    "type": "array"
+  },
   "setup_launch_targets": {
     "$defs": {
       "SetupLaunchTarget": {
@@ -12898,6 +13140,32 @@
           }
         ]
       },
+      "RootSetupWaiting": {
+        "description": "An eligible-looking file in a consented folder that is waiting for a person\nor a requirement.",
+        "properties": {
+          "port_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "root_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "root_id",
+          "profile_id",
+          "reason"
+        ],
+        "type": "object"
+      },
       "StandingSetupFailure": {
         "properties": {
           "port_id": {
@@ -12945,6 +13213,13 @@
         "format": "uint32",
         "minimum": 0,
         "type": "integer"
+      },
+      "root_waiting": {
+        "description": "Matched files in folders with automatic setup that wait for a person\nor a requirement.",
+        "items": {
+          "$ref": "#/$defs/RootSetupWaiting"
+        },
+        "type": "array"
       }
     },
     "required": [
@@ -15859,6 +16134,13 @@
           },
           "platform": {
             "$ref": "#/$defs/Platform"
+          },
+          "preserved_locations": {
+            "description": "Record version 2 only: authorized alternate transports for the same\naccepted bytes (#1306). Locations are never identity or authority; the\naccepted size and SHA-256 above still decide every acquisition.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "protected_acceptance": {
             "$ref": "#/$defs/CuratedEvidenceReference"

@@ -18,7 +18,8 @@ import { MaintenanceStoreError, runSql } from "./maintenance-store.mts";
 import { attentionConditions } from "./maintenance-release-health.mts";
 import { upstreamExceptions } from "./maintenance-upstream.mts";
 import { hostedIntakeAttention, type HostedIntakeFact } from "./maintenance-hosted-intake.mts";
-import { originalLocationReasons } from "./check-catalog-repositories.mts";
+import { originalLocationReasons } from "./upstream-location-reasons.mts";
+import { isRecord } from "./runtime-values.mts";
 
 /** Stored as each handoff assessment's policy version. */
 export const handoffPolicyVersion = "maintenance-handoffs/1";
@@ -474,15 +475,58 @@ export function readOpenHandoffs(environment: NodeJS.ProcessEnv) {
   }
 }
 
+/**
+ * The action, invocation and resume condition shown for one handoff: its
+ * registry entry's, except for release-health conditions (relocation or other)
+ * the monitor already records as accounted for (`accounted_for`, a reviewed
+ * scope that its triage still keeps visible). Those need no new relocation
+ * evidence or accounting, so the monitor's own recorded `resume_condition`
+ * replaces that prescription.
+ */
+export function handoffGuidance(entry: HandoffEntry, condition: unknown) {
+  const guidance = {
+    action: entry.action,
+    invocation: entry.invocation,
+    resume_condition: entry.resume_condition,
+  };
+  if (entry.kind !== "release-health-condition" && entry.kind !== "release-health-relocation")
+    return guidance;
+  const conditions = (condition as { conditions?: unknown } | null)?.conditions;
+  const listed: unknown[] = Array.isArray(conditions) ? conditions : [];
+  const accounted = listed.filter(
+    (value): value is Record<string, unknown> => isRecord(value) && value.accounted_for === true,
+  );
+  if (!accounted.length) return guidance;
+  const text = (value: unknown, fallback: string) => (typeof value === "string" ? value : fallback);
+  const recorded = accounted
+    .map(
+      ({ rule, location, resume_condition }) =>
+        `${text(rule, "unknown rule")} at ${text(location, "unknown location")}: ${text(resume_condition, "no resume condition recorded")}`,
+    )
+    .join("; ");
+  if (accounted.length < listed.length)
+    return {
+      ...guidance,
+      action: `${entry.action} Already accounted for by reviewed scope (no new relocation evidence or accounting): ${recorded}`,
+    };
+  return {
+    action:
+      "The monitor records this condition as accounted for by reviewed scope; no new relocation evidence or accounting is needed. Follow its recorded resume condition.",
+    invocation:
+      "The condition's recorded resume_condition; the next scheduled run of upstream-health.yml on main reports the result",
+    resume_condition: recorded,
+  };
+}
+
 /** The report's "Next action" text for one open handoff. */
 export function nextAction(handoff: OpenHandoff) {
   const entry = handoff.registry;
   const operation = handoff.operation
     ? `operation ${handoff.operation.operation_id} ${handoff.operation.state} at fence ${handoff.operation.fence_sequence}${handoff.operation.fence_sequence === handoff.sequence ? "" : ` (stale; current ${handoff.sequence})`}`
     : `no operation recorded (fence ${handoff.sequence})`;
-  return entry
-    ? `${entry.action} Invocation: ${entry.invocation}. Authority: ${entry.authority}. Dispatch disabled: ${entry.disabled_reason} Resume: ${entry.resume_condition} Receipt: ${entry.receipt} ${operation}.`
-    : `Unregistered handoff kind ${handoff.kind}; dispatch disabled. ${operation}.`;
+  if (!entry) return `Unregistered handoff kind ${handoff.kind}; dispatch disabled. ${operation}.`;
+  const guidance = handoffGuidance(entry, handoff.condition);
+  return `${guidance.action} Invocation: ${guidance.invocation}. Authority: ${entry.authority}. Dispatch disabled: ${entry.disabled_reason} Resume: ${guidance.resume_condition} Receipt: ${entry.receipt} ${operation}.`;
 }
 
 /**
