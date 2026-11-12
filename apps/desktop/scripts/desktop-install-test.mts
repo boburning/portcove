@@ -928,7 +928,17 @@ export async function installScenarios({
     };
     const click = async (label: string) => {
       const element = await visibleButton(label);
-      await browser.wait(until.elementIsEnabled(element), 15_000);
+      // Base UI keeps busy actions focusable: `disabled` stays false while
+      // aria-disabled/aria-busy mark them inert, and the busy layout can place a
+      // neighbouring control under the click point.
+      await browser.wait(
+        async () =>
+          (await element.isEnabled()) &&
+          (await element.getAttribute("aria-disabled")) !== "true" &&
+          (await element.getAttribute("aria-busy")) !== "true",
+        15_000,
+        `${label} did not become actionable`,
+      );
       await executeBrowserScript(
         browser,
         'arguments[0].scrollIntoView({block:"center"});',
@@ -1227,9 +1237,15 @@ export async function installScenarios({
       browser = await restartApplication(`acquisition-${version}`, async () => {
         assert.equal(liveGame, undefined, "No live game may survive fixture publication");
         for (const original of [ownedFixture.artifactPath, ownedFixture.catalogPath]) {
+          // Each publication replaces the ~2.9 MB fixture catalog. Its pre-publication
+          // copy stays bound by SHA-256 in the run's inputs, but takes a suffix outside
+          // the retained evidence extensions: three raw copies alone would exceed the
+          // 12 MiB native evidence bound, so a complete journey could never be retained.
           const snapshot = path.join(
             output,
-            `acquisition-${version}-before-${path.basename(original)}`,
+            `acquisition-${version}-before-${path.basename(original)}${
+              original === ownedFixture.catalogPath ? ".hash-bound" : ""
+            }`,
           );
           await copyFile(original, snapshot);
           const index = inputs.findIndex((item) => item.path === original);

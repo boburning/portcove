@@ -229,7 +229,16 @@ application correctly refuses to start there. With owner approval (2026-11-12,
 #4879), each group first downloads Microsoft's Evergreen bootstrapper, requires a
 valid Microsoft Authenticode signature before running it, records its digest and
 the before/after runtime versions, and refuses to continue below the floor.
-Driver bootstrap then matches the updated runtime. This makes the fixture
+Driver bootstrap then matches the updated runtime. On the elevated runner
+WebView2 ignores the driver's `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`, so the
+step also sets the WebView2 `AdditionalBrowserArguments` machine policy for
+`portcove-desktop.exe` to `--remote-debugging-port=0`; without it no session can
+be created. Groups also enable process-creation auditing, and a failed group
+prints bounded startup diagnostics, scenario failures and its largest retained
+outputs. The acquisition journey calibrates its WebDriver script budget from 15 s
+to 60 s for the debug build's IPC status reads and records the slowest read. Its
+pre-publication catalog copies stay SHA-256 bound but are not retained, since
+three raw ~2.9 MB copies exceed the 12 MiB evidence bound. This makes the fixture
 observable; Server 2022 with a provisioned runtime is not the Windows 11 26H2
 first-beta baseline.
 The update-acquisition group also observes #4879's automatic snapshot surfaces
