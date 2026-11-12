@@ -728,9 +728,10 @@ keeps only image and thumbnail URLs on `https://cdn2.steamgriddb.com`, bounds
 responses and counts, and maps missing, rejected, rate-limited (with `Retry-After`),
 unavailable and malformed responses to explicit outcomes. Responses do not mark
 animation, so the static-only filter relies on the provider until import decodes the
-image. Candidates are proposals
-with author attribution; they establish no game identity, selection or Steam write.
-No project key exists, and no CLI or Desktop surface exposes the client yet.
+image. Candidates are proposals with author attribution; they establish no game
+identity, selection or Steam write. No project key exists. The CLI's
+`artwork steamgriddb` commands are thin adapters that run the blocking client off the
+async runtime; no Desktop surface exposes it yet.
 
 Core owns independent cover/detail choices, copied local originals, deterministic
 generated fallbacks, bounded raster decoding and disposable thumbnails. SQLite

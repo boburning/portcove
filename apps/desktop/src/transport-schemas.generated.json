@@ -63936,6 +63936,142 @@
     "title": "PortStatus",
     "type": "object"
   },
+  "steamgriddb_candidates": {
+    "$defs": {
+      "DestinationArtworkRole": {
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner"
+        ],
+        "type": "string"
+      },
+      "SteamGridDbAuthor": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "steam64": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "steam64"
+        ],
+        "type": "object"
+      },
+      "SteamGridDbCandidate": {
+        "description": "A proposed static image for one role, with attribution. Not a selection.",
+        "properties": {
+          "author": {
+            "$ref": "#/$defs/SteamGridDbAuthor"
+          },
+          "height": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "mime": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/$defs/DestinationArtworkRole"
+          },
+          "score": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "style": {
+            "type": "string"
+          },
+          "thumb": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "width": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "url",
+          "thumb",
+          "mime",
+          "width",
+          "height",
+          "style",
+          "score",
+          "author"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "$ref": "#/$defs/SteamGridDbCandidate"
+    },
+    "title": "Array_of_SteamGridDbCandidate",
+    "type": "array"
+  },
+  "steamgriddb_games": {
+    "$defs": {
+      "SteamGridDbGame": {
+        "properties": {
+          "id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "verified": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "verified"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "$ref": "#/$defs/SteamGridDbGame"
+    },
+    "title": "Array_of_SteamGridDbGame",
+    "type": "array"
+  },
+  "steamgriddb_key_status": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "configured": {
+        "description": "Whether a player key is stored; the key itself is never returned.",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "configured"
+    ],
+    "title": "SteamGridDbKeyStatus",
+    "type": "object"
+  },
   "storage": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
