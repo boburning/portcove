@@ -2369,7 +2369,8 @@ matching Linux x64 sibling when independently enrolled. Use the
 [Tony Hawk’s Pro Skater 3 record](../crates/portcove-core/catalog/ports/alexbeav-tony-hawk-s-pro-skater-3-recomp.json)
 as the example. Keep the release selector, generated executable basename,
 original-disc profile and source contract explicit. Set the value to
-`true` for a required retail SCPH-1001 BIOS with its own profile and contract.
+`true` for a required retail SCPH-1001 or SCPH-5552 BIOS with its own profile
+and contract; the kit's `game.toml` names the BIOS configuration it builds with.
 Use `"bundled-openbios"` when the reviewed kit supplies and supports OpenBIOS.
 This projects the literal `--bios bios/openbios.bin` argument and rejects a
 retail BIOS profile. Use `"split-mods"` for the reviewed dual-platform kits
