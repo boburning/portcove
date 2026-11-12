@@ -260,6 +260,65 @@ describe("retained task recovery navigation", () => {
   );
 });
 
+it("reveals a task shown from elsewhere while Activity is open, but not a retained one on mount", async () => {
+  const record: ActivityRecord = {
+    id: "shown-task",
+    operation: "install",
+    target_kind: "port",
+    target_id: port.id,
+    status: "running",
+    started_at: 1,
+    finished_at: null,
+    message: null,
+    failure: null,
+    cancellation: null,
+  };
+  const renderTasks = (reviewedActivityId: string | undefined) => (
+    <UpdateCenter
+      section="tasks"
+      generation={1}
+      ports={[port]}
+      statuses={new Map()}
+      activities={[record]}
+      activityFeed={{
+        records: [record],
+        current_activity_ids: [record.id],
+        attention_required_activity_ids: [],
+        recovery_required_activity_ids: [],
+        active_and_actionable_complete: true,
+        terminal_history_complete: true,
+        terminal_history_count: 0,
+        terminal_history_limit: 20,
+      }}
+      reviewedActivityId={reviewedActivityId}
+      onReviewActivity={vi.fn()}
+      outcomes={[]}
+      diagnosticsRefreshing={false}
+      diagnosticsStale={false}
+      refreshDiagnostics={vi.fn()}
+      checkAll={vi.fn()}
+      onSelect={vi.fn()}
+      onOpenSettings={vi.fn()}
+    />
+  );
+  const host = document.body.appendChild(document.createElement("div"));
+  const outside = document.body.appendChild(document.createElement("button"));
+  outside.focus();
+  const result = await renderComponent(renderTasks("shown-task"), { container: host });
+  try {
+    const row = () => host.querySelector<HTMLElement>('[data-activity-id="shown-task"]')!;
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(row().contains(document.activeElement)).toBe(false);
+    await result.rerender(renderTasks(undefined));
+    await result.rerender(renderTasks("shown-task"));
+    await expect.poll(() => row().contains(document.activeElement)).toBe(true);
+  } finally {
+    await result.unmount();
+    host.remove();
+    outside.remove();
+  }
+});
+
 it("keeps the focused task and expanded diagnostics mounted through Activity regrouping", async () => {
   const record: ActivityRecord = {
     id: "settling-task",

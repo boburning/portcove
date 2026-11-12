@@ -84,7 +84,7 @@ it.each([null, "game-data/extract-info.json"])(
       />,
     );
     const region = page.getByRole("region", { name: "Game actions", exact: true });
-    await region.getByRole("button", { name: "Finish setup", exact: true }).click();
+    await region.getByRole("button", { name: "Open setup folder", exact: true }).click();
     expect(open).toHaveBeenCalledTimes(1);
     expect(launch).not.toHaveBeenCalled();
     await region.getByRole("button", { name: "Check setup again", exact: true }).click();

@@ -48,7 +48,7 @@ export type RevealDetailSection = (
 export function DetailLayout({
   backLabel,
   favoriteControl,
-  heroSupplement,
+  managementSupplement,
   port,
   projectUrl,
   openSupport,
@@ -68,8 +68,8 @@ export function DetailLayout({
 }: {
   backLabel?: string | undefined;
   favoriteControl?: ReactNode;
-  /** Secondary hero content that must not share the primary action row. */
-  heroSupplement?: ReactNode;
+  /** Maintenance content (catalog checks) shown at the top of the management section. */
+  managementSupplement?: ReactNode;
   port: Identity;
   projectUrl?: string | undefined;
   openSupport?: (() => void) | undefined;
@@ -294,7 +294,6 @@ export function DetailLayout({
               </Menu.Portal>
             </Menu.Root>
           </div>
-          {heroSupplement && <div className="detail-hero-supplement mt-4">{heroSupplement}</div>}
         </div>
       </GameHero>
       {attention && <div className="detail-attention my-3 text-sm">{attention(reveal)}</div>}
@@ -394,7 +393,13 @@ export function DetailLayout({
                 </aside>
               </div>
             ) : (
-              panels[section]
+              <>
+                {/* Catalog checks are maintenance; they live with management, not the hero. */}
+                {section === managementSection && managementSupplement && (
+                  <div className="detail-management-supplement mb-6">{managementSupplement}</div>
+                )}
+                {panels[section]}
+              </>
             )}
           </Tabs.Panel>
         ))}

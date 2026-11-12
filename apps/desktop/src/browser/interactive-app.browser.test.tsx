@@ -185,8 +185,10 @@ it.each(["dark", "light"])(
     const play = [...row.querySelectorAll<HTMLButtonElement>("button")].find(
       (button) => button.textContent === "Play",
     )!;
-    expect(play.dataset.variant).toBe("outline");
+    // Ready rows lead with the signature red Play, named for the game.
+    expect(play.dataset.variant).toBe("primary");
     expect(play.textContent).toBe("Play");
+    expect(play.getAttribute("aria-label")).toMatch(/^Play: /);
     play.focus();
     await expect.element(play).toHaveFocus();
     await settleCapture();

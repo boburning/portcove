@@ -783,7 +783,7 @@ function useWorkspace(props: WorkspaceProps) {
           (candidate) => gameGroupId(candidate) === gameGroupId(model.entry!),
         )}
         implementationControl={implementationControl}
-        heroSupplement={setupAvailabilityControl}
+        managementSupplement={setupAvailabilityControl}
         favoriteControl={
           model.status?.external_runtime
             ? renderSelectedPortFavoriteControl({
@@ -805,7 +805,7 @@ function useWorkspace(props: WorkspaceProps) {
       <>
         <SelectedPortPanel
           implementationControl={implementationControl}
-          heroSupplement={setupAvailabilityControl}
+          managementSupplement={setupAvailabilityControl}
           backLabel={detailBackLabel}
           favorites={favorites}
           extraFiles={
@@ -1051,8 +1051,10 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
                   invocations={model.operations.invocations}
                   operationEvents={model.operations.operationEvents}
                   dismissInvocation={model.operations.dismissInvocation}
+                  onActivity={model.ui.view === "updates"}
                   openActivity={(id) => {
                     model.ui.setReviewedActivityId(id);
+                    // Also selects the Tasks section, even when Activity is already open.
                     model.setPrimaryView("updates");
                   }}
                   error={model.operations.error}
@@ -1509,6 +1511,10 @@ function CurrentView({
         window.requestAnimationFrame(() => document.querySelector<HTMLElement>("main h1")?.focus());
       }}
       onBrowseCatalog={onAddGames}
+      onDiscover={() => {
+        ui.setView("catalog");
+        window.requestAnimationFrame(() => document.querySelector<HTMLElement>("main h1")?.focus());
+      }}
       onConnectGameFiles={() => {
         ui.setSettingsCategory("game-files");
         ui.setView("settings");
@@ -1729,7 +1735,7 @@ function renderSelectedPortFavoriteControl({
 
 function SelectedPortPanel({
   implementationControl,
-  heroSupplement,
+  managementSupplement,
   favorites,
   organization,
   openSupport,
@@ -1752,7 +1758,7 @@ function SelectedPortPanel({
   close,
 }: {
   implementationControl?: ReactNode;
-  heroSupplement?: ReactNode;
+  managementSupplement?: ReactNode;
   favorites: ReturnType<typeof useFavorites>;
   organization: ReturnType<typeof useOrganization>;
   openSupport: () => void;
@@ -1811,7 +1817,7 @@ function SelectedPortPanel({
   return (
     <DetailPanel
       backLabel={backLabel}
-      heroSupplement={heroSupplement}
+      managementSupplement={managementSupplement}
       favoriteControl={
         <>
           {implementationControl}

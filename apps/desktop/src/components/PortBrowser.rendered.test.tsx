@@ -266,6 +266,8 @@ describe("desktop components", () => {
         filter="all"
         setFilter={vi.fn()}
         onSelect={vi.fn()}
+        onDiscover={vi.fn()}
+        onBrowseCatalog={vi.fn()}
         loading={false}
       />,
     );
@@ -311,14 +313,24 @@ describe("desktop components", () => {
     expect(emptyLibrary).toContain("/brand/icons/portcove-mascot-transparent.png");
     expect(emptyLibrary).toContain('aria-hidden="true"');
     expect(emptyLibrary).toContain("Your library is empty");
-    expect(emptyLibrary).toContain("using your original files");
-    expect(emptyLibrary).toContain("Add games");
+    // First run explains Portcove plainly and leads with Discover.
+    expect(emptyLibrary).toContain("community-made versions of games, called ports");
+    expect(emptyLibrary).toContain("doesn’t upload them");
+    expect(emptyLibrary).toContain("your own copy of the original game");
+    const firstRunButtons = [...emptyLibrary.matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/gu)].map(
+      ([button]) => button,
+    );
+    expect(firstRunButtons[0]).toContain("Browse games");
+    expect(firstRunButtons[0]).toContain('data-variant="primary"');
+    expect(firstRunButtons.find((button) => button.includes("Add games"))).toContain(
+      'data-variant="outline"',
+    );
     expect(emptyLibrary).not.toContain('aria-label="Library readiness"');
     expect(emptyLibrary).not.toContain('aria-label="Library filters"');
     expect(emptyLibrary).toContain("copy a supported installation");
     expect(emptyLibrary.toLowerCase()).not.toContain("adopt");
     expect(emptyLibrary).not.toContain("Reset view");
-    expect(filteredEmptyLibrary).toContain("No matching library entries");
+    expect(filteredEmptyLibrary).toContain("Nothing in your library matches");
     expect(filteredEmptyLibrary).toContain('aria-label="Library filters"');
     expect(filteredEmptyLibrary).toContain("Reset view");
     expect(filteredEmptyLibrary).toContain(
@@ -394,8 +406,9 @@ describe("desktop components", () => {
       .match(/<button\b[^>]*>[\s\S]*?<\/button>/gu)
       ?.find((button) => button.endsWith(">Play</button>"));
     expect(play).toBeDefined();
-    expect(play).toContain('data-variant="outline"');
-    expect(play).not.toContain('data-variant="primary"');
+    // Ready cards lead with the signature red Play, named for the game.
+    expect(play).toContain('data-variant="primary"');
+    expect(play).toMatch(/aria-label="Play: [^"]+"/u);
     expect(html).not.toContain("Update channel: Stable");
     expect(html).toMatch(/<article class="port-card [^"]*\bport-card-library\b/u);
     expect(html).toContain(">Play</button>");

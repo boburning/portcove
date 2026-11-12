@@ -181,14 +181,17 @@ function useUpdateCenter({
   const updateReviewOwner = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!reviewedActivity) return;
-    const frame = window.requestAnimationFrame(() => {
-      const row = [...document.querySelectorAll<HTMLElement>("[data-activity-id]")].find(
-        (element) => element.dataset.activityId === reviewedActivity.id,
-      );
-      if (row) focusAndReveal(row);
-    });
-    return () => window.cancelAnimationFrame(frame);
+    return focusActivityRow(reviewedActivity.id);
   }, [reviewedActivity]);
+  // "Show task" while Activity is already open changes only the reviewed ID; reveal
+  // that row then. Mounting with a retained ID does not move focus.
+  const revealedFromElsewhere = useRef(reviewedActivityId);
+  useEffect(() => {
+    if (revealedFromElsewhere.current === reviewedActivityId) return;
+    revealedFromElsewhere.current = reviewedActivityId;
+    if (!reviewedActivityId) return;
+    return focusActivityRow(reviewedActivityId);
+  }, [reviewedActivityId]);
   useEffect(() => {
     const refreshNow = () => setNowSeconds(Date.now() / 1000);
     refreshNow();
@@ -1190,9 +1193,26 @@ function ActivityRow({
         {presentation.label}
       </span>
       {presentation.state === "unfinished" && (
-        <p className={activityDetailsClass}>
-          This task has not reported completion. Review its details before retrying.
-        </p>
+        <div className={activityDetailsClass}>
+          <p>
+            This task didn’t report whether it finished.{" "}
+            {target.portId
+              ? "Check the game’s current state before trying again."
+              : "Review its details before trying again."}
+          </p>
+          {/* A read-only look at current state; it never repeats the task. */}
+          {target.portId && !activity.failure && (
+            <Button
+              data-focusable
+              variant="link"
+              size="sm"
+              data-detail-origin={`updates:activity:${activity.id}:check`}
+              onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:check`)}
+            >
+              Check game
+            </Button>
+          )}
+        </div>
       )}
       {activity.status === "running" && operation && operation.type !== "finished" && (
         <div className={activityDetailsClass}>
@@ -1516,4 +1536,14 @@ function updateState(
       tone: "available",
     };
   return { label: "No update found at last check", tone: "current" };
+}
+
+function focusActivityRow(id: string) {
+  const frame = window.requestAnimationFrame(() => {
+    const row = [...document.querySelectorAll<HTMLElement>("[data-activity-id]")].find(
+      (element) => element.dataset.activityId === id,
+    );
+    if (row) focusAndReveal(row);
+  });
+  return () => window.cancelAnimationFrame(frame);
 }

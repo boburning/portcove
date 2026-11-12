@@ -161,7 +161,7 @@ it("keeps three primary Library groups and reveals restored advanced selections 
   const primary = panel.querySelector(":scope > .catalog-filter-groups")!;
   expect(
     [...primary.querySelectorAll(".compact-filter-field > span")].map((node) => node.textContent),
-  ).toEqual(["Target OS", "Original system", "Update channels"]);
+  ).toEqual(["Runs on", "Original system", "Update channels"]);
   const advanced = [...panel.querySelectorAll("details")].find(
     (details) => details.querySelector("summary")?.textContent === "Advanced filters",
   )!;
@@ -215,7 +215,7 @@ it.each([
 it("starts with ordinary filters and exposes technical groups on request", async () => {
   await render();
   await click("Filters (0)");
-  await expect.element(page.getByRole("button", { name: /^Target OS:/ })).toBeVisible();
+  await expect.element(page.getByRole("button", { name: /^Runs on:/ })).toBeVisible();
   expect(
     page.getByText("Advanced filters", { exact: true }).element().closest("details")?.open,
   ).toBe(false);
@@ -233,7 +233,7 @@ it("uses one inline panel and returns focus from Escape and Done without clearin
     .element(page.getByRole("heading", { name: "Discover filters", exact: true }))
     .toHaveFocus();
   await expect.element(page.getByRole("button", { name: /^Original system:/ })).toBeVisible();
-  await expect.element(page.getByRole("button", { name: /^Target OS:/ })).toBeVisible();
+  await expect.element(page.getByRole("button", { name: /^Runs on:/ })).toBeVisible();
   await click("Windows (1)");
   await closeFilterPanel();
   await expect
@@ -247,7 +247,7 @@ it("uses one inline panel and returns focus from Escape and Done without clearin
     .element(page.getByRole("button", { name: "Filters (1)", exact: true }))
     .toHaveFocus();
   expect(document.querySelector('[aria-label="Filter options"]')).toBeNull();
-  await page.getByRole("button", { name: "Remove Target OS: Windows filter", exact: true }).click();
+  await page.getByRole("button", { name: "Remove Runs on: Windows filter", exact: true }).click();
   await expect.element(trigger).toHaveFocus();
   expect(currentSearch).toBe("Both");
 });
@@ -298,7 +298,7 @@ it("keeps zero selections removable and returns focused chip to the trigger", as
   await click("Filters (1)");
   expect((await control("Apple silicon (0)")).getAttribute("aria-checked")).toBe("true");
   await click("Done");
-  const chip = await control("Remove Target OS: Apple silicon filter");
+  const chip = await control("Remove Runs on: Apple silicon filter");
   chip.focus();
   await act(async () => {
     chip.click();
@@ -306,7 +306,7 @@ it("keeps zero selections removable and returns focused chip to the trigger", as
   });
   expect(document.activeElement).toBe(await control("Filters (0)"));
   await click("Filters (0)");
-  await openField("Target OS");
+  await openField("Runs on");
   expect(document.querySelector('[role="checkbox"][aria-label="Apple silicon (0)"]')).toBeNull();
   expect((current as CatalogQuery).platforms).toEqual([]);
 });
@@ -367,7 +367,7 @@ it("keeps selections editable when candidate facts are unavailable instead of cl
     (group) => group.querySelector("legend")?.textContent === "Installation attention",
   );
   expect(attention?.textContent).toContain("Unavailable details remain unknown");
-  expect(await control("Remove Target OS: Linux filter")).toBeDefined();
+  expect(await control("Remove Runs on: Linux filter")).toBeDefined();
 });
 
 const install = (port_id: string) => ({
