@@ -8,7 +8,7 @@
     "apps_other": "{{count, number}} تطبيق",
     "becomesActive": "يصبح الإصدار النشط؛ يبقى <version/> مثبتًا.",
     "continue": "المتابعة إلى تأكيد النسخ",
-    "copying": "بانتظار التأكيد أو جارٍ النسخ…",
+    "copying": "جارٍ العمل…",
     "files_zero": "{{count, number}} ملف",
     "files_one": "ملف واحد ({{count, number}})",
     "files_two": "ملفان ({{count, number}})",

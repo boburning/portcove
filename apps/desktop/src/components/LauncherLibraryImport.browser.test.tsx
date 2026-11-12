@@ -320,8 +320,130 @@ it("never offers two launcher apps for the same game in one copy", async () => {
     await expect
       .element(page.getByRole("checkbox", { name: "Select Nightly to copy with others" }))
       .toBeDisabled();
+    // The reason is visible and linked to the checkbox.
+    await expect
+      .element(
+        page.getByText("Another app for this game is selected. Clear it to choose this one."),
+      )
+      .toBeVisible();
+    await expect
+      .element(page.getByRole("checkbox", { name: "Select Nightly to copy with others" }))
+      .toHaveAccessibleDescription(
+        "Another app for this game is selected. Clear it to choose this one.",
+      );
   } finally {
     await act(async () => root.unmount());
     container.remove();
+  }
+});
+
+async function renderWithEntries(
+  entries: LauncherLibraryEntry[],
+  copyBatch = vi.fn(async () => null as null | import("../types").AdoptionBatchResult),
+) {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const listed: LauncherLibraryInventory = { ...inventory, entries, skipped_entries: [] };
+  await act(async () =>
+    root.render(
+      <LauncherLibraryImport
+        disabled={false}
+        inspect={async () => listed}
+        choose={vi.fn()}
+        reviewBatch={vi.fn(async () => ({
+          items: entries.slice(0, 2).map((item) => ({
+            source: item.install_path!,
+            detected_port_ids: [item.adopt_port_id!],
+            selected_port_id: item.adopt_port_id!,
+            application_files_will_be_copied: true,
+            original_will_be_modified: false,
+            copy_plan: { directories: [], files: [], skipped_entries: [], total_bytes: 0 },
+            destination: null,
+            plan_sha256: "b".repeat(64),
+          })),
+          total_files: 0,
+          total_bytes: 0,
+          items_replacing_saved_files: 0,
+          original_will_be_modified: false,
+          batch_sha256: "c".repeat(64),
+        }))}
+        copyBatch={copyBatch}
+      />,
+    ),
+  );
+  await page.getByText("Moving from GitHub Launcher or Quiver?").click();
+  await userEvent.fill(page.getByLabelText("GitHub Launcher data folder"), "C:\\GHL");
+  await page.getByRole("button", { name: "List apps", exact: true }).click();
+  return async () => {
+    await act(async () => root.unmount());
+    container.remove();
+  };
+}
+
+it("caps a several-app copy at 32 apps and says why", async () => {
+  const entries = Array.from({ length: 33 }, (_, index) =>
+    entry({
+      index,
+      name: `App ${index}`,
+      folder_name: `App${index}`,
+      install_path: `C:\\Apps\\App${index}`,
+      adopt_port_id: `port-${index}`,
+    }),
+  );
+  const cleanup = await renderWithEntries(entries);
+  try {
+    for (let index = 0; index < 32; index += 1)
+      await page.getByRole("checkbox", { name: `Select App ${index} to copy with others` }).click();
+    await expect
+      .element(page.getByRole("checkbox", { name: "Select App 32 to copy with others" }))
+      .toBeDisabled();
+    const limit = "You can copy up to 32 apps at once. Clear one to choose this one.";
+    await expect.element(page.getByText(limit)).toBeVisible();
+    await expect
+      .element(page.getByRole("checkbox", { name: "Select App 32 to copy with others" }))
+      .toHaveAccessibleDescription(limit);
+  } finally {
+    await cleanup();
+  }
+});
+
+it("clears the selection after a copy so copied apps are not selected again", async () => {
+  const entries = [
+    entry({}),
+    entry({
+      index: 1,
+      name: "Second",
+      folder_name: "Second",
+      install_path: "C:\\Apps\\Second",
+      adopt_port_id: "second",
+    }),
+  ];
+  const copyBatch = vi.fn(async () => ({
+    batch_sha256: "c".repeat(64),
+    items: entries.map((item) => ({
+      source: item.install_path!,
+      port_id: item.adopt_port_id!,
+      outcome: "copied" as const,
+      install: null,
+      message: null,
+    })),
+  }));
+  const cleanup = await renderWithEntries(entries, copyBatch);
+  try {
+    await page.getByRole("checkbox", { name: "Select Game to copy with others" }).click();
+    await page.getByRole("checkbox", { name: "Select Second to copy with others" }).click();
+    await page.getByRole("button", { name: "Review copying the selected apps" }).click();
+    await page.getByRole("button", { name: "Continue to copy confirmation" }).click();
+    await expect.element(page.getByText("Copied 2 apps of 2.")).toBeVisible();
+    await expect
+      .element(page.getByRole("checkbox", { name: "Select Game to copy with others" }))
+      .not.toBeChecked();
+    await expect
+      .element(page.getByRole("checkbox", { name: "Select Second to copy with others" }))
+      .not.toBeChecked();
+  } finally {
+    await cleanup();
   }
 });

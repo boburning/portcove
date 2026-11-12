@@ -5,7 +5,7 @@
     "apps_other": "{{count, number}} aplicaciones",
     "becomesActive": "Pasa a ser la versión activa; <version/> sigue instalada.",
     "continue": "Continuar a la confirmación de copia",
-    "copying": "Esperando la confirmación o copiando…",
+    "copying": "Procesando…",
     "files_one": "{{count, number}} archivo",
     "files_many": "{{count, number}} archivos",
     "files_other": "{{count, number}} archivos",
