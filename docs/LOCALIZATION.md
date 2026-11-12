@@ -171,6 +171,7 @@ unless the copy change is intended and reviewed.
 | Several-game install batch: review, per-game plan and hold lines, combined space with plural verb agreement and a translatable list conjunction, running, results and item states (game names, versions and sizes stay exact; Core holds and item details stay verbatim)             | `components/InstallBatchPanel.tsx`                         | `installation`      |
 | Game-file setup review selection: heading, live selected/eligible counts, version-choice notes, per-game review and remove actions, and batch actions (game titles and project names stay exact)                                                                                     | `components/GameFileSetupReviews.tsx`                      | `gameFiles`         |
 | Catalog and Library filter panel: trigger, headings, explanations, restored-query notices per view, group and option labels, counts, help text and chips (system, platform, channel and setup-method names stay shared view-model labels)                                            | `features/browsing/CatalogFilters.tsx`                     | `gameFiles`         |
+| Discover cards and port comparison: card and identity labels with plural project counts, chip titles, favorites, drop targets, actions, and comparison headings, ownership and empty states (game and project names, system, platform and channel labels stay exact)                 | `features/browsing/GroupedDiscover.tsx`                    | `browsing`          |
 | Game settings panel and review: heading, unavailable states, editor hints and validation, review dialog, value labels and the installation-changed error (thrown already translated; setting and choice labels stay catalog data, Core failures stay verbatim)                       | `components/GameSettingsPanel.tsx`                         | `gameSettings`      |
 | Setups and mods: heading, explanations, mod-list sync notes, setup rows with plural counts, mod toggles, add and copy actions, outcomes and the app-owned game-changed error as a typed code (setup names, mod ids and provider names stay exact; Core failures stay verbatim)       | `components/ModSetupsControl.tsx`                          | `gameSettings`      |
 | Discover card observations (readiness, acquisition and setup-route text follow their producers' migrations)                                                                                                                                                                          | `features/port-actions/BrowsePortObservations.tsx`         | `browsing`          |
@@ -180,7 +181,7 @@ unless the copy change is intended and reviewed.
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-12 it
-reported 1,176 findings in 27 of 218 analyzed files, measured after the
+reported 1,157 findings in 26 of 218 analyzed files, measured after the
 migrations listed above and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
 and are migrated with the surface that renders them. The count is a work

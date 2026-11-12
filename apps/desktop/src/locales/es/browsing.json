@@ -14,6 +14,67 @@
     "view": "Ver <name/>",
     "viewing": "<name/> · Viendo"
   },
+  "discover": {
+    "action": {
+      "compare": "Comparar adaptaciones",
+      "compareAll": "Comparar las {{total}}",
+      "continue": "Continuar la configuración",
+      "installation": "Ver la instalación",
+      "port": "Ver la adaptación",
+      "task": "Ver la tarea",
+      "why": "¿Por qué esta adaptación?"
+    },
+    "cardLabel": "{{game}}. {{state}}.",
+    "chip": {
+      "channel": "Canal de actualización",
+      "platform": "Funciona en",
+      "system": "Sistema original"
+    },
+    "compare": {
+      "files": "Archivos necesarios",
+      "filesUnlisted": "Los requisitos no figuran aquí. Consulta las instrucciones de configuración del proyecto.",
+      "instructions": "Instrucciones del proyecto",
+      "noChannel": "No figura ningún canal de actualización.",
+      "noPlatform": "No figura ninguna plataforma.",
+      "options": "Opciones de comparación e informes",
+      "optionsIntro": "Los detalles de las funciones no están disponibles para todos los proyectos. Consulta los informes y las instrucciones del proyecto. Es posible que tus partidas guardadas y tus mods no funcionen con otra adaptación.",
+      "outsideFilters": "Fuera de los filtros actuales.",
+      "setup": "Cómo configurarlo",
+      "several": "Compara los requisitos de configuración de {{total}} adaptaciones. Consulta las instrucciones de cada adaptación para saber si comparten la ubicación de las partidas guardadas.",
+      "single": "Revisa los requisitos de configuración y los informes de esta adaptación.",
+      "status": "Estado actual",
+      "updates": "Quién gestiona las actualizaciones"
+    },
+    "compareMatching": "Compara las adaptaciones coincidentes para ver sus propios requisitos de configuración y su estado de instalación.",
+    "drop": {
+      "hover": "Arrastra aquí para comprobar este juego",
+      "release": "Suelta para comprobar"
+    },
+    "favorite": {
+      "add": "Añadir a favoritos",
+      "label": "Marcar {{game}} como favorito",
+      "remove": "Quitar de favoritos"
+    },
+    "groupLabel_one": "{{title}}. {{count}} proyecto de adaptación independiente; {{matching}} coincidentes.",
+    "groupLabel_many": "{{title}}. {{count}} proyectos de adaptación independientes; {{matching}} coincidentes.",
+    "groupLabel_other": "{{title}}. {{count}} proyectos de adaptación independientes; {{matching}} coincidentes.",
+    "identity": {
+      "matching": "{{title}} {{project}}. Adaptación coincidente: {{port}}. {{state}}. {{action}}",
+      "single": "{{title}} {{project}}. {{state}}. {{action}}"
+    },
+    "label": "Descubrir juegos",
+    "matchingPort": "Adaptación coincidente: <port />",
+    "memberLabel": "{{action}}: {{game}}",
+    "ownership": {
+      "external": "Instalación externa. Tú o su lanzador se encargan de las actualizaciones.",
+      "managed": "Instalación administrada. Portcove gestiona las actualizaciones revisadas.",
+      "notInstalled": "Sin instalar. Sigue las instrucciones de configuración de este proyecto.",
+      "unavailable": "No se sabe quién gestiona la instalación. Consulta las instrucciones del proyecto."
+    },
+    "separateProjects_one": "{{count}} proyecto de adaptación independiente",
+    "separateProjects_many": "{{count}} proyectos de adaptación independientes",
+    "separateProjects_other": "{{count}} proyectos de adaptación independientes"
+  },
   "hero": {
     "continueLabel": "{{title}}, jugado recientemente",
     "credits": "Créditos de las imágenes",

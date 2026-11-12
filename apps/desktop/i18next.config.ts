@@ -73,6 +73,7 @@ export default defineConfig({
       "src/components/GameSettingsPanel.tsx",
       "src/components/ModSetupsControl.tsx",
       "src/features/browsing/CatalogFilters.tsx",
+      "src/features/browsing/GroupedDiscover.tsx",
       "src/features/port-actions/BrowsePortObservations.tsx",
       "src/components/ui.tsx",
       "src/components/FailureDetails.tsx",
