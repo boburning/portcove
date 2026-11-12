@@ -1457,7 +1457,7 @@ export default interface Resources {
       "apps_other": "{{count, number}} apps",
       "becomesActive": "Becomes the active version; <version/> stays installed.",
       "continue": "Continue to copy confirmation",
-      "copying": "Waiting for confirmation or copying…",
+      "copying": "Working…",
       "files_one": "{{count, number}} file",
       "files_other": "{{count, number}} files",
       "label": "Copy several apps",

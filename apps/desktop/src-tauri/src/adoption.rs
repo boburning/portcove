@@ -246,7 +246,8 @@ fn iec_bytes(bytes: u64) -> String {
     }
     let mut value = bytes as f64 / 1024.0;
     let mut unit = 0;
-    while value >= 1024.0 && unit < UNITS.len() - 1 {
+    // Compare the value as it will print, so 1023.96 KiB shows as 1.0 MiB, not 1024.0 KiB.
+    while (value * 10.0).round() / 10.0 >= 1024.0 && unit < UNITS.len() - 1 {
         value /= 1024.0;
         unit += 1;
     }
@@ -365,11 +366,45 @@ mod batch_tests {
     }
 
     #[test]
+    fn batch_confirmation_names_saved_files_copied_in_and_unsupported_items() {
+        let mut reviewed = preview(2, 0);
+        reviewed.items[0].copy_plan.skipped_entries = serde_json::from_value(serde_json::json!([
+            {"relative_path": "a.lnk", "reason": "link"},
+            {"relative_path": "b.lnk", "reason": "link"}
+        ]))
+        .unwrap();
+        reviewed.items[1].destination = Some(
+            serde_json::from_value(serde_json::json!({
+                "output_location": {
+                    "port_id": "p", "library_root": "/l", "default_output_directory": "/l/v",
+                    "configured_output_directory": null, "effective_output_directory": "/l/v",
+                    "selection_source": "library_default", "user_data_root": "/l/u"
+                },
+                "active_install": null,
+                "imported_user_data_paths": ["saves"],
+                "current_user_data_files": 0,
+                "current_user_data_sha256": null
+            }))
+            .unwrap(),
+        );
+        let names = ["A (a)".to_owned(), "B (b)".to_owned()];
+        let text = batch_disclosure(&reviewed, &names);
+        assert!(
+            text.contains("Saved files are copied in for 1 game."),
+            "{text}"
+        );
+        assert!(text.contains("No saved files already in Portcove are replaced."));
+        assert!(text.contains("2 unsupported items will remain only in the original folder."));
+    }
+
+    #[test]
     fn batch_sizes_use_complete_counts_and_iec_units() {
         assert_eq!(super::files(1), "1 file");
         assert_eq!(super::files(2), "2 files");
         assert_eq!(super::iec_bytes(512), "512 B");
         assert_eq!(super::iec_bytes(2048), "2.0 KiB");
         assert_eq!(super::iec_bytes(5 * 1024 * 1024), "5.0 MiB");
+        assert_eq!(super::iec_bytes(1024 * 1024 - 1), "1.0 MiB");
+        assert_eq!(super::iec_bytes(1024 * 1024 - 60), "1023.9 KiB");
     }
 }

@@ -88,12 +88,14 @@ export function LauncherLibraryImport({
   const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
   // Core copies one installation per game and at most a fixed number per batch, so
   // the list never offers a selection Core would refuse.
-  const canSelect = (entry: LauncherLibraryEntry) => {
+  const selectionBlock = (entry: LauncherLibraryEntry) => {
+    if (selected.has(entry.index)) return undefined;
     const chosen = (inventory?.entries ?? []).filter((other) => selected.has(other.index));
-    return (
-      chosen.length < LAUNCHER_BATCH_LIMIT &&
-      !chosen.some((other) => other.adopt_port_id === entry.adopt_port_id)
-    );
+    if (chosen.some((other) => other.adopt_port_id === entry.adopt_port_id))
+      return "Another app for this game is already selected; one copy per game.";
+    if (chosen.length >= LAUNCHER_BATCH_LIMIT)
+      return `One copy holds at most ${LAUNCHER_BATCH_LIMIT} apps.`;
+    return undefined;
   };
   const [listing, setListing] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -286,7 +288,10 @@ export function LauncherLibraryImport({
                     className="me-2 align-middle"
                     aria-label={`Select ${entry.name || entry.folder_name} to copy with others`}
                     checked={selected.has(entry.index)}
-                    disabled={disabled || (!selected.has(entry.index) && !canSelect(entry))}
+                    disabled={disabled || selectionBlock(entry) !== undefined}
+                    {...(selectionBlock(entry)
+                      ? { "aria-describedby": `${id}-block-${entry.index}` }
+                      : {})}
                     onCheckedChange={(checked) =>
                       setSelected((previous) => {
                         const next = new Set(previous);
@@ -298,6 +303,20 @@ export function LauncherLibraryImport({
                   />
                 )}
                 <strong>{entry.name || entry.folder_name}</strong> — {STATUS_LABELS[entry.status]}
+                {reviewBatch &&
+                  copyBatch &&
+                  launcherEntryCanBeBatched(entry) &&
+                  selectionBlock(entry) && (
+                    <>
+                      <br />
+                      <small
+                        id={`${id}-block-${entry.index}`}
+                        className="text-[var(--color-text-secondary)]"
+                      >
+                        {selectionBlock(entry)}
+                      </small>
+                    </>
+                  )}
                 <br />
                 <small className="text-[var(--color-text-secondary)]">{entry.explanation}</small>
                 {entryDetails(entry).map((detail, line) => (
