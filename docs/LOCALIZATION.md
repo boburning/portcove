@@ -132,7 +132,7 @@ unless the copy change is intended and reviewed.
 | Game search field                        | `components/PortSearch.tsx`                                | `browsing`          |
 
 Remaining scope is measured with the same linter over every non-test source file
-(temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-11 it
+(temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-12 it
 reported 1,531 findings in 69 of 208 analyzed files, measured after the
 migrations listed above and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
