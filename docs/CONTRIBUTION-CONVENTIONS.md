@@ -115,6 +115,16 @@ preferences, speculative generalization, and unrelated cleanup are nonblocking
 unless acceptance says otherwise. Repairs return to the same reviewer for the
 delta and affected interactions where practical. A new substantive finding still
 blocks; there is no cycle count that creates approval.
+
+Keep a pull request in draft while review or repairs can still change its head.
+A draft run defers the eight Windows Rust test partitions
+([QUALITY](QUALITY.md#test-latency-and-reliability)), which are most of a Rust
+run's hosted runner time; every push to a ready pull request runs them again and
+lengthens the runner queue for every other candidate. Publish related repair
+commits in one push. Mark the pull request ready when review findings are repaired
+and its head is the one intended for merge, so the partitions run once on that
+head. Return a ready pull request to draft before pushing further source changes.
+This is delivery pacing: it changes no required context, review or acceptance.
 Before merging, refetch the pull request, confirm its current head still equals
 the reviewed head, confirm required checks and conflict-free mergeability, and
 use the guarded command below. A changed source head requires applicable

@@ -63,7 +63,9 @@ the Roadmap route when none owns authorized work.
 Implement with focused feedback, complete the applicable review, repair blocking
 findings, satisfy required exact-head CI and explicit acceptance, then guarded
 merge and targeted roadmap reconciliation. Local checks are optional and hosted CI
-remains the merge authority. Do not merge `main` into a candidate because `main`
+remains the merge authority. Keep the pull request in draft until review
+repairs are complete, then mark it ready so the full Windows test partitions run
+once ([draft pacing](docs/CONTRIBUTION-CONVENTIONS.md#review-and-merge)). Do not merge `main` into a candidate because `main`
 advanced; merge it only for a conflict or a relevant interaction
 ([QUALITY](docs/QUALITY.md#routine-merge-freshness)). The
 verified Renovate exception is owned by [QUALITY](docs/QUALITY.md#bounded-dependency-delivery).
