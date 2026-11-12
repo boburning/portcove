@@ -2419,6 +2419,11 @@ unique enrollment, while selected asset coverage is deduplicated. Generated rout
 fixtures separately cover registration, managed runtime replacement and data
 ownership. Ordinary compatible successors use the unchanged authored selectors.
 [Shared release-selection fixture](../crates/portcove-core/src/testdata/windows-archive-release-selection.json).
+`node scripts/catalog-selection-enrollment.mts` transcribes the named releases
+from a configured-upstream observation into an inventory and classifies its
+remaining ZIPs. Pass the independently identified asset for each release and
+platform with `--select`; the command previews by default and writes with
+`--write`.
 
 When a managed route replaces a strict prepared-only definition, keep the exact
 previous port in a dated `*-retained-selected-YYYY-MM-DD.json` fixture and add
