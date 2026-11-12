@@ -417,6 +417,115 @@ fn plan_text(plan: &portcove_core::ProviderInstallPlan) -> String {
     lines.join("\n")
 }
 
+fn stale_note(freshness: portcove_core::ProviderFreshness, observed_at: i64) -> Option<String> {
+    (freshness == portcove_core::ProviderFreshness::Stale).then(|| {
+        format!(
+            "GameBanana couldn't be reached, so this is earlier data from {}.",
+            crate::human::utc_time(observed_at)
+        )
+    })
+}
+
+pub(crate) fn provider_browse_text(result: &portcove_core::ProviderBrowsePage) -> String {
+    let page = &result.page;
+    let total = if page.total == 0 && !page.projects.is_empty() {
+        "total unknown".to_owned()
+    } else {
+        format!("{} in total", page.total)
+    };
+    let mut lines = vec![format!(
+        "GameBanana mods for {}, page {} ({total}, most downloaded first)",
+        clean(&result.game_name),
+        page.page
+    )];
+    lines.extend(stale_note(result.freshness, result.observed_at));
+    if page.projects.is_empty() {
+        lines.push("No mods on this page.".into());
+    }
+    for project in &page.projects {
+        lines.push(format!(
+            "  {} — {}{}",
+            clean(&project.project_id),
+            clean(&project.name),
+            project
+                .version
+                .as_deref()
+                .map(|version| format!(" ({})", clean(version)))
+                .unwrap_or_default()
+        ));
+    }
+    if !page.complete && !page.projects.is_empty() {
+        if page.page < result.last_page {
+            lines.push(format!(
+                "More mods: `portcove profile provider-browse {} --page {}`.",
+                clean(&result.port_id),
+                page.page + 1
+            ));
+        } else {
+            lines.push("More mods are listed on GameBanana itself.".into());
+        }
+    }
+    if !page.projects.is_empty() {
+        lines.push(format!(
+            "See a mod's files: `portcove profile provider-project {} MOD_ID`.",
+            clean(&result.port_id)
+        ));
+    }
+    lines.join("\n")
+}
+
+pub(crate) fn provider_project_text(view: &portcove_core::ProviderProjectView) -> String {
+    let project = &view.project;
+    let mut lines = vec![format!(
+        "{} — GameBanana mod {} for {}",
+        clean(&project.name),
+        clean(&project.project_id),
+        clean(&view.game_name)
+    )];
+    let stale = stale_note(view.freshness, view.observed_at);
+    lines.extend(stale.clone());
+    if project.obsolete {
+        lines.push("Its author marked it obsolete, so Portcove won't install it.".into());
+    }
+    if project.files.is_empty() {
+        lines.push("This mod has no files Portcove can list.".into());
+    }
+    for file in &project.files {
+        lines.push(format!(
+            "  file {} — {} ({}){}{}",
+            clean(&file.file_id),
+            clean(&file.file_name),
+            crate::human::format_bytes(file.size),
+            if file.archived {
+                "; archived, so it can't be installed"
+            } else {
+                ""
+            },
+            file.claimed_scan
+                .as_deref()
+                .map(|scan| format!("; GameBanana's scan says {} (not verified)", clean(scan)))
+                .unwrap_or_default()
+        ));
+    }
+    if project.unreadable_files > 0 {
+        lines.push(format!(
+            "{} more file(s) on GameBanana couldn't be read safely and aren't listed.",
+            project.unreadable_files
+        ));
+    }
+    let installable = !project.obsolete && project.files.iter().any(|file| !file.archived);
+    if stale.is_some() {
+        lines.push("Try again when GameBanana can be reached before reviewing a file.".into());
+    } else if installable {
+        lines.push(format!(
+            "Review a file for a setup: `portcove profile provider-plan {} PROFILE_ID {} FILE_ID`.",
+            clean(&view.port_id),
+            clean(&project.project_id)
+        ));
+    }
+    lines.join("\n")
+}
+
 fn read_request(path: &PathBuf) -> Result<ProfileRevisionRequest> {
     let mut bytes = Vec::new();
     let limit = MAX_REQUEST_BYTES + 1;
@@ -444,76 +553,14 @@ pub(crate) async fn execute(
     match command {
         ProfileCommand::ProviderBrowse { port_id, page } => {
             let result = service.browse_provider_mods(&port_id, page).await?;
-            render_read_success(mode, name, result, |result| {
-                let mut lines = vec![format!(
-                    "GameBanana mods for {} (page {}, {} in total{})",
-                    clean(&result.port_id),
-                    result.page.page,
-                    result.page.total,
-                    if result.freshness == portcove_core::ProviderFreshness::Stale {
-                        "; GameBanana could not be reached, so this is earlier data"
-                    } else {
-                        ""
-                    }
-                )];
-                for project in &result.page.projects {
-                    lines.push(format!(
-                        "  {} — {}{}",
-                        clean(&project.project_id),
-                        clean(&project.name),
-                        project
-                            .version
-                            .as_deref()
-                            .map(|version| format!(" ({})", clean(version)))
-                            .unwrap_or_default()
-                    ));
-                }
-                if !result.page.complete {
-                    lines.push(format!("More mods: --page {}", result.page.page + 1));
-                }
-                lines.push(
-                    "Show a mod's files with `profile provider-project PORT_ID MOD_ID`.".into(),
-                );
-                lines.join("\n")
-            })
+            render_read_success(mode, name, result, provider_browse_text)
         }
         ProfileCommand::ProviderProject {
             port_id,
             project_id,
         } => {
             let view = service.provider_project(&port_id, project_id).await?;
-            render_read_success(mode, name, view, |view| {
-                let project = &view.project;
-                let mut lines = vec![format!(
-                    "{} (GameBanana mod {}){}",
-                    clean(&project.name),
-                    clean(&project.project_id),
-                    if project.obsolete {
-                        " — marked obsolete by its author"
-                    } else {
-                        ""
-                    }
-                )];
-                for file in &project.files {
-                    lines.push(format!(
-                        "  file {} — {} ({} bytes){}{}",
-                        clean(&file.file_id),
-                        clean(&file.file_name),
-                        file.size,
-                        if file.archived { ", archived" } else { "" },
-                        file.claimed_scan
-                            .as_deref()
-                            .map(|scan| format!(", provider scan says {}", clean(scan)))
-                            .unwrap_or_default()
-                    ));
-                }
-                lines.push(format!(
-                    "Review a file for a setup with `profile provider-plan {} PROFILE_ID {} FILE_ID`.",
-                    clean(&view.port_id),
-                    clean(&project.project_id)
-                ));
-                lines.join("\n")
-            })
+            render_read_success(mode, name, view, provider_project_text)
         }
         ProfileCommand::ProviderUpdates {
             port_id,
@@ -826,4 +873,96 @@ fn inventory(value: &ProfileInventory) -> String {
         }
     }
     lines.join("\n")
+}
+
+#[cfg(test)]
+mod provider_text_tests {
+    use super::*;
+    use portcove_core::{
+        ProviderBrowsePage, ProviderFileCandidate, ProviderFreshness, ProviderPage,
+        ProviderProject, ProviderProjectView,
+    };
+
+    fn project(obsolete: bool, unreadable: u32, archived: bool) -> ProviderProject {
+        ProviderProject {
+            provider: "gamebanana".into(),
+            project_id: "42".into(),
+            name: "HD Link".into(),
+            version: Some("2.0".into()),
+            game_id: Some("16121".into()),
+            updated_at: 5,
+            obsolete,
+            profile_url: String::new(),
+            submitter: None,
+            files: vec![ProviderFileCandidate {
+                file_id: "10".into(),
+                file_name: "pack.zip".into(),
+                size: 2048,
+                added_at: 4,
+                download_url: String::new(),
+                claimed_md5: None,
+                archived,
+                claimed_scan: Some("clean".into()),
+            }],
+            unreadable_files: unreadable,
+        }
+    }
+
+    fn view(project: ProviderProject, freshness: ProviderFreshness) -> ProviderProjectView {
+        ProviderProjectView {
+            port_id: "shipwright".into(),
+            game_name: "Ship of Harkinian".into(),
+            project,
+            observed_at: 0,
+            freshness,
+        }
+    }
+
+    #[test]
+    fn project_text_states_stale_data_unlisted_files_and_only_runnable_next_steps() {
+        let fresh =
+            provider_project_text(&view(project(false, 0, false), ProviderFreshness::Fresh));
+        assert!(fresh.contains("Ship of Harkinian"));
+        assert!(fresh.contains("provider-plan shipwright PROFILE_ID 42 FILE_ID"));
+        assert!(!fresh.contains("bytes)"), "sizes are readable: {fresh}");
+
+        let stale =
+            provider_project_text(&view(project(false, 2, false), ProviderFreshness::Stale));
+        assert!(stale.contains("earlier data"));
+        assert!(stale.contains("2 more file(s)"));
+        assert!(!stale.contains("provider-plan"), "no plan from outage data");
+
+        let obsolete =
+            provider_project_text(&view(project(true, 0, true), ProviderFreshness::Fresh));
+        assert!(obsolete.contains("marked it obsolete"));
+        assert!(obsolete.contains("archived"));
+        assert!(!obsolete.contains("provider-plan"));
+    }
+
+    #[test]
+    fn browse_text_shows_empty_pages_unknown_totals_and_stops_at_the_last_page() {
+        let page = |projects: Vec<ProviderProject>, total, number, complete| ProviderBrowsePage {
+            port_id: "shipwright".into(),
+            game_name: "Ship of Harkinian".into(),
+            last_page: 50,
+            provider: "gamebanana".into(),
+            page: ProviderPage {
+                projects,
+                total,
+                page: number,
+                complete,
+            },
+            observed_at: 0,
+            freshness: ProviderFreshness::Fresh,
+        };
+        let empty = provider_browse_text(&page(Vec::new(), 41, 4, false));
+        assert!(empty.contains("No mods on this page."));
+        assert!(!empty.contains("--page 5"));
+        let unknown = provider_browse_text(&page(vec![project(false, 0, false)], 0, 1, false));
+        assert!(unknown.contains("total unknown"));
+        assert!(unknown.contains("provider-browse shipwright --page 2"));
+        let last = provider_browse_text(&page(vec![project(false, 0, false)], 1000, 50, false));
+        assert!(!last.contains("--page 51"));
+        assert!(last.contains("GameBanana itself"));
+    }
 }

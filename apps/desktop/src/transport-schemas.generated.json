@@ -38857,6 +38857,16 @@
         "$ref": "#/$defs/ProviderFreshness",
         "description": "`stale` means GameBanana could not be reached and this is earlier data."
       },
+      "game_name": {
+        "description": "The game's catalog name, for presentation.",
+        "type": "string"
+      },
+      "last_page": {
+        "description": "Highest page browsing offers.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
       "observed_at": {
         "format": "int64",
         "type": "integer"
@@ -38874,6 +38884,8 @@
     },
     "required": [
       "port_id",
+      "game_name",
+      "last_page",
       "provider",
       "page",
       "observed_at",
@@ -39260,6 +39272,10 @@
       "freshness": {
         "$ref": "#/$defs/ProviderFreshness"
       },
+      "game_name": {
+        "description": "The game's catalog name, for presentation.",
+        "type": "string"
+      },
       "observed_at": {
         "format": "int64",
         "type": "integer"
@@ -39274,6 +39290,7 @@
     },
     "required": [
       "port_id",
+      "game_name",
       "project",
       "observed_at",
       "freshness"

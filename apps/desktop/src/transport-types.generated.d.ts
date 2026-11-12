@@ -4668,6 +4668,14 @@ export interface OutputProviderBrowsePage {
    * `stale` means GameBanana could not be reached and this is earlier data.
    */
   freshness: "fresh" | "revalidated" | "stale";
+  /**
+   * The game's catalog name, for presentation.
+   */
+  game_name: string;
+  /**
+   * Highest page browsing offers.
+   */
+  last_page: number;
   observed_at: number;
   page: ProviderPage;
   port_id: string;
@@ -4797,6 +4805,10 @@ export interface PlanMember {
 }
 export interface OutputProviderProjectView {
   freshness: ProviderFreshness;
+  /**
+   * The game's catalog name, for presentation.
+   */
+  game_name: string;
   observed_at: number;
   port_id: string;
   project: ProviderProject1;
