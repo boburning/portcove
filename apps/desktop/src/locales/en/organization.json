@@ -1,0 +1,56 @@
+{
+  "collection": {
+    "withCount": "<name/> ({{total}})"
+  },
+  "edit": {
+    "create": "Create collection",
+    "nameLabel": "Collection name",
+    "note": "Collections organize entries. Removing a collection keeps every game and file.",
+    "remove": "Remove collection",
+    "summary": "Edit collections"
+  },
+  "failure": {
+    "read": "Saved choices could not be read. Games are shown without hidden or collection choices.",
+    "refresh": "Saved choices could not be refreshed. Showing your last confirmed choices.",
+    "reload": "Reload choices",
+    "write": "Portcove couldn’t confirm the changes. Showing your last confirmed choices."
+  },
+  "group": {
+    "discover": "Discover collections",
+    "library": "Library collections"
+  },
+  "menu": {
+    "hide": "Hide from Library",
+    "show": "Show in Library"
+  },
+  "save": {
+    "label": "Save {{game}} for later",
+    "removeTitle": "Remove saved game",
+    "save": "Save",
+    "saved": "Saved",
+    "title": "Save for later"
+  },
+  "sidebar": {
+    "collectionLabel": "Collection: {{name}}",
+    "createFirst": "Create your first collection",
+    "failureRead": "Collections could not be refreshed. Open Manage collections to retry.",
+    "failureWrite": "Portcove couldn’t confirm the collection changes. Showing your last confirmed collections.",
+    "hiddenGames": "Hidden games",
+    "loading": "Loading collections…",
+    "manage": "Manage collections"
+  },
+  "title": "Collections",
+  "trigger": {
+    "all": "Collections",
+    "allGames": "Collections · All games",
+    "collection": "Collections · <name/>",
+    "hidden": "Collections · Hidden",
+    "unavailable": "Collections · Unavailable collection"
+  },
+  "view": {
+    "all": "All games",
+    "followed": "Followed",
+    "hidden": "Hidden",
+    "saved": "Saved"
+  }
+}
