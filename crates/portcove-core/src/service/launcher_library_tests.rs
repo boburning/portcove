@@ -187,6 +187,16 @@ fn quiver_inventory_classifies_entries_and_reads_only() {
     assert_eq!(statuses["Missing"], LauncherEntryStatus::NotInstalled);
     assert_eq!(statuses["Escape"], LauncherEntryStatus::UnsafePath);
     assert_eq!(statuses["Again"], LauncherEntryStatus::Duplicate);
+    let again = inventory
+        .entries
+        .iter()
+        .find(|e| e.name == "Again")
+        .unwrap();
+    assert!(
+        again.explanation.contains("\"Ready\""),
+        "{}",
+        again.explanation
+    );
     assert_eq!(statuses["Explicit"], LauncherEntryStatus::ReadyToReview);
     assert_eq!(statuses["Relative"], LauncherEntryStatus::UnsafePath);
     assert_eq!(statuses["Codeberg"], LauncherEntryStatus::NotInCatalog);

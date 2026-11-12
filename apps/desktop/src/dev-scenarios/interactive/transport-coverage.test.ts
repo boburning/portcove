@@ -17,7 +17,7 @@ const transportPath = fileURLToPath(new URL("./transport.ts", import.meta.url));
 // must NOT be listed here: give it a handler in transport.ts.
 const unsupportedByReason: Record<string, string[]> = {
   "mutation or native action the fixtures do not model; they never change the host": `
-    acquire_game_update activate_port add_game_file_root add_source adopt_port
+    acquire_game_update activate_port add_game_file_root add_games_to_library add_source adopt_port
     apply_catalog_update apply_game_setting apply_game_update apply_steam_batch_add
     apply_steam_artwork apply_steam_entry begin_github_device_login
     cancel_application_update_check
@@ -36,17 +36,19 @@ const unsupportedByReason: Record<string, string[]> = {
     refresh_official_definition register_external_runtime
     register_user_selected_runtime relink_external_runtime relink_game_file_root
     relink_source relink_user_selected_runtime relocate_output
-    remove_external_runtime remove_game_file_root remove_port remove_source
+    remove_external_runtime remove_game_file_root remove_library_membership remove_port remove_source
     reset_application_update_preferences reset_artwork reset_output_location
     restart_to_apply_application_update restore_backup revoke_catalog_key
-    rollback_catalog rollback_port set_application_update_preferences set_channel
+    rollback_catalog rollback_port run_install_batch start_install_batch cancel_install_batch
+    set_application_update_preferences set_channel
     set_default_library set_github_token set_host_tool_path set_locale_preference
     set_output_location set_policy trust_catalog_key use_cached_catalog
     use_embedded_catalog verify_port verify_sources
   `.split(/\s+/),
   "review, plan or inspection step of a user-started flow the fixtures do not mount": `
     catalog_download_candidates check_definition_capabilities check_installed
-    check_port discover_setup_launch_targets discover_sources inspect_source
+    check_port discover_setup_launch_targets discover_sources inspect_launcher_library
+    inspect_source
     inspect_source_intake plan_catalog_update plan_game_update
     plan_game_update_acquisition plan_ghostship_legacy_recovery plan_library_import
     plan_library_move plan_output_relocation plan_port plan_source_import
@@ -56,13 +58,14 @@ const unsupportedByReason: Record<string, string[]> = {
     preview_source_removal preview_steam_artwork preview_steam_batch_add
     preview_steam_entry
     preview_user_selected_runtime preview_user_selected_runtime_relink
-    review_game_setting review_source_reuse scan_game_file_roots scan_source_inbox
+    plan_install_batch review_game_setting review_source_reuse scan_game_file_roots
+    scan_source_inbox
   `.split(/\s+/),
   "read-only getter that the mounted fixture surfaces do not request, or a user-started flow they do not mount (get_catalog and get_statuses are replaced by get_workspace_snapshot)":
     `
     forecast_installed_update_checks get_catalog get_catalog_media_thumbnail get_default_library_root
-    get_engine_capabilities get_game_settings get_library_identity
-    get_runtime_diagnostic_health get_sources get_statuses
+    get_engine_capabilities get_game_settings get_install_batch get_library_identity
+    get_library_memberships get_runtime_diagnostic_health get_sources get_statuses
     list_steam_profiles
   `.split(/\s+/),
 };

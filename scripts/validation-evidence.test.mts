@@ -78,7 +78,7 @@ void test("selected runtime observes exactly the fields used by the existing dom
     "format",
     "ui",
     "rust",
-    "rscheck",
+    "rust-portability",
     "lint",
     "release",
   ] as const) {
@@ -92,12 +92,12 @@ void test("selected runtime observes exactly the fields used by the existing dom
       fingerprintStage(stage, inventory, selected.runtime),
       fingerprintStage(stage, inventory, full.runtime),
     );
-    if (!["rust", "rscheck"].includes(domain))
-      assert(!selected.calls.some((call) => /^(?:cargo|rustc|rscheck) /u.test(call)));
+    if (!["rust", "rust-portability"].includes(domain))
+      assert(!selected.calls.some((call) => /^(?:cargo|rustc) /u.test(call)));
     if (domain !== "lint") assert(!selected.calls.some((call) => /^(?:aqua|pwsh) /u.test(call)));
   }
   assert.deepEqual(observe(["repository"]).calls, ["git --version", "just --version"]);
-  assert.equal(full.calls.length, 10);
+  assert.equal(full.calls.length, 9);
 });
 
 void test("ordinary hosted planning imports and executes without loading audit or receipt orchestration", () => {
@@ -216,7 +216,7 @@ void test("behavioral script consumers invalidate optional audit fingerprints in
         "format",
         "ui",
         "rust",
-        "rscheck",
+        "rust-portability",
         "lint",
         "release",
       ],
@@ -230,7 +230,7 @@ void test("behavioral script consumers invalidate optional audit fingerprints in
         "format",
         "ui",
         "rust",
-        "rscheck",
+        "rust-portability",
         "lint",
         "release",
       ],
@@ -245,7 +245,7 @@ void test("behavioral script consumers invalidate optional audit fingerprints in
           "format",
           "ui",
           "rust",
-          "rscheck",
+          "rust-portability",
           "lint",
           "release",
         ],

@@ -483,7 +483,6 @@ void test("deep audit evidence retains audit status without privilege changes", 
   );
   assert.match(localJob, /^    timeout-minutes: 30$/m);
   assert.match(auditJob, /shared-key: deep-quality-ubuntu-22\.04/u);
-  assert.match(auditJob, /key: quality-rscheck-binaries-v2-ubuntu-22\.04-/u);
   assert.match(deep, /id: fresh-audit/);
   assert.match(
     deep,

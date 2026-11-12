@@ -802,7 +802,10 @@ function classifyPath(file: string): PathOwnership {
   const documentation =
     (file.endsWith(".md") || file.startsWith("docs/") || inertGithubFile) &&
     !(releaseSecurity && /\.ya?ml$/u.test(file));
-  const rust = file.startsWith("crates/") || file.startsWith("apps/desktop/src-tauri/");
+  const rust =
+    file.startsWith("crates/") ||
+    file.startsWith("apps/desktop/src-tauri/") ||
+    file.startsWith("tools/rust-portability/");
   const rootRust = [
     "Cargo.toml",
     "Cargo.lock",
@@ -951,7 +954,6 @@ function classifyPath(file: string): PathOwnership {
           "tsconfig.json",
           "tsconfig.base.json",
           ".prettierignore",
-          ".rscheck.toml",
           "eslint.config.mjs",
           "prettier.config.mjs",
           "pyproject.toml",
@@ -1086,6 +1088,7 @@ function classifyAuditPath(file: string): PathOwnership {
   );
   match(
     file.startsWith("crates/") ||
+      file.startsWith("tools/rust-portability/") ||
       [
         "Cargo.toml",
         "Cargo.lock",
@@ -1169,7 +1172,6 @@ function classifyAuditPath(file: string): PathOwnership {
         "tsconfig.json",
         "tsconfig.base.json",
         ".prettierignore",
-        ".rscheck.toml",
         "eslint.config.mjs",
         "prettier.config.mjs",
         "pyproject.toml",

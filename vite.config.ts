@@ -27,7 +27,6 @@ export default defineConfig({
       ".codex-remote-attachments/**",
       ".fallow/**",
       ".fallow-review/**",
-      ".rscheck/**",
       ".tmp/**",
       "mutants.out/**",
       "mutants.out.old/**",

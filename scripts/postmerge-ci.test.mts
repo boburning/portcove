@@ -291,7 +291,11 @@ void test("postmerge workflow installs locked dependencies before credentialed o
   );
   const observe = steps.findIndex((step) => step.id === "plan");
   assert.ok(install >= 0 && install < observe);
-  assert.equal(steps[install]?.if, "github.event_name == 'push'");
+  // Pull requests also install it so the classifier can read the live draft state.
+  assert.equal(
+    steps[install]?.if,
+    "github.event_name == 'push' || github.event_name == 'pull_request'",
+  );
   assert.equal(steps[install]?.env, undefined);
   const environment = steps[observe]?.env;
   assert.ok(isRecord(environment) && environment.GH_TOKEN);

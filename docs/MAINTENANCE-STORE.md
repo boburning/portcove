@@ -56,17 +56,17 @@ count from the run's retained observations when the run finishes; `complete`
 requires a known denominator equal to that count with no gaps. `partial`,
 `failed` and stale runs are unknown coverage, never absence or deletion, and the last complete observation remains visibly dated.
 
-| Source                              | Maintained owner interface                                                                                | Completeness signal                                           |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| Open/closed issues                  | `scripts/repository-issue-inventory.mts` through `node scripts/roadmap.mts doctor --json`                 | Total count, terminated pagination, before/after markers      |
-| Project items (active and archived) | `scripts/roadmap-inventory.mts` (`items`, `archivedItems`)                                                | Project revision and item totals stable across the read       |
-| Catalog, listings, lineage          | Per-ID records; `node scripts/generate-catalog.mts --check`; `portcove --json catalog export`             | Generated projections match the authored tree at one revision |
-| Offered capability per port         | `portcove --json port-capabilities PORT_ID`; `portcove --json capabilities`                               | Per port only; no catalog-wide matrix exists                  |
-| Scoped qualification                | `catalog.json` `source_catalog.qualification[]` and `evidence[]`                                          | Exact scope per record; no catalog-wide denominator           |
-| Upstream observations               | `scripts/observe-catalog-upstreams.mts` and `scripts/observe-configured-upstream.mts` checkpoints/reports | `total_sources` versus completed and pending source keys      |
-| Release health                      | `scripts/upstream-health-monitor.mts` report and `work/upstream-health/checkpoint.json`                   | Fresh complete, partial, stale and unmonitored port IDs       |
-| Hosted intake receipts              | `node scripts/hosted-discovery-intake.mts status --request ID --json`; receipt comments on #177           | Per request: delivered, existing and pending counts           |
-| Definition publication              | `portcove --json catalog inspect-definition-publication DIR`; published site readback                     | Index digest and per-target digests                           |
+| Source                              | Maintained owner interface                                                                           | Completeness signal                                           |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Open/closed issues                  | `scripts/repository-issue-inventory.mts` through `node scripts/roadmap.mts doctor --json`            | Total count, terminated pagination, before/after markers      |
+| Project items (active and archived) | `scripts/roadmap-inventory.mts` (`items`, `archivedItems`)                                           | Project revision and item totals stable across the read       |
+| Catalog, listings, lineage          | Per-ID records; `node scripts/generate-catalog.mts --check`; `portcove --json catalog export`        | Generated projections match the authored tree at one revision |
+| Offered capability per port         | `portcove --json port-capabilities PORT_ID`; `portcove --json capabilities`                          | Per port only; no catalog-wide matrix exists                  |
+| Scoped qualification                | `catalog.json` `source_catalog.qualification[]` and `evidence[]`                                     | Exact scope per record; no catalog-wide denominator           |
+| Upstream observations               | `configured-upstream-observer.yml` checkpoint recovery snapshot (`observer-checkpoint-artifact.mts`) | Per port: every serving source completed with its policy      |
+| Release health                      | `scripts/upstream-health-monitor.mts` report and `work/upstream-health/checkpoint.json`              | Fresh complete, partial, stale and unmonitored port IDs       |
+| Hosted intake receipts              | `node scripts/hosted-discovery-intake.mts status --request ID --json`; receipt comments on #177      | Per request: delivered, existing and pending counts           |
+| Definition publication              | `portcove --json catalog inspect-definition-publication DIR`; published site readback                | Index digest and per-target digests                           |
 
 Known gaps stay explicit until an owner exports the fact: there is no persisted
 export of full issue rows or Project field values, no catalog-wide capability or
@@ -370,8 +370,75 @@ On 2026-11-11, `main` held `official/chameleon-twist-jp-recompiled` revision 1
 (index `fd4e8154…`). The appointed site returned HTTP 404, so the definition was
 not published.
 
-Upstream observations and hosted intake receipts remain explicit unknown
-sources.
+### Upstream observations
+
+`--upstream` (with `--all`) adds the `upstream-observations` source.
+
+- **Input:** the checkpoint recovery snapshot of the newest completed
+  `configured-upstream-observer.yml` run on `main` from a natural schedule or a
+  push (`producerEvents`), with a `success` or `failure` conclusion, created in
+  the last 24 hours, that still retains its unexpired
+  `upstream-observer-checkpoint-<config_sha256>-<run>-<attempt>` artifact. Gated
+  push runs and runs whose export did not retain a snapshot are passed over.
+  - It is read through the maintained GitHub client (GET-only, at most 24
+    candidate runs and 32 requests) and the in-memory artifact transfer, bounded
+    by the observer's eight-MiB streaming snapshot limit.
+  - The configuration digest in the artifact name must equal the SHA-256 of
+    `release/upstream-observer.json` at the run's head commit, which is how the
+    workflow names its snapshot. The archive length and SHA-256 must match
+    GitHub's recorded digest, the observer's own
+    `readRecoverableObserverSnapshotArchive` decodes and validates the complete
+    snapshot under that configuration, and the snapshot producer must equal the
+    run identity, attempt and head commit.
+  - The run revision is
+    `upstream-observer-run:<run>-<attempt>@<head_sha>#sha256:<artifact digest>`;
+    the artifact digest also binds the configuration digest the snapshot
+    carries, which is recorded in each stored observation's scope.
+  - Ports are mapped with the observer's own `catalogObservationSources` over
+    `catalog.json` and `listings.json` at the producer's source commit. A commit
+    or file missing from the local checkout fails the read; nothing is guessed.
+- **Stored facts:** per `port:<id>`, one entry per observation source that serves
+  it: source key, provider, repository, repository ID, last complete facts digest,
+  last change time, exception key and rule, and the Core catalog definition digest
+  of the port's last complete policy. A served port that the observer also lists
+  as held (for example a `user-prepared` port whose listing is observed, or a
+  managed port with an unsupported listing) carries its `held_reasons`.
+  - The observer's partial-progress stops (budget, cancellation, quota) keep the
+    completed scope and are stored as no exception, so they cause no churn.
+  - Per-observation clocks and progress (freshness, completion and due times,
+    attempted sequence, retry state, provider progress and cursors), result
+    digests and policy bodies are never stored: Core and listing policies embed
+    observation clocks, so a routine re-observation stays quiet.
+- **Gaps:** a port is a fact only when every source serving it has completed
+  with a policy for it. Otherwise the run is `partial` and the port is a gap:
+  `held` (no observation source serves the port), `unobserved`
+  (its source never completed), or `scope-changed` (its source's completion was
+  reset, or does not cover the port). Gaps carry the source's exception key and
+  rule. The current-scope binding includes Core's policy identity and definition
+  digests, which the snapshot does not carry, so a completion that predates a
+  catalog or Core change is not detected here; the observer's own scope checks
+  still apply.
+- **Failures:** an unavailable, unbound or invalid snapshot makes the run
+  `failed` with one `unavailable` gap and no observations, so the last known
+  facts stay current.
+- **Report:** an "Upstream" column shows each source's facts digest and last
+  change, and the latest run's gap code. "Needs attention" lists observer
+  exceptions (`exception_key` set) with their rule, from the stored facts or from
+  a gap. The observer's own partial-progress rules (`partialProgressRules`:
+  budget, cancellation and quota stops) are routine continuation and stay quiet;
+  an exception without a recorded rule stays visible. No freshness threshold or
+  policy is applied beyond the observer's own.
+- **Authority:** this projection grants no admission, eligibility, acquisition or
+  publication authority.
+
+On 2026-11-11, none of the 24 newest completed schedule or push `main` runs from
+the previous 24 hours retained a snapshot. In scheduled runs 43058926577,
+42985430786 and 42934324534 the export step failed with "Observer snapshot
+records: compressed member exceeds reserved output envelope; checkpoints
+retained" (a 14.4 MB controller checkpoint, 27.3 MB decoded), so a live
+collection records a `failed` run until the producer retains a snapshot again.
+
+Hosted intake receipts remain an explicit unknown source.
 
 ## Changes-only digest
 
@@ -417,6 +484,8 @@ stub Core CLI, using the collector and report roles. It checks:
 - full-versus-incremental parity;
 - per-call isolation and its removal, including under a symlinked `TMPDIR`;
 - coverage, listing and absence facts;
+- release-health and upstream-observation coverage, quiet recurrence,
+  needs-attention and failed reads;
 - report output and HTML escaping. The
   cases need non-root PostgreSQL 16+ server binaries and are a declared
   prerequisite skip elsewhere. These are fixture results. Hosted provider, backup

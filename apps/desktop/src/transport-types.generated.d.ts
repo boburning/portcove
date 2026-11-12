@@ -709,6 +709,7 @@ export type LauncherEntryStatus =
 export type LauncherKind = "github-launcher" | "quiver";
 export type LibraryContentKind =
   "application_versions" | "user_data" | "source_inbox" | "backups" | "toolchains" | "local_artwork";
+export type LibraryMembershipOrigin = "game_file_discovery" | "manual";
 /**
  * How a profile follows newer eligible releases. Stored as intent; unattended
  * application is owned by the provider/standing-policy work, not this module.
@@ -912,6 +913,11 @@ export type ApplicationUpdateInstallEligibility =
   "eligible" | "package-managed-deb" | "package-managed-rpm" | "not-configured" | "unavailable";
 export type ApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
 export type OutputDesktopAutomaticSnapshotsEnabled = boolean;
+export type InstallBatchItemState = ("queued" | "running" | "failed" | "cancelled") | "ready" | "held" | "interrupted";
+export type OutputDesktopInstallBatches = InstallBatchRecord[];
+export type LibraryMembershipOutcomeKind = "added" | "already_saved" | "already_in_library";
+export type OutputDesktopLibraryMembershipOutcomes = LibraryMembershipOutcome[];
+export type OutputDesktopLibraryMemberships = LibraryMembership[];
 export type InstallationContext =
   | {
       installation_id: string;
@@ -1010,7 +1016,7 @@ export interface TransportOutputs {
   game_file_query_snapshot: OutputGameFileQuerySnapshot;
   game_file_roots: OutputGameFileRoots;
   game_file_scan_snapshot: OutputGameFileScanSnapshot;
-  game_install_plan: OutputGameInstallPlan;
+  game_install_plan: GameInstallPlan;
   game_setting_change: GameSettingChange;
   game_setting_review: OutputGameSettingReview;
   game_settings_contract: GameSettingsContract;
@@ -1122,7 +1128,12 @@ export interface TransportOutputs {
   desktop_game_file_query_snapshot: OutputGameFileQuerySnapshot;
   desktop_game_file_roots: OutputGameFileRoots;
   desktop_game_file_scan_snapshot: OutputGameFileScanSnapshot;
+  desktop_install_batch: InstallBatchRecord;
+  desktop_install_batch_review: OutputDesktopInstallBatchReview;
+  desktop_install_batches: OutputDesktopInstallBatches;
   desktop_launch_result: OutputDesktopLaunchResult;
+  desktop_library_membership_outcomes: OutputDesktopLibraryMembershipOutcomes;
+  desktop_library_memberships: OutputDesktopLibraryMemberships;
   desktop_library_organization: OutputDesktopLibraryOrganization;
   desktop_locale_preference: OutputDesktopLocalePreference;
   desktop_managed_route_change_preview: OutputManagedRouteChangePreview;
@@ -3355,7 +3366,7 @@ export interface SourceInspection {
 /**
  * Exact registered-input review for the first managed installation.
  */
-export interface OutputGameInstallPlan {
+export interface GameInstallPlan {
   plan: InstallPlan;
   plan_sha256: string;
   /**
@@ -3741,6 +3752,11 @@ export interface LibraryMetadata {
   content_roots: LibraryContentRoot[];
   exported_at: number;
   launch_history: LibraryLaunchHistory[];
+  /**
+   * Explicit add-only Library entries; present only under metadata schema 7, so
+   * an older reader refuses the export instead of silently dropping them.
+   */
+  library_memberships?: LibraryMembership[];
   original_root: string;
   port_settings: LibraryPortSettings[];
   portability_authority?: PortabilityAuthority | null;
@@ -3767,6 +3783,21 @@ export interface LibraryLaunchHistory {
   port_id: string;
   successful_launches: number;
   [k: string]: unknown;
+}
+export interface LibraryMembership {
+  added_at: number;
+  format_version: number;
+  origin: LibraryMembershipOrigin;
+  port_id: string;
+  sources?: LibraryMembershipSource[];
+}
+/**
+ * A reviewed original the player associated with the saved entry. This is a
+ * hint for explaining requirements; reinspection remains the authority.
+ */
+export interface LibraryMembershipSource {
+  profile_id: string;
+  sha256: string;
 }
 export interface LibraryPortSettings {
   active_install_id: string | null;
@@ -4002,6 +4033,10 @@ export interface PortListingStatus {
    * Optional inert read model; absence cannot suppress an independently allowed action.
    */
   capabilities?: PortCapabilityReport | null;
+  /**
+   * Explicit saved Library entry, independent of any installation or registration.
+   */
+  library_membership?: LibraryMembership | null;
   port_id: string;
   status: PortStatus;
   [k: string]: unknown;
@@ -4911,9 +4946,42 @@ export interface OutputDesktopCliCommandContext {
   platform: Platform;
   [k: string]: unknown;
 }
+export interface InstallBatchRecord {
+  cancel_requested: boolean;
+  created_at: number;
+  format_version: number;
+  id: string;
+  items: InstallBatchItem[];
+  updated_at: number;
+}
+export interface InstallBatchItem {
+  detail?: string | null;
+  expected_plan_sha256: string;
+  install_id?: string | null;
+  port_id: string;
+  state: InstallBatchItemState;
+}
+export interface OutputDesktopInstallBatchReview {
+  items: InstallBatchReviewItem[];
+  [k: string]: unknown;
+}
+/**
+ * One game in a batch review: its exact plan, or why it cannot run yet.
+ */
+export interface InstallBatchReviewItem {
+  hold?: string | null;
+  plan?: GameInstallPlan | null;
+  port_id: string;
+  [k: string]: unknown;
+}
 export interface OutputDesktopLaunchResult {
   processId: number | null;
   sessionId: string;
+  [k: string]: unknown;
+}
+export interface LibraryMembershipOutcome {
+  outcome: LibraryMembershipOutcomeKind;
+  port_id: string;
   [k: string]: unknown;
 }
 export interface OutputDesktopLibraryOrganization {

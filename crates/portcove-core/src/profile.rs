@@ -537,7 +537,9 @@ pub(crate) fn valid_native_id(value: &str) -> bool {
         && value.is_ascii()
         && !value.starts_with('.')
         && !value.ends_with(['.', ' '])
-        && !value.chars().any(|c| c.is_control() || "/\\:".contains(c))
+        && !value
+            .chars()
+            .any(|c| c.is_control() || matches!(c, '/' | '\\' | ':'))
 }
 
 fn text(value: &str, name: &str) -> Result<()> {

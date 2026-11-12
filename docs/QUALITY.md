@@ -108,7 +108,7 @@ projects, and shared input fallback runs the full unit/browser suites and build.
 Tooling lint uses integrated repository lint/type checks; CSS and browser-package
 checks follow real frontend impact.
 
-`just check-rust`, `just check-ui`, `just check`, `just audit`, Fallow and rscheck
+`just check-rust`, `just check-ui`, `just check`, `just audit` and Fallow
 are explicit exhaustive/investigative operations. Fallow is not an ordinary
 merge gate. Their full execution recipes live in
 [quality operations](reference/quality-operations.md). A command name in that
@@ -336,6 +336,21 @@ fails the shard run instead of falling back. Regenerate the weights from a Vites
 JSON report of the three browser projects with
 `node scripts/browser-shard-balance.mts --report <report.json> --source <description>`.
 Stale weights can only make the shards uneven; they cannot drop a file.
+
+A draft pull request defers the eight Windows Rust test partitions. When a fast plan
+selects Rust that the run would execute itself, the classifier reads the pull
+request's current draft state from the API and sets `windows_tests_deferred`; an
+unreadable state keeps the partitions. The draft run still builds the Windows
+workspace and runs the live transport comparison, and the required `rust` result
+then fails with "Deferred by draft policy, not a test failure", so a head never
+carries a passing `rust` result without its partitions. Marking the pull request
+ready does not start a second CI run on the same head, which would duplicate every
+required context: the supersede workflow instead re-runs that head's run (cancelling
+it first if it is still active) when it deferred, and the new attempt reads the
+ready state and executes the partitions. That step is best effort; if it does not
+happen, use "Re-run all jobs" on the head's CI run; re-running only failed jobs keeps the
+draft classification. Push, qualification, release and reused plans
+never defer.
 
 Retain failures, diagnose the smallest useful reproduction, and repeat only
 invalidated obligations. Preserve assertions, coverage, cleanup and finite

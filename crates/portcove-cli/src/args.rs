@@ -30,6 +30,7 @@ const ROOT_COMMAND_GROUPS: &[(&str, &[&str])] = &[
             "backup",
             "game-settings",
             "library",
+            "games",
             "storage",
             "artwork",
             "output",
@@ -244,6 +245,11 @@ pub(crate) enum Commands {
     Cancel {
         /// Operation ID from `portcove activity`; inspect its current state before recovery or cancellation.
         operation_id: String,
+    },
+    /// Save games to the Library without installing, registering files or launching.
+    Games {
+        #[command(subcommand)]
+        command: GamesCommand,
     },
     /// Read a caller-known durable launch request without starting or recovering a game.
     Launch {
@@ -610,6 +616,56 @@ impl ArtworkCommand {
             Self::RemoveUnused { .. } => "artwork.remove-unused",
         }
     }
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum GamesCommand {
+    /// List explicitly saved Library entries, independent of installation state.
+    List,
+    /// Save catalog games to the Library; nothing is downloaded, installed or registered.
+    Add {
+        /// Catalog port IDs to save; repeating an ID is idempotent. At most 512 per command.
+        #[arg(required = true, num_args = 1..)]
+        port_ids: Vec<String>,
+    },
+    /// Forget one saved entry without changing installations, registrations or game files.
+    Remove {
+        /// Catalog port ID of the saved entry.
+        port_id: String,
+    },
+    /// Review first installs for several games at once; nothing changes.
+    BatchPlan {
+        /// Catalog port IDs to review together. At most 512 per batch.
+        #[arg(required = true, num_args = 1..)]
+        port_ids: Vec<String>,
+    },
+    /// Save the reviewed games to the Library and install each one whose plan is unchanged.
+    BatchRun {
+        /// Reviewed game and plan digest from `games batch-plan`, as PORT_ID=PLAN_SHA256. Repeat per game.
+        #[arg(long = "item", value_name = "PORT_ID=PLAN_SHA256", required = true)]
+        items: Vec<String>,
+        /// Confirm this reviewed batch without a prompt; each plan is still checked before it runs.
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Continue an interrupted batch. Finished games are never repeated.
+    BatchResume {
+        /// Batch ID returned by `games batch-run`.
+        batch_id: String,
+        /// Confirm continuing without a prompt; each plan is still checked before it runs.
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Stop games in a batch that have not started. A running install finishes or cleans up normally.
+    BatchCancel {
+        /// Batch ID returned by `games batch-run`.
+        batch_id: String,
+    },
+    /// Show each game's state in a batch without changing anything.
+    BatchShow {
+        /// Batch ID returned by `games batch-run`.
+        batch_id: String,
+    },
 }
 
 #[derive(Debug, Subcommand)]

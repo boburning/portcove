@@ -178,6 +178,11 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       requireArgs("get_launch_failure", args, { portId: args.portId, generation });
       return null;
     },
+    // Fixtures never run a setup batch, so none is left unfinished.
+    get_unfinished_install_batches: (args) => {
+      requireArgs("get_unfinished_install_batches", args, { generation });
+      return [];
+    },
     get_automatic_snapshots: (args) => {
       requireArgs("get_automatic_snapshots", args, { generation });
       return automaticSnapshots;

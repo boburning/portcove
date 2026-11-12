@@ -83,7 +83,9 @@ pub fn inspect_asset_archive(path: &Path) -> Result<ModPackageInspection> {
             !name.is_empty()
                 && name.len() <= MAX_FILE_NAME
                 && name.is_ascii()
-                && !name.chars().any(|c| c.is_control() || "/\\:".contains(c))
+                && !name
+                    .chars()
+                    .any(|c| c.is_control() || matches!(c, '/' | '\\' | ':'))
         })
         .ok_or_else(|| invalid("file name must be 1–128 plain ASCII characters"))?
         .to_owned();

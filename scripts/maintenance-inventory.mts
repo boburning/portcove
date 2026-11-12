@@ -35,6 +35,14 @@ import {
   releaseHealthFacts,
   type ReleaseHealthInput,
 } from "./maintenance-release-health.mts";
+import {
+  readUpstreamObservations,
+  upstreamAttention,
+  upstreamObservation,
+  upstreamSummary,
+  type UpstreamInput,
+  type UpstreamObservation,
+} from "./maintenance-upstream.mts";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 export const defaultSamplePath = path.join(
@@ -106,6 +114,25 @@ function git(args: string[]) {
   if (result.error || result.status !== 0)
     throw new MaintenanceStoreError(
       `git ${args[0]} failed: ${result.stderr?.trim() ?? result.error?.message}`,
+    );
+  return result.stdout;
+}
+
+/** A file's exact bytes at a commit; fails when the commit or path is unavailable locally. */
+function committedBytes(revision: string, file: string) {
+  if (!/^[a-f0-9]{40}$/u.test(revision)) throw new MaintenanceStoreError("Invalid commit identity");
+  const result = spawnSync("git", ["show", `${revision}:${file}`], {
+    cwd: repositoryRoot,
+    timeout: 60_000,
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  if (result.error || result.status !== 0)
+    throw new MaintenanceStoreError(
+      `${file} at ${revision} is unavailable in this checkout: ${String(
+        result.stderr ?? result.error?.message ?? "",
+      )
+        .trim()
+        .slice(0, 500)}`,
     );
   return result.stdout;
 }
@@ -571,6 +598,7 @@ export function collectionSql(input: {
     core: ReadonlyMap<string, string>;
     issues?: ReadonlyMap<string, string>;
     releaseHealth?: ReadonlyMap<string, string>;
+    upstream?: ReadonlyMap<string, string>;
     publication?: ReadonlyMap<string, string>;
   };
   publication?: {
@@ -585,6 +613,7 @@ export function collectionSql(input: {
     facts: ReadonlyMap<string, unknown>;
     gaps: { subject_key: string; code: string; message: string }[];
   };
+  upstream?: UpstreamObservation;
   issues?: { repository: string; observedAt: string; facts: ReadonlyMap<string, unknown> };
 }) {
   const token = randomUUID();
@@ -604,6 +633,7 @@ export function collectionSql(input: {
            coreSource,
            ...(input.issues ? ["issues-project"] : []),
            ...(input.releaseHealth ? ["release-health"] : []),
+           ...(input.upstream ? ["upstream-observations"] : []),
            ...(input.publication ? ["definition-publication"] : []),
          ]),
        ]
@@ -730,6 +760,23 @@ export function collectionSql(input: {
         payload,
       });
   }
+  const upstreamFactsByKey = new Map<string, Fact>();
+  const upstreamRun = `upstream-observations:${token}`;
+  if (input.upstream) {
+    if (input.mode !== "all")
+      throw new MaintenanceStoreError("Upstream-observation collection requires --all");
+    lines.push(
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at) VALUES
+        (${literal(upstreamRun)}, 'upstream-observations', ${literal(input.runner)}, ${literal(input.upstream.revision)}, ${literal(input.startedAt)});`,
+    );
+    for (const [key, payload] of input.upstream.facts)
+      upstreamFactsByKey.set(key, {
+        digest: sha256(canonicalJson(payload)),
+        scope: { source: "upstream-observations", config_sha256: input.upstream.config_sha256 },
+        revision: input.upstream.revision,
+        payload,
+      });
+  }
   const expected = input.subjects.length;
   const coreCoverage = !gaps.length ? "complete" : gaps.length === expected ? "failed" : "partial";
   const runs: [
@@ -739,7 +786,7 @@ export function collectionSql(input: {
     unknown[],
     Map<string, Fact>,
     ReadonlyMap<string, string> | undefined,
-    number,
+    number | null,
   ][] = [
     [catalogRun, input.revision, "complete", [], catalogFacts, input.latest?.catalog, expected],
     [coreRun, coreRevision, coreCoverage, gaps, coreFacts, input.latest?.core, expected],
@@ -763,6 +810,16 @@ export function collectionSql(input: {
       healthFacts,
       input.latest?.releaseHealth,
       input.releaseHealth.expected,
+    ]);
+  if (input.upstream)
+    runs.push([
+      upstreamRun,
+      input.upstream.revision,
+      input.upstream.failed ? "failed" : input.upstream.gaps.length ? "partial" : "complete",
+      input.upstream.gaps,
+      upstreamFactsByKey,
+      input.latest?.upstream,
+      input.upstream.expected,
     ]);
   const publicationRun = `definition-publication:${token}`;
   if (input.publication) {
@@ -794,6 +851,7 @@ export function collectionSql(input: {
     [coreRun, coreSource],
     [issueRun, "issues-project"],
     [healthRun, "release-health"],
+    [upstreamRun, "upstream-observations"],
   ]);
   for (const [run, revision, coverage, runGaps, facts, latest, runExpected] of runs) {
     let membership = "";
@@ -815,7 +873,7 @@ export function collectionSql(input: {
     } else for (const [key, fact] of facts) observe(run, key, fact);
     lines.push(
       `UPDATE portcove_maintenance.collection_runs SET coverage = ${literal(coverage)}, completed_at = clock_timestamp(),
-         source_revision = ${literal(revision)}, expected_count = ${runExpected}, gaps = ${jsonLiteral(runGaps)}${membership}
+         source_revision = ${literal(revision)}, expected_count = ${runExpected ?? "NULL"}, gaps = ${jsonLiteral(runGaps)}${membership}
          WHERE run_id = ${literal(run)};`,
     );
   }
@@ -878,6 +936,8 @@ export async function collect(options: {
     | undefined;
   /** With `all`, also collect the latest scheduled release-health report. */
   releaseHealth?: (() => Promise<ReleaseHealthInput>) | undefined;
+  /** With `all`, also collect the newest retained upstream observer checkpoint. */
+  upstream?: (() => Promise<UpstreamInput>) | undefined;
   /** Host platform label; defaults to this host. Fixtures use it to model other hosts. */
   platform?: string | undefined;
   environment: NodeJS.ProcessEnv;
@@ -920,6 +980,9 @@ export async function collect(options: {
     throw new MaintenanceStoreError("Release-health collection requires --all");
   const health = options.releaseHealth ? await options.releaseHealth() : undefined;
   const healthFacts = health ? releaseHealthFacts(health.report) : undefined;
+  if (options.upstream && !options.all)
+    throw new MaintenanceStoreError("Upstream-observation collection requires --all");
+  const upstream = options.upstream ? await upstreamObservation(options.upstream) : undefined;
   if (options.publication && !options.all)
     throw new MaintenanceStoreError("Publication collection requires --all");
   const publicationObserved = options.publication
@@ -951,6 +1014,7 @@ export async function collect(options: {
       ...(health && healthFacts
         ? { releaseHealth: { revision: health.revision, ...healthFacts } }
         : {}),
+      ...(upstream ? { upstream } : {}),
       ...(publicationObserved
         ? {
             publication: {
@@ -969,6 +1033,15 @@ export async function collect(options: {
                 : {}),
               ...(health
                 ? { releaseHealth: latestMembers(options.environment, "release-health", startedAt) }
+                : {}),
+              ...(upstream
+                ? {
+                    upstream: latestMembers(
+                      options.environment,
+                      "upstream-observations",
+                      startedAt,
+                    ),
+                  }
                 : {}),
               ...(publicationObserved
                 ? {
@@ -990,6 +1063,14 @@ export async function collect(options: {
     cli_sha256: cliSha256,
     subjects: subjects.length,
     issues: issueInventory?.issues.length ?? null,
+    upstream: upstream
+      ? {
+          revision: upstream.revision,
+          coverage: upstream.failed ? "failed" : upstream.gaps.length ? "partial" : "complete",
+          facts: upstream.facts.size,
+          gaps: upstream.gaps.length,
+        }
+      : null,
     core_gaps: subjects.filter(
       ({ capabilities: fact }) => !fact.ok && !subjectScopedRefusals.has(fact.error?.code ?? ""),
     ).length,
@@ -1011,6 +1092,12 @@ const reportQuery = `WITH latest_issue AS (
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
       WHERE r.source = 'release-health' AND r.coverage <> 'in_progress'
+      ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC
+  ), latest_upstream AS (
+    SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
+      FROM portcove_maintenance.observations o
+      JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
+      WHERE r.source = 'upstream-observations' AND r.coverage <> 'in_progress'
       ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC
   ), latest_catalog AS (
     SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
@@ -1086,6 +1173,14 @@ SELECT json_build_object(
               ORDER BY started_at DESC LIMIT 1) hr
            CROSS JOIN LATERAL jsonb_array_elements(hr.gaps) g
            WHERE g ->> 'subject_key' = c.port_key LIMIT 1) AS latest_health_gap,
+        (SELECT CASE WHEN u.payload = portcove_maintenance.absent_payload() THEN NULL ELSE u.payload END
+           FROM latest_upstream u WHERE u.subject_key = c.port_key) AS upstream,
+        (SELECT g FROM (
+            SELECT gaps FROM portcove_maintenance.collection_runs
+              WHERE source = 'upstream-observations' AND coverage <> 'in_progress'
+              ORDER BY started_at DESC LIMIT 1) ur
+           CROSS JOIN LATERAL jsonb_array_elements(ur.gaps) g
+           WHERE g ->> 'subject_key' = c.port_key LIMIT 1) AS latest_upstream_gap,
         json_build_object(
           'name', lc.payload -> 'authored_record' -> 'listing' ->> 'name',
           'game', lc.payload -> 'authored_record' -> 'listing' ->> 'original_game_title',
@@ -1176,6 +1271,9 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
   const healthObserved = (data.runs as { source: string }[]).some(
     ({ source }) => source === "release-health",
   );
+  const upstreamObserved = (data.runs as { source: string }[]).some(
+    ({ source }) => source === "upstream-observations",
+  );
   return {
     format: "portcove-maintenance-inventory",
     format_version: inventoryFormatVersion,
@@ -1206,6 +1304,7 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     unsupported_sources: unsupportedSources
       .filter(([source]) => !(issuesObserved && (source === "issues" || source === "project")))
       .filter(([source]) => !(healthObserved && source === "release-health"))
+      .filter(([source]) => !(upstreamObserved && source === "upstream-observations"))
       .filter(([source]) => !(publicationRun && source === "definition-publication"))
       .map(([source, reason]) => ({ source, reason })),
     runs: data.runs,
@@ -1251,11 +1350,17 @@ export function renderHtml(report: InventoryReport) {
         alternatives,
         release_health,
         latest_health_gap,
+        upstream,
+        latest_upstream_gap,
       }) => ({
-        attention: (
-          attentionConditions(release_health) as { rule?: string; operation?: string }[]
-        ).map(({ rule, operation }) => `${rule ?? "unknown"} (${operation ?? "unknown"})`),
+        attention: [
+          ...(attentionConditions(release_health) as { rule?: string; operation?: string }[]).map(
+            ({ rule, operation }) => `${rule ?? "unknown"} (${operation ?? "unknown"})`,
+          ),
+          ...upstreamAttention(upstream, latest_upstream_gap),
+        ],
         latest_health_gap,
+        upstream: upstreamSummary(upstream, latest_upstream_gap),
         subject_key,
         name: (identity as { name?: string } | undefined)?.name ?? null,
         game: (identity as { game?: string } | undefined)?.game ?? null,
@@ -1322,7 +1427,7 @@ ${report.unsupported_sources
 <h2>Subjects</h2>
 <label for="search">Search</label>
 <input id="search" type="search" placeholder="Port ID or state">
-<table><thead><tr><th>Subject</th><th>Name and game</th><th>Alternatives</th><th>Core assessment</th><th>Changes</th><th>Assessed</th><th>Latest Core run</th><th>Work</th><th>Needs attention</th></tr></thead><tbody id="subjects"></tbody></table>
+<table><thead><tr><th>Subject</th><th>Name and game</th><th>Alternatives</th><th>Core assessment</th><th>Changes</th><th>Assessed</th><th>Latest Core run</th><th>Work</th><th>Upstream</th><th>Needs attention</th></tr></thead><tbody id="subjects"></tbody></table>
 <script id="inventory" type="application/json">${embedded}</script>
 <script>
 const report = JSON.parse(document.getElementById("inventory").textContent);
@@ -1337,7 +1442,7 @@ function render(filter) {
       ? "not assessed: " + subject.latest_core_gap.code
       : subject.latest_core_run === "assessed" ? "assessed"
       : subject.latest_core_run === "removed" ? "removed from the catalog" : "not in latest run";
-    for (const value of [subject.subject_key, [subject.name, subject.game].filter(Boolean).join(" — "), (subject.alternatives ?? []).join(", "), subject.state, String(subject.sequence), subject.assessed_at, gap, (subject.work ?? []).join("; ") || "no linked issue observed", [subject.latest_health_gap ? "health not fresh: " + subject.latest_health_gap : "", ...(subject.attention ?? [])].filter(Boolean).join("; ")])
+    for (const value of [subject.subject_key, [subject.name, subject.game].filter(Boolean).join(" — "), (subject.alternatives ?? []).join(", "), subject.state, String(subject.sequence), subject.assessed_at, gap, (subject.work ?? []).join("; ") || "no linked issue observed", subject.upstream || "not observed", [subject.latest_health_gap ? "health not fresh: " + subject.latest_health_gap : "", ...(subject.attention ?? [])].filter(Boolean).join("; ")])
       row.insertCell().textContent = value;
   }
 }
@@ -1465,7 +1570,10 @@ commands:
                                        --issues (with --all) adds the verified issue and Project
                                        inventory through the maintained read-only roadmap collector;
                                        --release-health (with --all) adds the latest scheduled
-                                       main upstream-health report, bound by run and digest
+                                       main upstream-health report, bound by run and digest;
+                                       --upstream (with --all) adds the newest retained upstream
+                                       observer checkpoint snapshot from a completed schedule or
+                                       push main run, bound by run, source and artifact digest
   report --output DIR                  write inventory.json and index.html to a new DIR
   digest --output DIR                  write the pending changes-only digest (digest.json, digest.md)
   acknowledge --digest FILE --receipt REF
@@ -1502,6 +1610,9 @@ export async function main(argv = process.argv.slice(2)) {
   const healthIndex = args.indexOf("--release-health");
   const releaseHealth = healthIndex >= 0;
   if (releaseHealth) args.splice(healthIndex, 1);
+  const upstreamIndex = args.indexOf("--upstream");
+  const upstreamSource = upstreamIndex >= 0;
+  if (upstreamSource) args.splice(upstreamIndex, 1);
   const issuesIndex = args.indexOf("--issues");
   const issues = issuesIndex >= 0;
   if (issues) args.splice(issuesIndex, 1);
@@ -1521,6 +1632,7 @@ export async function main(argv = process.argv.slice(2)) {
           concurrency: concurrency === undefined ? undefined : Number(concurrency),
           issues: issues ? readIssueInventory : undefined,
           releaseHealth: releaseHealth ? readReleaseHealth : undefined,
+          upstream: upstreamSource ? () => readUpstreamObservations(committedBytes) : undefined,
           publication: publication || undefined,
           environment,
         }),

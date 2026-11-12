@@ -68,6 +68,8 @@ import {
 } from "./features/app-shell/use-library-selection-return";
 import { useBootstrapState, type StartupFailure } from "./features/bootstrap/use-bootstrap-state";
 import { AdoptionModal } from "./components/AdoptionModal";
+import { LauncherLibraryImport } from "./components/LauncherLibraryImport";
+import { useLauncherAdoptionChoice } from "./features/installation/use-launcher-adoption-choice";
 import {
   LibraryMoveRecovery,
   transferRecoveryCanKeepOriginal,
@@ -1933,13 +1935,15 @@ function AdoptionOverlay({
   libraryGeneration: number;
   ports: readonly PortDefinition[];
 }) {
+  const launcher = useLauncherAdoptionChoice(ui.adoptPath, ui.selectedId);
   const finish = () => {
+    launcher.reset();
     ui.setAdoptOpen(false);
     ui.setAdoptPath("");
   };
   const planning = useAdoptionPlanning(
     ui.adoptPath,
-    ui.selectedId,
+    launcher.portId,
     ui.adoptOpen,
     libraryGeneration,
     operations.perform,
@@ -1950,6 +1954,10 @@ function AdoptionOverlay({
     planning.invalidate();
     ui.setAdoptPath(path);
   };
+  // Choosing a launcher app opens the ordinary copy review once its folder is set.
+  useEffect(() => {
+    if (launcher.takePendingReview()) void planning.review();
+  });
   if (!ui.adoptOpen) return null;
   return (
     <AdoptionModal
@@ -1962,11 +1970,41 @@ function AdoptionOverlay({
       busy={operations.busy}
       close={() => {
         planning.invalidate();
+        launcher.reset();
         ui.setAdoptOpen(false);
       }}
       pickFolder={() => {
         void applyPathChoice(pickInstallFolder(ui.adoptPath), setPath, operations.setError);
       }}
+      launcherImport={
+        <LauncherLibraryImport
+          disabled={Boolean(operations.busy) || planning.applying}
+          inspect={(kind, dataRoot, appsRoot) =>
+            operations.perform(
+              "list launcher apps",
+              () => desktopApi.inspectLauncherLibrary(kind, dataRoot, libraryGeneration, appsRoot),
+              {
+                refresh: "none",
+                invalidateDiagnostics: false,
+                context: targetInvocationContext(
+                  "List launcher apps",
+                  { kind: "source", id: dataRoot, label: "Launcher data folder" },
+                  libraryGeneration,
+                ),
+              },
+            )
+          }
+          pickFolder={async (current) => {
+            try {
+              return await pickInstallFolder(current);
+            } catch (value) {
+              operations.setError(errorText(value));
+              return null;
+            }
+          }}
+          choose={(entry) => launcher.choose(entry, setPath)}
+        />
+      }
       review={(selectedPortId) => {
         void planning.review(selectedPortId);
       }}

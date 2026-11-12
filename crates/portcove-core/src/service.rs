@@ -126,6 +126,13 @@ std::thread_local! {
 
 #[path = "game_install_review.rs"]
 mod game_install_review;
+#[path = "install_batch.rs"]
+mod install_batch;
+pub use install_batch::{
+    INSTALL_BATCH_FORMAT_VERSION, InstallBatchItem, InstallBatchItemState, InstallBatchRecord,
+    InstallBatchRequestItem, InstallBatchReview, InstallBatchReviewItem, InstallBatchSummary,
+    MAX_INSTALL_BATCH_ITEMS,
+};
 mod game_settings;
 #[path = "game_update_acquisition.rs"]
 pub(crate) mod game_update_acquisition;
@@ -732,6 +739,10 @@ impl PortcoveService {
                     }
                     let new_error = if failed_install_cleanup {
                         install_cleanup_retry_message(current.last_error.as_deref(), &error.message)
+                    } else if current.kind == LifecycleOperationKind::DeleteBackup {
+                        // A failed attempt is evidence the next action cannot finish it
+                        // either, so inventory keeps holding (see backups::RESUME_FAILED).
+                        format!("{}{}", backups::RESUME_FAILED, error.message)
                     } else {
                         error.message.clone()
                     };
