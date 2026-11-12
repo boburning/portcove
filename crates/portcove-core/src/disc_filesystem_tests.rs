@@ -601,3 +601,24 @@ fn iso9660_accepts_zero_padding_xa_and_susp_but_not_other_system_use_bytes() {
     mixed[13] = 7;
     assert!(parse_iso_record(&iso_record_with_system_use(&mixed)).is_err());
 }
+
+#[test]
+fn iso9660_refuses_a_record_that_is_missing_its_pad_byte() {
+    // `AB.BIN;1` is eight bytes long, so ECMA-119 requires one pad byte after it:
+    // the record is 42 bytes, and 41 is malformed (an empty system-use area must
+    // not be mistaken for zero padding).
+    let name = b"AB.BIN;1";
+    let build = |length: usize| {
+        let mut record = vec![0_u8; length];
+        record[0] = length as u8;
+        record[2..6].copy_from_slice(&20_u32.to_le_bytes());
+        record[6..10].copy_from_slice(&20_u32.to_be_bytes());
+        record[10..14].copy_from_slice(&5_u32.to_le_bytes());
+        record[14..18].copy_from_slice(&5_u32.to_be_bytes());
+        record[32] = name.len() as u8;
+        record[33..33 + name.len()].copy_from_slice(name);
+        record
+    };
+    assert!(parse_iso_record(&build(42)).is_ok());
+    assert!(parse_iso_record(&build(41)).is_err());
+}

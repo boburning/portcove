@@ -310,6 +310,10 @@ fn parse_iso_record(record: &[u8]) -> Result<IsoRecord> {
     // holds no data, and a following record starts with a non-zero length, so a
     // corrupted length can never swallow the records after it.
     let minimal = (33 + name_length).div_ceil(2) * 2;
+    if record.len() < minimal {
+        // An even-length identifier must be followed by its pad byte.
+        return Err(invalid("a directory record is malformed"));
+    }
     if record.len() != minimal {
         let area = record.get(minimal..).unwrap_or_default();
         let xa_tail = area.len() == 14 && &area[6..8] == b"XA";
