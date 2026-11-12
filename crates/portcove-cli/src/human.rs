@@ -1032,10 +1032,15 @@ fn port_readiness_line(assessment: &portcove_core::PortIntentAssessment) -> Stri
                     maintenance.update_policy
                 );
                 if maintenance.busy {
-                    text.push_str("; busy until earlier work finishes or recovers");
+                    text.push_str(
+                        "; busy until the running game or earlier work finishes or recovers",
+                    );
                 }
                 if let Some(previous) = &maintenance.previous_version {
-                    text.push_str(&format!("; can roll back to {}", clean(previous)));
+                    text.push_str(&format!(
+                        "; keeps {} as the previous version",
+                        clean(previous)
+                    ));
                 }
                 if let Some(staged) = &maintenance.staged_version {
                     text.push_str(&format!("; {} is staged", clean(staged)));

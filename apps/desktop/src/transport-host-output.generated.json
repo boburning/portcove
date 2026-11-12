@@ -8210,7 +8210,7 @@
             ]
           },
           "busy": {
-            "description": "An update download or an install, update or data change for this game\nis in progress or must still recover; maintenance waits for it.",
+            "description": "The game is running or its launch must recover, an update is\ndownloading or verifying, or an install, update or data change for it\nis unfinished or must recover; maintenance waits for it.",
             "type": "boolean"
           },
           "channel": {
@@ -8225,7 +8225,7 @@
             ]
           },
           "previous_version": {
-            "description": "The retained earlier version a rollback would restore, if any.",
+            "description": "The earlier version Portcove keeps for this game, if any. Whether a\nrollback to it is allowed right now is decided by the game's actions.",
             "type": [
               "string",
               "null"
@@ -13360,7 +13360,7 @@
             ]
           },
           "busy": {
-            "description": "An update download or an install, update or data change for this game\nis in progress or must still recover; maintenance waits for it.",
+            "description": "The game is running or its launch must recover, an update is\ndownloading or verifying, or an install, update or data change for it\nis unfinished or must recover; maintenance waits for it.",
             "type": "boolean"
           },
           "channel": {
@@ -13375,7 +13375,7 @@
             ]
           },
           "previous_version": {
-            "description": "The retained earlier version a rollback would restore, if any.",
+            "description": "The earlier version Portcove keeps for this game, if any. Whether a\nrollback to it is allowed right now is decided by the game's actions.",
             "type": [
               "string",
               "null"

@@ -5301,8 +5301,9 @@ export interface PortMaintenance {
    */
   available_version?: string | null;
   /**
-   * An update download or an install, update or data change for this game
-   * is in progress or must still recover; maintenance waits for it.
+   * The game is running or its launch must recover, an update is
+   * downloading or verifying, or an install, update or data change for it
+   * is unfinished or must recover; maintenance waits for it.
    */
   busy?: boolean;
   channel: ReleaseChannel;
@@ -5312,7 +5313,8 @@ export interface PortMaintenance {
    */
   checked_at?: number | null;
   /**
-   * The retained earlier version a rollback would restore, if any.
+   * The earlier version Portcove keeps for this game, if any. Whether a
+   * rollback to it is allowed right now is decided by the game's actions.
    */
   previous_version?: string | null;
   staged_version?: string | null;

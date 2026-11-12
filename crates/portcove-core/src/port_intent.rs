@@ -120,11 +120,13 @@ pub struct PortMaintenance {
     /// Identity of that release, used to announce it once.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub available_sha256: Option<String>,
-    /// The retained earlier version a rollback would restore, if any.
+    /// The earlier version Portcove keeps for this game, if any. Whether a
+    /// rollback to it is allowed right now is decided by the game's actions.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub previous_version: Option<String>,
-    /// An update download or an install, update or data change for this game
-    /// is in progress or must still recover; maintenance waits for it.
+    /// The game is running or its launch must recover, an update is
+    /// downloading or verifying, or an install, update or data change for it
+    /// is unfinished or must recover; maintenance waits for it.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub busy: bool,
     /// When updates were last checked for this install on this channel;
@@ -232,7 +234,10 @@ impl Library {
     /// to recovery; nothing new starts for it.
     pub(crate) fn has_unfinished_lifecycle(&self, port_id: &str) -> Result<bool> {
         Ok(self.connection()?.query_row(
-            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id=?1)",
+            // A retained update download is not unfinished work; it waits for
+            // the player's review and never needs recovery.
+            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations
+             WHERE port_id=?1 AND kind<>'acquire_update')",
             [port_id],
             |row| row.get(0),
         )?)
@@ -548,11 +553,20 @@ impl PortcoveService {
                         .previous
                         .as_ref()
                         .map(|previous| previous.version.clone()),
-                    busy: status.acquisition.is_some()
+                    busy: status.acquisition.as_ref().is_some_and(|acquisition| {
+                        matches!(
+                            acquisition.phase,
+                            crate::GameUpdateAcquisitionPhase::Acquiring
+                                | crate::GameUpdateAcquisitionPhase::Verifying
+                        )
+                    }) || self
+                        .library
+                        .has_unfinished_lifecycle(port_id)
+                        .unwrap_or(true)
                         || self
                             .library
-                            .has_unfinished_lifecycle(port_id)
-                            .unwrap_or(true),
+                            .launch_session_for_port(port_id)
+                            .map_or(true, |session| session.is_some()),
                 }),
                 install_id: active.id,
             }
@@ -1384,8 +1398,27 @@ mod tests {
                 .batches
                 .is_empty()
         );
-        // Unfinished lifecycle work marks the installed game busy.
+        // A retained, finished update download alone is not busy.
         let now = Library::now();
+        service
+            .library()
+            .connection()
+            .unwrap()
+            .execute(
+                "INSERT INTO lifecycle_operations(id,kind,port_id,phase,created_at,updated_at)
+                 VALUES ('kept-download','acquire_update',?1,'acquired',?2,?2)",
+                params![PORT, now],
+            )
+            .unwrap();
+        let PortReadiness::Installed {
+            maintenance: Some(maintenance),
+            ..
+        } = &service.assess_port_intents().await.unwrap().assessments[0].readiness
+        else {
+            panic!("expected installed");
+        };
+        assert!(!maintenance.busy);
+        // Unfinished lifecycle work marks the installed game busy.
         service
             .library()
             .connection()

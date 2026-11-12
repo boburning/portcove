@@ -788,9 +788,11 @@ reason. `games intents-acknowledge --item PORT_ID=PLAN_SHA256` marks a ready
 game as seen. It is reported again only when its ready plan changes.
 
 For an installed game, `installed` also shows its maintenance state under its
-own saved channel and update policy: the active version, the retained version a
-rollback would restore, whether earlier work (an update download or an install,
-update or data change) is still in progress or must recover, any staged version,
+own saved channel and update policy: the active version, the earlier version
+Portcove keeps (whether a rollback to it is allowed is shown by the game's
+actions), whether the game is busy (running, launch recovery pending, an update
+downloading or verifying, or an unfinished install, update or data change), any
+staged version,
 and the newer release the last update check found for exactly this installed
 version, artifact and runtime on that channel, if any. A check made before an
 update, reinstall, rollback or channel change no longer counts, and a release
