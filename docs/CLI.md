@@ -1987,8 +1987,8 @@ plan at once.
 
 Updates are decided per installed provider file. One is applied only when the
 observation is current, the provider offers exactly one newer file (for Thunderstore,
-whose versions form one line, the newest version published after and numbered above
-the installed one), every mod from
+whose versions form one line, the highest of the versions published after and
+numbered above the installed one), every mod from
 the installed file is on, the newer file contains exactly the same mods, and no
 asset that two enabled mods both change gets a different winner (an overlap that
 already exists and stays the same does not hold an update). Several newer GameBanana files, a

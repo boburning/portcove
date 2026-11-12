@@ -199,14 +199,20 @@ fn hold_reason(
 }
 
 /// The update a pass would take: the only newer file, or for Thunderstore, whose
-/// versions form one line, the newest. Several GameBanana files are a choice.
+/// versions form one line, the highest version. Several GameBanana files are a
+/// choice.
 fn chosen_candidate<'a>(
     client: &ProviderClient,
     observation: &'a crate::ProviderUpdateObservation,
 ) -> Option<&'a crate::ProviderFileCandidate> {
     match (client, observation.newer_files.as_slice()) {
         (_, [candidate]) => Some(candidate),
-        (ProviderClient::Thunderstore { .. }, [.., newest]) => Some(newest),
+        // The highest version, not the last published: a backport published
+        // after a major release never wins over it.
+        (ProviderClient::Thunderstore { .. }, [_, _, ..]) => observation
+            .newer_files
+            .iter()
+            .max_by_key(|file| crate::provider_client::version_parts(&file.file_id)),
         _ => None,
     }
 }

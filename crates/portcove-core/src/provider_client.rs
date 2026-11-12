@@ -156,7 +156,7 @@ impl ProviderClient {
     }
 }
 
-fn version_parts(version: &str) -> [u64; 3] {
+pub(crate) fn version_parts(version: &str) -> [u64; 3] {
     let mut parts = [0; 3];
     for (slot, part) in parts.iter_mut().zip(version.split('.')) {
         *slot = part.parse().unwrap_or_default();

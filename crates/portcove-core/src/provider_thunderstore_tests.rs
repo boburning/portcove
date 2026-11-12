@@ -283,9 +283,11 @@ async fn recomp_plans_compare_no_asset_entries_and_unattended_updates_take_the_n
             crate::ProfileUpdatePolicy::AutomaticEligible,
         )
         .unwrap();
+    // 2.0.0, then a 1.x backport published later: the highest version wins.
     for (version, created, marker) in [
         ("1.1.0", "2026-11-05T00:00:00Z", "b"),
-        ("1.2.0", "2026-11-06T00:00:00Z", "c"),
+        ("2.0.0", "2026-11-06T00:00:00Z", "c"),
+        ("1.5.0", "2026-11-07T00:00:00Z", "d"),
     ] {
         let bytes = zip_bytes(&[
             ("mod.json", &serde_json::to_vec(&serde_json::json!({
@@ -316,7 +318,7 @@ async fn recomp_plans_compare_no_asset_entries_and_unattended_updates_take_the_n
         .await
         .unwrap();
     assert!(
-        matches!(&results[0].outcome, ProviderAutoUpdateOutcome::Applied { file_id, .. } if file_id == "1.2.0"),
+        matches!(&results[0].outcome, ProviderAutoUpdateOutcome::Applied { file_id, .. } if file_id == "2.0.0"),
         "{:?}",
         results[0].outcome
     );
@@ -358,7 +360,20 @@ async fn a_plan_stripped_of_its_code_marking_cannot_install_code_without_consent
     let mut forged = plan.clone();
     forged.members[0].runs_code.clear();
     forged.plan_sha256 = crate::provider_install::digest(&forged).unwrap();
+    // Even with the reviewed bytes staged under the forged plan, apply inspects
+    // them again and refuses code no one allowed.
+    let layout = w.service.deploy_layout(PORT).unwrap();
+    let forged_dir = layout.staged(&forged.plan_sha256);
+    fs::create_dir_all(&forged_dir).unwrap();
+    for entry in fs::read_dir(layout.staged(&plan.plan_sha256)).unwrap() {
+        let entry = entry.unwrap();
+        fs::copy(entry.path(), forged_dir.join(entry.file_name())).unwrap();
+    }
     let token = w.service.authorize_provider_install(&forged).unwrap().token;
-    assert!(w.service.apply_provider_install(&forged, &token).is_err());
+    let error = w
+        .service
+        .apply_provider_install(&forged, &token)
+        .unwrap_err();
+    assert!(error.message.contains("runs its own code"), "{error:?}");
     assert!(live(&w).is_empty(), "nothing was installed");
 }
