@@ -53,7 +53,7 @@ All three titles are enrolled in the shared release-selection corpus. Each uses 
 
 - Package: an arm64 NativeAOT `mdk_sdl` with an embedded code signature and `minos` 12.0, beside its `libSDL3.dylib`, which uses `@rpath`.
 - Data location: the exact source (`UserFolders.Choose`) keeps settings, saves and mods beside the executable when that folder is writable. This is the same rule as the Windows and Linux routes, so their persistence contract applies unchanged. The unwritable-folder fallback is .NET's local application data folder, `~/Library/Application Support/mdk-sdl` on macOS.
-- Finding the original game: `MdkData.Find()` probes only Windows default install locations, and managed launches do not pass `MDK_DATA_DIR`. The managed Mac route therefore names the original installation in `mdk_paths.cfg`.
+- Finding the original game: `MdkData.Find()` checks `MDK_DATA_DIR`, `mdk_paths.cfg`, folders above the program (inside the Portcove library for a managed copy) and only Windows default install locations, and managed launches do not pass `MDK_DATA_DIR`. The managed Mac route therefore names the original installation in `mdk_paths.cfg`.
 - Catalog: the listing's upstream-owned Mac entry moves into the managed integration.
 
 ## Not observed
