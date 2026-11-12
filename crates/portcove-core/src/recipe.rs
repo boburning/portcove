@@ -604,15 +604,17 @@ impl PortcoveService {
                 .filter(|package| package.enabled)
                 .map(|package| package.native_id.as_str())
                 .collect::<Vec<_>>();
-            if enabled
+            if let Some(name) = enabled
                 .iter()
-                .any(|name| crate::native_mod_list::require_listable(name).is_err())
+                .find(|name| crate::native_mod_list::require_listable(name).is_err())
             {
-                holds.push("a package name cannot be listed in the game's mod list".into());
+                holds.push(format!(
+                    "the game's mod list cannot name {name}; ask for a recipe without it"
+                ));
             }
             if let Some((first, second)) = crate::native_mod_list::identity_collision(enabled) {
                 holds.push(format!(
-                    "{first} and {second} would load as the same mod; turn one off before sharing"
+                    "{first} and {second} would load as the same mod; ask for a recipe with one of them turned off"
                 ));
             }
         }
