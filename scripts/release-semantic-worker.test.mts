@@ -243,6 +243,58 @@ void test("supplemental application claims require exact prior stops and preserv
   );
 });
 
+void test("early application continuation binds the second stop and uses the original last claim", async (t) => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "semantic-bridge-continuation-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const requestId = "c".repeat(64);
+  const request = path.join(parent, `request-${requestId}`);
+  await mkdir(request);
+  const scope = { request_id: requestId, max_lanes: 400 };
+  const continuation = { ...scope, continuation_stop_sha256: "d".repeat(64) };
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), continuation),
+    /requires exactly two original claims/,
+  );
+  for (let index = 0; index < 2; index++) {
+    const attempt = await claimSemanticTechnicalAttempt(request, "a".repeat(64), scope);
+    await writeFile(
+      path.join(attempt, "technical-stop.json"),
+      JSON.stringify({
+        outcome: "technical-failure",
+        invocations: [],
+        application_partition_request_id: requestId,
+        index,
+      }),
+    );
+  }
+  const second = path.join(request, "technical-1");
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), continuation),
+    /stop differs/,
+  );
+  continuation.continuation_stop_sha256 = createHash("sha256")
+    .update(await readFile(path.join(second, "technical-stop.json")))
+    .digest("hex");
+  await writeFile(path.join(second, "expected-check.json"), "retained");
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), continuation),
+    /GET-only/,
+  );
+  await rm(path.join(second, "expected-check.json"));
+  assert.equal(
+    path.basename(await claimSemanticTechnicalAttempt(request, "a".repeat(64), continuation)),
+    "technical-2",
+  );
+  assert.equal(
+    await readFile(`${request}.attempts.jsonl`, "utf8"),
+    "technical-0\ntechnical-1\ntechnical-2\n",
+  );
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), continuation),
+    /budget exhausted/,
+  );
+});
+
 void test("retained application prelaunch refuses an alternate canonical path or an invocation sibling", () => {
   const request = "request-b59b5c190f4933ff6f26ef05b0f5fd137b9da2e0e5114d2499a678f2a918b7be";
   const root = `/home/boburning/portcove-semantic/private/production-semantic-output/${request}/technical-0`;
