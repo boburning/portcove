@@ -3,23 +3,25 @@ import { ChoiceSelect } from "../../components/ChoiceSelect";
 import { OperationCancellation } from "../../components/OperationCancellation";
 import { Button } from "../../components/ui/button";
 import { platformLabel, releaseChannelPresentation } from "../../view-model";
-import { routes } from "./game-file-query-context";
+import { useAppTranslation } from "../../localization";
+import { gameFileRouteLabel, routeValues } from "./game-file-query-context";
 import type { GameFileFilterState } from "./use-game-file-filter-context";
 
 export function GameFileFilterControls({ state }: { state: GameFileFilterState }) {
   const { selection } = state;
+  const { t } = useAppTranslation("gameFiles");
   return (
     <fieldset className="grid gap-2">
-      <legend className="font-medium">Game files to check</legend>
+      <legend className="font-medium">{t("controls.legend")}</legend>
       <ChoiceSelect
-        label="Setup option"
+        label={t("controls.route")}
         value={selection.route}
-        options={routes}
+        options={routeValues.map((value) => ({ value, label: gameFileRouteLabel(t, value) }))}
         disabled={state.pending}
         onChange={(route) => state.setSelection((current) => ({ ...current, route }))}
       />
       <ChoiceSelect
-        label="Platform"
+        label={t("controls.platform")}
         value={selection.platform}
         options={(["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"] as const).map(
           (value) => ({ value, label: platformLabel(value) }),
@@ -28,7 +30,7 @@ export function GameFileFilterControls({ state }: { state: GameFileFilterState }
         onChange={(platform) => state.setSelection((current) => ({ ...current, platform }))}
       />
       <ChoiceSelect
-        label="Channel"
+        label={t("controls.channel")}
         value={selection.channel}
         options={(["stable", "beta", "rolling"] as const).map((value) => ({
           value,
@@ -37,10 +39,7 @@ export function GameFileFilterControls({ state }: { state: GameFileFilterState }
         disabled={state.pending}
         onChange={(channel) => state.setSelection((current) => ({ ...current, channel }))}
       />
-      <p>
-        Check game files for this setup option, platform and channel. Changing filters alone does
-        not scan files or install anything.
-      </p>
+      <p>{t("controls.description")}</p>
       <Button
         data-focusable
         variant="outline"
@@ -49,13 +48,13 @@ export function GameFileFilterControls({ state }: { state: GameFileFilterState }
           void state.refresh();
         }}
       >
-        {state.pending ? "Checking game-file filters…" : "Check game-file filters"}
+        {state.pending ? t("controls.checking") : t("controls.check")}
       </Button>
       {state.pending && state.operationId && (
         <OperationCancellation
           key={state.operationId}
           operationId={state.operationId}
-          label="Cancel game-file filter check"
+          label={t("controls.cancel")}
         />
       )}
       <GameFileObservationSummary observation={state.observation} catalog />

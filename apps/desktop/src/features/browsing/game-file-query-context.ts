@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import type {
   GameFileQueryRefreshRequest,
   GameFileQuerySnapshot,
@@ -5,40 +6,100 @@ import type {
   LibraryIdentity,
 } from "../../types";
 export type Route = GameFileQueryRefreshRequest["routes"][number];
-export const routes: readonly { value: Route["route"]; label: string }[] = [
-  { value: "managed_install", label: "Managed setup" },
-  { value: "external_registration", label: "Existing installation setup" },
-  { value: "managed_launch", label: "Managed launch" },
-  { value: "external_launch", label: "Existing installation launch" },
+type State = GameFileQuerySnapshot["routes"][number]["state"];
+type Reason = GameFileQuerySnapshot["routes"][number]["reason"];
+
+/** The route options in display order; labels resolve through gameFileRouteLabel. */
+export const routeValues: readonly Route["route"][] = [
+  "managed_install",
+  "external_registration",
+  "managed_launch",
+  "external_launch",
 ];
-export const states: Record<GameFileQuerySnapshot["routes"][number]["state"], string> = {
-  files_available: "Compatible complete files available",
-  files_missing: "Files missing",
-  needs_checking: "Needs checking",
-  no_files_required: "No files to add in Portcove",
-  unavailable_context: "Unavailable context",
+
+/** Values Core may report; exhaustive records keep these in step with the transport types. */
+const knownStates: Record<State, true> = {
+  files_available: true,
+  files_missing: true,
+  needs_checking: true,
+  no_files_required: true,
+  unavailable_context: true,
 };
-export const reasons: Record<GameFileQuerySnapshot["routes"][number]["reason"], string> = {
-  complete_compatible_observation:
-    "A complete set of compatible game files was found for this setup or launch option.",
-  no_connected_registration:
-    "No saved game-file location is connected for this setup or launch option.",
-  explicit_empty_requirements:
-    "This action needs no files added to Portcove. The game may still ask for original files.",
-  observation_unavailable: "No current file-check result is available.",
-  observation_stale: "The file-check result is out of date. Check again.",
-  source_needs_checking: "The connected files need checking.",
-  storage_absence_unconfirmed:
-    "Portcove could not confirm whether the files are present. They are not confirmed missing.",
-  identity_not_admitted: "These game files have not been accepted for this setup or launch option.",
-  contract_not_reviewed:
-    "File requirements have not been reviewed for this setup or launch option.",
-  variant_not_supported: "The observed file variant does not match this route.",
-  release_not_bound:
-    "We haven’t confirmed whether this file-check result applies to the selected version.",
-  route_not_offered: "The selected route is not offered.",
-  profile_context_changed: "The selected game files or setup option changed. Check again.",
+const knownReasons: Record<Reason, true> = {
+  complete_compatible_observation: true,
+  no_connected_registration: true,
+  explicit_empty_requirements: true,
+  observation_unavailable: true,
+  observation_stale: true,
+  source_needs_checking: true,
+  storage_absence_unconfirmed: true,
+  identity_not_admitted: true,
+  contract_not_reviewed: true,
+  variant_not_supported: true,
+  release_not_bound: true,
+  route_not_offered: true,
+  profile_context_changed: true,
 };
+
+/** Labels by static key, so extraction keeps every form and a live language change re-renders. */
+export function gameFileRouteLabel(t: TFunction<"gameFiles">, route: Route["route"]) {
+  switch (route) {
+    case "managed_install":
+      return t("route.managedInstall");
+    case "external_registration":
+      return t("route.externalRegistration");
+    case "managed_launch":
+      return t("route.managedLaunch");
+    case "external_launch":
+      return t("route.externalLaunch");
+  }
+}
+
+export function gameFileStateLabel(t: TFunction<"gameFiles">, state: State) {
+  switch (state) {
+    case "files_available":
+      return t("state.filesAvailable");
+    case "files_missing":
+      return t("state.filesMissing");
+    case "needs_checking":
+      return t("state.needsChecking");
+    case "no_files_required":
+      return t("state.noFilesRequired");
+    case "unavailable_context":
+      return t("state.unavailableContext");
+  }
+}
+
+export function gameFileReasonLabel(t: TFunction<"gameFiles">, reason: Reason) {
+  switch (reason) {
+    case "complete_compatible_observation":
+      return t("reason.completeCompatibleObservation");
+    case "no_connected_registration":
+      return t("reason.noConnectedRegistration");
+    case "explicit_empty_requirements":
+      return t("reason.explicitEmptyRequirements");
+    case "observation_unavailable":
+      return t("reason.observationUnavailable");
+    case "observation_stale":
+      return t("reason.observationStale");
+    case "source_needs_checking":
+      return t("reason.sourceNeedsChecking");
+    case "storage_absence_unconfirmed":
+      return t("reason.storageAbsenceUnconfirmed");
+    case "identity_not_admitted":
+      return t("reason.identityNotAdmitted");
+    case "contract_not_reviewed":
+      return t("reason.contractNotReviewed");
+    case "variant_not_supported":
+      return t("reason.variantNotSupported");
+    case "release_not_bound":
+      return t("reason.releaseNotBound");
+    case "route_not_offered":
+      return t("reason.routeNotOffered");
+    case "profile_context_changed":
+      return t("reason.profileContextChanged");
+  }
+}
 
 /** Validate presentation context only. Core remains the execution authority. */
 export function acceptedGameFileQuery(
@@ -69,8 +130,8 @@ export function acceptedGameFileQuery(
     projection.platform === request.platform &&
     projection.channel === request.channel &&
     projection.route === request.route &&
-    Object.hasOwn(states, projection.state) &&
-    Object.hasOwn(reasons, projection.reason) &&
+    Object.hasOwn(knownStates, projection.state) &&
+    Object.hasOwn(knownReasons, projection.reason) &&
     (projection.state !== "files_available" ||
       (projection.reason === "complete_compatible_observation" &&
         identifier(projection.contract_id) &&

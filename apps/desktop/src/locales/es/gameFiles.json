@@ -1,4 +1,14 @@
 {
+  "controls": {
+    "cancel": "Cancelar la comprobación de filtros de archivos del juego",
+    "channel": "Canal",
+    "check": "Comprobar los filtros de archivos del juego",
+    "checking": "Comprobando los filtros de archivos del juego…",
+    "description": "Comprueba los archivos del juego para esta opción de configuración, plataforma y canal. Cambiar solo los filtros no examina archivos ni instala nada.",
+    "legend": "Archivos del juego que comprobar",
+    "platform": "Plataforma",
+    "route": "Opción de configuración"
+  },
   "filterObservation": {
     "completeSet": "Conjunto completo: <identity/>",
     "heading": "Resultados del filtro de archivos del juego",
@@ -54,6 +64,16 @@
     "label": "Selecciones preliminares de archivos del juego",
     "notValidated": "La validación no se ha ejecutado."
   },
+  "query": {
+    "cancel": "Cancelar la comprobación de archivos del juego",
+    "channelScope": "Canal: <channel/>. Esta comprobación observa los archivos conectados; la configuración y el inicio siguen necesitando sus propias revisiones y requisitos.",
+    "check": "Comprobar los archivos para esta opción",
+    "checking": "Comprobando los archivos del juego…",
+    "heading": "Archivos del juego para esta opción de configuración o inicio",
+    "label": "Archivos del juego de la ruta seleccionada",
+    "platform": "Plataforma de destino",
+    "route": "Opción de configuración o inicio"
+  },
   "ready": {
     "dismiss": "Descartar <game/>",
     "heading": "Listos para ti",
@@ -63,5 +83,57 @@
     "reviewUpdate": "Revisar la actualización de <game/>",
     "update": "<game/> tiene una actualización disponible: <version/>. No se descargó ni cambió nada.",
     "updateUnknownVersion": "<game/> tiene una actualización disponible: una versión más reciente. No se descargó ni cambió nada."
+  },
+  "reason": {
+    "completeCompatibleObservation": "Se encontró un conjunto completo de archivos del juego compatibles para esta opción de configuración o inicio.",
+    "contractNotReviewed": "Los requisitos de archivos no se han revisado para esta opción de configuración o inicio.",
+    "explicitEmptyRequirements": "Esta acción no necesita añadir archivos a Portcove. Aun así, el juego puede pedir los archivos originales.",
+    "identityNotAdmitted": "Estos archivos del juego no se han aceptado para esta opción de configuración o inicio.",
+    "noConnectedRegistration": "No hay ninguna ubicación guardada de archivos del juego conectada a esta opción de configuración o inicio.",
+    "observationStale": "El resultado de la comprobación de archivos está desactualizado. Vuelve a comprobarlo.",
+    "observationUnavailable": "No hay ningún resultado actual de comprobación de archivos.",
+    "profileContextChanged": "Los archivos del juego o la opción de configuración seleccionados cambiaron. Vuelve a comprobarlo.",
+    "releaseNotBound": "Aún no hemos confirmado si este resultado de comprobación se aplica a la versión seleccionada.",
+    "routeNotOffered": "La ruta seleccionada no está disponible.",
+    "sourceNeedsChecking": "Hay que comprobar los archivos conectados.",
+    "storageAbsenceUnconfirmed": "Portcove no pudo confirmar si los archivos están presentes. No se ha confirmado que falten.",
+    "variantNotSupported": "La variante de archivo observada no coincide con esta ruta."
+  },
+  "route": {
+    "externalLaunch": "Inicio de una instalación existente",
+    "externalRegistration": "Configuración de una instalación existente",
+    "managedInstall": "Configuración administrada",
+    "managedLaunch": "Inicio administrado"
+  },
+  "state": {
+    "filesAvailable": "Archivos completos y compatibles disponibles",
+    "filesMissing": "Faltan archivos",
+    "needsChecking": "Necesita comprobación",
+    "noFilesRequired": "No hay archivos que añadir en Portcove",
+    "unavailableContext": "Contexto no disponible"
+  },
+  "summary": {
+    "cancelled": "La última comprobación se canceló. No hay ninguna comprobación de archivos actual.",
+    "catalogHistory": "Historial de comprobaciones del catálogo",
+    "catalogScope_one": "Catálogo ({{count}} adaptación)",
+    "catalogScope_many": "Catálogo ({{count}} adaptaciones)",
+    "catalogScope_other": "Catálogo ({{count}} adaptaciones)",
+    "checkingCatalog": "Comprobando los archivos del juego para el catálogo…",
+    "checkingSelected": "Comprobando los archivos del juego para esta configuración…",
+    "expired": "La comprobación de archivos caducó. Vuelve a comprobarlo.",
+    "expiredCatalog": "La comprobación de archivos anterior caducó. Para volver a comprobar, abre Filtros → Comprobar los filtros de archivos del juego.",
+    "expiredSelected": "La comprobación de archivos anterior caducó. Usa Comprobar los archivos para esta opción para volver a comprobar.",
+    "failed": "La última comprobación falló. No hay ninguna comprobación de archivos actual.",
+    "informationalCatalog": "La comprobación anterior es solo informativa. Para volver a comprobar, abre Filtros → Comprobar los filtros de archivos del juego.",
+    "informationalSelected": "La comprobación anterior es solo informativa. Usa Comprobar los archivos para esta opción para volver a comprobar.",
+    "lastChecked": "Última comprobación: <time/>",
+    "missingCatalog": "Comprueba los archivos del juego antes de usar los filtros de archivos del juego.",
+    "missingSelected": "No hay una comprobación actual de archivos del juego para esta selección. Vuelve a comprobarlo.",
+    "previousCheck": "Comprobación anterior: <time/>",
+    "readyCatalog": "Las comprobaciones de archivos del juego están listas para usar en Filtros.",
+    "readySelected": "La comprobación de archivos del juego está al día.",
+    "selectedHistory": "Historial de comprobaciones de la ruta seleccionada",
+    "selectedScope": "Adaptación seleccionada",
+    "waiting": "Esperando a que termine la comprobación anterior."
   }
 }
