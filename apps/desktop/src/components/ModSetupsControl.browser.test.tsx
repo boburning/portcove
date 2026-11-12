@@ -389,7 +389,7 @@ it("words held updates with the locale's plural forms", async () => {
   }
 });
 
-it("offers an upgraded copy only for a customized setup left on an earlier game version", async () => {
+it("offers a copy on the current version only for a customized setup on another version", async () => {
   const onBuild = (entry: ReturnType<typeof setup>, install_id: string) => ({
     ...entry,
     revision: { ...entry.revision, build: { install_id } },
@@ -399,7 +399,7 @@ it("offers an upgraded copy only for a customized setup left on an earlier game 
     inventory: {
       port_id: "shipwright",
       profiles: [
-        onBuild(setup("default", "Default", 3, [["hd.o2r", true]]), "v2"),
+        onBuild(setup("default", "Default", 3, [["hd.o2r", true]]), "v1"),
         onBuild(setup("custom", "Custom", 2, [["hd.o2r", true]]), "v1"),
       ],
     },
@@ -418,10 +418,10 @@ it("offers an upgraded copy only for a customized setup left on an earlier game 
   const host = await render();
   expect(host.textContent).toContain("stays on the game version it was made with");
   await page.getByRole("textbox", { name: "New setup name" }).fill("Custom updated");
-  await act(async () => button(host, "Copy onto the updated game").click());
+  await act(async () => button(host, "Copy onto the current version").click());
   expect(copy).toHaveBeenCalledWith("shipwright", "custom", "Custom updated", 7, true);
   expect(host.querySelector("[role=status]")?.textContent).toContain(
-    "Created Custom updated on the updated game",
+    "Created Custom updated on the game’s current version",
   );
 
   // The default setup follows updates, and a setup already on the current
@@ -436,7 +436,7 @@ it("offers an upgraded copy only for a customized setup left on an earlier game 
     expect(again.textContent).not.toContain("stays on the game version");
     expect(
       [...again.querySelectorAll("button")].some(
-        (candidate) => candidate.textContent === "Copy onto the updated game",
+        (candidate) => candidate.textContent === "Copy onto the current version",
       ),
     ).toBe(false);
   }
