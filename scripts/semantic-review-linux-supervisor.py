@@ -1021,7 +1021,96 @@ def inspect_mounts(text):
     return sorted(writable)
 
 
-def codex_arguments(index_hash, mode):
+def reader_arguments(index_hash):
+    return [
+        "/runtime/node",
+        "--preserve-symlinks",
+        "--preserve-symlinks-main",
+        "/runtime/release-semantic-reader-server.mts",
+        "/inputs/reader-index.json",
+        index_hash,
+    ]
+
+
+def qualify_reader_handoff(index_hash):
+    protocol = "2025-06-18"
+    requests = (
+        {"jsonrpc": "2.0", "id": 0, "method": "initialize", "params": {"protocolVersion": protocol}},
+        {"jsonrpc": "2.0", "method": "notifications/initialized"},
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+                "name": "read",
+                "arguments": {"snapshot": "source", "path": "fixture.txt", "offset": 0, "length": 4096},
+            },
+        },
+    )
+    result = subprocess.run(
+        reader_arguments(index_hash),
+        input="".join(json.dumps(request) + "\n" for request in requests).encode(),
+        capture_output=True,
+        timeout=15,
+        check=False,
+    )
+    require(
+        result.returncode == 0
+        and not result.stderr
+        and len(result.stdout) <= 16 * 1024
+        and result.stdout.count(b"\n") == 2
+        and result.stdout.endswith(b"\n")
+        and b"\r" not in result.stdout,
+        "keyless reader transport refused",
+    )
+    initialized, read = map(decode_json, result.stdout[:-1].split(b"\n"))
+    require(
+        initialized == {
+            "jsonrpc": "2.0",
+            "id": 0,
+            "result": {
+                "protocolVersion": protocol,
+                "capabilities": {"tools": {}},
+                "serverInfo": {"name": "portcove_frozen_bundle", "version": "1"},
+            },
+        }
+        and isinstance(read, dict)
+        and set(read) == {"jsonrpc", "id", "result"}
+        and read["jsonrpc"] == "2.0"
+        and read["id"] == 1
+        and isinstance(read["result"], dict)
+        and set(read["result"]) == {"isError", "content"}
+        and read["result"]["isError"] is False,
+        "keyless reader handshake differs",
+    )
+    content = read["result"]["content"]
+    require(
+        isinstance(content, list)
+        and len(content) == 1
+        and isinstance(content[0], dict)
+        and set(content[0]) == {"type", "text"}
+        and content[0]["type"] == "text"
+        and isinstance(content[0]["text"], str),
+        "keyless reader content differs",
+    )
+    expected = b"inert fixture\n"
+    page = decode_json(content[0]["text"].encode())
+    require(
+        page == {
+            "bytes": len(expected),
+            "sha256": hashlib.sha256(expected).hexdigest(),
+            "offset": 0,
+            "encoding": "base64",
+            "data": base64.b64encode(expected).decode("ascii"),
+            "next": None,
+        },
+        "keyless reader fixture bytes differ",
+    )
+    print(json.dumps({"scope": "inert-linux-reader-handoff", "reader_sha256": index_hash}), flush=True)
+
+
+def codex_arguments(index_hash):
+    reader = reader_arguments(index_hash)
     command = [
         "/runtime/codex",
         "exec",
@@ -1075,18 +1164,9 @@ def codex_arguments(index_hash, mode):
         "--config",
         'model_catalog_json="/runtime/semantic-review-model-catalog.json"',
         "--config",
-        'mcp_servers.portcove_frozen_bundle.command="/runtime/node"',
+        "mcp_servers.portcove_frozen_bundle.command=" + json.dumps(reader[0]),
         "--config",
-        "mcp_servers.portcove_frozen_bundle.args="
-        + json.dumps(
-            [
-                "--preserve-symlinks",
-                "--preserve-symlinks-main",
-                "/runtime/release-semantic-reader-server.mts",
-                "/inputs/reader-index.json",
-                index_hash,
-            ]
-        ),
+        "mcp_servers.portcove_frozen_bundle.args=" + json.dumps(reader[1:]),
         "--config",
         # The materialized index exposes only the tools of its exact protocol.
         'mcp_servers.portcove_frozen_bundle.enabled_tools=["list","read","read_text","net_diff","search","read_page"]',
@@ -1099,9 +1179,7 @@ def codex_arguments(index_hash, mode):
         "--config",
         "mcp_servers.portcove_frozen_bundle.tool_timeout_sec=30",
     ]
-    if mode == "codex":
-        command += ["--output-schema", "/inputs/result-schema.json"]
-    return command + ["-"]
+    return command + ["--output-schema", "/inputs/result-schema.json", "-"]
 
 
 class InsideRelay:
@@ -1232,16 +1310,13 @@ def inside(mode):
             require(
                 isinstance(launch, dict) and SHA.fullmatch(launch.get("index_sha256", "")), "fixed reader hash missing"
             )
-            prompt = (
-                read_regular("/inputs/instructions.txt", MIB)
-                if mode == "codex"
-                else (
-                    b"This is an inert credential-free startup fixture, not a review. Do not use shell, files, "
-                    b'network or other tools. Reply exactly with the JSON object {"fixture":"inert"}.'
-                )
-            )
-            result = subprocess.run(codex_arguments(launch["index_sha256"], mode), input=prompt, check=False)
-            code = result.returncode
+            if mode == "codex-fixture":
+                qualify_reader_handoff(launch["index_sha256"])
+                code = 0
+            else:
+                prompt = read_regular("/inputs/instructions.txt", MIB)
+                result = subprocess.run(codex_arguments(launch["index_sha256"]), input=prompt, check=False)
+                code = result.returncode
             if mode == "codex" and code == 0:
                 descriptor = os.open("/w/home/.codex/auth.json", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
                 info = os.fstat(descriptor)
