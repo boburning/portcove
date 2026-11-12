@@ -218,14 +218,28 @@ maintained read-only status route when CLI access is available:
 
 ```sh
 node scripts/hosted-discovery-intake.mts status --request <proposal-comment-id> --json
+node scripts/hosted-discovery-intake.mts status --all --json
 ```
 
-It reports `submitted`, `partial`, `blocked` or `complete`, new `delivered` versus
-verified `existing` counts, pending candidates, the last diagnostic and whether
-the full doctor is required. It refuses a forged/stale proposal binding or a
+It reports `submitted`, `partial`, `blocked`, `complete` or `complete_with_holds`,
+new `delivered` versus verified `existing` counts, held and pending candidates,
+the last diagnostic and whether the full doctor is required. Each ordered
+candidate slot reports its port key, repository ID, upstream, delivery status,
+linked issue (the created issue or verified existing owner) and any hold's HTTP
+status and resume condition. It refuses a forged/stale proposal binding or a
 complete claim without the candidate-bound scoped doctors and applicable full
-doctor. It needs ordinary GitHub read access, no Actions event or Project write
-credential, and never runs intake. Without CLI access, read the same bound bot
+doctor. `--all` covers every owner-authored #177 request in one complete comment
+read bracketed by #177's unchanged revision. A request is a comment that starts
+with the request marker, or a withdrawn request that keeps exactly one marker
+followed by its complete original proposal; prose that quotes the marker is not
+a request. It classifies a withdrawn request from its retained original proposal and links each
+reconciliation to the request it supersedes. It reports a request it cannot
+validate with that error instead of failing the whole read. The status route
+needs ordinary GitHub read access: it is GET-only to #177 and its comments, with
+a request budget derived from the observed queue under an absolute ceiling
+([details](MAINTENANCE-STORE.md#hosted-intake)), and needs no Roadmap connection,
+Actions event or Project or write credential. It never runs intake. The
+[maintenance inventory](MAINTENANCE-STORE.md#hosted-intake) stores this read. Without CLI access, read the same bound bot
 receipt on #177 and preserve these distinctions. The scheduled investigator must
 use its final receipt counts, retain pending work and precise blockers, and
 must not call an accepted proposal or all distinct candidate IDs completed new

@@ -40,6 +40,10 @@ closure, titles or tags. Those rules stay in Core.
   `scripts/upstream-lineage.mts` (`url:` or `repository:` plus `target_key`), so
   distinct implementations of one game stay distinct while sharing `target_key`.
 - `issue:<number>` for canonical work without a port record.
+- `intake:<request_comment_id>`: one owner-authored hosted-intake request on
+  #177, by the immutable ID of its request comment. A withdrawn request keeps its
+  identity. Its candidates link to canonical work through `issue:<number>`; a
+  candidate `port_key` is not a catalog ID and is never keyed as `port:`.
 
 An observation's `scope` binds the applicable artifact, source, platform, route,
 operation and check/policy version. Evidence applies only where its whole scope
@@ -65,15 +69,14 @@ requires a known denominator equal to that count with no gaps. `partial`,
 | Scoped qualification                | `catalog.json` `source_catalog.qualification[]` and `evidence[]`                                     | Exact scope per record; no catalog-wide denominator           |
 | Upstream observations               | `configured-upstream-observer.yml` checkpoint recovery snapshot (`observer-checkpoint-artifact.mts`) | Per port: every serving source completed with its policy      |
 | Release health                      | `scripts/upstream-health-monitor.mts` report and `work/upstream-health/checkpoint.json`              | Fresh complete, partial, stale and unmonitored port IDs       |
-| Hosted intake receipts              | `node scripts/hosted-discovery-intake.mts status --request ID --json`; receipt comments on #177      | Per request: delivered, existing and pending counts           |
+| Hosted intake receipts              | `node scripts/hosted-discovery-intake.mts status --all --json` over the receipt comments on #177     | Every marker-bearing owner request in one drift-checked read  |
 | Definition publication              | `portcove --json catalog inspect-definition-publication DIR`; published site readback                | Index digest and per-target digests                           |
 
 Known gaps stay explicit until an owner exports the fact: there is no persisted
 export of full issue rows or Project field values, no catalog-wide capability or
 route matrix, no shared schema for `docs/qualification/` files, no durable
 upstream-health history beyond cached checkpoints and short-lived artifacts, no
-aggregated hosted-intake receipt export, no maintained main-versus-published
-comparison, and route ownership is prose rather than a per-port field. Reports
+maintained main-versus-published comparison, and route ownership is prose rather than a per-port field. Reports
 publish these as unsupported or unknown sources with their exact gaps.
 
 ## Storage contract
@@ -438,7 +441,70 @@ records: compressed member exceeds reserved output envelope; checkpoints
 retained" (a 14.4 MB controller checkpoint, 27.3 MB decoded), so a live
 collection records a `failed` run until the producer retains a snapshot again.
 
-Hosted intake receipts remain an explicit unknown source.
+### Hosted intake
+
+`--hosted-intake` (with `--all`) adds the `hosted-intake` source.
+
+- **Input:** every owner-authored #177 request the executor selects: a comment
+  that starts with the hosted request marker, or a withdrawn request that keeps
+  exactly one marker followed by its complete original proposal. Prose that only
+  quotes the marker is not a request. They are read through the executor's own read-only
+  `node scripts/hosted-discovery-intake.mts status --all --json` route
+  ([contract](DAILY-PORT-DISCOVERY.md#hosted-investigation-and-actions-intake)).
+  - One complete comment read is bracketed by unchanged #177 node, comment count
+    and `updated_at`. Each request is classified by the executor's own request,
+    receipt and reconciliation validation and its `status()` classification:
+    `submitted`, `partial`, `blocked`, `complete` or `complete_with_holds`. No
+    comment text is parsed here.
+  - A withdrawn request keeps its exact original proposal after a prepended
+    explanation and is classified from that retained proposal.
+  - The read is GET-only to #177, its comment pages and exact comments. It needs
+    no Roadmap connection, Project scope or write credential.
+  - Its request budget comes from the observed queue. The first #177 revision
+    read is admitted. Its comment count then admits one read per 20-comment page
+    plus one, and the closing revision read. Each selected request whose proposal
+    reconciles admits two exact-comment reads. Four retries are added on top. A
+    plan over the absolute ceiling of 200 requests fails before its next request.
+    The existing per-response byte cap still applies. `status --request` uses the
+    same budget.
+  - The run revision is
+    `hosted-intake:<node_id>:<comments>@<updated_at>#sha256:<digest>`, where the
+    digest covers every sorted (comment ID, body SHA-256) pair. A revision over
+    200 characters is stored as its own SHA-256. The denominator is the number of
+    marker-bearing owner requests.
+- **Stored facts:** per `intake:<request_comment_id>`: the receipt comment,
+  `withdrawn`, the request it `reconciles`, the requests it is `superseded_by`,
+  `body_request_comment`, the status classification, the candidate, delivered,
+  existing, held and pending counts, whether a full doctor is required, the
+  doctor's status, coverage and global health, the blocker's error code, and one
+  slot per ordered candidate: index, port key, repository ID, upstream, delivery
+  status, linked issue (created issue or verified existing owner), whether it is
+  an existing owner, and a hold's HTTP status and resume condition.
+  - Receipt and diagnostic times, run, attempt, head and plan origin, hold
+    observation times, doctor receipt digests and error messages are never
+    stored, so an unchanged request stays quiet.
+- **Gaps:** an unavailable read or an exhausted budget makes the run `failed`
+  with one `unavailable` gap; queue movement during the read makes it `failed`
+  with one `inventory-changed` gap. Either way nothing is observed and the last
+  known facts stay current. A request the executor cannot validate is an
+  `invalid-receipt` gap for that request and the run is `partial`.
+- **Report:** a "Hosted intake" table lists each request's classification,
+  counts, reconciliation links and linked issues, joined to the issue facts'
+  state and Project status when `--issues` was collected. "Needs attention"
+  reuses the executor's classification: `blocked` shows the receipt's blocker
+  code and reconciliation, and `complete_with_holds` shows the owner `process`
+  resume condition. Routine `partial` continuation and `submitted` stay quiet,
+  and withdrawn requests are owner decisions that are never flagged.
+  Candidate-to-port joins need upstream-lineage key derivation and stay
+  unasserted.
+- **Authority:** this projection grants no intake, admission, Priority or support
+  authority, and writes, dispatches and runs nothing.
+
+On 2026-11-11 one live read used 18 GETs of a 23-request budget. #177 had 110 comments and 29
+marker-bearing owner requests (19 active and 10 withdrawn). The run was
+`complete` with no gaps, and an immediate repeat stored no observations. One
+active request was `blocked` and is the only attention item. One active request
+was a routine `partial`, and 17 were `complete`.
 
 ## Changes-only digest
 
@@ -484,8 +550,8 @@ stub Core CLI, using the collector and report roles. It checks:
 - full-versus-incremental parity;
 - per-call isolation and its removal, including under a symlinked `TMPDIR`;
 - coverage, listing and absence facts;
-- release-health and upstream-observation coverage, quiet recurrence,
-  needs-attention and failed reads;
+- release-health, upstream-observation and hosted-intake coverage, quiet
+  recurrence, needs-attention and failed reads;
 - report output and HTML escaping. The
   cases need non-root PostgreSQL 16+ server binaries and are a declared
   prerequisite skip elsewhere. These are fixture results. Hosted provider, backup
