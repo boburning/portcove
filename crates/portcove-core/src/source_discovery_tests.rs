@@ -5487,14 +5487,26 @@ fn a_library_beyond_the_continuation_capacity_stops_with_an_explicit_narrower_fo
     let root = temporary.path().join("selected");
     fs::create_dir(&root).unwrap();
     let payload = b"supported large-library source";
-    write_large_library(&root, 20, 10_240, payload);
+    write_large_library(&root, 20, 0, payload);
+    // Long names make each retained continuation record large enough that the
+    // byte cap is reached before the 10,000-entry budget on every platform.
+    let padding = "n".repeat(120);
+    for index in 0..10_240 {
+        let folder = root.join(format!("misc-{:03}", index % 100));
+        fs::create_dir_all(&folder).unwrap();
+        fs::write(folder.join(format!("{padding}-{index:05}.txt")), b"x").unwrap();
+    }
     let catalog = catalog(payload);
     let library = crate::Library::open(temporary.path().join("library")).unwrap();
     library.add_game_file_root(&root).unwrap();
     let snapshot =
         publish_saved_batch(&catalog, &library, &SourceDiscoveryLimits::default()).unwrap();
     let coverage = snapshot.coverage.as_ref().unwrap();
-    assert!(!coverage.can_resume);
+    assert!(
+        !coverage.can_resume,
+        "coverage={coverage:?} limits={:?} issues={:?}",
+        snapshot.report.limits_reached, snapshot.report.issues
+    );
     assert!(!coverage.frontier_exhausted);
     assert_ne!(coverage.remaining_entries, Some(0));
     assert!(
