@@ -602,7 +602,7 @@ it("keeps an unknown external record distinct from managed readiness and reviews
     />,
   );
   expect(document.querySelector(".collection-state")?.textContent).toContain(
-    "Readiness unavailable",
+    "Can't check right now",
   );
   expect(page.getByRole("button", { name: /^Play/ }).query()).toBeNull();
   await page.getByRole("button", { name: /^View details:/ }).click();

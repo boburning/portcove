@@ -26,6 +26,8 @@ import {
   reviewControls,
   selectPrimaryNavigation,
   selectGameFilesSettings,
+  setupConfirmButton,
+  setupReviewButton,
 } from "./desktop-review-controls.mts";
 
 import {
@@ -1073,11 +1075,11 @@ export async function selectedSetupCompletionScenario({
       report.observations.installed = { activity: installedActivity, status: installed };
       await enlargedStage("installed-next-step");
 
-      await click(button("Review setup"));
+      await click(setupReviewButton());
       const preparationDialog = By.css('[aria-labelledby="preparation-review-title"]');
       await browser.wait(until.elementLocated(preparationDialog), 15_000);
       await browser.wait(
-        until.elementIsEnabled(await browser.findElement(button("Prepare game data"))),
+        until.elementIsEnabled(await browser.findElement(setupConfirmButton())),
         15_000,
       );
       await assertCompactReview(browser, '[aria-labelledby="preparation-review-title"]');
@@ -1096,7 +1098,7 @@ export async function selectedSetupCompletionScenario({
         requested_at: new Date().toISOString(),
       };
       report.observations.preparation_wait = preparationWait;
-      await click(button("Prepare game data"));
+      await click(setupConfirmButton());
       const completion = await browser.wait(
         () =>
           observePreparationCompletion({

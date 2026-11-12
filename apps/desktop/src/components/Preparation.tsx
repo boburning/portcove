@@ -133,7 +133,7 @@ export function PreparationControl({
         hidden={Boolean(plan)}
         data-focusable
         className={plan ? "hidden" : "wide"}
-        variant="primary"
+        variant="outline"
         size="lg"
         disabled={disabled || Boolean(pending) || !run}
         onClick={() => {
@@ -281,35 +281,33 @@ function PreparationFacts({ plan }: { plan: PreparationPlan }) {
   const { t } = useAppTranslation("installation");
   return (
     <div className="preparation-plan" aria-label={t("preparation.plan.label")}>
-      <h3>{t("preparation.plan.files")}</h3>
       <dl className="preparation-inputs">
         <div>
-          <dt className="text-pc-secondary-foreground">
-            <Trans
-              t={t}
-              i18nKey="preparation.installedVersion"
-              components={{ version: <bdi>{plan.inputs.install.version}</bdi> }}
-            />
-          </dt>
-          <dd className="m-0 [user-select:text]">
-            <bdi dir="ltr">{plan.inputs.install.path}</bdi>
-          </dd>
-        </div>
-        <div>
-          <dt className="text-pc-secondary-foreground">{t("preparation.plan.source")}</dt>
+          <dt className="text-pc-secondary-foreground">{t("preparation.plan.uses")}</dt>
           <dd className="m-0 [user-select:text]">
             <bdi dir="ltr">{plan.inputs.source.path}</bdi>
           </dd>
         </div>
-      </dl>
-      <h3>{t("preparation.plan.changes")}</h3>
-      <dl className="preparation-consequences">
         <div>
-          <dt>{t("preparation.plan.space")}</dt>
-          <dd>
+          <dt className="text-pc-secondary-foreground">{t("preparation.plan.current")}</dt>
+          <dd className="m-0 [user-select:text]">
+            <bdi dir="ltr">{plan.inputs.install.path}</bdi>
+            <span className="block">{t("preparation.plan.destination")}</span>
+            <span className="block text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
+              <Trans
+                t={t}
+                i18nKey="preparation.installedVersion"
+                components={{ version: <bdi>{plan.inputs.install.version}</bdi> }}
+              />
+            </span>
+          </dd>
+        </div>
+        <div>
+          <dt className="text-pc-secondary-foreground">{t("preparation.plan.needs")}</dt>
+          <dd className="m-0">
             <Trans
               t={t}
-              i18nKey="preparation.plan.spaceText"
+              i18nKey="preparation.plan.needsText"
               components={{
                 size: (
                   <bdi>{formatBytes(plan.copy.total_bytes + plan.inputs.source.storage_size)}</bdi>
@@ -318,16 +316,18 @@ function PreparationFacts({ plan }: { plan: PreparationPlan }) {
             />
           </dd>
         </div>
-        <div>
-          <dt>{t("preparation.plan.activation")}</dt>
-          <dd>{t("preparation.plan.activationText")}</dd>
-        </div>
       </dl>
-      <aside className="preparation-during" aria-label={t("preparation.plan.during")}>
-        <h3>{t("preparation.plan.during")}</h3>
-        <p>{t("preparation.plan.duringOpen")}</p>
-        <p>{t("preparation.plan.duringInterrupt")}</p>
-      </aside>
+      <p>{t("preparation.plan.originalSafe")}</p>
+      <details>
+        <summary data-focusable className="cursor-pointer py-2">
+          {t("preparation.plan.ifWrong")}
+        </summary>
+        <div className="preparation-during" role="group" aria-label={t("preparation.plan.during")}>
+          <p>{t("preparation.plan.activationText")}</p>
+          <p>{t("preparation.plan.duringOpen")}</p>
+          <p>{t("preparation.plan.duringInterrupt")}</p>
+        </div>
+      </details>
       <details>
         <summary data-focusable className="cursor-pointer py-2">
           {t("preparation.plan.window")}

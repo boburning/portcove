@@ -197,7 +197,7 @@ it.each([
         .toBeInTheDocument();
       await userEvent.click(page.getByRole("button", { name: "Back to cards", exact: true }));
     }
-    await expect.element(gameCard("Unknown")).toHaveAccessibleName(/Readiness unavailable/);
+    await expect.element(gameCard("Unknown")).toHaveAccessibleName(/Can't check right now/);
     for (const name of ["Ready", "Staged ready"]) {
       const card = gameCard(name);
       expect(card.element().querySelector(".readiness")?.textContent?.trim()).toBe(

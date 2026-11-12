@@ -317,7 +317,8 @@ it.each(["dark", "light"])("renders the production preparation owner in %s", asy
     .element(page.getByRole("tab", { name: "Game files", exact: true }))
     .toHaveAttribute("aria-selected", "true");
   page
-    .getByRole("button", { name: "Review setup", exact: true })
+    .getByRole("region", { name: "Finish setup", exact: true })
+    .getByRole("button", { name: "Finish setup", exact: true })
     .element()
     .scrollIntoView({ block: "center" });
   contained();

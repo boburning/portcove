@@ -89,7 +89,11 @@ it.for(["dark", "light"] as const)(
     );
     applyWebTheme(theme);
     await page.getByRole("tab", { name: "Game files", exact: true }).click();
-    await userEvent.click(page.getByRole("button", { name: "Review setup", exact: true }));
+    await userEvent.click(
+      page
+        .getByRole("region", { name: "Finish setup", exact: true })
+        .getByRole("button", { name: "Finish setup", exact: true }),
+    );
     await expect.element(page.getByRole("dialog")).toBeVisible();
     const dialog = page.getByRole("dialog").element() as HTMLElement;
     expect(
@@ -97,7 +101,8 @@ it.for(["dark", "light"] as const)(
       "preparation review must reflow without horizontal scrolling",
     ).toBeLessThanOrEqual(dialog.clientWidth + 1);
     const prepare = page
-      .getByRole("button", { name: "Prepare game data", exact: true })
+      .getByRole("dialog")
+      .getByRole("button", { name: "Finish setup", exact: true })
       .element() as HTMLElement;
     prepare.scrollIntoView({ block: "nearest" });
     const box = prepare.getBoundingClientRect();
@@ -108,11 +113,14 @@ it.for(["dark", "light"] as const)(
     await page.screenshot({
       path: `../../../../outputs/uiux-game-titles/enlarged-preparation-${theme}-960.png`,
     });
-    await page.getByRole("button", { name: "Prepare game data", exact: true }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Finish setup", exact: true })
+      .click();
     const leave = page.getByRole("button", { name: "Continue browsing", exact: true });
     await expect.element(leave).toBeVisible();
     await expect
-      .element(page.getByRole("heading", { name: "Prepare game data", exact: true }))
+      .element(page.getByRole("dialog").getByRole("heading", { name: "Finish setup", exact: true }))
       .toHaveFocus();
     await userEvent.keyboard("{Tab}{Tab}{Tab}");
     await expect.element(leave).toHaveFocus();
