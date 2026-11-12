@@ -38871,6 +38871,12 @@
         "format": "int64",
         "type": "integer"
       },
+      "other_game_records": {
+        "description": "Records on this page the provider labels as another game; not listed.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
       "page": {
         "$ref": "#/$defs/ProviderPage",
         "description": "One page of mods, most downloaded first. `page.complete` is false when more\npages exist."
@@ -38886,6 +38892,7 @@
       "port_id",
       "game_name",
       "last_page",
+      "other_game_records",
       "provider",
       "page",
       "observed_at",

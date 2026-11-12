@@ -26,6 +26,8 @@ pub struct ProviderBrowsePage {
     pub game_name: String,
     /// Highest page browsing offers.
     pub last_page: u32,
+    /// Records on this page the provider labels as another game; not listed.
+    pub other_game_records: u32,
     pub provider: String,
     /// One page of mods, most downloaded first. `page.complete` is false when more
     /// pages exist.
@@ -81,14 +83,17 @@ impl PortcoveService {
         // The provider filters by game; anything it labels as another game is
         // dropped rather than listed under this one.
         let game_text = game.to_string();
+        let before = observed.value.projects.len();
         observed
             .value
             .projects
             .retain(|project| project.game_id.as_deref().is_none_or(|id| id == game_text));
+        let other_game_records = (before - observed.value.projects.len()) as u32;
         Ok(ProviderBrowsePage {
             port_id: port_id.into(),
             game_name,
             last_page: MAX_BROWSE_PAGE,
+            other_game_records,
             provider: PROVIDER.into(),
             page: observed.value,
             observed_at: observed.observed_at,

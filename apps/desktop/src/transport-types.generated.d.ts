@@ -4677,6 +4677,10 @@ export interface OutputProviderBrowsePage {
    */
   last_page: number;
   observed_at: number;
+  /**
+   * Records on this page the provider labels as another game; not listed.
+   */
+  other_game_records: number;
   page: ProviderPage;
   port_id: string;
   provider: string;

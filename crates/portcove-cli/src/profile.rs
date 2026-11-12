@@ -442,6 +442,13 @@ pub(crate) fn provider_browse_text(result: &portcove_core::ProviderBrowsePage) -
     if page.projects.is_empty() {
         lines.push("No mods on this page.".into());
     }
+    match result.other_game_records {
+        0 => {}
+        1 => lines.push("1 mod GameBanana labels as another game isn't listed.".into()),
+        count => lines.push(format!(
+            "{count} mods GameBanana labels as another game aren't listed."
+        )),
+    }
     for project in &page.projects {
         lines.push(format!(
             "  {} — {}{}",
@@ -507,11 +514,14 @@ pub(crate) fn provider_project_text(view: &portcove_core::ProviderProjectView) -
                 .unwrap_or_default()
         ));
     }
-    if project.unreadable_files > 0 {
-        lines.push(format!(
-            "{} more file(s) on GameBanana couldn't be read safely and aren't listed.",
-            project.unreadable_files
-        ));
+    match project.unreadable_files {
+        0 => {}
+        1 => {
+            lines.push("1 more file on GameBanana couldn't be read safely and isn't listed.".into())
+        }
+        count => lines.push(format!(
+            "{count} more files on GameBanana couldn't be read safely and aren't listed."
+        )),
     }
     let installable = !project.obsolete && project.files.iter().any(|file| !file.archived);
     if stale.is_some() {
@@ -929,7 +939,7 @@ mod provider_text_tests {
         let stale =
             provider_project_text(&view(project(false, 2, false), ProviderFreshness::Stale));
         assert!(stale.contains("earlier data"));
-        assert!(stale.contains("2 more file(s)"));
+        assert!(stale.contains("2 more files"));
         assert!(!stale.contains("provider-plan"), "no plan from outage data");
 
         let obsolete =
@@ -945,6 +955,7 @@ mod provider_text_tests {
             port_id: "shipwright".into(),
             game_name: "Ship of Harkinian".into(),
             last_page: 50,
+            other_game_records: 0,
             provider: "gamebanana".into(),
             page: ProviderPage {
                 projects,

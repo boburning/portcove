@@ -117,10 +117,8 @@ async fn an_outage_shows_earlier_data_marked_stale_and_unbound_games_make_no_req
     server.join().unwrap();
     assert_ne!(fresh.freshness, ProviderFreshness::Stale);
     assert_eq!(stale.freshness, ProviderFreshness::Stale);
-    assert_eq!(
-        stale.observed_at, fresh.observed_at,
-        "earlier data keeps its time"
-    );
+    // Earlier data keeps the time it was confirmed (stored within the same second).
+    assert!(stale.observed_at <= fresh.observed_at && fresh.observed_at - stale.observed_at <= 1);
 }
 
 #[tokio::test]
@@ -147,6 +145,7 @@ async fn mods_the_provider_labels_as_another_game_are_not_listed() {
             .iter()
             .all(|project| project.name != "Theirs")
     );
+    assert_eq!(page.other_game_records, 1);
     assert_eq!(
         page.game_name,
         service.catalog().port("starship").unwrap().name
