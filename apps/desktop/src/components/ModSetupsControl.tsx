@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
 import { pickModPackagePath } from "../file-picker";
@@ -27,15 +27,19 @@ export function ModSetupsControl(props: Props) {
 function nativeListMessage(
   t: TFunction<"gameSettings">,
   live: LiveMods | null | undefined,
-): string | undefined {
+): ReactNode {
   const status = live?.native_list;
   switch (status?.state) {
     case "not-written":
       return t("mods.native.notWritten");
     case "reordered":
-      return t("mods.native.reordered", {
-        order: status.native_order.join(t("mods.separator")),
-      });
+      return (
+        <Trans
+          t={t}
+          i18nKey="mods.native.reordered"
+          components={{ order: <bdi>{status.native_order.join(t("mods.separator"))}</bdi> }}
+        />
+      );
     case "differs":
       return t("mods.native.differs");
     case "unreadable":
@@ -49,7 +53,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   const { t } = useAppTranslation("gameSettings");
   const [view, setView] = useState<ModSetupsView>();
   // The app-owned mismatch is a code translated at render; Core failure text stays verbatim.
-  const [failure, setError] = useState<"gameChanged" | { text: string }>();
+  const [failure, setFailure] = useState<"gameChanged" | { text: string }>();
   const error =
     failure === "gameChanged" ? t("mods.gameChanged") : failure ? failure.text : undefined;
   const [outcome, setOutcome] = useState<string>();
@@ -76,14 +80,14 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
       (next) => {
         if (!current) return;
         if (next.port_id !== portId) {
-          setError("gameChanged");
+          setFailure("gameChanged");
           return;
         }
         setView(next);
         setFresh(true);
       },
       (failure: unknown) => {
-        if (current) setError({ text: errorText(failure) });
+        if (current) setFailure({ text: errorText(failure) });
       },
     );
     return () => {
@@ -92,7 +96,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   }, [portId, generation, busy, request]);
 
   const reread = () => {
-    setError(undefined);
+    setFailure(undefined);
     setRequest((value) => value + 1);
   };
   // Each change is checked again by Core under its lock; the result is re-read
@@ -100,14 +104,14 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   const perform = async (action: () => Promise<unknown>, success: string) => {
     setWorking(true);
     setOutcome(undefined);
-    setError(undefined);
+    setFailure(undefined);
     let succeeded = false;
     try {
       await action();
       setOutcome(success);
       succeeded = true;
     } catch (failure) {
-      setError({ text: errorText(failure) });
+      setFailure({ text: errorText(failure) });
     } finally {
       setWorking(false);
       setFresh(false);
@@ -242,12 +246,20 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                             )
                           }
                         />
-                        {item.provider
-                          ? t("mods.fromProvider", {
-                              name: item.native_id,
-                              provider: item.provider.provider,
-                            })
-                          : item.native_id}
+                        {item.provider ? (
+                          <span>
+                            <Trans
+                              t={t}
+                              i18nKey="mods.fromProvider"
+                              components={{
+                                name: <bdi>{item.native_id}</bdi>,
+                                provider: <bdi>{item.provider.provider}</bdi>,
+                              }}
+                            />
+                          </span>
+                        ) : (
+                          <bdi>{item.native_id}</bdi>
+                        )}
                       </label>
                     </li>
                   ))}

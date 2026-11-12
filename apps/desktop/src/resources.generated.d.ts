@@ -1136,7 +1136,7 @@ export default interface Resources {
       "copyName": "New setup name",
       "createFirst": "Create first setup",
       "empty": "No mods. The game plays without changes in this setup.",
-      "fromProvider": "{{name}} (from {{provider}})",
+      "fromProvider": "<name /> (from <provider />)",
       "gameChanged": "This game changed. Refresh its details before changing mods.",
       "heading": "Setups and mods",
       "inUse": "In use",
@@ -1148,7 +1148,7 @@ export default interface Resources {
       "native": {
         "differs": "The game's mod list does not match this setup. Portcove restores this setup's mods and order before the next launch.",
         "notWritten": "Portcove writes this setup's mod order into the game before the next launch.",
-        "reordered": "You reordered mods in the game ({{order}}). Portcove keeps that order for this setup.",
+        "reordered": "You reordered mods in the game (<order />). Portcove keeps that order for this setup.",
         "unreadable": "Portcove could not read the game's settings file, so it leaves it unchanged. The game may load mods in its own order."
       },
       "none": "This game has no setup yet. Your current saves and settings become its first setup.",
