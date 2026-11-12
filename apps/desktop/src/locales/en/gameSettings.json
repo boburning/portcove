@@ -8,5 +8,48 @@
     "read": "Read game settings",
     "reading": "Reading game settings…",
     "reread": "Read settings again"
+  },
+  "editor": {
+    "chooseValue": "Choose a value",
+    "defaultShown": "Not saved yet; showing the default.",
+    "error": {
+      "choose": "Choose one of the listed options.",
+      "number": "Enter a number.",
+      "tooLarge": "This number is too large to save accurately.",
+      "whole": "Enter a whole number."
+    },
+    "rangeNumber": "Numbers from {{minimum}} to {{maximum}}, in steps of {{step}}.",
+    "rangeWhole": "Whole numbers from {{minimum}} to {{maximum}}, in steps of {{step}}.",
+    "reset": "Reset to default…",
+    "review": "Review change"
+  },
+  "panel": {
+    "fileUnavailable": "This settings file is unavailable.",
+    "heading": "Game settings",
+    "intro": "Review each change before saving. Other preferences stay as they are.",
+    "label": "Game settings",
+    "unavailable": "Settings are unavailable for this installation."
+  },
+  "review": {
+    "again": "Review again",
+    "cancel": "Cancel",
+    "current": "Current saved value",
+    "default": "Default",
+    "description": "Save this one preference for the installed game. The game may need to restart to use it.",
+    "failure": "The change was not accepted. Refresh settings and review again.",
+    "installationChanged": "The installation changed. Refresh settings and review again.",
+    "new": "New value",
+    "reading": "Reading the current setting…",
+    "save": "Save setting",
+    "setting": "Setting",
+    "technical": "Technical details",
+    "title": "Review game setting"
+  },
+  "value": {
+    "notSaved": "Not saved",
+    "off": "Off",
+    "on": "On",
+    "unavailable": "Value unavailable",
+    "unrecognized": "Unrecognized option"
   }
 }

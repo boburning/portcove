@@ -69,6 +69,7 @@ export default defineConfig({
       "src/components/GhostshipRecoveryReview.tsx",
       "src/components/InstallBatchPanel.tsx",
       "src/components/GameFileSetupReviews.tsx",
+      "src/components/GameSettingsPanel.tsx",
       "src/features/browsing/CatalogFilters.tsx",
       "src/features/port-actions/BrowsePortObservations.tsx",
       "src/components/ui.tsx",

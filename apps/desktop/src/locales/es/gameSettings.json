@@ -8,5 +8,48 @@
     "read": "Leer los ajustes del juego",
     "reading": "Leyendo los ajustes del juego…",
     "reread": "Volver a leer los ajustes"
+  },
+  "editor": {
+    "chooseValue": "Elige un valor",
+    "defaultShown": "Aún no se ha guardado; se muestra el valor predeterminado.",
+    "error": {
+      "choose": "Elige una de las opciones de la lista.",
+      "number": "Escribe un número.",
+      "tooLarge": "Este número es demasiado grande para guardarlo con precisión.",
+      "whole": "Escribe un número entero."
+    },
+    "rangeNumber": "Números de {{minimum}} a {{maximum}}, en pasos de {{step}}.",
+    "rangeWhole": "Números enteros de {{minimum}} a {{maximum}}, en pasos de {{step}}.",
+    "reset": "Restablecer el valor predeterminado…",
+    "review": "Revisar el cambio"
+  },
+  "panel": {
+    "fileUnavailable": "Este archivo de ajustes no está disponible.",
+    "heading": "Ajustes del juego",
+    "intro": "Revisa cada cambio antes de guardarlo. Las demás preferencias no cambian.",
+    "label": "Ajustes del juego",
+    "unavailable": "Los ajustes no están disponibles para esta instalación."
+  },
+  "review": {
+    "again": "Volver a revisar",
+    "cancel": "Cancelar",
+    "current": "Valor guardado actual",
+    "default": "Predeterminado",
+    "description": "Guarda solo esta preferencia para el juego instalado. Es posible que el juego deba reiniciarse para usarla.",
+    "failure": "No se aceptó el cambio. Actualiza los ajustes y vuelve a revisarlos.",
+    "installationChanged": "La instalación cambió. Actualiza los ajustes y vuelve a revisarlos.",
+    "new": "Nuevo valor",
+    "reading": "Leyendo el ajuste actual…",
+    "save": "Guardar el ajuste",
+    "setting": "Ajuste",
+    "technical": "Detalles técnicos",
+    "title": "Revisar el ajuste del juego"
+  },
+  "value": {
+    "notSaved": "Sin guardar",
+    "off": "Desactivado",
+    "on": "Activado",
+    "unavailable": "Valor no disponible",
+    "unrecognized": "Opción no reconocida"
   }
 }
