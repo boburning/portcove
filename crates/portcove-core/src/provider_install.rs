@@ -247,6 +247,8 @@ impl PortcoveService {
         // any code it would run reported for the player's decision.
         let member_paths = match crate::native_mod_list::recomp_game(port_id) {
             Some(game) => {
+                let named_dir = staging.path().join("named");
+                fs::create_dir(&named_dir)?;
                 let mut renamed = Vec::new();
                 let mut code = std::collections::BTreeMap::new();
                 for path in &member_paths {
@@ -261,13 +263,20 @@ impl PortcoveService {
                         crate::profile_deploy::require_admissible_code(&recomp)?;
                     }
                     let name = format!("{}.nrm", recomp.native_id);
-                    let destination = members_dir.join(&name);
-                    if !profile::valid_native_id(&name) || destination.try_exists()? {
+                    // Names are compared case-insensitively, as on Windows.
+                    if !profile::valid_native_id(&name)
+                        || code
+                            .keys()
+                            .any(|used: &String| used.eq_ignore_ascii_case(&name))
+                    {
                         return Err(PortcoveError::unsupported(
                             "this file contains two mods with the same ID, or an ID that cannot be a file name",
                         )
                         .detail("mod", &recomp.native_id));
                     }
+                    // Reviewed members move into an empty folder under their IDs,
+                    // so only a true duplicate can collide.
+                    let destination = named_dir.join(&name);
                     fs::rename(path, &destination)?;
                     code.insert(name, recomp.execution);
                     renamed.push(destination);

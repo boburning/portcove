@@ -218,7 +218,8 @@ async fn a_thunderstore_package_installs_by_manifest_id_and_its_update_is_discov
 #[tokio::test]
 async fn code_from_thunderstore_needs_explicit_consent_and_never_updates_unattended() {
     let w = world();
-    w.versions.lock().unwrap()[0].2 = package_zip("timer.nrm", &nrm("speed_timer", true));
+    // Already named by its manifest ID, as many published packages are.
+    w.versions.lock().unwrap()[0].2 = package_zip("speed_timer.nrm", &nrm("speed_timer", true));
     let plan = w
         .service
         .plan_provider_install_via(&w.client, PORT, &w.profile, "Owner-Timer", "1.0.0")
