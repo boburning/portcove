@@ -33,6 +33,7 @@ mod profile;
 mod progress;
 mod retained_build_human;
 mod saves;
+mod steamgriddb;
 use progress::HumanProgress;
 mod schema;
 mod setup;
@@ -900,6 +901,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 },
             )?;
         }
+        Commands::Artwork {
+            command: ArtworkCommand::Steamgriddb { command },
+        } => steamgriddb::execute(command, mode, cli.non_interactive).await?,
         Commands::Artwork { command } => {
             execute_artwork(&service, command, mode, cli.non_interactive)?
         }
@@ -3533,6 +3537,9 @@ fn execute_artwork(
                 )
             })
         }
+        ArtworkCommand::Steamgriddb { .. } => Err(PortcoveError::state(
+            "SteamGridDB commands are dispatched before local artwork commands",
+        )),
         ArtworkCommand::Unused => {
             render_read_success(mode, name, service.unused_local_artwork()?, |assets| {
                 human_adapters::unused_artwork(assets)
@@ -5154,6 +5161,11 @@ mod tests {
         assert!(capabilities.commands.contains(&"doctor".to_owned()));
         assert!(capabilities.commands.contains(&"backup".to_owned()));
         for name in [
+            "artwork.steamgriddb.status",
+            "artwork.steamgriddb.set-key",
+            "artwork.steamgriddb.clear-key",
+            "artwork.steamgriddb.search",
+            "artwork.steamgriddb.candidates",
             "saves",
             "saves.export-preview",
             "saves.export",
