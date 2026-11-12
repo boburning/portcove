@@ -120,6 +120,11 @@ if (catalog && typeof catalog === "object" && "ports" in catalog && Array.isArra
         "Format-1 signed catalogs cannot deliver Shipwright working-directory persistence. Use a compatible indexed definition.",
       );
     }
+    if ("windows_tracked_handoff" in port && port.windows_tracked_handoff === true) {
+      throw new Error(
+        "Format-1 signed catalogs cannot deliver a Windows tracked handoff. Use a compatible indexed definition.",
+      );
+    }
     if (
       "persistent_file_patterns" in port &&
       Array.isArray(port.persistent_file_patterns) &&

@@ -181,6 +181,12 @@ pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result
         // V1 can still supply compatible metadata to a newer binary. Its
         // payload cannot provide or turn off authority compiled into that binary.
         port.windows_shipwright_persistence = original.windows_shipwright_persistence;
+        if port.windows_tracked_handoff {
+            return Err(PortcoveError::verification(
+                "legacy signed catalogs cannot deliver a Windows tracked handoff",
+            ));
+        }
+        port.windows_tracked_handoff = original.windows_tracked_handoff;
         for pattern in &port.persistent_file_patterns {
             if pattern.allow_empty_middle {
                 return Err(PortcoveError::verification(

@@ -5210,6 +5210,24 @@ impl PortcoveService {
                 }
             }
             crate::launch::configure_supervised_game(&mut command);
+            // Only a reviewed native Windows handoff tracks successors; every
+            // other launch keeps the original process as the whole session.
+            // A retained definition without this port (for example a
+            // user-selected listing) never declares it.
+            let handoff_declared = cfg!(windows)
+                && match (&active, &external) {
+                    (Some(install), None) => self
+                        .installed_catalog(install)?
+                        .port(&install.port_id)
+                        .is_ok_and(|port| port.windows_tracked_handoff),
+                    (None, Some((record, retained_catalog))) => retained_catalog
+                        .port(&record.port_id)
+                        .is_ok_and(|port| port.windows_tracked_handoff),
+                    _ => false,
+                };
+            let tracked_install_root = (handoff_declared
+                && spec.launch_kind == crate::LaunchKind::Native)
+                .then(|| spec.install_root.clone());
             operation.checkpoint()?;
             if let Some((record, retained_catalog)) = external.as_ref() {
                 if record.user_selected.is_some() {
@@ -5388,17 +5406,23 @@ impl PortcoveService {
                         crate::native_external_profile::reserve_recomp_appimage_fallback(&spec)?;
                     }
                 }
-                Ok(match command.spawn() {
-                    Ok(child) => child,
-                    Err(error) => {
-                        return Err(PortcoveError::launch(format!(
-                            "failed to start {}: {error}",
-                            spec.executable.display()
-                        )));
-                    }
-                })
+                Ok(
+                    match crate::launch::spawn_supervised_game(
+                        &mut command,
+                        &session.id,
+                        tracked_install_root.as_deref(),
+                    ) {
+                        Ok(spawned) => spawned,
+                        Err(error) => {
+                            return Err(PortcoveError::launch(format!(
+                                "failed to start {}: {error}",
+                                spec.executable.display()
+                            )));
+                        }
+                    },
+                )
             };
-            let mut child = if active.is_some() {
+            let (mut child, mut session_processes) = if active.is_some() {
                 crate::definition_repository::publisher_policy::launch_assessment::with_launch_admission(
                     &self.library, spawn,
                 )?
@@ -5462,7 +5486,7 @@ impl PortcoveService {
                 };
                 on_started(&session);
 
-                let observed_wait = child.wait();
+                let observed_wait = session_processes.wait_for_child(&mut child);
                 #[cfg(test)]
                 crate::launch::child_diagnostic::waited(child_pid, "running_wait", &observed_wait);
                 let status = match observed_wait {
@@ -5473,6 +5497,10 @@ impl PortcoveService {
                         )));
                     }
                 };
+                // A tracked successor started from the game's own process tree
+                // keeps the session running; the original child's status is kept.
+                session_processes
+                    .wait_for_successors(&mut |members| self.note_waiting(&session.id, members))?;
                 (status, first_error)
             } else {
                 let observed_wait = child.try_wait();
@@ -5499,6 +5527,11 @@ impl PortcoveService {
                         )));
                     }
                 };
+                if session_processes.is_tracked() {
+                    child_state_uncertain = true;
+                }
+                session_processes
+                    .wait_for_successors(&mut |members| self.note_waiting(&session.id, members))?;
                 self.library.update_launch_session(
                     &session.id,
                     Some(child_pid),
@@ -5652,6 +5685,24 @@ impl PortcoveService {
         result
     }
 
+    // Shows the player which processes still hold a tracked session. The note
+    // is best effort; the terminal outcome replaces it.
+    fn note_waiting(&self, session_id: &str, members: &[crate::launch::SessionMember]) {
+        let message = crate::launch::waiting_message(members);
+        if let Err(error) = self
+            .library
+            .note_active_launch_session(session_id, &message)
+        {
+            tracing::debug!(
+                component = "launch",
+                observation = "launch_session",
+                phase = "running",
+                activity_id = session_id,
+                error_code = crate::runtime_diagnostics::code_label(error.code),
+            );
+        }
+    }
+
     pub fn stale_launch_sessions(&self) -> Result<Vec<LaunchSessionRecord>> {
         let mut stale = Vec::new();
         for session in self.library.launch_sessions()? {
@@ -5758,7 +5809,15 @@ impl PortcoveService {
                 .detail("process_id", child_pid.to_string())
                 .detail("recovery_action", "manual_review")
             })?;
+            // Hold the session's process job (Windows) before waiting for the
+            // recorded child, so successors it started stay observable.
+            let session_processes =
+                crate::launch::SessionProcesses::reopen(session_id, &session.install_root)?;
             crate::launch::wait_for_process_exit(child_pid, child_identity)?;
+            if let Some(mut processes) = session_processes {
+                processes
+                    .wait_for_successors(&mut |members| self.note_waiting(session_id, members))?;
+            }
             self.library.update_launch_session(
                 session_id,
                 None,
@@ -6248,6 +6307,7 @@ impl PortcoveService {
                         })
                         || current.n64_runtime_at_executable_parent
                         || (cfg!(windows) && current.windows_shipwright_persistence)
+                        || (cfg!(windows) && current.windows_tracked_handoff)
                 }) {
                     return Err(PortcoveError::verification(
                         "legacy installation cannot inherit today's runtime-coordinate, credential or shared-preferences policy; retain its original route or review a fresh managed installation",
@@ -12229,6 +12289,100 @@ mod tests {
     }
 
     fn register_launch_probe(library: &Library, version: &str, active: bool) -> InstallRecord {
+        register_compiled_launch_probe(
+            library,
+            version,
+            active,
+            r#"use std::{env, fs, process, thread, time::Duration};
+fn main() {
+    let arguments = env::args().skip(1).collect::<Vec<_>>();
+    fs::write(&arguments[0], b"started").unwrap();
+    thread::sleep(Duration::from_millis(arguments[1].parse().unwrap()));
+    fs::write("general.json", arguments[2].as_bytes()).unwrap();
+    process::exit(arguments[3].parse().unwrap());
+}
+"#,
+            None,
+        )
+    }
+
+    // `original <markers>` starts itself as `successor <markers>` and exits at
+    // once, like a game restarting through `_wexecv`. The successor writes its
+    // save only after the test releases it (bounded so a failed test cannot
+    // leave it running).
+    // The same embedded definition with the reviewed Windows tracked handoff,
+    // installed as the retained definition and used as the current catalog.
+    #[cfg(windows)]
+    fn register_handoff_launch_probe(
+        library: &Library,
+        service: &mut PortcoveService,
+        tracked_handoff: bool,
+    ) -> InstallRecord {
+        let mut document = service.catalog().authoritative_document();
+        document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "zelda64-recomp")
+            .unwrap()
+            .windows_tracked_handoff = tracked_handoff;
+        let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        service.replace_catalog_for_test(catalog.clone());
+        let declared = crate::test_fixture::host_declared_catalog(&catalog, &["zelda64-recomp"]);
+        let port = declared.port("zelda64-recomp").unwrap().clone();
+        register_compiled_launch_probe(
+            library,
+            "v1",
+            true,
+            r#"use std::{env, fs, path::Path, process, thread, time::{Duration, Instant}};
+fn main() {
+    let arguments = env::args().skip(1).collect::<Vec<_>>();
+    let markers = Path::new(&arguments[1]);
+    if arguments[0] == "original" {
+        process::Command::new(env::current_exe().unwrap())
+            .args(["successor", arguments[1].as_str()])
+            .spawn()
+            .unwrap();
+        process::exit(0);
+    }
+    fs::write(markers.join("successor-started"), b"started").unwrap();
+    let deadline = Instant::now() + Duration::from_secs(60);
+    while !markers.join("release").exists() {
+        if Instant::now() >= deadline {
+            process::exit(9);
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    fs::write("general.json", b"successor-data").unwrap();
+}
+"#,
+            Some(&port),
+        )
+    }
+
+    #[cfg(windows)]
+    fn wait_for_handoff_marker(path: &Path, settled: impl Fn() -> bool) -> Result<()> {
+        let deadline = std::time::Instant::now() + Duration::from_secs(30);
+        loop {
+            if path.is_file() {
+                return Ok(());
+            }
+            if settled() || std::time::Instant::now() >= deadline {
+                return Err(PortcoveError::state(format!(
+                    "handoff probe did not write {}",
+                    path.display()
+                )));
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+    }
+
+    fn register_compiled_launch_probe(
+        library: &Library,
+        version: &str,
+        active: bool,
+        program: &str,
+        port: Option<&PortDefinition>,
+    ) -> InstallRecord {
         let artifact = ArtifactIdentity {
             asset_name: format!("zelda64-recomp-{version}.zip"),
             sha256: hex::encode(Sha256::digest(format!("launch-probe:{version}"))),
@@ -12250,19 +12404,7 @@ mod tests {
         let executable = path.join(executable);
         fs::create_dir_all(executable.parent().unwrap()).unwrap();
         let source = path.join("launch_probe.rs");
-        fs::write(
-            &source,
-            r#"use std::{env, fs, process, thread, time::Duration};
-fn main() {
-    let arguments = env::args().skip(1).collect::<Vec<_>>();
-    fs::write(&arguments[0], b"started").unwrap();
-    thread::sleep(Duration::from_millis(arguments[1].parse().unwrap()));
-    fs::write("general.json", arguments[2].as_bytes()).unwrap();
-    process::exit(arguments[3].parse().unwrap());
-}
-"#,
-        )
-        .unwrap();
+        fs::write(&source, program).unwrap();
         let status = ChildProcessPolicy::native_command(ChildProcessClass::HostTool, "rustc")
             .unwrap()
             .arg(&source)
@@ -12273,7 +12415,19 @@ fn main() {
         assert!(status.success());
         fs::remove_file(source).unwrap();
         fs::write(path.join("engine.dll"), b"critical library").unwrap();
-        register_existing_test_artifact(library, "zelda64-recomp", version, &path, artifact, active)
+        match port {
+            Some(port) => register_existing_test_artifact_with_port(
+                library, port, version, &path, artifact, active,
+            ),
+            None => register_existing_test_artifact(
+                library,
+                "zelda64-recomp",
+                version,
+                &path,
+                artifact,
+                active,
+            ),
+        }
     }
 
     // Admit an inert regular-file runtime through the production review path;
@@ -19684,6 +19838,296 @@ fn main() {
         assert_eq!(
             library.activities(1).unwrap()[0].status,
             ActivityStatus::Failed
+        );
+    }
+
+    #[test]
+    fn legacy_installs_cannot_inherit_a_windows_tracked_handoff() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "v1", true);
+        let registered = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap();
+        // The fallback reads only the install's port ID.
+        let legacy_install = |port_id: &str| InstallRecord {
+            port_id: port_id.into(),
+            ..registered.clone()
+        };
+        let native_windows_launch = |port: &PortDefinition| {
+            port.platforms.contains(&Platform::WindowsX86_64)
+                && port
+                    .executable_hints
+                    .get(&Platform::WindowsX86_64)
+                    .is_some_and(|hints| {
+                        !hints.is_empty()
+                            && hints.iter().all(|hint| {
+                                crate::LaunchKind::for_executable(Path::new(hint))
+                                    == crate::LaunchKind::Native
+                            })
+                    })
+        };
+        let mut service = PortcoveService::new(library.clone()).unwrap();
+        // A Windows-native port whose legacy fallback is otherwise allowed.
+        let port_id = service
+            .catalog()
+            .ports()
+            .iter()
+            .filter(|port| native_windows_launch(port))
+            .map(|port| port.id.clone())
+            .find(|port_id| {
+                service
+                    .installed_catalog_or_fallback(&legacy_install(port_id), None)
+                    .is_ok()
+            })
+            .unwrap();
+        let install = legacy_install(&port_id);
+        let mut document = service.catalog().authoritative_document();
+        document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == port_id)
+            .unwrap()
+            .windows_tracked_handoff = true;
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+
+        let inherited = service.installed_catalog_or_fallback(&install, None);
+        // The flag only acts on Windows, like Shipwright persistence.
+        assert_eq!(inherited.is_err(), cfg!(windows));
+        if let Err(error) = inherited {
+            assert!(error.message.contains("legacy installation cannot inherit"));
+        }
+    }
+
+    #[cfg(windows)]
+    fn supervise_handoff_probe(tracked_handoff: bool) {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let mut service = PortcoveService::new(library.clone()).unwrap();
+        let install = register_handoff_launch_probe(&library, &mut service, tracked_handoff);
+        let markers = temporary.path().join("markers");
+        fs::create_dir_all(&markers).unwrap();
+        let arguments = vec!["original".to_string(), markers.display().to_string()];
+        let (sender, receiver) = mpsc::channel();
+        let handle = thread::spawn(move || {
+            service.supervise_launch(
+                "zelda64-recomp",
+                None,
+                &arguments,
+                LaunchStdio::Null,
+                |session| {
+                    sender
+                        .send((
+                            session.id.clone(),
+                            session.child_pid.unwrap(),
+                            session.child_identity.clone().unwrap(),
+                        ))
+                        .unwrap()
+                },
+            )
+        });
+        let observed = (|| -> Result<()> {
+            let (session_id, child_pid, child_identity) = receiver
+                .recv_timeout(Duration::from_secs(30))
+                .map_err(|error| PortcoveError::state(error.to_string()))?;
+            wait_for_handoff_marker(&markers.join("successor-started"), || false)?;
+            let deadline = std::time::Instant::now() + Duration::from_secs(30);
+            while crate::launch::process_matches(child_pid, &child_identity)? {
+                if std::time::Instant::now() >= deadline {
+                    return Err(PortcoveError::state("the original child did not exit"));
+                }
+                thread::sleep(Duration::from_millis(10));
+            }
+            if !tracked_handoff {
+                // Without the reviewed handoff the original child is the whole
+                // session, exactly as before.
+                let deadline = std::time::Instant::now() + Duration::from_secs(30);
+                while !handle.is_finished() {
+                    if std::time::Instant::now() >= deadline {
+                        return Err(PortcoveError::state(
+                            "an untracked session waited for the successor",
+                        ));
+                    }
+                    thread::sleep(Duration::from_millis(10));
+                }
+                return Ok(());
+            }
+            // The original child has exited; its in-install successor still
+            // holds the session and is named in the running session.
+            let executable = install
+                .selected_executable
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .into_owned();
+            let deadline = std::time::Instant::now() + Duration::from_secs(30);
+            loop {
+                if handle.is_finished() {
+                    return Err(PortcoveError::state(
+                        "supervision ended while the successor was running",
+                    ));
+                }
+                let session = library
+                    .active_launch_session(&session_id)?
+                    .ok_or_else(|| PortcoveError::state("the session finished early"))?;
+                if session.phase != LaunchSessionPhase::Running {
+                    return Err(PortcoveError::state(format!(
+                        "unexpected phase {:?}",
+                        session.phase
+                    )));
+                }
+                if session.message.as_deref().is_some_and(|message| {
+                    message.starts_with(&format!(
+                        "The game is still running as {executable} (process "
+                    ))
+                }) {
+                    break;
+                }
+                if std::time::Instant::now() >= deadline {
+                    return Err(PortcoveError::state(format!(
+                        "the waiting session did not name its successor: {:?}",
+                        session.message
+                    )));
+                }
+                thread::sleep(Duration::from_millis(20));
+            }
+            if library.try_lock_port("zelda64-recomp", "update").is_ok() {
+                return Err(PortcoveError::state(
+                    "the port was released while the successor was running",
+                ));
+            }
+            Ok(())
+        })();
+        // Release the bounded successor before settling supervision.
+        fs::write(markers.join("release"), b"release").unwrap();
+        let completed = handle.join();
+        observed.unwrap();
+        let outcome = completed.unwrap().unwrap();
+
+        assert!(outcome.successful);
+        assert_eq!(outcome.exit_code, Some(0));
+        assert!(library.launch_sessions().unwrap().is_empty());
+        let request = library
+            .launch_request(&outcome.session_id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(request.outcome, Some(LaunchSessionOutcome::Succeeded));
+        assert_eq!(request.message, None);
+        if tracked_handoff {
+            assert_eq!(
+                fs::read(library.user_dir("zelda64-recomp").join("general.json")).unwrap(),
+                b"successor-data"
+            );
+        } else {
+            // Let the untracked successor finish its own write before cleanup.
+            let deadline = std::time::Instant::now() + Duration::from_secs(30);
+            while !install.path.join("general.json").is_file() {
+                assert!(std::time::Instant::now() < deadline);
+                thread::sleep(Duration::from_millis(10));
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_tracked_handoff_session_stays_running_until_its_successor_exits() {
+        supervise_handoff_probe(true);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_session_without_tracked_handoff_ends_with_its_original_child() {
+        supervise_handoff_probe(false);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_recovery_reopens_the_session_job_and_waits_for_its_successor() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let mut service = PortcoveService::new(library.clone()).unwrap();
+        let launched = register_handoff_launch_probe(&library, &mut service, true);
+        let markers = temporary.path().join("markers");
+        fs::create_dir_all(&markers).unwrap();
+        let activity = library
+            .begin_activity(
+                ActivityOperation::Launch,
+                ActivityTargetKind::Port,
+                Some("zelda64-recomp"),
+            )
+            .unwrap();
+        let mut command = ChildProcessPolicy::native_command(
+            ChildProcessClass::Game,
+            launched.path.join(&launched.selected_executable),
+        )
+        .unwrap();
+        command
+            .current_dir(&launched.path)
+            .args(["original".to_string(), markers.display().to_string()]);
+        crate::launch::configure_supervised_game(&mut command);
+        let (mut child, processes) =
+            crate::launch::spawn_supervised_game(&mut command, &activity.id, Some(&launched.path))
+                .unwrap();
+        let child_pid = child.id();
+        let child_identity = crate::launch::process_identity_for_child(&child)
+            .unwrap()
+            .unwrap();
+        assert!(child.wait().unwrap().success());
+        let started = wait_for_handoff_marker(&markers.join("successor-started"), || false);
+        // The supervisor's own job handle closes as if it had exited; only the
+        // successor's inherited handle keeps the session job reachable.
+        drop(processes);
+        let now = Library::now();
+        library
+            .create_launch_session(&LaunchSessionRecord {
+                id: activity.id.clone(),
+                port_id: "zelda64-recomp".into(),
+                install_id: launched.id.clone(),
+                install_root: launched.path.clone(),
+                owner_kind: crate::LaunchOwnerKind::Managed,
+                supervisor_pid: u32::MAX,
+                supervisor_identity: None,
+                child_pid: Some(child_pid),
+                child_identity: Some(child_identity),
+                phase: LaunchSessionPhase::Running,
+                outcome: None,
+                exit_code: None,
+                message: None,
+                started_at: now,
+                updated_at: now,
+                finished_at: None,
+            })
+            .unwrap();
+        let session_id = activity.id.clone();
+        let recovery = thread::spawn(move || service.recover_launch_session(&session_id));
+        thread::sleep(Duration::from_secs(1));
+        let waited_for_successor = !recovery.is_finished()
+            && library
+                .active_launch_session(&activity.id)
+                .unwrap()
+                .is_some_and(|session| session.message.is_some());
+        fs::write(markers.join("release"), b"release").unwrap();
+        let recovered = recovery.join();
+        started.unwrap();
+        assert!(
+            waited_for_successor,
+            "recovery did not wait for the successor"
+        );
+        recovered.unwrap().unwrap();
+
+        assert!(library.launch_sessions().unwrap().is_empty());
+        assert_eq!(
+            fs::read(library.user_dir("zelda64-recomp").join("general.json")).unwrap(),
+            b"successor-data"
+        );
+        assert!(
+            crate::launch::SessionProcesses::reopen(&activity.id, &launched.path)
+                .unwrap()
+                .is_none()
         );
     }
 

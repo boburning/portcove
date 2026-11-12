@@ -193,6 +193,29 @@ starts a successor and exits can end Core's supervision while the game still
 uses its files. Keep that upstream-owned route non-owning until its full lifetime
 can be tracked; bypassing useful setup or settings is not a management fix.
 
+The supported tracked handoff is a reviewed Windows opt-in. A definition that
+declares `windows_tracked_handoff: true` must offer Windows with a native `.exe`
+launch; batch launchers are refused. Without it, the original process is the
+whole session on every platform. With it, Core starts the Windows game inside
+its launch session's job object, and the session stays running after the
+original exits while any job process whose program lies inside the
+installation (the managed install or the registered external folder) still
+runs. The session record names those programs; Desktop does not show them
+yet, and `launch show --technical-details` does. Delivered definitions must
+require [native capability 28](DEFINITION-DELIVERY.md). A successor the game
+starts from its own process tree, such as a `_wexecv` restart from a menu action, is tracked. A browser, Steam client,
+editor or other program outside the installation never holds the session, even
+when the game started it. A child created with explicit job breakaway, or a
+program started outside the tree through the shell, a service, a scheduled task
+or an already running instance, is not tracked. Recovery after the supervisor
+itself exits has narrower coverage: it can only reach the job while a tracked
+process still holds the handle Core shares with it, so a successor that
+started without that handle can be missed. Qualify a route whose successor
+escapes these rules as non-owning, or require the original process to stay
+alive. On Linux and macOS an exec-based restart keeps the process ID, but a
+launcher that spawns a successor and exits is untracked there, so such a route
+stays non-owning on those platforms.
+
 Adding this route does not adopt an existing external registration. Players can
 review a separate managed copy while keeping the current copy usable. Core can
 switch a fitting fresh native-portable route after verified separate publication;
@@ -1364,12 +1387,14 @@ the player or selected upstream launcher. Only launch and registration removal
 are offered; external installation, save and settings files remain untouched by
 removal. The launched program can make its normal writes; this is no sandbox.
 
-Supervision and launch results describe the selected native program. An upstream
-launcher can hand off to another process and close while the game continues;
+Supervision and launch results describe the selected native program; only a
+definition with the reviewed Windows tracked handoff also waits for in-folder
+successors in its process tree. An upstream launcher can hand off and close
+while the game continues;
 activity completion or registration removal neither stops that successor nor
 establishes that external files are safe to replace or recover. Close the actual
 game and its helpers before upstream maintenance. Managed packages retain the
-full-lifetime requirement above.
+full-lifetime requirement and its tracked-handoff boundary above.
 
 This mode has empty archive/tree/executable-hint/mutable-path declarations and
 cannot combine with source invocation, managed policy, bundled runtime, setup

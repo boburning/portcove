@@ -1525,6 +1525,35 @@ impl Catalog {
                     port.id
                 )));
             }
+            if port.windows_tracked_handoff {
+                let windows = crate::Platform::WindowsX86_64;
+                let executables = port
+                    .executable_hints
+                    .get(&windows)
+                    .into_iter()
+                    .flatten()
+                    .chain(
+                        port.release
+                            .user_prepared
+                            .get(&windows)
+                            .map(|spec| &spec.executable),
+                    )
+                    .collect::<Vec<_>>();
+                // A batch launcher's root is cmd.exe outside the installation;
+                // only a reviewed native Windows executable can own the handoff.
+                if !port.platforms.contains(&windows)
+                    || executables.is_empty()
+                    || executables.iter().any(|executable| {
+                        crate::LaunchKind::for_executable(std::path::Path::new(executable.as_str()))
+                            != crate::LaunchKind::Native
+                    })
+                {
+                    return Err(PortcoveError::usage(format!(
+                        "{} declares a Windows tracked handoff without a native Windows executable launch",
+                        port.id
+                    )));
+                }
+            }
             if port.runtime_disc_image.is_some()
                 && port
                     .runtime_source_materialization
@@ -1991,6 +2020,59 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn windows_tracked_handoff_is_opt_in_and_requires_a_native_windows_executable() {
+        let catalog = Catalog::embedded().unwrap();
+        assert!(
+            catalog
+                .ports()
+                .iter()
+                .all(|port| !port.windows_tracked_handoff)
+        );
+        let parse = |edit: &dyn Fn(&mut PortDefinition)| {
+            let mut document = catalog.authoritative_document();
+            let port = document
+                .ports
+                .iter_mut()
+                .find(|port| port.id == "zelda64-recomp")
+                .unwrap();
+            port.windows_tracked_handoff = true;
+            edit(port);
+            Catalog::from_json(&serde_json::to_string(&document).unwrap())
+        };
+        let accepted = parse(&|_| {}).unwrap();
+        let port = accepted.port("zelda64-recomp").unwrap();
+        assert!(port.windows_tracked_handoff);
+        assert_eq!(
+            serde_json::to_value(port).unwrap()["windows_tracked_handoff"],
+            serde_json::json!(true)
+        );
+        assert!(
+            serde_json::to_value(catalog.port("zelda64-recomp").unwrap())
+                .unwrap()
+                .get("windows_tracked_handoff")
+                .is_none()
+        );
+        let batch = parse(&|port| {
+            port.executable_hints
+                .insert(Platform::WindowsX86_64, vec!["launch.bat".into()]);
+        })
+        .unwrap_err();
+        assert!(
+            batch.message.contains("Windows tracked handoff"),
+            "{}",
+            batch.message
+        );
+        assert!(
+            parse(&|port| {
+                port.platforms
+                    .retain(|platform| *platform != Platform::WindowsX86_64);
+                port.executable_hints.remove(&Platform::WindowsX86_64);
+            })
+            .is_err()
+        );
+    }
 
     #[test]
     fn bstone_original_offers_keep_complete_editions_and_native4_coordinates_separate() {
@@ -5184,7 +5266,9 @@ mod tests {
             .find(|port| port.id == "nocturne-recomp")
             .unwrap()
             .optional_game_source = true;
-        let error = Catalog::from_document(document).err().expect("rejected");
+        let Err(error) = Catalog::from_document(document) else {
+            panic!("rejected");
+        };
         assert_eq!(error.code, crate::ErrorCode::Usage);
         assert!(
             error.message.contains("optional game source"),
@@ -7785,7 +7869,8 @@ mod tests {
             ]
         );
         let arena = "alexbeav-armored-core-master-of-arena-recomp";
-        let broken: [(&str, fn(&mut PortDefinition)); 3] = [
+        type Breakage = (&'static str, fn(&mut PortDefinition));
+        let broken: [Breakage; 3] = [
             // Any other adapter or source materialization.
             ("dr-mario-64-recomp", |port| {
                 port.launch_disc_choice = Some(LaunchDiscChoice::PsxSettingsSelected);
