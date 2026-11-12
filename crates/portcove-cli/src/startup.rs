@@ -84,6 +84,10 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             GameSettingsCommand::List { .. } | GameSettingsCommand::Review(_) => ReadOnly,
             GameSettingsCommand::Apply { .. } => Recovering,
         },
+        Commands::Saves { command } => match command {
+            SavesCommand::ExportPreview { .. } | SavesCommand::ImportPreview { .. } => ReadOnly,
+            SavesCommand::Export { .. } | SavesCommand::Import { .. } => Recovering,
+        },
         Commands::Catalog { command } => match command {
             CatalogCommand::Compare { .. }
             | CatalogCommand::List

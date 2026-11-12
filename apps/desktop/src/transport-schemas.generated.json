@@ -35111,6 +35111,802 @@
     "title": "PortRemovalPreview",
     "type": "object"
   },
+  "portable_save_export_preview": {
+    "$defs": {
+      "LocalDataEntry": {
+        "description": "An entry that stays on this device, with the reason it does not move.",
+        "properties": {
+          "directory": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/$defs/PersistentDataRole"
+          }
+        },
+        "required": [
+          "path",
+          "role",
+          "directory"
+        ],
+        "type": "object"
+      },
+      "PersistentDataRole": {
+        "description": "Role of one entry in a canonical player-data root.",
+        "oneOf": [
+          {
+            "enum": [
+              "mods"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "portable-progress",
+            "description": "Game progress qualified to move under this exact contract.",
+            "type": "string"
+          },
+          {
+            "const": "device-configuration",
+            "description": "Settings, controls, window layout or other per-device choices.",
+            "type": "string"
+          },
+          {
+            "const": "generated-content",
+            "description": "Logs, generated seeds or other data the game recreates.",
+            "type": "string"
+          },
+          {
+            "const": "original-derived",
+            "description": "Data derived from the player's own original files; never exported.",
+            "type": "string"
+          },
+          {
+            "const": "local-player-data",
+            "description": "Player data that is not qualified to move under this contract.",
+            "type": "string"
+          },
+          {
+            "const": "portcove-metadata",
+            "description": "Portcove's own synchronization record.",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "Not classified; it stays on this device and is shown for review.",
+            "type": "string"
+          }
+        ]
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "PortableSaveBlocker": {
+        "description": "Why an export or import cannot proceed as reviewed.",
+        "oneOf": [
+          {
+            "const": "unqualified",
+            "description": "No reviewed portable-save contract exists for this game.",
+            "type": "string"
+          },
+          {
+            "const": "not-installed",
+            "description": "No active Portcove-managed installation identifies the game version.",
+            "type": "string"
+          },
+          {
+            "const": "unsupported-version",
+            "description": "The installed or exported version is outside the reviewed contract.",
+            "type": "string"
+          },
+          {
+            "const": "unsupported-platform",
+            "description": "This device's platform is outside the reviewed contract.",
+            "type": "string"
+          },
+          {
+            "const": "version-mismatch",
+            "description": "Source and destination versions differ; cross-version saves are not claimed.",
+            "type": "string"
+          },
+          {
+            "const": "different-game",
+            "description": "The file belongs to a different game.",
+            "type": "string"
+          },
+          {
+            "const": "busy",
+            "description": "The game is running or another operation holds this game.",
+            "type": "string"
+          },
+          {
+            "const": "no-portable-progress",
+            "description": "There is no portable progress to export.",
+            "type": "string"
+          },
+          {
+            "const": "conflict-needs-choice",
+            "description": "Local and incoming progress both changed; choose explicitly.",
+            "type": "string"
+          },
+          {
+            "const": "already-current",
+            "description": "This device already has exactly this progress.",
+            "type": "string"
+          }
+        ]
+      },
+      "PortableSaveFile": {
+        "properties": {
+          "path": {
+            "description": "Relative path inside the game's player-data folder, `/` separated.",
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "PortableSaveIdentity": {
+        "description": "Exact identity of one side of a portable-save transfer.",
+        "properties": {
+          "contract_id": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "version": {
+            "description": "Installed game version that produced or will read the progress.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "contract_id",
+          "version",
+          "platform"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "base_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "blockers": {
+        "items": {
+          "$ref": "#/$defs/PortableSaveBlocker"
+        },
+        "type": "array"
+      },
+      "content_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "files": {
+        "description": "Exactly the files the export would contain.",
+        "items": {
+          "$ref": "#/$defs/PortableSaveFile"
+        },
+        "type": "array"
+      },
+      "identity": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/PortableSaveIdentity"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "stays_local": {
+        "description": "Everything else in the game's player-data folder, which stays here.",
+        "items": {
+          "$ref": "#/$defs/LocalDataEntry"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "port_id",
+      "files",
+      "stays_local",
+      "blockers"
+    ],
+    "title": "PortableSaveExportPreview",
+    "type": "object"
+  },
+  "portable_save_export_result": {
+    "$defs": {
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "PortableSaveFile": {
+        "properties": {
+          "path": {
+            "description": "Relative path inside the game's player-data folder, `/` separated.",
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "PortableSaveIdentity": {
+        "description": "Exact identity of one side of a portable-save transfer.",
+        "properties": {
+          "contract_id": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "version": {
+            "description": "Installed game version that produced or will read the progress.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "contract_id",
+          "version",
+          "platform"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "base_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "content_sha256": {
+        "type": "string"
+      },
+      "files": {
+        "items": {
+          "$ref": "#/$defs/PortableSaveFile"
+        },
+        "type": "array"
+      },
+      "identity": {
+        "$ref": "#/$defs/PortableSaveIdentity"
+      },
+      "path": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "path",
+      "identity",
+      "files",
+      "content_sha256"
+    ],
+    "title": "PortableSaveExportResult",
+    "type": "object"
+  },
+  "portable_save_import_preview": {
+    "$defs": {
+      "LocalDataEntry": {
+        "description": "An entry that stays on this device, with the reason it does not move.",
+        "properties": {
+          "directory": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/$defs/PersistentDataRole"
+          }
+        },
+        "required": [
+          "path",
+          "role",
+          "directory"
+        ],
+        "type": "object"
+      },
+      "PersistentDataRole": {
+        "description": "Role of one entry in a canonical player-data root.",
+        "oneOf": [
+          {
+            "enum": [
+              "mods"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "portable-progress",
+            "description": "Game progress qualified to move under this exact contract.",
+            "type": "string"
+          },
+          {
+            "const": "device-configuration",
+            "description": "Settings, controls, window layout or other per-device choices.",
+            "type": "string"
+          },
+          {
+            "const": "generated-content",
+            "description": "Logs, generated seeds or other data the game recreates.",
+            "type": "string"
+          },
+          {
+            "const": "original-derived",
+            "description": "Data derived from the player's own original files; never exported.",
+            "type": "string"
+          },
+          {
+            "const": "local-player-data",
+            "description": "Player data that is not qualified to move under this contract.",
+            "type": "string"
+          },
+          {
+            "const": "portcove-metadata",
+            "description": "Portcove's own synchronization record.",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "Not classified; it stays on this device and is shown for review.",
+            "type": "string"
+          }
+        ]
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "PortableSaveBlocker": {
+        "description": "Why an export or import cannot proceed as reviewed.",
+        "oneOf": [
+          {
+            "const": "unqualified",
+            "description": "No reviewed portable-save contract exists for this game.",
+            "type": "string"
+          },
+          {
+            "const": "not-installed",
+            "description": "No active Portcove-managed installation identifies the game version.",
+            "type": "string"
+          },
+          {
+            "const": "unsupported-version",
+            "description": "The installed or exported version is outside the reviewed contract.",
+            "type": "string"
+          },
+          {
+            "const": "unsupported-platform",
+            "description": "This device's platform is outside the reviewed contract.",
+            "type": "string"
+          },
+          {
+            "const": "version-mismatch",
+            "description": "Source and destination versions differ; cross-version saves are not claimed.",
+            "type": "string"
+          },
+          {
+            "const": "different-game",
+            "description": "The file belongs to a different game.",
+            "type": "string"
+          },
+          {
+            "const": "busy",
+            "description": "The game is running or another operation holds this game.",
+            "type": "string"
+          },
+          {
+            "const": "no-portable-progress",
+            "description": "There is no portable progress to export.",
+            "type": "string"
+          },
+          {
+            "const": "conflict-needs-choice",
+            "description": "Local and incoming progress both changed; choose explicitly.",
+            "type": "string"
+          },
+          {
+            "const": "already-current",
+            "description": "This device already has exactly this progress.",
+            "type": "string"
+          }
+        ]
+      },
+      "PortableSaveFile": {
+        "properties": {
+          "path": {
+            "description": "Relative path inside the game's player-data folder, `/` separated.",
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "PortableSaveFileChange": {
+        "properties": {
+          "effect": {
+            "$ref": "#/$defs/PortableSaveFileEffect"
+          },
+          "incoming": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PortableSaveFile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "local": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PortableSaveFile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "effect"
+        ],
+        "type": "object"
+      },
+      "PortableSaveFileEffect": {
+        "oneOf": [
+          {
+            "enum": [
+              "add",
+              "replace",
+              "unchanged"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "remove",
+            "description": "Absent from the incoming progress and explicitly chosen for removal.",
+            "type": "string"
+          },
+          {
+            "const": "keep-local",
+            "description": "Absent from the incoming progress and kept on this device.",
+            "type": "string"
+          }
+        ]
+      },
+      "PortableSaveIdentity": {
+        "description": "Exact identity of one side of a portable-save transfer.",
+        "properties": {
+          "contract_id": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "version": {
+            "description": "Installed game version that produced or will read the progress.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "contract_id",
+          "version",
+          "platform"
+        ],
+        "type": "object"
+      },
+      "PortableSaveImportOptions": {
+        "description": "Explicit player choices bound into the reviewed import.",
+        "properties": {
+          "remove_local_only_saves": {
+            "default": false,
+            "description": "Remove local save slots that are absent from the incoming progress.",
+            "type": "boolean"
+          },
+          "replace_diverged_progress": {
+            "default": false,
+            "description": "Replace diverged local progress. Local progress is still kept in the\nsafety backup and the incoming progress in its own snapshot.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "remove_local_only_saves",
+          "replace_diverged_progress"
+        ],
+        "type": "object"
+      },
+      "PortableSaveRelation": {
+        "description": "How incoming progress relates to this device's progress, by content only.",
+        "oneOf": [
+          {
+            "enum": [
+              "no-local-progress",
+              "already-current"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "continues",
+            "description": "The incoming progress continued from exactly what this device has.",
+            "type": "string"
+          },
+          {
+            "const": "diverged",
+            "description": "Both sides changed, or their history is unknown. Timestamps never decide.",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "blockers": {
+        "items": {
+          "$ref": "#/$defs/PortableSaveBlocker"
+        },
+        "type": "array"
+      },
+      "changes": {
+        "items": {
+          "$ref": "#/$defs/PortableSaveFileChange"
+        },
+        "type": "array"
+      },
+      "destination": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/PortableSaveIdentity"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "incoming_content_sha256": {
+        "type": "string"
+      },
+      "local_content_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "options": {
+        "$ref": "#/$defs/PortableSaveImportOptions"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "preview_sha256": {
+        "type": "string"
+      },
+      "relation": {
+        "$ref": "#/$defs/PortableSaveRelation"
+      },
+      "safety_backup_will_be_created": {
+        "description": "Current player data is copied to a backup before anything changes.",
+        "type": "boolean"
+      },
+      "source": {
+        "$ref": "#/$defs/PortableSaveIdentity"
+      },
+      "stays_local": {
+        "items": {
+          "$ref": "#/$defs/LocalDataEntry"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "port_id",
+      "source",
+      "relation",
+      "changes",
+      "stays_local",
+      "incoming_content_sha256",
+      "options",
+      "safety_backup_will_be_created",
+      "blockers",
+      "preview_sha256"
+    ],
+    "title": "PortableSaveImportPreview",
+    "type": "object"
+  },
+  "portable_save_import_result": {
+    "$defs": {
+      "AutomaticSnapshotLabel": {
+        "description": "Marks a snapshot Portcove took itself before a version change. Manual\nsnapshots carry none, and retention never removes a snapshot without one.",
+        "properties": {
+          "from_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "$ref": "#/$defs/VersionChangeKind"
+          },
+          "to_version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation",
+          "from_version",
+          "to_version"
+        ],
+        "type": "object"
+      },
+      "BackupRecord": {
+        "properties": {
+          "automatic": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/AutomaticSnapshotLabel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present only for snapshots Portcove took automatically."
+          },
+          "created_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "file_count": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "path",
+          "created_at",
+          "file_count",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "VersionChangeKind": {
+        "description": "The version change an automatic snapshot protects.",
+        "enum": [
+          "update",
+          "activation",
+          "rollback"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "content_sha256": {
+        "type": "string"
+      },
+      "import_snapshot": {
+        "$ref": "#/$defs/BackupRecord",
+        "description": "Snapshot holding the imported state; restorable like any backup."
+      },
+      "safety_backup": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/BackupRecord"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Snapshot of this device's data from immediately before the import."
+      }
+    },
+    "required": [
+      "import_snapshot",
+      "content_sha256"
+    ],
+    "title": "PortableSaveImportResult",
+    "type": "object"
+  },
   "preparation_cleanup_preview": {
     "$defs": {
       "AdoptionCopyFile": {

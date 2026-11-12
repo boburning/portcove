@@ -812,6 +812,37 @@ export type OutputDestinationOwnership =
   | "unknown";
 export type OutputPendingSetups = PendingSetupRecord[];
 /**
+ * Why an export or import cannot proceed as reviewed.
+ */
+export type PortableSaveBlocker =
+  | "unqualified"
+  | "not-installed"
+  | "unsupported-version"
+  | "unsupported-platform"
+  | "version-mismatch"
+  | "different-game"
+  | "busy"
+  | "no-portable-progress"
+  | "conflict-needs-choice"
+  | "already-current";
+/**
+ * Role of one entry in a canonical player-data root.
+ */
+export type PersistentDataRole =
+  | "mods"
+  | "portable-progress"
+  | "device-configuration"
+  | "generated-content"
+  | "original-derived"
+  | "local-player-data"
+  | "portcove-metadata"
+  | "unknown";
+export type PortableSaveFileEffect = ("add" | "replace" | "unchanged") | "remove" | "keep-local";
+/**
+ * How incoming progress relates to this device's progress, by content only.
+ */
+export type PortableSaveRelation = ("no-local-progress" | "already-current") | "continues" | "diverged";
+/**
  * How current an observation is. A confirmed empty result is `Fresh`; an outage
  * that falls back to earlier data is `Stale`, never an empty list.
  */
@@ -1143,6 +1174,10 @@ export interface TransportOutputs {
   port_output_location: PortOutputLocation;
   port_paths: OutputPortPaths;
   port_removal_preview: OutputPortRemovalPreview;
+  portable_save_export_preview: OutputPortableSaveExportPreview;
+  portable_save_export_result: OutputPortableSaveExportResult;
+  portable_save_import_preview: OutputPortableSaveImportPreview;
+  portable_save_import_result: OutputPortableSaveImportResult;
   preparation_cleanup_preview: OutputPreparationCleanupPreview;
   preparation_options: PreparationOptions;
   preparation_plan: OutputPreparationPlan;
@@ -4563,6 +4598,127 @@ export interface OutputPortRemovalPreview {
   persistent_data_will_be_preserved: boolean;
   port_id: string;
   preview_sha256: string;
+  [k: string]: unknown;
+}
+export interface OutputPortableSaveExportPreview {
+  base_sha256?: string | null;
+  blockers: PortableSaveBlocker[];
+  content_sha256?: string | null;
+  /**
+   * Exactly the files the export would contain.
+   */
+  files: PortableSaveFile[];
+  identity?: PortableSaveIdentity | null;
+  port_id: string;
+  /**
+   * Everything else in the game's player-data folder, which stays here.
+   */
+  stays_local: LocalDataEntry[];
+  [k: string]: unknown;
+}
+export interface PortableSaveFile {
+  /**
+   * Relative path inside the game's player-data folder, `/` separated.
+   */
+  path: string;
+  sha256: string;
+  size: number;
+  [k: string]: unknown;
+}
+/**
+ * Exact identity of one side of a portable-save transfer.
+ */
+export interface PortableSaveIdentity {
+  contract_id: string;
+  platform: Platform;
+  port_id: string;
+  /**
+   * Installed game version that produced or will read the progress.
+   */
+  version: string;
+  [k: string]: unknown;
+}
+/**
+ * An entry that stays on this device, with the reason it does not move.
+ */
+export interface LocalDataEntry {
+  directory: boolean;
+  path: string;
+  role: PersistentDataRole;
+  [k: string]: unknown;
+}
+export interface OutputPortableSaveExportResult {
+  base_sha256?: string | null;
+  content_sha256: string;
+  files: PortableSaveFile[];
+  identity: PortableSaveIdentity;
+  path: string;
+  [k: string]: unknown;
+}
+export interface OutputPortableSaveImportPreview {
+  blockers: PortableSaveBlocker[];
+  changes: PortableSaveFileChange[];
+  destination?: PortableSaveIdentity | null;
+  incoming_content_sha256: string;
+  local_content_sha256?: string | null;
+  options: PortableSaveImportOptions;
+  port_id: string;
+  preview_sha256: string;
+  relation: PortableSaveRelation;
+  /**
+   * Current player data is copied to a backup before anything changes.
+   */
+  safety_backup_will_be_created: boolean;
+  source: PortableSaveIdentity;
+  stays_local: LocalDataEntry[];
+  [k: string]: unknown;
+}
+export interface PortableSaveFileChange {
+  effect: PortableSaveFileEffect;
+  incoming?: PortableSaveFile | null;
+  local?: PortableSaveFile | null;
+  path: string;
+  [k: string]: unknown;
+}
+/**
+ * Explicit player choices bound into the reviewed import.
+ */
+export interface PortableSaveImportOptions {
+  /**
+   * Remove local save slots that are absent from the incoming progress.
+   */
+  remove_local_only_saves: boolean;
+  /**
+   * Replace diverged local progress. Local progress is still kept in the
+   * safety backup and the incoming progress in its own snapshot.
+   */
+  replace_diverged_progress: boolean;
+  [k: string]: unknown;
+}
+export interface OutputPortableSaveImportResult {
+  content_sha256: string;
+  import_snapshot: BackupRecord1;
+  /**
+   * Snapshot of this device's data from immediately before the import.
+   */
+  safety_backup?: BackupRecord | null;
+  [k: string]: unknown;
+}
+/**
+ * Snapshot holding the imported state; restorable like any backup.
+ */
+export interface BackupRecord1 {
+  /**
+   * Present only for snapshots Portcove took automatically.
+   */
+  automatic?: AutomaticSnapshotLabel | null;
+  created_at: number;
+  file_count: number;
+  id: string;
+  path: string;
+  port_id: string;
+  sha256: string;
+  size: number;
   [k: string]: unknown;
 }
 /**

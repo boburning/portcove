@@ -2658,6 +2658,32 @@ selected tree. Desktop consumes only the current Restore assessment, including
 failed/pending refreshes, independently of Delete. Doctor remains history-only;
 execution preserves its locks, integrity checks and state-bound authorization.
 
+### Portable saves
+
+`portable_saves` owns a small explicit registry of finite portable-save
+contracts, the classification of one canonical player-data root, and the
+bounded bundle codec. A contract names one game, exact versions, platforms and
+the exact files that are portable progress; every other entry has a local role
+(device configuration, mods, generated, original-derived, other player data,
+Portcove metadata or unknown) and never moves. The registry is Core policy
+rather than catalog data because it is a reviewed save-compatibility claim, not
+a persistence declaration; move it to catalog data when a second family is
+qualified. Bundles carry hex-encoded bytes in a `deny_unknown_fields` JSON
+document, so import never extracts an archive or follows a link, and accepts only
+contract paths with matching sizes and digests.
+
+`service::portable_saves` is the thin service facade. Export locks the port,
+collects runtime data, rechecks the reviewed content digest and publishes a new
+file without replacement. Import creates no new lifecycle: under the port lock it
+consumes state-bound consent, collects runtime data, rechecks the review, then
+uses the backup owner's overlay snapshot to publish an ordinary backup of current
+canonical data with the reviewed change applied inside the unpublished stage.
+Restore consent for that snapshot is issued while the lock is still held; the
+existing restore then repeats its state check, takes the safety backup and owns
+journaled recovery. Relations are decided by content digests and a lineage
+record kept inside the canonical root, so backups and restores carry it with the
+data. Timestamps never select a winner.
+
 ### Library transfers
 
 [Concurrency](#concurrency) describes the shared library lease that a transfer
