@@ -51,6 +51,8 @@ function steamArtworkUnavailableLabel(reason: SteamArtworkRole["unavailable_reas
       return "Not available: choose an imported image for this game in Portcove first";
     case "selected_original_unavailable":
       return "Not available: the selected image could not be read; import it again";
+    case "selected_image_not_wide":
+      return "Not available: the selected detail image is not wide, so it is not used as a banner";
     default:
       return "Not available: Portcove has no image for this role yet";
   }

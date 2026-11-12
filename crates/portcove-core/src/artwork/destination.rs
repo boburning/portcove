@@ -5,7 +5,8 @@ use super::{ArtworkChoice, ArtworkSlot, LocalArtworkAsset, original_bytes};
 use crate::{LibraryIdentity, PortcoveError, PortcoveService, Result};
 
 /// This optional handoff evolves independently of API envelopes and events.
-pub const ARTWORK_HANDOFF_SCHEMA: u32 = 1;
+/// Version 2 adds the selected landscape-oriented `detail` import as the hero banner.
+pub const ARTWORK_HANDOFF_SCHEMA: u32 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -30,6 +31,9 @@ pub enum DestinationArtworkUnavailableReason {
     RoleNotProvided,
     NoLocalOriginal,
     SelectedOriginalUnavailable,
+    /// The selected detail import is not wider than tall, so it is not offered
+    /// as a wide role; it is never cropped or stretched to fit.
+    SelectedImageNotWide,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -44,12 +48,14 @@ pub enum DestinationArtworkContent {
 }
 
 /// An observation, never provider permission, destination ownership or write consent.
-/// V1 exposes validated local portrait originals. Catalog defaults and unprovided
-/// wide roles remain explicit; they are never synthesized from another role/cache.
+/// Portrait exposes the validated local cover original; hero banner exposes the
+/// validated local detail original only when it is wider than tall. Catalog
+/// defaults and the landscape role remain explicit unavailable states; nothing is
+/// synthesized, cropped or resized from another role or cache.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct DestinationArtworkHandoff {
-    #[schemars(range(min = 1, max = 1))]
+    #[schemars(range(min = 2, max = 2))]
     pub handoff_schema: u32,
     pub library: LibraryIdentity,
     pub port_id: String,
@@ -72,6 +78,9 @@ impl DestinationArtworkHandoff {
         }
         if let Some(id) = &self.selected_asset_sha256 {
             crate::artwork_store::validate_hash(id)?;
+        }
+        if self.role == DestinationArtworkRole::HeroBanner {
+            return self.validate_hero();
         }
         if self.role != DestinationArtworkRole::PortraitCover {
             return if self.choice.is_none()
@@ -145,6 +154,62 @@ impl DestinationArtworkHandoff {
         }
         Ok(())
     }
+}
+
+impl DestinationArtworkHandoff {
+    fn validate_hero(&self) -> Result<()> {
+        let invalid = || PortcoveError::verification("invalid destination artwork handoff");
+        let choice = self.choice.as_ref().ok_or_else(invalid)?;
+        if choice.port_id != self.port_id || choice.slot != ArtworkSlot::Detail {
+            return Err(invalid());
+        }
+        match (&self.source, &self.content) {
+            (
+                DestinationArtworkSource::LocalImport { asset: selected },
+                DestinationArtworkContent::Available { asset },
+            ) => {
+                crate::artwork_store::validate_asset(asset)?;
+                if selected != asset
+                    || !is_wide(asset)
+                    || choice.asset_sha256.as_deref() != Some(&asset.sha256)
+                    || self.selected_asset_sha256.as_deref() != Some(&asset.sha256)
+                {
+                    return Err(invalid());
+                }
+            }
+            (
+                DestinationArtworkSource::LocalImport { asset },
+                DestinationArtworkContent::Unavailable { reason },
+            ) if matches!(
+                reason,
+                DestinationArtworkUnavailableReason::SelectedOriginalUnavailable
+                    | DestinationArtworkUnavailableReason::SelectedImageNotWide
+            ) =>
+            {
+                crate::artwork_store::validate_asset(asset)?;
+                if choice.asset_sha256.as_deref() != Some(&asset.sha256)
+                    || self.selected_asset_sha256.as_deref() != Some(&asset.sha256)
+                    || ((*reason == DestinationArtworkUnavailableReason::SelectedImageNotWide)
+                        == is_wide(asset))
+                {
+                    return Err(invalid());
+                }
+            }
+            (
+                DestinationArtworkSource::UnassignedRole,
+                DestinationArtworkContent::Unavailable {
+                    reason: DestinationArtworkUnavailableReason::NoLocalOriginal,
+                },
+            ) if choice.asset_sha256.is_none() && self.selected_asset_sha256.is_none() => {}
+            _ => return Err(invalid()),
+        }
+        Ok(())
+    }
+}
+
+/// Wide roles accept only images that are wider than tall.
+fn is_wide(asset: &LocalArtworkAsset) -> bool {
+    asset.width > asset.height
 }
 
 impl<'de> Deserialize<'de> for DestinationArtworkHandoff {
@@ -295,31 +360,41 @@ impl PortcoveService {
             },
         };
         let mut original = None;
-        if role == DestinationArtworkRole::PortraitCover {
+        let slot = match role {
+            DestinationArtworkRole::PortraitCover => Some(ArtworkSlot::Cover),
+            DestinationArtworkRole::HeroBanner => Some(ArtworkSlot::Detail),
+            DestinationArtworkRole::LandscapeCover => None,
+        };
+        if let Some(slot) = slot {
             let connection = self.library().connection()?;
-            let choice = crate::artwork_store::choice(&connection, port_id, ArtworkSlot::Cover)?;
+            let choice = crate::artwork_store::choice(&connection, port_id, slot)?;
             if let Some(id) = &choice.asset_sha256 {
                 let asset = crate::artwork_store::asset(&connection, id)?;
                 handoff.source = DestinationArtworkSource::LocalImport {
                     asset: asset.clone(),
                 };
                 handoff.selected_asset_sha256 = Some(id.clone());
-                match original_bytes(self.library(), &asset).and_then(|bytes| {
-                    validate_decoded(&bytes, &asset)?;
-                    Ok(bytes)
-                }) {
-                    Ok(bytes) => {
-                        original = Some(bytes);
-                        handoff.content = DestinationArtworkContent::Available { asset };
+                handoff.content = if role == DestinationArtworkRole::HeroBanner && !is_wide(&asset)
+                {
+                    DestinationArtworkContent::Unavailable {
+                        reason: DestinationArtworkUnavailableReason::SelectedImageNotWide,
                     }
-                    Err(_) => {
-                        handoff.content = DestinationArtworkContent::Unavailable {
+                } else {
+                    match original_bytes(self.library(), &asset).and_then(|bytes| {
+                        validate_decoded(&bytes, &asset)?;
+                        Ok(bytes)
+                    }) {
+                        Ok(bytes) => {
+                            original = Some(bytes);
+                            DestinationArtworkContent::Available { asset }
+                        }
+                        Err(_) => DestinationArtworkContent::Unavailable {
                             reason:
                                 DestinationArtworkUnavailableReason::SelectedOriginalUnavailable,
-                        }
+                        },
                     }
-                }
-            } else {
+                };
+            } else if role == DestinationArtworkRole::PortraitCover {
                 handoff.source = DestinationArtworkSource::GeneratedFallback;
                 if let Some(artwork) = port.artwork.as_ref() {
                     handoff.source = DestinationArtworkSource::CatalogDefault {
@@ -327,6 +402,11 @@ impl PortcoveService {
                     };
                     handoff.selected_asset_sha256 = Some(artwork.image_sha256.clone());
                 }
+                handoff.content = DestinationArtworkContent::Unavailable {
+                    reason: DestinationArtworkUnavailableReason::NoLocalOriginal,
+                };
+            } else {
+                // No catalog default or generated fallback exists for the hero role.
                 handoff.content = DestinationArtworkContent::Unavailable {
                     reason: DestinationArtworkUnavailableReason::NoLocalOriginal,
                 };

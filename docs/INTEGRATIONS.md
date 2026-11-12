@@ -564,9 +564,11 @@ The same Desktop shortcut review offers **Review artwork update** and **Review
 artwork removal** as separate actions. Update requires a shortcut carrying this
 library and game's Portcove ownership marker and reads each role through Core's
 versioned destination handoff; the renderer supplies no bytes, paths or provider
-data. It currently publishes the selected imported portrait original as
-`config/grid/<shortcut AppID>p.png` or `.jpg`; landscape and hero roles report
-unavailable until #208/#527 provide them, and a catalog default or generated
+data. It publishes the selected imported cover original as
+`config/grid/<shortcut AppID>p.png` or `.jpg` and, when the selected detail image
+is wider than tall, that original as `<shortcut AppID>_hero.png` or `.jpg`. The
+landscape role reports unavailable until #527 provides it, a detail image that is
+not wide is reported rather than cropped, and a catalog default or generated
 fallback is reported rather than copied. Existing art for a role is preserved by
 default. Replacement requires the explicit **Replace artwork already in Steam**
 choice, accepts exactly one readable existing file and keeps a content-addressed

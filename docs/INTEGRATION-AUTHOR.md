@@ -440,8 +440,9 @@ claim for the core result.
 
 ## Destination-artwork handoff
 
-API 67 offers an optional, independently versioned `artwork_handoff_schema: 1`
-capability and the `artwork.handoff` / `artwork.handoff-bytes` commands. A destination
+API 67 introduced an optional, independently versioned `artwork_handoff_schema`
+capability and the `artwork.handoff` / `artwork.handoff-bytes` commands; current
+Core advertises and accepts only schema 2. A destination
 adapter such as #292 must negotiate all three before using them. API envelopes and
 operation events retain their existing versions; existing cover/detail clients
 and clients that ignore this optional capability remain compatible.
@@ -454,20 +455,23 @@ portcove --library C:\Games\Portcove --json --non-interactive artwork handoff-by
 Both commands are read-only observations, including startup: they perform no
 recovery, provider fetch, thumbnail-cache read/write or destination write. Core resolves
 the same current or retained admitted port as existing artwork reads. The metadata
-contains `handoff_schema`, exact library identity, port, semantic role, Cover choice
-and revision, selected SHA-256, tagged source provenance and tagged availability.
+contains `handoff_schema`, exact library identity, port, semantic role, the role's
+Cover or Detail choice and revision, selected SHA-256, tagged source provenance and tagged availability.
 Local provenance retains the full admitted asset even when its original is missing;
 catalog provenance retains the accepted IGDB game, cover, image, slug, match kind
 and digest. This distinguishes an underlying-game default from a port-specific one.
 
 The three static roles are `portrait_cover`, `landscape_cover` and `hero_banner`
-(CLI flags use hyphens). V1 offers accepted durable Cover originals as portrait
-content. Landscape and hero roles explicitly report `role_not_provided`; Detail
-dimensions never assign a destination role. Catalog defaults report
-`no_local_original`, even if a disposable display thumbnail exists. Missing or
-invalid selected originals report `selected_original_unavailable` while retaining
-the choice and provenance. Generated fallback also has no reusable original.
-Never stretch or destructively crop one role into another.
+(CLI flags use hyphens). Portrait content is the accepted durable Cover original.
+Schema 2 adds the hero role: it is bound to the Detail choice and offers the
+accepted Detail original only when that image is wider than tall; a selected
+Detail image that is not reports `selected_image_not_wide`, and no Detail import
+reports `no_local_original`. The landscape role explicitly reports
+`role_not_provided`. Catalog defaults report `no_local_original`, even if a
+disposable display thumbnail exists. Missing or invalid selected originals report
+`selected_original_unavailable` while retaining the choice and provenance.
+Generated fallback also has no reusable original. Never stretch or destructively
+crop one role into another; originals are exported unmodified.
 
 The bytes command requires the previously observed library ID, choice revision and
 asset digest, rechecks them under the artwork lock, and returns the complete handoff
@@ -476,7 +480,7 @@ its digest, decoded format and dimensions. Stale bindings fail and require a fre
 preview. Originals retain the existing 16 MiB limit; bound process output for JSON
 array expansion as well. Validate the handoff, byte count, digest and decode before
 storing a durable destination copy. Exported `destination_artwork_handoff` and
-`destination_artwork_bytes` schemas describe v1; the Core readers additionally reject
+`destination_artwork_bytes` schemas describe schema 2; the Core readers additionally reject
 contradictory identity/source/content combinations. Unknown versions, roles,
 provenance kinds or availability values require refusal, not inferred success.
 

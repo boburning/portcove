@@ -706,12 +706,13 @@ specifies request bounds, version semantics, and independent trust checks.
 
 ## Local artwork ownership
 
-The optional destination-artwork v1 handoff is also Core-owned. Read-only CLI
-adapters export exact library/port/revision/asset bindings, accepted provenance and
-explicit static-role availability. Only validated durable local Cover originals
-provide portrait bytes; unavailable originals retain their selection metadata.
-Neither catalog display caches nor Detail dimensions supply destination bytes or
-additional roles. There is no new durable store, provider or destination writer.
+The optional destination-artwork handoff (schema 2) is also Core-owned. Read-only
+CLI adapters export exact library/port/revision/asset bindings, accepted provenance
+and explicit static-role availability. Validated durable local Cover originals
+provide portrait bytes and a Detail original wider than tall provides hero-banner
+bytes, both unmodified; unavailable originals retain their selection metadata.
+Catalog display caches never supply destination bytes, and no role is synthesized,
+cropped or resized from another. There is no new durable store, provider or destination writer.
 The [integration contract](INTEGRATION-AUTHOR.md#destination-artwork-handoff) owns
 consumer negotiation and preview/replacement/cleanup obligations.
 
