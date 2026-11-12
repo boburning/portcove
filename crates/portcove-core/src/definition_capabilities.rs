@@ -270,6 +270,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::NativePortable,
             contract_version: crate::runtime::NATIVE_MAC_BUNDLE_TAR_XZ_CAPABILITY,
         });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::native_external_profile::openomf::NATIVE_CAPABILITY,
+        });
         supported
     }
 }
