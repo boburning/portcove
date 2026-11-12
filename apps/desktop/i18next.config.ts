@@ -52,6 +52,8 @@ export default defineConfig({
       "src/features/browsing/GameFileObservationSummary.tsx",
       "src/features/browsing/BrowsingMatchDetails.tsx",
       "src/features/browsing/GameAlternatives.tsx",
+      "src/features/browsing/GroupedLibrary.tsx",
+      "src/components/GameSettingsControl.tsx",
       "src/features/port-actions/BrowsePortObservations.tsx",
       "src/components/ui.tsx",
       "src/components/FailureDetails.tsx",
