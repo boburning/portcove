@@ -816,6 +816,13 @@ freshly verified. The human summary is capped at 20 rows; the complete bounded
 JSON report remains the diagnostic record. Stale accepted-provider conditions
 cannot be silently hidden by a prior metadata-accounting result.
 
+The report's batch-level `recovery_evidence` joins each recorded recovery to the
+prior condition's exact location, contract, observation clocks and occurrence
+count. Endpoint recovery and provider-metadata recovery have separate kinds.
+The recovery timestamp comes from the matching observation, and reused
+observations retain their original clock. This evidence does not change which
+conditions recover or modify the checkpoint format.
+
 This is presentation-only triage of location observations. It does not infer
 an affected platform/variant when none was measured, available fallback,
 expected-version-vs-same-identity byte replacement, installation safety or an
