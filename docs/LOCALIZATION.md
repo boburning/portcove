@@ -153,10 +153,13 @@ unless the copy change is intended and reviewed.
 | Matching versions for browsing filters (platform, channel and installation-method labels follow the shared view-model migration)                                  | `features/browsing/BrowsingMatchDetails.tsx`               | `browsing`          |
 | Other ports for a game and implementation facts (platform labels follow the shared view-model migration; requirement labels and edition titles stay catalog data) | `features/browsing/GameAlternatives.tsx`                   | `browsing`          |
 | Discover card observations (readiness, acquisition and setup-route text follow their producers' migrations)                                                       | `features/port-actions/BrowsePortObservations.tsx`         | `browsing`          |
+| Navigation hints (keyboard key names stay literal)                                                                                                                | `components/ui.tsx`                                        | `common`            |
+| Failure technical details (codes, phases, messages and context values stay verbatim)                                                                              | `components/FailureDetails.tsx`                            | `common`            |
+| Application entry (no copy of its own)                                                                                                                            | `main.tsx`                                                 | —                   |
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-12 it
-reported 1,501 findings in 51 of 218 analyzed files, measured after the
+reported 1,485 findings in 48 of 218 analyzed files, measured after the
 migrations listed above and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
 and are migrated with the surface that renders them. The count is a work
@@ -164,7 +167,7 @@ inventory, not a coverage claim.
 
 Narrow technical-literal exclusions: the lint ignores the `align`, `aria-live`,
 `aria-atomic`, `aria-autocomplete`, `aria-describedby`, `aria-hidden`, `aria-labelledby`, `aria-relevant`, `data-backup-action`, `data-settings-control`,
-`data-slot`, `decoding`, `dir`, `focusable`, `intent`, `positionMethod`, `reviewSize`, `size`, `triggerId` and `variant`
+`data-slot`, `decoding`, `dir`, `direction`, `focusable`, `intent`, `positionMethod`, `reviewSize`, `size`, `triggerId` and `variant`
 attributes, which carry design-system tokens, element ids, ARIA references, ARIA state tokens or HTML/SVG rendering hints,
 never player copy.
 Thrown `Error` messages that are caught and never displayed, stable state codes,

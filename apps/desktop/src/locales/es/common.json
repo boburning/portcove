@@ -4,6 +4,25 @@
   },
   "browserFailed": "No se pudo abrir el navegador: <detail/>",
   "close": "Cerrar",
+  "failure": {
+    "clipboardUnavailable": "El portapapeles no está disponible. Selecciona y copia los detalles técnicos de abajo.",
+    "code": "Código de error",
+    "copied": "Copiado",
+    "copiedStatus": "Detalles técnicos copiados.",
+    "copy": "Copiar los detalles técnicos",
+    "manualCopy": "Detalles técnicos para copiar manualmente",
+    "message": "Mensaje",
+    "outcome": {
+      "committed": "El cambio se guardó. Comprueba el resultado antes de volver a intentarlo.",
+      "noChanges": "Esta operación no cambió ningún archivo.",
+      "notStarted": "Esta operación no se inició.",
+      "recoveryRequired": "Un intento anterior dejó trabajo sin terminar. Revisa las opciones de recuperación antes de volver a intentarlo.",
+      "unknown": "Portcove no pudo confirmar si algo cambió. Comprueba el resultado antes de volver a intentarlo."
+    },
+    "outcomeLabel": "Resultado",
+    "phase": "Fase",
+    "viewDetails": "Ver los detalles técnicos"
+  },
   "filter": {
     "close": "Cerrar opciones",
     "closeLabel": "Cerrar las opciones de {{label}}",
@@ -13,6 +32,19 @@
     "empty": "Ningún juego ni adaptación coincide con esta búsqueda.",
     "placeholder": "Buscar juegos y proyectos de adaptación…",
     "show": "Mostrar juegos y adaptaciones"
+  },
+  "navigation": {
+    "back": "<key/>: Atrás",
+    "gamepadBack": "Botón Atrás: Atrás",
+    "gamepadMenu": "Botón Atrás: Menú",
+    "gamepadMove": "Cruceta o palanca: Mover",
+    "gamepadSection": "Botones superiores: Cambiar de sección",
+    "gamepadSelect": "Botón de confirmar: Seleccionar",
+    "help": "Ayuda de navegación",
+    "menu": "<key/>: Menú",
+    "move": "<key/>: Mover",
+    "select": "<key/>: Seleccionar",
+    "shortcuts": "Atajos de navegación"
   },
   "setupWarnings": "Antes de empezar",
   "taskUpdates": "Novedades de las tareas"
