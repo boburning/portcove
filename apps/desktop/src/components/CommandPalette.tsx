@@ -6,6 +6,7 @@ import { Icon, NavigationHints, Shortcut } from "./ui";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { Trans } from "react-i18next";
 import { useAppTranslation } from "../localization";
+import { escapeKeyName } from "../keyboard-shortcuts";
 import { normalizeGameSearchText } from "../search-text";
 
 export interface PaletteCommand {
@@ -155,7 +156,7 @@ function OpenCommandPalette({
             placeholder={t("palette.placeholder")}
             autoComplete="off"
           />
-          <Shortcut>{t("palette.escapeKey")}</Shortcut>
+          <Shortcut>{escapeKeyName}</Shortcut>
         </label>
         {filtered.length > 0 && (
           <h3 className="m-0 px-5 pt-4 pb-2 text-[length:var(--text-xs)] font-medium text-[var(--color-text-muted)]">
@@ -175,7 +176,7 @@ function OpenCommandPalette({
             >
               {query.trim() ? (
                 // The typed query is an exact player value, never interpolated.
-                <Trans t={t} i18nKey="palette.noMatch" components={{ query: <>{query}</> }} />
+                <Trans t={t} i18nKey="palette.noMatch" components={{ query: <bdi>{query}</bdi> }} />
               ) : (
                 t("palette.empty")
               )}

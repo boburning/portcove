@@ -2,7 +2,6 @@
   "palette": {
     "available": "Comandos disponibles",
     "empty": "No hay comandos disponibles.",
-    "escapeKey": "Esc",
     "noMatch": "Ningún comando coincide con «<query/>».",
     "placeholder": "Buscar acciones y navegación",
     "quickActions": "Acciones rápidas",

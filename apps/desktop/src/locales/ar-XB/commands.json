@@ -2,7 +2,6 @@
   "palette": {
     "available": "الأوامر المتاحة",
     "empty": "لا تتوفر أوامر.",
-    "escapeKey": "Esc",
     "noMatch": "لا يوجد أمر يطابق “<query/>”.",
     "placeholder": "البحث في الإجراءات والتنقل",
     "quickActions": "إجراءات سريعة",

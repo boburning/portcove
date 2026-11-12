@@ -149,6 +149,8 @@ it("shows a typed query verbatim in the no-match message in the current language
   try {
     await localization.changeLanguage("ar-XB");
     await expect.poll(status).toBe("لا يوجد أمر يطابق “zz {{count}}”.");
+    // The typed query is direction-isolated inside the right-to-left sentence.
+    expect(document.querySelector('[role="status"] bdi')?.textContent).toBe("zz {{count}}");
     expect(input.getAttribute("aria-label")).toBe("البحث في الأوامر");
   } finally {
     await localization.changeLanguage("en");

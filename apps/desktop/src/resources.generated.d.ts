@@ -493,7 +493,6 @@ export default interface Resources {
     "palette": {
       "available": "Available commands",
       "empty": "No commands are available.",
-      "escapeKey": "Esc",
       "noMatch": "No command matches “<query/>”.",
       "placeholder": "Search actions and navigation",
       "quickActions": "Quick actions",
