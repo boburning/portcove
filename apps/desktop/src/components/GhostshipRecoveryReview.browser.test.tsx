@@ -167,3 +167,27 @@ it("keeps discovery distinct from eligibility and disables review of stale backu
   )!;
   expect(review).toBeUndefined();
 });
+
+it("reviews legacy recovery in the current language with exact paths", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    vi.spyOn(desktopApi, "planGhostshipLegacyRecovery").mockResolvedValue(plan);
+    await root.rerender(
+      <GhostshipRecoveryReview backup={backup} generation={7} apply={vi.fn()} close={vi.fn()} />,
+    );
+    await expect.poll(() => document.activeElement?.textContent).toBe("إلغاء");
+    expect(document.body.textContent).toContain("مراجعة استرداد Ghostship القديم");
+    expect(document.body.textContent).toContain(backup.path);
+    expect(document.body.textContent).toContain("library/retained2");
+    expect(
+      [...document.querySelectorAll("button")].some(
+        (button) => button.textContent === "استرداد التثبيت القديم والبيانات",
+      ),
+    ).toBe(true);
+    expect(document.body.textContent).not.toContain("Ordinary restore");
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});

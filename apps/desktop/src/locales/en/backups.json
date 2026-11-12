@@ -25,6 +25,31 @@
     "summary_one": "{{count}} file · {{size}}",
     "summary_other": "{{count}} files · {{size}}"
   },
+  "ghostship": {
+    "activates": "This activates a fresh derivative of the retained legacy installation and replaces canonical saved data with the selected snapshot.",
+    "cancel": "Cancel",
+    "checking": "Checking whether this snapshot qualifies for legacy recovery…",
+    "conditions": "The game must be stopped. Changed inputs require a new review. Interrupted work retains recovery evidence; review recovery notices before another attempt. Recovery does not launch the game or prove gameplay or save compatibility.",
+    "description": "Recover the qualified legacy installation and its saved data together. Ordinary backup restore changes saved data only.",
+    "failure": "Legacy recovery did not complete. Refresh the installation and backup history, then review recovery notices before trying again.",
+    "field": {
+      "current": "Current installation",
+      "legacy": "Retained legacy installation",
+      "library": "Library",
+      "original": "Original",
+      "snapshot": "Selected qualified snapshot",
+      "space": "Required free space"
+    },
+    "open": "Review legacy recovery",
+    "planLabel": "Legacy recovery changes and preserved data",
+    "planMismatch": "Recovery plan does not match this backup. Review again.",
+    "recover": "Recover legacy installation and data",
+    "recovering": "Recovering legacy installation and data…",
+    "remains": "Both existing installations, other staged installations and the selected backup remain. Independent safety copies preserve current canonical data and newer-runtime saves and settings.",
+    "reviewAgain": "Review again",
+    "safetyCopy": "The runtime safety copy is stored alongside its canonical safety backup. Ordinary restore uses only canonical data. Deleting that safety backup also deletes its runtime copy.",
+    "title": "Review Ghostship legacy recovery"
+  },
   "history": {
     "checksum": "SHA-256 {{sha256}}",
     "deleteLabel": "Delete backup from {{time}}",
