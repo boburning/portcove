@@ -110,11 +110,38 @@ pub(crate) async fn add_mod_package(
     profile_id: String,
     path: PathBuf,
     expected_revision: u64,
+    allow_code_sha256: Option<String>,
 ) -> DesktopResult<ProfileRevision> {
     let state = state.inner().clone();
     blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        match allow_code_sha256 {
+            Some(sha256) => service.install_mod_package_allowing_code(
+                &port_id,
+                &profile_id,
+                &path,
+                expected_revision,
+                &sha256,
+            ),
+            None => service.install_mod_package(&port_id, &profile_id, &path, expected_revision),
+        }
+        .map_err(Into::into)
+    })
+    .await
+}
+
+/// Read-only: what a chosen package would run, shown before the player allows it.
+#[tauri::command]
+pub(crate) async fn review_mod_package_code(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    path: PathBuf,
+) -> DesktopResult<Option<portcove_core::ModCodeReview>> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
         service_at_generation(&state, generation)?
-            .install_mod_package(&port_id, &profile_id, &path, expected_revision)
+            .review_mod_package_code(&port_id, &path)
             .map_err(Into::into)
     })
     .await

@@ -735,6 +735,10 @@ export type CapabilityFeature =
   | "save-compatibility";
 export type PendingSetupState = "downloaded" | "attention-required";
 export type OutputListingStatuses = PortListingStatus[];
+/**
+ * What the package would run on the player's machine if enabled.
+ */
+export type RecompExecution = "recompiled_code" | "native_libraries" | "external_code";
 export type RetainedBuildAvailability = "verified" | "missing" | "changed" | "held" | "unavailable";
 export type OriginalAvailability = "verified" | "missing" | "changed";
 /**
@@ -1119,6 +1123,7 @@ export interface TransportOutputs {
   live_mods: LiveMods;
   managed_route_change_preview: OutputManagedRouteChangePreview;
   managed_route_change_result: OutputManagedRouteChangeResult;
+  mod_code_review: OutputModCodeReview;
   mod_setups_view: OutputModSetupsView;
   official_catalog_review: OfficialCatalogReview;
   official_catalog_setup: OutputOfficialCatalogSetup;
@@ -4309,6 +4314,29 @@ export interface OutputManagedRouteChangeResult {
   external_files_preserved: boolean;
   installation: InstallRecord;
   previous_registration: ExternalRuntimeRecord;
+  [k: string]: unknown;
+}
+/**
+ * What a mod package would run, shown before the player allows its code.
+ */
+export interface OutputModCodeReview {
+  /**
+   * True when these bytes were already allowed in this library.
+   */
+  already_allowed: boolean;
+  /**
+   * The name the mod gives itself; a claim, not verified.
+   */
+  display_name: string;
+  /**
+   * The loader's identity for the mod.
+   */
+  native_id: string;
+  runs: RecompExecution[];
+  /**
+   * The exact bytes any consent covers.
+   */
+  sha256: string;
   [k: string]: unknown;
 }
 /**

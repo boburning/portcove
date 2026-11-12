@@ -1827,6 +1827,12 @@ that it works with the installed build. Packages that load code from outside
 themselves (`native_libraries` host libraries, `*.offline.nrm`) or contain files an
 operating system runs directly stay refused, even with consent.
 
+Desktop asks the same question: after a package is chosen it reads what the
+package would run, and a package whose code was not allowed before shows the mod's
+name, that it runs code inside the game, that Portcove cannot tell whether the code
+is safe, and the exact SHA-256 the permission covers. Only **Allow its code and
+add** installs it, bound to that digest.
+
 Required dependencies become package requirements. A mod needing a mod that is not
 installed is refused until that mod is installed, and a mod that is on cannot be
 left on while a mod it needs is turned off; turn the dependent mod off first.

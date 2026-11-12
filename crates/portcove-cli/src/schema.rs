@@ -740,6 +740,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "mod_code_review",
+                serde_json::json!(schema_for_contract::<portcove_core::ModCodeReview>(
+                    contract
+                )),
+            ),
+            (
                 "profile_revision",
                 serde_json::json!(schema_for_contract::<portcove_core::ProfileRevision>(
                     contract

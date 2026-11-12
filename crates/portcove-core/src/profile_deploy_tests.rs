@@ -1510,3 +1510,42 @@ fn recorded_consent_is_reused_and_an_unreadable_record_fails_closed() {
     let error = w.service.activate_profile(RECOMP, &other.id).unwrap_err();
     assert_eq!(error.code, crate::ErrorCode::State, "{error:?}");
 }
+
+#[test]
+fn reviewing_a_package_reports_its_code_without_changing_anything() {
+    let w = recomp_world();
+    let asset = w.nrm("ui.nrm", "better_ui", &[], &[]);
+    assert_eq!(
+        w.service.review_mod_package_code(RECOMP, &asset).unwrap(),
+        None
+    );
+    let (code, sha) = code_package(&w, "code.nrm", b"\0");
+    let review = w
+        .service
+        .review_mod_package_code(RECOMP, &code)
+        .unwrap()
+        .unwrap();
+    assert_eq!(review.native_id, "speedrun_timer");
+    assert_eq!(review.sha256, sha);
+    assert_eq!(review.runs, [crate::RecompExecution::RecompiledCode]);
+    assert!(!review.already_allowed);
+    assert_eq!(w.revision(), 1, "reviewing changes nothing");
+    w.service
+        .install_mod_package_allowing_code(RECOMP, &w.default, &code, 1, &sha)
+        .unwrap();
+    assert!(
+        w.service
+            .review_mod_package_code(RECOMP, &code)
+            .unwrap()
+            .unwrap()
+            .already_allowed
+    );
+    // Games whose loader runs no mod code have nothing to review.
+    assert_eq!(
+        w.service
+            .review_mod_package_code("shipwright", &asset)
+            .ok()
+            .flatten(),
+        None
+    );
+}

@@ -298,6 +298,22 @@ pub(crate) fn require_code_allowed(layout: &Layout, revision: &ProfileRevision) 
     Ok(())
 }
 
+/// What a mod package would run, shown before the player allows its code.
+#[derive(
+    Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+pub struct ModCodeReview {
+    /// The loader's identity for the mod.
+    pub native_id: String,
+    /// The name the mod gives itself; a claim, not verified.
+    pub display_name: String,
+    pub runs: Vec<crate::RecompExecution>,
+    /// The exact bytes any consent covers.
+    pub sha256: String,
+    /// True when these bytes were already allowed in this library.
+    pub already_allowed: bool,
+}
+
 /// Whether an inspected package may run code.
 pub(crate) enum CodePolicy<'a> {
     /// Code is refused outright (provider installs).
@@ -911,6 +927,45 @@ impl PortcoveService {
         expected_revision: u64,
     ) -> Result<ProfileRevision> {
         self.install_mod_package_with(port_id, profile_id, source, expected_revision, None)
+    }
+
+    /// Reads what a local package would run, before the player decides whether
+    /// to install it. `None` when it runs no code (or the game has no loader that
+    /// runs mod code); refuses code no consent can admit. Reads a private copy
+    /// and changes nothing; the install inspects its own copy again and binds
+    /// consent to the digest shown here.
+    pub fn review_mod_package_code(
+        &self,
+        port_id: &str,
+        source: &Path,
+    ) -> Result<Option<ModCodeReview>> {
+        let layout = self.deploy_layout(port_id)?;
+        let Some(game) = native_mod_list::recomp_game(port_id) else {
+            return Ok(None);
+        };
+        fs::create_dir_all(layout.tmp())?;
+        let staging = tempfile::tempdir_in(layout.tmp())?;
+        let file_name = source
+            .file_name()
+            .ok_or_else(|| PortcoveError::usage("the package path has no file name"))?;
+        let private = staging.path().join(file_name);
+        fs::copy(source, &private)?;
+        let recomp = crate::inspect_recomp_mod(&private, game)?;
+        if recomp.holds.contains(&crate::RecompModHold::OtherGame)
+            || (recomp.execution.is_empty() && recomp.holds.is_empty())
+        {
+            return Ok(None);
+        }
+        require_admissible_code(&recomp)?;
+        Ok(Some(ModCodeReview {
+            native_id: recomp.native_id,
+            display_name: recomp.display_name,
+            runs: recomp.execution,
+            already_allowed: consented_code(&layout)
+                .unwrap_or_default()
+                .contains(&recomp.sha256),
+            sha256: recomp.sha256,
+        }))
     }
 
     /// Like [`Self::install_mod_package`], and the player allows the package to
