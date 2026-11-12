@@ -13,10 +13,8 @@ use crate::{PortcoveError, Result};
 pub mod fuzzing;
 pub(crate) mod sevenz;
 mod xz;
-#[cfg(all(test, target_os = "linux", target_arch = "x86_64"))]
-pub(crate) use xz::tests::encode as encode_xz_fixture;
 #[cfg(test)]
-pub(crate) use xz::tests::fixture as xz_fixture;
+pub(crate) use xz::tests::{encode as encode_xz_fixture, fixture as xz_fixture};
 
 const MAX_COMPRESSED_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_EXPANDED_BYTES: u64 = 16 * 1024 * 1024 * 1024;
