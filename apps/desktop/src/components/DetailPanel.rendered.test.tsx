@@ -223,6 +223,30 @@ it("distinguishes catalog saved-data declarations, retained installation rules a
   expect(external).not.toContain("<code>save</code>");
 });
 
+it("places the catalog setup check with Game files before installation and in Manage after", () => {
+  const render = (installed: boolean) =>
+    renderToStaticMarkup(
+      <DetailPanel
+        port={port}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        managementSupplement={<p>Catalog setup check</p>}
+        status={{
+          ...portStatus(),
+          port_id: port.id,
+          ...(installed ? { active: installRecord() } : {}),
+        }}
+      />,
+    );
+  const before = render(false);
+  expect(detailSection(before, "files")).toContain("Catalog setup check");
+  expect(detailSection(before, "manage")).not.toContain("Catalog setup check");
+  const after = render(true);
+  expect(detailSection(after, "manage")).toContain("Catalog setup check");
+  expect(detailSection(after, "files")).not.toContain("Catalog setup check");
+});
+
 it("does not promise further updates only when the catalog withdrew them", () => {
   const render = (assessment: NonNullable<PortStatus["port_actions"]>[number]) =>
     renderToStaticMarkup(
