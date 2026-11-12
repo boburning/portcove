@@ -17991,6 +17991,166 @@ fn main() {
         }
     }
 
+    /// A persistent disc-image destination is carried to the next version with its
+    /// unpack marker, so an unchanged disc image is recognised and the verified folder
+    /// is not unpacked again (which would also replace files the player added by hand).
+    /// Uses the shipped Ace Combat 6 definition with a synthetic image's identifiers.
+    #[test]
+    fn a_persistent_disc_destination_keeps_its_unpack_marker_through_a_version_change() {
+        use crate::disc_filesystem::fixtures::{file, xex, xiso};
+        const TITLE: u32 = 0x4D53_07E6;
+        const ID: &str = "ace-combat-6-recomp";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let mut document = crate::test_fixture::host_declared_embedded_catalog(&[ID])
+            .document()
+            .clone();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == ID)
+            .unwrap();
+        port.runtime_source_hashes = std::collections::BTreeMap::from([(
+            "default.xex".to_owned(),
+            hex::encode(Sha256::digest(xex(TITLE))),
+        )]);
+        port.runtime_disc_image.as_mut().unwrap().product_codes = vec![format!("{TITLE:08X}")];
+        let catalog = crate::Catalog::from_document(document).unwrap();
+        let port = catalog.port(ID).unwrap().clone();
+        assert!(port.persistent_paths.iter().any(|path| path == "assets"));
+
+        let mut roots = Vec::new();
+        for (version, active) in [("v1", true), ("v2", false)] {
+            let root = library.versions_dir().join(ID).join(version);
+            fs::create_dir_all(&root).unwrap();
+            write_host_test_executable(&root, ID);
+            let artifact = ArtifactIdentity {
+                asset_name: format!("{ID}-{version}.zip"),
+                sha256: hex::encode(Sha256::digest(format!("{ID}:{version}"))),
+                size: 4,
+            };
+            register_existing_test_artifact_with_port(
+                &library, &port, version, &root, artifact, active,
+            );
+            roots.push(root);
+        }
+        let (first, second) = (roots[0].clone(), roots[1].clone());
+        let mut service = PortcoveService::new(library).unwrap();
+        service.replace_catalog_for_test(catalog);
+
+        let source = temporary.path().join("fixture.iso");
+        xiso(
+            0,
+            vec![
+                file("default.xex", &xex(TITLE)),
+                file("data.bin", b"payload"),
+            ],
+        )
+        .write_to(&source);
+        let unpack = |destination: &Path| {
+            let phases = std::cell::RefCell::new(Vec::new());
+            let report = |phase, _, _| phases.borrow_mut().push(phase);
+            crate::adapter::prepare_disc_runtime_source(
+                &source,
+                destination,
+                port.runtime_source_materialization.unwrap(),
+                &port.runtime_source_hashes,
+                None,
+                &crate::adapter::DiscUnpack {
+                    profile: port.runtime_disc_image.as_ref().unwrap(),
+                    report: &report,
+                },
+                &|| Ok(()),
+            )
+            .unwrap();
+            phases.into_inner().len()
+        };
+
+        // Version one unpacks the disc; the player adds a file of their own.
+        assert!(unpack(&first.join("assets")) > 0);
+        let marker = "assets.portcove-source.json";
+        assert!(first.join(marker).is_file());
+        fs::write(first.join("assets/extra.file"), b"added by the player").unwrap();
+
+        // A version change collects the first install's data and restores it to the second.
+        service.collect_user_data_from(&port, &first).unwrap();
+        service.restore_user_data_to(&port, &second).unwrap();
+
+        // Record every observation first, then assert, so a failure shows the whole picture.
+        let marker_carried = second.join(marker).is_file();
+        let assets_carried = second.join("assets/default.xex").is_file();
+        let extra_carried = second.join("assets/extra.file").is_file();
+        let phases_on_second = unpack(&second.join("assets"));
+        let extra_after = fs::read(second.join("assets/extra.file")).ok();
+        eprintln!(
+            "OBSERVED marker_carried={marker_carried} assets_carried={assets_carried} \
+             extra_carried={extra_carried} unpack_phases_on_next_version={phases_on_second} \
+             extra_survives={}",
+            extra_after.as_deref() == Some(b"added by the player".as_slice())
+        );
+        assert!(
+            assets_carried && extra_carried,
+            "the destination itself is carried"
+        );
+        assert!(
+            marker_carried,
+            "the unpack marker must travel with its persistent destination"
+        );
+        // The same disc image is recognised: nothing is unpacked again and nothing is replaced.
+        assert_eq!(phases_on_second, 0);
+        assert_eq!(
+            extra_after.as_deref(),
+            Some(b"added by the player".as_slice())
+        );
+
+        // The carried marker never replaces verification: each of these still unpacks again,
+        // transactionally replacing the folder (and so the player's extra file).
+        let destination = second.join("assets");
+        let reset = || fs::write(destination.join("extra.file"), b"added by the player").unwrap();
+        reset();
+        // A tampered anchor file.
+        fs::write(destination.join("default.xex"), b"tampered").unwrap();
+        assert!(
+            unpack(&destination) > 0,
+            "a tampered anchor must unpack again"
+        );
+        assert_eq!(
+            fs::read(destination.join("default.xex")).unwrap(),
+            xex(TITLE)
+        );
+        assert!(!destination.join("extra.file").exists());
+        // A removed destination.
+        fs::remove_dir_all(&destination).unwrap();
+        assert!(
+            unpack(&destination) > 0,
+            "a missing folder must unpack again"
+        );
+        // A changed disc image at the same path is a new source, never reused by size or path.
+        reset();
+        assert_eq!(
+            unpack(&destination),
+            0,
+            "the unchanged image is a no-op again"
+        );
+        xiso(
+            0,
+            vec![
+                file("default.xex", &xex(TITLE)),
+                file("data.bin", b"changed payload"),
+            ],
+        )
+        .write_to(&source);
+        assert!(
+            unpack(&destination) > 0,
+            "a changed disc image must unpack again"
+        );
+        assert_eq!(
+            fs::read(destination.join("data.bin")).unwrap(),
+            b"changed payload"
+        );
+        assert!(!destination.join("extra.file").exists());
+    }
+
     #[test]
     fn launch_rejects_an_invalid_explicit_source() {
         let temporary = tempfile::tempdir().unwrap();

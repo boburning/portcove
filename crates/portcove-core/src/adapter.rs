@@ -1643,7 +1643,7 @@ fn is_numbered_psx_cue(name: &str) -> bool {
         && bytes[7..].eq_ignore_ascii_case(b".cue")
 }
 
-fn runtime_source_marker_path(destination: &Path) -> Result<PathBuf> {
+pub(crate) fn runtime_source_marker_path(destination: &Path) -> Result<PathBuf> {
     let name = destination
         .file_name()
         .and_then(|value| value.to_str())
