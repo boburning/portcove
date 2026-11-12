@@ -57,7 +57,8 @@
       "inventory": "mdk_sdl",
       "repository_id": 1406153922,
       "selected_assets": ["mdk-win-x64.zip", "mdk-win-x64.zip"],
-      "linux_selected_assets": ["mdk-linux-x64.tar.gz", "mdk-linux-x64.tar.gz"]
+      "linux_selected_assets": ["mdk-linux-x64.tar.gz", "mdk-linux-x64.tar.gz"],
+      "macos_aarch64_selected_assets": ["mdk-osx-arm64.zip", "mdk-osx-arm64.zip"]
     },
     "perfect-dark": {
       "inventory": "perfect_dark",
@@ -1510,6 +1511,48 @@
         "crash_diagnostic": true,
         "split_mod_paths": true
       }
+    },
+    "isledecomp-isle-portable": {
+      "inventory": "isle_portable",
+      "repository_id": 801786411,
+      "selected_assets": ["isle-0.1-Windows-x64.zip", "isle-0.2-Windows-x64.zip"],
+      "linux_selected_assets": ["isle-0.1-Linux-x64.tar.gz", "isle-0.2-Linux-x64.tar.gz"],
+      "channel": "rolling",
+      "mutable_tag_snapshots": true
+    },
+    "brawmario-infinite-mario-64-ever": {
+      "inventory": "infinite_mario_64_ever",
+      "repository_id": 924970713,
+      "selected_assets": [
+        "infinite-mario-64-ever.v0.1.5.windows.zip",
+        "infinite-mario-64-ever.v0.1.6.windows.zip"
+      ],
+      "linux_selected_assets": [
+        "infinite-mario-64-ever.v0.1.5.linux.zip",
+        "infinite-mario-64-ever.v0.1.6.linux.zip"
+      ]
+    },
+    "wing-commander-kilrathi-saga-wing-commander-reloaded-wc1-re": {
+      "inventory": "wc1_re",
+      "repository_id": 1328043392,
+      "selected_assets": [
+        "wc1-re-v0.9.8-windows-x86_64-sdl2.zip",
+        "wc1-re-v0.9.9-windows-x86_64-sdl2.zip"
+      ],
+      "linux_selected_assets": [
+        "wc1-re-v0.9.8-linux-x86_64-sdl2.zip",
+        "wc1-re-v0.9.9-linux-x86_64-sdl2.zip"
+      ],
+      "macos_aarch64_selected_assets": [
+        "wc1-re-v0.9.8-macos-arm64-sdl2.zip",
+        "wc1-re-v0.9.9-macos-arm64-sdl2.zip"
+      ]
+    },
+    "moshferatu-zombies-ate-my-neighbors-pc-port": {
+      "inventory": "zamn",
+      "repository_id": 1393553073,
+      "selected_assets": ["zamn-windows-x86_64.zip", "zamn-windows-x86_64.zip"],
+      "linux_selected_assets": ["zamn-linux-x86_64.tar.gz", "zamn-linux-x86_64.tar.gz"]
     }
   },
   "inventories": {
@@ -8424,13 +8467,673 @@
           }
         ]
       }
+    ],
+    "isle_portable": [
+      {
+        "id": 438405393,
+        "tag_name": "continuous",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-08T17:33:25Z",
+        "assets": [
+          {
+            "id": 724678063,
+            "name": "app-debug.apk",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/app-debug.apk",
+            "size": 13615026,
+            "digest": "sha256:ca9ac4d91d7f8e535e29e2d8a4275e532d26466fa9cdcaa271e77905e1fd27db"
+          },
+          {
+            "id": 724678129,
+            "name": "app-release.apk",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/app-release.apk",
+            "size": 12548892,
+            "digest": "sha256:060bb0d655c62e0363a5a606268e6f2fc7d9eb49f3f7efa3899b478ba7b3b8f4"
+          },
+          {
+            "id": 724678236,
+            "name": "isle-0.1-Darwin-arm64.dmg",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-Darwin-arm64.dmg",
+            "size": 23584676,
+            "digest": "sha256:edb806bb7ede36431b3531c9408621035907cbb9f81b6cb6ea6afa2787c8d37b"
+          },
+          {
+            "id": 724678302,
+            "name": "isle-0.1-Darwin-x64.dmg",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-Darwin-x64.dmg",
+            "size": 24080688,
+            "digest": "sha256:d744dada3b346221dc1ad403fc8aa04f6a06c079e09da24401adde517a8127c8"
+          },
+          {
+            "id": 724678193,
+            "name": "isle-0.1-DOS-x86.tar.gz",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-DOS-x86.tar.gz",
+            "size": 2381341,
+            "digest": "sha256:e574d3b7aab3fd027d039051bd7f4fdc6695ba301508f455301b4a25f07b72c4"
+          },
+          {
+            "id": 724678380,
+            "name": "isle-0.1-Emscripten-emscripten.tar.gz",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-Emscripten-emscripten.tar.gz",
+            "size": 1027396,
+            "digest": "sha256:7d1379e6b6cbd41f46e312a2842ab2b2ab1f9ee27d438996e68975bf8505556d"
+          },
+          {
+            "id": 724678413,
+            "name": "isle-0.1-FreeBSD-x64.tar.gz",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-FreeBSD-x64.tar.gz",
+            "size": 3455812,
+            "digest": "sha256:12ef1af4cda514c9e540aadf7a4658be8ed94617e31aaa83c4cddfb08a6f2f83"
+          },
+          {
+            "id": 724678769,
+            "name": "isle-0.1-iOS-arm64.ipa",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-iOS-arm64.ipa",
+            "size": 2402999,
+            "digest": "sha256:b1062130ed10c82cacfece7b28b1aebdea5df904916e93a19d3688d29dbf1d5f"
+          },
+          {
+            "id": 724678430,
+            "name": "isle-0.1-Linux-x64.tar.gz",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-Linux-x64.tar.gz",
+            "size": 4420732,
+            "digest": "sha256:9cba0cba1b48b6352f95b07b0bf48346a28b0c2696ed59a97b15e7ee8588af27"
+          },
+          {
+            "id": 724678478,
+            "name": "isle-0.1-Windows-arm64.zip",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-Windows-arm64.zip",
+            "size": 2226381,
+            "digest": "sha256:ed95dc65b43e5b23cf19d81c225ba41f607ba9daec7a8379044904608a879921"
+          },
+          {
+            "id": 724678526,
+            "name": "isle-0.1-Windows-x64.tar.gz",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-Windows-x64.tar.gz",
+            "size": 17933327,
+            "digest": "sha256:ce129bebe368c60bd5288150db2802e53a0835da40fce90f4e5bb778c9b1e866"
+          },
+          {
+            "id": 724678595,
+            "name": "isle-0.1-Windows-x64.zip",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-Windows-x64.zip",
+            "size": 21392622,
+            "digest": "sha256:167546f43293dfac3869483c139c29cbb13d72e5b2e51756d89476cd2ae27efd"
+          },
+          {
+            "id": 724678661,
+            "name": "isle-0.1-Windows-x86.zip",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-Windows-x86.zip",
+            "size": 1442181,
+            "digest": "sha256:80c33449d87d88d4ef544f11f2e4a1439c5fe85670194ddb8abd472758ff6842"
+          },
+          {
+            "id": 724678723,
+            "name": "isle-0.1-Xbox_One_Series_XS-x64.zip",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-0.1-Xbox_One_Series_XS-x64.zip",
+            "size": 2316342,
+            "digest": "sha256:cb8caba1f8d4a2e306673127bd70e72f67158db120328812bc2b1d688f95b137"
+          },
+          {
+            "id": 724678825,
+            "name": "isle-assets.zip",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-assets.zip",
+            "size": 457392031,
+            "digest": "sha256:4be88b223102c55df431f958cba2997a011f0a685f544c55fdb325a3cf20e5b0"
+          },
+          {
+            "id": 724679601,
+            "name": "isle-hdaudio.zip",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle-hdaudio.zip",
+            "size": 298041650,
+            "digest": "sha256:5d4d42e1107b886bd1d205cb781d7f8bfbe39397d63dd2c6e626354edd1cd624"
+          },
+          {
+            "id": 724680055,
+            "name": "isle.3dsx",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle.3dsx",
+            "size": 3054772,
+            "digest": "sha256:2b2b1fcb66814c2025faa559c8ce5285c9f186a8c2e73ac4b02f9e7e5d2802ae"
+          },
+          {
+            "id": 724680110,
+            "name": "isle.cia",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle.cia",
+            "size": 2196416,
+            "digest": "sha256:647c0b8a7f7ff82b9db35960df1c80a4a1407cb238d401b419a5f1f9680fd203"
+          },
+          {
+            "id": 724680142,
+            "name": "isle.nro",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle.nro",
+            "size": 8837851,
+            "digest": "sha256:bd7a23866e1ac77151b24e1822d9eaa5705e8a46bcf0e15546d953a50bb604c7"
+          },
+          {
+            "id": 724680180,
+            "name": "isle.vpk",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/isle.vpk",
+            "size": 7198401,
+            "digest": "sha256:282d1a67162b4737e95e2ddac1666af4b6e396e659baf4c75498efa3c700ad90"
+          },
+          {
+            "id": 724677962,
+            "name": "Isle_Portable-x86_64.AppImage",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/Isle_Portable-x86_64.AppImage",
+            "size": 33421816,
+            "digest": "sha256:3f22bb59098d27cc4e24904441e6f36551827e37beb06d4e671d066fcaf9757a"
+          },
+          {
+            "id": 724680250,
+            "name": "org.legoisland.Isle.aarch64.flatpak",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/org.legoisland.Isle.aarch64.flatpak",
+            "size": 2451768,
+            "digest": "sha256:2d952ec313af4b4573c51ba42585e00fef7b04f27601166021c99d28ea91ce20"
+          },
+          {
+            "id": 724680300,
+            "name": "org.legoisland.Isle.x86_64.flatpak",
+            "browser_download_url": "https://github.com/isledecomp/isle-portable/releases/download/continuous/org.legoisland.Isle.x86_64.flatpak",
+            "size": 2670080,
+            "digest": "sha256:949ed93d18a1bce49bc244c83c567f3093e923e3ee33ad1abe73b2de45452177"
+          }
+        ]
+      },
+      {
+        "id": 438405393,
+        "tag_name": "continuous",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999400100,
+            "name": "app-debug.apk",
+            "browser_download_url": "https://downloads.example.invalid/app-debug.apk",
+            "size": 13615026,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999400101,
+            "name": "app-release.apk",
+            "browser_download_url": "https://downloads.example.invalid/app-release.apk",
+            "size": 12548892,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999400102,
+            "name": "isle-0.2-Darwin-arm64.dmg",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-Darwin-arm64.dmg",
+            "size": 23584676,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999400103,
+            "name": "isle-0.2-Darwin-x64.dmg",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-Darwin-x64.dmg",
+            "size": 24080688,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999400104,
+            "name": "isle-0.2-DOS-x86.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-DOS-x86.tar.gz",
+            "size": 2381341,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          {
+            "id": 999400105,
+            "name": "isle-0.2-Emscripten-emscripten.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-Emscripten-emscripten.tar.gz",
+            "size": 1027396,
+            "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "id": 999400106,
+            "name": "isle-0.2-FreeBSD-x64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-FreeBSD-x64.tar.gz",
+            "size": 3455812,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999400107,
+            "name": "isle-0.2-iOS-arm64.ipa",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-iOS-arm64.ipa",
+            "size": 2402999,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999400108,
+            "name": "isle-0.2-Linux-x64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-Linux-x64.tar.gz",
+            "size": 4420732,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999400109,
+            "name": "isle-0.2-Windows-arm64.zip",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-Windows-arm64.zip",
+            "size": 2226381,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999400110,
+            "name": "isle-0.2-Windows-x64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-Windows-x64.tar.gz",
+            "size": 17933327,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          {
+            "id": 999400111,
+            "name": "isle-0.2-Windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-Windows-x64.zip",
+            "size": 21392622,
+            "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "id": 999400112,
+            "name": "isle-0.2-Windows-x86.zip",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-Windows-x86.zip",
+            "size": 1442181,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999400113,
+            "name": "isle-0.2-Xbox_One_Series_XS-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/isle-0.2-Xbox_One_Series_XS-x64.zip",
+            "size": 2316342,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999400114,
+            "name": "isle-assets.zip",
+            "browser_download_url": "https://downloads.example.invalid/isle-assets.zip",
+            "size": 457392031,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999400115,
+            "name": "isle-hdaudio.zip",
+            "browser_download_url": "https://downloads.example.invalid/isle-hdaudio.zip",
+            "size": 298041650,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999400116,
+            "name": "isle.3dsx",
+            "browser_download_url": "https://downloads.example.invalid/isle.3dsx",
+            "size": 3054772,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          {
+            "id": 999400117,
+            "name": "isle.cia",
+            "browser_download_url": "https://downloads.example.invalid/isle.cia",
+            "size": 2196416,
+            "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "id": 999400118,
+            "name": "isle.nro",
+            "browser_download_url": "https://downloads.example.invalid/isle.nro",
+            "size": 8837851,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999400119,
+            "name": "isle.vpk",
+            "browser_download_url": "https://downloads.example.invalid/isle.vpk",
+            "size": 7198401,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999400120,
+            "name": "Isle_Portable-x86_64.AppImage",
+            "browser_download_url": "https://downloads.example.invalid/Isle_Portable-x86_64.AppImage",
+            "size": 33421816,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999400121,
+            "name": "org.legoisland.Isle.aarch64.flatpak",
+            "browser_download_url": "https://downloads.example.invalid/org.legoisland.Isle.aarch64.flatpak",
+            "size": 2451768,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999400122,
+            "name": "org.legoisland.Isle.x86_64.flatpak",
+            "browser_download_url": "https://downloads.example.invalid/org.legoisland.Isle.x86_64.flatpak",
+            "size": 2670080,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          }
+        ]
+      }
+    ],
+    "infinite_mario_64_ever": [
+      {
+        "id": 277742706,
+        "tag_name": "v0.1.5",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-01-18T19:15:09Z",
+        "assets": [
+          {
+            "id": 342387823,
+            "name": "infinite-mario-64-ever.v0.1.5.linux.zip",
+            "browser_download_url": "https://github.com/Brawmario/infinite-mario-64-ever/releases/download/v0.1.5/infinite-mario-64-ever.v0.1.5.linux.zip",
+            "size": 42393997,
+            "digest": "sha256:bdec381b55f316c2d62f9788130844fd1c9ee6165e987bf3e302c1a671f21c8c"
+          },
+          {
+            "id": 342387820,
+            "name": "infinite-mario-64-ever.v0.1.5.mac.zip",
+            "browser_download_url": "https://github.com/Brawmario/infinite-mario-64-ever/releases/download/v0.1.5/infinite-mario-64-ever.v0.1.5.mac.zip",
+            "size": 70599152,
+            "digest": "sha256:708e5b94a0c7e4af38d0e154a78dff222a7883dc90279420e8ad98296f54912e"
+          },
+          {
+            "id": 342387821,
+            "name": "infinite-mario-64-ever.v0.1.5.web.nothreads.zip",
+            "browser_download_url": "https://github.com/Brawmario/infinite-mario-64-ever/releases/download/v0.1.5/infinite-mario-64-ever.v0.1.5.web.nothreads.zip",
+            "size": 27036011,
+            "digest": "sha256:6b305e26d464ef61dfc62d847db2db261b0998f5214b6f0b6ef00bb4beeb26fb"
+          },
+          {
+            "id": 342387824,
+            "name": "infinite-mario-64-ever.v0.1.5.web.pwa.zip",
+            "browser_download_url": "https://github.com/Brawmario/infinite-mario-64-ever/releases/download/v0.1.5/infinite-mario-64-ever.v0.1.5.web.pwa.zip",
+            "size": 27056528,
+            "digest": "sha256:c92bea1f153bbe79ccb258a8c47d1a7c732ff99152d21f9de02d7846ce338f86"
+          },
+          {
+            "id": 342387819,
+            "name": "infinite-mario-64-ever.v0.1.5.web.zip",
+            "browser_download_url": "https://github.com/Brawmario/infinite-mario-64-ever/releases/download/v0.1.5/infinite-mario-64-ever.v0.1.5.web.zip",
+            "size": 26982202,
+            "digest": "sha256:1b59efa35d1fa5525a54328349539f01d1db19cdb4e01a6b2eedfabddae40348"
+          },
+          {
+            "id": 342387818,
+            "name": "infinite-mario-64-ever.v0.1.5.windows.zip",
+            "browser_download_url": "https://github.com/Brawmario/infinite-mario-64-ever/releases/download/v0.1.5/infinite-mario-64-ever.v0.1.5.windows.zip",
+            "size": 47971173,
+            "digest": "sha256:5bb8e4e694a4e3bcf236371751b7a101aad3230c42b6fada9f7dfb58d75135dd"
+          }
+        ]
+      },
+      {
+        "id": 999400001,
+        "tag_name": "v0.1.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999400200,
+            "name": "infinite-mario-64-ever.v0.1.6.linux.zip",
+            "browser_download_url": "https://downloads.example.invalid/infinite-mario-64-ever.v0.1.6.linux.zip",
+            "size": 42393997,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999400201,
+            "name": "infinite-mario-64-ever.v0.1.6.mac.zip",
+            "browser_download_url": "https://downloads.example.invalid/infinite-mario-64-ever.v0.1.6.mac.zip",
+            "size": 70599152,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999400202,
+            "name": "infinite-mario-64-ever.v0.1.6.web.nothreads.zip",
+            "browser_download_url": "https://downloads.example.invalid/infinite-mario-64-ever.v0.1.6.web.nothreads.zip",
+            "size": 27036011,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999400203,
+            "name": "infinite-mario-64-ever.v0.1.6.web.pwa.zip",
+            "browser_download_url": "https://downloads.example.invalid/infinite-mario-64-ever.v0.1.6.web.pwa.zip",
+            "size": 27056528,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999400204,
+            "name": "infinite-mario-64-ever.v0.1.6.web.zip",
+            "browser_download_url": "https://downloads.example.invalid/infinite-mario-64-ever.v0.1.6.web.zip",
+            "size": 26982202,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          {
+            "id": 999400205,
+            "name": "infinite-mario-64-ever.v0.1.6.windows.zip",
+            "browser_download_url": "https://downloads.example.invalid/infinite-mario-64-ever.v0.1.6.windows.zip",
+            "size": 47971173,
+            "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ]
+      }
+    ],
+    "wc1_re": [
+      {
+        "id": 441476829,
+        "tag_name": "v0.9.8",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-11T09:41:36Z",
+        "assets": [
+          {
+            "id": 734954170,
+            "name": "SHA256SUMS",
+            "browser_download_url": "https://github.com/neuromancer/wc1-re/releases/download/v0.9.8/SHA256SUMS",
+            "size": 919,
+            "digest": "sha256:4d5742824832bf4d9dbd3736a3a6dee2200b82a3247cfdf81211cc4fa67307ce"
+          },
+          {
+            "id": 734954166,
+            "name": "wc1-re-v0.9.8-linux-x86_64-experimental.flatpak",
+            "browser_download_url": "https://github.com/neuromancer/wc1-re/releases/download/v0.9.8/wc1-re-v0.9.8-linux-x86_64-experimental.flatpak",
+            "size": 36896504,
+            "digest": "sha256:d00952c996415e620b0ae7becab62a916686036ec65eaca4e32fede082234c0e"
+          },
+          {
+            "id": 734954016,
+            "name": "wc1-re-v0.9.8-linux-x86_64-sdl2.zip",
+            "browser_download_url": "https://github.com/neuromancer/wc1-re/releases/download/v0.9.8/wc1-re-v0.9.8-linux-x86_64-sdl2.zip",
+            "size": 42926444,
+            "digest": "sha256:d072251a432e722c402a720c22b01ea3855351b440a62df09a71c4b9216dba3d"
+          },
+          {
+            "id": 734954015,
+            "name": "wc1-re-v0.9.8-macos-arm64-sdl2.zip",
+            "browser_download_url": "https://github.com/neuromancer/wc1-re/releases/download/v0.9.8/wc1-re-v0.9.8-macos-arm64-sdl2.zip",
+            "size": 37517796,
+            "digest": "sha256:00b4a2d3acb88bdd656a91ae4cf1e1edcb950465346df18ce270c92282787382"
+          },
+          {
+            "id": 734954036,
+            "name": "wc1-re-v0.9.8-macos-arm64.dmg",
+            "browser_download_url": "https://github.com/neuromancer/wc1-re/releases/download/v0.9.8/wc1-re-v0.9.8-macos-arm64.dmg",
+            "size": 38410164,
+            "digest": "sha256:e04a98b35109f2be67d316736ab0c961f139722086913ea8f7e8467bf65380c0"
+          },
+          {
+            "id": 734954013,
+            "name": "wc1-re-v0.9.8-macos-x86_64-sdl2.zip",
+            "browser_download_url": "https://github.com/neuromancer/wc1-re/releases/download/v0.9.8/wc1-re-v0.9.8-macos-x86_64-sdl2.zip",
+            "size": 37453851,
+            "digest": "sha256:15de785cd4234dd5b77f967ee4fbded513f29f4405e098fecda5bb437a44878c"
+          },
+          {
+            "id": 734954147,
+            "name": "wc1-re-v0.9.8-macos-x86_64.dmg",
+            "browser_download_url": "https://github.com/neuromancer/wc1-re/releases/download/v0.9.8/wc1-re-v0.9.8-macos-x86_64.dmg",
+            "size": 38446009,
+            "digest": "sha256:cf89f61acf735ef9ac3c4d3b1f7b6d89f8d029a6d314cba9598e4288536ca543"
+          },
+          {
+            "id": 734954012,
+            "name": "wc1-re-v0.9.8-win32-msvc420.zip",
+            "browser_download_url": "https://github.com/neuromancer/wc1-re/releases/download/v0.9.8/wc1-re-v0.9.8-win32-msvc420.zip",
+            "size": 268414,
+            "digest": "sha256:0a5c928947bd70ca2423370ce440c6a82d99b4be0c4f0b97cc247194ae05b4a1"
+          },
+          {
+            "id": 734954011,
+            "name": "wc1-re-v0.9.8-windows-x86_64-sdl2.zip",
+            "browser_download_url": "https://github.com/neuromancer/wc1-re/releases/download/v0.9.8/wc1-re-v0.9.8-windows-x86_64-sdl2.zip",
+            "size": 38838411,
+            "digest": "sha256:391e6916f2704662f56609e73fe8724e361ab3427c50f105190e7601580a5b82"
+          },
+          {
+            "id": 734954152,
+            "name": "wc1-re-v0.9.8-windows-x86_64-setup.exe",
+            "browser_download_url": "https://github.com/neuromancer/wc1-re/releases/download/v0.9.8/wc1-re-v0.9.8-windows-x86_64-setup.exe",
+            "size": 34372239,
+            "digest": "sha256:c6f95d44a67098e7db4b08799e4c917aa2d2ec1edb98aee71a05f2c28af15036"
+          }
+        ]
+      },
+      {
+        "id": 999400002,
+        "tag_name": "v0.9.9",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999400300,
+            "name": "SHA256SUMS",
+            "browser_download_url": "https://downloads.example.invalid/SHA256SUMS",
+            "size": 919,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999400301,
+            "name": "wc1-re-v0.9.9-linux-x86_64-experimental.flatpak",
+            "browser_download_url": "https://downloads.example.invalid/wc1-re-v0.9.9-linux-x86_64-experimental.flatpak",
+            "size": 36896504,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999400302,
+            "name": "wc1-re-v0.9.9-linux-x86_64-sdl2.zip",
+            "browser_download_url": "https://downloads.example.invalid/wc1-re-v0.9.9-linux-x86_64-sdl2.zip",
+            "size": 42926444,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999400303,
+            "name": "wc1-re-v0.9.9-macos-arm64-sdl2.zip",
+            "browser_download_url": "https://downloads.example.invalid/wc1-re-v0.9.9-macos-arm64-sdl2.zip",
+            "size": 37517796,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "id": 999400304,
+            "name": "wc1-re-v0.9.9-macos-arm64.dmg",
+            "browser_download_url": "https://downloads.example.invalid/wc1-re-v0.9.9-macos-arm64.dmg",
+            "size": 38410164,
+            "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          {
+            "id": 999400305,
+            "name": "wc1-re-v0.9.9-macos-x86_64-sdl2.zip",
+            "browser_download_url": "https://downloads.example.invalid/wc1-re-v0.9.9-macos-x86_64-sdl2.zip",
+            "size": 37453851,
+            "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "id": 999400306,
+            "name": "wc1-re-v0.9.9-macos-x86_64.dmg",
+            "browser_download_url": "https://downloads.example.invalid/wc1-re-v0.9.9-macos-x86_64.dmg",
+            "size": 38446009,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999400307,
+            "name": "wc1-re-v0.9.9-win32-msvc420.zip",
+            "browser_download_url": "https://downloads.example.invalid/wc1-re-v0.9.9-win32-msvc420.zip",
+            "size": 268414,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999400308,
+            "name": "wc1-re-v0.9.9-windows-x86_64-sdl2.zip",
+            "browser_download_url": "https://downloads.example.invalid/wc1-re-v0.9.9-windows-x86_64-sdl2.zip",
+            "size": 38838411,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 999400309,
+            "name": "wc1-re-v0.9.9-windows-x86_64-setup.exe",
+            "browser_download_url": "https://downloads.example.invalid/wc1-re-v0.9.9-windows-x86_64-setup.exe",
+            "size": 34372239,
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        ]
+      }
+    ],
+    "zamn": [
+      {
+        "id": 427137541,
+        "tag_name": "20261028",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-28T20:07:49Z",
+        "assets": [
+          {
+            "id": 686193940,
+            "name": "zamn-linux-x86_64.tar.gz",
+            "browser_download_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port/releases/download/20261028/zamn-linux-x86_64.tar.gz",
+            "size": 2366478,
+            "digest": "sha256:c3b8b84c48925fe2c0e0347b1c835322dc0654695e21c497faa9c52fabb99938"
+          },
+          {
+            "id": 686193997,
+            "name": "zamn-windows-x86_64.zip",
+            "browser_download_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port/releases/download/20261028/zamn-windows-x86_64.zip",
+            "size": 1580223,
+            "digest": "sha256:e4fdfed4e898c939e99fdbc132bda9bcc6a12deba0b84e6e0a0eb099dbffeffb"
+          }
+        ]
+      },
+      {
+        "id": 999500000,
+        "tag_name": "20261201",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-12-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999500010,
+            "name": "zamn-linux-x86_64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/20261201/zamn-linux-x86_64.tar.gz",
+            "size": 2366478,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999500011,
+            "name": "zamn-windows-x86_64.zip",
+            "browser_download_url": "https://downloads.example.invalid/20261201/zamn-windows-x86_64.zip",
+            "size": 1580223,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
     ]
   },
   "other_zip_assets": [
-    { "inventory": "mdk_sdl", "release_index": 0, "asset": "mdk-osx-arm64.zip" },
-    { "inventory": "mdk_sdl", "release_index": 1, "asset": "mdk-osx-arm64.zip" },
-    { "inventory": "rewooled", "release_index": 0, "asset": "Rewooled-macOS-arm64-1.1.3.zip" },
-    { "inventory": "rewooled", "release_index": 1, "asset": "Rewooled-macOS-arm64-1.1.4.zip" },
+    {
+      "inventory": "rewooled",
+      "release_index": 0,
+      "asset": "Rewooled-macOS-arm64-1.1.3.zip"
+    },
+    {
+      "inventory": "rewooled",
+      "release_index": 1,
+      "asset": "Rewooled-macOS-arm64-1.1.4.zip"
+    },
     {
       "inventory": "rsdkv4",
       "release_index": 0,
@@ -9415,6 +10118,116 @@
       "inventory": "fheroes2",
       "release_index": 2,
       "asset": "fheroes2_windows_x86_SDL2.zip"
+    },
+    {
+      "inventory": "wc1_re",
+      "release_index": 0,
+      "asset": "wc1-re-v0.9.8-macos-x86_64-sdl2.zip"
+    },
+    {
+      "inventory": "wc1_re",
+      "release_index": 1,
+      "asset": "wc1-re-v0.9.9-macos-x86_64-sdl2.zip"
+    },
+    {
+      "inventory": "isle_portable",
+      "release_index": 0,
+      "asset": "isle-0.1-Windows-arm64.zip"
+    },
+    {
+      "inventory": "isle_portable",
+      "release_index": 0,
+      "asset": "isle-0.1-Windows-x86.zip"
+    },
+    {
+      "inventory": "isle_portable",
+      "release_index": 0,
+      "asset": "isle-0.1-Xbox_One_Series_XS-x64.zip"
+    },
+    {
+      "inventory": "isle_portable",
+      "release_index": 0,
+      "asset": "isle-assets.zip"
+    },
+    {
+      "inventory": "isle_portable",
+      "release_index": 0,
+      "asset": "isle-hdaudio.zip"
+    },
+    {
+      "inventory": "isle_portable",
+      "release_index": 1,
+      "asset": "isle-0.2-Windows-arm64.zip"
+    },
+    {
+      "inventory": "isle_portable",
+      "release_index": 1,
+      "asset": "isle-0.2-Windows-x86.zip"
+    },
+    {
+      "inventory": "isle_portable",
+      "release_index": 1,
+      "asset": "isle-0.2-Xbox_One_Series_XS-x64.zip"
+    },
+    {
+      "inventory": "isle_portable",
+      "release_index": 1,
+      "asset": "isle-assets.zip"
+    },
+    {
+      "inventory": "isle_portable",
+      "release_index": 1,
+      "asset": "isle-hdaudio.zip"
+    },
+    {
+      "inventory": "infinite_mario_64_ever",
+      "release_index": 0,
+      "asset": "infinite-mario-64-ever.v0.1.5.mac.zip"
+    },
+    {
+      "inventory": "infinite_mario_64_ever",
+      "release_index": 0,
+      "asset": "infinite-mario-64-ever.v0.1.5.web.nothreads.zip"
+    },
+    {
+      "inventory": "infinite_mario_64_ever",
+      "release_index": 0,
+      "asset": "infinite-mario-64-ever.v0.1.5.web.pwa.zip"
+    },
+    {
+      "inventory": "infinite_mario_64_ever",
+      "release_index": 0,
+      "asset": "infinite-mario-64-ever.v0.1.5.web.zip"
+    },
+    {
+      "inventory": "infinite_mario_64_ever",
+      "release_index": 1,
+      "asset": "infinite-mario-64-ever.v0.1.6.mac.zip"
+    },
+    {
+      "inventory": "infinite_mario_64_ever",
+      "release_index": 1,
+      "asset": "infinite-mario-64-ever.v0.1.6.web.nothreads.zip"
+    },
+    {
+      "inventory": "infinite_mario_64_ever",
+      "release_index": 1,
+      "asset": "infinite-mario-64-ever.v0.1.6.web.pwa.zip"
+    },
+    {
+      "inventory": "infinite_mario_64_ever",
+      "release_index": 1,
+      "asset": "infinite-mario-64-ever.v0.1.6.web.zip"
+    },
+    {
+      "inventory": "wc1_re",
+      "release_index": 0,
+      "asset": "wc1-re-v0.9.8-win32-msvc420.zip"
+    },
+    {
+      "inventory": "wc1_re",
+      "release_index": 1,
+      "asset": "wc1-re-v0.9.9-win32-msvc420.zip"
     }
   ]
 }

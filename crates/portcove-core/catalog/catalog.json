@@ -23306,6 +23306,7 @@
       "portable_marker": true,
       "source_environment": "POKEPORT_IMPORT_ROM",
       "launch_environment": {
+        "POKEPORT_NOTIFY_ONLY_UPDATES": "1",
         "POKEPORT_VERSION": "gold"
       },
       "runtime_source_filename": "portcove-import.gbc",
@@ -23340,6 +23341,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Portcove replaces this runtime and, from its next Portcove update or install, turns off its built-in update downloads; the game still checks for and announces new releases. A newer update that another copy downloaded into the shared Gen2Recomp updates folder (%APPDATA%/Gen2Recomp/updates on Windows) still loads when this copy starts, so remove that folder if you want the version Portcove installed.",
         "original_game_title": "Pokémon Gold",
         "artwork": {
           "game_id": 1558,
@@ -23387,6 +23389,7 @@
       "portable_marker": true,
       "source_environment": "POKEPORT_IMPORT_ROM",
       "launch_environment": {
+        "POKEPORT_NOTIFY_ONLY_UPDATES": "1",
         "POKEPORT_VERSION": "silver"
       },
       "runtime_source_filename": "portcove-import.gbc",
@@ -23421,6 +23424,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Portcove replaces this runtime and, from its next Portcove update or install, turns off its built-in update downloads; the game still checks for and announces new releases. A newer update that another copy downloaded into the shared Gen2Recomp updates folder (%APPDATA%/Gen2Recomp/updates on Windows) still loads when this copy starts, so remove that folder if you want the version Portcove installed.",
         "original_game_title": "Pokémon Silver",
         "artwork": {
           "game_id": 1513,
@@ -23468,6 +23472,7 @@
       "portable_marker": true,
       "source_environment": "POKEPORT_IMPORT_ROM",
       "launch_environment": {
+        "POKEPORT_NOTIFY_ONLY_UPDATES": "1",
         "POKEPORT_VERSION": "crystal"
       },
       "runtime_source_filename": "portcove-import.gbc",
@@ -23502,6 +23507,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Portcove replaces this runtime and, from its next Portcove update or install, turns off its built-in update downloads; the game still checks for and announces new releases. A newer update that another copy downloaded into the shared Gen2Recomp updates folder (%APPDATA%/Gen2Recomp/updates on Windows) still loads when this copy starts, so remove that folder if you want the version Portcove installed.",
         "original_game_title": "Pokémon Crystal",
         "artwork": {
           "game_id": 1514,
@@ -39462,7 +39468,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -39471,12 +39478,19 @@
           "windows-x86-64": [
             "infinite-mario-64-ever.",
             ".windows.zip"
+          ],
+          "linux-x86-64": [
+            "infinite-mario-64-ever.",
+            ".linux.zip"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "Infinite Mario 64.exe"
+        ],
+        "linux-x86-64": [
+          "infinite-mario-64.x86_64"
         ]
       },
       "persistent_paths": [
@@ -39486,13 +39500,13 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows archive already contains the Godot player and its required companions. The game writes saves and backup saves through Godot user storage, normally AppData/Godot/app_userdata/Infinite Mario 64 on Windows. This is outside the package and outside Portcove backup. The transparency option can write project.godot beside the player; that exact configuration file is declared for compatible replacement and backup. The user-profile saves remain outside it. Keep a separate copy of that user folder; a customized data location can use external registration. Portcove replaces the managed runtime; existing external copies keep their files and update owner. Runtime rollback carries current declared data rather than rewinding saves; older-runtime and mod compatibility is not guaranteed.",
+        "manual_preparation": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows and Linux archives already contain the Godot player and its required companions. The Linux player and its bundled libraries need glibc 2.38 or later and GCC 13’s libstdc++. The game writes saves and backup saves through Godot user storage, normally AppData/Godot/app_userdata/Infinite Mario 64 on Windows or ~/.local/share/godot/app_userdata/Infinite Mario 64 on Linux. This is outside the package and outside Portcove backup. The transparency option can write project.godot beside the player; that exact configuration file is declared for compatible replacement and backup. The user-profile saves remain outside it. Keep a separate copy of that user folder; a customized data location can use external registration. Portcove replaces the managed runtime; existing external copies keep their files and update owner. Runtime rollback carries current declared data rather than rewinding saves; older-runtime and mod compatibility is not guaranteed.",
         "original_game_title": "Super Mario 64",
         "manual_setup": {
           "steps": [
             {
               "title": "Select your original in the game",
-              "instruction": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows archive already contains the Godot player and its required companions."
+              "instruction": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows and Linux archives already contain the Godot player and its required companions. The Linux player and its bundled libraries need glibc 2.38 or later and GCC 13’s libstdc++."
             }
           ],
           "warnings": [],
@@ -45163,7 +45177,8 @@
         "rolling"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -45172,6 +45187,10 @@
           "windows-x86-64": [
             "isle-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "isle-",
+            "-linux-x64.tar.gz"
           ]
         },
         "rolling_tag": "continuous"
@@ -45179,6 +45198,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "isle.exe"
+        ],
+        "linux-x86-64": [
+          "isle"
         ]
       },
       "persistent_paths": [
@@ -45188,13 +45210,13 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use the linked upstream guided installer/setup instructions for your own English LEGO Island 1.1 data. For this portable archive, run the included bin/isle-config.exe yourself, choose the original data and save locations, and save the configuration. Portcove’s Play target is bin/isle.exe; read-only discovery and installation do not run the configuration helper. The continuous channel follows upstream’s ongoing builds and may regress. Normal configuration and saves live in the SDL preference folder AppData/isledecomp/isle, or in the save location you choose, outside Portcove backups. The executable-folder isle.ini fallback is declared; original media and custom save folders remain external. Keep the complete bin/companions together. Custom profiles, runtime extensions and existing copies retain the non-owning route. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
+        "manual_preparation": "Use the linked upstream guided installer/setup instructions for your own English LEGO Island 1.1 data. For this portable archive, run the included bin/isle-config.exe yourself, choose the original data and save locations, and save the configuration. Portcove’s Play target is bin/isle.exe; read-only discovery and installation do not run the configuration helper. On Linux x86-64, run the included bin/isle-config yourself (it needs Qt 6 from your distribution); Portcove’s Play target is bin/isle. Keep bin/ and lib/ together. The Linux player and its bundled libraries need glibc 2.43 or later, GCC 13’s libstdc++ and OpenGL ES 2 with GLVND. The continuous channel follows upstream’s ongoing builds and may regress. Normal configuration and saves live in the SDL preference folder AppData/isledecomp/isle on Windows or ~/.local/share/isledecomp/isle on Linux, or in the save location you choose, outside Portcove backups. The executable-folder isle.ini fallback is declared; original media and custom save folders remain external. Custom profiles, runtime extensions and existing copies retain the non-owning route. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
         "original_game_title": "LEGO Island",
         "manual_setup": {
           "steps": [
             {
               "title": "Prepare your original game",
-              "instruction": "Use the linked upstream guided installer/setup instructions for your own English LEGO Island 1.1 data. For this portable archive, run the included bin/isle-config.exe yourself, choose the original data and save locations, and save the configuration. Portcove’s Play target is bin/isle.exe; read-only discovery and installation do not run the configuration helper. The continuous channel follows upstream’s ongoing builds and may regress."
+              "instruction": "Use the linked upstream guided installer/setup instructions for your own English LEGO Island 1.1 data. For this portable archive, run the included bin/isle-config.exe yourself, choose the original data and save locations, and save the configuration. Portcove’s Play target is bin/isle.exe; read-only discovery and installation do not run the configuration helper. On Linux x86-64, run the included bin/isle-config yourself (it needs Qt 6 from your distribution); Portcove’s Play target is bin/isle. Keep bin/ and lib/ together. The Linux player and its bundled libraries need glibc 2.43 or later, GCC 13’s libstdc++ and OpenGL ES 2 with GLVND. The continuous channel follows upstream’s ongoing builds and may regress."
             }
           ],
           "warnings": [],
@@ -46320,7 +46342,8 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -46331,6 +46354,9 @@
           ],
           "linux-x86-64": [
             "mdk-linux-x64.tar.gz"
+          ],
+          "macos-aarch64": [
+            "mdk-osx-arm64.zip"
           ]
         }
       },
@@ -46339,6 +46365,9 @@
           "mdk_sdl.exe"
         ],
         "linux-x86-64": [
+          "mdk_sdl"
+        ],
+        "macos-aarch64": [
           "mdk_sdl"
         ]
       },
@@ -46358,7 +46387,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "On Windows, keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required. Default settings.cfg, saves, mods and normal mdk-*.bmp captures live beside the player and are declared for compatible replacement and backup, along with the remembered mdk_paths.cfg. The original game remains external. On x86-64 Linux, the managed mdk_sdl player and its libSDL3.so follow the same rules; it needs glibc 2.43 or later and a Vulkan driver, and mdk_paths.cfg beside mdk_sdl must name your complete original installation because Linux has no default-location detection and Portcove does not pass MDK_DATA_DIR. If that directory is not writable, upstream uses AppData/mdk-sdl on Windows or ~/.local/share/mdk-sdl on Linux; MDK_USER_DIR and that external fallback remain outside backups. Optional locally generated texture mods/upstream upscaler tools belong to the declared mods folder, not the immutable player. Custom exported assets/captures and changed runtime files can use external registration. Runtime rollback carries current declared data, without rewinding saves or guaranteeing older-runtime compatibility. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
+        "manual_preparation": "On Windows, keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required. Default settings.cfg, saves, mods and normal mdk-*.bmp captures live beside the player and are declared for compatible replacement and backup, along with the remembered mdk_paths.cfg. The original game remains external. On an Apple silicon Mac, the managed mdk_sdl player and its libSDL3.dylib follow the same rules with macOS 12 or later and Metal, and mdk_paths.cfg beside mdk_sdl must name your original installation. On x86-64 Linux, the managed mdk_sdl player and its libSDL3.so follow the same rules; it needs glibc 2.43 or later and a Vulkan driver, and mdk_paths.cfg beside mdk_sdl must name your complete original installation because Linux has no default-location detection and Portcove does not pass MDK_DATA_DIR. If that directory is not writable, upstream uses AppData/mdk-sdl on Windows, ~/.local/share/mdk-sdl on Linux or ~/Library/Application Support/mdk-sdl on a Mac; MDK_USER_DIR and that external fallback remain outside backups. Optional locally generated texture mods/upstream upscaler tools belong to the declared mods folder, not the immutable player. Custom exported assets/captures and changed runtime files can use external registration. Runtime rollback carries current declared data, without rewinding saves or guaranteeing older-runtime compatibility. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
         "original_game_title": "MDK",
         "manual_setup": {
           "steps": [
@@ -46372,7 +46401,7 @@
             },
             {
               "title": "Set up MDK on an Apple silicon Mac",
-              "instruction": "Choose mdk-osx-arm64.zip from the stable releases. Keep libSDL3.dylib beside mdk_sdl and use MDK_DATA_DIR or mdk_paths.cfg to point at your complete original installation. The inspected v1.2.6 package requires macOS 12 or later with Metal. Review the publisher and your Mac’s download security prompts before opening the player."
+              "instruction": "Portcove can install and update the official mdk-osx-arm64.zip player. Create mdk_paths.cfg beside mdk_sdl and name your complete original installation in its [paths] mdk setting; Portcove does not pass MDK_DATA_DIR to the game. Keep libSDL3.dylib beside mdk_sdl. The inspected v1.2.6 package requires macOS 12 or later with Metal."
             },
             {
               "title": "Set up MDK on Android",
@@ -46380,13 +46409,13 @@
             }
           ],
           "warnings": [
-            "Optional HD texture generation downloads and starts a separate upscaling tool. Let it finish, or cancel and confirm it has stopped before updating, backing up or removing the player. You and upstream maintain the Linux ARM64, Mac and Android copies."
+            "Optional HD texture generation downloads and starts a separate upscaling tool. Let it finish, or cancel and confirm it has stopped before updating, backing up or removing the player. You and upstream maintain the Linux ARM64 and Android copies."
           ],
           "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/main/README.md",
           "references": [
             {
               "title": "Keep your desktop files",
-              "instruction": "For a Linux ARM64 or Mac copy you maintain, keep settings.cfg, saves, mods, captures and custom exports. Keep the whole MDK_USER_DIR if you set it, or the actual user-data fallback if the player folder is read-only. On first portable start, upstream can copy settings and saves from an older personal profile. Keep both copies until you know which one the player uses. Keep mdk_paths.cfg and your originals separately."
+              "instruction": "For a Linux ARM64 copy you maintain, keep settings.cfg, saves, mods, captures and custom exports. Keep the whole MDK_USER_DIR if you set it, or the actual user-data fallback if the player folder is read-only. On first portable start, upstream can copy settings and saves from an older personal profile. Keep both copies until you know which one the player uses. Keep mdk_paths.cfg and your originals separately."
             }
           ]
         },
@@ -46822,7 +46851,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -46830,12 +46860,18 @@
         "asset_hints": {
           "windows-x86-64": [
             "zamn-windows-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "zamn-linux-x86_64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "zamn_launcher.exe"
+        ],
+        "linux-x86-64": [
+          "zamn_launcher"
         ]
       },
       "persistent_paths": [
@@ -46850,7 +46886,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Use your own USA 1,048,576-byte Zombies Ate My Neighbors ROM. Upstream's compatibility SHA-256 is b27e2e957fa760f4f483e2af30e03062034a6c0066984f2e284cc2cb430b2059; Core does not acquire, authenticate or import it. Keep the original outside the engine directory. The normal Windows entry is zamn_launcher.exe: select your ROM and settings there, then use its Play button. Keep zamn.exe, SDL2 and the whole package together. The normal launcher tracks and reaps its child and returns to its settings UI after the game exits; close both before maintenance. This source review is not an installed full-session or forced-exit certification. Core preserves default local zamn.ini, zamn.quicksave, zamn.hiscore and their atomic .tmp companions. Explicit config, high-score, capture, movie and other user-selected paths can be external and remain outside Core backup/removal. Preserve every effective creating path and complete old runtime before updating or restoring; the quicksave ROM/structure checks do not promise compatibility across future builds. Upstream mixes native game logic with hardware emulation; no complete-native, gameplay or real-save acceptance is implied. Core owns engine replacement, upstream owns ROM selection and settings.",
+        "manual_preparation": "Use your own USA 1,048,576-byte Zombies Ate My Neighbors ROM. Upstream's compatibility SHA-256 is b27e2e957fa760f4f483e2af30e03062034a6c0066984f2e284cc2cb430b2059; Core does not acquire, authenticate or import it. Keep the original outside the engine directory. The normal Windows entry is zamn_launcher.exe, and the Linux entry is zamn_launcher, which needs glibc 2.38 or later and an available system font such as DejaVu Sans: select your ROM and settings there, then use its Play button. Keep zamn.exe (zamn on Linux), SDL2 and the whole package together. The normal launcher tracks and reaps its child and returns to its settings UI after the game exits; close both before maintenance. This source review is not an installed full-session or forced-exit certification. Core preserves default local zamn.ini, zamn.quicksave, zamn.hiscore and their atomic .tmp companions. Explicit config, high-score, capture, movie and other user-selected paths can be external and remain outside Core backup/removal. Preserve every effective creating path and complete old runtime before updating or restoring; the quicksave ROM/structure checks do not promise compatibility across future builds. Upstream mixes native game logic with hardware emulation; no complete-native, gameplay or real-save acceptance is implied. Core owns engine replacement, upstream owns ROM selection and settings.",
         "original_game_title": "Zombies Ate My Neighbors",
         "manual_setup": {
           "steps": [
@@ -46863,12 +46899,12 @@
               "instruction": "Open the installed zamn_launcher.exe and select your original ROM in the game settings. Keep zamn.exe and SDL2 beside the launcher."
             },
             {
-              "title": "Run the upstream Linux launcher",
-              "instruction": "Extract zamn-linux-x86_64.tar.gz and run ./zamn_launcher from the extracted zamn folder. Keep the launcher, zamn and the bundled SDL2 library together. On Linux you can type the ROM path or drop the file onto the launcher."
+              "title": "Start the managed Linux player",
+              "instruction": "Open the installed zamn_launcher and type your original ROM path or drop the file onto the launcher, then choose Play. Keep zamn and the bundled SDL2 library beside the launcher."
             }
           ],
           "warnings": [
-            "The upstream Linux build is experimental and player-managed. Close both the launcher and the game before replacing the runtime or backing up its files. Keep the creating version with its configuration, quicksave and high scores."
+            "Upstream labels its Linux build experimental. Close both the launcher and the game before replacing the runtime or backing up its files. Keep the creating version with its configuration, quicksave and high scores."
           ],
           "references": [
             {
@@ -55044,7 +55080,9 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -55052,12 +55090,24 @@
         "asset_hints": {
           "windows-x86-64": [
             "-windows-x86_64-sdl2.zip"
+          ],
+          "linux-x86-64": [
+            "-linux-x86_64-sdl2.zip"
+          ],
+          "macos-aarch64": [
+            "-macos-arm64-sdl2.zip"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "wc1-modern.exe"
+        ],
+        "linux-x86-64": [
+          "wc1-modern"
+        ],
+        "macos-aarch64": [
+          "wc1-modern"
         ]
       },
       "launch_arguments": [
@@ -55068,14 +55118,14 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "On Play, use the upstream graphical Browse/Launch dialog to choose your own permitted, writable Wing Commander Kilrathi Saga directory. It needs GAMEDAT including MODULE.000, CAMP.000 and INSTALL.DAT plus sibling STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. These are upstream startup checks, not Core authentication of every original file. Portcove supplies --gui so supported graphics arguments do not bypass that setup. The launcher changes to the selected original directory and runs the game in the same process. Original data and SAVEGAME.WLD stay in that creating game directory; shared settings use the actual SDL preference directory for Origin Systems/WC Kilrathi Saga, including wc1-modern.cfg. Core replaces only its engine; it does not import, migrate, back up, roll back or delete those external game/save/profile files. Preserve the whole actual original/profile trees and compatible old runtime before changes. Another engine copy can share them. DOS data support is partial and is not the managed offer; original MSVC420 reconstruction is a different package. Existing external registrations remain independently owned.",
+        "manual_preparation": "On Play, use the upstream graphical Browse/Launch dialog to choose your own permitted, writable Wing Commander Kilrathi Saga directory. It needs GAMEDAT including MODULE.000, CAMP.000 and INSTALL.DAT plus sibling STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. These are upstream startup checks, not Core authentication of every original file. Portcove supplies --gui so supported graphics arguments do not bypass that setup. The launcher changes to the selected original directory and runs the game in the same process. Original data and SAVEGAME.WLD stay in that creating game directory; shared settings use the actual SDL preference directory for Origin Systems/WC Kilrathi Saga, including wc1-modern.cfg (on Linux under ~/.local/share, on a Mac under ~/Library/Application Support). The Linux x86-64 player needs glibc 2.39 and the Apple silicon Mac player needs macOS 15. Both packages keep their bundled SDL2 and LZO libraries beside wc1-modern. The Intel Mac package also needs SDL3, which it does not include, so it stays a copy you set up yourself. Core replaces only its engine; it does not import, migrate, back up, roll back or delete those external game/save/profile files. Preserve the whole actual original/profile trees and compatible old runtime before changes. Another engine copy can share them. DOS data support is partial and is not the managed offer; original MSVC420 reconstruction is a different package. Existing external registrations remain independently owned.",
         "original_game_title": "Wing Commander (Kilrathi Saga)",
         "manual_setup": {
           "help_url": "https://github.com/neuromancer/wc1-re/tree/4462524b5ecb8a42f19b74ff141cc4240466ace8",
           "steps": [
             {
               "title": "Use the modern SDL2 player and your own Kilrathi Saga data",
-              "instruction": "Use the official modern Windows x64 SDL2 package with all companion DLLs, or an already permitted working copy of that same route. Select normal wc1-modern.exe for an attached copy. The separate win32-msvc420 reconstruction package is not this player. Use your own full Wing Commander Kilrathi Saga installation: GAMEDAT plus STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. DOS support is partial and does not inherit this offer."
+              "instruction": "Use the official modern SDL2 package for Windows x64, Linux x86-64 or an Apple silicon Mac with all companion libraries, or an already permitted working copy of that same route. Select normal wc1-modern.exe (wc1-modern on Linux or a Mac) for an attached copy. The separate win32-msvc420 reconstruction package is not this player. Use your own full Wing Commander Kilrathi Saga installation: GAMEDAT plus STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. DOS support is partial and does not inherit this offer."
             },
             {
               "title": "Choose the actual writable original directory in upstream setup",

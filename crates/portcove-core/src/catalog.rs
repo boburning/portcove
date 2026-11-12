@@ -3155,6 +3155,21 @@ mod tests {
             .retain(|platform| !matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64));
         gen1.executable_hints.remove(&Platform::MacosX86_64);
         gen1.executable_hints.remove(&Platform::MacosAarch64);
+        // Gen2Recomped's fused runtime downloads newer Lua payloads into its shared
+        // LOVE save folder. The current definitions switch that to notify-only.
+        for id in ["gen2recomp-gold", "gen2recomp-silver", "gen2recomp-crystal"] {
+            let port = expected_ports
+                .iter_mut()
+                .find(|port| port.id == id)
+                .unwrap();
+            assert!(
+                !port
+                    .launch_environment
+                    .contains_key("POKEPORT_NOTIFY_ONLY_UPDATES")
+            );
+            port.launch_environment
+                .insert("POKEPORT_NOTIFY_ONLY_UPDATES".into(), "1".into());
+        }
         // Reviewed Unix route corrections after the frozen input. Three disk-image-only
         // Mac routes became a handoff, and the Linux AppImage and Spaghettify
         // executables are now named in the declared hints.
@@ -4929,6 +4944,14 @@ mod tests {
                     .get("POKEPORT_VERSION")
                     .map(String::as_str),
                 Some(version)
+            );
+            // The fused runtime's own payload downloader must not replace the
+            // Core-owned engine version.
+            assert_eq!(
+                port.launch_environment
+                    .get("POKEPORT_NOTIFY_ONLY_UPDATES")
+                    .map(String::as_str),
+                Some("1")
             );
             assert!(port.portable_marker);
             assert_eq!(port.support_tier, crate::SupportTier::Beta);
