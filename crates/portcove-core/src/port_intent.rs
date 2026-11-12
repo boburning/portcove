@@ -629,6 +629,7 @@ impl PortcoveService {
             }
             Err(error) => return Err(error),
         };
+        self.recover_interrupted_setups();
         let assessed = self.assess_port_intents().await?;
         let busy = self
             .unfinished_install_batches()?
@@ -691,6 +692,50 @@ impl PortcoveService {
             failures,
             root_waiting,
         })
+    }
+
+    /// Settles batches left mid-run by an interruption before anything new
+    /// starts: a committed install counts as ready, and a game with nothing
+    /// committed is marked interrupted. Batches another process is running,
+    /// and games another operation holds, are left alone. For a game set up
+    /// under standing consent, an interruption counts as a failed attempt for
+    /// that plan, so repeated interruptions stop at the attempt limit.
+    fn recover_interrupted_setups(&self) {
+        let batches = match self.unfinished_install_batches() {
+            Ok(batches) => batches,
+            Err(error) => {
+                tracing::warn!(error = %error.message, "could not list unfinished setup batches");
+                return;
+            }
+        };
+        for batch in batches {
+            let running = batch
+                .items
+                .iter()
+                .filter(|item| item.state == InstallBatchItemState::Running)
+                .map(|item| item.port_id.clone())
+                .collect::<Vec<_>>();
+            if running.is_empty() {
+                continue;
+            }
+            match self.reconcile_install_batch(&batch.id) {
+                Ok(record) => {
+                    for item in record.items.iter().filter(|item| {
+                        item.state == InstallBatchItemState::Interrupted
+                            && running.contains(&item.port_id)
+                    }) {
+                        self.remember_standing_failure(
+                            &item.port_id,
+                            &item.expected_plan_sha256,
+                            "setup was interrupted before it finished",
+                        );
+                    }
+                }
+                Err(error) => {
+                    tracing::warn!(batch_id = %batch.id, error = %error.message, "could not reconcile an interrupted setup batch");
+                }
+            }
+        }
     }
 
     async fn standing_setup_one(
@@ -1270,6 +1315,92 @@ mod tests {
                 .batches
                 .is_empty()
         );
+    }
+
+    #[tokio::test]
+    async fn an_interrupted_standing_setup_is_reconciled_before_anything_else() {
+        let (_temporary, service) = ready_service().await;
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        let plan = service.plan_game_install(PORT).await.unwrap();
+        // A pass started this game's batch, then the process stopped mid-run.
+        let batch = service
+            .start_install_batch(
+                &[InstallBatchRequestItem {
+                    port_id: PORT.into(),
+                    expected_plan_sha256: plan.plan_sha256.clone(),
+                }],
+                LibraryMembershipOrigin::Manual,
+            )
+            .unwrap();
+        service
+            .library()
+            .update_install_batch(&batch.id, |record| {
+                record.items[0].state = InstallBatchItemState::Running;
+            })
+            .unwrap();
+        // The next pass settles it against committed state first: nothing was
+        // committed, so it is interrupted, counted once, and then set up
+        // afresh with a new plan check and authorization.
+        let result = service.run_standing_setup(|_| {}).await.unwrap();
+        let settled = service.install_batch(&batch.id).unwrap().unwrap();
+        assert_eq!(settled.items[0].state, InstallBatchItemState::Interrupted);
+        assert_eq!(result.batches.len(), 1);
+        let installed = service.status(PORT).unwrap().active.unwrap();
+        // A later pass repeats nothing.
+        assert!(
+            service
+                .run_standing_setup(|_| {})
+                .await
+                .unwrap()
+                .batches
+                .is_empty()
+        );
+        assert_eq!(
+            service.status(PORT).unwrap().active.unwrap().id,
+            installed.id
+        );
+        assert!(service.unfinished_install_batches().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn repeated_interruptions_stop_at_the_attempt_limit() {
+        let (_temporary, service) = ready_service().await;
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        let plan = service.plan_game_install(PORT).await.unwrap();
+        for _ in 0..MAX_STANDING_SETUP_ATTEMPTS {
+            let batch = service
+                .start_install_batch(
+                    &[InstallBatchRequestItem {
+                        port_id: PORT.into(),
+                        expected_plan_sha256: plan.plan_sha256.clone(),
+                    }],
+                    LibraryMembershipOrigin::Manual,
+                )
+                .unwrap();
+            service
+                .library()
+                .update_install_batch(&batch.id, |record| {
+                    record.items[0].state = InstallBatchItemState::Running;
+                })
+                .unwrap();
+            service.recover_interrupted_setups();
+        }
+        let intent = service.library().port_intent(PORT).unwrap().unwrap();
+        assert_eq!(intent.failed_attempts, MAX_STANDING_SETUP_ATTEMPTS);
+        // The plan now waits for a change instead of being retried.
+        assert!(
+            service
+                .run_standing_setup(|_| {})
+                .await
+                .unwrap()
+                .batches
+                .is_empty()
+        );
+        assert!(service.status(PORT).unwrap().active.is_none());
     }
 
     #[test]

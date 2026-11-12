@@ -806,6 +806,14 @@ authorized. It is never launched, and an installed game is never reinstalled or
 updated. A failed or interrupted attempt is not retried with the same plan; it
 becomes eligible again when the plan changes. Uninstalling a game is
 remembered, so it is not set up or reported again until you choose a mode for it.
+Each pass first settles setup batches left mid-run by an interruption, against
+committed state, before starting anything: an install that was committed counts
+as ready, and a game with nothing committed is marked interrupted. For a
+set-up-when-ready game the interruption counts as a failed attempt with that
+plan, so it is set up afresh (re-planned and freshly authorized) on the next
+pass, and repeated interruptions stop at the same three-attempt limit. Batches
+another process is still running, and games another operation holds, are left
+alone.
 The desktop app runs the same pass after a library opens, after the catalog or
 registered files change, and after a choice is saved. Only one pass runs at a
 time across windows and the CLI; a busy pass is tried again about 30 seconds
