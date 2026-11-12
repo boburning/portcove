@@ -838,6 +838,12 @@ pub struct PortDefinition {
     /// Official Shipwright Windows portable packages write player data in their working directory.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub windows_shipwright_persistence: bool,
+    /// Reviewed Windows tracked handoff: the game can restart into a successor
+    /// from its own process tree, so the session also waits for job members
+    /// whose image lies in the install root. Without it, the original process
+    /// is the whole session.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub windows_tracked_handoff: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mod_package_policy: Option<ModPackagePolicy>,
     /// Optional, release-bound editable configuration. Retained installations

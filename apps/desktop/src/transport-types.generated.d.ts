@@ -2115,6 +2115,13 @@ export interface PortDefinition {
    * The upstream process must preserve the reviewed working directory.
    */
   windows_temp_directory?: string | null;
+  /**
+   * Reviewed Windows tracked handoff: the game can restart into a successor
+   * from its own process tree, so the session also waits for job members
+   * whose image lies in the install root. Without it, the original process
+   * is the whole session.
+   */
+  windows_tracked_handoff?: boolean;
   [k: string]: unknown;
 }
 /**

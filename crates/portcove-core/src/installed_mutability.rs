@@ -242,6 +242,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         runtime_data_policy,
         external_profile_policy,
         windows_shipwright_persistence,
+        windows_tracked_handoff,
         mod_package_policy,
         game_settings,
         managed_shared_preferences,
@@ -328,6 +329,10 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
     if *optional_game_source {
         compatibility["optional_game_source"] = serde_json::json!(true);
     }
+    // A tracked handoff changes how long a session holds the installation.
+    if *windows_tracked_handoff {
+        compatibility["windows_tracked_handoff"] = serde_json::json!(true);
+    }
     compatibility
 }
 
@@ -354,5 +359,20 @@ mod marker_identity_tests {
             .unwrap()
             .remove("portable_marker_file");
         assert_eq!(stripped, without);
+    }
+
+    #[test]
+    fn a_windows_tracked_handoff_joins_the_retained_identity_only_when_declared() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut port = catalog.port("zelda64-recomp").unwrap().clone();
+        let without = operational_compatibility(&port);
+        assert!(without.get("windows_tracked_handoff").is_none());
+        port.windows_tracked_handoff = true;
+        let mut with = operational_compatibility(&port);
+        assert_eq!(with["windows_tracked_handoff"], true);
+        with.as_object_mut()
+            .unwrap()
+            .remove("windows_tracked_handoff");
+        assert_eq!(with, without);
     }
 }

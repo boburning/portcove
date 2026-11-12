@@ -597,6 +597,81 @@ fn n64_archive_file_links_require_n64_version_5_and_other_adapters_refuse_the_fl
 }
 
 #[test]
+fn windows_tracked_handoff_requires_native_version_27_in_fresh_and_retained_readers() {
+    // The gate is a native-portable reader version whatever the adapter, so an
+    // older reader refuses the entry instead of dropping the field.
+    let mut port = fixture_catalog().ports()[0].clone();
+    port.platforms.push(crate::Platform::WindowsX86_64);
+    port.executable_hints
+        .insert(crate::Platform::WindowsX86_64, vec!["game.exe".into()]);
+    port.windows_tracked_handoff = true;
+    let mut entry = entry_for_port(&port);
+    let own = entry["required_capabilities"][0].clone();
+    for (minimum, accepted) in [(None, false), (Some(26), false), (Some(27), true)] {
+        let mut requirements = vec![own.clone()];
+        if let Some(minimum) = minimum {
+            requirements.push(json!({
+                "template": "native-portable",
+                "minimum_version": minimum,
+                "maximum_version": 27,
+            }));
+        }
+        entry["required_capabilities"] = json!(requirements);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ] {
+            if accepted {
+                assert!(result.unwrap().capabilities().compatible);
+            } else {
+                assert!(
+                    result
+                        .unwrap_err()
+                        .message
+                        .contains("Windows tracked handoff requires native capability version 27")
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn native_portable_windows_tracked_handoff_raises_its_own_requirement_to_27() {
+    let mut port = fixture_catalog().ports()[0].clone();
+    port.adapter = crate::AdapterKind::NativePortable;
+    port.platforms.push(crate::Platform::WindowsX86_64);
+    port.executable_hints
+        .insert(crate::Platform::WindowsX86_64, vec!["game.exe".into()]);
+    port.windows_tracked_handoff = true;
+    let mut entry = entry_for_port(&port);
+    assert_eq!(
+        entry["required_capabilities"][0]["template"],
+        "native-portable"
+    );
+    entry["required_capabilities"][0]["maximum_version"] = json!(27);
+    for minimum in [26, 27] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ] {
+            if minimum == 26 {
+                assert!(
+                    result
+                        .unwrap_err()
+                        .message
+                        .contains("Windows tracked handoff requires native capability version 27")
+                );
+            } else {
+                assert!(result.unwrap().capabilities().compatible);
+            }
+        }
+    }
+}
+
+#[test]
 fn native_portable_marker_files_require_version_19_in_fresh_and_retained_readers() {
     let mut port = fixture_catalog().ports()[0].clone();
     port.adapter = crate::AdapterKind::NativePortable;

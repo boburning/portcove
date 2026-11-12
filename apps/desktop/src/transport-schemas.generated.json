@@ -6261,6 +6261,10 @@
               "string",
               "null"
             ]
+          },
+          "windows_tracked_handoff": {
+            "description": "Reviewed Windows tracked handoff: the game can restart into a successor\nfrom its own process tree, so the session also waits for job members\nwhose image lies in the install root. Without it, the original process\nis the whole session.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -32819,6 +32823,10 @@
           "string",
           "null"
         ]
+      },
+      "windows_tracked_handoff": {
+        "description": "Reviewed Windows tracked handoff: the game can restart into a successor\nfrom its own process tree, so the session also waits for job members\nwhose image lies in the install root. Without it, the original process\nis the whole session.",
+        "type": "boolean"
       }
     },
     "required": [
@@ -45606,6 +45614,10 @@
               "string",
               "null"
             ]
+          },
+          "windows_tracked_handoff": {
+            "description": "Reviewed Windows tracked handoff: the game can restart into a successor\nfrom its own process tree, so the session also waits for job members\nwhose image lies in the install root. Without it, the original process\nis the whole session.",
+            "type": "boolean"
           }
         },
         "required": [
