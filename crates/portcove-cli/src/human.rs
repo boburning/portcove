@@ -1299,9 +1299,10 @@ pub(crate) fn game_file_scan(snapshot: &GameFileScanSnapshot) -> String {
     }
     if let Some(coverage) = &snapshot.coverage {
         output.push_str(&format!(
-            "\nScan batches: {}; this batch examined {} entries, re-listed {} entries, and made {} metadata checks.\nPrior-batch file-set members rehashed: {}.\nPending directories: {}. Remaining entries: {}.",
+            "\nScan batches: {}; this batch examined {} entries, re-listed {} entries, and made {} metadata checks.\nPrior-batch file-set members rehashed: {}.\nUnchanged files reused without rehashing: {}.\nPending directories: {}. Remaining entries: {}.",
             coverage.batches, coverage.batch_entries_examined, coverage.entries_relisted,
-            coverage.metadata_checks, coverage.prior_member_rechecks, coverage.pending_directories,
+            coverage.metadata_checks, coverage.prior_member_rechecks, coverage.observations_reused,
+            coverage.pending_directories,
             coverage.remaining_entries.map_or_else(|| "unknown".into(), |count| count.to_string()),
         ));
         output.push_str(if coverage.restart_required {
@@ -3308,11 +3309,13 @@ mod tests {
             entries_relisted: 3,
             metadata_checks: 8,
             prior_member_rechecks: 1,
+            observations_reused: 4,
             pending_directories: 2,
             can_resume: true,
             ..Default::default()
         });
         let output = super::game_file_scan(&snapshot);
+        assert!(output.contains("Unchanged files reused without rehashing: 4."));
         assert!(output.contains("Scan batches: 2; this batch examined 1 entries"));
         assert!(output.contains("Remaining entries: unknown"));
         assert!(output.contains("same limits to resume"));

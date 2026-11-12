@@ -5645,8 +5645,11 @@ fn deferred_inspection_precedes_fresh_entries_when_enumeration_order_changes() {
     };
     assert!(last.coverage.unwrap().frontier_exhausted);
     assert_eq!(last.report.candidates.len(), 4);
-    assert_eq!(last.report.files_hashed, 2);
-    assert_eq!(last.report.hash_bytes, payload.len() as u64 * 2);
+    // The file hashed by the first batch is unchanged, so its saved identity
+    // is reused; only the deferred file is hashed again from fresh bytes.
+    assert_eq!(last.report.files_hashed, 1);
+    assert_eq!(last.report.hash_bytes, payload.len() as u64);
+    assert_eq!(observation_rows(&library), 2);
 }
 
 #[test]

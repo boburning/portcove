@@ -13864,6 +13864,13 @@
             "minimum": 0,
             "type": "integer"
           },
+          "observations_reused": {
+            "default": 0,
+            "description": "Files whose saved identity was reused because their recorded\nmetadata and inspector version still match. Never admission.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
           "pending_directories": {
             "format": "uint32",
             "minimum": 0,
@@ -13892,6 +13899,7 @@
           "entries_relisted",
           "metadata_checks",
           "prior_member_rechecks",
+          "observations_reused",
           "pending_directories",
           "remaining_entries",
           "frontier_exhausted",

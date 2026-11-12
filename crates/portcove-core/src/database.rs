@@ -3103,6 +3103,7 @@ mod tests {
         schema_48: 48,
         schema_49: 49,
         schema_50: 50,
+        schema_51: 51,
     }
 
     #[test]
