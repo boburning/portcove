@@ -99,14 +99,18 @@ fn game_file_query_uses_core_refresh_and_truthful_operation_events() {
     let port = catalog
         .ports()
         .iter()
-        .find(|port| {
-            port.source_profile.as_deref() == Some("ocarina-of-time")
+        .filter(|port| {
+            port.source_profile.is_some()
                 && port.release.provider != portcove_core::ReleaseSource::UserPrepared
                 && port.platforms.contains(&platform)
                 && port
                     .channels
                     .contains(&portcove_core::ReleaseChannel::Stable)
         })
+        // The real CLI reads the embedded catalog, so prefer the Ocarina of Time
+        // shape and fall back to another source-backed port where it is not
+        // offered for this host (macOS).
+        .min_by_key(|port| port.source_profile.as_deref() != Some("ocarina-of-time"))
         .unwrap();
     let mut results = Vec::new();
     for mode in ["--json", "--jsonl"] {
@@ -3051,8 +3055,9 @@ fn about_is_branded_for_people_and_structured_for_automation_without_opening_a_l
 #[test]
 fn status_disclosure_explains_real_core_decisions_without_changing_machine_output() {
     let root = tempfile::tempdir().unwrap();
-    let machine = json_stdout(&portcove(root.path(), &["--json", "status", "lighthouse"]));
-    let stream = json_stdout(&portcove(root.path(), &["--jsonl", "status", "lighthouse"]));
+    let port = offered_libultraship_port("lighthouse");
+    let machine = json_stdout(&portcove(root.path(), &["--json", "status", port]));
+    let stream = json_stdout(&portcove(root.path(), &["--jsonl", "status", port]));
     assert_eq!(machine["schema_version"], portcove_core::API_SCHEMA_VERSION);
     assert_eq!(stream["type"], "result");
     assert_eq!(machine["data"], stream["data"]);
@@ -3064,7 +3069,7 @@ fn status_disclosure_explains_real_core_decisions_without_changing_machine_outpu
         .unwrap();
     assert_eq!(install["availability"], "waiting");
     assert_eq!(install["reason"], "missing_source");
-    let output = portcove(root.path(), &["status", "lighthouse"]);
+    let output = portcove(root.path(), &["status", port]);
     let human = human_stdout(&output);
     assert!(
         human.contains(
@@ -3073,6 +3078,32 @@ fn status_disclosure_explains_real_core_decisions_without_changing_machine_outpu
         "actual CLI output has no explanation for the core's missing-game-files decision:\n{human}"
     );
     assert!(human.contains("EXTERNAL (USER-OWNED)"), "{human}");
+}
+
+/// `preferred` when the embedded catalog offers it on this host, otherwise the
+/// first source-backed stable port with the same adapter that does. The real
+/// CLI reads the embedded catalog, so a host the preferred port does not ship
+/// for (macOS) needs a sibling of the same shape rather than a skipped case.
+fn offered_libultraship_port(preferred: &str) -> &'static str {
+    static CATALOG: std::sync::OnceLock<portcove_core::Catalog> = std::sync::OnceLock::new();
+    let catalog = CATALOG.get_or_init(|| portcove_core::Catalog::embedded().unwrap());
+    let platform = portcove_core::Platform::current().unwrap();
+    let adapter = catalog.port(preferred).unwrap().adapter;
+    catalog
+        .ports()
+        .iter()
+        .filter(|port| {
+            port.adapter == adapter
+                && port.source_profile.is_some()
+                && port.platforms.contains(&platform)
+                && port
+                    .channels
+                    .contains(&portcove_core::ReleaseChannel::Stable)
+        })
+        .min_by_key(|port| port.id != preferred)
+        .unwrap()
+        .id
+        .as_str()
 }
 
 #[test]

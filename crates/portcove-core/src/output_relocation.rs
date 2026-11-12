@@ -1128,7 +1128,7 @@ mod tests {
         };
         let path = root.join(&artifact.sha256);
         fs::create_dir_all(&path).unwrap();
-        let catalog = Catalog::embedded().unwrap();
+        let catalog = crate::test_fixture::host_declared_embedded_catalog(&[port_id]);
         let port = catalog.port(port_id).unwrap();
         let platform = Platform::current().unwrap();
         let executable = path.join(&port.executable_hints[&platform][0]);
@@ -1721,7 +1721,10 @@ mod tests {
         let fixture = Fixture::new();
         const SECOND_PORT: &str = "2ship2harkinian";
         let second = register_install(&fixture.library, SECOND_PORT, "active", true);
-        let first_service = PortcoveService::new(fixture.library.clone()).unwrap();
+        let mut first_service = PortcoveService::new(fixture.library.clone()).unwrap();
+        first_service.replace_catalog_for_test(
+            crate::test_fixture::host_declared_embedded_catalog(&[SECOND_PORT]),
+        );
         let first_plan = first_service
             .plan_output_relocation(PORT, &fixture.destination)
             .unwrap();
