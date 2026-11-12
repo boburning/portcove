@@ -1,6 +1,6 @@
-# Linux x86-64 siblings: Revelations: Persona and Power Dozer
+# Linux x86-64 siblings for five managed titles
 
-Dated package evidence for two managed Linux x86-64 routes added on November 12,
+Dated package evidence for five managed Linux x86-64 routes added on November 12,
 2026, under #2926. Each route reuses an established adapter and the title's
 existing Windows contract. No new runtime capability is introduced.
 
@@ -9,7 +9,7 @@ existing Windows contract. No new runtime capability is introduced.
 Release metadata came from the hosted configured-upstream observer (run
 43058926577, observed 2026-11-11). It was checked against the whole catalog for
 Windows-only integrations whose latest observed release publishes a Linux
-package. Revelations: Persona and Power Dozer were the cleanest fits. Others found by
+package. Five titles fit existing behavior with only their own facts. Others found by
 that screen keep their existing scope until their own facts are reviewed. YGOFM
 (#141) remains excluded by its Deferred integrity hold.
 
@@ -61,6 +61,36 @@ chooser.
 
 The shared release-selection corpus enrolls the real v0.84 inventory and a
 synthetic v0.85 successor (`downloads.example.invalid`), for both platforms.
+
+## Tails Adventure (#1895), Rewooled (#1882) and Barrett (#1776), `native-portable`
+
+Each route was checked with the same steps. The downloaded Linux package matched
+its provider digest and passed Core layout inspection. The exact tagged source
+confirmed where the player writes. The Windows persistence contract carries over
+unchanged.
+
+| Title           | Linux asset, size, SHA-256                                            | Core layout                                    | Source commit                              |
+| --------------- | --------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------ |
+| Tails Adventure | `tails-adventure-v0.3.2-1-linux-amd64.tar.xz`, 4,977,016, `74aa9d7a…` | `tails-adventure`, `assets/` (TAR.XZ, Native8) | `0a937b2a82f5f737d212413ba23d659502862245` |
+| Rewooled        | `Rewooled-Linux-x86_64-1.1.3.zip`, 4,660,608, `49a58ef9…`             | `SheepD3D`, `SheepLauncher`                    | `a59781d1f91a0c46186c724efa440bd23316b139` |
+| Barrett         | `barrett-linux.zip`, 922,781, `bbfc2752…`                             | lone wrapper removed; `barrett`                | `7d24914fac3c242ef62806db53cb4b0a427a6c2a` |
+
+- Tails Adventure: the release workflow builds without `TA_UNIX_INSTALL`, so
+  `config` (options and saves) and `mods` stay beside the executable, as on
+  Windows. The player links SDL statically and needs glibc 2.38.
+- Rewooled: `--game-dir=game-data` keeps original data beside the player. POSIX
+  path lookup is case-insensitive. Saves and options use
+  `$XDG_DATA_HOME/Infogrames/Sheep, Dog'n Wolf DX7` (default `~/.local/share`),
+  outside Portcove backups, as AppData is on Windows. The player links SDL
+  statically and needs glibc 2.38.
+- Barrett: `userdata` is created in the working directory, which is the
+  executable folder under Portcove. Original-file lookup is case-insensitive,
+  but the declared preserved names are uppercase, so the guide asks Linux
+  players to keep those names. The Linux ZIP needs distribution SDL2 and
+  SDL2_mixer and glibc 2.38.
+
+All three are enrolled in the shared release-selection corpus with their real
+observed inventories and labelled synthetic successors at `downloads.example.invalid`.
 
 ## Not observed
 

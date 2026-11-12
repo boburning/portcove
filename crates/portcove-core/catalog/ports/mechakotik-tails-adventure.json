@@ -25,11 +25,11 @@
       "steps": [
         {
           "title": "Keep the complete portable player",
-          "instruction": "The inspected Windows ZIP contains tails-adventure.exe and its assets tree; no original ROM, BIOS, first-run extraction or compilation is required by this route. Keep matching assets/default_config and packaged resources."
+          "instruction": "The inspected Windows ZIP and Linux x86-64 TAR.XZ contain tails-adventure.exe or tails-adventure and its assets tree; no original ROM, BIOS, first-run extraction or compilation is required by this route. Keep matching assets/default_config and packaged resources."
         },
         {
           "title": "Keep your saves, options and mods",
-          "instruction": "The Windows player stores both options and saved progress in config beside the executable. Supported mods live in mods/ beside it. Keep both with their creating runtime and close the game normally before maintenance: the inspected title writes config during shutdown. Put replacement content in the supported mods tree; direct edits to shipped assets are outside the declared preserved data and can block update or removal until preserved and reconciled. Runtime rollback retains current data and does not rewind saves or guarantee cross-version mod/save compatibility."
+          "instruction": "The Windows and Linux players store both options and saved progress in config beside the executable. Supported mods live in mods/ beside it. Keep both with their creating runtime and close the game normally before maintenance: the inspected title writes config during shutdown. Put replacement content in the supported mods tree; direct edits to shipped assets are outside the declared preserved data and can block update or removal until preserved and reconciled. Runtime rollback retains current data and does not rewind saves or guarantee cross-version mod/save compatibility."
         }
       ],
       "warnings": [
@@ -41,23 +41,26 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
     "release": {
       "repository": "mechakotik/tails-adventure",
       "asset_hints": {
-        "windows-x86-64": ["tails-adventure-", "-windows.zip"]
-      }
+        "windows-x86-64": ["tails-adventure-", "-windows.zip"],
+        "linux-x86-64": ["tails-adventure-", "-linux-amd64.tar.xz"]
+      },
+      "linux_tar_xz": true
     },
     "executable_hints": {
-      "windows-x86-64": ["tails-adventure.exe"]
+      "windows-x86-64": ["tails-adventure.exe"],
+      "linux-x86-64": ["tails-adventure"]
     },
     "persistent_paths": ["config", "mods"],
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "No original ROM or BIOS selection is required by the inspected Windows package. Keep its complete assets tree. Portcove preserves config (combined options and saves) and supported mods/ through accepted compatible runtime maintenance; direct edits to runtime assets and external copies remain outside that data contract. Close the actual game normally before backup or replacement. Runtime rollback keeps current data and does not rewind saved progress."
+      "manual_preparation": "No original ROM or BIOS selection is required by the inspected Windows and Linux packages. The Linux player needs glibc 2.38 or later. Keep its complete assets tree. Portcove preserves config (combined options and saves) and supported mods/ through accepted compatible runtime maintenance; direct edits to runtime assets and external copies remain outside that data contract. Close the actual game normally before backup or replacement. Runtime rollback keeps current data and does not rewind saved progress."
     }
   }
 }
