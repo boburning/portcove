@@ -1301,11 +1301,11 @@ export async function installScenarios({
       await browser.wait(
         async () => {
           for (const section of await browser.findElements(
-            By.css('section[aria-label="Retained update archive"]'),
+            By.css('section[aria-label="Downloaded update"]'),
           ))
             if (
               (await section.isDisplayed()) &&
-              (await section.getText()).includes("Archive downloaded")
+              (await section.getText()).includes("Update downloaded, not installed")
             )
               return true;
           return false;
@@ -1328,17 +1328,26 @@ export async function installScenarios({
       return { acquired, archive };
     };
     const discardExact = async (acquisition: GameUpdateAcquisition) => {
-      await click("Discard archive…");
+      await click("Delete downloaded update…");
       const discard = await browser.wait(
         until.elementLocated(By.css("[data-game-update-discard-review]")),
         15_000,
+      );
+      // The exact identity sits in the review's collapsed technical details.
+      const technical = await discard.findElement(By.css("details"));
+      if ((await technical.getAttribute("open")) === null)
+        await clickVisible(browser, await technical.findElement(By.css("summary")));
+      await browser.wait(
+        async () => (await discard.getText()).includes(acquisition.release.asset.sha256),
+        15_000,
+        "Discard review technical details did not open",
       );
       const review = await discard.getText();
       assert.ok(
         review.includes(acquisition.id) && review.includes(acquisition.release.asset.sha256),
         "Discard review must name the retained exact ID and digest",
       );
-      await click("Discard archive");
+      await click("Delete download");
       await browser.wait(
         async () => !(await statuses()).find((item) => item.port_id === port.id)?.acquisition,
         15_000,
@@ -1371,6 +1380,17 @@ export async function installScenarios({
       const review = await browser.wait(
         until.elementLocated(By.css("[data-game-update-review]")),
         15_000,
+      );
+      // The exact archive identity sits in the review's collapsed download details.
+      const downloadDetails = await review.findElement(
+        By.xpath('.//details[summary[normalize-space(.)="Download details"]]'),
+      );
+      if ((await downloadDetails.getAttribute("open")) === null)
+        await clickVisible(browser, await downloadDetails.findElement(By.css("summary")));
+      await browser.wait(
+        async () => (await review.getText()).includes(release.sha256),
+        15_000,
+        "Update review download details did not open",
       );
       const reviewText = await review.getText();
       assert.ok(
