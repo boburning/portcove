@@ -4004,15 +4004,15 @@ export interface LibraryMetadata {
   exported_at: number;
   launch_history: LibraryLaunchHistory[];
   /**
-   * Explicit add-only Library entries; present only under metadata schema 7, so
-   * an older reader refuses the export instead of silently dropping them.
+   * Explicit add-only Library entries; present only under metadata schema 7 or 8,
+   * so an older reader refuses the export instead of silently dropping them.
    */
   library_memberships?: LibraryMembership[];
   original_root: string;
   port_settings: LibraryPortSettings[];
   portability_authority?: PortabilityAuthority | null;
   /**
-   * Local profiles and revisions; present only under metadata schema 6.
+   * Local profiles and revisions; present only under metadata schema 6 or later.
    */
   profiles?: LibraryProfile[];
   retained_build_references?: RetainedBuildReference[];

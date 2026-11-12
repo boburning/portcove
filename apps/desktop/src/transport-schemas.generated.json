@@ -19766,7 +19766,7 @@
             "type": "array"
           },
           "library_memberships": {
-            "description": "Explicit add-only Library entries; present only under metadata schema 7, so\nan older reader refuses the export instead of silently dropping them.",
+            "description": "Explicit add-only Library entries; present only under metadata schema 7 or 8,\nso an older reader refuses the export instead of silently dropping them.",
             "items": {
               "$ref": "#/$defs/LibraryMembership"
             },
@@ -19792,7 +19792,7 @@
             ]
           },
           "profiles": {
-            "description": "Local profiles and revisions; present only under metadata schema 6.",
+            "description": "Local profiles and revisions; present only under metadata schema 6 or later.",
             "items": {
               "$ref": "#/$defs/LibraryProfile"
             },
@@ -22296,7 +22296,7 @@
         "type": "array"
       },
       "library_memberships": {
-        "description": "Explicit add-only Library entries; present only under metadata schema 7, so\nan older reader refuses the export instead of silently dropping them.",
+        "description": "Explicit add-only Library entries; present only under metadata schema 7 or 8,\nso an older reader refuses the export instead of silently dropping them.",
         "items": {
           "$ref": "#/$defs/LibraryMembership"
         },
@@ -22322,7 +22322,7 @@
         ]
       },
       "profiles": {
-        "description": "Local profiles and revisions; present only under metadata schema 6.",
+        "description": "Local profiles and revisions; present only under metadata schema 6 or later.",
         "items": {
           "$ref": "#/$defs/LibraryProfile"
         },
@@ -22977,7 +22977,7 @@
             "type": "array"
           },
           "library_memberships": {
-            "description": "Explicit add-only Library entries; present only under metadata schema 7, so\nan older reader refuses the export instead of silently dropping them.",
+            "description": "Explicit add-only Library entries; present only under metadata schema 7 or 8,\nso an older reader refuses the export instead of silently dropping them.",
             "items": {
               "$ref": "#/$defs/LibraryMembership"
             },
@@ -23003,7 +23003,7 @@
             ]
           },
           "profiles": {
-            "description": "Local profiles and revisions; present only under metadata schema 6.",
+            "description": "Local profiles and revisions; present only under metadata schema 6 or later.",
             "items": {
               "$ref": "#/$defs/LibraryProfile"
             },
