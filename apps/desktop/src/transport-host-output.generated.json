@@ -14081,6 +14081,110 @@
           }
         ]
       },
+      "ProviderAutoUpdate": {
+        "description": "What one standing pass did about one installed provider file.",
+        "oneOf": [
+          {
+            "description": "The newer file was installed as the setup's next revision.",
+            "properties": {
+              "file_id": {
+                "type": "string"
+              },
+              "outcome": {
+                "const": "applied",
+                "type": "string"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "outcome",
+              "revision",
+              "file_id"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "An update exists but needs the player's review; nothing changed. The hold\nis not repeated until the setup or the provider's offer changes.",
+            "properties": {
+              "outcome": {
+                "const": "held",
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "outcome",
+              "reason"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Something temporary prevented the update, such as the game running or\nanother change in progress; a later pass tries again.",
+            "properties": {
+              "outcome": {
+                "const": "deferred",
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "outcome",
+              "reason"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Whether an update exists could not be established; nothing changed.",
+            "properties": {
+              "outcome": {
+                "const": "unavailable",
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "outcome",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ],
+        "properties": {
+          "native_ids": {
+            "description": "The setup's packages from the provider file this outcome is about; empty\nwhen the whole setup could not be checked.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "profile_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "profile_id",
+          "profile_name",
+          "native_ids"
+        ],
+        "type": "object"
+      },
       "ReleaseChannel": {
         "enum": [
           "stable",
@@ -14163,6 +14267,13 @@
         "description": "Games that could not start; the others were not affected.",
         "items": {
           "$ref": "#/$defs/StandingSetupFailure"
+        },
+        "type": "array"
+      },
+      "mod_updates": {
+        "description": "Provider updates for mod setups whose policy allows unattended updates.",
+        "items": {
+          "$ref": "#/$defs/ProviderAutoUpdate"
         },
         "type": "array"
       },

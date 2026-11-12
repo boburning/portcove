@@ -822,7 +822,8 @@ game an interruption counts as a failed attempt with that plan, so it is set up 
 pass, and repeated interruptions stop at the same three-attempt limit. Batches
 another process is still running, and games another operation holds, are left
 alone.
-The desktop app runs the same pass after a library opens, after the catalog or
+The same pass also applies eligible mod updates for setups that allow them; see
+[unattended updates](#unattended-updates). The desktop app runs the same pass after a library opens, after the catalog or
 registered files change, and after a choice is saved. Only one pass runs at a
 time across windows and the CLI; a busy pass is tried again about 30 seconds
 later. Nothing runs while Portcove is closed.
@@ -1735,8 +1736,9 @@ its bytes by SHA-256, records a new revision and, for the selected profile, depl
 it into the port's `mods` folder. It refuses traversal, absolute or backslash paths,
 case aliases, device names, links, encrypted entries, oversized declared sizes,
 archives carrying executable files and unsupported package types. Only ports with a
-reviewed mod contract accept packages (currently Ship of Harkinian `.o2r`/`.otr`);
-others return `unsupported`. A computed digest establishes bytes, not publisher
+reviewed mod contract accept packages (currently Ship of Harkinian `.o2r`/`.otr`
+and [Zelda 64: Recompiled](#zelda-64-recompiled-mods) `.nrm`); others return
+`unsupported`. A computed digest establishes bytes, not publisher
 authenticity.
 
 Only files the selected revision installed are ever changed. Unknown files in `mods`
@@ -1896,6 +1898,40 @@ exactly that label for the same bytes and file name, so update checks never foll
 a label the recipe supplied. The plan says when a label is not kept; dropping one
 changes the identity of a later export. Otherwise a round trip reproduces the
 recipe's identity exactly; that is not evidence of gameplay or save compatibility.
+
+#### Unattended updates
+
+`profile policy PORT_ID PROFILE_ID automatic-eligible` lets the standing pass
+(`games setup-ready`) install a newer GameBanana file for that setup without asking
+again. Desktop runs the same pass only while at least one game is set to install
+when ready or a folder has automatic setup; otherwise run `games setup-ready`. Setups with the other policies
+(`review-updates`, the default, and `keep-current`) are never contacted. The policy
+is consent, not authorization: each pass checks for updates again, plans the newer
+file with the same checks as `provider-plan`, and authorizes and applies that exact
+plan at once.
+
+Updates are decided per installed provider file. One is applied only when the
+observation is current, the provider offers exactly one newer file, every mod from
+the installed file is on, the newer file contains exactly the same mods, and no
+asset that two enabled mods both change gets a different winner (an overlap that
+already exists and stays the same does not hold an update). Several newer files, a
+mod that is off and an obsolete project are held before anything is downloaded.
+Results are reported in `mod_updates`, one per installed file:
+
+- `applied`: the newer file is the setup's next revision. The earlier revision,
+  with the earlier file, stays recoverable; saves and settings are not touched.
+- `held`: it needs the player's review (for example the newer file adds or drops a
+  mod, or changes which mod wins an asset); nothing changed and its staging is
+  discarded. A hold is remembered for that setup revision and candidate file, so it
+  is not downloaded again until either changes.
+- `deferred`: something temporary, such as the game running or another change in
+  progress, prevented it; the next pass tries again.
+- `unavailable`: whether an update exists could not be established; never reported
+  as "no update".
+
+Whether a newer file suits the setup's game build is not assessed by the provider
+or by Portcove (UNKNOWN). Desktop refreshes after an applied update but does not yet
+show held, deferred or unavailable updates; `games setup-ready` lists them.
 
 Library metadata schema 6 carries profiles, revisions and the selected profile; it is
 emitted only when profiles exist and import validates each profile against its

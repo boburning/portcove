@@ -187,6 +187,9 @@ pub struct StandingSetupResult {
     /// or a requirement.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub root_waiting: Vec<crate::RootSetupWaiting>,
+    /// Provider updates for mod setups whose policy allows unattended updates.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mod_updates: Vec<crate::ProviderAutoUpdate>,
 }
 
 impl PortIntent {
@@ -674,6 +677,7 @@ impl PortcoveService {
                     batches: Vec::new(),
                     failures: Vec::new(),
                     root_waiting: Vec::new(),
+                    mod_updates: Vec::new(),
                 });
             }
             Err(error) => return Err(error),
@@ -733,6 +737,21 @@ impl PortcoveService {
                 Vec::new()
             }
         };
+        let mut mod_updates = Vec::new();
+        for port_id in crate::provider_install::gamebanana_ports() {
+            match self.run_eligible_provider_updates(port_id).await {
+                Ok(updates) => mod_updates.extend(updates),
+                Err(error) => mod_updates.push(crate::ProviderAutoUpdate {
+                    port_id: port_id.into(),
+                    profile_id: String::new(),
+                    profile_name: String::new(),
+                    native_ids: Vec::new(),
+                    outcome: crate::ProviderAutoUpdateOutcome::Unavailable {
+                        reason: error.message,
+                    },
+                }),
+            }
+        }
         Ok(StandingSetupResult {
             already_running: false,
             assessments: assessed.assessments,
@@ -740,6 +759,7 @@ impl PortcoveService {
             batches,
             failures,
             root_waiting,
+            mod_updates,
         })
     }
 

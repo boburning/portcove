@@ -32,13 +32,22 @@ const ACTION: &str = "install_provider_package";
 /// Planning inspects asset archives directly; binding a port whose loader names
 /// packages from their contents (Recomp) needs planning through
 /// `inspect_for_port` first, though apply already uses it.
+const GAMEBANANA_BINDINGS: &[(&str, u64)] = &[("shipwright", 16121)];
+
 pub(crate) fn gamebanana_game(port_id: &str) -> Option<u64> {
-    match port_id {
-        "shipwright" => Some(16121),
-        #[cfg(test)]
-        "starship" => Some(777),
-        _ => None,
+    #[cfg(test)]
+    if port_id == "starship" {
+        return Some(777);
     }
+    GAMEBANANA_BINDINGS
+        .iter()
+        .find(|(port, _)| *port == port_id)
+        .map(|(_, game)| *game)
+}
+
+/// Ports with a reviewed binding, for passes that visit each of them.
+pub(crate) fn gamebanana_ports() -> impl Iterator<Item = &'static str> {
+    GAMEBANANA_BINDINGS.iter().map(|(port, _)| *port)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

@@ -1138,6 +1138,47 @@ pub(crate) fn standing_setup(value: &portcove_core::StandingSetupResult) -> Stri
             clean(&waiting.reason)
         ));
     }
+    for update in &value.mod_updates {
+        let subject = if update.native_ids.is_empty() {
+            format!("{} {}", clean(&update.port_id), clean(&update.profile_name))
+        } else {
+            format!(
+                "{} {} ({})",
+                clean(&update.port_id),
+                clean(&update.profile_name),
+                update
+                    .native_ids
+                    .iter()
+                    .map(|name| clean(name))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        };
+        lines.push(match &update.outcome {
+            portcove_core::ProviderAutoUpdateOutcome::Applied { file_id, .. } => format!(
+                "{subject}: updated to GameBanana file {}; the earlier version stays recoverable",
+                clean(file_id)
+            ),
+            portcove_core::ProviderAutoUpdateOutcome::Held { reason } => {
+                format!(
+                    "{subject}: a mod update waits for your review - {}",
+                    clean(reason)
+                )
+            }
+            portcove_core::ProviderAutoUpdateOutcome::Deferred { reason } => {
+                format!(
+                    "{subject}: a mod update will be tried again later - {}",
+                    clean(reason)
+                )
+            }
+            portcove_core::ProviderAutoUpdateOutcome::Unavailable { reason } => {
+                format!(
+                    "{subject}: couldn't check for mod updates - {}",
+                    clean(reason)
+                )
+            }
+        });
+    }
     if value.not_assessed > 0 {
         lines.push(format!(
             "{} more choices were not assessed; one pass covers the first 512 choices by game ID.",
