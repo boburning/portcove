@@ -3,6 +3,8 @@ import {
   useSetupReviewSelection,
 } from "../features/game-file-discovery/setup-review-selection";
 import { useEffect, useRef } from "react";
+import { Trans } from "react-i18next";
+import { useAppTranslation } from "../localization";
 import type { PortDefinition, PortStatus, SourceRecord, SourceInspectionReport } from "../types";
 import { preliminarySelectionRecord } from "./PreliminarySourceSelections";
 import { Button } from "./ui/button";
@@ -35,6 +37,7 @@ export function GameFileSetupReviews({
   onReviewInstall?: ((portIds: string[]) => void) | undefined;
   focusFallback?: (() => HTMLElement | null) | undefined;
 }) {
+  const { t } = useAppTranslation("gameFiles");
   const { selected, toggle, selectAll, clear, requestReview } = useSetupReviewSelection();
   const section = useRef<HTMLElement>(null);
   const restoreFocus = useRef(false);
@@ -103,23 +106,28 @@ export function GameFileSetupReviews({
   const toSelect = Math.min(unselectedEligible.length, room);
   if (!available.length && !selected.length) return null;
   return (
-    <section ref={section} aria-label="Selected setup reviews" className="col-span-full">
-      <h3>Select games for setup review</h3>
+    <section ref={section} aria-label={t("setupReviews.label")} className="col-span-full">
+      <h3>{t("setupReviews.heading")}</h3>
+      <p>{t("setupReviews.intro")}</p>
       <p>
-        Select games to review their setup, one at a time or together. Selecting a game doesn't
-        register files or install anything.
+        {choiceGames > 0 ? (
+          <Trans
+            t={t}
+            i18nKey="setupReviews.countsWithChoice"
+            count={choiceGames}
+            values={{ selected: selected.length, eligible: eligible.length }}
+            components={{ status: <span role="status" /> }}
+          />
+        ) : (
+          <Trans
+            t={t}
+            i18nKey="setupReviews.counts"
+            values={{ selected: selected.length, eligible: eligible.length }}
+            components={{ status: <span role="status" /> }}
+          />
+        )}
       </p>
-      <p>
-        <span role="status">{selected.length} selected</span> · {eligible.length} eligible
-        {choiceGames > 0 &&
-          ` · ${choiceGames} ${choiceGames === 1 ? "game needs" : "games need"} a version choice`}
-      </p>
-      {choiceGames > 0 && (
-        <p>
-          {choiceGames === 1 ? "One game has" : `${choiceGames} games have`} more than one version
-          that can use the same files. Select the version you want; selecting all leaves them out.
-        </p>
-      )}
+      {choiceGames > 0 && <p>{t("setupReviews.choiceNote", { count: choiceGames })}</p>}
       {toSelect > 0 && (
         <Button
           data-focusable
@@ -131,8 +139,8 @@ export function GameFileSetupReviews({
           }}
         >
           {toSelect === unselectedEligible.length && toSelect === eligible.length
-            ? `Select all ${toSelect} eligible`
-            : `Select ${toSelect} more eligible`}
+            ? t("setupReviews.selectAll", { total: toSelect })
+            : t("setupReviews.selectMore", { total: toSelect })}
         </Button>
       )}
       {available.map((port) => (
@@ -151,26 +159,18 @@ export function GameFileSetupReviews({
           </span>
           {(preliminaryProfiles.has(port.source_profile ?? "") ||
             preliminaryProfiles.has(port.bios_source_profile ?? "")) && (
-            <span className="block text-pc-muted-foreground">
-              Validation has not run for a selected input. Review setup requirements before
-              continuing.
-            </span>
+            <span className="block text-pc-muted-foreground">{t("setupReviews.unvalidated")}</span>
           )}
         </label>
       ))}
       {selected.length > 0 && (
         <>
-          <p>Return here after each review to continue.</p>
+          <p>{t("setupReviews.returnNote")}</p>
           <ol>
             {selected.map((id) => (
               <li key={id}>
                 <span>{ports.find((port) => port.id === id)?.name ?? id}</span>
-                {!canReview(id) && (
-                  <p>
-                    Setup review is unavailable in the current view. Refresh the workspace and
-                    folders, or check game details for remaining requirements.
-                  </p>
-                )}
+                {!canReview(id) && <p>{t("setupReviews.unavailable")}</p>}
                 <Button
                   data-focusable
                   variant="outline"
@@ -182,7 +182,13 @@ export function GameFileSetupReviews({
                     onOpenPort?.(id, "game-file-libraries-setup");
                   }}
                 >
-                  Review {ports.find((port) => port.id === id)?.name ?? id} setup
+                  <Trans
+                    t={t}
+                    i18nKey="setupReviews.review"
+                    components={{
+                      name: <bdi>{ports.find((port) => port.id === id)?.name ?? id}</bdi>,
+                    }}
+                  />
                 </Button>
                 <Button
                   data-focusable
@@ -192,7 +198,13 @@ export function GameFileSetupReviews({
                     toggle(id);
                   }}
                 >
-                  Remove {ports.find((port) => port.id === id)?.name ?? id} from selection
+                  <Trans
+                    t={t}
+                    i18nKey="setupReviews.remove"
+                    components={{
+                      name: <bdi>{ports.find((port) => port.id === id)?.name ?? id}</bdi>,
+                    }}
+                  />
                 </Button>
               </li>
             ))}
@@ -206,7 +218,7 @@ export function GameFileSetupReviews({
                 clear();
               }}
             >
-              Add {selected.length} selected to Library
+              {t("setupReviews.add", { total: selected.length })}
             </Button>
           )}
           {onReviewInstall && (
@@ -218,7 +230,7 @@ export function GameFileSetupReviews({
                 clear();
               }}
             >
-              Review installing {selected.length} selected
+              {t("setupReviews.reviewInstall", { total: selected.length })}
             </Button>
           )}
           <Button
@@ -229,7 +241,7 @@ export function GameFileSetupReviews({
               clear();
             }}
           >
-            Clear setup selection
+            {t("setupReviews.clear")}
           </Button>
         </>
       )}

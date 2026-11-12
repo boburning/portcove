@@ -131,6 +131,28 @@
     "managedInstall": "Configuración administrada",
     "managedLaunch": "Inicio administrado"
   },
+  "setupReviews": {
+    "add": "Agregar {{total}} seleccionados a la Biblioteca",
+    "choiceNote_one": "Un juego tiene más de una versión que puede usar los mismos archivos. Selecciona la versión que quieras; seleccionar todas las deja fuera.",
+    "choiceNote_many": "{{count}} juegos tienen más de una versión que puede usar los mismos archivos. Selecciona la versión que quieras; seleccionar todas las deja fuera.",
+    "choiceNote_other": "{{count}} juegos tienen más de una versión que puede usar los mismos archivos. Selecciona la versión que quieras; seleccionar todas las deja fuera.",
+    "clear": "Borrar la selección de configuración",
+    "counts": "<status>{{selected}} seleccionados</status> · {{eligible}} aptos",
+    "countsWithChoice_one": "<status>{{selected}} seleccionados</status> · {{eligible}} aptos · {{count}} juego necesita elegir una versión",
+    "countsWithChoice_many": "<status>{{selected}} seleccionados</status> · {{eligible}} aptos · {{count}} juegos necesitan elegir una versión",
+    "countsWithChoice_other": "<status>{{selected}} seleccionados</status> · {{eligible}} aptos · {{count}} juegos necesitan elegir una versión",
+    "heading": "Seleccionar juegos para revisar su configuración",
+    "intro": "Selecciona juegos para revisar su configuración, de uno en uno o juntos. Seleccionar un juego no registra archivos ni instala nada.",
+    "label": "Revisiones de configuración seleccionadas",
+    "remove": "Quitar <name/> de la selección",
+    "returnNote": "Vuelve aquí después de cada revisión para continuar.",
+    "review": "Revisar la configuración de <name/>",
+    "reviewInstall": "Revisar la instalación de {{total}} seleccionados",
+    "selectAll": "Seleccionar los {{total}} aptos",
+    "selectMore": "Seleccionar {{total}} aptos más",
+    "unavailable": "La revisión de configuración no está disponible en la vista actual. Actualiza el espacio de trabajo y las carpetas, o consulta los detalles del juego para ver los requisitos pendientes.",
+    "unvalidated": "No se ha validado una entrada seleccionada. Revisa los requisitos de configuración antes de continuar."
+  },
   "state": {
     "filesAvailable": "Archivos completos y compatibles disponibles",
     "filesMissing": "Faltan archivos",

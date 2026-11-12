@@ -337,3 +337,33 @@ it("still asks for a version choice when the other version is already installed"
     [...element.querySelectorAll("button")].some((item) => item.textContent?.startsWith("Select")),
   ).toBe(false);
 });
+
+it("labels setup review selection in the current language", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    const record = { ...source, path: "D:/selected-disc.iso" };
+    await act(async () =>
+      root.render(
+        <SetupReviewSelectionProvider>
+          <GameFileSetupReviews
+            ports={ports}
+            statuses={statuses}
+            candidates={[]}
+            preliminarySelections={[preliminarySourceInspection(record)]}
+            registeredSources={[record]}
+            current
+            busy={false}
+            onOpenPort={vi.fn()}
+          />
+        </SetupReviewSelectionProvider>,
+      ),
+    );
+    expect(element.querySelector("h3")?.textContent).toBe("تحديد ألعاب لمراجعة إعدادها");
+    expect(element.querySelector('[role="status"]')?.textContent).toBe("0 محددة");
+    expect(element.textContent).not.toContain("Select games for setup review");
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
