@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
+import { useAppTranslation } from "../localization";
 import type { PortDefinition, PortIntentAssessment } from "../types";
 import { Button } from "./ui/button";
 import { onStandingSetupPass } from "../features/game-file-discovery/use-standing-setup";
@@ -19,6 +21,7 @@ export function ReadyGameNotices({
   onOpenPort?: ((portId: string, originKey: string) => void) | undefined;
 }) {
   const [ready, setReady] = useState<PortIntentAssessment[]>([]);
+  const { t } = useAppTranslation("gameFiles");
   const owner = useRef(generation);
   useEffect(() => {
     owner.current = generation;
@@ -69,27 +72,77 @@ export function ReadyGameNotices({
     }
   };
   return (
-    <section aria-label="Games ready for you" role="status" className="col-span-full">
-      <h3>Ready for you</h3>
+    <section aria-label={t("ready.label")} role="status" className="col-span-full">
+      <h3>{t("ready.heading")}</h3>
       <ul>
         {ready.map((item) => (
           <li key={item.port_id}>
-            <strong>{name(item.port_id)}</strong>{" "}
-            {item.readiness.state === "installed"
-              ? `has an update available: ${item.readiness.maintenance?.available_version ?? "a newer version"}. Nothing was downloaded or changed.`
-              : "is ready to install."}{" "}
+            {/* Game names and versions are exact values, never interpolated. */}
+            {item.readiness.state !== "installed" ? (
+              <Trans
+                t={t}
+                i18nKey="ready.installable"
+                components={{
+                  game: (
+                    <strong>
+                      <bdi>{name(item.port_id)}</bdi>
+                    </strong>
+                  ),
+                }}
+              />
+            ) : item.readiness.maintenance?.available_version ? (
+              <Trans
+                t={t}
+                i18nKey="ready.update"
+                components={{
+                  game: (
+                    <strong>
+                      <bdi>{name(item.port_id)}</bdi>
+                    </strong>
+                  ),
+                  version: <bdi>{item.readiness.maintenance.available_version}</bdi>,
+                }}
+              />
+            ) : (
+              <Trans
+                t={t}
+                i18nKey="ready.updateUnknownVersion"
+                components={{
+                  game: (
+                    <strong>
+                      <bdi>{name(item.port_id)}</bdi>
+                    </strong>
+                  ),
+                }}
+              />
+            )}{" "}
             {onOpenPort && (
               <Button
                 data-focusable
                 variant="link"
                 onClick={() => onOpenPort(item.port_id, "ready-game-notices")}
               >
-                Review {name(item.port_id)}{" "}
-                {item.readiness.state === "installed" ? "update" : "setup"}
+                {item.readiness.state === "installed" ? (
+                  <Trans
+                    t={t}
+                    i18nKey="ready.reviewUpdate"
+                    components={{ game: <bdi>{name(item.port_id)}</bdi> }}
+                  />
+                ) : (
+                  <Trans
+                    t={t}
+                    i18nKey="ready.reviewSetup"
+                    components={{ game: <bdi>{name(item.port_id)}</bdi> }}
+                  />
+                )}
               </Button>
             )}
             <Button data-focusable variant="ghost" onClick={() => void dismiss([item])}>
-              Dismiss {name(item.port_id)}
+              <Trans
+                t={t}
+                i18nKey="ready.dismiss"
+                components={{ game: <bdi>{name(item.port_id)}</bdi> }}
+              />
             </Button>
           </li>
         ))}

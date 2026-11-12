@@ -97,3 +97,23 @@ it("dismissing records the exact plan or release as seen", async () => {
     1,
   );
 });
+
+it("renders notices in the current language with exact names and versions", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  await root.rerender(<ReadyGameNotices generation={1} ports={ports} onOpenPort={vi.fn()} />);
+  await act(async () => {});
+  try {
+    await act(async () => {
+      await localization.changeLanguage("ar-XB");
+    });
+    await expect.poll(text).toContain("New Game جاهزة للتثبيت.");
+    expect(text()).toContain("يتوفر تحديث لـ Old Game: 2.0.");
+    expect(button("مراجعة تحديث Old Game")).toBeDefined();
+  } finally {
+    await act(async () => {
+      await localization.changeLanguage("en");
+    });
+  }
+  await expect.poll(text).toContain("New Game is ready to install.");
+});
