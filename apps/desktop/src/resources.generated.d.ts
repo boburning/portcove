@@ -1078,6 +1078,7 @@ export default interface Resources {
       "reviewing": "Reviewing selected games…",
       "running_one": "Installing {{count}} game. Each game is checked again before anything changes. No game will be launched.",
       "running_other": "Installing {{count}} games. Each game is checked again before anything changes. No game will be launched.",
+      "separator": ", ",
       "state": {
         "cancelled": "Cancelled",
         "failed": "Couldn't install",

@@ -47,7 +47,7 @@ function gameList(t: TFunction<"installation">, names: string[]): ReactNode {
       t={t}
       i18nKey="batch.list"
       components={{
-        rest: <bdi>{names.slice(0, -1).join(", ")}</bdi>,
+        rest: <bdi>{names.slice(0, -1).join(t("batch.separator"))}</bdi>,
         last: <bdi>{names.at(-1)}</bdi>,
       }}
     />
@@ -325,7 +325,9 @@ function BatchCapacity({
           <Trans
             t={t}
             i18nKey="batch.unknownSpace"
-            components={{ games: <bdi>{capacity.unknown_space.map(name).join(", ")}</bdi> }}
+            components={{
+              games: <bdi>{capacity.unknown_space.map(name).join(t("batch.separator"))}</bdi>,
+            }}
           />
         </p>
       )}

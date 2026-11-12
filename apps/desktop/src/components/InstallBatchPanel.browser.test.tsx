@@ -152,7 +152,7 @@ it("keeps the exact English space sentences for one game and for three", async (
     port_ids: ["first"],
   };
   vi.mocked(desktopApi.planInstallBatch).mockResolvedValue({
-    ...review,
+    items: [{ port_id: "first" }],
     capacity: {
       download_bytes: 0,
       volumes: [
@@ -177,6 +177,7 @@ it("keeps the exact English space sentences for one game and for three", async (
   expect(text()).toContain(
     "First, Second and Third need 2.0 MiB of temporary space on the same drive, which has 8.0 MiB free.",
   );
+  expect(text()).toContain("First: Waiting. Review this game's setup.");
 });
 
 it("reviews the selection in the current language with exact names and versions", async () => {

@@ -20,6 +20,7 @@
     "reviewSummary": "{{ready}} ready to install, {{waiting}} waiting. Every selected game is saved to your Library. Waiting games aren't installed.",
     "running_one": "Installing {{count}} game. Each game is checked again before anything changes. No game will be launched.",
     "running_other": "Installing {{count}} games. Each game is checked again before anything changes. No game will be launched.",
+    "separator": ", ",
     "state": {
       "cancelled": "Cancelled",
       "failed": "Couldn't install",

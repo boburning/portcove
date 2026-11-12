@@ -21,6 +21,7 @@
     "running_one": "Instalando {{count}} juego. Cada juego se vuelve a comprobar antes de cambiar nada. No se iniciará ningún juego.",
     "running_many": "Instalando {{count}} juegos. Cada juego se vuelve a comprobar antes de cambiar nada. No se iniciará ningún juego.",
     "running_other": "Instalando {{count}} juegos. Cada juego se vuelve a comprobar antes de cambiar nada. No se iniciará ningún juego.",
+    "separator": ", ",
     "state": {
       "cancelled": "Cancelado",
       "failed": "No se pudo instalar",
