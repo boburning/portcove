@@ -162,6 +162,7 @@ unless the copy change is intended and reviewed.
 | Command-line handoff: titles, copy labels, interpreter and template notes, disclosures and follow-up guidance (commands, the library path, missing-value names and placeholder tokens such as `--arg` and `review-sha256` stay literal)                                              | `components/CliContinuity.tsx`                             | `cli`               |
 | Managed-copy route change review: dialog, options, consequences and recovery details (game names and paths stay exact; release, platform and size line stays data formatting; catalog setup and preparation text and Core hold reasons stay verbatim)                                | `components/ManagedRouteChange.tsx`                        | `installation`      |
 | Self-service setup from upstream: Play, saved-download states, existing-installation and website links, and the launch details heading (download paths stay exact; Core pending and launch-hold reasons stay verbatim; the operation context action stays an English activity label) | `components/SelfServiceSetup.tsx`                          | `installation`      |
+| Saved game-file reuse: selection, check and repair actions, port choices and app-owned reuse errors as typed codes (paths, port names and profile labels stay exact; Core inspection, application and failure text stays verbatim)                                                   | `components/RegisteredSourceSetup.tsx`                     | `gameFiles`         |
 | Discover card observations (readiness, acquisition and setup-route text follow their producers' migrations)                                                                                                                                                                          | `features/port-actions/BrowsePortObservations.tsx`         | `browsing`          |
 | Navigation hints (keyboard key names stay literal)                                                                                                                                                                                                                                   | `components/ui.tsx`                                        | `common`            |
 | Failure technical details (codes, phases, messages and context values stay verbatim)                                                                                                                                                                                                 | `components/FailureDetails.tsx`                            | `common`            |
@@ -169,7 +170,7 @@ unless the copy change is intended and reviewed.
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-12 it
-reported 1,366 findings in 38 of 218 analyzed files, measured after the
+reported 1,352 findings in 37 of 218 analyzed files, measured after the
 migrations listed above and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
 and are migrated with the surface that renders them. The count is a work
