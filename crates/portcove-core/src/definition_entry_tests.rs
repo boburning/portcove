@@ -802,8 +802,8 @@ fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old
         entry["required_capabilities"][0]["minimum_version"] = json!(26);
         entry["required_capabilities"][0]["maximum_version"] = json!(26);
         assert!(inspect(&entry).unwrap().capabilities().compatible);
-        entry["required_capabilities"][0]["minimum_version"] = json!(30);
-        entry["required_capabilities"][0]["maximum_version"] = json!(30);
+        entry["required_capabilities"][0]["minimum_version"] = json!(31);
+        entry["required_capabilities"][0]["maximum_version"] = json!(31);
         assert!(!inspect(&entry).unwrap().capabilities().compatible);
         let old = packet["rows"]
             .as_array()
@@ -1153,6 +1153,28 @@ fn initial_renderer_requires_an_entry_window_that_excludes_v1() {
     entry["required_capabilities"][0]["maximum_version"] = 2.into();
     assert!(inspect(&entry).is_err());
     entry["required_capabilities"][0]["minimum_version"] = 2.into();
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+}
+
+#[test]
+fn disc_image_unpacking_entries_require_staged_source_version_30() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut entry = entry_for_port(catalog.port("nocturne-recomp").unwrap());
+    entry["port"]["runtime_disc_image"] = json!({
+        "format": "xdvdfs",
+        "max_image_bytes": 9_663_676_416_u64,
+        "product_codes": ["4E4D07D1"],
+    });
+    for version in [15, 29] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(version);
+        entry["required_capabilities"][0]["maximum_version"] = json!(version);
+        assert!(
+            inspect(&entry).unwrap_err().message.contains("version 30"),
+            "v{version}"
+        );
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(30);
+    entry["required_capabilities"][0]["maximum_version"] = json!(30);
     assert!(inspect(&entry).unwrap().capabilities().compatible);
 }
 

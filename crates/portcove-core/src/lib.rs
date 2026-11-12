@@ -98,6 +98,7 @@ mod provider_update;
 mod psx;
 #[cfg(feature = "qualification-fixtures")]
 mod qualification_checkpoint;
+mod recipe;
 mod recovery;
 mod relative_file_set;
 mod release;
@@ -140,6 +141,9 @@ pub use activity_diagnostics::{ActivityDiagnostic, DiagnosticStream};
 pub use adapter::{Adapter, AdapterRegistry, LaunchSpecRequest};
 pub use adapter::{host_tool_statuses, recheck_host_tool};
 pub use application_runtime::{ApplicationRuntimeGuard, ApplicationUpdateExclusivityGuard};
+#[cfg(feature = "archive-fuzzing")]
+#[doc(hidden)]
+pub use archive::fuzzing as archive_fuzzing;
 pub use artwork::{
     ARTWORK_HANDOFF_SCHEMA, ArtworkAvailability, ArtworkCacheClear, ArtworkChoice,
     ArtworkImageFormat, ArtworkMetadata, ArtworkResolvedSource, ArtworkSlot, ArtworkState,
@@ -306,6 +310,10 @@ pub use provider_install::{PlanMember, ProviderInstallPlan};
 pub use provider_update::{ProviderUpdateObservation, ProviderUpdateState};
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;
+pub use recipe::{
+    ProfileRecipe, RECIPE_FORMAT, RecipeImportPlan, RecipeInputPlan, RecipeInputStatus,
+    RecipeOriginal, RecipePackage, RecipeRuntime,
+};
 pub use release::{
     GithubReleaseProvider, ObservationEvidence, ObservedReleaseIdentity, ObservedResolution,
     ReleaseProvider, UpstreamChannelObservation, UpstreamObservationReport,
@@ -326,20 +334,21 @@ pub use service::{
     CatalogDownloadCoverage, CatalogDownloadPreview, CatalogDownloadRelease,
     CatalogDownloadReleaseId, CatalogDownloadRequest, CatalogForeignAssetId,
     CatalogForeignReleaseId, CatalogPackageAssessment, GITHUB_LAUNCHER_FORMAT_REVISION,
-    INSTALL_BATCH_FORMAT_VERSION, IdentifiedLaunchRequest, InstallBatchItem, InstallBatchItemState,
-    InstallBatchRecord, InstallBatchRequestItem, InstallBatchReview, InstallBatchReviewItem,
-    InstallBatchSummary, InstallOverrides, InstallationProtection, LauncherAppsRootOrigin,
-    LauncherEntryHints, LauncherEntryStatus, LauncherKind, LauncherLibraryEntry,
-    LauncherLibraryInventory, LauncherLibrarySkippedEntry, LauncherModInventory,
-    MAX_INSTALL_BATCH_ITEMS, MAX_PORT_INTENT_ASSESSMENTS, MAX_ROOT_SETUP_BASELINE,
-    MAX_ROOT_SETUPS_PER_PASS, MAX_STANDING_SETUP_ATTEMPTS, ManagedRouteChangePreview,
-    ManagedRouteChangeResult, PORT_INTENT_FORMAT_VERSION, PendingSetupRecord, PendingSetupState,
-    PlayerDataProtection, PortCapabilityFeature, PortCapabilityNotice, PortCapabilityReport,
-    PortCapabilityRoute, PortIntent, PortIntentAssessment, PortIntentAssessments, PortIntentMode,
-    PortReadiness, PortReadinessAcknowledgement, PortRemovalPreview, PortcoveService,
-    ProtectionDeclaration, QUIVER_FORMAT_REVISION, ROOT_SETUP_FORMAT_VERSION, RootSetupConsent,
-    RootSetupEnrollment, RootSetupFailure, RootSetupImplementation, RootSetupWaiting,
-    SetupLaunchTarget, SetupLaunchTargets, StandingSetupFailure, StandingSetupResult,
+    INSTALL_BATCH_FORMAT_VERSION, IdentifiedLaunchRequest, InstallBatchCapacity, InstallBatchItem,
+    InstallBatchItemState, InstallBatchRecord, InstallBatchRequestItem, InstallBatchReview,
+    InstallBatchReviewItem, InstallBatchSummary, InstallBatchVolume, InstallOverrides,
+    InstallationProtection, LauncherAppsRootOrigin, LauncherEntryHints, LauncherEntryStatus,
+    LauncherKind, LauncherLibraryEntry, LauncherLibraryInventory, LauncherLibrarySkippedEntry,
+    LauncherModInventory, MAX_INSTALL_BATCH_ITEMS, MAX_PORT_INTENT_ASSESSMENTS,
+    MAX_ROOT_SETUP_BASELINE, MAX_ROOT_SETUPS_PER_PASS, MAX_STANDING_SETUP_ATTEMPTS,
+    ManagedRouteChangePreview, ManagedRouteChangeResult, PORT_INTENT_FORMAT_VERSION,
+    PendingSetupRecord, PendingSetupState, PlayerDataProtection, PortCapabilityFeature,
+    PortCapabilityNotice, PortCapabilityReport, PortCapabilityRoute, PortIntent,
+    PortIntentAssessment, PortIntentAssessments, PortIntentMode, PortReadiness,
+    PortReadinessAcknowledgement, PortRemovalPreview, PortcoveService, ProtectionDeclaration,
+    QUIVER_FORMAT_REVISION, ROOT_SETUP_FORMAT_VERSION, RootSetupConsent, RootSetupEnrollment,
+    RootSetupFailure, RootSetupImplementation, RootSetupWaiting, SetupLaunchTarget,
+    SetupLaunchTargets, StandingSetupFailure, StandingSetupResult,
 };
 pub use signed_catalog::{
     CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope, SignedCatalogPayload,

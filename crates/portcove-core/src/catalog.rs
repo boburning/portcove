@@ -3213,6 +3213,22 @@ mod tests {
                 port.release.asset_hints.remove(&Platform::LinuxX86_64);
             }
         }
+        // Persona's exact v0.1.1 Linux kit matches the accepted Windows kit's
+        // preparation contract and adds a reviewed fresh Linux route.
+        let persona = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "revelations-persona-recompiled")
+            .unwrap();
+        assert_eq!(persona.platforms, [Platform::WindowsX86_64]);
+        persona.platforms.push(Platform::LinuxX86_64);
+        persona
+            .release
+            .asset_hints
+            .insert(Platform::LinuxX86_64, vec!["linux-x64".into()]);
+        persona.executable_hints.insert(
+            Platform::LinuxX86_64,
+            vec!["Revelations__Persona_Recompiled".into()],
+        );
         for (id, platform, hints) in [
             (
                 "2ship2harkinian",
@@ -6016,7 +6032,11 @@ mod tests {
 
             let port = catalog.port(port_id).unwrap();
             assert_eq!(port.source_profile.as_deref(), Some(profile_id));
-            assert_eq!(port.platforms, vec![crate::Platform::WindowsX86_64]);
+            let mut platforms = vec![crate::Platform::WindowsX86_64];
+            if port_id == "revelations-persona-recompiled" {
+                platforms.push(crate::Platform::LinuxX86_64);
+            }
+            assert_eq!(port.platforms, platforms);
             assert!(port.automated_tested_platforms.is_empty());
             assert!(
                 port.executable_hints[&crate::Platform::WindowsX86_64]

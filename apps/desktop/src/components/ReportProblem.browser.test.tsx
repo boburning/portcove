@@ -122,3 +122,31 @@ it("ignores a preview that finishes after the dialog was closed", async () => {
   await act(async () => finish(draft));
   expect(document.body.textContent).not.toContain("Crash in <home>/game");
 });
+
+it("re-renders the preparation-failure fallback in the current language", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  await act(async () => {
+    await root.rerender(
+      <ReportProblem
+        generation={4}
+        preview={vi.fn().mockRejectedValue(new Error("unstructured"))}
+        open={vi.fn()}
+      />,
+    );
+  });
+  await click("Report a problem");
+  const alert = () => document.body.querySelector('[role="alert"]')?.textContent ?? "";
+  expect(alert()).toBe("The report could not be prepared. Try again.");
+  try {
+    await act(async () => {
+      await localization.changeLanguage("ar-XB");
+    });
+    await expect.poll(alert).toBe("تعذر إعداد التقرير. حاول مرة أخرى.");
+  } finally {
+    await act(async () => {
+      await localization.changeLanguage("en");
+    });
+  }
+  await expect.poll(alert).toBe("The report could not be prepared. Try again.");
+});

@@ -19,12 +19,28 @@ import {
 import englishApplicationUpdate from "./locales/en/applicationUpdate.json";
 import englishCatalogUpdates from "./locales/en/catalogUpdates.json";
 import englishRemoval from "./locales/en/removal.json";
+import englishBackups from "./locales/en/backups.json";
+import englishGameUpdates from "./locales/en/gameUpdates.json";
+import englishLaunch from "./locales/en/launch.json";
+import englishWorkspace from "./locales/en/workspace.json";
+import englishReport from "./locales/en/report.json";
+import englishBrowsing from "./locales/en/browsing.json";
+import englishCommands from "./locales/en/commands.json";
+import englishOperations from "./locales/en/operations.json";
 import englishCounts from "./locales/en/counts.json";
 import englishSettings from "./locales/en/settings.json";
 import englishShell from "./locales/en/shell.json";
 import engineeringApplicationUpdate from "./locales/ar-XB/applicationUpdate.json";
 import engineeringCatalogUpdates from "./locales/ar-XB/catalogUpdates.json";
 import engineeringRemoval from "./locales/ar-XB/removal.json";
+import engineeringBackups from "./locales/ar-XB/backups.json";
+import engineeringGameUpdates from "./locales/ar-XB/gameUpdates.json";
+import engineeringLaunch from "./locales/ar-XB/launch.json";
+import engineeringWorkspace from "./locales/ar-XB/workspace.json";
+import engineeringReport from "./locales/ar-XB/report.json";
+import engineeringBrowsing from "./locales/ar-XB/browsing.json";
+import engineeringCommands from "./locales/ar-XB/commands.json";
+import engineeringOperations from "./locales/ar-XB/operations.json";
 import engineeringSettings from "./locales/ar-XB/settings.json";
 import engineeringShell from "./locales/ar-XB/shell.json";
 import type { LocalePreferenceSnapshot } from "./types";
@@ -34,6 +50,14 @@ import draftSpanishShell from "./locales/es/shell.json";
 import draftSpanishApplicationUpdate from "./locales/es/applicationUpdate.json";
 import draftSpanishCatalogUpdates from "./locales/es/catalogUpdates.json";
 import draftSpanishRemoval from "./locales/es/removal.json";
+import draftSpanishBackups from "./locales/es/backups.json";
+import draftSpanishGameUpdates from "./locales/es/gameUpdates.json";
+import draftSpanishLaunch from "./locales/es/launch.json";
+import draftSpanishWorkspace from "./locales/es/workspace.json";
+import draftSpanishReport from "./locales/es/report.json";
+import draftSpanishBrowsing from "./locales/es/browsing.json";
+import draftSpanishCommands from "./locales/es/commands.json";
+import draftSpanishOperations from "./locales/es/operations.json";
 
 const supportedLocales = ["en", "ar-XB"] as const;
 export type SupportedLocale = (typeof supportedLocales)[number];
@@ -103,23 +127,62 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(englishApplicationUpdate, "applicationUpdate");
   assertCatalog(englishCatalogUpdates, "catalogUpdates");
   assertCatalog(englishRemoval, "removal");
+  assertCatalog(englishBackups, "backups");
+  assertCatalog(englishGameUpdates, "gameUpdates");
+  assertCatalog(englishLaunch, "launch");
+  assertCatalog(englishWorkspace, "workspace");
+  assertCatalog(englishReport, "report");
+  assertCatalog(englishBrowsing, "browsing");
+  assertCatalog(englishCommands, "commands");
+  assertCatalog(englishOperations, "operations");
   assertCatalog(engineeringSettings);
   assertCatalog(engineeringShell, "shell");
   assertCatalog(engineeringApplicationUpdate, "applicationUpdate");
   assertCatalog(engineeringCatalogUpdates, "catalogUpdates");
   assertCatalog(engineeringRemoval, "removal");
+  assertCatalog(engineeringBackups, "backups");
+  assertCatalog(engineeringGameUpdates, "gameUpdates");
+  assertCatalog(engineeringLaunch, "launch");
+  assertCatalog(engineeringWorkspace, "workspace");
+  assertCatalog(engineeringReport, "report");
+  assertCatalog(engineeringBrowsing, "browsing");
+  assertCatalog(engineeringCommands, "commands");
+  assertCatalog(engineeringOperations, "operations");
   assertCatalog(draftSpanishSettings, "es.settings");
   assertCatalog(draftSpanishCounts, "es.counts");
   assertCatalog(draftSpanishShell, "es.shell");
   assertCatalog(draftSpanishApplicationUpdate, "es.applicationUpdate");
   assertCatalog(draftSpanishCatalogUpdates, "es.catalogUpdates");
   assertCatalog(draftSpanishRemoval, "es.removal");
+  assertCatalog(draftSpanishBackups, "es.backups");
+  assertCatalog(draftSpanishGameUpdates, "es.gameUpdates");
+  assertCatalog(draftSpanishLaunch, "es.launch");
+  assertCatalog(draftSpanishWorkspace, "es.workspace");
+  assertCatalog(draftSpanishReport, "es.report");
+  assertCatalog(draftSpanishBrowsing, "es.browsing");
+  assertCatalog(draftSpanishCommands, "es.commands");
+  assertCatalog(draftSpanishOperations, "es.operations");
   if (!i18next.isInitialized) {
     void i18next.use(initReactI18next).init({
       lng: resolveLocale(null, initialLocales),
       fallbackLng: "en",
       supportedLngs: [...supportedLocales, "es"],
-      ns: ["settings", "counts", "shell", "applicationUpdate", "catalogUpdates", "removal"],
+      ns: [
+        "settings",
+        "counts",
+        "shell",
+        "applicationUpdate",
+        "catalogUpdates",
+        "removal",
+        "backups",
+        "gameUpdates",
+        "launch",
+        "workspace",
+        "report",
+        "browsing",
+        "commands",
+        "operations",
+      ],
       defaultNS: "settings",
       resources: {
         en: {
@@ -129,6 +192,14 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           applicationUpdate: englishApplicationUpdate,
           catalogUpdates: englishCatalogUpdates,
           removal: englishRemoval,
+          backups: englishBackups,
+          gameUpdates: englishGameUpdates,
+          launch: englishLaunch,
+          workspace: englishWorkspace,
+          report: englishReport,
+          browsing: englishBrowsing,
+          commands: englishCommands,
+          operations: englishOperations,
         },
         "ar-XB": {
           settings: engineeringSettings,
@@ -136,6 +207,14 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           applicationUpdate: engineeringApplicationUpdate,
           catalogUpdates: engineeringCatalogUpdates,
           removal: engineeringRemoval,
+          backups: engineeringBackups,
+          gameUpdates: engineeringGameUpdates,
+          launch: engineeringLaunch,
+          workspace: engineeringWorkspace,
+          report: engineeringReport,
+          browsing: engineeringBrowsing,
+          commands: engineeringCommands,
+          operations: engineeringOperations,
         },
         // Unreviewed draft pilot (#1028): bundled for review and engineering
         // fixtures only. resolveLocale never selects it and the picker omits it.
@@ -146,6 +225,14 @@ export function initializeLocalization(initialLocales = systemLocales()): i18n {
           applicationUpdate: draftSpanishApplicationUpdate,
           catalogUpdates: draftSpanishCatalogUpdates,
           removal: draftSpanishRemoval,
+          backups: draftSpanishBackups,
+          gameUpdates: draftSpanishGameUpdates,
+          launch: draftSpanishLaunch,
+          workspace: draftSpanishWorkspace,
+          report: draftSpanishReport,
+          browsing: draftSpanishBrowsing,
+          commands: draftSpanishCommands,
+          operations: draftSpanishOperations,
         },
       },
       initAsync: false,

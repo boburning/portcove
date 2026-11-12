@@ -230,6 +230,11 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       180,
     ],
     [
+      "x86_64-apple-darwin",
+      "package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)",
+      180,
+    ],
+    [
       "x86_64-pc-windows-msvc",
       "package(portcove-core) & test(/^service::native_portable::tests::ready_staged_archive_preserves_preplay_data_and_successor_cache_defaults$/)",
       180,

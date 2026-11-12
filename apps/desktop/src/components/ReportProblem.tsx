@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { copyText } from "../clipboard";
 import type { BugReportDraft, BugReportField, BugReportLink } from "../types";
+import { useAppTranslation } from "../localization";
 import { failurePresentation } from "../view-model";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
@@ -19,7 +20,8 @@ type Phase =
   | { kind: "opening"; fields: BugReportField[] }
   | { kind: "copied" }
   | { kind: "copy_failed"; text: string }
-  | { kind: "failed"; message: string };
+  // Core's own summary when it gave one; the fallback is translated at render.
+  | { kind: "failed"; summary: string | undefined };
 
 /**
  * Shows exactly what a pre-filled GitHub bug report will contain, lets the player
@@ -37,6 +39,7 @@ export function ReportProblem({
   open?: (fields: BugReportField[]) => Promise<BugReportLink>;
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "closed" });
+  const { t } = useAppTranslation("report");
   // Only the newest request may update the dialog; closing or switching games
   // invalidates an earlier preview that is still loading.
   const request = useRef(0);
@@ -59,7 +62,7 @@ export function ReportProblem({
       },
       (value) => {
         if (request.current === current)
-          setPhase({ kind: "failed", message: failureMessage(value) });
+          setPhase({ kind: "failed", summary: failurePresentation(value)?.summary });
       },
     );
   };
@@ -79,14 +82,14 @@ export function ReportProblem({
         setPhase({ kind: "copy_failed", text: link.clipboard_text });
       }
     } catch (value) {
-      setPhase({ kind: "failed", message: failureMessage(value) });
+      setPhase({ kind: "failed", summary: failurePresentation(value)?.summary });
     }
   };
   const fields = phase.kind === "ready" || phase.kind === "opening" ? phase.fields : undefined;
   return (
     <>
       <Button data-focusable variant="outline" onClick={start} disabled={phase.kind === "loading"}>
-        Report a problem
+        {t("problem.open")}
       </Button>
       <Dialog
         open={phase.kind !== "closed" && phase.kind !== "loading"}
@@ -95,11 +98,9 @@ export function ReportProblem({
         }}
       >
         <DialogContent reviewSize="standard" aria-describedby="report-problem-description">
-          <DialogTitle className="text-xl">Report a problem</DialogTitle>
+          <DialogTitle className="text-xl">{t("problem.title")}</DialogTitle>
           <DialogDescription id="report-problem-description" className="leading-relaxed">
-            This is everything that will be filled into a GitHub bug report. Portcove sends nothing
-            itself: you review it here, then submit it on GitHub. Folder paths and your user name
-            are replaced.
+            {t("problem.description")}
           </DialogDescription>
           {fields && (
             <div className="grid gap-3">
@@ -129,27 +130,21 @@ export function ReportProblem({
               )}
             </div>
           )}
-          {phase.kind === "copied" && (
-            <p role="status">
-              This report is too long for a link, so it was copied instead. Open a new bug report on
-              GitHub and paste it in.
-            </p>
-          )}
+          {phase.kind === "copied" && <p role="status">{t("problem.copied")}</p>}
           {phase.kind === "copy_failed" && (
             <div className="grid gap-2">
-              <p role="alert">
-                This report is too long for a link and could not be copied automatically. Select and
-                copy the text below, then paste it into a new bug report on GitHub.
-              </p>
+              <p role="alert">{t("problem.copyFailed")}</p>
               <textarea className={textareaClassName} readOnly value={phase.text} />
             </div>
           )}
-          {phase.kind === "failed" && <p role="alert">{phase.message}</p>}
+          {phase.kind === "failed" && (
+            <p role="alert">{phase.summary ?? t("problem.prepareFailed")}</p>
+          )}
           <DialogFooter>
             <Button variant="secondary" disabled={phase.kind === "opening"} onClick={close}>
               {phase.kind === "copied" || phase.kind === "copy_failed" || phase.kind === "failed"
-                ? "Close"
-                : "Cancel"}
+                ? t("problem.close")
+                : t("problem.cancel")}
             </Button>
             {fields && (
               <Button
@@ -157,7 +152,7 @@ export function ReportProblem({
                 disabled={phase.kind === "opening"}
                 onClick={() => void submit(fields)}
               >
-                Open on GitHub
+                {t("problem.submit")}
               </Button>
             )}
           </DialogFooter>
@@ -165,9 +160,4 @@ export function ReportProblem({
       </Dialog>
     </>
   );
-}
-
-function failureMessage(value: unknown): string {
-  const presentation = failurePresentation(value);
-  return presentation?.summary ?? "The report could not be prepared. Try again.";
 }

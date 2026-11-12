@@ -854,7 +854,17 @@ read rechecks that digest before reusing or deriving a thumbnail. A missing, cha
 unreachable image falls back in the renderer without blocking library or port
 operations. The catalog mapping is presentation data, so a reviewed signed
 catalog update can correct it without changing the installed app. An absent
-mapping retains the generated fallback. Provider terms and image withdrawal
+mapping retains the generated fallback. Cached remote originals are named by
+their catalog content digest, so a corrected or withdrawn mapping is never
+resolved from its earlier bytes. Each remote-original publication, under the
+artwork lock, also removes cached IGDB and catalog-media originals that no
+currently resolvable port references: the current catalog plus retained
+installed, registered and unfinished-setup identities. Local-import thumbnails
+and interrupted staging keep their own repair paths. If those references cannot
+be established, or an entry cannot be removed, it is retained and only the
+64 MiB size bound applies. Each service judges references from its own catalog
+snapshot, so processes holding different catalogs may refetch each other's
+covers; that costs network only, never a local choice. Provider terms and image withdrawal
 remain separate from local file integrity and executable trust.
 
 The [independent definition delivery contract](DEFINITION-DELIVERY.md) keeps
@@ -1241,8 +1251,12 @@ visible alongside new events during the next bounded batch. Fresh scans, stale
 snapshots and restart-required checkpoints do not carry matches into the live
 view. These observations still require ordinary registration and Core plan
 revalidation; continuing a scan grants no additional setup authority.
-Desktop also keeps an ephemeral selection of at most sixteen independent ports
-for setup review within the current library workspace. A matching observed game or BIOS source
+Desktop also keeps an ephemeral selection of up to 512 independent ports (the
+Core batch bound) for setup review within the current library workspace.
+"Select all eligible" adds every currently reviewable port except ports that
+share a source profile with another catalog port, even one that is installed
+or blocked; those alternative implementations are counted as games needing a
+version choice and are selected individually. A matching observed game or BIOS source
 must already be registered, and current Core action availability must allow
 installation before a selected item can request its existing game-details review.
 The explicit review request is consumed once after the matching detail is active
@@ -2745,7 +2759,7 @@ that validation has not run; registration does not establish an exact edition or
 compatibility. Stale snapshots, changed or missing registrations, and unavailable
 Core actions cannot open a queued setup review. Preliminary choices wait for a
 completed scan batch rather than carrying an old observation into an active scan.
-The existing sixteen-port selection bound and independent implementations apply;
+The existing 512-port selection bound and independent implementations apply;
 each selected port opens its fresh Core plan without automatic registration or
 installation.
 
@@ -3939,7 +3953,7 @@ Library and its legitimate empty state open one in-flow Add games workspace. Its
 file route explicitly selects a game/port before the existing profile-scoped
 inspection: the current inspector is not a catalog-wide file recognizer. Saved
 folder scanning remains the bounded multi-game recognition route, preserving its
-sixteen-port ephemeral setup-review selection and current route checks. Find
+512-port ephemeral setup-review selection and current route checks. Find
 games, installation copy and supported external routes remain available.
 The visible stages connect choosing inputs, recognition/port choice, current
 route checks, consequence review, preparation and completion/Play. The existing

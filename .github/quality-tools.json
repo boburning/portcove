@@ -54,6 +54,14 @@
       "ci_install": "local"
     },
     {
+      "id": "cargo-fuzz",
+      "crate": "cargo-fuzz",
+      "version": "0.13.2",
+      "command": ["cargo", "fuzz", "--version"],
+      "tier": "deep",
+      "ci_install": "local"
+    },
+    {
       "id": "cargo-nextest",
       "crate": "cargo-nextest",
       "version": "0.9.100",
