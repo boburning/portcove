@@ -168,13 +168,17 @@ pub(crate) fn write_choice(
     Ok(())
 }
 
+/// Version 2 thumbnails apply the original's embedded orientation; older
+/// disposable entries are ignored and rebuilt on the next read.
+pub(crate) const THUMBNAIL_FORMAT_VERSION: u32 = 2;
+
 pub(crate) fn thumbnail(connection: &Connection, id: &str) -> Result<Option<(String, u64)>> {
-    Ok(connection.query_row("SELECT sha256,byte_size FROM artwork_thumbnails WHERE asset_sha256=?1 AND format_version=1", [id], |row| Ok((row.get(0)?,row.get(1)?))).optional()?)
+    Ok(connection.query_row("SELECT sha256,byte_size FROM artwork_thumbnails WHERE asset_sha256=?1 AND format_version=?2", params![id,THUMBNAIL_FORMAT_VERSION], |row| Ok((row.get(0)?,row.get(1)?))).optional()?)
 }
 
 pub(crate) fn write_thumbnail(connection: &Connection, id: &str, bytes: &[u8]) -> Result<()> {
-    connection.execute("INSERT INTO artwork_thumbnails(asset_sha256,format_version,sha256,byte_size) VALUES (?1,1,?2,?3)
-        ON CONFLICT(asset_sha256) DO UPDATE SET format_version=1,sha256=excluded.sha256,byte_size=excluded.byte_size", params![id,crate::signed_catalog::digest(bytes),bytes.len() as u64])?;
+    connection.execute("INSERT INTO artwork_thumbnails(asset_sha256,format_version,sha256,byte_size) VALUES (?1,?4,?2,?3)
+        ON CONFLICT(asset_sha256) DO UPDATE SET format_version=excluded.format_version,sha256=excluded.sha256,byte_size=excluded.byte_size", params![id,crate::signed_catalog::digest(bytes),bytes.len() as u64,THUMBNAIL_FORMAT_VERSION])?;
     Ok(())
 }
 

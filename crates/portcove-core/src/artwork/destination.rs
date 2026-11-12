@@ -270,7 +270,17 @@ impl DestinationArtworkBytes {
                 "artwork handoff bytes differ from their identity",
             ));
         }
-        validate_decoded(&self.original, asset)
+        validate_decoded(&self.original, asset)?;
+        // Match Core's resolver: a stored-wide original whose embedded
+        // orientation displays it rotated by a quarter turn is not wide.
+        if self.handoff.role == DestinationArtworkRole::HeroBanner
+            && crate::artwork_image::transposes_axes(&self.original)?
+        {
+            return Err(PortcoveError::verification(
+                "artwork handoff content differs from admitted metadata",
+            ));
+        }
+        Ok(())
     }
 }
 

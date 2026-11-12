@@ -415,20 +415,14 @@ fn destination_hero_handoff_refuses_a_wide_image_rotated_by_its_orientation() {
         DestinationArtworkContent, DestinationArtworkRole as Role,
         DestinationArtworkUnavailableReason as Reason,
     };
-    use image::ImageEncoder;
     let temporary = tempfile::tempdir().unwrap();
     let service = open_service(&temporary.path().join("library"));
     // Stored 40x12 but tagged Orientation=6 (rotate 90): displayed tall.
-    let exif = [
-        b'M', b'M', 0, 42, 0, 0, 0, 8, 0, 1, 0x01, 0x12, 0, 3, 0, 0, 0, 1, 0, 6, 0, 0, 0, 0, 0, 0,
-    ];
-    let pixels = image::RgbImage::from_pixel(40, 12, image::Rgb([90, 40, 20]));
-    let mut bytes = Vec::new();
-    let mut encoder = image::codecs::jpeg::JpegEncoder::new(&mut bytes);
-    encoder.set_exif_metadata(exif.to_vec()).unwrap();
-    encoder
-        .write_image(pixels.as_raw(), 40, 12, image::ExtendedColorType::Rgb8)
-        .unwrap();
+    let bytes = crate::artwork_image::quarter_turn_jpeg(&image::RgbImage::from_pixel(
+        40,
+        12,
+        image::Rgb([90, 40, 20]),
+    ));
     assert!(crate::artwork_image::transposes_axes(&bytes).unwrap());
     let rotated = temporary.path().join("rotated.jpg");
     fs::write(&rotated, &bytes).unwrap();
@@ -447,6 +441,72 @@ fn destination_hero_handoff_refuses_a_wide_image_rotated_by_its_orientation() {
     // The same refusal round-trips through the strict reader.
     let value = serde_json::to_value(&hero).unwrap();
     assert!(serde_json::from_value::<crate::DestinationArtworkHandoff>(value).is_ok());
+}
+
+#[test]
+fn destination_hero_bytes_reader_refuses_a_rotated_original_claimed_as_wide() {
+    use crate::{
+        DestinationArtworkBytes, DestinationArtworkContent, DestinationArtworkRole as Role,
+        DestinationArtworkSource,
+    };
+    let temporary = tempfile::tempdir().unwrap();
+    let service = open_service(&temporary.path().join("library"));
+    // Hand-build a hero payload whose metadata is stored-wide (40x12) but whose
+    // original is displayed tall by its embedded orientation. Core never
+    // produces it; the strict reader must refuse it as well.
+    let bytes = crate::artwork_image::quarter_turn_jpeg(&image::RgbImage::from_pixel(
+        40,
+        12,
+        image::Rgb([90, 40, 20]),
+    ));
+    let rotated = temporary.path().join("rotated.jpg");
+    fs::write(&rotated, &bytes).unwrap();
+    service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Detail, &rotated, 0)
+        .unwrap();
+    let refused = service
+        .destination_artwork("zelda64-recomp", Role::HeroBanner)
+        .unwrap();
+    let DestinationArtworkSource::LocalImport { asset } = refused.source.clone() else {
+        panic!("expected the selected local import");
+    };
+    assert_eq!((asset.width, asset.height), (40, 12));
+    let mut handoff = refused;
+    handoff.content = DestinationArtworkContent::Available {
+        asset: asset.clone(),
+    };
+    // The metadata-only handoff cannot see the orientation and accepts it.
+    handoff.validate().unwrap();
+    let forged = DestinationArtworkBytes {
+        handoff: handoff.clone(),
+        original: bytes,
+    };
+    assert!(forged.validate().is_err());
+    let wire = serde_json::to_value(&forged).unwrap();
+    assert!(serde_json::from_value::<DestinationArtworkBytes>(wire).is_err());
+    // Control: an unrotated wide original with identical axes is accepted.
+    let wide = temporary.path().join("wide.jpg");
+    image::RgbImage::from_pixel(40, 12, image::Rgb([90, 40, 20]))
+        .save(&wide)
+        .unwrap();
+    let selected = service
+        .import_artwork(
+            "zelda64-recomp",
+            ArtworkSlot::Detail,
+            &wide,
+            handoff.choice.as_ref().unwrap().revision,
+        )
+        .unwrap();
+    let accepted = service
+        .destination_artwork_bytes(
+            "zelda64-recomp",
+            Role::HeroBanner,
+            &handoff.library.id,
+            selected.choice.revision,
+            selected.choice.asset_sha256.as_deref().unwrap(),
+        )
+        .unwrap();
+    accepted.validate().unwrap();
 }
 
 fn image_file(root: &Path, name: &str, format: image::ImageFormat) -> std::path::PathBuf {
@@ -958,6 +1018,53 @@ fn imported_thumbnail_is_reused_without_a_second_decode_and_regenerates_after_cl
         .unwrap();
     assert_eq!(regenerated.png, first.png);
     assert_eq!(crate::artwork_image::decode_count(), before + 2);
+}
+
+#[test]
+fn unoriented_cached_thumbnail_is_rebuilt_with_the_displayed_orientation() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_local_artwork_service(&temp.path().join("library"));
+    let rotated = temp.path().join("rotated.jpg");
+    fs::write(
+        &rotated,
+        crate::artwork_image::quarter_turn_jpeg(&image::RgbImage::from_pixel(
+            40,
+            12,
+            image::Rgb([90, 40, 20]),
+        )),
+    )
+    .unwrap();
+    let selected = service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &rotated, 0)
+        .unwrap();
+    let id = selected.choice.asset_sha256.clone().unwrap();
+    let first = service
+        .artwork_thumbnail("zelda64-recomp", ArtworkSlot::Cover, 1)
+        .unwrap();
+    let shown = image::load_from_memory(&first.png).unwrap();
+    assert!(shown.height() > shown.width());
+    // A cache entry from before orientation was applied (format version 1)
+    // is ignored and rebuilt rather than reused.
+    service
+        .library()
+        .connection()
+        .unwrap()
+        .execute(
+            "UPDATE artwork_thumbnails SET format_version=1 WHERE asset_sha256=?1",
+            [&id],
+        )
+        .unwrap();
+    let before = crate::artwork_image::decode_count();
+    let rebuilt = service
+        .artwork_thumbnail("zelda64-recomp", ArtworkSlot::Cover, 1)
+        .unwrap();
+    assert_eq!(crate::artwork_image::decode_count(), before + 1);
+    assert_eq!(rebuilt.png, first.png);
+    let reused = service
+        .artwork_thumbnail("zelda64-recomp", ArtworkSlot::Cover, 1)
+        .unwrap();
+    assert_eq!(crate::artwork_image::decode_count(), before + 1);
+    assert_eq!(reused.png, first.png);
 }
 
 #[test]
