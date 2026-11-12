@@ -2984,6 +2984,12 @@ does not execute nextest.
 
 The core property tests generate archive-path aliases and digest/scope combinations.
 Run `cargo test -p portcove-core --lib property_` through the storage wrapper.
+For an opt-in Linux campaign against the ZIP, 7z, TAR.GZ and TAR.XZ download
+readers, the separate cargo-fuzz workspace in
+[`crates/portcove-core/fuzz`](../crates/portcove-core/fuzz/README.md) uses the
+optional `cargo-fuzz` pin, the dated coverage nightly and its own committed
+lockfile. It documents what its lock checks do and do not enforce. Ordinary checks do
+not build or run it.
 For an opt-in Windows Core path investigation, `just rust-coverage` uses the
 optional coverage tool pin and a separate dated nightly compiler with matching
 LLVM tools. It records discovery, original test outcomes, actual branch counters
