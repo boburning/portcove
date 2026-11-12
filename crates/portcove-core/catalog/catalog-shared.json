@@ -2001,6 +2001,26 @@
         "claim": "MediEvil (USA), SCUS-94227, has 2 tracks. Track 1 is 528755472 bytes, SHA-1 928257764f5107c9d27aa3e2d469c43aee591abd, MD5 53d908f5bd11d86f3deda75c2da3b750 and CRC32 846f15a7. Core binds the first data track and track count.",
         "immutable_url": "https://redump.info/disc/3472",
         "live_url": null
+      },
+      {
+        "id": "alexbeav-quake-ii-recomp-v012-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/quake-ii-recomp",
+        "authority_ref": "348015cc55f945d71dd13edba2f975bbab34bcdb",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/blob/348015cc55f945d71dd13edba2f975bbab34bcdb/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.1.2 Windows (29903257 bytes, SHA-256 dd9fc377d91b0ce789308278487eb1f9bf892384e7637968f646828163e176cb) and Linux x64 (27797758 bytes, SHA-256 c3d3e196db2efd296940b25bd8fc94a11c58bbbb34e3e7ea6a00726d368711d1) setup kits match provider SHA-256 and pass Core package-layout inspection. Both kits carry the same game.toml: SLUS-00757, two tracks, first data track size 323642256 and SHA-1 f936e7cc477b0daf456c86eff86acc82e7f549ce. README-SETUP requires a retail SCPH-1001 BIOS and states OpenBIOS is not supported. The kit pins PSXRecomp 40ce47896026be52bcaae7de03b69766e0bd03e4, the reviewed Tony Hawk's Pro Skater 3 framework, ships its packages under mods/packages and generates Quake_II_Recompiled from the window title through the psx-runtime target. Native generation, gameplay and saves remain unobserved."
+      },
+      {
+        "id": "alexbeav-quake-ii-recomp-redump-6643",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/6643",
+        "reviewed_at": "2026-11-12",
+        "immutable_url": "https://redump.info/disc/6643",
+        "live_url": null,
+        "claim": "Redump Quake II (USA), SLUS-00757, has two tracks. Track 1 size 323642256, SHA-1 f936e7cc477b0daf456c86eff86acc82e7f549ce, MD5 ca6eb702916d24f928a265bbaca00235 and CRC32 efbd3060 agree with the kit. Core binds the first data track and count."
       }
     ],
     "identities": [
@@ -11970,6 +11990,53 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-quake-ii-recomp-usa-psx",
+        "label": "Quake II (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Quake II (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00757"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  2
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "f936e7cc477b0daf456c86eff86acc82e7f549ce",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-quake-ii-recomp-v012-static-contract",
+                  "alexbeav-quake-ii-recomp-redump-6643"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-quake-ii-recomp-v012-static-contract",
+              "alexbeav-quake-ii-recomp-redump-6643"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -18079,6 +18146,69 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "26097ec363f6850fbb7575ce2155c7841913f4317b844dca0683ecabc6864d2e"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-quake-ii-recomp-game-source",
+        "port_id": "alexbeav-quake-ii-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-quake-ii-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-quake-ii-recomp-v012-static-contract",
+          "alexbeav-quake-ii-recomp-redump-6643"
+        ],
+        "authority_ref": "348015cc55f945d71dd13edba2f975bbab34bcdb",
+        "reviewed_at": "2026-11-12",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/blob/348015cc55f945d71dd13edba2f975bbab34bcdb/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "dd9fc377d91b0ce789308278487eb1f9bf892384e7637968f646828163e176cb"
+          },
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "c3d3e196db2efd296940b25bd8fc94a11c58bbbb34e3e7ea6a00726d368711d1"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-quake-ii-recomp-bios-source",
+        "port_id": "alexbeav-quake-ii-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-quake-ii-recomp-v012-static-contract"
+        ],
+        "authority_ref": "348015cc55f945d71dd13edba2f975bbab34bcdb",
+        "reviewed_at": "2026-11-12",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/blob/348015cc55f945d71dd13edba2f975bbab34bcdb/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "dd9fc377d91b0ce789308278487eb1f9bf892384e7637968f646828163e176cb"
+          },
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "c3d3e196db2efd296940b25bd8fc94a11c58bbbb34e3e7ea6a00726d368711d1"
           }
         ],
         "aliases": [],
