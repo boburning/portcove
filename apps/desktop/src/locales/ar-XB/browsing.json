@@ -14,6 +14,73 @@
     "view": "عرض <name/>",
     "viewing": "<name/> · قيد العرض"
   },
+  "discover": {
+    "action": {
+      "compare": "مقارنة المنافذ",
+      "compareAll": "مقارنة الكل ({{total}})",
+      "continue": "متابعة الإعداد",
+      "installation": "عرض التثبيت",
+      "port": "عرض المنفذ",
+      "task": "عرض المهمة",
+      "why": "لماذا هذا المنفذ؟"
+    },
+    "cardLabel": "{{game}}. {{state}}.",
+    "chip": {
+      "channel": "قناة التحديث",
+      "platform": "يعمل على",
+      "system": "النظام الأصلي"
+    },
+    "compare": {
+      "files": "الملفات المطلوبة",
+      "filesUnlisted": "المتطلبات غير مدرجة هنا. راجع تعليمات إعداد المشروع.",
+      "instructions": "تعليمات المشروع",
+      "noChannel": "لا توجد قناة تحديث مدرجة.",
+      "noPlatform": "لا توجد منصة مدرجة.",
+      "options": "خيارات المقارنة والتقارير",
+      "optionsIntro": "تفاصيل الميزات غير متاحة لكل مشروع. راجع التقارير وتعليمات المشروع. قد لا تعمل ملفات الحفظ والتعديلات مع منفذ آخر.",
+      "outsideFilters": "خارج عوامل التصفية الحالية.",
+      "setup": "كيفية الإعداد",
+      "several": "قارن متطلبات الإعداد لـ {{total}} منافذ. راجع تعليمات كل منفذ لمعرفة مواقع الحفظ المشتركة.",
+      "single": "راجع متطلبات إعداد هذا المنفذ وتقاريره.",
+      "status": "الحالة الحالية",
+      "updates": "من يتولى التحديثات"
+    },
+    "compareMatching": "قارن المنافذ المطابقة لمعرفة متطلبات الإعداد وحالة التثبيت الخاصة بكل منها.",
+    "drop": {
+      "hover": "أسقط هنا للتحقق لهذه اللعبة",
+      "release": "أفلت للتحقق"
+    },
+    "favorite": {
+      "add": "إضافة إلى المفضلة",
+      "label": "تفضيل {{game}}",
+      "remove": "إزالة من المفضلة"
+    },
+    "groupLabel_zero": "{{title}}. {{count}} مشروع منفصل؛ {{matching}} مطابقة.",
+    "groupLabel_one": "{{title}}. مشروع منفصل واحد؛ {{matching}} مطابقة.",
+    "groupLabel_two": "{{title}}. مشروعان منفصلان؛ {{matching}} مطابقة.",
+    "groupLabel_few": "{{title}}. {{count}} مشاريع منفصلة؛ {{matching}} مطابقة.",
+    "groupLabel_many": "{{title}}. {{count}} مشروعًا منفصلًا؛ {{matching}} مطابقة.",
+    "groupLabel_other": "{{title}}. {{count}} مشروع منفصل؛ {{matching}} مطابقة.",
+    "identity": {
+      "matching": "{{title}} {{project}}. المنفذ المطابق: {{port}}. {{state}}. {{action}}",
+      "single": "{{title}} {{project}}. {{state}}. {{action}}"
+    },
+    "label": "اكتشاف الألعاب",
+    "matchingPort": "المنفذ المطابق: {{port}}",
+    "memberLabel": "{{action}}: {{game}}",
+    "ownership": {
+      "external": "تثبيت خارجي. تتولى أنت أو مشغّله التحديثات.",
+      "managed": "تثبيت مُدار. يتولى Portcove التحديثات المراجَعة.",
+      "notInstalled": "غير مثبت. اتبع تعليمات إعداد هذا المشروع.",
+      "unavailable": "الجهة المسؤولة عن التثبيت غير معروفة. راجع تعليمات المشروع."
+    },
+    "separateProjects_zero": "{{count}} مشروع منفصل",
+    "separateProjects_one": "مشروع منفصل واحد",
+    "separateProjects_two": "مشروعان منفصلان",
+    "separateProjects_few": "{{count}} مشاريع منفصلة",
+    "separateProjects_many": "{{count}} مشروعًا منفصلًا",
+    "separateProjects_other": "{{count}} مشروع منفصل"
+  },
   "hero": {
     "continueLabel": "{{title}} لُعبت مؤخرًا",
     "credits": "حقوق الصور",

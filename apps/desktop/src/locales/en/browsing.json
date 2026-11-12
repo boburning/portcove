@@ -14,6 +14,65 @@
     "view": "View <name/>",
     "viewing": "<name/> · Viewing"
   },
+  "discover": {
+    "action": {
+      "compare": "Compare ports",
+      "compareAll": "Compare all {{total}}",
+      "continue": "Continue setup",
+      "installation": "View installation",
+      "port": "View port",
+      "task": "View task",
+      "why": "Why this port?"
+    },
+    "cardLabel": "{{game}}. {{state}}.",
+    "chip": {
+      "channel": "Update channel",
+      "platform": "Runs on",
+      "system": "Original system"
+    },
+    "compare": {
+      "files": "Required files",
+      "filesUnlisted": "Requirements are not listed here. Check the project’s setup instructions.",
+      "instructions": "Project instructions",
+      "noChannel": "No update channel is listed.",
+      "noPlatform": "No platform is listed.",
+      "options": "Comparison options and reports",
+      "optionsIntro": "Feature details are not available for every project. Check the reports and project instructions. Your saves and mods may not work with another port.",
+      "outsideFilters": "Outside the current filters.",
+      "setup": "How to set it up",
+      "several": "Compare setup requirements for {{total}} ports. Check each port’s instructions for shared save locations.",
+      "single": "Review this port’s setup requirements and reports.",
+      "status": "Current status",
+      "updates": "Who handles updates"
+    },
+    "compareMatching": "Compare the matching ports for their own setup requirements and installation status.",
+    "drop": {
+      "hover": "Drop to check for this game",
+      "release": "Release to check"
+    },
+    "favorite": {
+      "add": "Add to favorites",
+      "label": "Favorite {{game}}",
+      "remove": "Remove from favorites"
+    },
+    "groupLabel_one": "{{title}}. {{count}} separate port project; {{matching}} matching.",
+    "groupLabel_other": "{{title}}. {{count}} separate port projects; {{matching}} matching.",
+    "identity": {
+      "matching": "{{title}} {{project}}. Matching port: {{port}}. {{state}}. {{action}}",
+      "single": "{{title}} {{project}}. {{state}}. {{action}}"
+    },
+    "label": "Discover games",
+    "matchingPort": "Matching port: {{port}}",
+    "memberLabel": "{{action}}: {{game}}",
+    "ownership": {
+      "external": "External installation. You or its launcher handle updates.",
+      "managed": "Managed installation. Portcove handles reviewed updates.",
+      "notInstalled": "Not installed. Follow this project’s setup instructions.",
+      "unavailable": "Installation ownership is unavailable. Check the project instructions."
+    },
+    "separateProjects_one": "{{count}} separate port project",
+    "separateProjects_other": "{{count}} separate port projects"
+  },
   "hero": {
     "continueLabel": "{{title}} recently played",
     "credits": "Image credits",

@@ -440,3 +440,39 @@ it.each([
     });
   },
 );
+
+it("presents grouped Discover cards and the comparison in the active locale", async () => {
+  const { initializeLocalization } = await import("../../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await render(
+      <GroupedDiscover
+        all={[first, second]}
+        matching={[first, second]}
+        statuses={new Map()}
+        onSelect={vi.fn()}
+        onFavoriteToggle={vi.fn()}
+      />,
+    );
+    expect(document.querySelector("article")?.getAttribute("aria-label")).toBe(
+      "Original game. 2 separate port projects; 2 matching.",
+    );
+    await localization.changeLanguage("ar-XB");
+    await expect
+      .poll(() => document.querySelector("article")?.getAttribute("aria-label"))
+      .toBe("Original game. مشروعان منفصلان؛ 2 مطابقة.");
+    expect(document.querySelector("section")?.getAttribute("aria-label")).toBe("اكتشاف الألعاب");
+    expect(document.body.textContent).toContain(
+      "قارن المنافذ المطابقة لمعرفة متطلبات الإعداد وحالة التثبيت الخاصة بكل منها.",
+    );
+    await page.getByRole("button", { name: "مقارنة المنافذ", exact: true }).click();
+    await expect
+      .poll(() => document.querySelector("[role=dialog]")?.textContent)
+      .toContain("قارن متطلبات الإعداد لـ 2 منافذ.");
+    const dialog = document.querySelector("[role=dialog]")?.textContent;
+    expect(dialog).toContain("من يتولى التحديثات");
+    expect(dialog).toContain("الجهة المسؤولة عن التثبيت غير معروفة.");
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
