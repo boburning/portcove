@@ -556,14 +556,16 @@ names against the registry.
   Every other condition, including transient `transport` and non-GitHub
   locations, is `release-health-condition`.
 - **Accounted conditions:** the monitor's triage keeps some accounted conditions
-  visible (`accounted_for` true outside the routine `provider-reported-*` case,
-  such as a catalog-declared unavailable original). They stay
-  `release-health-condition` handoffs, but they need no new accounting. When
-  every condition of the handoff is accounted, its action says so and its
-  invocation and resume show each condition's own recorded `resume_condition`.
-  When some are not, the registry action applies to the unaccounted ones and
-  names the accounted ones with their recorded resume conditions. The stored
-  condition and its digest are unchanged.
+  visible (`accounted_for` true outside the routine `provider-reported-*` case:
+  a reviewed GitHub original-location condition, or a catalog-declared
+  unavailable original). They keep their kind, `release-health-relocation` or
+  `release-health-condition`, and their dispatch reason, but they need no new
+  relocation evidence or accounting. When every condition of the handoff is
+  accounted, its action says so and its invocation and resume show each
+  condition's own recorded `resume_condition`. When some are not, the registry
+  action applies to the unaccounted ones and names the accounted ones with their
+  recorded resume conditions. With none accounted, the registry entry is shown
+  unchanged. The stored condition and its digest are unchanged.
 - **Scheduled receipt:** `readReleaseHealth` accepts only scheduled `main`
   reports, so the release-health entries offer no `upstream-health.yml`
   dispatch; a dispatched run would never count as the receipt.

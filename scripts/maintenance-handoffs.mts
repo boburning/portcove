@@ -477,10 +477,11 @@ export function readOpenHandoffs(environment: NodeJS.ProcessEnv) {
 
 /**
  * The action, invocation and resume condition shown for one handoff: its
- * registry entry's, except for release-health conditions the monitor already
- * records as accounted for (`accounted_for`, a reviewed scope that its triage
- * still keeps visible). Those need no new accounting, so the monitor's own
- * recorded `resume_condition` replaces the accounting prescription.
+ * registry entry's, except for release-health conditions (relocation or other)
+ * the monitor already records as accounted for (`accounted_for`, a reviewed
+ * scope that its triage still keeps visible). Those need no new relocation
+ * evidence or accounting, so the monitor's own recorded `resume_condition`
+ * replaces that prescription.
  */
 export function handoffGuidance(entry: HandoffEntry, condition: unknown) {
   const guidance = {
@@ -488,7 +489,8 @@ export function handoffGuidance(entry: HandoffEntry, condition: unknown) {
     invocation: entry.invocation,
     resume_condition: entry.resume_condition,
   };
-  if (entry.kind !== "release-health-condition") return guidance;
+  if (entry.kind !== "release-health-condition" && entry.kind !== "release-health-relocation")
+    return guidance;
   const conditions = (condition as { conditions?: unknown } | null)?.conditions;
   const listed: unknown[] = Array.isArray(conditions) ? conditions : [];
   const accounted = listed.filter(
@@ -505,11 +507,11 @@ export function handoffGuidance(entry: HandoffEntry, condition: unknown) {
   if (accounted.length < listed.length)
     return {
       ...guidance,
-      action: `${entry.action} Already accounted for by reviewed scope (no new accounting): ${recorded}`,
+      action: `${entry.action} Already accounted for by reviewed scope (no new relocation evidence or accounting): ${recorded}`,
     };
   return {
     action:
-      "The monitor records this condition as accounted for by reviewed scope; no new accounting is needed. Follow its recorded resume condition.",
+      "The monitor records this condition as accounted for by reviewed scope; no new relocation evidence or accounting is needed. Follow its recorded resume condition.",
     invocation:
       "The condition's recorded resume_condition; the next scheduled run of upstream-health.yml on main reports the result",
     resume_condition: recorded,

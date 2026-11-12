@@ -407,7 +407,10 @@ void test("accounted release-health conditions follow their recorded resume cond
   const entry = handoffEntry("release-health-condition")!;
   const guidance = handoffGuidance(entry, accounted.condition);
   assert.doesNotMatch(guidance.action, /account for an expected provider condition/u);
-  assert.match(guidance.action, /accounted for by reviewed scope; no new accounting is needed/u);
+  assert.match(
+    guidance.action,
+    /accounted for by reviewed scope; no new relocation evidence or accounting is needed/u,
+  );
   assert.doesNotMatch(guidance.invocation, /accounting or fix PR/u);
   assert.equal(
     guidance.resume_condition,
@@ -435,7 +438,7 @@ void test("accounted release-health conditions follow their recorded resume cond
   assert.ok(both.action.startsWith(entry.action));
   assert.match(
     both.action,
-    /Already accounted for by reviewed scope \(no new accounting\): inaccessible-or-missing at https:\/\/example\.com\/alpha\.zip/u,
+    /Already accounted for by reviewed scope \(no new relocation evidence or accounting\): inaccessible-or-missing at https:\/\/example\.com\/alpha\.zip/u,
   );
   assert.equal(both.invocation, entry.invocation);
   assert.equal(both.resume_condition, entry.resume_condition);
@@ -446,10 +449,9 @@ void test("accounted release-health conditions follow their recorded resume cond
     invocation: entry.invocation,
     resume_condition: entry.resume_condition,
   });
-  const relocation = handoffEntry("release-health-relocation")!;
-  assert.equal(
-    handoffGuidance(relocation, { conditions: [condition("k3", { provider: "github" })] }).action,
-    relocation.action,
+  assert.deepEqual(
+    handoffGuidance(handoffEntry("upstream-observer-exception")!, accounted.condition).action,
+    handoffEntry("upstream-observer-exception")!.action,
   );
   // The changes-only digest names the same action from the recorded condition.
   const digestEntry = (handoff_condition: unknown) => ({
@@ -476,4 +478,81 @@ void test("accounted release-health conditions follow their recorded resume cond
     digest(plain!.condition),
     /next action: Follow the monitor's recorded resume condition; account for/u,
   );
+});
+
+void test("accounted GitHub relocation conditions follow their reviewed resume condition, not new relocation evidence", () => {
+  const reviewed = (key: string, rule: string, overrides = {}) => ({
+    key,
+    material_sha256: "m",
+    classification:
+      "reviewed-endpoint-condition; availability-unknown; lineage-separately-recorded",
+    accounted_for: true,
+    port_id: "alpha",
+    operation: "observe-availability",
+    rule,
+    provider: "github",
+    location: `owner/${key}`,
+    release_ref: null,
+    http_status: rule === "provider-redirect" ? 301 : 404,
+    first_seen: "2026-11-01T00:00:00Z",
+    resume_condition: `Reconsider exact original-location evidence for ${key}.`,
+    ...overrides,
+  });
+  const handoffs = (conditions: unknown[]) =>
+    releaseHealthHandoffs(new Map([["port:alpha", { freshness: "fresh-complete", conditions }]]));
+  const entry = handoffEntry("release-health-relocation")!;
+  // All accounted: still a relocation handoff (nothing hidden or reclassified), no new evidence prescribed.
+  const all = handoffs([
+    reviewed("k1", "provider-redirect"),
+    reviewed("k2", "inaccessible-or-missing"),
+  ]);
+  assert.deepEqual(
+    all.map(({ kind }) => kind),
+    ["release-health-relocation"],
+  );
+  const guidance = handoffGuidance(entry, all[0]!.condition);
+  assert.doesNotMatch(guidance.action, /Read bounded relocation evidence/u);
+  assert.match(guidance.action, /no new relocation evidence or accounting is needed/u);
+  assert.doesNotMatch(guidance.invocation, /upstream-relocation-evidence\.yml/u);
+  assert.equal(
+    guidance.resume_condition,
+    "provider-redirect at owner/k1: Reconsider exact original-location evidence for k1.; inaccessible-or-missing at owner/k2: Reconsider exact original-location evidence for k2.",
+  );
+  const [open] = openHandoffs([
+    {
+      subject_key: handoffSubject("release-health-relocation", "port:alpha"),
+      sequence: 1,
+      updated_at: "2026-11-11T00:00:00Z",
+      explanation: { condition: all[0]!.condition },
+      operation: null,
+    },
+  ]);
+  const text = nextAction(open!);
+  assert.match(text, /Authority: owner-only\. Dispatch disabled: The evidence job runs only/u);
+  assert.match(text, /Resume: provider-redirect at owner\/k1: Reconsider/u);
+  // Mixed: the unaccounted redirect keeps the registry prescription; the reviewed one is named.
+  const [mixed] = handoffs([
+    reviewed("k1", "provider-redirect"),
+    reviewed("k3", "provider-redirect", {
+      accounted_for: false,
+      classification: "unclassified-or-actionable",
+      resume_condition: "Review the original location and redirect identity separately.",
+    }),
+  ]);
+  const both = handoffGuidance(entry, mixed!.condition);
+  assert.ok(both.action.startsWith(entry.action));
+  assert.match(
+    both.action,
+    /Already accounted for by reviewed scope \(no new relocation evidence or accounting\): provider-redirect at owner\/k1: Reconsider exact original-location evidence for k1\.$/u,
+  );
+  assert.doesNotMatch(both.action, /owner\/k3/u);
+  assert.equal(both.invocation, entry.invocation);
+  assert.equal(both.resume_condition, entry.resume_condition);
+  // None accounted: unchanged.
+  const [plain] = handoffs([reviewed("k4", "provider-redirect", { accounted_for: false })]);
+  assert.deepEqual(handoffGuidance(entry, plain!.condition), {
+    action: entry.action,
+    invocation: entry.invocation,
+    resume_condition: entry.resume_condition,
+  });
 });
