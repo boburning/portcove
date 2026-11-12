@@ -220,6 +220,17 @@ fn decode(port_id: &str, json: &str) -> Result<PortIntent> {
 }
 
 impl Library {
+    /// Whether this game has a lifecycle operation (an install, update or
+    /// data change) that hasn't finished or recovered yet. Such a game is left
+    /// to recovery; nothing new starts for it.
+    pub(crate) fn has_unfinished_lifecycle(&self, port_id: &str) -> Result<bool> {
+        Ok(self.connection()?.query_row(
+            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id=?1)",
+            [port_id],
+            |row| row.get(0),
+        )?)
+    }
+
     pub fn port_intents(&self) -> Result<Vec<PortIntent>> {
         let connection = self.connection()?;
         let mut statement =
@@ -533,6 +544,14 @@ impl PortcoveService {
             PortReadiness::Waiting {
                 reason: "this game is registered from another launcher; Portcove does not install over it".to_owned(),
             }
+        } else if self
+            .library
+            .has_unfinished_lifecycle(port_id)
+            .unwrap_or(true)
+        {
+            PortReadiness::Waiting {
+                reason: "earlier work for this game hasn't finished recovering; it must recover before setup can start".to_owned(),
+            }
         } else {
             match self.plan_game_install(port_id).await {
                 Ok(plan) => match self.install_plan_hold(&plan) {
@@ -718,17 +737,36 @@ impl PortcoveService {
             if running.is_empty() {
                 continue;
             }
+            // Work that recovery may still roll forward is never settled here:
+            // the batch stays in progress and nothing new starts for its games.
+            if running.iter().any(|port_id| {
+                self.library
+                    .has_unfinished_lifecycle(port_id)
+                    .unwrap_or(true)
+            }) {
+                continue;
+            }
             match self.reconcile_install_batch(&batch.id) {
                 Ok(record) => {
                     for item in record.items.iter().filter(|item| {
                         item.state == InstallBatchItemState::Interrupted
                             && running.contains(&item.port_id)
                     }) {
-                        self.remember_standing_failure(
-                            &item.port_id,
-                            &item.expected_plan_sha256,
-                            "setup was interrupted before it finished",
-                        );
+                        // Only standing consent spends attempts; a player's
+                        // own interrupted install doesn't.
+                        let standing = self
+                            .library
+                            .port_intent(&item.port_id)
+                            .ok()
+                            .flatten()
+                            .is_some_and(|intent| intent.mode == PortIntentMode::SetUpWhenReady);
+                        if standing {
+                            self.remember_standing_failure(
+                                &item.port_id,
+                                &item.expected_plan_sha256,
+                                "setup was interrupted before it finished",
+                            );
+                        }
                     }
                 }
                 Err(error) => {
@@ -1362,6 +1400,92 @@ mod tests {
             installed.id
         );
         assert!(service.unfinished_install_batches().unwrap().is_empty());
+    }
+
+    fn interrupted_batch(service: &PortcoveService, plan_sha256: &str) -> String {
+        let batch = service
+            .start_install_batch(
+                &[InstallBatchRequestItem {
+                    port_id: PORT.into(),
+                    expected_plan_sha256: plan_sha256.to_owned(),
+                }],
+                LibraryMembershipOrigin::Manual,
+            )
+            .unwrap();
+        service
+            .library()
+            .update_install_batch(&batch.id, |record| {
+                record.items[0].state = InstallBatchItemState::Running;
+            })
+            .unwrap();
+        batch.id
+    }
+
+    #[tokio::test]
+    async fn unfinished_install_work_is_left_to_recovery() {
+        let (_temporary, service) = ready_service().await;
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        let plan = service.plan_game_install(PORT).await.unwrap();
+        let batch_id = interrupted_batch(&service, &plan.plan_sha256);
+        // The crash left a publication journal that recovery may roll forward.
+        let now = Library::now();
+        service
+            .library()
+            .connection()
+            .unwrap()
+            .execute(
+                "INSERT INTO lifecycle_operations(id,kind,port_id,phase,created_at,updated_at)
+                 VALUES ('crashed-install','install',?1,'payload_published',?2,?2)",
+                params![PORT, now],
+            )
+            .unwrap();
+        for _ in 0..2 {
+            let result = service.run_standing_setup(|_| {}).await.unwrap();
+            assert!(result.batches.is_empty(), "{result:?}");
+            let PortReadiness::Waiting { reason } = &result.assessments[0].readiness else {
+                panic!("expected waiting: {result:?}");
+            };
+            assert!(reason.contains("recover"), "{reason}");
+        }
+        // The batch stays in progress, nothing is counted, nothing installs.
+        let held = service.install_batch(&batch_id).unwrap().unwrap();
+        assert_eq!(held.items[0].state, InstallBatchItemState::Running);
+        assert_eq!(
+            service
+                .library()
+                .port_intent(PORT)
+                .unwrap()
+                .unwrap()
+                .failed_attempts,
+            0
+        );
+        assert!(service.status(PORT).unwrap().active.is_none());
+    }
+
+    #[tokio::test]
+    async fn a_players_own_interrupted_install_spends_no_standing_attempts() {
+        let (_temporary, service) = ready_service().await;
+        service
+            .set_port_intent(PORT, PortIntentMode::Notify)
+            .unwrap();
+        let plan = service.plan_game_install(PORT).await.unwrap();
+        let batch_id = interrupted_batch(&service, &plan.plan_sha256);
+        service.recover_interrupted_setups();
+        assert_eq!(
+            service
+                .library()
+                .port_intent(PORT)
+                .unwrap()
+                .unwrap()
+                .failed_attempts,
+            0
+        );
+        assert_eq!(
+            service.install_batch(&batch_id).unwrap().unwrap().items[0].state,
+            InstallBatchItemState::Interrupted
+        );
     }
 
     #[tokio::test]
