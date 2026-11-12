@@ -77,6 +77,7 @@ pub fn inspect_package_archive(
             &captured,
             &payload,
             expected_size,
+            true,
             &|| Ok(()),
         )?;
     } else {
@@ -133,7 +134,11 @@ pub(crate) fn require_reviewed_layout(
     let Some(reviewed) = port.reviewed_package_layouts.get(&platform) else {
         return Ok(());
     };
-    let observed = observe(payload_root, platform)?;
+    let observed = if crate::runtime::native_mac_bundle_tar_xz(port, platform) {
+        observe_root(payload_root.to_path_buf(), platform)?
+    } else {
+        observe(payload_root, platform)?
+    };
     match compare(reviewed, &observed) {
         None => Ok(()),
         Some(drift) => Err(PortcoveError::unsupported(drift.player_reason())),
@@ -141,7 +146,29 @@ pub(crate) fn require_reviewed_layout(
 }
 
 pub(crate) fn observe(root: &Path, platform: Platform) -> Result<ReviewedPackageLayout> {
-    let root = look_through_wrapper(root)?;
+    observe_root(look_through_wrapper(root)?, platform)
+}
+
+pub(crate) fn native_mac_bundle_root(
+    root: &Path,
+    port: &PortDefinition,
+    platform: Platform,
+) -> Result<PathBuf> {
+    let bundle = port
+        .reviewed_package_layouts
+        .get(&platform)
+        .and_then(|layout| layout.directories.first())
+        .ok_or_else(|| PortcoveError::verification("native Mac bundle has no reviewed layout"))?;
+    if fs::read_dir(root)?
+        .any(|entry| entry.is_ok_and(|entry| lowercase_name(&entry.file_name()) == *bundle))
+    {
+        Ok(root.to_path_buf())
+    } else {
+        look_through_wrapper(root)
+    }
+}
+
+fn observe_root(root: PathBuf, platform: Platform) -> Result<ReviewedPackageLayout> {
     let mut directories = BTreeSet::new();
     for entry in fs::read_dir(&root)? {
         let entry = entry?;

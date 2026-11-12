@@ -272,7 +272,7 @@ fn game_update_plan_assessment(plan: &crate::InstallPlan) -> crate::PortActionAs
         Action::Download => match plan
             .source_requirements
             .iter()
-            .find(|input| !input.registered)
+            .find(|input| input.blocks_setup())
         {
             Some(input) => (
                 Availability::Waiting,
@@ -502,6 +502,26 @@ mod tests {
             game_update_plan_assessment(&review.plan).availability,
             crate::PortActionAvailability::Allowed
         );
+    }
+
+    #[tokio::test]
+    async fn an_optional_unregistered_game_source_does_not_hold_the_update_download() {
+        let (_temporary, service) = fixture();
+        let next = service_with_release(service.library.clone(), "v3");
+        let mut review = next.plan_game_update(PORT, false).await.unwrap();
+        assert_eq!(review.plan.action, crate::InstallPlanAction::Download);
+        // The required baseline holds the download.
+        assert_eq!(
+            review.assessment.reason,
+            crate::PortActionReason::MissingSource
+        );
+        review.plan.source_requirements[0].optional = true;
+        let assessment = game_update_plan_assessment(&review.plan);
+        assert_eq!(
+            assessment.availability,
+            crate::PortActionAvailability::Allowed
+        );
+        assert_eq!(assessment.reason, crate::PortActionReason::Available);
     }
 
     #[test]

@@ -166,6 +166,101 @@ it("keeps version-specific notices scoped and distinguishes settings support fro
   const { host, render } = await mount();
   await render(1);
   expect(host.textContent).toContain("Settings are supported");
-  expect(host.textContent).toContain("release v1");
+  expect(host.textContent).toContain(
+    `Scope: windows-x86-64 · Explicit existing-copy selection · release v1 · edition original · artifact ${"a".repeat(64)}.`,
+  );
+  expect(host.textContent).toContain("Launch · observed · Exact context required");
+  const scope = [...host.querySelectorAll("p")].find((item) =>
+    item.textContent?.startsWith("Scope:"),
+  );
+  expect([...(scope?.querySelectorAll("[dir=ltr]") ?? [])].map((item) => item.textContent)).toEqual(
+    ["windows-x86-64", "v1", "original", "a".repeat(64)],
+  );
+  expect(host.querySelector("a[href='https://example.com/fixture']")?.textContent).toBe("Source");
   expect(host.textContent).toContain("Later releases do not inherit a failure or a fix");
+});
+
+it("presents feature details, scope and backup state in the active locale", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    const value = report();
+    value.protection = { latest_completed_backup: null } as unknown as NonNullable<
+      PortCapabilityReport["protection"]
+    >;
+    value.advisories = [
+      {
+        applicability: "current-route",
+        notice: {
+          id: "exit-defect",
+          feature: "launch",
+          platform: "windows-x86-64",
+          route: "existing-copy",
+          release: "v1",
+          artifact_sha256: null,
+          edition: null,
+          explanation: "This exact fixture release fails on exit.",
+          provenance: "https://example.com/fixture",
+          observed_at: 1,
+          evidence: "observed",
+          workaround: null,
+        },
+      },
+    ];
+    value.advisory_state = "available";
+    vi.spyOn(desktopApi, "portCapabilities").mockResolvedValue(value);
+    const { host, render } = await mount();
+    await render(1);
+    expect(host.querySelector("section")?.getAttribute("aria-label")).toBe(
+      "ما يعمل والمشكلات المعروفة",
+    );
+    expect(host.querySelector("h4")?.textContent).toBe("اختيار صريح لنسخة موجودة");
+    expect(host.querySelector("dt")?.textContent).toBe("الإعداد");
+    expect(host.textContent).toContain("يدوي · لم يختبره هذا التقرير");
+    expect(host.textContent).toContain("التشغيل · observed · ينطبق على هذا المسار");
+    expect(host.textContent).toContain(
+      "النطاق: windows-x86-64 · اختيار صريح لنسخة موجودة · الإصدار v1.",
+    );
+    expect(host.textContent).toContain("آخر نسخة احتياطية مكتملة: لا توجد نسخة مسجّلة.");
+    expect(host.textContent).toContain("Select its executable.");
+    expect(host.querySelector("a[href='https://example.com/fixture']")?.textContent).toBe("المصدر");
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
+
+it("labels backup, historical scope and unknown features while keeping ids visible", async () => {
+  const value = report();
+  value.protection = { latest_completed_backup: {} } as unknown as NonNullable<
+    PortCapabilityReport["protection"]
+  >;
+  value.advisories = [
+    {
+      applicability: "historical",
+      notice: {
+        id: "future",
+        feature: "future-feature" as "launch",
+        platform: "linux-x86-64",
+        route: "managed",
+        release: null,
+        artifact_sha256: null,
+        edition: null,
+        explanation: "Recorded on another build.",
+        provenance: "https://example.com/history",
+        observed_at: 1,
+        evidence: "reported",
+        workaround: null,
+      },
+    },
+  ];
+  value.advisory_state = "available";
+  vi.spyOn(desktopApi, "portCapabilities").mockResolvedValue(value);
+  const { host, render } = await mount();
+  await render(1);
+  expect(host.textContent).toContain(
+    "Latest completed backup: Recorded; restore verifies the selected snapshot. Review Saves & backups for effective coverage and exclusions.",
+  );
+  expect(host.textContent).toContain("future-feature · reported · Historical / different scope");
+  expect(host.textContent).toContain("Scope: linux-x86-64 · Managed setup.");
 });

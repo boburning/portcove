@@ -255,6 +255,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         runtime_source_materialization,
         runtime_source_hashes,
         runtime_disc_image,
+        optional_game_source,
         runtime_source_set,
         launch_disc_choice,
         launch_from_install_root,
@@ -323,6 +324,9 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
     // A launch disc choice changes what launch writes, so it joins when declared.
     if let Some(choice) = launch_disc_choice {
         compatibility["launch_disc_choice"] = serde_json::json!(choice);
+    }
+    if *optional_game_source {
+        compatibility["optional_game_source"] = serde_json::json!(true);
     }
     compatibility
 }

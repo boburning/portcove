@@ -2044,6 +2044,13 @@ export interface PortDefinition {
    */
   n64_windows_initial_d3d12?: boolean;
   name: string;
+  /**
+   * A disc-image source that is offered but not required: with none registered the
+   * game is not blocked and the runtime and its persistent files are left as they are;
+   * when one is registered it is unpacked as for a required source. Only valid with a
+   * disc-image materialization.
+   */
+  optional_game_source?: boolean;
   persistent_file_patterns: PersistentFilePattern[];
   persistent_paths: string[];
   platforms: Platform[];
@@ -3552,6 +3559,11 @@ export interface ManagedSharedPreferencesReview {
 }
 export interface InstallSourceRequirement {
   label: string;
+  /**
+   * The definition offers this source but does not require it; an unregistered
+   * optional source never blocks installing, updating or launching.
+   */
+  optional?: boolean;
   profile_id: string;
   registered: boolean;
   role: SourceRequirementRole;
@@ -4319,6 +4331,11 @@ export interface OutputManagedRouteChangeResult {
  */
 export interface OutputModSetupsView {
   /**
+   * Unattended provider updates waiting for the player's review, for each
+   * setup's current revision.
+   */
+  held_updates: HeldModUpdate[];
+  /**
    * None until the installed game has its default setup.
    */
   inventory: ProfileInventory | null;
@@ -4339,6 +4356,21 @@ export interface OutputModSetupsView {
    * offered then.
    */
   supported: boolean;
+  [k: string]: unknown;
+}
+/**
+ * An unattended update the player has to review, remembered for a setup's
+ * current revision.
+ */
+export interface HeldModUpdate {
+  candidate_file_id: string;
+  /**
+   * The setup's mods from the installed provider file.
+   */
+  native_ids: string[];
+  profile_id: string;
+  project_id: string;
+  reason: string;
   [k: string]: unknown;
 }
 export interface ProfileInventory {

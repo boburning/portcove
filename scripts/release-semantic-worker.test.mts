@@ -1,4 +1,5 @@
 import { capacityDigest } from "./release-capacity.mts";
+import { verifyRetainedApplicationCapacityStop } from "./release-semantic-runtime.mts";
 import { createCatalogReviewRequest } from "./release-catalog-review-request.mts";
 import { reviewFrozenCatalogCoordinatorRequest } from "./release-semantic-request-pipeline.mts";
 import assert from "node:assert/strict";
@@ -558,9 +559,21 @@ void test("worker setup excludes supplied outcomes/backends and separates the fi
       .application_partition,
     providerContinuation,
   );
+  const capacity = {
+    ...providerContinuation,
+    capacity_prefix_sha256: "2".repeat(64),
+    capacity_stop_sha256: "3".repeat(64),
+  };
+  assert.deepEqual(
+    inspectSemanticWorkerConfiguration({ ...raw, application_partition: capacity })
+      .application_partition,
+    capacity,
+  );
   for (const invalid of [
     null,
     { ...partition, request_id: "latest" },
+    { ...capacity, capacity_stop_sha256: "invalid" },
+    { ...next, capacity_stop_sha256: capacity.capacity_stop_sha256 },
     { ...partition, max_lanes: 513 },
     { ...partition, wall_seconds: 259201 },
     { ...partition, continuation_stop_sha256: "c".repeat(64) },
@@ -948,4 +961,49 @@ void test("actual proposal pipeline freezes real Git inputs then refuses an unqu
     /request superseded/,
   );
   assert.equal(reads, 0);
+});
+
+void test("capacity continuation excludes an invocation with payload evidence", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "semantic-capacity-stop-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const requestId = "d".repeat(64);
+  const parent = path.join(directory, `request-${requestId}`);
+  const attempt = path.join(parent, "technical-3");
+  const invocation = { schema_version: 1, id: "c0000000-0000-4000-8000-000000000000" };
+  const root = path.join(attempt, "r-fixture");
+  const capture = path.join(root, "capture");
+  for (const name of [parent, attempt, root, capture, path.join(root, "inputs")])
+    await mkdir(name, { mode: 0o700 });
+  const request = JSON.stringify({
+    schema_version: 1,
+    mode: "codex",
+    run_root: root,
+    shared_runtime: true,
+  });
+  const terminal = JSON.stringify({
+    phase: "stopped-retain-state-no-retry",
+    request_id: requestId,
+    evidence: {
+      category: "Error",
+      message: "Resource queue observation deadline reached; no payload started",
+    },
+  });
+  const digest = (input: string) => createHash("sha256").update(input).digest("hex");
+  await writeFile(path.join(capture, "invocation.json"), JSON.stringify(invocation));
+  await writeFile(path.join(root, ".portcove-semantic-review-owned"), invocation.id);
+  await writeFile(path.join(capture, "linux-request.json"), request);
+  await writeFile(path.join(attempt, "worker-attempt.jsonl"), terminal + "\n");
+  const locator = { root, invocation_sha256: capacityDigest(invocation) };
+  const evidence = { log_sha256: digest(terminal + "\n"), request_sha256: digest(request) };
+  await verifyRetainedApplicationCapacityStop(attempt, requestId, locator, evidence);
+  await assert.rejects(
+    verifyRetainedApplicationCapacityStop(attempt, requestId, locator, {
+      ...evidence,
+      request_sha256: "0".repeat(64),
+    }),
+  );
+  await writeFile(path.join(capture, "stdout.jsonl"), "");
+  await assert.rejects(
+    verifyRetainedApplicationCapacityStop(attempt, requestId, locator, evidence),
+  );
 });

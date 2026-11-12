@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 import { inspectCatalogReviewRequest } from "./release-catalog-review-request.mts";
 import { prepareNegativeCatalogSemanticDispositionCheck } from "./release-semantic-disposition.mts";
@@ -9,6 +10,7 @@ import {
   writeFile,
   copyFile,
   readFile,
+  readdir,
   chmod,
   lstat,
   realpath,
@@ -845,6 +847,7 @@ export interface LinuxSemanticRuntimeConfiguration extends CommonRuntimeConfigur
     deadline: number;
     resume_prefix?: RetainedProposalSegment;
     resume_suffix?: RetainedProposalSegment;
+    resume_capacity?: RetainedProposalSegment;
   };
 }
 export type SemanticRuntimeConfiguration =
@@ -1510,6 +1513,60 @@ async function requirePrivateRetainedDirectory(directory: string, mode = 0o700) 
     throw new Error("retained proposal directory custody differs");
 }
 
+export async function verifyRetainedApplicationCapacityStop(
+  attempt: string,
+  requestId: string,
+  failed: { root: string; invocation_sha256: string },
+  expected: { log_sha256: string; request_sha256: string },
+) {
+  assert.equal(path.basename(attempt), "technical-3");
+  assert.equal(path.basename(path.dirname(attempt)), `request-${requestId}`);
+  assert.match(requestId, /^[a-f0-9]{64}$/u);
+  assert.equal(path.dirname(failed.root), attempt);
+  assert.match(path.basename(failed.root), /^r-[A-Za-z0-9_-]+$/u);
+  const capture = path.join(failed.root, "capture");
+  for (const directory of [attempt, failed.root, capture])
+    await requirePrivateRetainedDirectory(directory);
+  assert.deepEqual((await readdir(failed.root)).sort(), [
+    ".portcove-semantic-review-owned",
+    "capture",
+    "inputs",
+  ]);
+  assert.deepEqual((await readdir(capture)).sort(), ["invocation.json", "linux-request.json"]);
+  const [invocation, request, log, marker] = await Promise.all([
+    readBoundedPublicBuildInputFile(capture, "invocation.json", 128 * 1024),
+    readBoundedPublicBuildInputFile(capture, "linux-request.json", 1024 * 1024),
+    readBoundedPublicBuildInputFile(attempt, "worker-attempt.jsonl", 1024 * 1024),
+    readBoundedPublicBuildInputFile(failed.root, ".portcove-semantic-review-owned", 128),
+  ]);
+  const identity: unknown = JSON.parse(invocation.toString("utf8"));
+  const payload: unknown = JSON.parse(request.toString("utf8"));
+  assert.ok(isRecord(identity) && identity.schema_version === 1 && typeof identity.id === "string");
+  assert.match(identity.id, /^[a-f0-9-]{36}$/u);
+  assert.equal(marker.toString("utf8"), identity.id);
+  assert.equal(capacityDigest(identity), failed.invocation_sha256);
+  assert.ok(
+    isRecord(payload) &&
+      payload.schema_version === 1 &&
+      payload.mode === "codex" &&
+      payload.run_root === failed.root &&
+      payload.shared_runtime === true,
+  );
+  assert.equal(sha(request), expected.request_sha256);
+  assert.equal(sha(log), expected.log_sha256);
+  const terminal: unknown = JSON.parse(log.toString("utf8").trimEnd().split("\n").at(-1)!);
+  assert.ok(
+    isRecord(terminal) &&
+      terminal.phase === "stopped-retain-state-no-retry" &&
+      terminal.request_id === requestId &&
+      isRecord(terminal.evidence) &&
+      terminal.evidence.category === "Error" &&
+      terminal.evidence.message ===
+        "Resource queue observation deadline reached; no payload started",
+    "retained semantic queue stop differs",
+  );
+}
+
 async function readRetainedProposalSegment(
   retained: RetainedProposalSegment,
   requestId: string,
@@ -1520,19 +1577,22 @@ async function readRetainedProposalSegment(
   const suffix = start > 0;
   const attempt = path.basename(outputParent);
   const providerContinuation = suffix && attempt === "technical-3";
+  const capacityContinuation = suffix && attempt === "technical-4";
   const bridge = !suffix && (attempt === "technical-2" || attempt === "technical-3");
   if (
     path.basename(path.dirname(outputParent)) !== `request-${requestId}` ||
     retained.previous_attempt !==
       path.join(
         path.dirname(outputParent),
-        providerContinuation
-          ? "technical-2"
-          : suffix
-            ? "technical-4"
-            : bridge
-              ? "technical-1"
-              : "technical-3",
+        capacityContinuation
+          ? "technical-3"
+          : providerContinuation
+            ? "technical-2"
+            : suffix
+              ? "technical-4"
+              : bridge
+                ? "technical-1"
+                : "technical-3",
       )
   )
     throw new Error("retained proposal prefix is outside the appointed attempt");
@@ -1562,11 +1622,13 @@ async function readRetainedProposalSegment(
   if (
     !isRecord(manifest) ||
     Object.keys(manifest).sort().join(",") !==
-      (suffix && !providerContinuation
-        ? "lanes,refusal_sha256,refused_events_sha256,request_id,schema_version,stop_sha256"
-        : bridge || providerContinuation
-          ? "bridge_failure_sha256,lanes,refusal_sha256,request_id,schema_version,stop_sha256"
-          : "lanes,refusal_sha256,request_id,schema_version,stop_sha256") ||
+      (capacityContinuation
+        ? "lanes,queue_log_sha256,request_id,schema_version,stop_sha256,unstarted_request_sha256"
+        : suffix && !providerContinuation
+          ? "lanes,refusal_sha256,refused_events_sha256,request_id,schema_version,stop_sha256"
+          : bridge || providerContinuation
+            ? "bridge_failure_sha256,lanes,refusal_sha256,request_id,schema_version,stop_sha256"
+            : "lanes,refusal_sha256,request_id,schema_version,stop_sha256") ||
     manifest.schema_version !== 1 ||
     manifest.request_id !== requestId ||
     manifest.stop_sha256 !== retained.stop_sha256 ||
@@ -1613,6 +1675,25 @@ async function readRetainedProposalSegment(
   )
     throw new Error("retained proposal prefix includes the failed invocation");
   await requirePrivateRetainedDirectory(failed.root);
+  if (capacityContinuation) {
+    assert.equal(typeof failed.invocation_sha256, "string");
+    assert.equal(typeof manifest.queue_log_sha256, "string");
+    assert.equal(typeof manifest.unstarted_request_sha256, "string");
+    await verifyRetainedApplicationCapacityStop(
+      retained.previous_attempt,
+      requestId,
+      { root: failed.root, invocation_sha256: failed.invocation_sha256 as string },
+      {
+        log_sha256: manifest.queue_log_sha256 as string,
+        request_sha256: manifest.unstarted_request_sha256 as string,
+      },
+    );
+    return (manifest.lanes as RetainedProposalLane[]).map((row) => ({
+      row,
+      attempt: retained.previous_attempt,
+      ordinal: true,
+    }));
+  }
   const refusedBytes = await readBoundedPublicBuildInputFile(
     failed.root,
     "capture/isolation.json",
@@ -1697,7 +1778,31 @@ async function readRetainedProposalPrefix(
   scope: NonNullable<LinuxSemanticRuntimeConfiguration["application_partition"]>,
   outputParent: string,
   plan: PartitionPlan,
-) {
+): Promise<{ row: RetainedProposalLane; attempt: string; ordinal: boolean }[]> {
+  if (scope.resume_capacity) {
+    if (
+      path.basename(outputParent) !== "technical-4" ||
+      !scope.resume_prefix ||
+      !scope.resume_suffix
+    )
+      throw new Error("capacity continuation needs both prior proposal segments");
+    const { resume_capacity: capacity, ...earlier } = scope;
+    const prior = await readRetainedProposalPrefix(
+      earlier,
+      path.join(path.dirname(outputParent), "technical-3"),
+      plan,
+    );
+    return [
+      ...prior,
+      ...(await readRetainedProposalSegment(
+        capacity,
+        scope.request.request_id,
+        outputParent,
+        plan,
+        prior.length,
+      )),
+    ];
+  }
   if (!scope.resume_prefix && !scope.resume_suffix) return [];
   if (
     !scope.resume_prefix ||

@@ -1238,6 +1238,47 @@ void test("multibyte evidence fits without duplicating proposal text in the rece
   assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
   assert.equal(f.creations, 3);
 });
+
+void test("29 candidates fit one receipt and retain every scoped doctor and the full-doctor obligation", async () => {
+  const candidates = Array.from({ length: 29 }, (_, index) => ({
+    ...candidate,
+    title: `Capacity test game ${index}`,
+    game: `Capacity test game ${index}`,
+    upstream: `${candidate.upstream}-${index}`,
+    port_key: `discovery-receipt-capacity-test-game-implementation-${index}`,
+    repository_id: candidate.repository_id + index,
+  }));
+  const f = await fixture(candidates);
+  const inventory = f.bridge.inventory.bind(f.bridge);
+  f.bridge.inventory = (cache, full) => {
+    if (full) throw new Error(`Fixture full doctor input unavailable: ${"界".repeat(1500)}`);
+    return inventory(cache, full);
+  };
+  await assert.rejects(
+    f.bridge.process(f.request, f.all()),
+    /Fixture full doctor input unavailable/u,
+  );
+  assert.equal(f.creations, 29);
+  const status = await f.bridge.status(f.request, f.all());
+  assert.equal(status.status, "blocked");
+  assert.equal(status.delivered, 29);
+  assert.equal(status.pending, 0);
+  assert.equal(status.full_doctor_required, true);
+  assert.equal(status.doctor, null);
+  const diagnostic = status.last_error?.message;
+  assert(typeof diagnostic === "string");
+  assert.match(diagnostic, /^Fixture full doctor input unavailable: /u);
+  assert.match(diagnostic, /\[truncated\]$/u);
+  const comment = f.all().find((c) => c.id === status.receipt_comment)!;
+  const receipt = JSON.parse(comment.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) as {
+    delivery: { status: string; doctor?: { status: string } }[];
+  };
+  assert.equal(receipt.delivery.length, 29);
+  assert.ok(
+    receipt.delivery.every((row) => row.status === "delivered" && row.doctor?.status === "passed"),
+  );
+});
+
 void test("denied hosted Project write access prevents issue creation", async () => {
   const f = await fixture();
   f.deny();
@@ -1358,7 +1399,7 @@ void test("nineteen-candidate reconciliation reserves growth once and still requ
 });
 void test("an oversized logical batch refuses before publishing a receipt or creating issues", async () => {
   const f = await fixture(
-    Array.from({ length: 25 }, (_, i) => ({
+    Array.from({ length: 70 }, (_, i) => ({
       ...candidate,
       title: `Large game ${i}`,
       game: `Large game ${i}`,

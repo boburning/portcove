@@ -153,7 +153,7 @@ impl PortcoveService {
                 .plan
                 .source_requirements
                 .iter()
-                .any(|source| !source.registered)
+                .any(|source| source.blocks_setup())
         {
             return Err(PortcoveError::conflict(
                 "register and review the required original files before reviewing installation",

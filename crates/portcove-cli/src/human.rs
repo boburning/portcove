@@ -2119,11 +2119,16 @@ pub(crate) fn plan(plan: &InstallPlan, catalog: &portcove_core::Catalog) -> Stri
                     clean(&requirement.label),
                     clean(&requirement.profile_id),
                     match requirement.role {
+                        SourceRequirementRole::GameSource if requirement.optional => {
+                            "optional game files"
+                        }
                         SourceRequirementRole::GameSource => "required game files",
                         SourceRequirementRole::Bios => "BIOS",
                     },
                     if requirement.registered {
                         "registered"
+                    } else if requirement.optional {
+                        "not chosen"
                     } else {
                         "needed"
                     },

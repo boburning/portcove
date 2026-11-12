@@ -4446,6 +4446,42 @@ mod tests {
     }
 
     #[test]
+    fn native_mac_bundle_tar_xz_selects_reflectionhle_for_all_siblings() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let ports: Vec<_> = catalog
+            .ports()
+            .iter()
+            .filter(|port| port.release.repository == "ReflectionHLE/ReflectionHLE")
+            .collect();
+        assert_eq!(ports.len(), 9);
+        let asset = |name: &str| GithubAsset {
+            id: None,
+            name: name.into(),
+            browser_download_url: format!("https://example.invalid/{name}"),
+            size: 1,
+            digest: None,
+        };
+        let excluded = [
+            asset("reflectionhle-macos-universal2-next.zip"),
+            asset("reflectionhle-macos-arm64-next.tar.xz"),
+            asset("reflectionhle-linux-x86_64-next.tar.xz"),
+        ];
+        for port in ports {
+            for platform in [Platform::MacosX86_64, Platform::MacosAarch64] {
+                assert!(choose_asset(port, platform, &excluded).is_err());
+                for package in [
+                    "reflectionhle-macos-universal2-20260606.tar.xz",
+                    "reflectionhle-macos-universal2-next.tar.xz",
+                ] {
+                    let mut assets = excluded.to_vec();
+                    assets.push(asset(package));
+                    assert_eq!(choose_asset(port, platform, &assets).unwrap().name, package);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn generated_cache_mac_tar_xz_refuses_a_successor_without_the_declared_package() {
         let catalog = crate::Catalog::embedded().unwrap();
         let port = catalog.port("perfect-dark").unwrap();

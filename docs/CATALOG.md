@@ -305,6 +305,14 @@ and a required Linux TAR.XZ asset hint. That route accepts only matching TAR.XZ
 players and uses the same bounded reader as downloaded setup. Independent
 definitions require NativePortable capability 8 for this declaration.
 
+NativePortable capability 26 adds checked Mac TAR.XZ app bundles through
+`release.tar_xz_platforms`. Each declared Mac route needs its own mandatory
+GitHub archive hints, a single exact `.app/Contents/MacOS/` executable and a
+reviewed package layout. Core accepts the bundle directly or in one outer
+wrapper, refuses archive links, and checks the selected Mach-O architecture.
+Launch and declared player data use the installed folder beside the app.
+Windows and Linux routes keep their creating working-directory contracts.
+
 Native portable capability 10 supports official sibling packages on an
 original-bound Native6 definition with `windows_temp_directory`. Every platform
 keeps the same verified original-file mapping and private profile namespace.
@@ -868,6 +876,45 @@ entries); it is accepted but not interpreted, so alternate names are ignored and
 symbolic links are not followed. The 16 GiB image bound applies to an explicitly
 added source; source discovery and batch import still stop at 2 GiB. A definition using these values must also gate older engines with a
 staged-source capability, as other new materializations do; none ships yet.
+
+### Optional game source
+
+A disc-image port may declare `optional_game_source: true`. The source is then offered
+but not required, so a player can use the manual routes (for example `AC6.iso` beside
+the executable, or hand-extracted files in the runtime folder) without choosing a disc
+image. It is valid only on a `staged-source-portable` port that declares a
+`source_profile` and `runtime_disc_image`; any other port is refused. Its effects:
+
+- An unregistered source never blocks. The install plan lists the requirement with
+  `optional: true` (omitted when false, so every other plan is unchanged), and install
+  review, update review and launch readiness ignore it: no `MissingSource` blocker, and
+  the update action stays allowed.
+- Nothing is unpacked or removed while no source is registered; the runtime and its
+  persistent files stay exactly as they are.
+- A registered source is unpacked as for a required source: it is verified, replaces the
+  destination folder transactionally and discards what was added to it by hand.
+- A registered source whose file has since gone (for example the image was deleted after
+  unpacking) is treated as absent: Play is not blocked and the unpacked folder stays. Only
+  "not found" counts as gone; a permission error or an unreachable location does not.
+- A registered source that later changed or became unreadable still holds Play until the
+  player registers it again or removes the registration. This is deliberate and fail-safe:
+  nothing is unpacked, replaced or removed in the meantime.
+- Choosing a valid optional source is what makes Portcove unpack at the next launch, and
+  that replaces the destination folder, which is the first time Portcove can replace a
+  hand-extracted setup. Registering the source shows no separate confirmation of that, and
+  install and update review (where `preservation_notices` appear) are not the moment it
+  happens, so the definition's player copy must say plainly that unpacking replaces the
+  folder.
+- The install, setup and update paths follow the same rule: an optional source that was
+  never registered, or whose file has gone, is simply not used; it neither fails setup nor
+  holds the Install or Update action.
+- Every other port is unchanged: a required source still blocks while unregistered or
+  missing, and the requirement serializes as before.
+
+An indexed definition that declares `optional_game_source` must require
+`staged-source-portable` capability version 31 ([definition
+delivery](DEFINITION-DELIVERY.md)); the flag is part of the installed compatibility
+identity only when set.
 
 ## Default covers
 

@@ -338,6 +338,56 @@ fn generated_cache_mac_tar_xz_requires_version_3_for_fresh_and_retained_reads() 
 }
 
 #[test]
+fn native_mac_bundle_tar_xz_requires_version_26_and_reviewed_bundle() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("wolfenstein-3d-reflectionhle").unwrap();
+    let mut entry = entry_for_port(port);
+    for minimum in [25, 26] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        entry["required_capabilities"][0]["maximum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ] {
+            if minimum == 26 {
+                assert!(result.unwrap().capabilities().compatible);
+            } else {
+                assert!(
+                    result
+                        .unwrap_err()
+                        .message
+                        .contains("capability version 26")
+                );
+            }
+        }
+    }
+    for (field, replacement) in [
+        (
+            ["release", "tar_xz_platforms"].as_slice(),
+            json!(["windows-x86-64"]),
+        ),
+        (
+            &["release", "asset_hints", "macos-aarch64"],
+            json!([".zip"]),
+        ),
+        (
+            &["executable_hints", "macos-aarch64"],
+            json!(["reflectionhle"]),
+        ),
+        (&["reviewed_package_layouts"], json!({})),
+    ] {
+        let mut invalid = entry.clone();
+        let mut target = &mut invalid["port"];
+        for segment in field {
+            target = &mut target[*segment];
+        }
+        *target = replacement;
+        assert!(inspect(&invalid).is_err(), "{field:?}");
+    }
+}
+
+#[test]
 fn generated_cache_mac_tar_xz_refuses_conflicting_or_unchecked_routes() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("perfect-dark").unwrap();
@@ -802,8 +852,8 @@ fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old
         entry["required_capabilities"][0]["minimum_version"] = json!(26);
         entry["required_capabilities"][0]["maximum_version"] = json!(26);
         assert!(inspect(&entry).unwrap().capabilities().compatible);
-        entry["required_capabilities"][0]["minimum_version"] = json!(31);
-        entry["required_capabilities"][0]["maximum_version"] = json!(31);
+        entry["required_capabilities"][0]["minimum_version"] = json!(32);
+        entry["required_capabilities"][0]["maximum_version"] = json!(32);
         assert!(!inspect(&entry).unwrap().capabilities().compatible);
         let old = packet["rows"]
             .as_array()
@@ -1179,6 +1229,24 @@ fn disc_image_unpacking_entries_require_staged_source_version_30() {
 }
 
 #[test]
+fn an_optional_game_source_requires_staged_source_version_31() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut entry = entry_for_port(catalog.port("nocturne-recomp").unwrap());
+    entry["port"]["optional_game_source"] = json!(true);
+    for version in [15, 30] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(version);
+        entry["required_capabilities"][0]["maximum_version"] = json!(version);
+        assert!(
+            inspect(&entry).unwrap_err().message.contains("version 31"),
+            "v{version}"
+        );
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(31);
+    entry["required_capabilities"][0]["maximum_version"] = json!(31);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+}
+
+#[test]
 fn managed_shared_preferences_require_a_window_excluding_older_readers() {
     let catalog = crate::test_fixture::historical_managed_policy_catalog();
     let mut entry = entry_for_port(catalog.port("resident-evil-gaiden-recomp").unwrap());
@@ -1243,10 +1311,19 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if port.linux_portable_data_directory.is_some() {
+        let version = if port.optional_game_source {
+            // An optional game source needs staged-source capability version 31. Keep this
+            // branch first: a later capability chain that matched earlier would silently
+            // skip the requirement.
+            31
+        } else if port.linux_portable_data_directory.is_some() {
             crate::native_portable_data::NATIVE_CAPABILITY
         } else if !port.release.tar_xz_platforms.is_empty() {
-            3
+            if port.adapter == crate::AdapterKind::NativePortable {
+                crate::runtime::NATIVE_MAC_BUNDLE_TAR_XZ_CAPABILITY
+            } else {
+                crate::runtime::GENERATED_CACHE_TAR_XZ_CAPABILITY
+            }
         } else if port.release.grant_declared_executable {
             crate::test_fixture::grant_declared_executable_capability(port)
         } else if port.portable_marker_file.is_some() {

@@ -255,7 +255,8 @@ pub(crate) fn require_pristine_adoption(
         return Ok(());
     }
     require_pristine_package(port, payload, selected)?;
-    let working = crate::adapter::launch_working_directory(port.adapter, port, payload, selected)?;
+    let working =
+        crate::adapter::launch_working_directory(port, payload, selected, Platform::current()?)?;
     require_absent_player_data(port, &working)
 }
 
@@ -267,13 +268,14 @@ pub(crate) fn require_pristine_package(
     if !native(port) {
         return Ok(());
     }
-    let qualification = crate::InstallQualification::from_port(port, Platform::current()?)?;
+    let platform = Platform::current()?;
+    let qualification = crate::InstallQualification::from_port(port, platform)?;
     if crate::install::resolve_declared_executable(payload, &qualification)? != selected {
         return Err(PortcoveError::verification(
             "native package executable selection changed",
         ));
     }
-    let working = crate::adapter::launch_working_directory(port.adapter, port, payload, selected)?;
+    let working = crate::adapter::launch_working_directory(port, payload, selected, platform)?;
     require_vacant_outputs(
         port,
         payload,
@@ -549,7 +551,7 @@ pub(crate) fn materialize(
             crate::InstallQualification::from_catalog(catalog, &port.id, inputs.host)?;
         let selected = crate::install::resolve_declared_executable(payload, &qualification)?;
         let expected =
-            crate::adapter::launch_working_directory(port.adapter, port, payload, &selected)?;
+            crate::adapter::launch_working_directory(port, payload, &selected, inputs.host)?;
         if working != expected {
             return Err(PortcoveError::verification(
                 "native originals differ from the selected executable coordinates",

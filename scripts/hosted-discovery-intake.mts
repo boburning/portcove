@@ -510,7 +510,28 @@ function candidateSlots(proposal: Proposal, delivery: readonly Delivery[]): Host
     };
   });
 }
-function receiptBody(r: Receipt) {
+const receiptByteLimit = 60_000;
+const projectItemIdJsonLimit = 256;
+const maxProviderId = Number.MAX_SAFE_INTEGER;
+const capacityHash = "a".repeat(64);
+const largestPrimary = {
+  repository_id: maxProviderId,
+  readme_commit: "a".repeat(40),
+  readme_blob: "a".repeat(40),
+  release_fingerprint: capacityHash,
+};
+
+function receiptProjectItemId(id: unknown) {
+  if (
+    typeof id !== "string" ||
+    !id ||
+    Buffer.byteLength(JSON.stringify(id)) > projectItemIdJsonLimit
+  )
+    throw new Error("Verified Project item ID is unavailable or exceeds the receipt bound");
+  return id;
+}
+
+function encodeReceipt(r: Receipt) {
   // Exact bodies are reconstructed from the hash-bound owner proposal. Do not
   // repeat its evidence in both candidate and rendered-body copies on the wire.
   const wire = {
@@ -522,11 +543,85 @@ function receiptBody(r: Receipt) {
       port_key: candidate.port_key,
     })),
   };
-  const body = `${receiptMarker(r.request_comment)}\nHosted intake **${r.status}**.\n\n\`\`\`json\n${JSON.stringify(wire, null, 2)}\n\`\`\``;
+  return `${receiptMarker(r.request_comment)}\nHosted intake **${r.status}**.\n\n\`\`\`json\n${JSON.stringify(wire, null, 2)}\n\`\`\``;
+}
+
+function receiptBody(r: Receipt) {
+  const body = encodeReceipt(r);
   validateGitHubBody(body);
-  if (Buffer.byteLength(body) > 60000)
+  if (Buffer.byteLength(body) > receiptByteLimit)
     throw new Error("Hosted receipt exceeds its bounded comment envelope");
   return body;
+}
+
+function receiptDiagnostic(error: unknown) {
+  const diagnostic = sanitizeOperationError(error);
+  if (Buffer.byteLength(JSON.stringify(diagnostic)) <= 3072) return diagnostic;
+  // Even the longest JSON escape uses six bytes per retained character.
+  return {
+    ...diagnostic,
+    message: `${Array.from(diagnostic.message).slice(0, 480).join("")} [truncated]`,
+  };
+}
+
+function assertReceiptCapacity(receipt: Receipt) {
+  const largestDelivery: Delivery = {
+    status: "create-attempted",
+    created_issue: maxProviderId,
+    item_id: "a".repeat(projectItemIdJsonLimit - 2),
+    existing: false,
+    canonical_issue: maxProviderId,
+    created_comment: maxProviderId,
+    observation_sha256: capacityHash,
+    fields: portFieldInitialization(null),
+    doctor: {
+      status: "passed",
+      coverage: "complete",
+      global_health: "not_evaluated",
+      issues: [maxProviderId],
+      checked_issue_count: maxProviderId,
+      receipt_sha256: capacityHash,
+    },
+  };
+  // Size the serialized shape, including indentation and retained holds. A
+  // previously unbound hold can later add a primary binding.
+  const capacity = encodeReceipt({
+    ...receipt,
+    plan: receipt.plan.map((slot) =>
+      slot.primary
+        ? slot
+        : {
+            ...slot,
+            primary: largestPrimary,
+            evidence_sha256: capacityHash,
+          },
+    ),
+    delivery: receipt.delivery.map(({ hold, ...delivery }, index) => {
+      const candidate = receipt.plan[index]!.candidate;
+      const held = {
+        ...delivery,
+        hold: hold ?? candidateHold(candidate),
+      };
+      const complete = { ...delivery, ...largestDelivery };
+      const bytes = (value: Delivery) =>
+        Buffer.byteLength(JSON.stringify(value, null, 2).replaceAll("\n", "\n    "));
+      return canHold(delivery) && bytes(held) > bytes(complete) ? held : complete;
+    }),
+  });
+  // Leave room for the run metadata, terminal diagnostic and full doctor.
+  if (Buffer.byteLength(capacity) + 4096 > receiptByteLimit)
+    throw new Error("Logical batch cannot retain complete delivery receipts");
+}
+
+function candidateHold(candidate: Candidate): CandidateHold {
+  return {
+    port_key: candidate.port_key,
+    repository_id: candidate.repository_id,
+    upstream: candidate.upstream,
+    http_status: 404,
+    observed_at: new Date().toISOString(),
+    resume: holdResume,
+  };
 }
 export type HostedRoadmapOperations = RoadmapInventoryClient &
   Pick<
@@ -766,6 +861,12 @@ export class HostedIntakeBridge {
       readme_blob: primary.readme.blob,
       release_fingerprint: primary.fingerprint,
     };
+    if (
+      typeof identity.readme_blob !== "string" ||
+      Buffer.byteLength(JSON.stringify(identity)) >
+        Buffer.byteLength(JSON.stringify(largestPrimary))
+    )
+      throw new Error("Primary binding exceeds the receipt bound");
     const body = hostedBody(c, request);
     validateDiscoveryIntakeBody(body, c.upstream, c.port_key);
     this.save(`primary-${request}-${c.port_key}`, primary);
@@ -1165,14 +1266,7 @@ export class HostedIntakeBridge {
           continue;
         }
         if (!canHold(d)) throw error;
-        d.hold = {
-          port_key: candidate.port_key,
-          repository_id: candidate.repository_id,
-          upstream: candidate.upstream,
-          http_status: 404,
-          observed_at: new Date().toISOString(),
-          resume: holdResume,
-        };
+        d.hold = candidateHold(candidate);
         const body = hostedBody(candidate, bodyRequest);
         validateDiscoveryIntakeBody(body, candidate.upstream, candidate.port_key);
         plan.push(
@@ -1245,17 +1339,7 @@ export class HostedIntakeBridge {
           attempt: process.env.GITHUB_RUN_ATTEMPT ?? "1",
         },
       };
-      // Retained delivery records already occupy the serialized receipt. Reserve
-      // only their remaining growth to the same per-candidate allowance.
-      const deliveryGrowth = receipt.delivery.reduce(
-        (bytes, delivery) =>
-          bytes + Math.max(0, 2048 - Buffer.byteLength(JSON.stringify(delivery))),
-        0,
-      );
-      if (Buffer.byteLength(receiptBody(receipt)) + deliveryGrowth + 4096 > 60000)
-        throw new Error(
-          "Logical batch cannot retain complete delivery receipts; reduce evidence text",
-        );
+      assertReceiptCapacity(receipt);
       prior = await this.persist(receipt);
     }
     receipt.plan = plan;
@@ -1354,7 +1438,7 @@ export class HostedIntakeBridge {
                 }),
             );
             invalidated = true;
-            d.item_id = normalized.itemId;
+            d.item_id = receiptProjectItemId(normalized.itemId);
           }
         } else {
           // Reserve room before publishing the checkpoint. A denial here is
@@ -1413,8 +1497,7 @@ export class HostedIntakeBridge {
           if (fieldValue(item, f) !== v) throw new Error(`Neutral intake field differs: ${f}`);
         if (fieldValue(item, "Release commitment"))
           throw new Error("Intake acquired a release commitment");
-        if (typeof item.id !== "string") throw new Error("Verified Project item ID is unavailable");
-        d.item_id = item.id;
+        d.item_id = receiptProjectItemId(item.id);
         d.fields = Object.fromEntries(Object.keys(defaults).map((f) => [f, fieldValue(item, f)]));
         const doctor = await runScopedDoctor(this.client.config, this.client, {
           issues: [d.created_issue!],
@@ -1445,7 +1528,7 @@ export class HostedIntakeBridge {
       await persist();
     } catch (error) {
       receipt.status = "incomplete";
-      receipt.error = sanitizeOperationError(error);
+      receipt.error = receiptDiagnostic(error);
       receipt.continuation = this.continuation(error);
       try {
         await persist();

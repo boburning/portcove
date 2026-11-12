@@ -656,6 +656,8 @@ pub struct ReleaseSpec {
     /// Native8: select the checked TAR.XZ player archive on Linux x86-64.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub linux_tar_xz: bool,
+    // Native26 also uses this field for reviewed Mac app bundles. The
+    // declaration keeps its existing transport schema description.
     /// GeneratedCache3: select a checked TAR.XZ player archive on the declared Mac routes.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tar_xz_platforms: Vec<Platform>,
@@ -867,6 +869,12 @@ pub struct PortDefinition {
     /// materializations: image kind, size bound and accepted game identifiers.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime_disc_image: Option<DiscImageProfile>,
+    /// A disc-image source that is offered but not required: with none registered the
+    /// game is not blocked and the runtime and its persistent files are left as they are;
+    /// when one is registered it is unpacked as for a required source. Only valid with a
+    /// disc-image materialization.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub optional_game_source: bool,
     #[serde(default)]
     pub runtime_source_set: Vec<RuntimeSourceTarget>,
     /// Reviewed way a managed multi-disc runtime accepts the disc to start.
@@ -1890,6 +1898,23 @@ pub struct InstallSourceRequirement {
     pub label: String,
     pub role: SourceRequirementRole,
     pub registered: bool,
+    /// The definition offers this source but does not require it; an unregistered
+    /// optional source never blocks installing, updating or launching.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub optional: bool,
+}
+
+/// The one rule for whether a source holds installing and updating: an unregistered
+/// required source does; an optional one never does.
+pub(crate) fn source_blocks_setup(registered: bool, optional: bool) -> bool {
+    !registered && !optional
+}
+
+impl InstallSourceRequirement {
+    /// See [`source_blocks_setup`].
+    pub(crate) fn blocks_setup(&self) -> bool {
+        source_blocks_setup(self.registered, self.optional)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

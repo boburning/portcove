@@ -1737,8 +1737,10 @@ portcove --library PATH --json profile revise PORT_ID PROFILE_ID REQUEST.json
 ```
 
 `setups` is read-only and reports in one result whether the game has reviewed mod
-support (`supported`), the package types it loads, its profiles and what is live
-now; Desktop's Setups and mods view reads the same result.
+support (`supported`), the package types it loads, its profiles, what is live now
+and unattended updates held for review (`held_updates`, see
+[unattended updates](#unattended-updates)); Desktop's Setups and mods view reads the
+same result.
 
 `ensure-default` gives an installed port its equivalent default profile and is safe
 to repeat; a player with one setup needs nothing else. `copy` starts a new profile
@@ -1955,8 +1957,15 @@ Results are reported in `mod_updates`, one per installed file:
   as "no update".
 
 Whether a newer file suits the setup's game build is not assessed by the provider
-or by Portcove (UNKNOWN). Desktop refreshes after an applied update but does not yet
-show held, deferred or unavailable updates; `games setup-ready` lists them.
+or by Portcove (UNKNOWN). `profile setups` reports `held_updates`: the remembered
+holds for each setup's current revision, only while its policy is
+`automatic-eligible`, with the setup's affected mods, the candidate file and the
+reason. A new revision of the setup, another outcome for that installed file (other than
+a deferral or an outage), or a newer candidate replaces or ends a hold, and the remembered holds are cleared
+entirely if they ever exceed 256. Desktop's Setups and mods panel shows the held
+updates for the setup in use and refreshes after an applied one; it does not show
+deferred or unavailable updates or holds for other setups, which
+`games setup-ready` lists.
 
 Library metadata schema 6 carries profiles, revisions and the selected profile; it is
 emitted only when profiles exist and import validates each profile against its

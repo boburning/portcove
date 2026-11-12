@@ -21,16 +21,16 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Unpack the v0.1.1 setup kit",
-          "instruction": "Extract the complete ZIP for your system into a writable folder. Choose the Intel or Apple silicon ZIP that matches your Mac."
+          "title": "Unpack the stable setup kit",
+          "instruction": "Extract the complete ZIP for your system into a writable folder. Choose the Intel or Apple silicon ZIP that matches your Mac. Check the release notes for that kit’s prerequisites."
         },
         {
           "title": "Install the build tools",
-          "instruction": "On Windows, install Python 3. The upstream wizard downloads the build-tool pack on first rebuild. On Linux and Mac, put CMake, Ninja, Python 3 and a native C/C++ compiler on PATH."
+          "instruction": "On Windows, install Python 3. The upstream wizard downloads the build-tool pack on first rebuild. On Linux and Mac, put CMake, Ninja, a supported Python 3 version and a native C/C++ compiler on PATH."
         },
         {
           "title": "Supply the matching original files",
-          "instruction": "Select your own Wipeout XL (USA).cue (SCUS-94351) with all 12 referenced BIN tracks. The v0.1.1 setup wizard requires CUE and BIN files. Supply your own 524,288-byte European BIOS matching SHA-256 1faaa18fa820a0225e488d9f086296b8e6c46df739666093987ff7d8fd352c09."
+          "instruction": "Select your own Wipeout XL (USA).cue (SCUS-94351) with all 12 referenced BIN tracks. The v0.1.2 kit requires your own 524,288-byte SCPH-1001 (USA) retail BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3."
         },
         {
           "title": "Build and add the completed player",
@@ -38,18 +38,18 @@
         }
       ],
       "warnings": [
-        "Use the exact BIOS file for this kit. Its README labels that European profile SCPH-5502/5552. The Wipeout XL disc remains specific to this release.",
+        "Check the README-SETUP.txt inside your exact kit for its BIOS requirement. Older kits can require a different dump. Keep the original files and the working kit together.",
         "Portcove has not verified native setup, gameplay or save compatibility."
       ],
-      "help_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/releases/tag/v0.1.1",
+      "help_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/releases",
       "references": [
         {
-          "title": "Linux and Mac compatibility",
-          "instruction": "The Linux setup host needs glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26 and OpenGL. The Mac setup host and its bundled generators declare macOS 11 or newer."
+          "title": "Check Linux and Mac prerequisites",
+          "instruction": "Check the release notes for the kit’s Python version, macOS minimum and required libraries before starting setup. The v0.1.2 kits need Python 3.10 or newer on Linux and Mac. The Mac setup uses Apple clang 15 and needs Homebrew’s OpenSSL, FreeType and HarfBuzz libraries."
         },
         {
           "title": "Keep your working copy and data",
-          "instruction": "Close the player before replacing the kit. Keep the working folder, original disc and BIOS, and back up the saves, settings and mods you use. Setup, replacement and backups belong to you and the upstream kit."
+          "instruction": "Make an in-game save and close the player before updating. Back up the whole working folder, including memory cards, settings, keyboard profiles, replays and mods you use. Keep your original disc and BIOS. Save states and replays can depend on the build."
         }
       ]
     },

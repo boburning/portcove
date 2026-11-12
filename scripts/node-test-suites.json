@@ -1084,14 +1084,14 @@
           "platform": ["linux", "win32", "darwin"],
           "owner": "windows-storage",
           "category": "prerequisite",
-          "prerequisite": "Real Cargo acceptance was not observed: unchanged 20 GiB reserve blocks local compilation.",
+          "prerequisite": "Real Cargo acceptance was not observed: unchanged 5 GiB reserve blocks local compilation.",
           "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage; Mac complement macos-platform-contracts",
           "cases": [
             "real Cargo owns target initialization and checked cleanup after Cargo-first preparation",
             "real Cargo owns target initialization and checked cleanup after support-first preparation"
           ],
-          "skip_reason_prefix": "Real Cargo acceptance was not observed: unchanged 20 GiB reserve blocks local compilation."
+          "skip_reason_prefix": "Real Cargo acceptance was not observed: unchanged 5 GiB reserve blocks local compilation."
         },
         {
           "platform": ["linux", "win32", "darwin"],

@@ -154,7 +154,7 @@ fn hold_reason(
             }
         };
         return Some(format!(
-            "the newer file changes which mods it contains (adds: {}; drops: {}); review it",
+            "the newer file changes which mods it contains (adds: {}; drops: {})",
             list(brought.difference(&had).copied().collect()),
             list(had.difference(&brought).copied().collect()),
         ));
@@ -170,14 +170,13 @@ fn hold_reason(
         ordered_assets(layout, revision, &replacement),
     ) else {
         return Some(
-            "Portcove could not read every enabled mod's files, so the update's effect is unknown; review it"
+            "Portcove could not read every enabled mod's files, so the update's effect is unknown"
                 .into(),
         );
     };
     if contested(&before) != contested(&after) {
         return Some(
-            "the update changes which mod wins an asset another enabled mod also changes; review it"
-                .into(),
+            "the update changes which mod wins an asset another enabled mod also changes".into(),
         );
     }
     None
@@ -195,6 +194,103 @@ fn hold_key(
     )
 }
 
+/// An unattended update the player has to review, remembered for a setup's
+/// current revision.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct HeldModUpdate {
+    pub profile_id: String,
+    /// The setup's mods from the installed provider file.
+    pub native_ids: Vec<String>,
+    pub project_id: String,
+    pub candidate_file_id: String,
+    pub reason: String,
+}
+
+/// Held updates that still apply to each setup's current revision.
+pub(crate) fn held_updates(
+    layout: &Layout,
+    inventory: &crate::ProfileInventory,
+) -> Vec<HeldModUpdate> {
+    let mut held = Vec::new();
+    for (key, reason) in read_holds(layout) {
+        let Some((profile_id, revision, project, file, candidate)) = parse_hold_key(&key) else {
+            continue;
+        };
+        // Only setups that still allow unattended updates have one waiting.
+        let Some(view) = inventory.profiles.iter().find(|view| {
+            view.profile.id == profile_id
+                && view.revision.revision == revision
+                && view.profile.intent.update_policy == ProfileUpdatePolicy::AutomaticEligible
+        }) else {
+            continue;
+        };
+        let native_ids = view
+            .revision
+            .packages
+            .iter()
+            .filter(|package| {
+                package.provider.as_ref().is_some_and(|provider| {
+                    provider.project == project && provider.file.as_deref() == Some(file)
+                })
+            })
+            .map(|package| package.native_id.clone())
+            .collect::<Vec<_>>();
+        if native_ids.is_empty() {
+            continue;
+        }
+        held.push(HeldModUpdate {
+            profile_id: profile_id.to_owned(),
+            native_ids,
+            project_id: project.to_owned(),
+            candidate_file_id: candidate.to_owned(),
+            reason,
+        });
+    }
+    held
+}
+
+/// The parts of a key `hold_key` built: profile, revision, project, installed
+/// file and candidate file. None for anything else.
+fn parse_hold_key(key: &str) -> Option<(&str, u64, &str, &str, &str)> {
+    let parts = key.split('|').collect::<Vec<_>>();
+    let [profile, revision, project, file, candidate] = parts.as_slice() else {
+        return None;
+    };
+    Some((profile, revision.parse().ok()?, project, file, candidate))
+}
+
+fn write_holds(layout: &Layout, holds: &BTreeMap<String, String>) {
+    if let Ok(bytes) = serde_json::to_vec(holds) {
+        let _ = std::fs::create_dir_all(layout.store());
+        let _ = crate::durability::write_bytes_atomically(
+            &layout.store().join(HOLDS_FILE),
+            &bytes,
+            true,
+        );
+    }
+}
+
+/// Keeps at most `keep` among the holds for one setup's installed provider file,
+/// so a replaced candidate or a changed outcome never leaves an old reason shown.
+fn settle_holds(
+    layout: &Layout,
+    profile_id: &str,
+    installed: &InstalledFile<'_>,
+    keep: Option<&str>,
+) {
+    let mut holds = read_holds(layout);
+    let before = holds.len();
+    holds.retain(|key, _| {
+        Some(key.as_str()) == keep
+            || !parse_hold_key(key).is_some_and(|(profile, _, project, file, _)| {
+                profile == profile_id && project == installed.project && file == installed.file
+            })
+    });
+    if holds.len() != before {
+        write_holds(layout, &holds);
+    }
+}
+
 fn read_holds(layout: &Layout) -> BTreeMap<String, String> {
     std::fs::read(layout.store().join(HOLDS_FILE))
         .ok()
@@ -210,14 +306,7 @@ fn remember_hold(layout: &Layout, key: String, reason: &str) {
         holds.clear();
     }
     holds.insert(key, reason.to_owned());
-    if let Ok(bytes) = serde_json::to_vec(&holds) {
-        let _ = std::fs::create_dir_all(layout.store());
-        let _ = crate::durability::write_bytes_atomically(
-            &layout.store().join(HOLDS_FILE),
-            &bytes,
-            true,
-        );
-    }
+    write_holds(layout, &holds);
 }
 
 /// Network trouble is unavailability; contention and changed state are retried;
@@ -343,8 +432,45 @@ impl PortcoveService {
         Ok(results)
     }
 
-    /// The outcome for one installed provider file; None when it is current.
+    /// The outcome for one installed provider file; None when it is current. Only
+    /// a hold for the current revision and candidate stays remembered.
     async fn update_one(
+        &self,
+        client: &GameBananaClient,
+        layout: &Layout,
+        port_id: &str,
+        profile_id: &str,
+        installed: &InstalledFile<'_>,
+    ) -> Option<ProviderAutoUpdateOutcome> {
+        let outcome = self
+            .update_one_inner(client, layout, port_id, profile_id, installed)
+            .await;
+        let current_key = match (&outcome, installed.observation.newer_files.as_slice()) {
+            (Some(ProviderAutoUpdateOutcome::Held { .. }), [candidate]) => self
+                .library
+                .connection()
+                .and_then(|connection| profile::current_revision(&connection, port_id, profile_id))
+                .ok()
+                .map(|revision| {
+                    hold_key(profile_id, revision.revision, installed, &candidate.file_id)
+                })
+                .filter(|key| read_holds(layout).contains_key(key)),
+            _ => None,
+        };
+        // A passing outage or a busy setup says nothing new about the update.
+        if !matches!(
+            outcome,
+            Some(
+                ProviderAutoUpdateOutcome::Unavailable { .. }
+                    | ProviderAutoUpdateOutcome::Deferred { .. }
+            )
+        ) {
+            settle_holds(layout, profile_id, installed, current_key.as_deref());
+        }
+        outcome
+    }
+
+    async fn update_one_inner(
         &self,
         client: &GameBananaClient,
         layout: &Layout,
@@ -370,7 +496,7 @@ impl PortcoveService {
             }
             ProviderUpdateState::InstalledFileRemoved => {
                 return held(
-                    "the provider no longer offers the installed file and has no newer one; review it",
+                    "the provider no longer offers the installed file and has no newer one",
                 );
             }
             ProviderUpdateState::NewerFiles => {}

@@ -477,3 +477,95 @@ async fn unknown_files_in_the_live_mods_folder_defer_before_downloading() {
     };
     assert!(reason.contains("did not add"), "{reason}");
 }
+
+#[tokio::test]
+async fn a_held_update_is_shown_with_the_setup_until_the_setup_changes() {
+    let w = world();
+    w.install_first(&wrapper(&[("hd-link.o2r", "objects/link.bin", b"v1")]))
+        .await;
+    w.allow_automatic();
+    let next = wrapper(&[
+        ("hd-link.o2r", "objects/link.bin", b"v2"),
+        ("extra.o2r", "objects/extra.bin", b"new"),
+    ]);
+    w.pass_with_update(&next).await;
+    let view = w.service.mod_setups(PORT).unwrap();
+    assert_eq!(view.held_updates.len(), 1, "{:?}", view.held_updates);
+    let held = &view.held_updates[0];
+    assert_eq!(held.profile_id, w.profile);
+    assert_eq!(held.native_ids, ["hd-link.o2r"]);
+    assert_eq!(held.candidate_file_id, "11");
+    assert!(held.reason.contains("extra.o2r"));
+
+    // A new revision of the setup means the held comparison no longer applies.
+    let current = w.revision().revision;
+    w.service
+        .set_mod_package_enabled(PORT, &w.profile, "hd-link.o2r", false, current)
+        .unwrap();
+    assert!(w.service.mod_setups(PORT).unwrap().held_updates.is_empty());
+}
+
+#[tokio::test]
+async fn shown_holds_follow_the_policy_one_per_file_and_skip_malformed_entries() {
+    let w = world();
+    w.install_first(&wrapper(&[("hd-link.o2r", "objects/link.bin", b"v1")]))
+        .await;
+    w.allow_automatic();
+    // File 11 is held for adding a mod.
+    w.pass_with_update(&wrapper(&[
+        ("hd-link.o2r", "objects/link.bin", b"v2"),
+        ("extra.o2r", "objects/extra.bin", b"new"),
+    ]))
+    .await;
+    // The provider then replaces it with file 12, also held: only one is shown.
+    let next = wrapper(&[
+        ("hd-link.o2r", "objects/link.bin", b"v3"),
+        ("more.o2r", "objects/more.bin", b"new"),
+    ]);
+    let files = [(10, 1), (12, next.len())];
+    let (root, _requests, server) = serve_http_bytes(vec![
+        project("3.0", &files),
+        project("3.0", &files),
+        redirect(),
+        file(&next),
+    ]);
+    let client = GameBananaClient::with_roots(&root, None).unwrap();
+    w.service
+        .run_eligible_provider_updates_with(&client, PORT)
+        .await
+        .unwrap();
+    server.join().unwrap();
+    let held = w.service.mod_setups(PORT).unwrap().held_updates;
+    assert_eq!(held.len(), 1, "{held:?}");
+    assert_eq!(held[0].candidate_file_id, "12");
+
+    // Several newer files are not remembered, and the old reason is cleared.
+    w.pass_without_download(&[(10, 1), (12, 1), (13, 1)]).await;
+    assert!(w.service.mod_setups(PORT).unwrap().held_updates.is_empty());
+
+    // A malformed entry is ignored rather than shown or panicking.
+    let layout = w.service.deploy_layout(PORT).unwrap();
+    let mut holds = read_holds(&layout);
+    holds.insert("not|a|key".into(), "x".into());
+    holds.insert(format!("{}|nan|42|10|11", w.profile), "x".into());
+    write_holds(&layout, &holds);
+    assert!(w.service.mod_setups(PORT).unwrap().held_updates.is_empty());
+}
+
+#[tokio::test]
+async fn a_hold_is_not_shown_after_the_setup_stops_allowing_unattended_updates() {
+    let w = world();
+    w.install_first(&wrapper(&[("hd-link.o2r", "objects/link.bin", b"v1")]))
+        .await;
+    w.allow_automatic();
+    w.pass_with_update(&wrapper(&[
+        ("hd-link.o2r", "objects/link.bin", b"v2"),
+        ("extra.o2r", "objects/extra.bin", b"new"),
+    ]))
+    .await;
+    assert_eq!(w.service.mod_setups(PORT).unwrap().held_updates.len(), 1);
+    w.service
+        .set_profile_update_policy(PORT, &w.profile, ProfileUpdatePolicy::KeepCurrent)
+        .unwrap();
+    assert!(w.service.mod_setups(PORT).unwrap().held_updates.is_empty());
+}

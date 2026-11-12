@@ -35,6 +35,12 @@
     "fromProvider": "<name /> (from <provider />)",
     "gameChanged": "This game changed. Refresh its details before changing mods.",
     "heading": "Setups and mods",
+    "held": {
+      "intro_one": "Portcove kept the current version of a mod because its update needs your review:",
+      "intro_other": "Portcove kept the current versions of some mods because their updates need your review:",
+      "item": "<mods />: <reason />",
+      "next": "Desktop can’t review mod updates yet. Review one with the Portcove command line (<command />), or leave it: Portcove checks again when this setup changes or the mod offers another file."
+    },
     "intro": "A setup is a set of mods with its own saves and settings. Switching setups puts away the current setup’s saves and settings and brings back the other setup’s. Turning a mod off removes it from the game’s mods folder; its file stays in Portcove so you can turn it on again.",
     "inUse": "In use",
     "laterPriority": "Later mods in this list take priority when two mods change the same thing.",

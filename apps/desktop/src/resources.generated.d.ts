@@ -400,6 +400,65 @@ export default interface Resources {
       "view": "View <name/>",
       "viewing": "<name/> · Viewing"
     },
+    "discover": {
+      "action": {
+        "compare": "Compare ports",
+        "compareAll": "Compare all {{total}}",
+        "continue": "Continue setup",
+        "installation": "View installation",
+        "port": "View port",
+        "task": "View task",
+        "why": "Why this port?"
+      },
+      "cardLabel": "{{game}}. {{state}}.",
+      "chip": {
+        "channel": "Update channel",
+        "platform": "Runs on",
+        "system": "Original system"
+      },
+      "compare": {
+        "files": "Required files",
+        "filesUnlisted": "Requirements are not listed here. Check the project’s setup instructions.",
+        "instructions": "Project instructions",
+        "noChannel": "No update channel is listed.",
+        "noPlatform": "No platform is listed.",
+        "options": "Comparison options and reports",
+        "optionsIntro": "Feature details are not available for every project. Check the reports and project instructions. Your saves and mods may not work with another port.",
+        "outsideFilters": "Outside the current filters.",
+        "setup": "How to set it up",
+        "several": "Compare setup requirements for {{total}} ports. Check each port’s instructions for shared save locations.",
+        "single": "Review this port’s setup requirements and reports.",
+        "status": "Current status",
+        "updates": "Who handles updates"
+      },
+      "compareMatching": "Compare the matching ports for their own setup requirements and installation status.",
+      "drop": {
+        "hover": "Drop to check for this game",
+        "release": "Release to check"
+      },
+      "favorite": {
+        "add": "Add to favorites",
+        "label": "Favorite {{game}}",
+        "remove": "Remove from favorites"
+      },
+      "groupLabel_one": "{{title}}. {{count}} separate port project; {{matching}} matching.",
+      "groupLabel_other": "{{title}}. {{count}} separate port projects; {{matching}} matching.",
+      "identity": {
+        "matching": "{{title}} {{project}}. Matching port: {{port}}. {{state}}. {{action}}",
+        "single": "{{title}} {{project}}. {{state}}. {{action}}"
+      },
+      "label": "Discover games",
+      "matchingPort": "Matching port: <port />",
+      "memberLabel": "{{action}}: {{game}}",
+      "ownership": {
+        "external": "External installation. You or its launcher handle updates.",
+        "managed": "Managed installation. Portcove handles reviewed updates.",
+        "notInstalled": "Not installed. Follow this project’s setup instructions.",
+        "unavailable": "Installation ownership is unavailable. Check the project instructions."
+      },
+      "separateProjects_one": "{{count}} separate port project",
+      "separateProjects_other": "{{count}} separate port projects"
+    },
     "hero": {
       "continueLabel": "{{title}} recently played",
       "credits": "Image credits",
@@ -782,6 +841,70 @@ export default interface Resources {
       "project": "Upstream project",
       "steam": "Steam shortcut"
     },
+    "capabilities": {
+      "assessment": "Assessment details",
+      "backupNone": "Latest completed backup: None recorded. Review Saves & backups for effective coverage and exclusions.",
+      "backupRecorded": "Latest completed backup: Recorded; restore verifies the selected snapshot. Review Saves & backups for effective coverage and exclusions.",
+      "externalRuntime": "Updates handled upstream · Backups not managed by Portcove",
+      "feature": {
+        "audio": "Audio",
+        "backup": "Backup",
+        "controls": "Controls",
+        "gameplay": "Gameplay",
+        "launch": "Launch",
+        "originalFiles": "Original-file checking",
+        "performance": "Performance",
+        "previousVersion": "Previous-version recovery",
+        "restore": "Restore",
+        "saveCompatibility": "Save compatibility",
+        "settings": "Settings",
+        "setup": "Setup",
+        "updates": "Game updates"
+      },
+      "features": "Features and setup routes",
+      "heading": "What works and known issues",
+      "intro": "Availability and testing are separate. Each action checks its own current requirements.",
+      "label": "What works and known issues",
+      "mode": {
+        "automatic": "Available in Portcove",
+        "manual": "Manual",
+        "unavailable": "Unavailable in Portcove",
+        "unknown": "Unknown"
+      },
+      "notice": {
+        "artifact": "artifact <value />",
+        "current": "Applies to this route",
+        "edition": "edition <value />",
+        "exact": "Exact context required",
+        "heading": "{{feature}} · {{evidence}} · {{applicability}}",
+        "historical": "Historical / different scope",
+        "release": "release <value />",
+        "scope": "Scope: <scope />.",
+        "separator": " · ",
+        "source": "Source",
+        "sourceLine": "<link /> · {{date}}",
+        "versionSpecific": "Version-specific evidence: check this exact scope before applying it to your copy. Later releases do not inherit a failure or a fix."
+      },
+      "noticesUnavailable": "Optional known-issue notices are unavailable. Setup and launch retain their current assessments.",
+      "observations": {
+        "intro": "These results describe the exact game edition, version, files and device that were checked. This summary has not matched those conditions to your copy, so the results remain historical.",
+        "source": "Evidence source",
+        "summary": "Historical observations and exact applicability"
+      },
+      "path": {
+        "acceptedExternal": "Accepted prepared package",
+        "existingCopy": "Explicit existing-copy selection",
+        "installed": "Current installation",
+        "managed": "Managed setup",
+        "notInstalled": "Not installed · operation prerequisites",
+        "upstreamSetup": "Upstream setup and saved downloads",
+        "userSelected": "Your selected installation"
+      },
+      "refresh": "Refresh feature details",
+      "settingsPartial": "Settings are supported; some configuration files are not initialized or available. Open Settings for their current reasons.",
+      "unavailable": "Feature details are unavailable. Use the current action assessments and setup instructions.",
+      "untested": "{{mode}} · Not tested by this report"
+    },
     "identity": {
       "label": "Game and port identity",
       "offeredChannel": "Offered update channel",
@@ -1140,6 +1263,12 @@ export default interface Resources {
       "fromProvider": "<name /> (from <provider />)",
       "gameChanged": "This game changed. Refresh its details before changing mods.",
       "heading": "Setups and mods",
+      "held": {
+        "intro_one": "Portcove kept the current version of a mod because its update needs your review:",
+        "intro_other": "Portcove kept the current versions of some mods because their updates need your review:",
+        "item": "<mods />: <reason />",
+        "next": "Desktop can’t review mod updates yet. Review one with the Portcove command line (<command />), or leave it: Portcove checks again when this setup changes or the mod offers another file."
+      },
       "inUse": "In use",
       "intro": "A setup is a set of mods with its own saves and settings. Switching setups puts away the current setup’s saves and settings and brings back the other setup’s. Turning a mod off removes it from the game’s mods folder; its file stays in Portcove so you can turn it on again.",
       "laterPriority": "Later mods in this list take priority when two mods change the same thing.",
@@ -1395,6 +1524,110 @@ export default interface Resources {
       "stdoutLabel": "Preparation standard output",
       "truncated": "Some output was omitted because it exceeded the {{limit}} capture limit per stream.",
       "view": "View preparation log"
+    },
+    "recovery": {
+      "checking": "Checking the library for unfinished work…",
+      "cleanup": {
+        "again": "Review again",
+        "cancel": "Cancel",
+        "checking": "Checking unfinished setup files…",
+        "clear": "Clear unfinished setup record",
+        "clearing": "Clearing unfinished setup record…",
+        "close": "Close",
+        "delete": "Delete setup working files",
+        "deleting": "Deleting setup working files…",
+        "description": {
+          "clear": "No setup working files remain. Clear the unfinished setup record and its recorded path if present.",
+          "delete": "Delete the private working files left by this unfinished setup. Review the affected folder and preserved locations first.",
+          "inspect": "Review what remains from this setup and the locations recorded with it. Opening this review does not change files. Cleanup is a separate decision."
+        },
+        "failure": "Cleanup was not accepted. The retained recovery state remains unchanged.",
+        "keep": "Keep files",
+        "reviewCleanup": "Review cleanup…",
+        "title": {
+          "clear": "Clear unfinished setup record?",
+          "delete": "Delete files left by unfinished setup?",
+          "inspect": "Files left by unfinished setup"
+        }
+      },
+      "details": {
+        "cleanupLabel": "Cleanup changes and preserved data",
+        "clearScope": "No setup working files were found. Cleanup clears the recorded setup path if it exists and its stale recovery journal.",
+        "deleteScope": "This deletes only the recorded setup working folder and its recovery journal. The deleted files cannot be recovered. If cleanup is interrupted, Portcove keeps the accepted cleanup in its journal and retries it when the library reopens.",
+        "entries": "Affected entries ({{total}})",
+        "folder": "Recorded setup working folder",
+        "folderDelete": "Setup working folder to delete",
+        "inspectLabel": "Retained setup files and recorded locations",
+        "kind": {
+          "file": "File",
+          "folder": "Folder",
+          "special": "Link or special entry"
+        },
+        "locations": "Installation, game files, saves, backups and logs",
+        "noEntries": "No retained private entries were found.",
+        "now": "What you can do now",
+        "nowText": "Keep the files and return to the game to review its next steps, or review cleanup separately. Opening cleanup checks the current files again before you decide what to remove.",
+        "pathClear": "Recorded setup path to clear",
+        "remains": "What remains",
+        "remainsFiles": "Setup left working files behind. This review does not confirm that those files are complete or ready to play.",
+        "remainsRecord": "No private working files were found. An unfinished setup record remains.",
+        "stopClear": "Portcove must confirm that setup and any programs it started have stopped before clearing this record.",
+        "stopDelete": "Portcove must confirm that setup and any programs it started have stopped before deleting these files.",
+        "stopInspect": "Setup and any programs it started must have stopped before cleanup can run.",
+        "task": "Recorded task: <id />"
+      },
+      "failed": "Recovery information could not be refreshed: <error />",
+      "failedRetained": "Recovery information could not be refreshed: <error /> The last completed check remains visible.",
+      "heading": "Unfinished work and recovery",
+      "incomplete": "Journal or related assessments are incomplete. Retained state requires review; no repair was attempted.",
+      "intro": "Expand an item for its recorded location and guidance. Review links do not change files.",
+      "item": {
+        "location": "Recorded location",
+        "nextStep": "Suggested next step",
+        "noGuidance": "No recovery guidance was recorded.",
+        "noLocation": "No location was recorded.",
+        "observation": "Diagnostic observation",
+        "reference": "Operation reference",
+        "reviewFiles": "Review unfinished setup files",
+        "summary": "<game /> · {{label}}"
+      },
+      "kind": {
+        "backupRecovery": "Backup recovery needs review",
+        "cleanupPending": "Unfinished files need review",
+        "degradedBackup": "Backup needs attention",
+        "malformedJournal": "Unfinished operation needs review",
+        "missingFolder": "Registered game folder is missing",
+        "orphanedFolder": "Unregistered game folder",
+        "partialOperation": "Unfinished operation",
+        "retainedPreparation": "Unfinished setup files",
+        "unknown": "Recovery information needs review"
+      },
+      "label": "Unfinished work and recovery",
+      "library": "Library",
+      "location": {
+        "backups": "Backups",
+        "backupsPreserved": "Backups preserved",
+        "gameFiles": "Original game files",
+        "gameFilesPreserved": "Original game files preserved",
+        "installation": "Original installation",
+        "installationPreserved": "Original installation preserved",
+        "logs": "Logs",
+        "logsPreserved": "Logs preserved",
+        "savedData": "Saved data",
+        "savedDataPreserved": "Saved data preserved"
+      },
+      "navigation": {
+        "details": "Review game details",
+        "installation": "Review game installation",
+        "saves": "Review saves and backups",
+        "setup": "Review game setup",
+        "storage": "Review library storage",
+        "task": "View related task record"
+      },
+      "refresh": "Refresh recovery information",
+      "refreshing": "Refreshing recovery information. The last completed check remains visible.",
+      "stale": "Recovery information is out of date. The last completed check remains visible.",
+      "unchecked": "Recovery information has not been checked for the current library state."
     }
   },
   "organization": {
@@ -1552,6 +1785,38 @@ export default interface Resources {
       "system": "System default",
       "title": "Language",
       "unavailable": "Translation unavailable"
+    },
+    "libraryRestore": {
+      "busy": {
+        "choosing": "Choosing your export… Keep Portcove open until this finishes.",
+        "copying": "Copying and verifying the restored library… Keep Portcove open until this finishes.",
+        "recovering": "Recovering your restore… Keep Portcove open until this finishes.",
+        "reviewing": "Reviewing your restore… Keep Portcove open until this finishes."
+      },
+      "chooseFile": "Choose file",
+      "chooseFolder": "Choose folder",
+      "close": "Close",
+      "closeRefreshes": "Closing this restore review refreshes the library before you continue.",
+      "content": "Copy of the original library folder",
+      "contentPlaceholder": "Choose the copied library folder",
+      "description": "You need a library information file and a separate copy of the original library folder. Restore into a new or empty library. Review the destination and copied files first. Portcove copies and verifies the restored content before opening the library. A review alone does not verify a complete recovery copy. The originals stay where they are.",
+      "destination": "Destination: <path />",
+      "metadata": "Library information file",
+      "metadataPlaceholder": "Choose the library information file",
+      "open": "Restore from a library copy",
+      "plan": "Library restore plan",
+      "recovery": {
+        "busy": "Recovering the library restore…",
+        "destination": "Restore destination: <path />",
+        "heading": "Finish the interrupted library restore",
+        "intro": "Resume the restore to verify and finish opening the copied library. The Portcove export stays unchanged. Incomplete copies remain closed until recovery succeeds.",
+        "label": "Library restore recovery",
+        "resume": "Resume restore"
+      },
+      "restore": "Restore this library",
+      "review": "Review restore",
+      "title": "Restore from a library copy",
+      "trust": "<strong>Use an export you trust.</strong> Review its source, destination, required space, installed versions, saved file locations, and copied files before restoring it."
     },
     "supportReport": {
       "collecting": "Collecting available diagnostics…",

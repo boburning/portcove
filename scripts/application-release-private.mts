@@ -274,14 +274,111 @@ async function loadNativeApplicationSource(directory = sourceDirectory) {
   return source;
 }
 
-function applicationWorkerControlOptions() {
+function applicationWorkerControlOptions(waitMs = 120000) {
   return {
     token: fixedReleaseReaderToken(),
-    deadline: Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + 120000),
+    deadline: Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + waitMs),
     guard: () => assertTrustedDirectNode("fixed application worker controls"),
     maxBytes: 8 * 1024 ** 2,
-    requestTimeoutMs: 30000,
+    requestTimeoutMs: 30000 as const,
   };
+}
+
+const metadataProtectionConsumers = {
+  metadata: ["releases / execute", "preview / execute", "stable / execute"],
+  snapshot: ["snapshot / execute"],
+  timestamp: ["timestamp / execute"],
+} as const;
+
+function metadataProtectionPhase(phase: string): phase is keyof typeof metadataProtectionConsumers {
+  return Object.hasOwn(metadataProtectionConsumers, phase);
+}
+
+export function metadataProtectionConsumersReady(
+  current: ReturnType<typeof execution>,
+  phase: keyof typeof metadataProtectionConsumers,
+  body: unknown,
+  next: string | null,
+) {
+  const expected: readonly string[] = metadataProtectionConsumers[phase];
+  assert.ok(
+    !next &&
+      isRecord(body) &&
+      Array.isArray(body.jobs) &&
+      body.jobs.length < 100 &&
+      body.total_count === body.jobs.length,
+  );
+  const seen = new Set<string>();
+  const ready = new Set<string>();
+  for (const job of body.jobs) {
+    assert.ok(isRecord(job) && typeof job.name === "string" && !seen.has(job.name));
+    seen.add(job.name);
+    assert.equal(job.run_id, Number(current.run_id));
+    assert.equal(job.run_attempt, current.run_attempt);
+    assert.equal(job.head_sha, current.source);
+    if (!expected.includes(job.name)) continue;
+    assert.notEqual(job.status, "completed", "metadata consumer settled before protection");
+    assert.ok(Array.isArray(job.steps));
+    if (
+      job.steps.some(
+        (step: unknown) =>
+          isRecord(step) &&
+          step.name === "Execute only the attested fixed role worker" &&
+          step.status === "in_progress",
+      )
+    )
+      ready.add(job.name);
+  }
+  return ready.size === expected.length;
+}
+
+async function waitForMetadataProtectionConsumers(
+  current: ReturnType<typeof execution>,
+  phase: keyof typeof metadataProtectionConsumers,
+) {
+  const options = applicationWorkerControlOptions(190000);
+  const provider = await createReleaseCustodyProvider({
+    ...options,
+    beforeDispatch: options.guard,
+  });
+  while (performance.now() < options.deadline) {
+    const { body, next } = await provider.jobs(current.run_id, current.run_attempt, 1);
+    if (metadataProtectionConsumersReady(current, phase, body, next)) return;
+    await pause(2000);
+  }
+  throw new Error("metadata protection consumer wait exhausted");
+}
+
+async function waitForMetadataProtectionArtifact(
+  current: ReturnType<typeof execution>,
+  name: string,
+) {
+  const options = applicationWorkerControlOptions(190000);
+  const provider = await createReleaseCustodyProvider({
+    ...options,
+    beforeDispatch: options.guard,
+  });
+  while (performance.now() < options.deadline) {
+    const body = await provider.runArtifacts(current.run_id, 1);
+    assert.ok(
+      isRecord(body) &&
+        Array.isArray(body.artifacts) &&
+        body.artifacts.length < 100 &&
+        body.total_count === body.artifacts.length,
+    );
+    const artifacts: unknown[] = body.artifacts;
+    const matches = artifacts.filter(
+      (row): row is Record<string, unknown> => isRecord(row) && row.name === name,
+    );
+    assert.ok(matches.length <= 1, "duplicate metadata protection artifact");
+    if (matches.length === 1) {
+      const { id } = matches[0]!;
+      assert.ok(typeof id === "number" && Number.isSafeInteger(id) && id > 0);
+      return id;
+    }
+    await pause(2000);
+  }
+  throw new Error("metadata protection artifact wait exhausted");
 }
 
 async function assertCurrentApplicationSemantic(original: string, semantic: unknown) {
@@ -315,6 +412,7 @@ async function guard(
         | "pause-read"
         | "custody-read"
         | "budget-read"
+        | "protection-receive"
         | "protection-policy"
         | "protection-digest",
     ) => void;
@@ -363,18 +461,26 @@ async function guard(
       ].includes(phase),
     );
     const directory = path.resolve("work/application-protection");
-    const identity = JSON.stringify([
-      process.env.PORTCOVE_PROTECTION_ARTIFACT,
-      phase,
-      current.source,
-      current.run_id,
-      attempt,
-    ]);
+    const name = `application-protection-${phase}-${current.run_id}-${attempt}`;
+    const artifact = process.env.PORTCOVE_PROTECTION_ARTIFACT;
+    const identity = JSON.stringify([artifact, phase, current.source, current.run_id, attempt]);
     if (receivedProtection !== undefined) assert.equal(receivedProtection, identity);
     else {
+      const waitsForObservation =
+        !artifact &&
+        source.purpose === "metadata-renewal" &&
+        source.execution_path === "metadata-maintenance" &&
+        metadataProtectionPhase(phase) &&
+        onlineRoles.some((role) => process.argv[2] === `role-${role}`);
+      if (waitsForObservation) {
+        assert.equal(attempt, current.run_attempt);
+        markStage?.("protection-receive");
+      }
       await receiveApplicationData(directory, {
-        id: Number(process.env.PORTCOVE_PROTECTION_ARTIFACT),
-        name: `application-protection-${phase}-${current.run_id}-${attempt}`,
+        id: waitsForObservation
+          ? await waitForMetadataProtectionArtifact(current, name)
+          : Number(artifact),
+        name,
         source: current.source,
         run_id: current.run_id,
         files: ["protection.json"],
@@ -3006,6 +3112,14 @@ async function observe() {
     );
     const token = process.env.PORTCOVE_OBSERVER_TOKEN;
     assert.ok(token && !/[\r\n\0]/u.test(token) && token.length <= 16384);
+    if (
+      source.purpose === "metadata-renewal" &&
+      source.execution_path === "metadata-maintenance" &&
+      metadataProtectionPhase(phase)
+    ) {
+      stage = "metadata-consumer-admission";
+      await waitForMetadataProtectionConsumers(current, phase);
+    }
     const observer = await createApplicationProtectionObservationReader({
       refToken: fixedReleaseReaderToken(),
       token,
@@ -3803,13 +3917,17 @@ async function assertReservedApplicationContext(
   );
 }
 
+let signingStage = "source";
+
 async function signMetadata(role: (typeof onlineRoles)[number]) {
   const current = execution();
   const source = await readNativeApplicationSource();
   if (source.purpose === "metadata-renewal")
     assert.equal(source.execution_path, "metadata-maintenance");
+  signingStage = "context";
   const receivedContext = await receiveApplicationContext();
   const context = receivedContext.directory;
+  signingStage = "reservation";
   await assertReservedApplicationContext(source, receivedContext, "verified-context");
   const configuration = await readApplicationJson(path.join(context, "context.json"), 65536);
   assert.ok(isRecord(configuration));
@@ -3819,6 +3937,7 @@ async function signMetadata(role: (typeof onlineRoles)[number]) {
     return;
   }
   const dependencies = ["releases", "preview", "stable", ...(onlineTargets ? ["targets"] : [])];
+  signingStage = "role-dependencies";
   const signed =
     role === "snapshot" || role === "timestamp"
       ? await receiveSignedRoles(context, [
@@ -3826,6 +3945,7 @@ async function signMetadata(role: (typeof onlineRoles)[number]) {
           ...(role === "timestamp" ? ["snapshot"] : []),
         ])
       : null;
+  signingStage = "context-inspection";
   const scratch = path.join(process.env.RUNNER_TEMP ?? "", `application-${role}-key`);
   assert.ok(path.isAbsolute(scratch));
   await mkdir(scratch, { mode: 0o700 });
@@ -3846,9 +3966,17 @@ async function signMetadata(role: (typeof onlineRoles)[number]) {
     );
     if (source.purpose === "metadata-bootstrap") assert.equal(inspected.records, 0);
   }
-  await guard(source, true, { useVerifiedSourceCustody: true });
+  signingStage = "release-guard";
+  await guard(source, true, {
+    useVerifiedSourceCustody: true,
+    markStage(next) {
+      signingStage = next;
+    },
+  });
+  signingStage = "reservation-recheck";
   await assertReservedApplicationContext(source, receivedContext, "verified-context");
   assertProtectionWriteWindow();
+  signingStage = "isolated-signing";
   const output = path.resolve(`work/application-role-${role}`);
   await mkdir(output);
   const keyFile = path.join(scratch, "role.key");
@@ -4102,6 +4230,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   try {
     await main();
   } catch (error) {
+    if (onlineRoles.some((role) => process.argv[2] === `role-${role}`)) {
+      const age =
+        publicationProtectionObservedAt === undefined
+          ? NaN
+          : Date.now() - Date.parse(publicationProtectionObservedAt);
+      const observation =
+        Number.isSafeInteger(age) && age >= 0 ? ` (observation age ${age} ms)` : "";
+      console.error(`Application metadata signing refused at ${signingStage}${observation}.`);
+    }
     if (
       ["assemble", "publication", "publication-prepare", "feed", "site-readback"].includes(
         process.argv[2] ?? "",
