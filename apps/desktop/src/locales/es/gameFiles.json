@@ -1,0 +1,15 @@
+{
+  "filterObservation": {
+    "completeSet": "Conjunto completo: <identity/>",
+    "heading": "Resultados del filtro de archivos del juego",
+    "scope": "Los filtros del catálogo usan estos resultados. La configuración y el inicio hacen sus propias comprobaciones."
+  },
+  "preliminary": {
+    "check": "Comprobar estos archivos",
+    "description": "Estos archivos no coinciden exactamente. La validación no se ha ejecutado y la compatibilidad no está confirmada. Revisa una selección antes de decidir si guardar su ubicación.",
+    "heading": "Selecciones preliminares",
+    "inconsistent": "Los detalles de la selección no están disponibles o son incoherentes. Vuelve a buscar antes de revisar este archivo.",
+    "label": "Selecciones preliminares de archivos del juego",
+    "notValidated": "La validación no se ha ejecutado."
+  }
+}

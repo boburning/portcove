@@ -1,0 +1,15 @@
+{
+  "filterObservation": {
+    "completeSet": "Complete set: <identity/>",
+    "heading": "Game-file filter results",
+    "scope": "These results are used by catalog filters. Setup and launch perform their own checks."
+  },
+  "preliminary": {
+    "check": "Check these files",
+    "description": "These files are not exact matches. Validation has not run, and compatibility is not confirmed. Review a selection before deciding whether to save its location.",
+    "heading": "Preliminary selections",
+    "inconsistent": "Selection details are unavailable or inconsistent. Search again before reviewing this file.",
+    "label": "Preliminary game-file selections",
+    "notValidated": "Validation has not run."
+  }
+}

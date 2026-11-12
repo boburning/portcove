@@ -41,6 +41,8 @@ export default defineConfig({
       "src/components/GameHero.tsx",
       "src/components/Brand.tsx",
       "src/features/identity/IdentityIcon.tsx",
+      "src/components/GameFileFilterObservation.tsx",
+      "src/components/PreliminarySourceSelections.tsx",
     ],
     ignore: ["src/**/*.test.{ts,tsx}", "src/**/*.generated.d.ts", "src/design-compatibility/**"],
     output: "src/locales/{{language}}/{{namespace}}.json",
