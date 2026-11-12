@@ -170,6 +170,7 @@ unless the copy change is intended and reviewed.
 | Unfinished work and recovery: status and failure notes, item kinds with a general fallback, item details, navigation actions, cleanup review titles, descriptions, buttons and recorded locations (game names, paths, task ids and Core text stay exact)                             | `components/RecoveryReview.tsx`                            | `operations`        |
 | Library restore from a copy: button, dialog, trust and destination lines, file and folder pickers, progress states as complete messages, and interrupted-restore recovery (library paths stay exact in LTR containers; Core failures stay verbatim)                                  | `components/LibraryImport.tsx`                             | `settings`          |
 | Game-data preparation: action, intro, review dialog, plan facts, space and activation notes, during-setup guidance and app-owned outcomes as codes (versions, paths and sizes stay exact in isolated containers; Core progress and failures stay verbatim)                           | `components/Preparation.tsx`                               | `installation`      |
+| Copying an existing installation: dialog, folder picker, detected-port identity, plural file and skipped-item counts, destination and saved-data consequences, warnings and actions (paths, catalog ids, sizes and Core skip reasons stay exact in isolated containers)              | `components/AdoptionModal.tsx`                             | `installation`      |
 | Ghostship legacy recovery review: action, dialog, field labels, consequences and the app-owned plan-mismatch error (thrown already translated so shared failure presentation stays readable; "Ghostship", paths, ids and sizes stay exact; Core failures stay verbatim)              | `components/GhostshipRecoveryReview.tsx`                   | `backups`           |
 | Several-game install batch: review, per-game plan and hold lines, combined space with plural verb agreement and a translatable list conjunction, running, results and item states (game names, versions and sizes stay exact; Core holds and item details stay verbatim)             | `components/InstallBatchPanel.tsx`                         | `installation`      |
 | Game-file setup review selection: heading, live selected/eligible counts, version-choice notes, per-game review and remove actions, and batch actions (game titles and project names stay exact)                                                                                     | `components/GameFileSetupReviews.tsx`                      | `gameFiles`         |
@@ -185,7 +186,7 @@ unless the copy change is intended and reviewed.
 
 Remaining scope is measured with the same linter over every non-test source file
 (temporarily setting `extract.input` to `src/**/*.{ts,tsx}`). On 2026-11-12 it
-reported 1,086 findings in 23 of 218 analyzed files, measured after the
+reported 1,055 findings in 22 of 218 analyzed files, measured after the
 migrations listed above and with the attribute exclusions below. That count covers JSX text
 and attributes only; English strings produced by `.ts` view models are additional
 and are migrated with the surface that renders them. The count is a work

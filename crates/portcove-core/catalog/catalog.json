@@ -23463,7 +23463,8 @@
         "rolling"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "n64-recomp-portable",
       "automated_tested_platforms": [
@@ -23479,6 +23480,10 @@
           "windows-x86-64": [
             "BeetleRecomp",
             "Windows-x64"
+          ],
+          "linux-x86-64": [
+            "BeetleRecomp",
+            "Linux-x64"
           ]
         }
       },
@@ -23486,6 +23491,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "BeetleRecomp.exe"
+        ],
+        "linux-x86-64": [
+          "BeetleRecomp"
         ]
       },
       "persistent_paths": [
@@ -23499,9 +23507,23 @@
         "BeetleRecomp-Windows-x64/input.json",
         "BeetleRecomp-Windows-x64/input.json.bak",
         "BeetleRecomp-Windows-x64/cheats.cfg",
-        "BeetleRecomp-Windows-x64/bar.n64.us.z64"
+        "BeetleRecomp-Windows-x64/bar.n64.us.z64",
+        "BeetleRecomp-Linux-x64/mods",
+        "BeetleRecomp-Linux-x64/mod_config",
+        "BeetleRecomp-Linux-x64/saves",
+        "BeetleRecomp-Linux-x64/mods.json",
+        "BeetleRecomp-Linux-x64/mods.json.bak",
+        "BeetleRecomp-Linux-x64/graphics.json",
+        "BeetleRecomp-Linux-x64/graphics.json.bak",
+        "BeetleRecomp-Linux-x64/input.json",
+        "BeetleRecomp-Linux-x64/input.json.bak",
+        "BeetleRecomp-Linux-x64/cheats.cfg",
+        "BeetleRecomp-Linux-x64/bar.n64.us.z64"
       ],
       "runtime_subdirectory": "BeetleRecomp-Windows-x64",
+      "runtime_subdirectory_by_platform": {
+        "linux-x86-64": "BeetleRecomp-Linux-x64"
+      },
       "runtime_source_filename": "bar.n64.us.z64",
       "presentation": {
         "installation_method": "portable-recompilation",
@@ -50026,7 +50048,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -50035,20 +50058,28 @@
           "windows-x86-64": [
             "openomf_",
             "_windows.zip"
+          ],
+          "linux-x86-64": [
+            "openomf-",
+            "-x86_64.appimage"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "openomf.exe"
+        ],
+        "linux-x86-64": [
+          "OpenOMF.AppImage"
         ]
       },
+      "external_profile_policy": "openomf-linux-v1",
       "persistent_paths": [],
       "presentation": {
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "The official archive includes the freeware One Must Fall 2097 resources and the native OpenOMF player. Choose Play after installation; no commercial source files or generation step are needed. The package also includes an ARM64 player; this route uses openomf.exe for x86-64. OpenOMF resolves writable settings, saves, scores, screenshots, recordings and user mods through its OpenOMF user-preference directory, normally AppData/OpenOMF on Windows. That external data remains outside Portcove backups. Package resources and bundled mods remain version-owned; no in-folder player-data paths are declared. Use an external registration for custom OPENOMF_* storage overrides. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_preparation": "The official packages include the freeware One Must Fall 2097 resources. Choose Play after installation. The Windows ZIP includes an ARM64 player alongside the managed x86-64 executable. The managed Linux route uses the stable x86-64 AppImage and its bundled resources. OpenOMF keeps configuration and state in its external profile, normally AppData/OpenOMF on Windows or ~/.local/share/OpenOMF on Linux. On Linux, explicit XDG_CONFIG_HOME and XDG_STATE_HOME select their own absolute locations, and XDG_DATA_HOME can change the SDL preference root. Back up settings, saves, scores, screenshots, recordings and user mods separately. Use a separately prepared copy for custom OpenOMF overrides or alternate resources. Package resources and bundled mods stay with their installed version.",
         "original_game_title": "One Must Fall: 2097",
         "manual_setup": {
           "steps": [
@@ -50057,8 +50088,8 @@
               "instruction": "The official archive includes the freeware One Must Fall 2097 resources and the native OpenOMF player. Choose Play after installation; no commercial source files or generation step are needed. The package also includes an ARM64 player; this route uses openomf.exe for x86-64."
             },
             {
-              "title": "Open the upstream Linux AppImage",
-              "instruction": "Choose the stable x86-64 AppImage and use your Linux system’s AppImage support. Keep it executable. It includes the freeware resources and its own SDL2 libraries."
+              "title": "Start the managed Linux AppImage",
+              "instruction": "Install the stable x86-64 AppImage in Portcove and choose Play. Your Linux system needs AppImage support. The package includes the freeware resources and its own SDL2 libraries. For a custom OpenOMF override or alternate resource set, keep a separately prepared copy."
             },
             {
               "title": "Prepare the upstream Apple Silicon package",
@@ -50066,13 +50097,13 @@
             }
           ],
           "warnings": [
-            "You and upstream maintain the Linux and Mac packages. Back up the configuration and state folders your copy actually uses before replacement. An explicit OPENOMF_CONFIG_PATH or OPENOMF_STATE_PATH can change those locations."
+            "Portcove manages the selected Windows and Linux runtime packages. You and upstream maintain independently prepared copies, including the Mac package. Back up the actual configuration and state folders separately. An explicit OPENOMF_CONFIG_PATH or OPENOMF_STATE_PATH can change those locations."
           ],
           "help_url": "https://github.com/omf2097/openomf/blob/master/PATHS.md",
           "references": [
             {
               "title": "Check the inspected stable packages",
-              "instruction": "The 0.8.6 AppImage player needs glibc 2.34 or later. The separate 0.8.6 Linux TAR.GZ needs glibc 2.43 and system libraries. The loose 0.8.6 Apple Silicon ZIP needs macOS 14 and Homebrew libepoxy, confuse, enet, sdl2_mixer, libxmp, libpng, opusfile, miniupnpc, libnatpmp and sdl2-compat. The binary loads specific library versions from /opt/homebrew. The macOS 15 app layout was observed on the separate rolling channel."
+              "instruction": "The inspected 0.8.6 AppImage needs glibc 2.38 or later for its bundled libraries. The separate 0.8.6 Linux TAR.GZ needs glibc 2.43 and system libraries. The loose 0.8.6 Apple Silicon ZIP needs macOS 14 and Homebrew libepoxy, confuse, enet, sdl2_mixer, libxmp, libpng, opusfile, miniupnpc, libnatpmp and sdl2-compat. The binary loads specific library versions from /opt/homebrew. The macOS 15 app layout was observed on the separate rolling channel."
             },
             {
               "title": "Find the effective OpenOMF profile",

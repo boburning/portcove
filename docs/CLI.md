@@ -19,6 +19,7 @@ for current integration development. A local candidate is not a public release.
 | Move games from GitHub Launcher or Quiver           | [Move from another launcher](#move-from-another-launcher)                                                                                                     |
 | Keep an exact local build for a stable setup        | [Retained builds and setup references](#retained-builds-and-setup-references)                                                                                 |
 | Export metadata and restore copied library content  | [Export and restore](#export-and-restore-a-library)                                                                                                           |
+| Continue a qualified game's saves on another device | [Portable saves](#portable-saves)                                                                                                                             |
 | Move a library or recover a transfer                | [Move](#move-a-library) and [interrupted transfers](#recover-an-interrupted-transfer)                                                                         |
 | Request cancellation and establish the outcome      | [Cancel work safely](#cancel-work-safely)                                                                                                                     |
 | Resolve disc-tool prerequisites or GitHub access    | [Disc tools](#disc-formats-and-optional-tools) and [authentication](#github-authentication)                                                                   |
@@ -1601,6 +1602,77 @@ Before an update installs, a staged version is activated, or a rollback runs, Po
 
 `backup delete` also requires confirmation or `--yes`. Declining an interactive backup restore or deletion is a successful neutral result that says no changes were made; unattended use still requires `--yes`. Deletion validates the selected snapshot and records a core-owned lifecycle operation with the exact original and private quarantine paths before moving that directory out of the visible backup set. The journal advances after quarantine, filesystem removal, and commit. On restart, Portcove completes an unambiguous authorized deletion, including a partially removed quarantine; it never treats both paths, neither pre-publication path, a reappeared visible backup, or out-of-root paths as successful deletion. Such state remains recovery-required in backup inventory and `doctor`. This is process-interruption recovery and visibility isolation, not a cross-platform sudden-power-loss claim. Current persistent data, application versions, original sources, and every other backup remain outside the deletion target.
 
+### Portable saves
+
+Portable saves move only a game's classified save progress between devices.
+They are not a backup and not a library transfer: settings, controller and
+window layout, mods, generated files, files made from your originals, Portcove
+records and unrecognized files stay on each device.
+
+```bash
+portcove --library <path> --json saves export-preview <port-id>
+portcove --library <path> --json saves export <port-id> --output <new-file> --expected-content <content_sha256>
+portcove --library <path> --json saves import-preview <port-id> <file> [--remove-local-only-saves] [--replace-diverged-progress]
+portcove --library <path> --json saves import <port-id> <file> [choices] --expected-preview <preview_sha256> --yes
+```
+
+The only qualified contract is `shipwright-save-files-v1`: Ship of Harkinian
+9.3.1 managed by Portcove on Windows x86-64 or Linux x86-64, with the same
+version on both devices. `Save/file1.sav`, `Save/file2.sav` and `Save/file3.sav`
+move. `Save/global.sav` (file-select options), `shipofharkinian.json`, `imgui.ini`,
+`mods`, `randomizer`, `logs`, `saves`, `SoHTimeSplitData.json`, `oot.o2r`,
+`oot-mq.o2r` and every other entry stay local; each review lists them with their
+role. Other games, versions and platforms report a blocker rather than guessing.
+Saves made with mods or enhancements may depend on the same choices on the other
+device; those are not moved.
+
+`export-preview` lists exactly what moves and what stays. `export` takes the
+per-game lock (a running game blocks it), collects the game's latest writes, and
+refuses if the content no longer matches the reviewed `content_sha256`. It
+creates a new file outside the library folder and never replaces one; it also
+waits for any unfinished restore or backup deletion to be recovered first. The file is a bounded JSON document
+that names its game, contract, version and platform and carries each save with
+its size and SHA-256; import rejects unknown fields, other contracts, any path
+outside the contract's exact files, and any checksum mismatch. It contains no
+library paths, settings or credentials, but it is your save progress: keep it
+private.
+
+`import-preview` is read-only and reports the source and destination identities,
+each file's effect (`add`, `replace`, `unchanged`, `remove` or `keep-local`), what
+stays local and any blockers. Progress is related by content, never by
+timestamps. `continues` means the file's progress was made from exactly this
+device's current saves; `diverged` means Portcove cannot confirm that (both
+devices changed, or history is unknown). A diverged import that would replace
+any save on this device requires `--replace-diverged-progress`; one that only
+adds slots does not. Save slots present only on this device are kept unless
+`--remove-local-only-saves` is chosen. The file's platform and version must both
+be in the contract, and a save name that differs from the expected name only by
+capital letters is refused rather than reviewed as a different file. The review's
+`preview_sha256` binds the file, the choices and current player data.
+
+`import` repeats the review under the per-game lock, consumes one-use consent
+bound to that state, collects the game's latest writes and refuses if anything
+changed. It then publishes a normal backup of current data with the reviewed
+saves applied and restores it through the ordinary [backup restore](#managed-saved-data-and-backups)
+path: a safety backup of current data is made first, and the journaled restore
+owns interruption recovery. The result names both backups, so either branch can
+be restored later. If restore fails after the imported-state backup exists, the
+error's `imported_progress_snapshot` detail names it. Each player-data folder
+keeps `portcove-portable-saves.json`, the last synchronized content digest; it
+travels with that data through backups and restores. Editing save files outside
+Portcove cannot be detected, and a hand-edited file can claim to continue from
+this device's saves; either may be treated as continuing progress, but the review,
+confirmation and safety backup still apply. Known limitations: after an import
+that keeps local-only slots, the next import from the other device is reported as
+diverged even if it continued from the imported saves; and if the final restore
+step refuses because data changed, the imported-state backup it already made stays
+in the backup list as an ordinary backup.
+
+Automated tests cover classification, file integrity, version and game
+blockers, conflicts, deletion choices, changed input, a running game and
+interruption recovery. They do not show that the game loads moved saves; that
+remains a separate qualification for the exact device pair.
+
 ### Concurrency and failure-isolated batches
 
 Mutating commands, verification, and `exec` use a cross-process lock for the selected port. A second frontend targeting that same port fails immediately with `error.code: "conflict"`, exit code 14, and `details.port_id`; it should retry later rather than run a competing operation. The launch lock remains held through game exit and post-exit mutable-data collection. An unfinished durable launch request continues to block the port even if its supervisor crashes. Desktop startup or `launch recover <request-id>` recovers only the exact recorded child/start identity/install before committing a failed terminal outcome. A live supervisor, PID/start mismatch, ambiguous spawning phase, legacy missing identity, or changed install fails closed for manual review. Recovery can wait for an exact still-running child and then collect from the recorded install; it cannot claim that hard termination allowed a game to flush data. Completed request rows remain reconnectable evidence without blocking a later launch. Commands for other ports continue independently. `capabilities.port_operation_locking` is `per_port_fail_fast` when this contract is available.
@@ -1728,7 +1800,7 @@ portcove --library PATH --json profile ensure-default PORT_ID
 portcove --library PATH --json profile copy PORT_ID PROFILE_ID NAME [--current-build]
 portcove --library PATH --json profile revisions PORT_ID PROFILE_ID
 portcove --library PATH --json profile policy PORT_ID PROFILE_ID keep-current|review-updates|automatic-eligible
-portcove --library PATH --json profile install-package PORT_ID PROFILE_ID FILE --expected-revision N
+portcove --library PATH --json profile install-package PORT_ID PROFILE_ID FILE --expected-revision N [--allow-mod-code SHA256]
 portcove --library PATH --json profile set-package PORT_ID PROFILE_ID NATIVE_ID on|off --expected-revision N
 portcove --library PATH --json profile activate PORT_ID PROFILE_ID
 portcove --library PATH --json profile live PORT_ID
@@ -1819,9 +1891,32 @@ package with an installed mod's ID replaces it. An ID that some supported system
 cannot use as a file name (a device name such as `NUL`, or one too long) is refused
 before anything is stored. The manifest's version is recorded with the package.
 
-Only mods that change assets are installed. A package that carries recompiled
-code, host libraries or other executable files, or that names another game, is
-refused with nothing recorded; running mod code needs its own review first.
+A package that names another game is refused with nothing recorded. A package
+that carries recompiled game code (`mod_binary.bin`/`mod_syms.bin`, which the
+runtime recompiles and runs inside the game) is refused as `usage` until the player
+allows code for those exact bytes: the refusal's `sha256` detail names them, and
+`install-package ... --allow-mod-code SHA256` installs the package only when that
+digest matches. The consent is kept per game in the library and covers only those
+bytes, so a later version, a recipe or a hand-written revision with other bytes
+needs its own consent, and other setups may use bytes already allowed. Portcove
+checks it again whenever it records a revision, switches profiles or places
+packages, before anything changes: a revision that would run code without consent
+is refused as `conflict` with nothing changed, and installing the same file again
+with `--allow-mod-code` lets it continue. Portcove therefore never records,
+enables or places mod code without consent. Files a player puts in `mods`
+themselves are not Portcove's: they are reported as files the setup did not add,
+never adopted into a setup that would run them. Provider installs refuse mods that
+run code. Consent records the
+player's choice; it does not establish that the code is safe, who wrote it, or
+that it works with the installed build. Packages that load code from outside
+themselves (`native_libraries` host libraries, `*.offline.nrm`) or contain files an
+operating system runs directly stay refused, even with consent.
+
+Desktop asks the same question: after a package is chosen it reads what the
+package would run, and a package whose code was not allowed before shows the mod's
+name, that it runs code inside the game, that Portcove cannot tell whether the code
+is safe, and the exact SHA-256 the permission covers. Only **Allow its code and
+add** installs it, bound to that digest.
 
 Required dependencies become package requirements. A mod needing a mod that is not
 installed is refused until that mod is installed, and a mod that is on cannot be

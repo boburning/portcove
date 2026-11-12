@@ -388,6 +388,16 @@ const SCOPED: &[(&str, &[&str])] = &[
         "crates/portcove-core/src/native_external_profile/profile_siblings.rs",
         &["/player/settings", "/player/home", "/account/home"],
     ),
+    // OpenOMF's exact built-in Linux resource search roots.
+    (
+        "crates/portcove-core/src/native_external_profile/openomf.rs",
+        &[
+            "/usr/local/share/games",
+            "/usr/share/games",
+            "/usr/local/share",
+            "/usr/share",
+        ],
+    ),
     // Synthetic home and exact invalid profile roots in tests.
     (
         "crates/portcove-core/src/native_external_profile/openjk.rs",

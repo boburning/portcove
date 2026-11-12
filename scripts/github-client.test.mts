@@ -672,6 +672,50 @@ void test("locked SDK pagination preserves original envelopes and independent pa
   assert.equal(pages[3]?.headers["x-github-request-id"], "page-4");
 });
 
+void test("SDK pagination prepares each followed Link before its admission check", async () => {
+  let admittedId: number | undefined;
+  const prepared: string[] = [];
+  const dispatched: string[] = [];
+  const client = await createGitHubClient({
+    credential: { kind: "anonymous" },
+    deadline: performance.now() + 5000,
+    allowRequest: (method, url) =>
+      method === "GET" &&
+      (url.pathname.startsWith("/repos/example/repo/") ||
+        (admittedId !== undefined && url.pathname.startsWith(`/repositories/${admittedId}/`))),
+    fetch: async (input) => {
+      const url = new URL(input instanceof Request ? input.url : String(input));
+      dispatched.push(url.pathname);
+      return url.pathname.startsWith("/repositories/")
+        ? Response.json([2])
+        : Response.json([1], {
+            headers: {
+              link: '<https://api.github.com/repositories/7/check-runs?page=2>; rel="next"',
+            },
+          });
+    },
+  });
+  const collect = async (bind: number) => {
+    const pages: unknown[] = [];
+    for await (const page of iterateGitHubPages(client, {
+      url: "https://api.github.com/repos/example/repo/check-runs",
+      prepareRequest: async (url) => {
+        prepared.push(new URL(url).pathname);
+        if (new URL(url).pathname.startsWith("/repositories/")) admittedId = bind;
+      },
+    }))
+      pages.push(page.data);
+    return pages;
+  };
+  await assert.rejects(collect(8), { code: "request_refused" });
+  assert.deepEqual(dispatched, ["/repos/example/repo/check-runs"]);
+  assert.deepEqual(await collect(7), [[1], [2]]);
+  assert.deepEqual(prepared.slice(-2), [
+    "/repos/example/repo/check-runs",
+    "/repositories/7/check-runs",
+  ]);
+});
+
 void test("SDK pagination cannot turn409 into empty success or loop beyond an admitted page", async () => {
   for (const mode of ["conflict", "loop"] as const) {
     let dispatched = 0;

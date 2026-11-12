@@ -477,7 +477,8 @@ crop one role into another; originals are exported unmodified.
 The bytes command requires the previously observed library ID, choice revision and
 asset digest, rechecks them under the artwork lock, and returns the complete handoff
 plus an `original` JSON byte array. It reads the bounded regular original and checks
-its digest, decoded format and dimensions. Stale bindings fail and require a fresh
+its digest, decoded format and dimensions; for `hero_banner` it also refuses an
+original whose embedded orientation turns it a quarter turn. Stale bindings fail and require a fresh
 preview. Originals retain the existing 16 MiB limit; bound process output for JSON
 array expansion as well. Validate the handoff, byte count, digest and decode before
 storing a durable destination copy. Exported `destination_artwork_handoff` and

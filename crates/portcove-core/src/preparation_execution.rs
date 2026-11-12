@@ -808,7 +808,7 @@ pub(super) fn setup_output_root(
     selected_executable: &Path,
 ) -> Result<PathBuf> {
     if port.adapter == crate::AdapterKind::UpstreamManagedSetup
-        && port.runtime_subdirectory.is_some()
+        && port.declares_runtime_subdirectory()
     {
         crate::adapter::launch_working_directory(
             port,

@@ -249,6 +249,17 @@ impl DefinitionContentIndex {
                 "Linux portable data directories require native capability version 25",
             ));
         }
+        if !port.runtime_subdirectory_by_platform.is_empty()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "n64-recomp-portable"
+                    && requirement.minimum_version
+                        >= crate::runtime::N64_PLATFORM_RUNTIME_SUBDIRECTORY_CAPABILITY
+            })
+        {
+            return Err(PortcoveError::verification(
+                "platform runtime subdirectories require n64-recomp-portable capability version 6",
+            ));
+        }
         // Readers without the tracked handoff would drop the field and collect
         // player data while a successor still runs, so they must refuse it.
         if port.windows_tracked_handoff

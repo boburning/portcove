@@ -381,12 +381,20 @@ export const desktopApi = {
     path: string,
     expectedRevision: number,
     generation: number,
+    allowCodeSha256: string | null = null,
   ) =>
     invoke<import("./types").ModSetupRevision>("add_mod_package", {
       portId,
       profileId,
       path,
       expectedRevision,
+      generation,
+      allowCodeSha256,
+    }),
+  reviewModPackageCode: (portId: string, path: string, generation: number) =>
+    invoke<import("./types").ModCodeReview | null>("review_mod_package_code", {
+      portId,
+      path,
       generation,
     }),
   resetArtwork: (portId: string, slot: ArtworkSlot, expectedRevision: number, generation: number) =>

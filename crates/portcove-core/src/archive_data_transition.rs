@@ -72,6 +72,7 @@ fn same_coordinates(old: &PortDefinition, new: &PortDefinition) -> bool {
         && old.persistent_paths == new.persistent_paths
         && old.persistent_file_patterns == new.persistent_file_patterns
         && old.runtime_subdirectory == new.runtime_subdirectory
+        && old.runtime_subdirectory_by_platform == new.runtime_subdirectory_by_platform
         && old.launch_from_install_root == new.launch_from_install_root
         && same_executable
         && old.launch_arguments == new.launch_arguments

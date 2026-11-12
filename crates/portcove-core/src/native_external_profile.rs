@@ -17,6 +17,7 @@ pub(crate) mod archive_siblings;
 pub(crate) mod doom3_linux;
 pub(crate) mod openjk;
 pub(crate) mod openmohaa;
+pub(crate) mod openomf;
 pub(crate) mod profile_siblings;
 pub(crate) mod quake_linux;
 pub(crate) mod recomp_direct;
@@ -56,6 +57,7 @@ fn require_arm64_macho(executable: &Path, message: &str) -> Result<()> {
 
 pub(crate) fn minimum_capability(policy: ExternalProfilePolicy) -> u32 {
     match policy {
+        ExternalProfilePolicy::OpenomfLinuxV1 => openomf::NATIVE_CAPABILITY,
         ExternalProfilePolicy::Z2rsDesktopV1 => z2rs::NATIVE_CAPABILITY,
         ExternalProfilePolicy::RecompDirectV1 => recomp_direct::NATIVE_CAPABILITY,
         ExternalProfilePolicy::Doom3LinuxV1 => doom3_linux::NATIVE_CAPABILITY,
@@ -86,6 +88,7 @@ pub(crate) fn applies_to(policy: ExternalProfilePolicy, platform: Platform) -> b
         ExternalProfilePolicy::CorsixthLinuxV1 | ExternalProfilePolicy::OpenlocoUnixV1 => {
             profile_siblings::applies_to(policy, platform)
         }
+        ExternalProfilePolicy::OpenomfLinuxV1 => platform == Platform::LinuxX86_64,
         ExternalProfilePolicy::JgrppLinuxV1 => platform == Platform::LinuxX86_64,
         ExternalProfilePolicy::RecompDirectV1 => {
             matches!(platform, Platform::WindowsX86_64 | Platform::LinuxX86_64)
@@ -115,6 +118,10 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
                 Platform::LinuxX86_64,
                 Platform::MacosX86_64,
             ],
+        ),
+        ExternalProfilePolicy::OpenomfLinuxV1 => (
+            Some(("omf2097-openomf", "omf2097/openomf")),
+            &[Platform::WindowsX86_64, Platform::LinuxX86_64],
         ),
         ExternalProfilePolicy::Openrct2MacV1 => (
             Some(("openrct2-openrct2", "OpenRCT2/OpenRCT2")),
@@ -223,6 +230,9 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
     }
     if profile_siblings::applies(policy) {
         profile_siblings::validate(port, policy)?;
+    }
+    if policy == ExternalProfilePolicy::OpenomfLinuxV1 {
+        openomf::validate(port)?;
     }
     if archive_siblings::applies(policy) {
         archive_siblings::validate(port, policy)?;
@@ -380,7 +390,8 @@ fn linux_root(
         | ExternalProfilePolicy::Z2rsDesktopV1
         | ExternalProfilePolicy::RecompDirectV1
         | ExternalProfilePolicy::Doom3LinuxV1
-        | ExternalProfilePolicy::OpenjkUnixV1 => {
+        | ExternalProfilePolicy::OpenjkUnixV1
+        | ExternalProfilePolicy::OpenomfLinuxV1 => {
             return Err(PortcoveError::unsupported(
                 "this profile uses a different upstream layout",
             ));
@@ -783,11 +794,20 @@ pub(crate) fn require_external_roots(
                         | ExternalProfilePolicy::RecompDirectV1
                         | ExternalProfilePolicy::Doom3LinuxV1
                         | ExternalProfilePolicy::OpenjkUnixV1
+                        | ExternalProfilePolicy::OpenomfLinuxV1
                 ))
             .then(|| library.root().to_path_buf()),
         )
         .map(|path| crate::path::resolve_existing_ancestor(&path))
         .collect::<Result<Vec<_>>>()?;
+    if policy == ExternalProfilePolicy::OpenomfLinuxV1 {
+        #[cfg(target_os = "linux")]
+        return openomf::check_launch(spec, command, uid, &owned, checkpoint);
+        #[cfg(not(target_os = "linux"))]
+        return Err(PortcoveError::unsupported(
+            "the OpenOMF AppImage requires Linux",
+        ));
+    }
     let profile_roots = if policy == ExternalProfilePolicy::RecompAppimageV1 {
         #[cfg(target_os = "linux")]
         {

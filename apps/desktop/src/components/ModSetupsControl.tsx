@@ -4,7 +4,7 @@ import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
 import { pickModPackagePath } from "../file-picker";
 import { useAppTranslation } from "../localization";
-import type { LiveMods, ModSetupView, ModSetupsView } from "../types";
+import type { LiveMods, ModCodeReview, ModSetupView, ModSetupsView } from "../types";
 import { errorText } from "../view-model";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
@@ -65,6 +65,12 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   const [fresh, setFresh] = useState(true);
   const [browserBusy, setBrowserBusy] = useState(false);
   const [copyName, setCopyName] = useState("");
+  // A chosen package that runs code waits here for the player's explicit choice.
+  const [codeReview, setCodeReview] = useState<{
+    profileId: string;
+    path: string;
+    review: ModCodeReview;
+  }>();
   const copyId = useId();
   const headingId = useId();
   // A picker answer that arrives after this view was replaced is dropped.
@@ -317,6 +323,25 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                       // Closing the picker changes nothing and is not an error, and an
                       // answer for a view that was replaced is dropped.
                       if (typeof path !== "string" || !alive.current) return;
+                      let review: ModCodeReview | null;
+                      setWorking(true);
+                      try {
+                        review = await desktopApi.reviewModPackageCode(portId, path, generation);
+                      } catch (failure) {
+                        if (alive.current) setFailure({ text: errorText(failure) });
+                        return;
+                      } finally {
+                        if (alive.current) setWorking(false);
+                      }
+                      if (!alive.current) return;
+                      // Code the player has not allowed for these exact bytes waits for
+                      // an explicit choice; bytes allowed before install directly.
+                      if (review && !review.already_allowed) {
+                        setOutcome(undefined);
+                        setFailure(undefined);
+                        setCodeReview({ profileId: selected.profile.id, path, review });
+                        return;
+                      }
                       await perform(
                         () =>
                           desktopApi.addModPackage(
@@ -325,6 +350,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                             path,
                             selected.profile.current_revision,
                             generation,
+                            review?.sha256 ?? null,
                           ),
                         t("mods.outcome.added", { name: selected.profile.display_name }),
                       );
@@ -334,6 +360,56 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                   {t("mods.add")}
                 </Button>
               </ActionRow>
+              {codeReview?.profileId === selected.profile.id && (
+                <Notice intent="warning">
+                  <div data-slot="notice-body" className="grid gap-2">
+                    <p>
+                      <Trans
+                        t={t}
+                        i18nKey="mods.code.intro"
+                        components={{
+                          name: <bdi>{codeReview.review.display_name}</bdi>,
+                          id: <code dir="ltr">{codeReview.review.native_id}</code>,
+                        }}
+                      />
+                    </p>
+                    <p>{t("mods.code.runs")}</p>
+                    <p className="[overflow-wrap:anywhere]">
+                      <Trans
+                        t={t}
+                        i18nKey="mods.code.digest"
+                        components={{ digest: <code dir="ltr">{codeReview.review.sha256}</code> }}
+                      />
+                    </p>
+                    <ActionRow>
+                      <Button
+                        disabled={locked}
+                        onClick={() => {
+                          const { path, review } = codeReview;
+                          setCodeReview(undefined);
+                          void perform(
+                            () =>
+                              desktopApi.addModPackage(
+                                portId,
+                                selected.profile.id,
+                                path,
+                                selected.profile.current_revision,
+                                generation,
+                                review.sha256,
+                              ),
+                            t("mods.outcome.added", { name: selected.profile.display_name }),
+                          );
+                        }}
+                      >
+                        {t("mods.code.allow")}
+                      </Button>
+                      <Button variant="outline" onClick={() => setCodeReview(undefined)}>
+                        {t("mods.code.cancel")}
+                      </Button>
+                    </ActionRow>
+                  </div>
+                </Notice>
+              )}
               {view.provider === "gamebanana" && (
                 <ModProviderBrowser
                   key={selected.profile.id}

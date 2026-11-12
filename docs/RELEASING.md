@@ -106,6 +106,12 @@ attested prepared assets. The final job rechecks the live cohort, draft asset
 identities, pause and protection before publishing the immutable Release.
 Draft asset removal still requires its own fresh protection observation.
 
+The metadata maintenance workflow pairs each Releases, Preview and Stable
+signer with a separate observer for its phase and attempt. Each observer waits
+for the matching signing step before collecting the inventory. Other signing
+jobs may be queued or already settled. The signer verifies the receipt and its
+existing freshness limit before signing.
+
 Ordinary prepare reserves 157 minutes within an exact 160-minute spending
 appointment. Its source job has five minutes for qualification and comparison,
 and its seven isolated observers each have three minutes for collection and

@@ -80,6 +80,7 @@ mod persistence;
 mod port_recommendation;
 mod portability;
 mod portability_authority;
+mod portable_saves;
 mod portable_tree;
 mod preparation;
 mod process;
@@ -299,6 +300,12 @@ pub use portability::{
     LibraryMetadataFile, LibraryPortSettings,
 };
 pub use portability_authority::PortabilityAuthority;
+pub use portable_saves::{
+    LocalDataEntry, PersistentDataRole, PortableSaveBlocker, PortableSaveExportPreview,
+    PortableSaveExportResult, PortableSaveFile, PortableSaveFileChange, PortableSaveFileEffect,
+    PortableSaveIdentity, PortableSaveImportOptions, PortableSaveImportPreview,
+    PortableSaveImportResult, PortableSaveRelation,
+};
 pub use preparation::{
     PreparationCleanupPreview, PreparationInputs, PreparationMode, PreparationOptions,
     PreparationPlan, PreparationTool,
@@ -310,7 +317,7 @@ pub use profile::{
     ProfileUpdatePolicy, ProfileView, ProviderPackageRef, RequestedPackage, ResolvedPackage,
     TypedOrdering,
 };
-pub use profile_deploy::{LiveMods, ModSetupsView, NativeModListStatus};
+pub use profile_deploy::{LiveMods, ModCodeReview, ModSetupsView, NativeModListStatus};
 pub use provider_auto_update::{HeldModUpdate, ProviderAutoUpdate, ProviderAutoUpdateOutcome};
 pub use provider_browse::{ProviderBrowsePage, ProviderProjectView};
 pub use provider_install::{PlanMember, ProviderInstallPlan};

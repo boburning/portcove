@@ -3130,6 +3130,7 @@ pub fn run() -> std::process::ExitCode {
             mod_setup_commands::plan_provider_install,
             mod_setup_commands::apply_provider_install,
             mod_setup_commands::discard_provider_install,
+            mod_setup_commands::review_mod_package_code,
             favorite_commands::get_favorite_ports,
             favorite_commands::set_port_favorite,
             organization_commands::get_library_organization,

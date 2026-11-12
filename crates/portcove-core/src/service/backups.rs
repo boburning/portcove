@@ -496,6 +496,9 @@ struct BackupStats {
     metadata_hasher: Sha256,
 }
 
+/// A reviewed change applied to a private copy of canonical data.
+pub(super) type SnapshotOverlay<'a> = dyn Fn(&Path) -> Result<()> + 'a;
+
 impl PortcoveService {
     /// Bind the same retained selection and omission rules used by collection.
     /// This observation never creates canonical directories or copies save data.
@@ -600,6 +603,22 @@ impl PortcoveService {
         })
     }
 
+    /// Combined read-only player-data state used by other reviewed operations
+    /// that must refuse when canonical or collectible runtime data changes.
+    pub(super) fn player_data_review_sha256(&self, port_id: &str) -> Result<String> {
+        Ok(crate::signed_catalog::digest(&serde_json::to_vec(&(
+            self.collectible_data_review(port_id)?.sha256,
+            self.canonical_data_review(port_id)?,
+        ))?))
+    }
+
+    /// Whether restore would find files to protect in a safety backup.
+    pub(super) fn safety_backup_would_be_created(&self, port_id: &str) -> Result<bool> {
+        Ok(self
+            .collectible_data_review(port_id)?
+            .files_after_collection)
+    }
+
     fn canonical_data_review(&self, port_id: &str) -> Result<String> {
         let tree = crate::runtime_data_policy::DataReview::default()
             .canonical(&self.library.user_dir(port_id))?;
@@ -627,10 +646,31 @@ impl PortcoveService {
         self.create_backup_locked_labeled(port_id, None)
     }
 
+    /// Publish an ordinary snapshot of current canonical data with a reviewed
+    /// change applied to a private copy inside the unpublished backup stage.
+    /// Canonical data is not modified; an interrupted stage keeps the existing
+    /// unpublished-stage recovery semantics and is never restorable.
+    pub(super) fn create_overlay_backup_locked(
+        &self,
+        port_id: &str,
+        overlay: &SnapshotOverlay<'_>,
+    ) -> Result<BackupRecord> {
+        self.create_backup_snapshot(port_id, None, Some(overlay))
+    }
+
     fn create_backup_locked_labeled(
         &self,
         port_id: &str,
         label: Option<crate::AutomaticSnapshotLabel>,
+    ) -> Result<BackupRecord> {
+        self.create_backup_snapshot(port_id, label, None)
+    }
+
+    fn create_backup_snapshot(
+        &self,
+        port_id: &str,
+        label: Option<crate::AutomaticSnapshotLabel>,
+        overlay: Option<&SnapshotOverlay<'_>>,
     ) -> Result<BackupRecord> {
         self.require_generated_cache_outputs_unchanged(port_id)?;
         let source = self.library.user_dir(port_id);
@@ -678,7 +718,15 @@ impl PortcoveService {
             self.faults
                 .check(LifecycleFaultPoint::BackupStagingCreated)?;
             let mut stats = BackupStats::default();
-            copy_backup_tree(&source, &staging_path.join("data"), &source, &mut stats)?;
+            if let Some(overlay) = overlay {
+                let merged = staging_path.join("overlay");
+                copy_backup_tree(&source, &merged, &source, &mut BackupStats::default())?;
+                overlay(&merged)?;
+                copy_backup_tree(&merged, &staging_path.join("data"), &merged, &mut stats)?;
+                fs::remove_dir_all(&merged)?;
+            } else {
+                copy_backup_tree(&source, &staging_path.join("data"), &source, &mut stats)?;
+            }
             self.faults.check(LifecycleFaultPoint::BackupDataCopied)?;
             if self.guarded_backup_producer(port_id)? != producer
                 || crate::archive_data::snapshot_policy(&source)? != partitioned_policy

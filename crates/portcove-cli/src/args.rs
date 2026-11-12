@@ -28,6 +28,7 @@ const ROOT_COMMAND_GROUPS: &[(&str, &[&str])] = &[
         &[
             "source",
             "backup",
+            "saves",
             "game-settings",
             "library",
             "games",
@@ -187,6 +188,11 @@ pub(crate) enum Commands {
     Backup {
         #[command(subcommand)]
         command: BackupCommand,
+    },
+    /// Review, export, or import portable saves for a qualified game version.
+    Saves {
+        #[command(subcommand)]
+        command: SavesCommand,
     },
     /// Read, review, or apply one retained installation's declared game setting.
     GameSettings {
@@ -975,6 +981,61 @@ pub(crate) enum BackupCommand {
         /// Backup ID from `backup list PORT_ID`; select the snapshot for the intended port.
         backup_id: String,
         /// Confirm replacement of the affected managed saved data.
+        #[arg(long)]
+        yes: bool,
+    },
+}
+
+#[derive(Debug, clap::Args)]
+pub(crate) struct SaveImportChoiceArgs {
+    /// Remove save slots that exist only on this device and not in the file.
+    #[arg(long)]
+    pub(crate) remove_local_only_saves: bool,
+    /// Replace this device's progress when both devices have new progress.
+    /// It stays in a safety backup either way.
+    #[arg(long)]
+    pub(crate) replace_diverged_progress: bool,
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum SavesCommand {
+    /// Show which files an export would contain and which stay on this device.
+    ExportPreview {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+    },
+    /// Write the reviewed saves to a new file. Never replaces an existing file.
+    Export {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// New file to create.
+        #[arg(long)]
+        output: PathBuf,
+        /// `content_sha256` from `saves export-preview`; changed saves refuse.
+        #[arg(long)]
+        expected_content: String,
+    },
+    /// Review what importing a portable save file would change.
+    ImportPreview {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Portable save file made by `saves export`.
+        file: PathBuf,
+        #[command(flatten)]
+        choices: SaveImportChoiceArgs,
+    },
+    /// Import a reviewed portable save file after confirmation.
+    Import {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Portable save file made by `saves export`.
+        file: PathBuf,
+        #[command(flatten)]
+        choices: SaveImportChoiceArgs,
+        /// `preview_sha256` from `saves import-preview`; changed inputs refuse.
+        #[arg(long)]
+        expected_preview: String,
+        /// Confirm the reviewed import without prompting.
         #[arg(long)]
         yes: bool,
     },

@@ -69,6 +69,7 @@ export type LiveMods = Generated.TransportOutputs["live_mods"];
 export type ProviderBrowsePage = Generated.TransportOutputs["provider_browse_page"];
 export type ProviderProjectView = Generated.TransportOutputs["provider_project_view"];
 export type ProviderInstallPlan = Generated.TransportOutputs["provider_install_plan"];
+export type ModCodeReview = Generated.TransportOutputs["mod_code_review"];
 
 export type { SourceHealth } from "./transport-types.generated";
 

@@ -115,6 +115,10 @@ impl EngineTemplateCapability {
             contract_version: 5,
         });
         supported.push(Self {
+            template: AdapterKind::N64RecompPortable,
+            contract_version: crate::runtime::N64_PLATFORM_RUNTIME_SUBDIRECTORY_CAPABILITY,
+        });
+        supported.push(Self {
             template: AdapterKind::PsxRecompManaged,
             contract_version: 2,
         });
@@ -265,6 +269,10 @@ impl EngineTemplateCapability {
         supported.push(Self {
             template: AdapterKind::NativePortable,
             contract_version: crate::runtime::NATIVE_MAC_BUNDLE_TAR_XZ_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::native_external_profile::openomf::NATIVE_CAPABILITY,
         });
         supported.push(Self {
             template: AdapterKind::NativePortable,
@@ -470,6 +478,31 @@ mod tests {
         );
         assert!(
             check_definition_capabilities(&request("native-portable", 13, 13))
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
+    fn n64_6_platform_runtime_subdirectories_exclude_older_readers_without_retiring_n64_5() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::N64RecompPortable || entry.contract_version < 6
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("n64-recomp-portable", 6, 6), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("n64-recomp-portable", 6, 6))
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("n64-recomp-portable", 5, 5))
                 .unwrap()
                 .compatible
         );
@@ -984,9 +1017,9 @@ mod tests {
             check_definition_capabilities(&request("staged-source-portable", 3, 3)).unwrap();
         assert!(staged.compatible);
         assert_eq!(staged.checks[0].installed_version, Some(3));
-        let n64 = check_definition_capabilities(&request("n64-recomp-portable", 6, 6)).unwrap();
+        let n64 = check_definition_capabilities(&request("n64-recomp-portable", 99, 99)).unwrap();
         assert!(!n64.compatible);
-        assert_eq!(n64.checks[0].installed_version, Some(5));
+        assert_eq!(n64.checks[0].installed_version, Some(6));
         let future =
             check_definition_capabilities(&request("staged-source-portable", 32, 32)).unwrap();
         assert!(!future.compatible);
@@ -1307,7 +1340,7 @@ mod tests {
         );
         assert!(check_definition_capabilities(&required).unwrap().compatible);
         assert!(
-            !check_definition_capabilities(&request("n64-recomp-portable", 6, 6))
+            !check_definition_capabilities(&request("n64-recomp-portable", 99, 99))
                 .unwrap()
                 .compatible
         );
@@ -1327,7 +1360,7 @@ mod tests {
         );
         assert!(check_definition_capabilities(&required).unwrap().compatible);
         assert!(
-            !check_definition_capabilities(&request("n64-recomp-portable", 6, 6))
+            !check_definition_capabilities(&request("n64-recomp-portable", 99, 99))
                 .unwrap()
                 .compatible
         );
