@@ -19,7 +19,7 @@ use crate::{
     inspect_asset_archive,
     mod_package::extract_packages,
     profile,
-    profile_deploy::{StagedPackage, adapter_extensions, sha256_file},
+    profile_deploy::{adapter_extensions, inspect_for_port, sha256_file},
 };
 
 const MAX_DOWNLOAD_BYTES: u64 = 4 * 1024 * 1024 * 1024;
@@ -388,19 +388,14 @@ impl PortcoveService {
                 )
                 .detail("package", &member.file_name));
             }
-            let inspection = inspect_asset_archive(&path)?;
-            if inspection.sha256 != member.sha256 {
+            // The same loader review a local install gets.
+            let item = inspect_for_port(&plan.port_id, path, Some(plan.provider.clone()))?;
+            if item.inspection.sha256 != member.sha256 {
                 return Err(PortcoveError::verification(
                     "the reviewed package bytes changed during inspection; plan again",
                 ));
             }
-            staged.push(StagedPackage {
-                private: path,
-                inspection,
-                provider: Some(plan.provider.clone()),
-                native_version: None,
-                requires: Vec::new(),
-            });
+            staged.push(item);
         }
         let revision = self.install_staged_locked(
             &plan.port_id,

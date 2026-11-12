@@ -1155,3 +1155,57 @@ fn recomp_switching_profiles_swaps_mods_and_their_list_and_keeps_progress() {
         "each setup keeps its own newer progress"
     );
 }
+
+#[test]
+fn recomp_self_runtime_and_unusable_ids_are_handled_before_anything_is_stored() {
+    let w = recomp_world();
+    // `.` and `*` name the mod itself and the runtime: version floors, not packages.
+    let floors = w
+        .install("floors.nrm", "floors", &[".:1.0.0", "*:1.2.0"])
+        .unwrap();
+    assert!(floors.packages[0].requires.is_empty());
+
+    let store = Layout::for_user(&w.user()).store();
+    let stored = || {
+        walk(&store)
+            .into_iter()
+            .filter(|path| path.extension().is_some_and(|ext| ext == "nrm"))
+            .count()
+    };
+    let before = stored();
+    for id in ["NUL", &"x".repeat(200)] {
+        let error = w.install("bad.nrm", id, &[]).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Unsupported, "{id}");
+        assert!(error.message.contains("cannot be used as a file name"));
+    }
+    assert_eq!(stored(), before, "nothing was stored for refused IDs");
+
+    // The runtime knows a mod by its ID: the same ID under another file name
+    // replaces the installed package instead of adding a second one.
+    let renamed = w.install("floors (copy).nrm", "floors", &[]).unwrap();
+    assert_eq!(renamed.packages.len(), 1);
+    assert_eq!(w.live(), ["floors.nrm"]);
+
+    let missing = w.install("addon.nrm", "addon", &["base_pack"]).unwrap_err();
+    assert!(
+        missing
+            .message
+            .contains("not installed; install that one first")
+    );
+}
+
+fn walk(root: &Path) -> Vec<PathBuf> {
+    let mut found = Vec::new();
+    let Ok(entries) = fs::read_dir(root) else {
+        return found;
+    };
+    for entry in entries {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            found.extend(walk(&path));
+        } else {
+            found.push(path);
+        }
+    }
+    found
+}

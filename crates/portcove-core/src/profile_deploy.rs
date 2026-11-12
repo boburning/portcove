@@ -167,8 +167,21 @@ pub(crate) fn inspect_for_port(
             .detail("mod", &recomp.native_id),
         });
     }
+    let file_name = format!("{}.nrm", recomp.native_id);
+    // The manifest, not a file on disk, now names the file: refuse a name some
+    // supported system cannot hold before anything is stored.
+    if !profile::valid_native_id(&file_name)
+        || crate::archive::validate_relative_path(&file_name, false).is_err()
+    {
+        return Err(PortcoveError::unsupported(
+            "this mod's ID cannot be used as a file name on every system Portcove supports; nothing was installed",
+        )
+        .detail("mod", &recomp.native_id));
+    }
+    // Recomp packages are reviewed through their manifest; asset paths and entry
+    // counts are not compared across mods for this loader, so they stay empty.
     let inspection = crate::ModPackageInspection {
-        file_name: format!("{}.nrm", recomp.native_id),
+        file_name,
         sha256: recomp.sha256,
         size: recomp.size,
         entry_count: 0,
@@ -185,8 +198,11 @@ pub(crate) fn inspect_for_port(
         requires: recomp
             .dependencies
             .iter()
+            // `.` (the mod itself) and `*` (the runtime) carry only a minimum
+            // version, and built-in mods ship inside the runtime: none is a package.
             .filter(|dependency| {
-                !native_mod_list::recomp_builtins(game).contains(&dependency.id.as_str())
+                !matches!(dependency.id.as_str(), "." | "*")
+                    && !native_mod_list::recomp_builtins(game).contains(&dependency.id.as_str())
             })
             .map(|dependency| format!("{}.nrm", dependency.id))
             .collect(),
@@ -325,11 +341,18 @@ pub(crate) fn require_projectable(port_id: &str, revision: &ProfileRevision) -> 
         .collect::<BTreeSet<_>>();
     for package in enabled(revision) {
         if let Some(missing) = package.requires.iter().find(|id| !on.contains(id.as_str())) {
-            return Err(PortcoveError::conflict(
-                "a mod that is on needs another mod that is off or missing; turn that one on first, or turn this one off. Nothing was changed",
-            )
-            .detail("package", &package.native_id)
-            .detail("requires", missing));
+            let installed = revision
+                .packages
+                .iter()
+                .any(|candidate| &candidate.native_id == missing);
+            let message = if installed {
+                "a mod that is on needs another mod that is off; turn that one on first, or turn this one off. Nothing was changed"
+            } else {
+                "this mod needs another mod that is not installed; install that one first. Nothing was changed"
+            };
+            return Err(PortcoveError::conflict(message)
+                .detail("mod", native_mod_list::native_name(&package.native_id))
+                .detail("needs", native_mod_list::native_name(missing)));
         }
     }
     for package in enabled(revision) {

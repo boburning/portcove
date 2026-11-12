@@ -1792,20 +1792,22 @@ upstream needs a new review.
 the Recomp runtime's `.nrm` packages (a zip with a `mod.json` manifest). Portcove
 reads the manifest without running anything and names the mod by its manifest mod
 ID, not its file name: the package is stored and placed in `mods` as
-`<mod ID>.nrm`, so a renamed download is still the same mod, and two packages with
-the same ID cannot both be installed. The manifest's version is recorded with the
-package.
+`<mod ID>.nrm`, so a renamed download is still the same mod, and installing a
+package with an installed mod's ID replaces it. An ID that some supported system
+cannot use as a file name (a device name such as `NUL`, or one too long) is refused
+before anything is stored. The manifest's version is recorded with the package.
 
 Only mods that change assets are installed. A package that carries recompiled
 code, host libraries or other executable files, or that names another game, is
 refused with nothing recorded; running mod code needs its own review first.
 
 Required dependencies become package requirements. A mod needing a mod that is not
-installed is refused, and a mod that is on cannot be left on while a mod it needs
-is turned off; turn the dependent mod off first. Dependencies on mods built into
-the runtime (`mm_recomp_dpad_builtin`) need no package. Minimum dependency and
-runtime versions are left to the runtime, which reports them when the game starts;
-Portcove does not check them yet.
+installed is refused until that mod is installed, and a mod that is on cannot be
+left on while a mod it needs is turned off; turn the dependent mod off first.
+Dependencies on mods built into the runtime (`mm_recomp_dpad_builtin`) and the
+special `.` (the mod itself) and `*` (the runtime) entries need no package. Minimum
+dependency and runtime versions are left to the runtime, which reports them when
+the game starts; Portcove does not check them yet.
 
 The runtime keeps enabled mods and their load order in `mods.json`
 (`enabled_mods` and `mod_order`, by mod ID). Portcove writes the profile's enabled
@@ -1822,6 +1824,9 @@ that mods load in this order.
 
 These behaviors come from Zelda64Recomp `54950a10`, N64ModernRuntime `df7e820d`
 and N64Recomp `c1a6dc93` source; they have not been observed in a running game.
+Whether the runtime falls back to `mods.json.bak` when `mods.json` is missing or
+unreadable is not established; Portcove reads and writes only `mods.json`, and both
+files are kept with each profile.
 
 ### Installing from GameBanana
 
