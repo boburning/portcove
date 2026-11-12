@@ -1570,8 +1570,8 @@ export default interface Resources {
         "stopInspect": "Setup and any programs it started must have stopped before cleanup can run.",
         "task": "Recorded task: <id />"
       },
-      "failed": "Recovery information could not be refreshed: {{error}}",
-      "failedRetained": "Recovery information could not be refreshed: {{error}} The last completed check remains visible.",
+      "failed": "Recovery information could not be refreshed: <error />",
+      "failedRetained": "Recovery information could not be refreshed: <error /> The last completed check remains visible.",
       "heading": "Unfinished work and recovery",
       "incomplete": "Journal or related assessments are incomplete. Retained state requires review; no repair was attempted.",
       "intro": "Expand an item for its recorded location and guidance. Review links do not change files.",

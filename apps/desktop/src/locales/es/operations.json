@@ -66,7 +66,7 @@
     "details": {
       "cleanupLabel": "Cambios de la limpieza y datos conservados",
       "clearScope": "No se encontraron archivos de trabajo de la configuración. La limpieza borra la ruta de configuración registrada, si existe, y su registro de recuperación obsoleto.",
-      "deleteScope": "Esto elimina solo la carpeta de trabajo de la configuración registrada y su registro de recuperación. Los archivos eliminados no se pueden recuperar. Si la limpieza se interrumpe, Portcove guarda la limpieza aceptada en su registro y la vuelve a intentar cuando se reabre la biblioteca.",
+      "deleteScope": "Esto elimina solo la carpeta de trabajo de la configuración registrada y su registro de recuperación. Los archivos eliminados no se pueden recuperar. Si la limpieza se interrumpe, Portcove guarda la limpieza aceptada en su registro de recuperación y la vuelve a intentar cuando se reabre la biblioteca.",
       "entries": "Entradas afectadas ({{total}})",
       "folder": "Carpeta de trabajo de la configuración registrada",
       "folderDelete": "Carpeta de trabajo de la configuración que se eliminará",
@@ -89,10 +89,10 @@
       "stopInspect": "La configuración y los programas que inició deben haberse detenido antes de que pueda hacerse la limpieza.",
       "task": "Tarea registrada: <id />"
     },
-    "failed": "No se pudo actualizar la información de recuperación: {{error}}",
-    "failedRetained": "No se pudo actualizar la información de recuperación: {{error}} La última comprobación completada sigue visible.",
+    "failed": "No se pudo actualizar la información de recuperación: <error />",
+    "failedRetained": "No se pudo actualizar la información de recuperación: <error /> La última comprobación completada sigue visible.",
     "heading": "Trabajo sin terminar y recuperación",
-    "incomplete": "El registro o las evaluaciones relacionadas están incompletos. El estado conservado necesita revisión; no se intentó ninguna reparación.",
+    "incomplete": "El registro de recuperación o las evaluaciones relacionadas están incompletos. El estado conservado necesita revisión; no se intentó ninguna reparación.",
     "intro": "Despliega un elemento para ver su ubicación registrada y las indicaciones. Los enlaces de revisión no cambian archivos.",
     "item": {
       "location": "Ubicación registrada",

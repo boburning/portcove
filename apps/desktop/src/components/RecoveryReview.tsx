@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } f
 type Repair = DoctorReport["repair"];
 type Item = Repair["items"][number];
 /** Core may add item kinds; an unrecognized kind keeps a general review label. */
-function itemLabel(t: TFunction<"operations">, kind: string) {
+function itemLabel(t: TFunction<"operations">, kind: Item["kind"]) {
   switch (kind) {
     case "malformed_journal":
       return t("recovery.kind.malformedJournal");
@@ -105,9 +105,11 @@ export function RecoveryReview({
       )}
       {!refreshing && Boolean(failure) && (
         <p className="mb-0 text-sm text-pc-danger-foreground" role="alert">
-          {repair
-            ? t("recovery.failedRetained", { error: errorText(failure) })
-            : t("recovery.failed", { error: errorText(failure) })}
+          <Trans
+            t={t}
+            i18nKey={repair ? "recovery.failedRetained" : "recovery.failed"}
+            components={{ error: <bdi>{errorText(failure)}</bdi> }}
+          />
         </p>
       )}
       {!refreshing && !failure && stale && (
@@ -218,7 +220,9 @@ function RecoveryItem({
           <dt>{t("recovery.item.location")}</dt>
           <dd className="mt-1 mb-3">
             {item.path ? (
-              <code className="whitespace-normal">{item.path}</code>
+              <code dir="ltr" className="whitespace-normal [unicode-bidi:isolate]">
+                {item.path}
+              </code>
             ) : (
               t("recovery.item.noLocation")
             )}
@@ -229,7 +233,9 @@ function RecoveryItem({
             <>
               <dt>{t("recovery.item.reference")}</dt>
               <dd className="mt-1 mb-3">
-                <code className="whitespace-normal">{item.operation_id}</code>
+                <code dir="ltr" className="whitespace-normal [unicode-bidi:isolate]">
+                  {item.operation_id}
+                </code>
               </dd>
             </>
           )}
@@ -479,7 +485,9 @@ function PreparationCleanupDetails({
   ].map(([label, location]) => (
     <div key={label}>
       <dt>{label}</dt>
-      <dd className="m-[var(--space-1)_0_var(--space-3)] wrap-anywhere">{location}</dd>
+      <dd className="m-[var(--space-1)_0_var(--space-3)] wrap-anywhere">
+        <bdi dir="ltr">{location}</bdi>
+      </dd>
     </div>
   ));
   return (
@@ -515,7 +523,7 @@ function PreparationCleanupDetails({
                 : t("recovery.details.pathClear")}
           </dt>
           <dd className="m-[var(--space-1)_0_var(--space-3)] [overflow-wrap:anywhere]">
-            {preview.retained_path}
+            <bdi dir="ltr">{preview.retained_path}</bdi>
           </dd>
         </div>
         {!readOnly && recordedLocations}
@@ -529,7 +537,7 @@ function PreparationCleanupDetails({
             <Trans
               t={t}
               i18nKey="recovery.details.task"
-              components={{ id: <bdi>{preview.operation_id}</bdi> }}
+              components={{ id: <bdi dir="ltr">{preview.operation_id}</bdi> }}
             />
           </p>
           <dl>{recordedLocations}</dl>
@@ -563,7 +571,9 @@ function PreparationCleanupDetails({
                       ? t("recovery.details.kind.file")
                       : t("recovery.details.kind.special")}
                 </span>{" "}
-                <code>{entry.path}</code>
+                <code dir="ltr" className="[unicode-bidi:isolate]">
+                  {entry.path}
+                </code>
               </li>
             ))}
           </ul>
