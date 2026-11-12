@@ -34460,7 +34460,7 @@
         "steps": [
           {
             "title": "Prepare your original game on Windows",
-            "instruction": "On Windows, keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, or on Linux, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required."
+            "instruction": "On Windows, keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required."
           },
           {
             "title": "Set up MDK on Linux",
