@@ -37,10 +37,12 @@ success-output = "immediate"
 # CI 42512432572/1 Windows 1 hit 300.808s after earlier MMX2 passes
 # at 275.064s, 278.687s and 287.831s. Allow only this populated transition
 # 420s. Retain the existing family allowance for its other consumers.
+# CI 43253506018 partition 6 then cut it at 421.056s (attempt 1) and
+# 421.100s (attempt 2). Give it the 600s its sonic sibling and family have.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_mmx2_populated_install$/)'
-slow-timeout = { period = "5s", terminate-after = 84, grace-period = "0s" }
+slow-timeout = { period = "5s", terminate-after = 120, grace-period = "0s" }
 # A retry would double this long budget; hangs here fail on the first attempt.
 retries = 0
 success-output = "immediate"
