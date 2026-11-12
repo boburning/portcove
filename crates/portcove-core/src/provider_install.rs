@@ -29,6 +29,9 @@ const ACTION: &str = "install_provider_package";
 
 /// Reviewed operational binding between a port and the provider's game identity.
 /// Names and popularity never authorize compatibility; only this binding does.
+/// Planning inspects asset archives directly; binding a port whose loader names
+/// packages from their contents (Recomp) needs planning through
+/// `inspect_for_port` first, though apply already uses it.
 pub(crate) fn gamebanana_game(port_id: &str) -> Option<u64> {
     match port_id {
         "shipwright" => Some(16121),
