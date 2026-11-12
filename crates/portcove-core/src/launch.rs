@@ -13,7 +13,7 @@ mod session_job;
 /// `windows_tracked_handoff`. Delivered definitions declaring the field must
 /// require it whatever their adapter, so older readers refuse them instead of
 /// dropping the field.
-pub(crate) const TRACKED_HANDOFF_NATIVE_CAPABILITY: u32 = 27;
+pub(crate) const TRACKED_HANDOFF_NATIVE_CAPABILITY: u32 = 28;
 
 /// Windows `CREATE_NEW_PROCESS_GROUP`: every supervised game leads its own
 /// console process group so a forwarded console break reaches only it.

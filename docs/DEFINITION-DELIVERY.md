@@ -159,11 +159,11 @@ retain the same effective Linux directory contract. Other platforms keep their
 creating launch and persistence rules.
 Fresh and retained indexed entries declaring this field require version 25.
 
-Native portable version 27 consumes `windows_tracked_handoff`. With it, a
+Native portable version 28 consumes `windows_tracked_handoff`. With it, a
 supervised Windows session also waits for its job members whose program lies in
 the installation; an older reader would drop the field and collect player data
 while a successor still runs. Fresh and retained indexed entries declaring the
-field require native-portable version 27 whatever their adapter, listed beside
+field require native-portable version 28 whatever their adapter, listed beside
 their own adapter requirement. Format-1 signed catalogs cannot deliver it, and
 a legacy installation without a retained definition cannot inherit it from the
 current catalog on Windows.

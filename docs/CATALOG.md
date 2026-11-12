@@ -202,7 +202,7 @@ original exits while any job process whose program lies inside the
 installation (the managed install or the registered external folder) still
 runs. The session record names those programs; Desktop does not show them
 yet, and `launch show --technical-details` does. Delivered definitions must
-require [native capability 27](DEFINITION-DELIVERY.md). A successor the game
+require [native capability 28](DEFINITION-DELIVERY.md). A successor the game
 starts from its own process tree, such as a `_wexecv` restart from a menu action, is tracked. A browser, Steam client,
 editor or other program outside the installation never holds the session, even
 when the game started it. A child created with explicit job breakaway, or a
