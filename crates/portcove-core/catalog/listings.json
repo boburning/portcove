@@ -49596,7 +49596,7 @@
       "issue_number": 383,
       "listed_at": "2026-10-23",
       "availability": "packages",
-      "setup_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/blob/1.3.3/README.md",
+      "setup_url": "https://github.com/RSDKModding/RSDKv4-Decompilation#readme",
       "artwork": {
         "game_id": 112897,
         "cover_id": 93129,
@@ -49622,10 +49622,10 @@
           }
         ],
         "warnings": [
-          "The Linux player uses its own folder for settings, saves and mods. Preserve the actual folder or any redirected save location before replacing the player. Portcove registration leaves runtime replacement and backups with you.",
+          "For an installation managed by Portcove, compatible updates preserve the declared originals, saves, settings and mods in that game’s folder. If you register a separately prepared player, you manage its updates and backups. Back up any custom redirected save location separately.",
           "The Android APK relies on legacy storage permission. If Android prevents access to the shared RSDK/v4 folder, this package has no verified alternate import path. Keep each game’s data and saves separately and use upstream’s noncommercial-use and attribution terms."
         ],
-        "help_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/blob/1.3.3/README.md"
+        "help_url": "https://github.com/RSDKModding/RSDKv4-Decompilation#readme"
       },
       "original_game_title": "Sonic the Hedgehog 2",
       "download_asset_hints": {
@@ -49697,7 +49697,7 @@
       "issue_number": 382,
       "listed_at": "2026-10-23",
       "availability": "packages",
-      "setup_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/blob/1.3.3/README.md",
+      "setup_url": "https://github.com/RSDKModding/RSDKv4-Decompilation#readme",
       "artwork": {
         "game_id": 88912,
         "cover_id": 93117,
@@ -49723,10 +49723,10 @@
           }
         ],
         "warnings": [
-          "The Linux player uses its own folder for settings, saves and mods. Preserve the actual folder or any redirected save location before replacing the player. Portcove registration leaves runtime replacement and backups with you.",
+          "For an installation managed by Portcove, compatible updates preserve the declared originals, saves, settings and mods in that game’s folder. If you register a separately prepared player, you manage its updates and backups. Back up any custom redirected save location separately.",
           "The Android APK relies on legacy storage permission. If Android prevents access to the shared RSDK/v4 folder, this package has no verified alternate import path. Keep each game’s data and saves separately and use upstream’s noncommercial-use and attribution terms."
         ],
-        "help_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/blob/1.3.3/README.md"
+        "help_url": "https://github.com/RSDKModding/RSDKv4-Decompilation#readme"
       },
       "original_game_title": "Sonic the Hedgehog",
       "download_asset_hints": {
