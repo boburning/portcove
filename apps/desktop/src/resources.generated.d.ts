@@ -1518,6 +1518,110 @@ export default interface Resources {
       "stdoutLabel": "Preparation standard output",
       "truncated": "Some output was omitted because it exceeded the {{limit}} capture limit per stream.",
       "view": "View preparation log"
+    },
+    "recovery": {
+      "checking": "Checking the library for unfinished work…",
+      "cleanup": {
+        "again": "Review again",
+        "cancel": "Cancel",
+        "checking": "Checking unfinished setup files…",
+        "clear": "Clear unfinished setup record",
+        "clearing": "Clearing unfinished setup record…",
+        "close": "Close",
+        "delete": "Delete setup working files",
+        "deleting": "Deleting setup working files…",
+        "description": {
+          "clear": "No setup working files remain. Clear the unfinished setup record and its recorded path if present.",
+          "delete": "Delete the private working files left by this unfinished setup. Review the affected folder and preserved locations first.",
+          "inspect": "Review what remains from this setup and the locations recorded with it. Opening this review does not change files. Cleanup is a separate decision."
+        },
+        "failure": "Cleanup was not accepted. The retained recovery state remains unchanged.",
+        "keep": "Keep files",
+        "reviewCleanup": "Review cleanup…",
+        "title": {
+          "clear": "Clear unfinished setup record?",
+          "delete": "Delete files left by unfinished setup?",
+          "inspect": "Files left by unfinished setup"
+        }
+      },
+      "details": {
+        "cleanupLabel": "Cleanup changes and preserved data",
+        "clearScope": "No setup working files were found. Cleanup clears the recorded setup path if it exists and its stale recovery journal.",
+        "deleteScope": "This deletes only the recorded setup working folder and its recovery journal. The deleted files cannot be recovered. If cleanup is interrupted, Portcove keeps the accepted cleanup in its journal and retries it when the library reopens.",
+        "entries": "Affected entries ({{total}})",
+        "folder": "Recorded setup working folder",
+        "folderDelete": "Setup working folder to delete",
+        "inspectLabel": "Retained setup files and recorded locations",
+        "kind": {
+          "file": "File",
+          "folder": "Folder",
+          "special": "Link or special entry"
+        },
+        "locations": "Installation, game files, saves, backups and logs",
+        "noEntries": "No retained private entries were found.",
+        "now": "What you can do now",
+        "nowText": "Keep the files and return to the game to review its next steps, or review cleanup separately. Opening cleanup checks the current files again before you decide what to remove.",
+        "pathClear": "Recorded setup path to clear",
+        "remains": "What remains",
+        "remainsFiles": "Setup left working files behind. This review does not confirm that those files are complete or ready to play.",
+        "remainsRecord": "No private working files were found. An unfinished setup record remains.",
+        "stopClear": "Portcove must confirm that setup and any programs it started have stopped before clearing this record.",
+        "stopDelete": "Portcove must confirm that setup and any programs it started have stopped before deleting these files.",
+        "stopInspect": "Setup and any programs it started must have stopped before cleanup can run.",
+        "task": "Recorded task: <id />"
+      },
+      "failed": "Recovery information could not be refreshed: {{error}}",
+      "failedRetained": "Recovery information could not be refreshed: {{error}} The last completed check remains visible.",
+      "heading": "Unfinished work and recovery",
+      "incomplete": "Journal or related assessments are incomplete. Retained state requires review; no repair was attempted.",
+      "intro": "Expand an item for its recorded location and guidance. Review links do not change files.",
+      "item": {
+        "location": "Recorded location",
+        "nextStep": "Suggested next step",
+        "noGuidance": "No recovery guidance was recorded.",
+        "noLocation": "No location was recorded.",
+        "observation": "Diagnostic observation",
+        "reference": "Operation reference",
+        "reviewFiles": "Review unfinished setup files",
+        "summary": "<game /> · {{label}}"
+      },
+      "kind": {
+        "backupRecovery": "Backup recovery needs review",
+        "cleanupPending": "Unfinished files need review",
+        "degradedBackup": "Backup needs attention",
+        "malformedJournal": "Unfinished operation needs review",
+        "missingFolder": "Registered game folder is missing",
+        "orphanedFolder": "Unregistered game folder",
+        "partialOperation": "Unfinished operation",
+        "retainedPreparation": "Unfinished setup files",
+        "unknown": "Recovery information needs review"
+      },
+      "label": "Unfinished work and recovery",
+      "library": "Library",
+      "location": {
+        "backups": "Backups",
+        "backupsPreserved": "Backups preserved",
+        "gameFiles": "Original game files",
+        "gameFilesPreserved": "Original game files preserved",
+        "installation": "Original installation",
+        "installationPreserved": "Original installation preserved",
+        "logs": "Logs",
+        "logsPreserved": "Logs preserved",
+        "savedData": "Saved data",
+        "savedDataPreserved": "Saved data preserved"
+      },
+      "navigation": {
+        "details": "Review game details",
+        "installation": "Review game installation",
+        "saves": "Review saves and backups",
+        "setup": "Review game setup",
+        "storage": "Review library storage",
+        "task": "View related task record"
+      },
+      "refresh": "Refresh recovery information",
+      "refreshing": "Refreshing recovery information. The last completed check remains visible.",
+      "stale": "Recovery information is out of date. The last completed check remains visible.",
+      "unchecked": "Recovery information has not been checked for the current library state."
     }
   },
   "organization": {

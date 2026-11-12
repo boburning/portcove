@@ -337,3 +337,51 @@ it("shows malformed journal observations without offering operation controls", a
     await act(async () => root.unmount());
   }
 });
+
+it("presents recovery items, failures and navigation in the active locale", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  try {
+    await localization.changeLanguage("ar-XB");
+    const repair = {
+      generated_at: 1,
+      items: [
+        { ...item(), kind: "degraded_backup" as const },
+        { ...item(), kind: "future" },
+      ],
+    } as unknown as Repair;
+    await act(async () =>
+      root.render(
+        <RecoveryReview
+          {...freshDiagnostics}
+          stale
+          failure={new Error("Core detail")}
+          repair={repair}
+          ports={[port]}
+          onSelect={vi.fn()}
+        />,
+      ),
+    );
+    expect(host.querySelector("section")?.getAttribute("aria-label")).toBe(
+      "العمل غير المكتمل والاسترداد",
+    );
+    expect(host.querySelector("[role=alert]")?.textContent).toBe(
+      "تعذّر تحديث معلومات الاسترداد: Core detail يبقى آخر فحص مكتمل ظاهرًا.",
+    );
+    const summaries = [...host.querySelectorAll("summary")].map((summary) => summary.textContent);
+    expect(summaries).toEqual([
+      `${port.name} · النسخة الاحتياطية تحتاج إلى انتباه`,
+      `${port.name} · معلومات الاسترداد تحتاج إلى مراجعة`,
+    ]);
+    expect(host.querySelector("summary bdi")?.textContent).toBe(port.name);
+    const buttons = [...host.querySelectorAll("button")].map((button) => button.textContent);
+    expect(buttons).toContain("تحديث معلومات الاسترداد");
+    expect(buttons).toContain("مراجعة ملفات الحفظ والنسخ الاحتياطية");
+  } finally {
+    await act(async () => root.unmount());
+    await localization.changeLanguage("en");
+  }
+});
