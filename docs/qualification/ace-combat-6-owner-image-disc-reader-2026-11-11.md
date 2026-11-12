@@ -5,6 +5,7 @@ provided by the project owner from their own collection, was read with Portcove'
 managed disc-image reader and with an independent standalone parser. This record
 states what those local observations established about that one image. It does
 not qualify the game, the upstream runtime or Portcove's managed route.
+It is tracked on issue #4959.
 
 ## Image identity
 
@@ -46,7 +47,7 @@ The image was read only. It was never modified, trimmed or rebuilt.
 - The anchor file `default.xex` with the SHA-256 above, and the title ID
   `4E4D07D1`, identify this image to Portcove's managed unpacking.
 - The whole-image SHA-1 and SHA-256 above identify this exact image as an
-  accepted source. A definition may accept only these identities from this
+  accepted source. A definition may cite only these identities from this
   record.
 
 ## What this does not establish
@@ -54,8 +55,9 @@ The image was read only. It was never modified, trimmed or rebuilt.
 - It is one local observation of one image on a development host. It is not an
   installed-application, physical-media or console observation.
 - Other editions, regions, revisions and re-dumps of the game are not verified.
-  The accepted image is the combined USA and Japan release only; the catalog
-  entry keeps its statement that Europe and Japan are not supported.
+  Only this one image, labelled USA and Japan, is recorded. This record does not
+  change the catalog entry's statement that other regions, including Europe, are
+  not supported.
 - The whole-image hashes were not compared with a disc-database entry, so no
   external authority for the image is claimed.
 - The upstream runtime was not started, so nothing here concerns playback,
