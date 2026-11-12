@@ -19,6 +19,10 @@ export function ImplementationFacts({
 }) {
   const { t } = useAppTranslation("browsing");
   const editions = originalGame(port)?.source_editions ?? [];
+  // Catalog requirement labels; an all-empty list falls back like before.
+  const requirements = port.presentation?.source_requirements
+    ?.map((requirement) => requirement.label)
+    .join("; ");
   return (
     <div className="grid gap-1 text-xs text-pc-muted-foreground">
       <p>{port.summary}</p>
@@ -35,19 +39,11 @@ export function ImplementationFacts({
         )}
       </p>
       <p>
-        {port.presentation?.source_requirements?.length ? (
+        {requirements ? (
           <Trans
             t={t}
             i18nKey="alternatives.originalFiles"
-            components={{
-              files: (
-                <>
-                  {port.presentation.source_requirements
-                    .map((requirement) => requirement.label)
-                    .join("; ")}
-                </>
-              ),
-            }}
+            components={{ files: <bdi>{requirements}</bdi> }}
           />
         ) : (
           t("alternatives.originalFilesUnknown")
@@ -58,7 +54,9 @@ export function ImplementationFacts({
           <Trans
             t={t}
             i18nKey="alternatives.sourceEditions"
-            components={{ editions: <>{editions.map((edition) => edition.title).join("; ")}</> }}
+            components={{
+              editions: <bdi>{editions.map((edition) => edition.title).join("; ")}</bdi>,
+            }}
           />
         </p>
       )}

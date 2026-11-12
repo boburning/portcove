@@ -50,6 +50,14 @@ export function BrowsingMatchDetails({
     (observed.route_instance_sha256 ?? null) === choice.instance_sha256
       ? observed
       : undefined;
+  // Only rendered once a matching choice exists.
+  const method = (
+    <>
+      {choice?.installation_method
+        ? installationMethodLabels[choice.installation_method]
+        : t("match.methodUnknown")}
+    </>
+  );
   // A data list of independent labels; each part is a complete label or exact value.
   const label = (fact: (typeof contexts)[number]) =>
     [
@@ -93,13 +101,7 @@ export function BrowsingMatchDetails({
                   t={t}
                   i18nKey="match.savedInstallation"
                   components={{
-                    method: (
-                      <>
-                        {choice.installation_method
-                          ? installationMethodLabels[choice.installation_method]
-                          : t("match.methodUnknown")}
-                      </>
-                    ),
+                    method,
                   }}
                 />
               ) : (
@@ -107,13 +109,7 @@ export function BrowsingMatchDetails({
                   t={t}
                   i18nKey="match.setupOption"
                   components={{
-                    method: (
-                      <>
-                        {choice.installation_method
-                          ? installationMethodLabels[choice.installation_method]
-                          : t("match.methodUnknown")}
-                      </>
-                    ),
+                    method,
                   }}
                 />
               )}

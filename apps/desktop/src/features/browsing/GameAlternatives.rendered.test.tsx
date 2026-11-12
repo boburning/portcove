@@ -18,12 +18,12 @@ it("translates implementation fact labels and keeps exact values verbatim", asyn
   const localization = initializeLocalization(["en-US"]);
   const facts = () => renderToStaticMarkup(<ImplementationFacts port={port} status={status} />);
   expect(facts()).toContain("Runs on: Not recorded");
-  expect(facts()).toContain("Original files: Disc {{x}}");
+  expect(facts()).toContain("Original files: <bdi>Disc {{x}}</bdi>");
   expect(facts()).toContain("Managed installation · <bdi>1.2.3</bdi>");
   try {
     await localization.changeLanguage("ar-XB");
     expect(facts()).toContain("يعمل على: غير مسجل");
-    expect(facts()).toContain("الملفات الأصلية: Disc {{x}}");
+    expect(facts()).toContain("الملفات الأصلية: <bdi>Disc {{x}}</bdi>");
     expect(facts()).toContain("تثبيت مُدار · <bdi>1.2.3</bdi>");
   } finally {
     await localization.changeLanguage("en");
