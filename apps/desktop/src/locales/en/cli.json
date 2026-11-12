@@ -1,0 +1,50 @@
+{
+  "copy": {
+    "activation": "Copy activation command",
+    "arguments": "Copy argument array",
+    "copied": "Copied",
+    "folderCheck": "Copy folder-check command",
+    "launch": "Copy launch command",
+    "launchReview": "Copy launch-review command",
+    "program": "Copy program path",
+    "setup": "Copy setup command",
+    "template": "Copy command template",
+    "unavailable": "Clipboard unavailable. Select and copy the text above.",
+    "useInPlace": "Copy use-in-place command template"
+  },
+  "disclosure": {
+    "folder": "Prepare the required version yourself. Replace <folder/> with its folder path, check it, then save the location after review. Portcove does not download, copy, update, back up, or delete these files.",
+    "installed": "The CLI checks this installation before launching it. This does not install or update the game.",
+    "setup": "Running this command can download and install the selected release. Required game files are checked before use.",
+    "staged": "The CLI checks the retained staged version before making it active. This does not download a new release or register an external installation.",
+    "userSelected": "Complete upstream setup, then replace <executable/> and <workdir/> with your selected paths. Add documented arguments with one <arg/> per argument to both commands. You or the upstream launcher manage setup and updates; Portcove has not authenticated the selected bytes as an official package."
+  },
+  "finding": "Finding the command-line app…",
+  "followUp": {
+    "folder": "After the folder check passes, review and save this installation. Its files stay where they are.",
+    "userSelected": "After reviewing the executable, working directory and any <arg/> values, replace <review/> with the returned review fingerprint and save the same launch details. All external files stay where they are."
+  },
+  "interpreter": {
+    "powershellCommand": "PowerShell 7 command",
+    "powershellTemplate": "PowerShell 7 template",
+    "shCommand": "sh / bash command",
+    "shTemplate": "sh / bash template"
+  },
+  "invalidPaths": "Remove invalid characters from the selected paths before copying a command.",
+  "library": "Uses this library: <path/>",
+  "previewBeta": "The command uses beta for the Preview channel. The selected CLI's preview input support has not been verified, so the copied command retains beta for compatibility.",
+  "retry": "Retry command details",
+  "separate": {
+    "explanation": "For integrations that accept a program path and an argument array. The shell command above is for a terminal.",
+    "summary": "Separate program and arguments"
+  },
+  "template": {
+    "replace": "Template — replace: <names/>.",
+    "replaceAndInstall": "Template — replace: <names/>. Install the standalone Portcove CLI or locate its executable first."
+  },
+  "title": {
+    "installed": "Launch from another app",
+    "setup": "Set up from the command line",
+    "staged": "Use the prepared version"
+  }
+}
