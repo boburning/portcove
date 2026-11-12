@@ -367,20 +367,21 @@ impl PortcoveService {
         port_id: &str,
     ) -> Result<(Option<crate::ReleaseChannel>, Vec<PortIntentSource>)> {
         let port = self.catalog.port(port_id)?;
-        let channel = self.status(port_id)?.channel;
+        // A status that can't be read now doesn't block saving the choice; it
+        // is simply not bound to a channel.
+        let channel = self.status(port_id).ok().map(|status| status.channel);
+        // Only the game's own files are bound. A shared prerequisite such as a
+        // BIOS is checked by the ordinary install review instead.
         let mut sources = Vec::new();
-        for profile_id in [&port.source_profile, &port.bios_source_profile]
-            .into_iter()
-            .flatten()
+        if let Some(profile_id) = &port.source_profile
+            && let Some(source) = self.library.source(profile_id)?
         {
-            if let Some(source) = self.library.source(profile_id)? {
-                sources.push(PortIntentSource {
-                    profile_id: source.profile_id,
-                    sha256: source.sha256,
-                });
-            }
+            sources.push(PortIntentSource {
+                profile_id: source.profile_id,
+                sha256: source.sha256,
+            });
         }
-        Ok((Some(channel), sources))
+        Ok((channel, sources))
     }
 
     /// Why a remembered choice no longer matches the current channel or
@@ -390,8 +391,8 @@ impl PortcoveService {
             match self.status(&intent.port_id) {
                 Ok(status) if status.channel != chosen => {
                     return Some(format!(
-                        "you chose the {chosen} channel, but this game now uses {}; choose again to set it up from that channel",
-                        status.channel
+                        "this game's channel changed from {chosen} to {} since you chose this; choose again to set it up from {}",
+                        status.channel, status.channel
                     ));
                 }
                 Ok(_) => {}
@@ -1019,6 +1020,37 @@ mod tests {
             1
         );
         assert!(service.status(PORT).unwrap().active.is_some());
+    }
+
+    #[tokio::test]
+    async fn a_removed_copy_waits_and_the_same_copy_moved_does_not() {
+        let (_temporary, service) = ready_service().await;
+        let chosen = registered_copy(&service, 'a');
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        // The same bytes registered at another path are still the chosen copy.
+        service
+            .library()
+            .register_source(&crate::SourceRecord {
+                path: std::env::temp_dir().join("portcove-intent-moved.z64"),
+                ..chosen.clone()
+            })
+            .unwrap();
+        let intent = service.library().port_intent(PORT).unwrap().unwrap();
+        assert!(service.intent_binding_hold(&intent).is_none());
+        // A removed registration waits.
+        service.library().remove_source(&chosen.profile_id).unwrap();
+        let reason = service.intent_binding_hold(&intent).unwrap();
+        assert!(reason.contains("no longer registered"), "{reason}");
+        assert!(
+            service
+                .run_standing_setup(|_| {})
+                .await
+                .unwrap()
+                .batches
+                .is_empty()
+        );
     }
 
     #[tokio::test]

@@ -772,9 +772,10 @@ an authorization. Adding a folder or saving a game never chooses a mode for
 you, and choosing another mode withdraws standing setup.
 
 A notify or set-up-when-ready choice remembers the game's release channel and
-the registered copies of its files at the moment you choose. If a different copy
-is registered later, the chosen copy is removed, or the game follows another
-channel, the game waits with that reason instead of being set up from something
+the registered copy of its own files at the moment you choose. (Shared
+prerequisites such as a BIOS are checked by the ordinary install review.) If a
+different copy is registered later, the chosen copy is removed, or the game's
+channel changes, the game waits with that reason instead of being set up from something
 you didn't choose; choosing the mode again accepts the current files and
 channel. A choice made before any files were registered uses the first files
 that arrive.
