@@ -208,8 +208,14 @@ it("names saves, mod records and version labels without trusting them", () => {
       }),
     ),
   ).toEqual([
-    "Saves and settings found: a, b, c, d, e, and 2 more",
+    "Saves and settings found: a, b, c, d, e, and 2 more saves and settings",
     "3 launcher mod records, listed only; they are not copied as mods or turned on",
+  ]);
+  expect(entryDetails(entry({ user_data_paths: ["a", "b", "c", "d", "e"] }))).toEqual([
+    "Saves and settings found: a, b, c, d, e",
+  ]);
+  expect(entryDetails(entry({ user_data_paths: ["a", "b", "c", "d", "e", "f"] }))).toEqual([
+    "Saves and settings found: a, b, c, d, e, and 1 more save or setting",
   ]);
   expect(entryDetails(entry({ mods: { records: 0, providers: [], readable: false } }))).toEqual([
     "Launcher mod records could not be read",

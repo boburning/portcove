@@ -237,8 +237,9 @@ export function LauncherLibraryImport({
                 <strong>{entry.name || entry.folder_name}</strong> — {STATUS_LABELS[entry.status]}
                 <br />
                 <small className="text-[var(--color-text-secondary)]">{entry.explanation}</small>
-                {entryDetails(entry).map((detail) => (
-                  <span key={detail}>
+                {entryDetails(entry).map((detail, line) => (
+                  // Each line kind appears at most once, in a fixed order.
+                  <span key={line}>
                     <br />
                     <small className="text-[var(--color-text-secondary)]">{detail}</small>
                   </span>
@@ -305,7 +306,9 @@ export function entryDetails(entry: LauncherLibraryEntry): string[] {
     const more = paths.length - SHOWN_USER_DATA_PATHS;
     details.push(
       more > 0
-        ? `Saves and settings found: ${shown}, and ${more === 1 ? "1 more" : `${more} more`}`
+        ? `Saves and settings found: ${shown}, and ${
+            more === 1 ? "1 more save or setting" : `${more} more saves and settings`
+          }`
         : `Saves and settings found: ${shown}`,
     );
   }
