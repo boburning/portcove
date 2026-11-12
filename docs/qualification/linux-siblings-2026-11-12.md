@@ -26,7 +26,7 @@ that screen keep their existing scope until their own facts are reviewed. YGOFM
 After line-ending normalization, all shared members match the accepted Windows
 owned-input kit (`f4336030…`) and the ordinary Windows kit. Only
 `README-SETUP.txt` differs, by its platform line. Windows-only DLLs, `.exe` files,
-vendored `.git` markers and generated rabbitizer headers are absent. The Linux
+vendored `.git` markers, generated rabbitizer headers and `fmt/support/build-docs.py` are absent; setup uses the packaged prebuilt emitters. The Linux
 setup host and `psxrecomp-game`/`psxrecomp-bios` emitters are ELF x86-64 binaries.
 They need glibc 2.38 and GLIBCXX up to 3.4.32. Core's existing
 `cmake-clang-v1-linux-x64` toolchain matches the kit's `toolchain_pack.py`
@@ -50,7 +50,7 @@ Windows scope.
 
 `power-dozer` has `RUNPATH=$ORIGIN/lib`. The bundled sdl2-compat `libSDL2`
 and `libSDL3` carry `RPATH=$ORIGIN`, so direct launch resolves the packaged
-libraries without the upstream wrapper. The exact v0.84 source
+libraries without the upstream wrapper in the default loader environment. A non-empty inherited `LD_LIBRARY_PATH` is searched first and could shadow them; unlike the profile-specific Linux routes, the generic route does not refuse it. The exact v0.84 source
 (`fc04a961…`, provider digest matched) selects
 `BLASTCORPS_DATA_DIR` or `<executable>/data`. The existing relative `data`
 environment and persistence contract applies on Linux. RT64 diagnostics use

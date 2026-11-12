@@ -327,7 +327,7 @@
         "authority": "NJH-1001/RevPRecompile",
         "authority_ref": "38fa6f4cf49a9a03244a64d2a12762074ed23348",
         "reviewed_at": "2026-11-12",
-        "claim": "Exact v0.1.1 Linux x64 kit (28,066,719 bytes) matches the provider SHA-256 and passed Core package-layout inspection. After line-ending normalization, its game, CMake, setup CLI, runtime, UI and mod files match the accepted Windows owned-input kit; only README-SETUP.txt and native ELF emitters and setup host differ. The kit keeps the same USA SLUS-00339 game configuration and normalized Track 1 contract. Its Linux emitters and host need glibc 2.38 and GLIBCXX 3.4.32. The runtime keeps saves and settings beside the generated player. Linux generation, native operation and gameplay were not observed.",
+        "claim": "Exact v0.1.1 Linux x64 kit (28,066,719 bytes) matches the provider SHA-256 and passed Core package-layout inspection. After line-ending normalization, its shared game, CMake, setup CLI, runtime, UI and mod files match the accepted Windows owned-input kit. README-SETUP.txt and the native ELF emitters and setup host differ; Windows DLLs and executables, vendored .git markers, generated rabbitizer headers and fmt build-docs.py are absent, and setup uses the packaged prebuilt emitters. The kit keeps the same USA SLUS-00339 game configuration and normalized Track 1 contract. Its Linux emitters and host need glibc 2.38 and GLIBCXX 3.4.32. The runtime keeps saves and settings beside the generated player. Linux generation, native operation and gameplay were not observed.",
         "immutable_url": "https://github.com/NJH-1001/RevPRecompile/blob/38fa6f4cf49a9a03244a64d2a12762074ed23348/game.toml",
         "live_url": null
       },
