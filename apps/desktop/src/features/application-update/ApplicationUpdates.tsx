@@ -1290,6 +1290,9 @@ export function ApplicationUpdateSettings(
     loadStatus,
   } = useApplicationUpdateSettings(props);
   const { t } = useAppTranslation("applicationUpdate");
+  // A build that cannot install its own updates cannot honor Automatic; checks and
+  // notifications still work, so only that mode is withheld.
+  const automaticUnavailable = Boolean(status && status.install_eligibility !== "eligible");
   const renderPreferences = () =>
     preferences && (
       <section
@@ -1352,6 +1355,9 @@ export function ApplicationUpdateSettings(
             className="segmented grid [grid-auto-columns:1fr] [grid-auto-flow:column] rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-[3px]"
             role="group"
             aria-label={t("preferences.modeGroup")}
+            aria-describedby={
+              automaticUnavailable ? "application-update-automatic-unavailable" : undefined
+            }
           >
             {(
               [
@@ -1366,11 +1372,11 @@ export function ApplicationUpdateSettings(
                 variant={draft.mode === mode ? "selected" : "ghost"}
                 className={updateChoiceButtonClass}
                 aria-pressed={draft.mode === mode}
-                disabled={unavailable}
+                disabled={unavailable || (mode === "automatic" && automaticUnavailable)}
                 onClick={() => setDraft((value) => ({ ...value, mode }))}
               >
                 {label}
-                {mode === "automatic" && (
+                {mode === "automatic" && !automaticUnavailable && (
                   <small className="text-[length:var(--text-2xs)] normal-case">
                     {t("preferences.recommended")}
                   </small>
@@ -1385,6 +1391,11 @@ export function ApplicationUpdateSettings(
                 ? t("preferences.modeDescription_notifyOnly")
                 : t("preferences.modeDescription_manual")}
           </p>
+          {automaticUnavailable && (
+            <p id="application-update-automatic-unavailable" className={updateMutedCopyClass}>
+              {t("preferences.automaticUnavailable")}
+            </p>
+          )}
         </section>
 
         <label

@@ -1006,8 +1006,32 @@ describe("ApplicationUpdateSettings", () => {
       expect(host.textContent).toContain("No verified application update is staged.");
       expect(host.textContent).not.toContain("Restart to update");
       expect(restart).not.toHaveBeenCalled();
+      const modes = host.querySelector('[aria-label="Application update mode"]')!;
+      const reason = document.getElementById("application-update-automatic-unavailable");
+      expect(modes.getAttribute("aria-describedby")).toBe(reason?.id);
+      expect(reason?.textContent).toBe(
+        "Automatic isn't available because this build can't install its own updates. Install updates through your package manager or the manual instructions; Portcove can still check and notify you.",
+      );
+      expect(button("Automatic").disabled).toBe(true);
+      expect(modes.textContent).not.toContain("Recommended");
+      expect(button("Notify only").disabled).toBe(false);
+      expect(button("Manual").disabled).toBe(false);
+      expect(button("Check for updates").disabled).toBe(false);
     },
   );
+
+  it("keeps Automatic available and recommended for a build that can update itself", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+    await render();
+    await expect
+      .poll(() => host.textContent)
+      .toContain("No verified application update is staged.");
+    const modes = host.querySelector('[aria-label="Application update mode"]')!;
+    expect(button("Automatic").disabled).toBe(false);
+    expect(modes.textContent).toContain("Recommended");
+    expect(modes.hasAttribute("aria-describedby")).toBe(false);
+    expect(document.getElementById("application-update-automatic-unavailable")).toBeNull();
+  });
 
   it("restarts only through the explicit staged-update action bound to the current library", async () => {
     vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);

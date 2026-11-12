@@ -36,6 +36,13 @@ action persists it; discarding changes has no host side effect, and reset return
 the missing-choice state. The Stable explanation promises only a newer eligible
 production release and never a downgrade. Automatic-mode disclosure names staging
 and makes safe exit or an explicit Restart to update action a separate apply boundary.
+When install eligibility is anything other than `eligible` (not configured,
+unavailable, or DEB/RPM package-managed), the Automatic choice is disabled, loses its
+Recommended tag and the mode group is described by one reason: install updates
+through the package manager or the manual instructions; Portcove can still check and
+notify. One-time checks, Notify only, Manual, channel, pause and reset stay available.
+This is presentation only: a saved or default Automatic choice is shown, not
+rewritten, and host preference semantics are unchanged (#5058 ST1).
 
 Starting with the first non-prerelease 1.x build, an installation with a saved
 Preview choice receives one production-channel offer. Use Stable performs a
