@@ -38948,12 +38948,16 @@
     {
       "id": "njh-1001-wipeout2k97xl",
       "name": "Wipeout XL / Wipeout XL Recompiled (NJH-1001)",
-      "summary": "Documented Windows Wipeout XL preparation and completed native build route from your own exact PlayStation disc. Select the finished build-release/Wipeout2K97XL.exe; upstream owns generation, rebuilding and player data.",
+      "summary": "Build and play Wipeout XL on Windows or Linux with your own matching USA PlayStation disc and the kit's bundled OpenBIOS. You can also use a separately prepared upstream copy.",
+      "original_game_title": "Wipeout XL",
       "project_url": "https://github.com/NJH-1001/Wipeout2K97XL",
       "issue_number": 1908,
       "listed_at": "2026-10-23",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/NJH-1001/Wipeout2K97XL",
       "artwork": {
         "game_id": 1538,

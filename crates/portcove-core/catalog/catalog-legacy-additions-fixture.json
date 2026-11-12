@@ -104,7 +104,8 @@
     "alexbeav-quake-ii-recomp-usa-psx",
     "alexbeav-suikoden-recomp-usa-psx",
     "alexbeav-silent-bomber-recomp-europe-psx",
-    "alexbeav-mortal-kombat-trilogy-recomp-usa-psx"
+    "alexbeav-mortal-kombat-trilogy-recomp-usa-psx",
+    "njh-1001-wipeout2k97xl-usa-psx"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -401,6 +402,7 @@
     "alexbeav-quake-ii-recomp",
     "alexbeav-suikoden-recomp",
     "alexbeav-silent-bomber-recomp",
-    "alexbeav-mortal-kombat-trilogy-recomp"
+    "alexbeav-mortal-kombat-trilogy-recomp",
+    "njh-1001-wipeout2k97xl"
   ]
 }

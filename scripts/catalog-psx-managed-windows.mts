@@ -78,8 +78,8 @@ function isAssetSelector(value: unknown): value is string[] {
 export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
   const layout = record.psx_managed_windows_v1;
   if (layout === undefined) return record;
-  const bundledOpenBios = layout === "bundled-openbios";
-  const splitMods = layout === "split-mods";
+  const bundledOpenBios = layout === "bundled-openbios" || layout === "split-mods-openbios";
+  const splitMods = layout === "split-mods" || layout === "split-mods-openbios";
   const integration = record.integration;
   const executableHints = isRecord(integration?.executable_hints)
     ? integration.executable_hints
