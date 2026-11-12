@@ -4305,6 +4305,11 @@ export interface OutputManagedRouteChangeResult {
  */
 export interface OutputModSetupsView {
   /**
+   * Unattended provider updates waiting for the player's review, for each
+   * setup's current revision.
+   */
+  held_updates: HeldModUpdate[];
+  /**
    * None until the installed game has its default setup.
    */
   inventory: ProfileInventory | null;
@@ -4325,6 +4330,21 @@ export interface OutputModSetupsView {
    * offered then.
    */
   supported: boolean;
+  [k: string]: unknown;
+}
+/**
+ * An unattended update the player has to review, remembered for a setup's
+ * current revision.
+ */
+export interface HeldModUpdate {
+  candidate_file_id: string;
+  /**
+   * The setup's mods from the installed provider file.
+   */
+  native_ids: string[];
+  profile_id: string;
+  project_id: string;
+  reason: string;
   [k: string]: unknown;
 }
 export interface ProfileInventory {

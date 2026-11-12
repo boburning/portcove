@@ -766,6 +766,27 @@ pub(crate) async fn execute(
                 if let Some(live) = &view.live {
                     lines.push(live_text(live));
                 }
+                for held in &view.held_updates {
+                    let setup = inventory
+                        .profiles
+                        .iter()
+                        .find(|entry| entry.profile.id == held.profile_id)
+                        .map(|entry| clean(&entry.profile.display_name))
+                        .unwrap_or_else(|| clean(&held.profile_id));
+                    lines.push(format!(
+                        "{setup}: an update to {} waits for your review, so the current version was kept: {}. Review it with `portcove profile provider-plan {} {} {} {}`.",
+                        held.native_ids
+                            .iter()
+                            .map(|name| clean(name))
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                        clean(&held.reason),
+                        clean(&view.port_id),
+                        clean(&held.profile_id),
+                        clean(&held.project_id),
+                        clean(&held.candidate_file_id)
+                    ));
+                }
                 lines.join("\n")
             })
         }

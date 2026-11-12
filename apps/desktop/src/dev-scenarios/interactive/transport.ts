@@ -408,6 +408,7 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         supported: false,
         package_types: [],
         later_mods_take_priority: false,
+        held_updates: [],
         inventory: null,
         live: null,
       } satisfies Awaited<ReturnType<typeof desktopApi.modSetups>>;

@@ -46,6 +46,7 @@ function view(overrides: Partial<ModSetupsView> = {}): ModSetupsView {
     supported: true,
     package_types: ["o2r", "otr"],
     later_mods_take_priority: true,
+    held_updates: [],
     inventory: {
       port_id: "shipwright",
       profiles: [
@@ -205,6 +206,59 @@ it("offers to read again when the view cannot be refreshed after a change", asyn
   expect(button(host, "Use Clean").disabled).toBe(false);
 });
 
+it("explains a held unattended update for the setup in use", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(
+    view({
+      held_updates: [
+        {
+          profile_id: "default",
+          native_ids: ["hd.o2r"],
+          project_id: "42",
+          candidate_file_id: "11",
+          reason: "the newer file changes which mods it contains",
+        },
+        {
+          profile_id: "clean",
+          native_ids: ["other.o2r"],
+          project_id: "43",
+          candidate_file_id: "12",
+          reason: "not for the setup in use",
+        },
+      ],
+    }),
+  );
+  const host = await render();
+  expect(host.textContent).toContain(
+    "kept the current version of a mod because its update needs your review",
+  );
+  expect(host.textContent).toContain("checks again when this setup changes");
+  expect(host.textContent).toContain("hd.o2r: the newer file changes which mods it contains");
+  expect(host.textContent).not.toContain("not for the setup in use");
+});
+
+it("words several held updates together and shows none without a setup in use", async () => {
+  const held = (native_ids: string[], candidate_file_id: string) => ({
+    profile_id: "default",
+    native_ids,
+    project_id: "42",
+    candidate_file_id,
+    reason: "the update changes which mod wins an asset another enabled mod also changes",
+  });
+  vi.spyOn(desktopApi, "modSetups")
+    .mockResolvedValueOnce(
+      view({ held_updates: [held(["a.o2r", "b.o2r"], "11"), held(["c.o2r"], "12")] }),
+    )
+    .mockResolvedValueOnce(view({ live: null, held_updates: [held(["a.o2r"], "11")] }));
+  const host = await render();
+  expect(host.textContent).toContain("current versions of some mods because their updates");
+  expect(host.textContent).toContain("a.o2r, b.o2r:");
+  const notice = host.querySelector("[data-slot=notice] ul");
+  expect(notice?.querySelectorAll("li").length).toBe(2);
+
+  const other = await render();
+  expect(other.textContent).not.toContain("needs your review");
+});
+
 it("presents setups, counts and the reordered list in the active locale", async () => {
   const { initializeLocalization } = await import("../localization");
   const localization = initializeLocalization(["en-US"]);
@@ -293,6 +347,30 @@ it("translates the game-changed mismatch while keeping Core failures verbatim", 
       "تغيّرت هذه اللعبة. حدّث تفاصيلها قبل تغيير التعديلات.",
     );
     expect(button(host, "قراءة ملفات التعريف مرة أخرى")).toBeTruthy();
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
+
+it("words held updates with the locale's plural forms", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    const held = (candidate_file_id: string) => ({
+      profile_id: "default",
+      native_ids: ["hd.o2r"],
+      project_id: "42",
+      candidate_file_id,
+      reason: "the newer file changes which mods it contains",
+    });
+    vi.spyOn(desktopApi, "modSetups").mockResolvedValue(
+      view({ held_updates: [held("11"), held("12")] }),
+    );
+    const host = await render();
+    expect(host.textContent).toContain("أبقى Portcove الإصدارين الحاليين");
+    expect(host.textContent).toContain("the newer file changes which mods it contains");
+    expect(host.querySelector("code[dir=ltr]")?.textContent).toBe("profile provider-plan");
   } finally {
     await localization.changeLanguage("en");
   }

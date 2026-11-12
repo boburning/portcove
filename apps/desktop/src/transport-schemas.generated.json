@@ -27732,6 +27732,38 @@
         ],
         "type": "object"
       },
+      "HeldModUpdate": {
+        "description": "An unattended update the player has to review, remembered for a setup's\ncurrent revision.",
+        "properties": {
+          "candidate_file_id": {
+            "type": "string"
+          },
+          "native_ids": {
+            "description": "The setup's mods from the installed provider file.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "native_ids",
+          "project_id",
+          "candidate_file_id",
+          "reason"
+        ],
+        "type": "object"
+      },
       "LiveMods": {
         "properties": {
           "changed_owned": {
@@ -28422,6 +28454,14 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "description": "Everything a game-level mods view needs in one read: whether the game has a\nreviewed mod contract, its setups and what is live now. Read-only.",
     "properties": {
+      "held_updates": {
+        "default": [],
+        "description": "Unattended provider updates waiting for the player's review, for each\nsetup's current revision.",
+        "items": {
+          "$ref": "#/$defs/HeldModUpdate"
+        },
+        "type": "array"
+      },
       "inventory": {
         "anyOf": [
           {
@@ -28468,7 +28508,8 @@
       "package_types",
       "later_mods_take_priority",
       "inventory",
-      "live"
+      "live",
+      "held_updates"
     ],
     "title": "ModSetupsView",
     "type": "object"
