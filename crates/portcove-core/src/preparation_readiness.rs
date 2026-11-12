@@ -65,7 +65,10 @@ pub(crate) fn self_contained_launch(
             == Some(super::PreparationMode::SourceOnly));
     }
     if managed(port) && managed_mode(port, install) == Some(super::PreparationMode::Default) {
-        return Ok(true);
+        // Only once prepared: an unprepared install still needs its original.
+        return Ok(installer
+            .read_verified_member(install, RECEIPT_FILE, 1024 * 1024)
+            .is_ok());
     }
     Ok(!port.release.managed_build.is_empty()
         && installer

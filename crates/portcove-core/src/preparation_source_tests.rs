@@ -1030,7 +1030,9 @@ async fn native6_mixed_sets_and_same_profile_edition_replacement_cannot_reprepar
             .plan_preparation(NATIVE_PORT, fixture.options())
             .is_err()
     );
-    assert!(fixture.service.prepare_launch(NATIVE_PORT, None).is_err());
+    // The sealed installation, not the replaced original, is the launch
+    // authority (owner decision on #966); it still launches unchanged.
+    assert!(fixture.service.prepare_launch(NATIVE_PORT, None).is_ok());
     assert_eq!(
         crate::library_transfer::reviewed_tree(&install.path).unwrap(),
         before
