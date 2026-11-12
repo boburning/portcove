@@ -93,10 +93,16 @@ impl PortcoveService {
             checkpoint()?;
             source
         } else if let Some(profile) = &port.source_profile {
-            if self.library.source(profile)?.is_some() {
-                Some(self.verified_source_record_with_checkpoint(&catalog, profile, &checkpoint)?)
-            } else {
-                None
+            match self.library.source(profile)? {
+                // An optional source whose file has gone is treated as absent: nothing is
+                // unpacked and the runtime and its persistent files stay as they are.
+                Some(record) if port.optional_game_source && !record.path.exists() => None,
+                Some(_) => Some(self.verified_source_record_with_checkpoint(
+                    &catalog,
+                    profile,
+                    &checkpoint,
+                )?),
+                None => None,
             }
         } else {
             None

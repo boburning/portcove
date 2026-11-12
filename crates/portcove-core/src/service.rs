@@ -1876,6 +1876,7 @@ impl PortcoveService {
                 label: profile.label.clone(),
                 role,
                 registered: self.library.source(profile_id)?.is_some(),
+                optional: port.optional_game_source && role == SourceRequirementRole::GameSource,
             });
         }
         Ok(requirements)
@@ -1943,7 +1944,18 @@ impl PortcoveService {
                 )
             })
             .transpose()?;
-        add_source_blocker(&mut blockers, source, false);
+        // An optional source that is not registered, or whose file has gone, never blocks:
+        // the unpacked runtime stays as it is. A source that changed or cannot be read still does.
+        let source_blocking = if port.optional_game_source
+            && matches!(
+                source,
+                Some(SourceHealth::Unregistered | SourceHealth::Missing)
+            ) {
+            None
+        } else {
+            source
+        };
+        add_source_blocker(&mut blockers, source_blocking, false);
         add_source_blocker(&mut blockers, bios, true);
         let required_source_extension = if port.release.provider == ReleaseSource::UserPrepared {
             Platform::current().ok().and_then(|platform| {
@@ -17613,6 +17625,179 @@ fn main() {
 
         assert_eq!(active.version, "v1");
         assert_eq!(fs::read(user_settings).unwrap(), b"preserve-me");
+    }
+
+    /// Every shipped definition keeps its source requirements exactly as they were: none is
+    /// optional, and each still blocks setup while unregistered.
+    #[test]
+    fn no_shipped_port_declares_an_optional_game_source() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library).unwrap();
+        let mut requirements = 0;
+        for port in service.catalog.ports() {
+            assert!(!port.optional_game_source, "{}", port.id);
+            for requirement in service.install_source_requirements(port).unwrap() {
+                assert!(!requirement.optional, "{}", port.id);
+                assert_eq!(requirement.blocks_setup(), !requirement.registered);
+                requirements += 1;
+            }
+        }
+        assert!(requirements > 100);
+    }
+
+    #[test]
+    fn a_requirement_blocks_setup_only_when_required_and_unregistered() {
+        let requirement = |registered, optional| InstallSourceRequirement {
+            profile_id: "profile".into(),
+            label: "Label".into(),
+            role: SourceRequirementRole::GameSource,
+            registered,
+            optional,
+        };
+        assert!(requirement(false, false).blocks_setup());
+        assert!(!requirement(true, false).blocks_setup());
+        assert!(!requirement(false, true).blocks_setup());
+        assert!(!requirement(true, true).blocks_setup());
+        // The default and the serialized form of a required source are unchanged.
+        let json = serde_json::to_value(requirement(false, false)).unwrap();
+        assert!(json.get("optional").is_none());
+        assert_eq!(
+            serde_json::to_value(requirement(false, true)).unwrap()["optional"],
+            true
+        );
+    }
+
+    /// An optional disc source never blocks Play: with none registered, or after its file
+    /// has gone, nothing is unpacked or removed. A required source (the twin) still blocks
+    /// while unregistered and when its registered file has gone.
+    #[test]
+    fn an_optional_disc_source_never_blocks_or_changes_the_runtime() {
+        use crate::disc_filesystem::fixtures::{file, xex, xiso};
+        const TITLE: u32 = 0x4D53_07E6;
+        const ID: &str = "nocturne-recomp";
+        // An embedded profile ID (so the retained qualification resolves it); the service
+        // catalog below redefines it for the synthetic image.
+        const PROFILE: &str = "sotn-xbla";
+        for optional in [true, false] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let image = temporary.path().join("fixture.iso");
+            xiso(
+                0,
+                vec![
+                    file("default.xex", &xex(TITLE)),
+                    file("data.bin", b"payload"),
+                ],
+            )
+            .write_to(&image);
+            let image_sha256 = hex::encode(Sha256::digest(fs::read(&image).unwrap()));
+            let mut port = crate::test_fixture::host_declared_embedded_catalog(&[ID])
+                .port(ID)
+                .unwrap()
+                .clone();
+            port.source_profile = Some(PROFILE.into());
+            port.runtime_source_filename = Some("assets".into());
+            port.runtime_source_materialization =
+                Some(crate::RuntimeSourceMaterialization::XdvdfsDirectory);
+            port.runtime_source_hashes = std::collections::BTreeMap::from([(
+                "default.xex".to_owned(),
+                hex::encode(Sha256::digest(xex(TITLE))),
+            )]);
+            port.runtime_disc_image = Some(crate::DiscImageProfile {
+                format: crate::DiscImageFormat::Xdvdfs,
+                max_image_bytes: 1 << 30,
+                product_codes: vec![format!("{TITLE:08X}")],
+            });
+            port.optional_game_source = optional;
+            // Keep the embedded presentation requirement; the service catalog's profile
+            // below carries the same label.
+            let label = port.presentation.as_ref().unwrap().source_requirements[0]
+                .label
+                .clone();
+            let catalog = crate::Catalog::from_json(
+                &serde_json::json!({
+                    "schema_version": 1,
+                    "source_profiles": [{
+                        "id": PROFILE, "label": label, "kind": "file",
+                        "accepted_extensions": ["iso"], "accepted_sha256": [image_sha256],
+                    }],
+                    "ports": [port],
+                })
+                .to_string(),
+            )
+            .unwrap();
+            let port = catalog.port(ID).unwrap().clone();
+
+            let root = library.versions_dir().join(ID).join("v1");
+            fs::create_dir_all(&root).unwrap();
+            write_host_test_executable(&root, ID);
+            let artifact = ArtifactIdentity {
+                asset_name: format!("{ID}-v1.zip"),
+                sha256: hex::encode(Sha256::digest(format!("{ID}:v1"))),
+                size: 4,
+            };
+            let install = register_existing_test_artifact_with_port(
+                &library, &port, "v1", &root, artifact, true,
+            );
+            let mut service = PortcoveService::new(library).unwrap();
+            service.replace_catalog_for_test(catalog);
+            let blockers =
+                |service: &PortcoveService| service.status(ID).unwrap().readiness.unwrap().blockers;
+            let plan_blocks = service
+                .install_source_requirements(&port)
+                .unwrap()
+                .iter()
+                .any(InstallSourceRequirement::blocks_setup);
+
+            // Nothing registered: only a required source blocks.
+            assert_eq!(
+                blockers(&service).contains(&LaunchBlocker::MissingSource),
+                !optional,
+                "optional={optional}"
+            );
+            assert_eq!(plan_blocks, !optional, "optional={optional}");
+            fs::create_dir_all(root.join("assets")).unwrap();
+            fs::write(root.join("assets/extra.file"), b"added by the player").unwrap();
+            if !optional {
+                // The baseline: a registered source whose file has gone still blocks.
+                service.register_source(PROFILE, &image).unwrap();
+                fs::remove_file(&image).unwrap();
+                assert!(blockers(&service).contains(&LaunchBlocker::MissingSource));
+                continue;
+            }
+            service
+                .prepare_launch_for_install(&port, &install, None, None)
+                .unwrap();
+            assert_eq!(
+                fs::read(root.join("assets/extra.file")).unwrap(),
+                b"added by the player"
+            );
+            assert!(
+                !root.join("assets/default.xex").exists(),
+                "nothing is unpacked"
+            );
+
+            // Registered, then its file goes (the image was deleted): Play is not blocked
+            // and nothing is unpacked or removed. (Unpacking a present source is covered by
+            // the disc materialization tests; a service-level check would need the retained
+            // catalog to carry the synthetic image's identity.)
+            service.register_source(PROFILE, &image).unwrap();
+            assert!(!blockers(&service).contains(&LaunchBlocker::MissingSource));
+            fs::remove_file(&image).unwrap();
+            assert!(!blockers(&service).contains(&LaunchBlocker::MissingSource));
+            service
+                .prepare_launch_for_install(&port, &install, None, None)
+                .unwrap();
+            assert_eq!(
+                fs::read(root.join("assets/extra.file")).unwrap(),
+                b"added by the player"
+            );
+            assert!(
+                !root.join("assets/default.xex").exists(),
+                "nothing is unpacked"
+            );
+        }
     }
 
     #[test]

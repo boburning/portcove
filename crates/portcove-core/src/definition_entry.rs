@@ -296,6 +296,16 @@ impl DefinitionContentIndex {
                 "disc-image unpacking requires staged-source capability version 30",
             ));
         }
+        if port.optional_game_source
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= 31
+            })
+        {
+            return Err(PortcoveError::verification(
+                "an optional game source requires staged-source capability version 31",
+            ));
+        }
         if port.mod_package_policy.is_some()
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "staged-source-portable"

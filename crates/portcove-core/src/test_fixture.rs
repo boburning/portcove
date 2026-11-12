@@ -299,7 +299,12 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = format!("sha256/{}.json", self.contract_sha256);
         let port = self.port.as_ref();
         let port_id = &port.id;
-        let capability_version = if port.linux_portable_data_directory.is_some() {
+        let capability_version = if port.optional_game_source {
+            // An optional game source needs staged-source capability version 31. Keep this
+            // branch first: a later capability chain that matched earlier would silently
+            // skip the requirement.
+            31
+        } else if port.linux_portable_data_directory.is_some() {
             crate::native_portable_data::NATIVE_CAPABILITY
         } else if !port.release.tar_xz_platforms.is_empty() {
             3

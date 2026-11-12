@@ -255,6 +255,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         runtime_source_materialization,
         runtime_source_hashes,
         runtime_disc_image,
+        optional_game_source,
         runtime_source_set,
         launch_from_install_root,
         setup_executable_hints,
@@ -318,6 +319,9 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
     // Likewise, disc-image unpacking limits and game identifiers join only when declared.
     if let Some(image) = runtime_disc_image {
         compatibility["runtime_disc_image"] = serde_json::json!(image);
+    }
+    if *optional_game_source {
+        compatibility["optional_game_source"] = serde_json::json!(true);
     }
     compatibility
 }

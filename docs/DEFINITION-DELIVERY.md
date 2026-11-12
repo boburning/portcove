@@ -16,7 +16,7 @@ component fixtures do not complete either production outcome.
 Core advertises each installed `AdapterKind` template with contract version 1.
 The public inventory additionally advertises Libultraship portable version 2,
 native portable versions 2–9, managed PS1 version 2, N64 portable versions 2–4
-and staged-source portable versions 2–5, 8, 10–12 and 15–30. The inventory owner is
+and staged-source portable versions 2–5, 8, 10–12 and 15–31. The inventory owner is
 `EngineTemplateCapability::current()` in
 [`definition_capabilities.rs`](../crates/portcove-core/src/definition_capabilities.rs);
 the version semantics and admission limits below remain part of each contract.
@@ -517,6 +517,14 @@ older readers that cannot unpack a disc image refuse it instead of misreading th
 definition. The version adds no source, installation or publisher authority and
 does not change versions 2–29. A definition bundled with the application ships with
 the build that understands it and needs no separate requirement.
+
+Staged-source version 31 admits `optional_game_source` on such a disc-image port: the
+source is offered but not required, so an unregistered source never blocks installing,
+updating or launching, and nothing is unpacked or removed until one is registered (see
+[Optional game source](CATALOG.md#optional-game-source)). An indexed entry that declares
+`optional_game_source` must require staged-source minimum version 31, so an older reader,
+which would treat the source as required and hold Play, refuses it instead. The version
+adds no source, installation or publisher authority and does not change versions 2–30.
 
 ## Decision and threat model
 

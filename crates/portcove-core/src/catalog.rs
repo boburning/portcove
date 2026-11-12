@@ -1497,6 +1497,18 @@ impl Catalog {
                     port.id
                 )));
             }
+            // An optional source is only meaningful where an unregistered source leaves a
+            // usable runtime: a staged disc-image port whose unpacking is the only use of it.
+            if port.optional_game_source
+                && (port.adapter != AdapterKind::StagedSourcePortable
+                    || port.source_profile.is_none()
+                    || port.runtime_disc_image.is_none())
+            {
+                return Err(PortcoveError::usage(format!(
+                    "{} declares an optional game source without a staged disc-image source",
+                    port.id
+                )));
+            }
             match port.runtime_source_materialization {
                 Some(materialization) if materialization.disc_image_format().is_some() => {
                     let image_valid = port.runtime_disc_image.as_ref().is_some_and(|image| {

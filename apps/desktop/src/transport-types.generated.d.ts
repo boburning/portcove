@@ -2030,6 +2030,13 @@ export interface PortDefinition {
    */
   n64_windows_initial_d3d12?: boolean;
   name: string;
+  /**
+   * A disc-image source that is offered but not required: with none registered the
+   * game is not blocked and the runtime and its persistent files are left as they are;
+   * when one is registered it is unpacked as for a required source. Only valid with a
+   * disc-image materialization.
+   */
+  optional_game_source?: boolean;
   persistent_file_patterns: PersistentFilePattern[];
   persistent_paths: string[];
   platforms: Platform[];
@@ -3538,6 +3545,11 @@ export interface ManagedSharedPreferencesReview {
 }
 export interface InstallSourceRequirement {
   label: string;
+  /**
+   * The definition offers this source but does not require it; an unregistered
+   * optional source never blocks installing, updating or launching.
+   */
+  optional?: boolean;
   profile_id: string;
   registered: boolean;
   role: SourceRequirementRole;

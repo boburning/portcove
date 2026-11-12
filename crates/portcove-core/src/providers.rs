@@ -201,6 +201,7 @@ mod tests {
             runtime_source_materialization: None,
             runtime_source_hashes: BTreeMap::new(),
             runtime_disc_image: None,
+            optional_game_source: false,
             runtime_source_set: Vec::new(),
             launch_from_install_root: false,
             setup_executable_hints: BTreeMap::new(),

@@ -272,7 +272,7 @@ fn game_update_plan_assessment(plan: &crate::InstallPlan) -> crate::PortActionAs
         Action::Download => match plan
             .source_requirements
             .iter()
-            .find(|input| !input.registered)
+            .find(|input| input.blocks_setup())
         {
             Some(input) => (
                 Availability::Waiting,
