@@ -7,7 +7,7 @@ import { decodeDiscoverPortIds } from "./desktop-review-presentation.mts";
 import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 import axe from "axe-core";
-import { By, Key, until } from "selenium-webdriver";
+import { By, Key, until, error as seleniumError } from "selenium-webdriver";
 
 /** Reveal the retained log through its real enclosing disclosure. */
 export async function preparationLogControl(browser: WebDriver, row: WebElement) {
@@ -97,6 +97,20 @@ async function catalogPortGroup(browser: WebDriver, portId: string): Promise<Web
 
 /** Use the real single-port action or comparison dialog, never a direct state change. */
 export async function selectCatalogPort(browser: WebDriver, portId: string) {
+  // Search and filter results re-render after input, which can replace the
+  // located group between lookup and click. Opening a port's detail is
+  // non-mutating, so re-locate a bounded number of times on a stale reference.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await selectCatalogPortOnce(browser, portId);
+    } catch (error) {
+      if (!(error instanceof seleniumError.StaleElementReferenceError) || attempt >= 3) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+}
+
+async function selectCatalogPortOnce(browser: WebDriver, portId: string) {
   const group = await catalogPortGroup(browser, portId);
   const matching = decodeDiscoverPortIds(
     await group.getAttribute("data-discover-matching-port-ids"),
