@@ -774,6 +774,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Locked package installation failed.' }
           ./scripts/bootstrap-quality-tools.ps1 -Desktop
           if ($LASTEXITCODE -ne 0) { throw 'Pinned native bootstrap failed.' }
+      # Diagnostics only: record process creation with command lines so a
+      # failed session shows how the application and WebView2 were launched.
+      - name: Record process creation for failure diagnostics
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          auditpol /set /subcategory:"Process Creation" /success:enable | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Process-creation auditing could not be enabled.' }
+          New-Item -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System\Audit' -Force | Out-Null
+          New-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System\Audit' -Name ProcessCreationIncludeCmdLine_Enabled -Value 1 -PropertyType DWord -Force | Out-Null
       - name: Plan and observe the fixed owned product scenarios
         shell: pwsh
         run: |
@@ -821,6 +831,15 @@ jobs:
           }
           "==== WEBVIEW2 environment"
           Get-ChildItem env: | Where-Object Name -like 'WEBVIEW2*' | Format-Table -AutoSize | Out-String -Width 200
+          "==== Process creation: application, WebView2 and drivers"
+          Get-WinEvent -FilterHashtable @{ LogName = 'Security'; Id = 4688; StartTime = (Get-Date).AddHours(-2) } -MaxEvents 4000 -ErrorAction SilentlyContinue |
+            ForEach-Object {
+              $data = @{}; ([xml]$_.ToXml()).Event.EventData.Data | ForEach-Object { $data[$_.Name] = $_.'#text' }
+              [pscustomobject]@{ Time = $_.TimeCreated.ToString('o'); Pid = [Convert]::ToInt32($data.NewProcessId, 16); ParentPid = [Convert]::ToInt32($data.ProcessId, 16); Image = $data.NewProcessName; Parent = $data.ParentProcessName; CommandLine = $data.CommandLine }
+            } |
+            Where-Object { "$($_.Image) $($_.Parent) $($_.CommandLine)" -match 'msedgewebview2|msedgedriver|tauri-driver|Portcove-Retained-Evidence|portcove' } |
+            Sort-Object Time | Select-Object -First 60 |
+            ForEach-Object { "$($_.Time) pid=$($_.Pid) parent=$($_.ParentPid) $($_.Image) <- $($_.Parent)`n    $("$($_.CommandLine)".Substring(0, [Math]::Min(700, "$($_.CommandLine)".Length)))" }
           "==== Windows Application log errors since job start"
           Get-WinEvent -FilterHashtable @{ LogName = 'Application'; Level = 1, 2; StartTime = (Get-Date).AddHours(-2) } -MaxEvents 30 -ErrorAction SilentlyContinue |
             Format-List TimeCreated, ProviderName, Id, Message
