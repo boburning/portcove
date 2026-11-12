@@ -2853,7 +2853,6 @@ fn optional_path(path: Option<&Path>) -> String {
 
 #[cfg(test)]
 mod tests {
-
     #[test]
     fn preparation_failure_guidance_is_read_only_and_keeps_the_originating_library_selection() {
         use portcove_core::{FailureRecoveryTarget, MutationState, PortcoveError, RecoveryAction};

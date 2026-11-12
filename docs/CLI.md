@@ -692,7 +692,8 @@ the host has no usable store, these commands fail with presentation key
 before changing anything, so they report `mutation_state: no_changes` and offer no
 state review. `library import` and `library move` read the portability authority
 after copying files; there the state stays as their transfer journal records it, and
-the usual review of activity and resume or abort applies. Unlock the store or allow
+the usual review of activity and resume or abort applies. `library export` may have
+prepared its lock before reaching the store, so it also keeps the review step. Unlock the store or allow
 access, or on Linux sign in to a desktop session that runs a keyring service, then
 try again. GitHub downloads can still use `PORTCOVE_GITHUB_TOKEN` for the current
 process.
