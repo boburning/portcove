@@ -706,7 +706,7 @@ void test("forward metadata maintenance counts original executions, refuses miss
     });
   const result = await inspect();
   assert.equal(result.actual_milliseconds, 1200000);
-  assert.equal(result.remaining_declared_minutes, 100);
+  assert.equal(result.remaining_declared_minutes, 101);
   assert.equal(result.attempts, 2);
   assert.equal(result.maximum_minutes, 140);
   assert.deepEqual(new Set(result.opportunities), new Set([child, parent]));

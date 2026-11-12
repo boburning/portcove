@@ -147,6 +147,7 @@ export function applicationReleaseRemainingMinutes(
                 [name, 0],
                 [`renewal_${name}`, 6],
               ];
+            if (name === "preview / execute") return [[name, 6]];
             if (/^(releases|preview|stable|snapshot|timestamp) \/ execute$/u.test(name))
               return [[name, 5]];
             return [[name, name.startsWith("protection_") ? 3 : minutes]];

@@ -701,7 +701,7 @@ jobs:
     with:
       operation: role-preview
       phase: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 'metadata-preview' || 'metadata' }}
-      timeout_minutes: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 5 || 2 }}
+      timeout_minutes: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 6 || 2 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
