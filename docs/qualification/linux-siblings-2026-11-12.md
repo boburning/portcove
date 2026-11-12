@@ -92,6 +92,17 @@ unchanged.
 All three are enrolled in the shared release-selection corpus with their real
 observed inventories and labelled synthetic successors at `downloads.example.invalid`.
 
+## Barrett on Apple silicon
+
+`barrett-macOS.zip` (928,007 bytes, provider SHA-256 matched) holds one arm64
+Mach-O `barrett` behind a lone wrapper. It has an embedded code signature and
+`minos` 15.0, and passed Core layout inspection for `macos-aarch64`. It links
+Homebrew SDL2 and SDL2_mixer from `/opt/homebrew/opt`. It uses the same
+working-directory `userdata` as Linux, which fits the existing plain-binary Mac
+native-portable shape (for example bstone and rerac). Rewooled's Mac app would
+place `game-data` inside its app bundle, so it keeps upstream-owned setup until
+that bundle boundary is reviewed.
+
 ## Not observed
 
 No upstream player, setup host, emitter or helper was executed. No original disc, BIOS
