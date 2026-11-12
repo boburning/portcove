@@ -559,7 +559,7 @@ mod tests {
             handoff_schema: portcove_core::ARTWORK_HANDOFF_SCHEMA,
             library: LibraryIdentity {
                 id: "library".into(),
-                root: "/library".into(),
+                root: "library".into(),
             },
             port_id: port_id.clone(),
             role: DestinationArtworkRole::HeroBanner,
