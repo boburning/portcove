@@ -345,6 +345,7 @@ it("labels the detail shell in the current language", async () => {
       .toBeVisible();
     await expect.element(page.getByRole("link", { name: "موقع المشروع" })).toBeVisible();
     await expect.element(page.getByRole("group", { name: "هوية اللعبة والمنفذ" })).toBeVisible();
+    await expect.element(page.getByRole("button", { name: /^إجراءات إضافية لـ / })).toBeVisible();
     expect(document.body.textContent).not.toContain("Game files");
   } finally {
     await localization.changeLanguage("en");
