@@ -83,7 +83,7 @@ describe("grouped library and game settings localization", () => {
         ),
       ].join(""),
     );
-    expect(markup).toContain("جميع المنافذ (2) · المطابقة: 1");
+    expect(markup).toContain("المنفذان (2) · المطابقة: 1");
     expect(markup).toContain("<bdi>Second project</bdi> · اختيارك");
     expect(markup).toContain("<bdi>First project</bdi> · خارج عوامل التصفية الحالية");
     expect(markup).toContain("تعذرت قراءة اختيارك للتنفيذ.");

@@ -26,12 +26,12 @@
     "unconfirmed": "Portcove no pudo confirmar que se guardó tu elección. Actualiza las opciones para comprobarlo."
   },
   "library": {
-    "allPorts_one": "Todas las adaptaciones ({{count, number}}) · Coincidentes: {{matching, number}}",
+    "allPorts_one": "La única adaptación ({{count, number}}) · Coincidentes: {{matching, number}}",
     "allPorts_many": "Todas las adaptaciones ({{count, number}}) · Coincidentes: {{matching, number}}",
     "allPorts_other": "Todas las adaptaciones ({{count, number}}) · Coincidentes: {{matching, number}}",
     "choiceFiltered": "Tu adaptación preferida está fuera de estos filtros. Puedes ver las adaptaciones coincidentes abajo.",
     "choiceReadFailed": "No se pudo leer tu elección de implementación. Las acciones de las instalaciones existentes siguen disponibles.",
-    "choiceStale": "La adaptación que elegiste ya no está en este grupo de juegos. Elige una adaptación de la lista.",
+    "choiceStale": "La adaptación que elegiste ya no está en el grupo de este juego. Elige una adaptación de la lista.",
     "choosePrompt": "Elige la adaptación que se mostrará para este juego. Antes de cambiar, consulta sus instrucciones de configuración sobre las ubicaciones compartidas de las partidas.",
     "chosen": "<name/> · Tu elección",
     "chosenOutside": "<name/> · Tu elección · Fuera de los filtros actuales",

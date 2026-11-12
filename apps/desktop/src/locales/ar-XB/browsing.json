@@ -27,8 +27,8 @@
   },
   "library": {
     "allPorts_zero": "جميع المنافذ ({{count, number}}) · المطابقة: {{matching, number}}",
-    "allPorts_one": "جميع المنافذ ({{count, number}}) · المطابقة: {{matching, number}}",
-    "allPorts_two": "جميع المنافذ ({{count, number}}) · المطابقة: {{matching, number}}",
+    "allPorts_one": "المنفذ الوحيد ({{count, number}}) · المطابقة: {{matching, number}}",
+    "allPorts_two": "المنفذان ({{count, number}}) · المطابقة: {{matching, number}}",
     "allPorts_few": "جميع المنافذ ({{count, number}}) · المطابقة: {{matching, number}}",
     "allPorts_many": "جميع المنافذ ({{count, number}}) · المطابقة: {{matching, number}}",
     "allPorts_other": "جميع المنافذ ({{count, number}}) · المطابقة: {{matching, number}}",
