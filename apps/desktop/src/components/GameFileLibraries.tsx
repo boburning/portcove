@@ -15,6 +15,7 @@ import {
 import { LatestRequestGeneration } from "../shared/concurrency-state";
 import type {
   GameFileRoot,
+  GameFileScanMatchPage,
   GameFileScanSnapshot,
   PortDefinition,
   PortStatus,
@@ -304,8 +305,104 @@ function CandidateRow({
   );
 }
 
+const matchPageSize = 64;
+
+/** Matches beyond the snapshot preview, read in pages for one recorded scan. */
+interface MoreMatches {
+  /** The snapshot the pages extend. A continued scan keeps its scan ID but
+   * can change its preview, so pages from before it are dropped. */
+  key: string;
+  candidates: GameFileScanMatchPage["candidates"];
+  preliminary: GameFileScanMatchPage["preliminary_selections"];
+}
+
+function isConflict(error: unknown) {
+  return (
+    typeof error === "object" && error !== null && "code" in error && error.code === "conflict"
+  );
+}
+
+function useMoreMatches(
+  snapshot: GameFileScanSnapshot | null | undefined,
+  generation: number,
+  onReload: () => void,
+) {
+  const [more, setMore] = useState<MoreMatches>();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>();
+  const report = snapshot?.report;
+  const scanId = snapshot?.matches?.scan_id;
+  const key = scanId
+    ? [
+        scanId,
+        report?.candidates.length ?? 0,
+        report?.preliminary_selections?.length ?? 0,
+        snapshot?.matches?.exact_matches ?? 0,
+        snapshot?.matches?.preliminary_selections ?? 0,
+      ].join(":")
+    : undefined;
+  const currentKey = useRef(key);
+  useLayoutEffect(() => {
+    currentKey.current = key;
+  }, [key]);
+  const current = more && more.key === key ? more : undefined;
+  const exactShown = (report?.candidates.length ?? 0) + (current?.candidates.length ?? 0);
+  const preliminaryShown =
+    (report?.preliminary_selections?.length ?? 0) + (current?.preliminary.length ?? 0);
+  const exactTotal = snapshot?.matches?.exact_matches ?? report?.candidates.length ?? 0;
+  const preliminaryTotal =
+    snapshot?.matches?.preliminary_selections ?? report?.preliminary_selections?.length ?? 0;
+  const remaining = exactTotal - exactShown + (preliminaryTotal - preliminaryShown);
+  const showMore = async () => {
+    if (!scanId || !key || loading) return;
+    const kind = exactShown < exactTotal ? "exact" : "preliminary";
+    setLoading(true);
+    setError(undefined);
+    try {
+      const page = await desktopApi.gameFileScanMatches(
+        {
+          scan_id: scanId,
+          kind,
+          offset: kind === "exact" ? exactShown : preliminaryShown,
+          limit: matchPageSize,
+        },
+        generation,
+      );
+      // The snapshot changed while this page loaded: its offsets no longer apply.
+      if (currentKey.current !== key) return;
+      setMore((previous) => {
+        const base = previous?.key === key ? previous : { key, candidates: [], preliminary: [] };
+        return {
+          key,
+          candidates: [...base.candidates, ...page.candidates],
+          preliminary: [...base.preliminary, ...page.preliminary_selections],
+        };
+      });
+    } catch (failure) {
+      // A newer scan replaced this one; show it instead of mixing two scans.
+      if (isConflict(failure)) {
+        setMore(undefined);
+        onReload();
+      } else setError(errorText(failure));
+    } finally {
+      setLoading(false);
+    }
+  };
+  return {
+    candidates: current?.candidates ?? [],
+    preliminary: current?.preliminary ?? [],
+    exactTotal,
+    remaining: scanId ? Math.max(remaining, 0) : 0,
+    loading,
+    error,
+    showMore,
+  };
+}
+
 function CompletedScan({
   snapshot,
+  generation,
+  onReload,
   readConfirmed,
   roots,
   ports,
@@ -319,6 +416,8 @@ function CompletedScan({
   review,
 }: {
   snapshot?: GameFileScanSnapshot | null | undefined;
+  generation: number;
+  onReload: () => void;
   readConfirmed: boolean;
   roots?: GameFileRoot[] | undefined;
   ports: PortDefinition[];
@@ -331,10 +430,20 @@ function CompletedScan({
   busy: boolean;
   review: (candidate: Pick<SourceRecord, "profile_id" | "path">) => void;
 }) {
+  const more = useMoreMatches(snapshot, generation, onReload);
   const report = snapshot?.report;
   if (!snapshot || !report) return null;
   const coverage = snapshot.coverage;
   const canContinue = savedScanAction(snapshot, readConfirmed) === "Continue scan";
+  const matchCeilingReached =
+    coverage !== undefined &&
+    coverage !== null &&
+    !coverage.can_resume &&
+    !coverage.frontier_exhausted &&
+    !coverage.restart_required &&
+    report.limits_reached.includes("candidates");
+  const candidates = [...report.candidates, ...more.candidates];
+  const preliminarySelections = [...(report.preliminary_selections ?? []), ...more.preliminary];
   return (
     <section className="source-discovery-results" aria-label="Saved folder scan results">
       <h3>Last completed scan</h3>
@@ -361,9 +470,16 @@ function CompletedScan({
       )}
       <p>
         Checked {report.entries_examined} entries in {report.searched_roots.length} available
-        folders. {countMessage(report.candidates.length, "exactMatches")} This scan does not assess
-        every source format or establish gameplay support.
+        folders. {countMessage(more.exactTotal, "exactMatches")} This scan does not assess every
+        source format or establish gameplay support.
       </p>
+      {more.remaining > 0 && (
+        <p data-match-preview-notice>
+          Showing {candidates.length + preliminarySelections.length} of{" "}
+          {candidates.length + preliminarySelections.length + more.remaining} matches. Show more to
+          see the rest.
+        </p>
+      )}
       {roots?.some((root) => root.availability === "unavailable") && (
         <p>Unavailable saved folders were not searched.</p>
       )}
@@ -375,12 +491,14 @@ function CompletedScan({
               {(limit === "entries" || limit === "hash_bytes" || limit === "candidates") &&
               canContinue
                 ? "Continue the scan to check the next batch. Earlier matches were kept."
-                : savedRootLimitGuidance(limit)}
+                : limit === "candidates" && matchCeilingReached
+                  ? "This scan reached its safety limit for matches, so it stopped. The matches found so far were kept. Save narrower subfolders, then scan again to check the rest."
+                  : savedRootLimitGuidance(limit)}
             </li>
           ))}
         </ul>
       )}
-      {report.candidates.map((candidate) => (
+      {candidates.map((candidate) => (
         <CandidateRow
           candidate={candidate}
           profiles={profiles}
@@ -405,7 +523,7 @@ function CompletedScan({
       ))}
       <PreliminarySourceSelections
         headingLevel={4}
-        selections={report.preliminary_selections}
+        selections={preliminarySelections}
         profiles={profiles}
         disabled={busy || !readConfirmed || snapshot.freshness !== "inputs_match"}
         onReview={review}
@@ -428,6 +546,17 @@ function CompletedScan({
           </>
         )}
       />
+      {more.remaining > 0 && (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={more.loading}
+          onClick={() => void more.showMore()}
+        >
+          {more.loading ? "Loading matches…" : "Show more matches"}
+        </Button>
+      )}
+      {more.error && <p role="alert">{more.error}</p>}
       {report.issues.map((issue, index) => (
         <p key={`${issue.path}:${index}`}>
           {issue.message}{" "}
@@ -1082,6 +1211,8 @@ export function GameFileLibraries({
   const renderCompletedScan = () => (
     <CompletedScan
       snapshot={snapshot}
+      generation={generation}
+      onReload={() => void refresh(true).catch(() => {})}
       readConfirmed={readConfirmed}
       roots={roots}
       ports={ports}
