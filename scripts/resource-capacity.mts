@@ -682,7 +682,7 @@ async function acquireLocalResourceCapacity(
           const external = await missingAllowed(() =>
             readFile(`${first.lockPath}.external-${first.owner.token}`, "utf8"),
           );
-          if (external) await releaseExternalRecords(lease, JSON.parse(external), root, false);
+          if (external) await releaseExternalRecords(lease, JSON.parse(external), root);
           else for (const lock of acquired) await lock.release();
           releaseIdentity();
         })()),
@@ -745,7 +745,7 @@ async function releaseExternalRecords(
   lease: unknown,
   external: unknown,
   root: string,
-  requireDead: boolean,
+  proveStopped?: () => boolean | Promise<boolean>,
 ) {
   const slots = references(lease, root);
   const decision = { format_version: 1, lease, external };
@@ -768,6 +768,8 @@ async function releaseExternalRecords(
     const previous = await missingAllowed(() => readFile(journal, "utf8"));
     if (previous && previous !== JSON.stringify(decision))
       throw new Error("Resource recovery journal differs");
+    if (proveStopped && !(await proveStopped()))
+      throw new Error("External resource work is not proven stopped");
     if (!previous) {
       for (const slot of slots) {
         const owner = await readHeavyRustLockOwner(slot.path);
@@ -776,7 +778,7 @@ async function releaseExternalRecords(
           (owner.external && JSON.stringify(owner.external) !== JSON.stringify(external))
         )
           throw new Error("External resource custody differs; retaining the reservation");
-        if (requireDead && heavyRustOwnerActivity({ ...owner, external: undefined }))
+        if (proveStopped && heavyRustOwnerActivity({ ...owner, external: undefined }))
           throw new Error(
             "External caller or contained descendants remain active; retaining custody",
           );
@@ -795,7 +797,7 @@ async function releaseExternalRecords(
     for (const slot of slots) {
       const owner = await missingAllowed(() => readHeavyRustLockOwner(slot.path));
       if (owner?.token === slot.token) {
-        if (requireDead && heavyRustOwnerActivity({ ...owner, external: undefined }))
+        if (proveStopped && heavyRustOwnerActivity({ ...owner, external: undefined }))
           throw new Error("Original resource caller remains active");
         await rm(`${slot.path}.external-${slot.token}`, { force: true });
         await releaseHeavyRustLock(slot.path, slot.token);
@@ -815,8 +817,12 @@ export async function reconcileExternalCapacity(
   proveStopped: () => boolean | Promise<boolean>,
   options: { root?: string } = {},
 ) {
-  if (!(await proveStopped())) throw new Error("External resource work is not proven stopped");
-  return releaseExternalRecords(lease, external, options.root ?? resourceDomainRoot(), true);
+  return releaseExternalRecords(
+    lease,
+    external,
+    options.root ?? resourceDomainRoot(),
+    proveStopped,
+  );
 }
 
 export async function capacityChildrenStopped(lease: unknown, options: { root?: string } = {}) {

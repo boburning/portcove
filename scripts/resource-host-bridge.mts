@@ -627,22 +627,27 @@ async function main() {
         path.join(resourceDomainRoot(), reference.slots[0]!.name),
       );
       const external = parseExternal(owner.external);
-      const binding = await readFile(external.binding, "utf8").catch((error: unknown) => {
-        if (errorCode(error) !== "ENOENT") throw error;
-        return undefined;
-      });
-      if (binding === undefined) {
-        proveUnboundLinuxRecovery(
-          (phase, expected) => remoteProbe(external, phase, expected),
-          (owner) => requireRemoteOwnerStopped(external, owner),
-        );
-        const appeared = await lstat(external.binding).catch((error: unknown) => {
+      const journal = await reconcileExternalCapacity(reference, external, async () => {
+        await verifyHostReference(value);
+        const binding = await readFile(external.binding, "utf8").catch((error: unknown) => {
           if (errorCode(error) !== "ENOENT") throw error;
           return undefined;
         });
-        if (appeared) throw new Error("Host registration appeared during recovery; retain custody");
-      } else remoteProbe(external, "release", JSON.parse(binding));
-      console.log(await reconcileExternalCapacity(reference, external, () => true));
+        if (binding === undefined) {
+          proveUnboundLinuxRecovery(
+            (phase, expected) => remoteProbe(external, phase, expected),
+            (owner) => requireRemoteOwnerStopped(external, owner),
+          );
+          const appeared = await lstat(external.binding).catch((error: unknown) => {
+            if (errorCode(error) !== "ENOENT") throw error;
+            return undefined;
+          });
+          if (appeared)
+            throw new Error("Host registration appeared during recovery; retain custody");
+        } else remoteProbe(external, "release", JSON.parse(binding));
+        return true;
+      });
+      console.log(journal);
     } else throw new Error("Unknown host bridge action");
   }
 }

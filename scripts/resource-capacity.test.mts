@@ -876,7 +876,18 @@ void test("external recovery is proof-bound and resumes partial release without 
     reconcileExternalCapacity(lease.reference, external, async () => false, { root }),
     /not proven stopped/,
   );
-  await reconcileExternalCapacity(lease.reference, external, async () => true, { root });
+  const journal = await reconcileExternalCapacity(
+    lease.reference,
+    external,
+    async () => {
+      const recoveryDirectory = path.join(root, "recovery");
+      assert.ok((await readdir(recoveryDirectory)).some((name) => name.endsWith(".json.lock")));
+      assert.equal((await observeCapacity({ root })).running.length, 2);
+      return true;
+    },
+    { root },
+  );
+  assert.equal(typeof journal, "string");
   // Reconstitute precisely the interrupted-release state: first slot gone, second
   // original token still present. The durable decision already exists.
   const retained = original[1];
