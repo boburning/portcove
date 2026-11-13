@@ -12,9 +12,9 @@ import { isRecord } from "./runtime-values.mts";
 
 export const netTreeDeltaScope = "portcove-release-net-tree-delta-v1";
 export const maximumReleaseSourceCommits = 2048;
-// The standalone Alpha 2 to Windows Preview comparison spans 2,669 commits and
-// 5,153 tree entries. The other source readers retain their original envelopes.
-export const maximumApplicationSourceCommits = 3072;
+// The first Windows Preview baseline is over 3,080 commits past Alpha 2.
+// Keep the application history bound in sync with semantic-source-git.py.
+export const maximumApplicationSourceCommits = 3200;
 export const maximumApplicationSourceTreeEntries = 6144;
 export const maximumCatalogSourceTreeEntries = 6144;
 const base = "repos/boburning/portcove";
