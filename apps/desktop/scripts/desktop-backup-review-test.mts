@@ -139,7 +139,19 @@ export async function backupReviewScenario({
       const expected = [
         "Latest backup information",
         protection.managed_data.path,
-        ...protection.installations.map((item) => item.version),
+        // Each installation by its role heading, so a missing one is not hidden by
+        // another installation or text that shares its version.
+        ...protection.installations.map(
+          (item) =>
+            `${
+              {
+                active: "Current version",
+                previous: "Previous version",
+                staged: "Prepared version",
+                external: "Installation you maintain",
+              }[item.role]
+            } · ${item.version}`,
+        ),
       ];
       if (protection.latest_completed_backup) expected.push(protection.latest_completed_backup.id);
       if (!complete) expected.push("We couldn’t confirm");
