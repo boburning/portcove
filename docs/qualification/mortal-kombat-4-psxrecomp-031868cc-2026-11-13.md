@@ -125,7 +125,8 @@ installation's retained definition (`installed_mutability`).
   its own declared paths, including any flat `mods/packages`, which the
   runtime migrates into `mods/installed` on start (`migrate_legacy_root`).
   Files in `config` and the four `.json` files are not restored into the new
-  copy, which has no reader for them. They stay in the older copy and in the
+  copy, which has no reader for them. They stay in Portcove's saved data for
+  the game, which backups include, as well as in the older copy and the
   automatic snapshot taken before the update. The whole-to-split record
   describes the one migration case that drops a player-edited package.
 - **Rollback:** an older copy restores its whole scope as before.

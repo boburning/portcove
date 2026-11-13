@@ -26606,7 +26606,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own complete Mortal Kombat 4 (USA) CHD (SLUS-00605, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player on Windows, Linux or Mac and skips the kit’s setup launcher when you play. On Mac, select Apple Command Line Tools or Xcode with the macOS SDK first. Portcove preserves your saves, settings, installed mods, texture packs and overlay captures; bundled mods belong to each runtime version. A copy installed before this change keeps its earlier saves-and-settings scope until you update. Generation, runtime, lifecycle and gameplay are untested on every platform.",
+        "manual_preparation": "Select your own complete Mortal Kombat 4 (USA) CHD (SLUS-00605, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player on Windows, Linux or Mac and skips the kit’s setup launcher when you play. On Mac, select Apple Command Line Tools or Xcode with the macOS SDK first. Portcove preserves your saves, settings, installed mods, texture packs and overlay captures; bundled mods belong to each runtime version. A copy installed earlier keeps its previous saves-and-settings scope until you update. Generation, runtime, lifecycle and gameplay are untested with these versions on every platform.",
         "original_game_title": "Mortal Kombat 4",
         "variant_label": "PlayStation",
         "artwork": {
