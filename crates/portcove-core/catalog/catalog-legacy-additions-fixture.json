@@ -108,7 +108,12 @@
     "njh-1001-wipeout2k97xl-usa-psx",
     "alexbeav-armored-core-master-of-arena-recomp-usa-psx",
     "alexbeav-fear-effect-2-retro-helix-recomp-usa-rev-1-psx",
-    "ace-combat-6-xbox360-usa-japan"
+    "ace-combat-6-xbox360-usa-japan",
+    "alexbeav-galerians-recomp-europe-psx",
+    "alexbeav-in-cold-blood-recomp-usa-psx",
+    "alexbeav-koudelka-recomp-europe-psx",
+    "alexbeav-final-fantasy-viii-recomp-usa-psx",
+    "alexbeav-final-fantasy-ix-recomp-usa-canada-rev-1-psx"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -409,6 +414,11 @@
     "njh-1001-wipeout2k97xl",
     "alexbeav-armored-core-master-of-arena-recomp",
     "alexbeav-fear-effect-2-retro-helix-recomp",
-    "monster-hunter-portable-3rd-hd-yakumo"
+    "monster-hunter-portable-3rd-hd-yakumo",
+    "alexbeav-galerians-recomp",
+    "alexbeav-in-cold-blood-recomp",
+    "alexbeav-koudelka-recomp",
+    "alexbeav-final-fantasy-viii-recomp",
+    "alexbeav-final-fantasy-ix-recomp"
   ]
 }
