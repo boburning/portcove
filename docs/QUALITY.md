@@ -398,6 +398,13 @@ error when that head differs from the head the run validates. The job has done n
 work for that head, so nothing is lost; the failure lands on a commit that is no
 longer that pull request's head and cannot satisfy a required context. CI health
 excludes such an attempt from the first-attempt pass rate, as it does a cancelled one.
+
+A push run on `main` is not cancelled by a later merge. It is the only run that saves
+the shared Rust build caches, and a cancelled run validates nothing; while merges
+arrived faster than a run could finish, most `main` runs were cancelled and no Rust
+partition completed there. One later merge waits as the pending run and replaces any
+older pending one, so `main` validates the newest merged state it can reach, not
+every merge. Pull request runs keep their own per-run groups.
 An unreadable or missing head keeps the job running. Push, qualification and release
 callers have no pull request and never stop. `windows-helper-contracts` keeps its
 fixed admitted step list and is left to the supersede workflow.

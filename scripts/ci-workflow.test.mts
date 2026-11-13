@@ -211,7 +211,7 @@ void test("required CI keeps its cancellation and least-privilege contracts", ()
   assert.deepEqual(settings.concurrency, {
     group:
       "ci-${{ inputs.force_qualification && format('qualification-{0}', github.ref) || github.event.pull_request.number && format('pr-{0}-{1}', github.event.pull_request.number, github.run_id) || github.ref }}",
-    "cancel-in-progress": "${{ !inputs.force_qualification }}",
+    "cancel-in-progress": "${{ !inputs.force_qualification && github.event_name != 'push' }}",
   });
   for (const name of [
     "rust_tests",
