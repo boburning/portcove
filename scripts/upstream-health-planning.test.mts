@@ -183,7 +183,7 @@ void test("Git discovery refuses malformed or unavailable commit identities", as
   );
 });
 
-void test("validated forecasts admit 351/352 and refuse 353 before any network I/O", async () => {
+void test("validated forecasts bound full collections, and the batch ceiling never refuses one", async () => {
   for (const count of [351, 352, 353]) {
     const catalog = {
       ports: Array.from({ length: count }, (_, i) => capacityPort(`boundary-${i}`)),
@@ -195,25 +195,17 @@ void test("validated forecasts admit 351/352 and refuse 353 before any network I
     });
     assert.equal(report.request_plan.conservative_requests, count);
     assert.equal(report.request_plan.hard_ceiling, 352);
-    assert.equal(report.request_plan.status, count > 352 ? "overflow" : "admitted");
-    assert.equal(report.limits.requests, count > 352 ? 0 : count);
-    assert.equal(calls.length, count > 352 ? 0 : count);
+    // 352 sizes incremental batches only; a full collection is bounded by its forecast.
+    assert.equal(report.request_plan.status, "admitted");
+    assert.equal(report.limits.requests, count);
+    assert.equal(calls.length, count);
     assert.equal(report.consumed.requests, calls.length);
     assert.equal(report.observations.length, count);
     assert.equal(report.port_health.length, count);
     assert.equal(report.coverage.repositories, count);
     assert.equal(report.scope.mode, "full");
-    if (count > 352) {
-      assert.equal(report.outcome, "incomplete");
-      assert.equal(report.scope.global_health, "not assessed");
-      assert.ok(
-        report.observations.every((r) => !r.attempted && !r.accounted_for && r.reason === "budget"),
-      );
-      assert.match(
-        renderRepositoryHealth(report),
-        /Preflight overflow: no live requests permitted/,
-      );
-    } else assert.equal(report.outcome, "complete");
+    assert.equal(report.outcome, "complete");
+    assert.match(renderRepositoryHealth(report), /incremental batch ceiling 352; admitted\./);
     const none = await collectRepositoryHealth(catalog, {
       portIds: [],
       fetch: () => assert.fail("Empty scope must not fetch"),
@@ -229,6 +221,34 @@ void test("validated forecasts admit 351/352 and refuse 353 before any network I
     assert.equal(affected.limits.requests, 1);
     assert.equal(affected.scope.global_health, "not assessed");
     assert.equal(affected.scope.unassessed_port_ids.length, count - 1);
+  }
+});
+
+void test("only the observation ceiling refuses a full collection before any network I/O", async () => {
+  for (const count of [512, 513]) {
+    const catalog = {
+      ports: Array.from({ length: count }, (_, i) => capacityPort(`records-${i}`)),
+    };
+    const calls: { url: string; options: HealthRequestOptions }[] = [];
+    const report = await collectRepositoryHealth(catalog, {
+      fetch: capacityFetch(calls),
+      now: () => 0,
+    });
+    assert.equal(report.request_plan.observation_records, count);
+    assert.equal(report.request_plan.status, count > 512 ? "overflow" : "admitted");
+    assert.equal(report.limits.requests, count > 512 ? 0 : count);
+    assert.equal(calls.length, count > 512 ? 0 : count);
+    if (count > 512) {
+      assert.equal(report.outcome, "incomplete");
+      assert.equal(report.scope.global_health, "not assessed");
+      assert.ok(
+        report.observations.every((r) => !r.attempted && !r.accounted_for && r.reason === "budget"),
+      );
+      assert.match(
+        renderRepositoryHealth(report),
+        /Preflight overflow: the selected inventory exceeds the observation ceiling; no live requests permitted/,
+      );
+    } else assert.equal(report.outcome, "complete");
   }
 });
 
@@ -259,7 +279,7 @@ void test("overflow preserves static missing-release and conflicting-identity cl
   });
   const catalog = {
     ports: [
-      ...Array.from({ length: 351 }, (_, i) => capacityPort(`mixed-${i}`)),
+      ...Array.from({ length: 511 }, (_, i) => capacityPort(`mixed-${i}`)),
       direct("unlocated"),
       direct("conflicting", true),
     ],
@@ -279,10 +299,10 @@ void test("overflow preserves static missing-release and conflicting-identity cl
     fetch: () => assert.fail("Overflow must not fetch"),
     now: () => 0,
   });
-  assert.equal(report.request_plan.conservative_requests, 353);
+  assert.equal(report.request_plan.status, "overflow");
   assert.equal(report.limits.requests, 0);
-  assert.equal(report.observations.length, 354);
-  assert.equal(report.coverage.monitored_ports, 353);
+  assert.equal(report.observations.length, 514);
+  assert.equal(report.coverage.monitored_ports, 513);
   assert.equal(
     requiredFixture(report.observations.find((r) => r.provider === "unlocated-historical")).reason,
     "release-identity-unavailable",
@@ -371,7 +391,7 @@ void test("reuse opportunities require the pin read to precede a shared hosted s
   }
 });
 
-void test("source archive conditional reads participate in zero-I/O forecast overflow", async () => {
+void test("source archive conditional reads participate in the full collection forecast", async () => {
   const fixture = sourceArchiveFixture();
   const report = await collectRepositoryHealthWithPolicy(
     {
@@ -383,14 +403,14 @@ void test("source archive conditional reads participate in zero-I/O forecast ove
     {
       reviewedAccounting: sourceArchivePolicy(fixture),
       now: () => 0,
-      fetch: () => assert.fail("353-call archive forecast must refuse every request"),
+      fetch: capacityFetch([]),
     },
   );
   assert.equal(report.request_plan.conservative_requests, 353);
   assert.equal(report.request_plan.conditional_archive_requests, 2);
-  assert.equal(report.limits.requests, 0);
-  assert.equal(report.consumed.requests, 0);
-  assert.equal(report.scope.global_health, "not assessed");
+  assert.equal(report.request_plan.status, "admitted");
+  // The archive reads raise the full collection's own bound past the batch ceiling.
+  assert.equal(report.limits.requests, 353);
+  assert.ok(report.consumed.requests <= 353);
   assert.equal(report.observations.length, 351);
-  assert.ok(report.observations.every((r) => !r.attempted && !r.accounted_for));
 });
