@@ -503,13 +503,17 @@ Malformed/duplicate-key inputs and unsupported or unsafe declarations fail.
 reports, for each requested port and explicit target platform, whether the
 managed `install` and the `register_external` routes are offered to a fresh
 library, with the reason when not. It runs before host preferences or a library
-are opened and uses the embedded catalog.
+are opened and uses the embedded catalog; a library whose catalog was updated
+since can differ.
 
-- Omitted `--port` inspects every listed port, at most 4,096 per request.
+- Omitted `--port` inspects every catalog listing and operational port. Every
+  request covers at most 4,096 ports; repeated IDs are inspected once.
 - Omitted `--platform` inspects every platform Core represents:
   `windows-x86-64`, `linux-x86-64`, `macos-x86-64` and `macos-aarch64`. Any
   other platform is a usage error, not a guess.
-- Route offering uses the same predicate as a library's action table. Each port
+- Route offering uses the same predicate as a library's action table, and a
+  reviewed acquisition hold withdraws `install` (`route_not_offered`) exactly as
+  it does there. Each port
   also reports its catalog presence (`operational`, `listing_only` or
   `not_found`), declared platforms, the reviewed acquisition hold, the download
   restriction, and whether the managed route must resolve a provider release on

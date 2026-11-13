@@ -112,7 +112,18 @@ pub fn inspect_targets(
         ids.dedup();
         ids
     } else {
-        port_ids.to_vec()
+        if port_ids.len() > MAX_INSPECTED_PORTS {
+            return Err(PortcoveError::usage(format!(
+                "inspect at most {MAX_INSPECTED_PORTS} ports per request"
+            )));
+        }
+        let mut ids = Vec::new();
+        for id in port_ids {
+            if !ids.contains(id) {
+                ids.push(id.clone());
+            }
+        }
+        ids
     };
     if ids.len() > MAX_INSPECTED_PORTS {
         return Err(PortcoveError::usage(format!(
@@ -154,6 +165,7 @@ fn inspect_port(
             port_id,
         };
     };
+    let held = crate::managed_runtime_policy::acquisition_hold(catalog, &port_id).is_some();
     let targets = platforms
         .iter()
         .map(|&platform| TargetRoutes {
@@ -161,7 +173,13 @@ fn inspect_port(
             routes: [PortAction::Install, PortAction::RegisterExternal]
                 .into_iter()
                 .map(|action| {
-                    let reason = route_exclusion(port, RouteHolding::default(), platform, action);
+                    // A reviewed acquisition hold withdraws fresh managed acquisition,
+                    // exactly as it does in a library's action table.
+                    let reason = if held && crate::managed_runtime_policy::hold_withdraws(action) {
+                        Some(PortActionReason::RouteNotOffered)
+                    } else {
+                        route_exclusion(port, RouteHolding::default(), platform, action)
+                    };
                     TargetRoute {
                         action,
                         offered: reason.is_none(),
@@ -205,14 +223,20 @@ mod tests {
             assert!(matches!(inspected.presence, CatalogPresence::Operational));
             assert_eq!(inspected.targets.len(), INSPECTABLE_PLATFORMS.len());
             for target in &inspected.targets {
-                // The same predicate as a fresh library's action table.
+                // The same predicate and hold as a fresh library's action table.
                 for route in &target.routes {
-                    let expected = route_exclusion(
-                        port,
-                        RouteHolding::default(),
-                        target.platform,
-                        route.action,
-                    );
+                    let expected = if inspected.acquisition_hold.is_some()
+                        && crate::managed_runtime_policy::hold_withdraws(route.action)
+                    {
+                        Some(PortActionReason::RouteNotOffered)
+                    } else {
+                        route_exclusion(
+                            port,
+                            RouteHolding::default(),
+                            target.platform,
+                            route.action,
+                        )
+                    };
                     assert_eq!(route.reason, expected);
                     assert_eq!(route.offered, expected.is_none());
                 }
@@ -254,9 +278,38 @@ mod tests {
     }
 
     #[test]
+    fn a_catalog_acquisition_hold_withdraws_install_as_in_the_library() {
+        let catalog = Catalog::embedded().unwrap();
+        let Some(port) = catalog
+            .ports()
+            .iter()
+            .find(|port| port.managed_acquisition_hold.is_some())
+        else {
+            return;
+        };
+        let report = inspect_targets(&catalog, &[port.id.clone()], &[]).unwrap();
+        let inspected = &report.ports[0];
+        assert!(inspected.acquisition_hold.is_some());
+        for target in &inspected.targets {
+            let install = target
+                .routes
+                .iter()
+                .find(|route| route.action == PortAction::Install)
+                .unwrap();
+            assert!(!install.offered);
+            assert_eq!(install.reason, Some(PortActionReason::RouteNotOffered));
+        }
+    }
+
+    #[test]
     fn requests_beyond_the_bound_are_refused() {
         let catalog = Catalog::embedded().unwrap();
-        let ids = vec!["x".to_string(); MAX_INSPECTED_PORTS + 1];
+        // The bound applies to the request as given, before duplicates collapse.
+        let repeated = vec!["x".to_string(); MAX_INSPECTED_PORTS + 1];
+        assert!(inspect_targets(&catalog, &repeated, &[]).is_err());
+        let ids: Vec<String> = (0..=MAX_INSPECTED_PORTS)
+            .map(|i| format!("port-{i}"))
+            .collect();
         assert!(inspect_targets(&catalog, &ids, &[]).is_err());
     }
 }
