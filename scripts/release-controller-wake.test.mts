@@ -2030,7 +2030,8 @@ void test("native wake refuses a malformed App success before retaining intent",
   f.api.applicationChecks = async (source) => {
     const inventory = await read(source);
     assert.ok(isRecord(inventory) && Array.isArray(inventory.check_runs));
-    const check = inventory.check_runs[0];
+    const check: unknown = inventory.check_runs[0];
+    assert.ok(isRecord(check) && isRecord(check.output));
     check.output.summary = JSON.stringify({ schema_version: 2 });
     return inventory;
   };
