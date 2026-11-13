@@ -5,7 +5,11 @@ import test from "node:test";
 
 import os from "node:os";
 import path from "node:path";
-import { encodeHostedEvidence, recoverHostedEvidence } from "./native-backup-evidence.mts";
+import {
+  encodeBackupEvidence,
+  encodeHostedEvidence,
+  recoverHostedEvidence,
+} from "./native-backup-evidence.mts";
 
 import { requiredFixture } from "./ci-workflow-fixture.mts";
 
@@ -126,4 +130,18 @@ void test("hosted evidence rejects malformed matching identities while retaining
       await readFile(path.join(input, "execution.json")),
     );
   }
+});
+
+void test("an oversized evidence file is refused by name and size", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-backup-evidence-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const native = path.join(root, "desktop-verify", "run", "native");
+  await mkdir(native, { recursive: true });
+  await writeFile(path.join(root, "host.json"), "{}");
+  // Codec unit fixture, never native acceptance evidence.
+  await writeFile(path.join(native, "oversized.log"), Buffer.alloc(12 * 1024 * 1024 + 1));
+  await assert.rejects(
+    encodeBackupEvidence(root),
+    /Non-regular or excessive evidence: desktop-verify\/run\/native\/oversized\.log \(12582913 bytes; limit 12582912 bytes\)/u,
+  );
 });
