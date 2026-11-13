@@ -535,6 +535,11 @@ export type CatalogForeignReleaseId = {
   provider: "gitlab";
   tag: string;
 };
+/**
+ * Why the upstream listing download is not this host's route. Each one leaves
+ * existing-installation registration and every installed copy unchanged.
+ */
+export type CatalogDownloadRefusal = "managed-route" | "platform-not-listed";
 export type ListingObservationStatus = "complete" | "incomplete" | "unavailable" | "failed";
 export type CatalogOrigin = "embedded" | "signed_active" | "signed_previous" | "definition_selected";
 export type CatalogUpdateSource =
@@ -2777,6 +2782,11 @@ export interface OutputCatalogDownloadCandidates {
   reason: string | null;
   recommendation_reason: string;
   recommended_asset_id: CatalogDownloadAssetId | null;
+  /**
+   * Present when the listing download is refused because another route
+   * serves this host; `reason` carries the same player explanation.
+   */
+  refusal?: CatalogDownloadRefusal | null;
   releases: CatalogDownloadRelease[];
   selected_release_id: CatalogDownloadReleaseId | null;
   upstream_url: string;

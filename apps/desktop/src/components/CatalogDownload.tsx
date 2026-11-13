@@ -254,6 +254,29 @@ function DownloadChoicesView({
   reviewButton,
   ...model
 }: ReturnType<typeof useDownloadChoices>) {
+  // Core refused this host's download because another route serves it. Explain
+  // that route instead of offering a check that can only repeat the refusal.
+  const refusal = model.result?.refusal;
+  if (refusal && model.result) {
+    return (
+      <section
+        ref={downloadRegion}
+        tabIndex={-1}
+        className="grid gap-3"
+        aria-label="Download from upstream"
+        data-download-refusal={refusal}
+      >
+        <p role="status">{model.result.reason}</p>
+        {refusal === "platform-not-listed" && (
+          <ActionRow>
+            <ExternalLink href={model.updates.url}>
+              {model.updates.releases ? "View upstream releases" : "Project website"}
+            </ExternalLink>
+          </ActionRow>
+        )}
+      </section>
+    );
+  }
   return (
     <section
       ref={downloadRegion}

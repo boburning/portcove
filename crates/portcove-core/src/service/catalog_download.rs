@@ -108,11 +108,39 @@ impl CatalogDownloadCoverage {
     }
 }
 
+/// Why the upstream listing download is not this host's route. Each one leaves
+/// existing-installation registration and every installed copy unchanged.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum CatalogDownloadRefusal {
+    /// Portcove's managed integration offers Install for this host.
+    ManagedRoute,
+    /// The listing names its platforms, and this host is not one of them.
+    PlatformNotListed,
+}
+
+impl CatalogDownloadRefusal {
+    pub fn message(self) -> &'static str {
+        match self {
+            Self::ManagedRoute => {
+                "Portcove installs and updates this game on your system. Use Install instead of downloading the upstream package."
+            }
+            Self::PlatformNotListed => {
+                "The project doesn't list a package for your system. Check the project page for other ways to play."
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CatalogDownloadCandidates {
     pub port_id: String,
     pub allowed: bool,
     pub reason: Option<String>,
+    /// Present when the listing download is refused because another route
+    /// serves this host; `reason` carries the same player explanation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refusal: Option<CatalogDownloadRefusal>,
     pub candidates: Vec<CatalogDownloadCandidate>,
     /// Absent when an availability or provider refusal prevented discovery.
     pub coverage: Option<CatalogDownloadCoverage>,
@@ -462,10 +490,41 @@ impl PortcoveService {
         Ok(())
     }
 
+    /// One fresh route per host: a managed Install that the current definition
+    /// offers here replaces the upstream download, and a listing that names its
+    /// platforms offers no download for another one. Empty platforms are unknown.
+    pub(crate) fn listing_download_refusal(
+        &self,
+        port_id: &str,
+        platform: Platform,
+    ) -> Result<Option<CatalogDownloadRefusal>> {
+        if let Ok(port) = self.catalog.port(port_id)
+            && crate::managed_runtime_policy::acquisition_hold(&self.catalog, port_id).is_none()
+            && crate::definition_eligibility::route_exclusion(
+                port,
+                Default::default(),
+                platform,
+                PortAction::Install,
+            )
+            .is_none()
+        {
+            return Ok(Some(CatalogDownloadRefusal::ManagedRoute));
+        }
+        let listing = self.catalog.listing(port_id)?;
+        if !listing.platforms.is_empty() && !listing.platforms.contains(&platform) {
+            return Ok(Some(CatalogDownloadRefusal::PlatformNotListed));
+        }
+        Ok(None)
+    }
+
     fn require_download_available(&self, port_id: &str) -> Result<()> {
         crate::managed_runtime_policy::require_acquisition_available(&self.catalog, port_id)?;
         if let Some(reason) = &self.catalog.listing(port_id)?.download_block_reason {
             return Err(PortcoveError::unsupported(reason.clone()));
+        }
+        if let Some(refusal) = self.listing_download_refusal(port_id, Platform::current()?)? {
+            return Err(PortcoveError::unsupported(refusal.message())
+                .detail("refusal", enum_value(refusal)?));
         }
         self.require_no_pending_setup(port_id)?;
         let state = self.library.status(port_id, ReleaseChannel::Stable)?;
@@ -599,6 +658,7 @@ impl PortcoveService {
             port_id: port_id.into(),
             allowed: false,
             reason: None,
+            refusal: None,
             candidates: Vec::new(),
             coverage: None,
             default_destination_parent: None,
@@ -610,6 +670,9 @@ impl PortcoveService {
             recommendation_reason: String::new(),
         };
         if let Err(error) = self.require_download_available(port_id) {
+            result.refusal = error.details.get("refusal").and_then(|refusal| {
+                serde_json::from_value(serde_json::Value::String(refusal.clone())).ok()
+            });
             result.reason = Some(error.message);
             return Ok(result);
         }

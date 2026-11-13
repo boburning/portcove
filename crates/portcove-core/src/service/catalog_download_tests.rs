@@ -2105,6 +2105,16 @@ async fn assert_embedded_resolved_frontend_download(
         .catalog_download_options_with_provider(id, None, None, Some(&github.provider))
         .await
         .unwrap();
+    // A managed Install or an unlisted host is not this listing's download route.
+    if let Some(refusal) = service
+        .listing_download_refusal(id, Platform::current().unwrap())
+        .unwrap()
+    {
+        assert!(!options.allowed, "{id}");
+        assert_eq!(options.refusal, Some(refusal), "{id}");
+        assert_eq!(github.requests.load(Ordering::SeqCst), 0, "{id}");
+        return;
+    }
     assert!(options.allowed);
     assert_eq!(options.selected_release_id, Some(7.into()));
     assert_eq!(options.candidates.len(), 1);
@@ -2302,6 +2312,14 @@ async fn exit_shared_release_keeps_title_recommendations_distinct_362_363() {
             .catalog_download_options_with_provider(id, None, None, Some(&github.provider))
             .await
             .unwrap();
+        if let Some(refusal) = service
+            .listing_download_refusal(id, Platform::current().unwrap())
+            .unwrap()
+        {
+            assert_eq!(options.refusal, Some(refusal), "{id}");
+            assert_eq!(github.requests.load(Ordering::SeqCst), 0, "{id}");
+            continue;
+        }
         assert!(options.allowed);
         assert_eq!(options.candidates.len(), 4);
         if Platform::current().unwrap() == Platform::WindowsX86_64 {
@@ -2637,4 +2655,180 @@ fn assert_embedded_listing_downloads_offered(ids: &[&str]) {
 #[tokio::test]
 async fn pokeplatinum_copied_cartridge_header_hold_before_network_373() {
     assert_embedded_player_download_holds(&["pokemon-platinum-pokeplatinum-pc-port-lead"]).await;
+}
+
+fn embedded_service() -> (tempfile::TempDir, PortcoveService, CatalogDownloadRequest) {
+    let (temporary, mut service, request) = fixture();
+    service.catalog = Catalog::embedded().unwrap();
+    (temporary, service, request)
+}
+
+#[test]
+fn managed_install_hosts_refuse_the_listing_download_and_others_keep_it() {
+    use CatalogDownloadRefusal::{ManagedRoute, PlatformNotListed};
+    use Platform::{LinuxX86_64, MacosAarch64, MacosX86_64, WindowsX86_64};
+    let (_temporary, service, _) = embedded_service();
+    let refusal = |id: &str, platform| service.listing_download_refusal(id, platform).unwrap();
+    // Managed Windows route; Linux is listed for the player-maintained package.
+    assert_eq!(
+        refusal("wave-race-64-recomp", WindowsX86_64),
+        Some(ManagedRoute)
+    );
+    assert_eq!(refusal("wave-race-64-recomp", LinuxX86_64), None);
+    assert_eq!(
+        refusal("wave-race-64-recomp", MacosAarch64),
+        Some(PlatformNotListed)
+    );
+    assert_eq!(
+        refusal("diddy-kong-racing-golden-balloon", WindowsX86_64),
+        Some(ManagedRoute)
+    );
+    assert_eq!(
+        refusal("diddy-kong-racing-golden-balloon", LinuxX86_64),
+        None
+    );
+    assert_eq!(
+        refusal("diddy-kong-racing-golden-balloon", MacosAarch64),
+        None
+    );
+    assert_eq!(
+        refusal("diddy-kong-racing-golden-balloon", MacosX86_64),
+        Some(PlatformNotListed)
+    );
+    assert_eq!(
+        refusal("road-rash-64-recompiled", WindowsX86_64),
+        Some(ManagedRoute)
+    );
+    assert_eq!(
+        refusal("road-rash-64-recompiled", LinuxX86_64),
+        Some(PlatformNotListed)
+    );
+    // A prepared-player integration needs the upstream package, so it keeps the download.
+    assert_eq!(refusal("dkc2-recomp", WindowsX86_64), None);
+    // A held managed route offers no Install; its own hold explains the download.
+    let held = "open-nectar-pikmin";
+    assert!(crate::managed_runtime_policy::acquisition_hold(&service.catalog, held).is_some());
+    assert_ne!(refusal(held, WindowsX86_64), Some(ManagedRoute));
+}
+
+#[test]
+fn listings_with_unknown_platforms_keep_the_download_on_every_host() {
+    let (_temporary, service, request) = fixture();
+    assert!(
+        service
+            .catalog
+            .listing(&request.port_id)
+            .unwrap()
+            .platforms
+            .is_empty()
+    );
+    for platform in [
+        Platform::WindowsX86_64,
+        Platform::LinuxX86_64,
+        Platform::MacosX86_64,
+        Platform::MacosAarch64,
+    ] {
+        assert_eq!(
+            service
+                .listing_download_refusal(&request.port_id, platform)
+                .unwrap(),
+            None
+        );
+    }
+}
+
+#[tokio::test]
+async fn unlisted_host_refuses_options_preview_and_mutation_before_network() {
+    let (_temporary, mut service, request) = fixture();
+    let host = Platform::current().unwrap();
+    let other = [Platform::WindowsX86_64, Platform::LinuxX86_64]
+        .into_iter()
+        .find(|platform| *platform != host)
+        .unwrap();
+    let mut document = service.catalog.listing_document().clone();
+    document.listings[0].platforms = vec![other];
+    service.catalog = service
+        .catalog
+        .clone()
+        .with_listing_document(document)
+        .unwrap();
+    let upstream = GithubFixture::new(archive(), None, None);
+    let message = CatalogDownloadRefusal::PlatformNotListed.message();
+    let options = service
+        .catalog_download_options_with_provider(
+            &request.port_id,
+            None,
+            None,
+            Some(&upstream.provider),
+        )
+        .await
+        .unwrap();
+    assert!(!options.allowed);
+    assert_eq!(
+        options.refusal,
+        Some(CatalogDownloadRefusal::PlatformNotListed)
+    );
+    assert_eq!(options.reason.as_deref(), Some(message));
+    assert!(options.candidates.is_empty() && options.coverage.is_none());
+    let error = service
+        .catalog_download_preview_with_provider(&request, &upstream.provider)
+        .await
+        .unwrap_err();
+    assert_eq!(error.message, message);
+    assert_eq!(error.details["refusal"], "platform-not-listed");
+    let error = service
+        .download_catalog_package_with_provider(
+            &request,
+            &"a".repeat(64),
+            |_| {},
+            &upstream.provider,
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(error.message, message);
+    assert_eq!(upstream.requests.load(Ordering::SeqCst), 0);
+    assert_eq!(
+        fs::read_dir(&request.destination_parent).unwrap().count(),
+        0
+    );
+    assert!(service.pending_setups().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn managed_host_refuses_the_download_but_keeps_existing_installation_routes() {
+    let (_temporary, service, mut request) = embedded_service();
+    // Managed on every desktop platform, so this holds on any host.
+    let id = "sssv-recompiled";
+    request.port_id = id.into();
+    let upstream = GithubFixture::new(archive(), None, None);
+    let options = service
+        .catalog_download_options_with_provider(id, None, None, Some(&upstream.provider))
+        .await
+        .unwrap();
+    assert!(!options.allowed);
+    assert_eq!(options.refusal, Some(CatalogDownloadRefusal::ManagedRoute));
+    assert_eq!(
+        options.reason.as_deref(),
+        Some(CatalogDownloadRefusal::ManagedRoute.message())
+    );
+    let error = service
+        .download_catalog_package_with_provider(
+            &request,
+            &"a".repeat(64),
+            |_| {},
+            &upstream.provider,
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(error.details["refusal"], "managed-route");
+    assert_eq!(upstream.requests.load(Ordering::SeqCst), 0);
+    // Registering a prepared copy is a separate route and stays available.
+    let status = service.listing_status(id).unwrap();
+    assert!(
+        status
+            .actions
+            .iter()
+            .any(|action| action.action == crate::ListingAction::AttachExisting && action.allowed)
+    );
+    assert!(service.pending_setups().unwrap().is_empty());
 }
