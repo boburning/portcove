@@ -1,4 +1,4 @@
-import { inspectReleaseReviewWithdrawal } from "./release-review-withdrawal.mts";
+import { inspectRetainedReviewWithdrawals } from "./release-review-withdrawal.mts";
 import { inspectCatalogReviewDisposition } from "./release-catalog-review-disposition.mts";
 import {
   inspectCatalogReviewRequest,
@@ -472,8 +472,12 @@ export function planReleaseOpportunity(input: unknown) {
   );
   const reviewRequest = inspectReleaseReviewRequest(input.review_request);
   const reviewDisposition = inspectReleaseReviewDisposition(input.review_disposition);
-  const reviewWithdrawal = inspectReleaseReviewWithdrawal(input.review_withdrawal);
-  if (reviewWithdrawal && reviewRequest?.source_commit === reviewWithdrawal.source_commit)
+  const reviewWithdrawals = inspectRetainedReviewWithdrawals(input.review_withdrawal);
+  if (
+    reviewWithdrawals.some(
+      (withdrawal) => reviewRequest?.source_commit === withdrawal.source_commit,
+    )
+  )
     throw new Error("withdrawn application source cannot be requested again");
   const metadataRenewal =
     input.metadata_renewal === undefined || input.metadata_renewal === null
@@ -601,7 +605,10 @@ export function planReleaseOpportunity(input: unknown) {
   }
   if (input.opportunity === null) {
     if (
-      (!metadataBootstrap && !publishedSite && !catalogInitialization && !reviewWithdrawal) ||
+      (!metadataBootstrap &&
+        !publishedSite &&
+        !catalogInitialization &&
+        reviewWithdrawals.length === 0) ||
       active ||
       publication.reserved_versions.length !== 0
     )
@@ -684,7 +691,9 @@ export function planReleaseOpportunity(input: unknown) {
       .digest("hex"),
   };
 
-  if (reviewWithdrawal?.source_commit === opportunity.source_commit)
+  if (
+    reviewWithdrawals.some((withdrawal) => withdrawal.source_commit === opportunity.source_commit)
+  )
     return plan("pause", "application source was withdrawn for safety", authority);
 
   if (

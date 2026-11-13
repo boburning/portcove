@@ -1,5 +1,6 @@
 import {
-  inspectReleaseReviewWithdrawal,
+  appendRetainedReviewWithdrawal,
+  inspectRetainedReviewWithdrawals,
   matchesWithdrawnReviewRequest,
 } from "./release-review-withdrawal.mts";
 import { capacityDigest, inspectCapacityOperation } from "./release-capacity.mts";
@@ -288,11 +289,13 @@ export function validateReleaseReviewRequestTransition(
   const after = inspectReleaseReviewRequest(next.review_request);
   const oldDisposition = inspectReleaseReviewDisposition(previous.review_disposition);
   const disposition = inspectReleaseReviewDisposition(next.review_disposition);
-  const oldWithdrawal = inspectReleaseReviewWithdrawal(previous.review_withdrawal);
-  const withdrawal = inspectReleaseReviewWithdrawal(next.review_withdrawal);
-  if (capacityDigest(oldWithdrawal) !== capacityDigest(withdrawal)) {
+  const withdrawals = inspectRetainedReviewWithdrawals(next.review_withdrawal);
+  if (
+    capacityDigest(previous.review_withdrawal ?? null) !==
+    capacityDigest(next.review_withdrawal ?? null)
+  ) {
+    const withdrawal = withdrawals.at(-1);
     if (
-      oldWithdrawal ||
       !withdrawal ||
       !before ||
       next.review_request !== null ||
@@ -314,13 +317,13 @@ export function validateReleaseReviewRequestTransition(
       ...previous,
       controller: { ...previous.controller, publication_paused: true },
       review_request: null,
-      review_withdrawal: withdrawal,
+      review_withdrawal: appendRetainedReviewWithdrawal(previous.review_withdrawal, withdrawal),
     };
     if (capacityDigest(expected) !== capacityDigest(next))
       throw new Error("review withdrawal cannot change release state or accounting");
     return;
   }
-  if (withdrawal && after?.source_commit === withdrawal.source_commit)
+  if (withdrawals.some((withdrawal) => after?.source_commit === withdrawal.source_commit))
     throw new Error("withdrawn application source cannot be requested again");
   if (
     capacityDigest(before) === capacityDigest(after) &&

@@ -1,4 +1,5 @@
 import {
+  appendRetainedReviewWithdrawal,
   inspectReleaseReviewWithdrawal,
   matchesRetainedReviewWithdrawal,
   matchesWithdrawnReviewRequest,
@@ -4569,7 +4570,7 @@ async function withdrawTrustedApplicationReview(
     ...input,
     controller: { ...input.controller, publication_paused: true },
     review_request: null,
-    review_withdrawal: withdrawal,
+    review_withdrawal: appendRetainedReviewWithdrawal(input.review_withdrawal, withdrawal),
   });
   reportStage("withdrawal-signed-checkpoint");
   await publish(saved.checkpoint);

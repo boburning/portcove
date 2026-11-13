@@ -30,6 +30,34 @@ export function inspectReleaseReviewWithdrawal(raw: unknown) {
   };
 }
 
+type ReviewWithdrawal = NonNullable<ReturnType<typeof inspectReleaseReviewWithdrawal>>;
+
+/** The first receipt keeps its historical wire shape. Later checkpoints append
+ * receipts in order under the same field. Appointments still carry one receipt. */
+export function inspectRetainedReviewWithdrawals(raw: unknown): ReviewWithdrawal[] {
+  if (!Array.isArray(raw)) {
+    const withdrawal = inspectReleaseReviewWithdrawal(raw);
+    return withdrawal ? [withdrawal] : [];
+  }
+  if (raw.length < 2 || raw.length > 32)
+    throw new Error("retained application review withdrawal history is out of bounds");
+  const sources = new Set<string>();
+  const withdrawals: ReviewWithdrawal[] = [];
+  for (const entry of raw as unknown[]) {
+    const withdrawal = inspectReleaseReviewWithdrawal(entry);
+    if (!withdrawal || sources.has(withdrawal.source_commit))
+      throw new Error("retained application review withdrawal history has an invalid receipt");
+    sources.add(withdrawal.source_commit);
+    withdrawals.push(withdrawal);
+  }
+  return withdrawals;
+}
+
+export function appendRetainedReviewWithdrawal(raw: unknown, withdrawal: ReviewWithdrawal) {
+  const previous = inspectRetainedReviewWithdrawals(raw);
+  return previous.length === 0 ? withdrawal : [...previous, withdrawal];
+}
+
 export function matchesWithdrawnReviewRequest(
   withdrawal: NonNullable<ReturnType<typeof inspectReleaseReviewWithdrawal>>,
   request: { request_id: string; source_commit: string; source_tree: string } | null,
@@ -47,7 +75,8 @@ export function matchesRetainedReviewWithdrawal(
 ) {
   return (
     input.review_request === null &&
-    input.review_withdrawal != null &&
-    releaseCanonicalDigest(input.review_withdrawal) === releaseCanonicalDigest(withdrawal)
+    inspectRetainedReviewWithdrawals(input.review_withdrawal).some(
+      (retained) => releaseCanonicalDigest(retained) === releaseCanonicalDigest(withdrawal),
+    )
   );
 }
