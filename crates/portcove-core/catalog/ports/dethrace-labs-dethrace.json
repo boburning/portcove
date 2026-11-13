@@ -63,6 +63,16 @@
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "Before first Play, copy DATA from your own supported Carmageddon installation beside dethrace.exe, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace Portcove’s executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route. The reviewed Carmageddon data directory includes saves, options, captures and supported data changes. DATA, optional MUSIC and named diagnostics are retained for compatible runtime replacement and backup. The upstream AppData/dethrace fallback or DETHRACE_ROOT_DIR-selected data remains external and outside backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. The Linux player uses the same declared DATA/MUSIC and named diagnostics. Keep the originals separately and follow upstream’s native dependencies. A custom DETHRACE_ROOT_DIR or external preference-data fallback remains outside Portcove backup. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run."
+    },
+    "reviewed_package_layouts": {
+      "linux-x86-64": {
+        "directories": [],
+        "executables": ["dethrace"]
+      },
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["dethrace.exe"]
+      }
     }
   }
 }

@@ -40078,6 +40078,14 @@
           "game_slug": "jazz-jackrabbit",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "openjazz.exe"
+          ]
+        }
       }
     },
     {
@@ -41660,6 +41668,20 @@
           "image_sha256": "56d8d709fe76b92d75c0cd522724afcc2a9d8e9ca2ca924631fe0bd074452e5c",
           "game_slug": "caesar-iii",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "julius"
+          ]
+        },
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "julius.exe"
+          ]
         }
       }
     },
@@ -43795,6 +43817,20 @@
           "image_sha256": "37c005bc0bc73af82a8b2fb6d367c1d639395f6804cb064088773581d2b9264f",
           "game_slug": "carmageddon",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "dethrace"
+          ]
+        },
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "dethrace.exe"
+          ]
         }
       }
     },
