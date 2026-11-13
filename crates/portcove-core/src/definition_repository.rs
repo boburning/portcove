@@ -748,7 +748,13 @@ fn map_tough_error(error: tough::error::Error) -> PortcoveError {
             // Access refused (auth wall, firewall, rate limit) says nothing about publication.
             (Some(_), Some(403)) | (None, _) => error,
             // The first top-level metadata is absent: the location serves nothing.
-            (Some(url), _) if url.ends_with("/timestamp.json") => {
+            (Some(url), _)
+                if Url::parse(&url)
+                    .ok()
+                    .and_then(|url| url.path_segments()?.next_back().map(str::to_owned))
+                    .as_deref()
+                    == Some("timestamp.json") =>
+            {
                 error.detail("delivery", "not_served")
             }
             // Metadata is served but a file it requires is missing: a partial publication.
