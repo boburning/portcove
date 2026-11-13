@@ -300,43 +300,10 @@ export async function runFixedCatalogCoordinatorConfiguration(
         );
         await retainControlStepLocator(ready, "coordinator", 0);
       };
-      if (earlyRecovery && reviewClaimSubject) await announceControlReadiness(reviewClaimSubject);
-      stage = "catalog-tool-custody";
-      const tools = await receiveControllerTools(
-          directory,
-          selected.tools.artifact,
-          selected.tools.bundle,
-          { deadline },
-        ),
-        paths = await verifiedControllerToolPaths(tools);
-      if (
-        paths.identity.controller_revision !== reader.admitted.revision ||
-        paths.identity.controller_ref !== reader.admitted.execution_ref ||
-        paths.identity.run_id !== reader.admitted.run_id ||
-        paths.identity.run_attempt !== reader.admitted.run_attempt
-      )
-        throw new Error("catalog tools/actual job association differs");
-      stage = "catalog-journal-recovery";
-      const recovered = await recoverRemoteCoordinator(directory, selected.remote_configuration, {
-          transport: journalTransport,
-        }),
-        input = recovered.input;
-      const checkDirectSource = () => {
-        check();
-        assertTrustedDirectNode("fixed catalog authoring source");
-      };
-      const openPublicationReader = () =>
-        createPublicationInventoryWithSdk({
-          token: readerToken,
-          deadline,
-          maxBytes: 16 * 1024 ** 2,
-          recheck: async () => check(),
-          beforeDispatch: checkDirectSource,
-        });
-      const observeControls = async (subjectSha256: string) => {
+      const observeControls = async (subjectSha256: string, refreshBeforeUse = false) => {
         const runId = reader.admitted.run_id;
         if (!runId) throw new Error("catalog coordinator run identity unavailable");
-        if (!earlyRecovery) await announceControlReadiness(subjectSha256);
+        await announceControlReadiness(subjectSha256);
         const observation = await waitForControlArtifact(
           directory,
           "observation",
@@ -399,8 +366,51 @@ export async function runFixedCatalogCoordinatorConfiguration(
           observed.reader.check_run_id !== reader.identity.check_run_id
         )
           throw new Error("catalog controls came from another job");
-        return { controls, readMaintenance, observed, stable };
+        return {
+          async currentControls() {
+            if (refreshBeforeUse) await readMaintenance();
+            return { controls, readMaintenance, observed: current, stable };
+          },
+        };
       };
+      // Observe the exact claim while the coordinator reads its independent inputs.
+      // The observation is authenticated within its own freshness window. The
+      // consumer refreshes it under the same job deadline before use if needed.
+      const earlyObservation =
+        earlyRecovery && reviewClaimSubject ? observeControls(reviewClaimSubject, true) : undefined;
+      void earlyObservation?.catch(() => {});
+      stage = "catalog-tool-custody";
+      const tools = await receiveControllerTools(
+          directory,
+          selected.tools.artifact,
+          selected.tools.bundle,
+          { deadline },
+        ),
+        paths = await verifiedControllerToolPaths(tools);
+      if (
+        paths.identity.controller_revision !== reader.admitted.revision ||
+        paths.identity.controller_ref !== reader.admitted.execution_ref ||
+        paths.identity.run_id !== reader.admitted.run_id ||
+        paths.identity.run_attempt !== reader.admitted.run_attempt
+      )
+        throw new Error("catalog tools/actual job association differs");
+      stage = "catalog-journal-recovery";
+      const recovered = await recoverRemoteCoordinator(directory, selected.remote_configuration, {
+          transport: journalTransport,
+        }),
+        input = recovered.input;
+      const checkDirectSource = () => {
+        check();
+        assertTrustedDirectNode("fixed catalog authoring source");
+      };
+      const openPublicationReader = () =>
+        createPublicationInventoryWithSdk({
+          token: readerToken,
+          deadline,
+          maxBytes: 16 * 1024 ** 2,
+          recheck: async () => check(),
+          beforeDispatch: checkDirectSource,
+        });
       const authenticateCoordinatorExecutor = () =>
         authenticateCapacityExecutor(
           "coordinator",
@@ -588,9 +598,10 @@ export async function runFixedCatalogCoordinatorConfiguration(
           adoptNative ? "native" : adoptForward,
         );
         stage = "standalone-application-bootstrap-observer";
-        const { readMaintenance, observed, stable } = await observeControls(
+        const initialControls = await observeControls(
           capacityDigest({ checkpoint: recovered.checkpoint, standalone_bootstrap: metadata }),
         );
+        const { readMaintenance, observed, stable } = await initialControls.currentControls();
         assertStandaloneBootstrapAdoptionCapacity(observed);
         stage = "standalone-application-bootstrap-inventory";
         // The original native claim already froze the version inventory.
@@ -882,11 +893,10 @@ export async function runFixedCatalogCoordinatorConfiguration(
           "frozen catalog request awaits automatic independent semantic worker",
         );
       stage = "neutral-request-control-and-CAS";
-      const { controls, readMaintenance, observed, stable } = await observeControls(
-        earlyRecovery && reviewClaimSubject
-          ? reviewClaimSubject
-          : capacityDigest({ checkpoint: recovered.checkpoint, request }),
-      );
+      const initialControls = await (earlyObservation ??
+        observeControls(capacityDigest({ checkpoint: recovered.checkpoint, request })));
+      const { controls, readMaintenance, observed, stable } =
+        await initialControls.currentControls();
       const publicationReader = await openPublicationReader();
       const tags = await publicationReader.tags();
       const releases = await publicationReader.releases();
