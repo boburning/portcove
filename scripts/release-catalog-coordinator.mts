@@ -74,6 +74,7 @@ import {
 import {
   inspectPublishedMetadata,
   isServedNativeBootstrapRenewalPreimage,
+  servedV13BootstrapRenewal,
   isStandaloneBootstrapForwardPreimage,
   standaloneBootstrapAdoption,
 } from "./release-metadata-contract.mts";
@@ -486,7 +487,9 @@ export async function runFixedCatalogCoordinatorConfiguration(
         input.catalog_publication == null &&
         input.catalog_review_request == null &&
         input.catalog_review_disposition == null;
-      const adoptNative = isServedNativeBootstrapRenewalPreimage(input);
+      const adoptNative =
+        isServedNativeBootstrapRenewalPreimage(input) ||
+        isServedNativeBootstrapRenewalPreimage(input, servedV13BootstrapRenewal);
       if (
         (input.published_metadata == null || adoptForward || adoptNative) &&
         input.metadata_bootstrap != null &&
