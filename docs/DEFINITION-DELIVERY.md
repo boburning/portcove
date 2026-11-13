@@ -15,7 +15,7 @@ component fixtures do not complete either production outcome.
 
 Core advertises each installed `AdapterKind` template with contract version 1.
 The public inventory additionally advertises Libultraship portable version 2,
-native portable versions 2–9, managed PS1 version 2, N64 portable versions 2–4
+native portable versions 2–9, managed PS1 versions 2–3, N64 portable versions 2–4
 and staged-source portable versions 2–5, 8, 10–12 and 15–31. The inventory owner is
 `EngineTemplateCapability::current()` in
 [`definition_capabilities.rs`](../crates/portcove-core/src/definition_capabilities.rs);
@@ -274,6 +274,12 @@ reading unscoped legacy manifests. A bounded, install/manifest-bound Core receip
 records completed data restoration before first Play; it establishes no launch,
 game-file, mod, publisher or gameplay qualification. See the
 [PS1 data boundary](CATALOG.md#managed-ps1-package-and-player-data-restoration).
+
+Managed PS1 version 3 keeps each existing installation's retained persistent
+scope when a newer definition adds a directory path that the copy holds no
+files under. Indexed PS1 entries that declare `mods/texture-packs` require
+minimum version 3, so an older reader refuses the entry instead of treating
+existing installations as a changed scope.
 
 Staged-source version 22 covers ready managed archives without a source, build,
 setup-helper, initialization or shared-account contract. New indexed entries of

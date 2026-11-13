@@ -705,6 +705,7 @@ mod lifecycle {
             "mods/.staging",
             "mods/state.toml",
             "mods/state.toml.tmp",
+            "mods/texture-packs",
         ]);
         let old = register_with_bundle(&service, &catalog, "v1", true, None, Some(b"old bundle"));
         let new = register_with_bundle(&service, &catalog, "v2", false, None, Some(b"new bundle"));
@@ -719,7 +720,14 @@ mod lifecycle {
         );
         write(&old_runtime, "mods/state.toml", b"old selection");
         write(&old_runtime, "saves/player.mcd", b"saved before update");
+        // PSXRecomp 7192402 keeps player texture replacements and dumps here.
+        let texture = "mods/texture-packs/SLUS-00000/replacements/tex.png";
+        write(&old_runtime, texture, b"player texture");
         assert_eq!(service.activate_staged(ID).unwrap().id, new.id);
+        assert_eq!(
+            fs::read(new_runtime.join(texture)).unwrap(),
+            b"player texture"
+        );
         assert_eq!(
             fs::read(new_runtime.join("mods/installed/player/1.0/manifest.toml")).unwrap(),
             b"user mod"
@@ -737,12 +745,22 @@ mod lifecycle {
                 .is_file()
         );
         assert!(!backup.path.join("data/mods/bundled").exists());
+        assert!(backup.path.join("data").join(texture).is_file());
 
         write(&new.path, LAUNCH_MARKER, b"1");
         fs::remove_dir_all(new_runtime.join("mods/installed/player")).unwrap();
         write(&new_runtime, "mods/state.toml", b"new selection");
         write(&new_runtime, "saves/player.mcd", b"latest save");
+        write(
+            &new_runtime,
+            "mods/texture-packs/SLUS-00000/dumps/tex-1.png",
+            b"dumped after update",
+        );
         service.rollback(ID).unwrap();
+        assert_eq!(
+            fs::read(old_runtime.join("mods/texture-packs/SLUS-00000/dumps/tex-1.png")).unwrap(),
+            b"dumped after update"
+        );
         assert_eq!(service.status(ID).unwrap().active.unwrap().id, old.id);
         assert!(!old_runtime.join("mods/installed/player").exists());
         assert_eq!(
@@ -1407,5 +1425,173 @@ mod lifecycle {
             b"committed current bytes"
         );
         assert!(old.path.is_dir());
+    }
+}
+
+// Host-portable: the retained scope rule needs no Windows-only behavior.
+mod retained_scope {
+    use super::*;
+    const ID: &str = "psx-scope-fixture";
+    const SPLIT: [&str; 6] = [
+        "saves",
+        "mods/installed",
+        "mods/packages",
+        "mods/.staging",
+        "mods/state.toml",
+        "mods/state.toml.tmp",
+    ];
+    const TEXTURES: &str = "mods/texture-packs";
+
+    fn executable() -> &'static str {
+        if cfg!(windows) {
+            "fixture.exe"
+        } else {
+            "fixture"
+        }
+    }
+
+    fn catalog(paths: &[&str]) -> Catalog {
+        let platform = serde_json::to_value(Platform::current().unwrap()).unwrap();
+        Catalog::from_json(
+            &serde_json::json!({
+                "schema_version":1,"ports":[{
+                    "id":ID,"name":"PSX scope fixture","summary":"Inert storage fixture",
+                    "project_url":"https://example.invalid/psx-scope","support_tier":"beta",
+                    "channels":["stable"],"platforms":[platform],
+                    "adapter":"psx-recomp-managed","release":{"repository":"fixture/psx"},
+                    "executable_hints":{platform.as_str().unwrap():[executable()]},
+                    "runtime_subdirectory":"build-portcove","persistent_paths":paths
+                }]
+            })
+            .to_string(),
+        )
+        .unwrap()
+    }
+
+    fn register(
+        service: &PortcoveService,
+        catalog: &Catalog,
+        version: &str,
+        active: bool,
+    ) -> InstallRecord {
+        let library = &service.library;
+        let root = library.versions_dir().join(ID).join(version);
+        write(
+            &root,
+            &format!("build-portcove/{}", executable()),
+            b"inert storage fixture, never executed",
+        );
+        write(&root, "build-portcove/mods/bundled/default.toml", b"bundle");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let player = root.join("build-portcove").join(executable());
+            fs::set_permissions(player, fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        let root = fs::canonicalize(root).unwrap();
+        let artifact = crate::ArtifactIdentity {
+            asset_name: format!("{version}.zip"),
+            sha256: hex::encode(Sha256::digest(version.as_bytes())),
+            size: version.len() as u64,
+        };
+        let qualification =
+            InstallQualification::from_catalog(catalog, ID, Platform::current().unwrap()).unwrap();
+        let id = Uuid::new_v4().to_string();
+        let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
+            .unwrap()
+            .create_manifest(&id, ID, version, &artifact, &qualification, &root)
+            .unwrap();
+        let install = InstallRecord {
+            id,
+            port_id: ID.into(),
+            version: version.into(),
+            path: root,
+            channel: ReleaseChannel::Stable,
+            installed_at: Library::now(),
+            verified: true,
+            staged: !active,
+            artifact,
+            manifest_sha256,
+            selected_executable,
+            runtime,
+        };
+        library.register_install(&install, active).unwrap();
+        install
+    }
+
+    fn assert_scope_refusal(error: &crate::PortcoveError) {
+        assert_eq!(
+            error.report().presentation.presentation_key,
+            "portable_data_contract_changed"
+        );
+    }
+
+    #[test]
+    fn an_existing_copy_keeps_its_scope_while_the_added_path_holds_no_files() {
+        let temporary = tempfile::tempdir().unwrap();
+        let mut service =
+            PortcoveService::new(Library::open(temporary.path().join("library")).unwrap()).unwrap();
+        let narrow = catalog(&SPLIT);
+        service.replace_catalog_for_test(narrow.clone());
+        let old = register(&service, &narrow, "v1", true);
+        let old_runtime = old.path.join("build-portcove");
+        write(&old_runtime, "saves/card1.mcd", b"saved before update");
+
+        let mut paths = SPLIT.to_vec();
+        paths.push(TEXTURES);
+        let wide = catalog(&paths);
+        service.replace_catalog_for_test(wide.clone());
+
+        // Absent, then only the empty folders the runtime creates.
+        service.create_backup(ID).unwrap();
+        let textures = old_runtime.join("mods/texture-packs/SLUS-00000");
+        fs::create_dir_all(textures.join("dumps")).unwrap();
+        fs::create_dir_all(textures.join("replacements")).unwrap();
+        let backup = service.create_backup(ID).unwrap();
+        assert!(backup.path.join("data/saves/card1.mcd").is_file());
+
+        // A file this copy never synchronized holds every data operation.
+        let file = textures.join("replacements/tex.png");
+        fs::write(&file, b"player texture").unwrap();
+        let error = service.create_backup(ID).unwrap_err();
+        assert_scope_refusal(&error);
+        assert_eq!(error.details["added_path"], TEXTURES);
+        assert_eq!(fs::read(&file).unwrap(), b"player texture");
+        fs::remove_file(&file).unwrap();
+
+        // A version created under the wider definition keeps texture data.
+        let new = register(&service, &wide, "v2", false);
+        let new_runtime = new.path.join("build-portcove");
+        assert_eq!(service.activate_staged(ID).unwrap().id, new.id);
+        assert_eq!(
+            fs::read(new_runtime.join("saves/card1.mcd")).unwrap(),
+            b"saved before update"
+        );
+        write(
+            &new_runtime,
+            "mods/texture-packs/SLUS-00000/replacements/tex.png",
+            b"player texture",
+        );
+        let backup = service.create_backup(ID).unwrap();
+        assert!(
+            backup
+                .path
+                .join("data/mods/texture-packs/SLUS-00000/replacements/tex.png")
+                .is_file()
+        );
+    }
+
+    #[test]
+    fn an_overlapping_added_path_still_refuses() {
+        let temporary = tempfile::tempdir().unwrap();
+        let mut service =
+            PortcoveService::new(Library::open(temporary.path().join("library")).unwrap()).unwrap();
+        let narrow = catalog(&SPLIT);
+        service.replace_catalog_for_test(narrow.clone());
+        register(&service, &narrow, "v1", true);
+        let mut paths = SPLIT.to_vec();
+        paths.push("mods/installed/extra");
+        service.replace_catalog_for_test(catalog(&paths));
+        assert_scope_refusal(&service.create_backup(ID).unwrap_err());
     }
 }

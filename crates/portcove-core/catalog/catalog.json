@@ -32306,6 +32306,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -32354,7 +32355,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own single-track CHDs for SLUS-01030, SLUS-01081 in disc order and retail SCPH-1001 BIOS. Portcove verifies each disc's data track and builds a private player with its registered toolchain, retaining its declared saves, settings and installed mods. Choose the disc when you choose Play; the kit cannot swap discs during play, so quit and choose Play again with the next disc. Bundled mods belong to the runtime version. Windows and Linux package and source fit were statically inspected. Native build, disc switching, gameplay and save compatibility remain unobserved.",
+        "manual_preparation": "Provide your own single-track CHDs for SLUS-01030, SLUS-01081 in disc order and retail SCPH-1001 BIOS. Portcove verifies each disc's data track and builds a private player with its registered toolchain, retaining its declared saves, settings and installed mods. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play again with the next disc. Bundled mods belong to the runtime version. Windows and Linux package and source fit were statically inspected. Native build, disc switching, gameplay and save compatibility remain unobserved.",
         "original_game_title": "Armored Core: Master of Arena",
         "manual_setup": {
           "steps": [
@@ -32364,7 +32365,7 @@
             },
             {
               "title": "Set up the managed Windows or Linux player",
-              "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play; to change discs, quit the game and choose Play with the next disc."
+              "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc."
             },
             {
               "title": "Prepare a separate Mac copy",
@@ -32377,7 +32378,7 @@
           ],
           "warnings": [
             "Portcove checks each disc's data track and track count. Keep every disc intact.",
-            "The kit cannot swap discs during play. Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
+            "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
           "help_url": "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp#readme",
           "references": [
@@ -32454,6 +32455,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -32599,6 +32601,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -32879,6 +32882,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -33156,6 +33160,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -33698,6 +33703,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -33843,6 +33849,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -33988,6 +33995,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -34036,7 +34044,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own single-track CHDs for SLUS-01266, SLUS-01275, SLUS-01276, SLUS-01277 in disc order and retail SCPH-1001 BIOS. Portcove verifies each disc's data track and builds a private player with its registered toolchain, retaining its declared saves, settings and installed mods. Choose the disc when you choose Play; the kit cannot swap discs during play, so quit and choose Play again with the next disc. Bundled mods belong to the runtime version. Windows and Linux package and source fit were statically inspected. Native build, disc switching, gameplay and save compatibility remain unobserved.",
+        "manual_preparation": "Provide your own single-track CHDs for SLUS-01266, SLUS-01275, SLUS-01276, SLUS-01277 in disc order and retail SCPH-1001 BIOS. Portcove verifies each disc's data track and builds a private player with its registered toolchain, retaining its declared saves, settings and installed mods. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play again with the next disc. Bundled mods belong to the runtime version. Windows and Linux package and source fit were statically inspected. Native build, disc switching, gameplay and save compatibility remain unobserved.",
         "original_game_title": "Fear Effect 2: Retro Helix",
         "manual_setup": {
           "steps": [
@@ -34046,7 +34054,7 @@
             },
             {
               "title": "Set up the managed Windows or Linux player",
-              "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play; to change discs, quit the game and choose Play with the next disc."
+              "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc."
             },
             {
               "title": "Prepare a separate Mac copy",
@@ -34059,7 +34067,7 @@
           ],
           "warnings": [
             "Portcove checks each disc's data track and track count. Keep every disc intact.",
-            "The kit cannot swap discs during play. Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
+            "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
           ],
           "help_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp#readme",
           "references": [
@@ -34136,6 +34144,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -34281,6 +34290,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -34426,6 +34436,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -34571,6 +34582,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -34716,6 +34728,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -35486,6 +35499,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -35632,6 +35646,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -36033,6 +36048,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -36450,6 +36466,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -37003,6 +37020,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -37148,6 +37166,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -37293,6 +37312,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -37574,6 +37594,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -37857,6 +37878,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -38274,6 +38296,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -38419,6 +38442,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -39764,6 +39788,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -50176,6 +50201,7 @@
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
         "overlay-captures",
         "overlay_captures.json",
         "overlay_captures.json.d",

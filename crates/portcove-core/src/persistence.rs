@@ -6,6 +6,22 @@ use crate::{
 };
 
 const MAX_DIRECTORY_ENTRIES: usize = 4096;
+
+/// Managed PS1 readers that keep an existing installation's retained scope
+/// while a newer definition adds an empty runtime-created directory path.
+pub(crate) const PSX_RETAINED_SCOPE_CAPABILITY: u32 = 3;
+/// The directory PSXRecomp `7192402` creates for player texture packs.
+pub(crate) const PSX_TEXTURE_PACKS: &str = "mods/texture-packs";
+
+/// Entries declaring a path older managed PS1 readers would treat as a
+/// changed scope for existing installations.
+pub(crate) fn requires_psx_retained_scope(port: &PortDefinition) -> bool {
+    port.adapter == crate::AdapterKind::PsxRecompManaged
+        && port
+            .persistent_paths
+            .iter()
+            .any(|path| path == PSX_TEXTURE_PACKS)
+}
 const MAX_MATCHING_FILES: usize = 1024;
 
 /// Check one newly declared path without following links or scanning a tree.
@@ -16,6 +32,40 @@ pub(crate) fn require_absent_path(root: &Path, relative: &str) -> Result<()> {
 /// Existing or absent coordinates must have exact spelling and ordinary parents.
 pub(crate) fn require_exact_path(root: &Path, relative: &str) -> Result<()> {
     require_path(root, relative, false)
+}
+
+/// Check one newly declared directory path that may already exist only as
+/// empty directories, as a runtime creates before any player data. Any file,
+/// link or other entry, or a tree beyond the inspection limit, is refused.
+pub(crate) fn require_absent_or_empty_tree(root: &Path, relative: &str) -> Result<()> {
+    require_exact_path(root, relative)?;
+    let start = root.join(relative);
+    let mut pending = vec![start];
+    let mut inspected = 0usize;
+    while let Some(directory) = pending.pop() {
+        let metadata = match fs::symlink_metadata(&directory) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(error.into()),
+        };
+        if !metadata.is_dir() || metadata.file_type().is_symlink() {
+            return Err(PortcoveError::conflict(
+                "a newly declared player-data path already holds data; preserve it before changing versions",
+            )
+            .detail("path", directory.display().to_string()));
+        }
+        for entry in fs::read_dir(&directory)? {
+            inspected += 1;
+            if inspected > MAX_DIRECTORY_ENTRIES {
+                return Err(PortcoveError::conflict(
+                    "player-data directory exceeds the inspection limit",
+                )
+                .detail("path", directory.display().to_string()));
+            }
+            pending.push(entry?.path());
+        }
+    }
+    Ok(())
 }
 
 fn require_path(root: &Path, relative: &str, absent: bool) -> Result<()> {
