@@ -96,7 +96,7 @@ export function applicationReleaseRemainingMinutes(
   purpose: unknown,
   executionPath: unknown = "ordinary",
   servedRenewal = false,
-) {
+): Readonly<Record<string, number>> {
   const ordinary = applicationReleaseBudgetMinutes(purpose);
   assert.ok(
     executionPath === "ordinary" ||

@@ -1839,8 +1839,8 @@ void test("metadata renewal traverses existing protected metadata jobs while exc
     );
   }
   for (const role of ["releases", "preview", "stable", "snapshot", "timestamp"]) {
-    const observer = workflow.jobs[`renewal_protection_${role}`];
-    const signer = workflow.jobs[role];
+    const observer: unknown = workflow.jobs[`renewal_protection_${role}`];
+    const signer: unknown = workflow.jobs[role];
     assert.ok(isRecord(observer) && typeof observer.if === "string");
     assert.ok(observer.if.includes("inputs.mode == 'renew-unserved'"));
     assert.ok(
