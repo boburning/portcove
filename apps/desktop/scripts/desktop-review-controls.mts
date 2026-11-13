@@ -152,7 +152,7 @@ export async function catalogResultPortIds(browser: WebDriver): Promise<string[]
 
 export async function openCatalogFilters(browser: WebDriver) {
   const trigger = await browser.wait(
-    until.elementLocated(By.xpath('//button[starts-with(normalize-space(.),"Filters (")]')),
+    until.elementLocated(By.xpath('//button[starts-with(@aria-label,"Filters (")]')),
     15_000,
   );
   if ((await trigger.getAttribute("aria-expanded")) !== "true")

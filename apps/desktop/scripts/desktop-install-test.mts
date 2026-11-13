@@ -1568,6 +1568,66 @@ export async function installScenarios({
         required((await status()).active).version,
       );
 
+      // #4879: a real "Restore previous version" takes one automatic snapshot of the
+      // current saves first, labelled with the version change, and keeps saved data.
+      assert.equal(await snapshotsEnabled(), true);
+      const beforeRollback = await status();
+      const rollbackFrom = required(beforeRollback.active);
+      const rollbackTo = required(beforeRollback.previous);
+      const backupsBeforeRollback = new Set((await backups()).backups.map((item) => item.id));
+      const saveBeforeRollback = await readFile(save, "utf8");
+      await openFixture(port, true);
+      await revealDetailSection(browser, "Versions & updates");
+      await click("Restore previous version");
+      await browser.wait(
+        async () => (await status()).active?.id === rollbackTo.id,
+        acquisitionScriptBudgetMs,
+        "Restore previous version did not activate the previous installation",
+      );
+      const rollbackSnapshots = (await backups()).backups.filter(
+        (item) => item.automatic && !backupsBeforeRollback.has(item.id),
+      );
+      assert.equal(rollbackSnapshots.length, 1, "One rollback must keep one automatic snapshot");
+      const rollbackSnapshot = required(rollbackSnapshots[0]);
+      const rollbackLabel = required(rollbackSnapshot.automatic);
+      assert.equal(rollbackLabel.operation, "rollback");
+      assert.equal(rollbackLabel.from_version, rollbackFrom.version);
+      assert.equal(rollbackLabel.to_version, rollbackTo.version);
+      assert.equal(
+        await readFile(path.join(rollbackSnapshot.path, "data", path.basename(save)), "utf8"),
+        saveBeforeRollback,
+        "The rollback snapshot must hold the saves from before the version change",
+      );
+      assert.equal(
+        await readFile(save, "utf8"),
+        saveBeforeRollback,
+        "Restore previous version keeps current saved data",
+      );
+      const rollbackHistoryText = `Automatic snapshot before restoring a previous version (${rollbackFrom.version} to ${rollbackTo.version})`;
+      await revealDetailSection(browser, "Saves & backups");
+      const rollbackHistory = await browser.wait(
+        until.elementLocated(
+          By.css(
+            `[aria-labelledby="detail-saves-and-storage"] [data-backup-id="${rollbackSnapshot.id}"] [data-automatic-snapshot]`,
+          ),
+        ),
+        15_000,
+      );
+      await browser.wait(
+        async () => (await rollbackHistory.getText()) === rollbackHistoryText,
+        15_000,
+        "Backup history must label the rollback snapshot with its version change",
+      );
+      await snapshotEvidence("native-automatic-snapshot-rollback-history", rollbackHistory);
+      observations.rollback_snapshot = {
+        from: rollbackFrom.version,
+        to: rollbackTo.version,
+        snapshot_id: rollbackSnapshot.id,
+        label: rollbackLabel,
+        history_label: rollbackHistoryText,
+        preserved_save: await fileIdentity(save),
+      };
+
       const v3 = await publish("3.0.0-acquisition", 0x7249b309);
       await play();
       // This ordering tests acquisition of an already-running installation;
@@ -1712,66 +1772,6 @@ export async function installScenarios({
         native_consent: nativeConsent,
         discard_review: discardText,
         requests: cancelRequests,
-        preserved_save: await fileIdentity(save),
-      };
-
-      // #4879: a real "Restore previous version" takes one automatic snapshot of the
-      // current saves first, labelled with the version change, and keeps saved data.
-      assert.equal(await snapshotsEnabled(), true);
-      const beforeRollback = await status();
-      const rollbackFrom = required(beforeRollback.active);
-      const rollbackTo = required(beforeRollback.previous);
-      const backupsBeforeRollback = new Set((await backups()).backups.map((item) => item.id));
-      const saveBeforeRollback = await readFile(save, "utf8");
-      await openFixture(port, true);
-      await revealDetailSection(browser, "Versions & updates");
-      await click("Restore previous version");
-      await browser.wait(
-        async () => (await status()).active?.id === rollbackTo.id,
-        acquisitionScriptBudgetMs,
-        "Restore previous version did not activate the previous installation",
-      );
-      const rollbackSnapshots = (await backups()).backups.filter(
-        (item) => item.automatic && !backupsBeforeRollback.has(item.id),
-      );
-      assert.equal(rollbackSnapshots.length, 1, "One rollback must keep one automatic snapshot");
-      const rollbackSnapshot = required(rollbackSnapshots[0]);
-      const rollbackLabel = required(rollbackSnapshot.automatic);
-      assert.equal(rollbackLabel.operation, "rollback");
-      assert.equal(rollbackLabel.from_version, rollbackFrom.version);
-      assert.equal(rollbackLabel.to_version, rollbackTo.version);
-      assert.equal(
-        await readFile(path.join(rollbackSnapshot.path, "data", path.basename(save)), "utf8"),
-        saveBeforeRollback,
-        "The rollback snapshot must hold the saves from before the version change",
-      );
-      assert.equal(
-        await readFile(save, "utf8"),
-        saveBeforeRollback,
-        "Restore previous version keeps current saved data",
-      );
-      const rollbackHistoryText = `Automatic snapshot before restoring a previous version (${rollbackFrom.version} to ${rollbackTo.version})`;
-      await revealDetailSection(browser, "Saves & backups");
-      const rollbackHistory = await browser.wait(
-        until.elementLocated(
-          By.css(
-            `[aria-labelledby="detail-saves-and-storage"] [data-backup-id="${rollbackSnapshot.id}"] [data-automatic-snapshot]`,
-          ),
-        ),
-        15_000,
-      );
-      await browser.wait(
-        async () => (await rollbackHistory.getText()) === rollbackHistoryText,
-        15_000,
-        "Backup history must label the rollback snapshot with its version change",
-      );
-      await snapshotEvidence("native-automatic-snapshot-rollback-history", rollbackHistory);
-      observations.rollback_snapshot = {
-        from: rollbackFrom.version,
-        to: rollbackTo.version,
-        snapshot_id: rollbackSnapshot.id,
-        label: rollbackLabel,
-        history_label: rollbackHistoryText,
         preserved_save: await fileIdentity(save),
       };
     } catch (error) {
