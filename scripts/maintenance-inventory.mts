@@ -485,9 +485,13 @@ export async function readIssueInventory(credential?: GitHubCredential): Promise
     }),
   );
   const inventory = await client.repositoryIssues({ projectMemberships: true });
-  const roadmap = await client.resolveProject();
+  // The configured Project number, as the roadmap doctor resolves it: one read,
+  // unaffected by other Projects the credential can see.
+  const roadmap = await client.projectDetails(client.projectNumber(undefined));
+  if (roadmap.title !== config.project.title)
+    throw new MaintenanceStoreError("The configured roadmap Project's identity did not match");
   return {
-    roadmap_project_id: roadmap.project.id,
+    roadmap_project_id: roadmap.id,
     repository: inventory.repository,
     observed_at: inventory.observed_at,
     total: inventory.evidence.total ?? -1,
