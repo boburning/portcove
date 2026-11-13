@@ -154,6 +154,15 @@ and authenticated public bytes are separate evidence.
   [owner-controlled pause](qualification/slice4-production-authorization-packet-2026-10-18.md#recommended-input-authorities-decision-d1).
   The owner sets `publication_paused` to `true` to pause or `false` to resume
   against the current preimage, then verifies the resulting ref and value.
+  The coordinator's `inspectRemoteCommitObject` rebuilds the pause commit from
+  the provider record. A signed commit keeps its offset in the signed payload.
+  An unsigned commit rebuilds only when its original offset is `+0000`, because
+  the record omits the offset. Use a signed web-editor commit or a Git Data API
+  commit with UTC `author` and `committer` dates; contents-API commits use the
+  client's local offset. An unreadable tip makes every coordinator read refuse,
+  including while paused. Replace it with a UTC commit that keeps the current
+  `publication_paused` value, and check the new tip with that reader before
+  dispatch.
   Keep the admitted request, allocation and attempts intact. Before resuming,
   verify the live appointment, protection, freshness, candidate or renewal
   basis, and authority for the exact operation. Eligible work continues
