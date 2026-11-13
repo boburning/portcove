@@ -6,6 +6,7 @@ const DECLARED_MANAGED_ROUTE_TEST_IDS: &[&str] = &[
     "dune-ii-dune-dynasty",
     "elasota-aerofoil",
     "heroes-of-might-and-magic-ii-fheroes2",
+    "monster-hunter-portable-3rd-hd-yakumo",
     "nhl-94-genesis-ninety-four",
     "quake-ironwail",
     "quake-vkquake",
@@ -37,6 +38,11 @@ async fn managed_native_declared_elasota_aerofoil() {
 #[tokio::test]
 async fn managed_native_declared_heroes_of_might_and_magic_ii_fheroes2() {
     assert_declarative_managed_native_route("heroes-of-might-and-magic-ii-fheroes2").await;
+}
+
+#[tokio::test]
+async fn managed_native_declared_monster_hunter_portable_3rd_hd_yakumo() {
+    assert_declarative_managed_native_route("monster-hunter-portable-3rd-hd-yakumo").await;
 }
 
 #[tokio::test]

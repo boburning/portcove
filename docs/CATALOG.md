@@ -216,6 +216,13 @@ alive. On Linux and macOS an exec-based restart keeps the process ID, but a
 launcher that spawns a successor and exits is untracked there, so such a route
 stays non-owning on those platforms.
 
+Yakumo's official Windows ZIP is the first reviewed opt-in. Its menu restarts
+use `_wexecv` on its own executable, so the successor stays in the job and
+inside the installation. Its shipped `portable.txt` keeps settings, saves and
+the prepared game in the declared `data` folder. Prepared copies keep their
+non-owning registration, which does not track successors.
+[Yakumo qualification](qualification/yakumo-tracked-handoff-2026-11-12.md).
+
 Adding this route does not adopt an existing external registration. Players can
 review a separate managed copy while keeping the current copy usable. Core can
 switch a fitting fresh native-portable route after verified separate publication;

@@ -102,6 +102,18 @@
       "managed_native": false
     },
     {
+      "port_id": "monster-hunter-portable-3rd-hd-yakumo",
+      "prepared_player": {
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the data folder the copy actually uses, chosen in this order: a --data-dir folder, the MHP3RD_DATA_DIR folder, data beside Yakumo.exe when portable.txt or a data folder is there (unless MHP3RD_PORTABLE=0), then %APPDATA%\\Yakumo\\MHP3rd; plus any game folder it starts with and any disc image used in place"
+        ],
+        "executable": "Yakumo.exe"
+      },
+      "managed_native": true
+    },
+    {
       "port_id": "mother-3-mother-3-recomp",
       "prepared_player": {
         "executable": "Mother3Recomp.exe",
