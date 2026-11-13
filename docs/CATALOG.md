@@ -2514,6 +2514,16 @@ environment, owned save/settings/mod paths, and disposable diagnostic paths.
 It refuses duplicate fields. A different writer layout or setup contract
 needs the explicit form and applicable qualification.
 
+Core's managed PS1 builder runs with `--no-toolchain-download` and with
+`HTTPS_PROXY` and `HTTP_PROXY` set to a closed local address. PSXRecomp
+`7192402` stages an overlay toolchain on every rebuild by downloading Python
+(and building tcc on Linux) whatever that flag says. Core admits no executable
+it has not verified, so those requests are refused, the kit logs the failure
+and finishes the build, and the player interprets overlays. A build that still
+leaves any file in `overlay_toolchain` or `.cache/overlay-toolchain` fails
+before anything is installed or changed.
+[Framework review](qualification/psxrecomp-7192402-builder-downloads-2026-11-13.md).
+
 A `psx-raw-set` integration may declare `launch_disc_choice:
 "psx-settings-selected"` after source review shows that its runtime reads the
 1-based `[disc] selected` entry of the `settings.toml` beside the player and
