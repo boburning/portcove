@@ -1468,14 +1468,7 @@ SELECT json_build_object(
     'issues', (SELECT coalesce(json_object_agg('issue:' || (i.payload ->> 'number'), i.payload), '{}')
                  FROM present_issue i),
     'intake', (SELECT coalesce(json_object_agg(h.subject_key, h.payload), '{}')
-                 FROM latest_hosted h WHERE h.payload <> portcove_maintenance.absent_payload()),
-    'definitions', (SELECT coalesce(json_agg(p.subject_key ORDER BY p.subject_key), '[]')
-      FROM (SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
-              FROM portcove_maintenance.observations o
-              JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
-             WHERE r.source = 'definition-publication' AND r.coverage <> 'in_progress'
-             ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC) p
-     WHERE p.payload <> portcove_maintenance.absent_payload())),
+                 FROM latest_hosted h WHERE h.payload <> portcove_maintenance.absent_payload())),
   'generation', (SELECT coalesce(max(acquisition), 0) FROM portcove_maintenance.collection_runs
       WHERE coverage <> 'in_progress'),
   'runs', (SELECT coalesce(json_agg(r ORDER BY r.source, r.acquisition DESC), '[]') FROM (
@@ -1598,7 +1591,6 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
       records: Parameters<typeof buildUniverse>[0]["records"];
       issues: Record<string, unknown>;
       intake: Record<string, unknown>;
-      definitions: string[];
     };
     runs: unknown[];
     subjects: unknown[];
@@ -1665,7 +1657,8 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
       records: data.universe_inputs.records,
       issues: new Map(Object.entries(data.universe_inputs.issues)),
       intake: new Map(Object.entries(data.universe_inputs.intake)),
-      definitions: data.universe_inputs.definitions,
+      definitions: data.publication.map(({ definition }) => definition),
+      catalogComplete: catalogScope === "complete-authored-catalog",
     }),
     publication: publicationRun
       ? {
@@ -1927,13 +1920,14 @@ function renderUniverse(filter) {
   universe.replaceChildren();
   const entries = report.universe ?? [];
   for (const entry of entries) {
-    const text = [entry.key, entry.label, entry.target_key, ...entry.port_keys, ...entry.relations].join(" ").toLowerCase();
+    const text = [entry.key, entry.label, entry.target_key, entry.identity_gap, ...entry.port_keys, ...entry.relations].join(" ").toLowerCase();
     if (filter && !text.includes(filter)) continue;
     const row = universe.insertRow();
     for (const value of [entry.key, entry.kind, entry.label || "unnamed", entry.port_keys.join(", "), [...entry.relations, ...(entry.identity_gap ? ["identity unknown: " + entry.identity_gap] : [])].join("; ")])
       row.insertCell().textContent = value;
   }
   if (!entries.length) universe.insertRow().insertCell().textContent = "No identities observed yet.";
+  else if (!universe.rows.length) universe.insertRow().insertCell().textContent = "No identity matches this search.";
 }
 document.getElementById("universe-search").addEventListener("input", (event) => renderUniverse(event.target.value.trim().toLowerCase()));
 renderUniverse("");

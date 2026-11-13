@@ -347,14 +347,18 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
     the lineage contract's own keys (`lineageIdentityKeys`);
   - `issue:<n>` for issues that name catalog IDs or port keys, so an
     uncataloged implementation is searchable without a catalog entry;
-  - `intake:<request>` with its candidate port keys and linked work;
+  - `intake:<request>` with its candidate port keys, candidate upstream URL and
+    repository identities, and linked work;
   - `definition:<namespace>/<id>` from the publication source.
 
   Canonical work, retained implementations, accepted fork, alternative and
   independent decisions, and intake links are edges, never merges. Names and
-  titles only label entries. A record whose lineage does not validate keeps its
-  entry with an `identity_gap`. Entries sharing a lineage target group as one
-  game. The page searches entries by identity, name, game, port key or
+  titles only label entries. A record whose lineage does not validate, or that
+  records no lineage (legacy-unassessed), keeps its entry with an
+  `identity_gap`. Only entries sharing a validated lineage target group as one
+  game. An issue naming a catalog ID outside the observed catalog says
+  `names-uncataloged-port` only when the catalog run was complete; after a
+  sampled run it says `names-port-catalog-coverage-unknown`. The page searches entries by identity, name, game, port key or
   relationship.
 
 - Each subject shows when it was last verified separately from when it last

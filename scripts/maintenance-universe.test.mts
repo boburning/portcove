@@ -72,9 +72,23 @@ void test("the universe keeps every canonical identity distinct and relates them
       ["issue:30", { number: 30, title: "Unrelated", catalog_ids: [], port_keys: [] }],
     ]),
     intake: new Map<string, unknown>([
-      ["intake:5", { slots: [{ port_key: "gamma", linked_issue: 20 }, { port_key: null }] }],
+      [
+        "intake:5",
+        {
+          slots: [
+            {
+              port_key: "gamma",
+              linked_issue: 20,
+              upstream: "https://github.com/someone/gamma",
+              repository_id: 77,
+            },
+            { port_key: null },
+          ],
+        },
+      ],
     ]),
     definitions: ["definition:official/alpha"],
+    catalogComplete: true,
   });
   const byKey = new Map(universe.map((entry) => [entry.key, entry]));
   // Same name and game never merge two ports; a fork is an edge.
@@ -101,11 +115,16 @@ void test("the universe keeps every canonical identity distinct and relates them
   assert.ok(!byKey.has("issue:30"), "an issue naming no port is not an implementation");
   assert.deepEqual(byKey.get("issue:10")?.relations, [{ type: "tracks-port", key: "port:alpha" }]);
   assert.deepEqual(byKey.get("intake:5")?.port_keys, ["gamma"]);
-  assert.deepEqual(byKey.get("intake:5")?.relations, [{ type: "linked-work", key: "issue:20" }]);
+  assert.deepEqual(byKey.get("intake:5")?.relations, [
+    { type: "linked-work", key: "issue:20" },
+    { type: "candidate-repository", key: "repository:github.com:77" },
+    { type: "candidate-upstream", key: "url:https://github.com/someone/gamma" },
+  ]);
   assert.equal(byKey.get("definition:official/alpha")?.kind, "definition");
   // A lineage that does not validate keeps its port, with the reason visible.
   assert.ok(byKey.get("port:broken")?.identity_gap);
   assert.deepEqual(byKey.get("port:broken")?.relations, []);
+  assert.equal(byKey.get("port:broken")?.target_key, null, "an unvalidated target never groups");
   // Distinct implementations of one game group by lineage target.
   assert.deepEqual(
     universeGroups(universe)
@@ -118,4 +137,21 @@ void test("the universe keeps every canonical identity distinct and relates them
     universe.map(({ key }) => key),
     [...universe.map(({ key }) => key)].sort(),
   );
+});
+
+void test("legacy records and sampled catalogs keep their unknowns visible", () => {
+  const universe = buildUniverse({
+    records: [{ listing: { id: "legacy", project_url: "https://example.test/legacy" } }],
+    issues: new Map<string, unknown>([
+      ["issue:40", { number: 40, catalog_ids: ["legacy", "elsewhere"], port_keys: [] }],
+    ]),
+  });
+  const byKey = new Map(universe.map((entry) => [entry.key, entry]));
+  assert.match(byKey.get("port:legacy")?.identity_gap ?? "", /legacy-unassessed/u);
+  assert.equal(byKey.get("port:legacy")?.target_key, null);
+  // A sample cannot call a catalog ID uncataloged.
+  assert.deepEqual(byKey.get("issue:40")?.relations, [
+    { type: "names-port-catalog-coverage-unknown", key: "port:elsewhere" },
+    { type: "tracks-port", key: "port:legacy" },
+  ]);
 });

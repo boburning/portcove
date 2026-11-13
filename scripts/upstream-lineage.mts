@@ -314,7 +314,6 @@ export function checkLineageChange(before: PortIdentity, after: PortIdentity) {
   return proposed;
 }
 
-/** Known aliases are unique per target, while separate games may share one repository. */
 /**
  * The implementation identities a record retains: one URL key and, when known,
  * one immutable repository key per upstream in its lineage history, each
@@ -331,6 +330,7 @@ export function lineageIdentityKeys(record: PortIdentity) {
   ]);
 }
 
+/** Known aliases are unique per target, while separate games may share one repository. */
 export function checkLineageIdentities(records: readonly PortIdentity[]) {
   const issues = new Map<number, string>();
   const identities = new Map<string, string>();

@@ -73,6 +73,11 @@ export function buildUniverse(input: {
   intake?: ReadonlyMap<string, unknown>;
   /** `definition:<namespace>/<stable_id>` subjects observed on main. */
   definitions?: readonly string[];
+  /**
+   * Whether `records` is the complete authored catalog. A sample cannot say an
+   * issue's catalog ID is uncataloged, only that its catalog coverage is unknown.
+   */
+  catalogComplete?: boolean;
 }): UniverseEntry[] {
   const entries = new Map<string, UniverseEntry>();
   const entry = (key: string, kind: UniverseKind): UniverseEntry => {
@@ -101,7 +106,6 @@ export function buildUniverse(input: {
     const port = entry(`port:${record.listing.id}`, "port");
     port.name = record.listing.name ?? null;
     port.game = record.listing.original_game_title ?? null;
-    port.target_key = record.upstream_lineage?.target_key ?? null;
     if (record.listing.issue_number !== undefined)
       relate(port, "canonical-work", `issue:${record.listing.issue_number}`);
     // A record whose lineage does not validate keeps its port entry with the
@@ -110,8 +114,15 @@ export function buildUniverse(input: {
     let identities: string[] = [];
     let decisions: LineageDecision[] = [];
     try {
-      decisions = assessUpstreamLineage(record).decisions;
+      const assessment = assessUpstreamLineage(record);
+      decisions = assessment.decisions;
       identities = lineageIdentityKeys(record);
+      // Only a validated lineage target groups entries as one game.
+      if (assessment.status === "recorded")
+        port.target_key = record.upstream_lineage?.target_key ?? null;
+      else
+        port.identity_gap =
+          "No upstream lineage is recorded (legacy-unassessed); implementation identity is unknown.";
     } catch (error) {
       port.identity_gap = error instanceof Error ? error.message : String(error);
     }
@@ -136,7 +147,15 @@ export function buildUniverse(input: {
     issue.name = fact.title ?? null;
     issue.port_keys = [...portKeys].sort();
     for (const id of catalogIds)
-      relate(issue, ports.has(id) ? "tracks-port" : "names-uncataloged-port", `port:${id}`);
+      relate(
+        issue,
+        ports.has(id)
+          ? "tracks-port"
+          : input.catalogComplete
+            ? "names-uncataloged-port"
+            : "names-port-catalog-coverage-unknown",
+        `port:${id}`,
+      );
   }
 
   for (const [key, payload] of input.intake ?? []) {
@@ -145,6 +164,10 @@ export function buildUniverse(input: {
     const keys = new Set<string>();
     for (const slot of fact.slots ?? []) {
       if (slot.port_key) keys.add(slot.port_key);
+      // The candidate's own implementation identity, searchable; never a port identity.
+      if (slot.upstream) relate(intake, "candidate-upstream", `url:${slot.upstream}`);
+      if (typeof slot.repository_id === "number")
+        relate(intake, "candidate-repository", `repository:github.com:${slot.repository_id}`);
       if (typeof slot.linked_issue === "number")
         relate(intake, "linked-work", `issue:${slot.linked_issue}`);
     }
