@@ -13,6 +13,15 @@ pub(crate) fn matches_asset(port: &PortDefinition, platform: Platform, name: &st
     !requires_archive(port, platform) || name.eq_ignore_ascii_case(ASSET)
 }
 
+pub(crate) fn require_archive(port: &PortDefinition, platform: Platform, name: &str) -> Result<()> {
+    if !matches_asset(port, platform, name) {
+        return Err(PortcoveError::verification(
+            "VCMI archive differs from its retained Windows package selector",
+        ));
+    }
+    Ok(())
+}
+
 pub(super) fn validate(port: &PortDefinition) -> Result<()> {
     let windows = Platform::WindowsX86_64;
     if port.release.asset_hints.get(&windows).map(Vec::as_slice) != Some(&[ASSET.to_owned()][..])
