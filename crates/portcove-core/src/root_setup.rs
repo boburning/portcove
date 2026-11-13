@@ -39,8 +39,12 @@ pub const MAX_ROOT_SETUPS_PER_PASS: usize = 4;
 /// Identities remembered as already present in a future-only folder: about
 /// two per file plus one per folder, so roughly 100,000 files.
 pub const MAX_ROOT_SETUP_BASELINE: usize = 200_000;
-/// Matched files a pass plans or checks for folder consent; later passes continue.
+/// Enrolled matches a pass plans for folder consent; later passes continue.
 const MAX_ROOT_CANDIDATES_PER_PASS: usize = 32;
+/// Files and folder entries a pass reads to check the existing/future
+/// boundary. Matches the library already settles (installed, chosen or
+/// handled games) cost nothing, so they never use up the pass.
+const MAX_ROOT_BOUNDARY_READS_PER_PASS: usize = 8192;
 /// Matches read per page while looking for a folder's candidates.
 const ROOT_MATCH_PAGE: u32 = 64;
 const MAX_BASELINE_DEPTH: usize = 32;
@@ -551,20 +555,22 @@ impl PortcoveService {
         root_id: &str,
         root_path: &Path,
         candidate: &SourceRecord,
+        reads: &mut usize,
     ) -> Result<bool> {
         let Some(consent) = self.library.root_setup_consent(root_id)? else {
             return Ok(false);
         };
         Ok(match consent.enrollment {
             RootSetupEnrollment::ExistingAndFuture => true,
-            RootSetupEnrollment::FutureOnly => match current_identities(root_path, &candidate.path)
-            {
-                Some(identities) => !self
-                    .library
-                    .root_setup_baseline_contains_any(root_id, &identities)?,
-                // A file that can't be checked now is not enrolled now.
-                None => false,
-            },
+            RootSetupEnrollment::FutureOnly => {
+                match current_identities(root_path, &candidate.path, reads) {
+                    Some(identities) => !self
+                        .library
+                        .root_setup_baseline_contains_any(root_id, &identities)?,
+                    // A file that can't be checked now is not enrolled now.
+                    None => false,
+                }
+            }
         })
     }
 
@@ -590,6 +596,7 @@ impl PortcoveService {
         let mut waiting = Vec::new();
         let mut started = 0;
         let mut considered = 0;
+        let mut reads = 0;
         for consent in consents {
             // An unavailable folder is not deleted content; it simply waits.
             let Some(root) = roots.iter().find(|root| {
@@ -618,19 +625,27 @@ impl PortcoveService {
                 for candidate in &page.candidates {
                     if started >= MAX_ROOT_SETUPS_PER_PASS
                         || considered >= MAX_ROOT_CANDIDATES_PER_PASS
+                        || reads >= MAX_ROOT_BOUNDARY_READS_PER_PASS
                     {
                         return Ok(waiting);
                     }
                     if !candidate.path.starts_with(&root.path) {
                         continue;
                     }
-                    // Checking the boundary reads the file (or game folder), so it
-                    // counts toward the per-pass bound.
-                    considered += 1;
-                    if !self.still_enrolled(&root.id, &root.path, candidate)? {
+                    // What the library already settles is decided first and
+                    // costs nothing, so installed or chosen games never starve
+                    // a new file further down the folder.
+                    let planned = self.root_candidate(&consent, candidate, busy, handled);
+                    if matches!(planned, RootCandidate::Skip) {
                         continue;
                     }
-                    let port_id = match self.root_candidate(&consent, candidate, busy, handled) {
+                    // Checking the boundary reads the file (or game folder), so
+                    // what it reads counts toward the per-pass bound.
+                    if !self.still_enrolled(&root.id, &root.path, candidate, &mut reads)? {
+                        continue;
+                    }
+                    considered += 1;
+                    let port_id = match planned {
                         RootCandidate::Skip => continue,
                         RootCandidate::Waiting(item) => {
                             if waiting.len() < MAX_ROOT_SETUP_WAITING {
@@ -814,7 +829,7 @@ impl PortcoveService {
         if exhausted(&plan.plan_sha256) {
             return Ok(RootSetupOutcome::Skipped);
         }
-        if !self.still_enrolled(root_id, root_path, candidate)? {
+        if !self.still_enrolled(root_id, root_path, candidate, &mut 0)? {
             return Ok(RootSetupOutcome::Skipped);
         }
         let batch = match self.start_install_batch(
@@ -912,7 +927,7 @@ impl PortcoveService {
                 "these files are no longer inside the folder; scan again",
             ));
         }
-        if !self.still_enrolled(root_id, root_path, candidate)? {
+        if !self.still_enrolled(root_id, root_path, candidate, &mut 0)? {
             return Err(PortcoveError::conflict(
                 "automatic setup for this folder changed; nothing was registered",
             ));
@@ -966,8 +981,10 @@ const MAX_DIRECTORY_MEMBERS: usize = 1024;
 /// The boundary identities of a matched file or game folder as it is now, or
 /// `None` if it can't be read. A game folder that existed, or that holds a
 /// file that existed (even renamed or moved), counts as already there.
-fn current_identities(root_path: &Path, path: &Path) -> Option<Vec<String>> {
+/// `reads` grows by every file and folder entry read.
+fn current_identities(root_path: &Path, path: &Path, reads: &mut usize) -> Option<Vec<String>> {
     let relative = path.strip_prefix(root_path).ok()?;
+    *reads += 1;
     let metadata = std::fs::symlink_metadata(path).ok()?;
     if metadata.is_file() {
         return file_identities(relative, &metadata).ok();
@@ -982,6 +999,7 @@ fn current_identities(root_path: &Path, path: &Path) -> Option<Vec<String>> {
         for entry in std::fs::read_dir(&directory).ok()? {
             // Bounded by entries and depth; what was read is enough to match.
             entries += 1;
+            *reads += 1;
             if entries > MAX_DIRECTORY_MEMBERS {
                 return Some(identities);
             }
@@ -1280,6 +1298,24 @@ mod tests {
         let later = folder.file("new.z64", 'b');
         folder.in_use(&later);
         folder.scanned(vec![existing, later]);
+        assert_eq!(folder.pass().await.batches.len(), 1);
+        assert!(folder.installed());
+    }
+
+    #[tokio::test]
+    async fn many_files_already_there_never_hide_a_new_one() {
+        let folder = folder();
+        // More earlier copies than one pass plans, all listed before the new file.
+        let existing = (0..40)
+            .map(|index| folder.file(&format!("a-old-{index:02}.z64"), 'a'))
+            .collect::<Vec<_>>();
+        folder.scanned(existing.clone());
+        folder.consent(RootSetupEnrollment::FutureOnly);
+        let later = folder.file("z-new.z64", 'b');
+        folder.in_use(&later);
+        let mut candidates = existing;
+        candidates.push(later);
+        folder.scanned(candidates);
         assert_eq!(folder.pass().await.batches.len(), 1);
         assert!(folder.installed());
     }
