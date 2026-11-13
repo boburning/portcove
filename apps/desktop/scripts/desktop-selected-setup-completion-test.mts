@@ -555,10 +555,10 @@ export async function selectedSetupCompletionScenario({
         );
         await click(rootAction("Remove"));
         assert.equal((await read("get_game_file_roots")).length, 2);
-        await click(rootAction("Keep folder"));
+        await click(rootAction("Keep scanning this folder"));
         assert.equal((await read("get_game_file_roots")).length, 2);
         await click(rootAction("Remove"));
-        await click(rootAction("Remove saved folder"));
+        await click(rootAction("Stop scanning this folder"));
         await browser.wait(async () => (await read("get_game_file_roots")).length === 1, 5_000);
         assert.deepEqual(await read("get_game_file_roots"), [first]);
         for (const directory of [extra, replacement])
