@@ -2818,6 +2818,10 @@ void test("qualification is worded from Core's states without deciding applicabi
     "no recorded qualification",
   );
   assert.equal(
+    qualificationSummary(target({ state: "applicable_not_passed", known_failure: true }) as never),
+    "evidence recorded for what is offered on windows-x86-64, none passed; known failure recorded on windows-x86-64; evidence does not record which route it exercised",
+  );
+  assert.equal(
     qualificationSummary(target({ state: "structural_only" }) as never),
     "structural checks only on windows-x86-64; evidence does not record which route it exercised",
   );

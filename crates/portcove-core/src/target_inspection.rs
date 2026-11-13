@@ -148,6 +148,9 @@ pub enum TargetQualificationState {
     ReviewedBindingQualified,
     /// Only structural checks passed for what is offered: not a lifecycle claim.
     StructuralOnly,
+    /// Evidence applies to what is offered, but none of it passed (for example
+    /// only a known failure, or results not run).
+    ApplicableNotPassed,
     /// Evidence exists, but none of it applies to what is offered.
     HistoricalOnly,
     Unqualified,
@@ -398,6 +401,48 @@ fn offered_artifact(
     OfferedArtifact::NoneOffered
 }
 
+// Structural, lifecycle and hands-on results stay separate: only lifecycle or
+// hands-on evidence qualifies; a structural check alone is reported as such.
+fn passed_evidence(scope: &TargetQualificationScope) -> bool {
+    [
+        scope.assessment.automated_lifecycle,
+        scope.assessment.hands_on,
+    ]
+    .contains(&crate::QualificationEvidenceState::Passed)
+}
+
+fn applicable_scope(scope: &TargetQualificationScope) -> bool {
+    matches!(
+        scope.applicability,
+        ScopeApplicability::OfferedArtifact | ScopeApplicability::ReviewedReleaseBinding
+    )
+}
+
+/// The target state from its scopes: the strongest applicable claim first.
+fn qualification_state(scopes: &[TargetQualificationScope]) -> TargetQualificationState {
+    let applicable_passed = |applicability| {
+        scopes
+            .iter()
+            .any(|scope| scope.applicability == applicability && passed_evidence(scope))
+    };
+    if applicable_passed(ScopeApplicability::OfferedArtifact) {
+        TargetQualificationState::OfferedArtifactQualified
+    } else if applicable_passed(ScopeApplicability::ReviewedReleaseBinding) {
+        TargetQualificationState::ReviewedBindingQualified
+    } else if scopes.iter().any(|scope| {
+        applicable_scope(scope)
+            && scope.assessment.structural_check == crate::QualificationEvidenceState::Passed
+    }) {
+        TargetQualificationState::StructuralOnly
+    } else if scopes.iter().any(applicable_scope) {
+        TargetQualificationState::ApplicableNotPassed
+    } else if scopes.is_empty() {
+        TargetQualificationState::Unqualified
+    } else {
+        TargetQualificationState::HistoricalOnly
+    }
+}
+
 /// Matches each recorded qualification scope of this port and platform to the
 /// offered artifact, using Core's exact-scope rule and reviewed release bindings.
 fn target_qualification(
@@ -516,46 +561,9 @@ fn target_qualification(
         )
     };
     scopes.sort_by_key(key);
-    // Structural, lifecycle and hands-on results stay separate: only lifecycle or
-    // hands-on evidence qualifies; a structural check alone is reported as such.
-    let passed = |scope: &&TargetQualificationScope| {
-        [
-            scope.assessment.automated_lifecycle,
-            scope.assessment.hands_on,
-        ]
-        .contains(&Evidence::Passed)
-    };
-    let structural =
-        |scope: &&TargetQualificationScope| scope.assessment.structural_check == Evidence::Passed;
-    let applicable = |scope: &&TargetQualificationScope| {
-        matches!(
-            scope.applicability,
-            ScopeApplicability::OfferedArtifact | ScopeApplicability::ReviewedReleaseBinding
-        )
-    };
-    let state = if scopes
-        .iter()
-        .filter(|scope| scope.applicability == ScopeApplicability::OfferedArtifact)
-        .any(|scope| passed(&scope))
-    {
-        TargetQualificationState::OfferedArtifactQualified
-    } else if scopes
-        .iter()
-        .filter(|scope| scope.applicability == ScopeApplicability::ReviewedReleaseBinding)
-        .any(|scope| passed(&scope))
-    {
-        TargetQualificationState::ReviewedBindingQualified
-    } else if scopes
-        .iter()
-        .filter(applicable)
-        .any(|scope| structural(&scope))
-    {
-        TargetQualificationState::StructuralOnly
-    } else if scopes.is_empty() {
-        TargetQualificationState::Unqualified
-    } else {
-        TargetQualificationState::HistoricalOnly
-    };
+    let state = qualification_state(&scopes);
+    let passed = |scope: &&TargetQualificationScope| passed_evidence(scope);
+    let applicable = |scope: &&TargetQualificationScope| applicable_scope(scope);
     let mut qualified_refs: Vec<String> = scopes
         .iter()
         .filter(applicable)
@@ -734,6 +742,80 @@ mod tests {
             .find(|contract| Some(&contract.id) == record.scope.contract_id.as_ref())
             .unwrap();
         assert!(!contract.reviewed_binding_covers("unreviewed", &"0".repeat(64)));
+    }
+
+    #[test]
+    fn the_state_names_the_strongest_applicable_claim_and_never_overstates() {
+        use crate::QualificationEvidenceState as Evidence;
+        let scope =
+            |applicability, lifecycle, structural, known_failure| TargetQualificationScope {
+                applicability,
+                contract_id: "c".into(),
+                variant: None,
+                upstream_ref: "v1".into(),
+                artifact_sha256: "a".repeat(64),
+                check_version: "check".into(),
+                assessment: crate::SourceQualificationAssessment {
+                    structural_check: structural,
+                    automated_lifecycle: lifecycle,
+                    hands_on: Evidence::Missing,
+                    known_failure,
+                },
+                evidence_ids: Vec::new(),
+            };
+        use ScopeApplicability::*;
+        use TargetQualificationState as State;
+        let cases = [
+            (vec![], State::Unqualified),
+            (
+                vec![scope(
+                    OtherArtifact,
+                    Evidence::Passed,
+                    Evidence::Passed,
+                    Evidence::Missing,
+                )],
+                State::HistoricalOnly,
+            ),
+            (
+                vec![scope(
+                    OfferedArtifact,
+                    Evidence::Missing,
+                    Evidence::Passed,
+                    Evidence::Missing,
+                )],
+                State::StructuralOnly,
+            ),
+            // Applicable evidence that never passed is not "historical".
+            (
+                vec![scope(
+                    ReviewedReleaseBinding,
+                    Evidence::Missing,
+                    Evidence::Missing,
+                    Evidence::Failed,
+                )],
+                State::ApplicableNotPassed,
+            ),
+            (
+                vec![
+                    scope(
+                        ReviewedReleaseBinding,
+                        Evidence::Passed,
+                        Evidence::Missing,
+                        Evidence::Missing,
+                    ),
+                    scope(
+                        OfferedArtifact,
+                        Evidence::Passed,
+                        Evidence::Missing,
+                        Evidence::Missing,
+                    ),
+                ],
+                State::OfferedArtifactQualified,
+            ),
+        ];
+        for (scopes, expected) in cases {
+            assert_eq!(qualification_state(&scopes), expected, "{scopes:?}");
+        }
     }
 
     #[test]

@@ -542,7 +542,9 @@ since can differ.
   - `state` is `offered_artifact_qualified` or `reviewed_binding_qualified`
     (passed automated-lifecycle or hands-on evidence; the latter applies only
     if the provider resolves exactly that release), `structural_only` (only
-    structural checks passed), `historical_only` or `unqualified`.
+    structural checks passed), `applicable_not_passed` (evidence applies to what
+    is offered but none passed, such as only a known failure), `historical_only`
+    (no evidence applies to what is offered) or `unqualified`.
     `qualified_refs` names the releases that qualify, and `known_failure`
     covers applicable scopes only. Check versions are reported side by side,
     not ranked.

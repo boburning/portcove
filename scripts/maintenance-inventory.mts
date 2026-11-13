@@ -2518,11 +2518,13 @@ export function qualificationSummary(fact: TargetRoutesFact | null | undefined) 
           ? `qualified for reviewed release ${refs} on ${platform} only if the provider resolves it`
           : qualification.state === "structural_only"
             ? `structural checks only on ${platform}`
-            : qualification.state === "historical_only"
-              ? `historical qualification only on ${platform}`
-              : qualification.state === "unqualified"
-                ? ""
-                : `${qualification.state} on ${platform}`;
+            : qualification.state === "applicable_not_passed"
+              ? `evidence recorded for what is offered on ${platform}, none passed`
+              : qualification.state === "historical_only"
+                ? `historical qualification only on ${platform}`
+                : qualification.state === "unqualified"
+                  ? ""
+                  : `${qualification.state} on ${platform}`;
     if (
       statement &&
       qualification.state !== "historical_only" &&
