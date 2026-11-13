@@ -127,13 +127,14 @@ to what Portcove itself does; the player always supplies their own game.
   such as symbol names and offsets is code, not game data; contents the player's
   original generates on first run are not bundled.
 - **Listing downloads.** For a listing without a managed integration, tier 3
-  also covers the ordinary listing download from the upstream's own releases,
-  checked against the provider's published digest when there is one. The
-  review covers the release it names. A later release that bundles game data
-  or restricted assets, or a verified rights-holder request, restores the
-  listing's `download_block_reason`. A listing hold applies to every platform
-  of the port, so a port whose platforms differ in their rights basis keeps its
-  hold until each platform's route can be decided separately. The owner
+  also covers the ordinary listing download from the upstream's own releases.
+  Its accepted identity is that release location, checked against the
+  provider's published digest when there is one. Later releases stay offered
+  unless one bundles game data or restricted assets, or a verified
+  rights-holder request arrives; either restores the listing's
+  `download_block_reason`. A listing hold applies to every platform of the
+  port, so a port keeps its hold while one platform's route, such as an
+  existing non-owning integration, still needs a separate decision. The owner
   confirmed this on November 13, 2026.
 - **Availability.** Tier 3 never copies or retains a package for others. When
   the upstream release disappears, moves or is withdrawn, Portcove stops

@@ -56635,7 +56635,7 @@
           },
           {
             "title": "Prepare your own supported original upstream",
-            "instruction": "Use your own supported Xbox 360 Tony Hawk’s Project 8 World v1.0 USA/Europe original. Upstream expects title415607DD/media2CB96AE4 and default.xex 8,237,056 bytes with SHA256 cfc732340e55defda400e25f03231aa9bb65fd9545b618212f69a4952384a5dd. Complete normal upstream ISO/extracted-tree verification outside Portcove; Japan, demo and Korean inputs are not interchangeable. For0.3 prepare a fresh full player folder rather than mixing0.1/0.2 binaries."
+            "instruction": "Use your own supported Xbox 360 Tony Hawk’s Project 8 World v1.0 USA/Europe original. Upstream expects title415607DD/media2CB96AE4 and default.xex 8,237,056 bytes with SHA256 cfc732340e55defda400e25f03231aa9bb65fd9545b618212f69a4952384a5dd. Complete normal upstream ISO/extracted-tree verification outside Portcove; Japan, demo and Korean inputs are not interchangeable. For 0.3 prepare a fresh full player folder rather than mixing 0.1/0.2 binaries."
           },
           {
             "title": "Add the completed game player",
@@ -56653,7 +56653,7 @@
         "warnings": [
           "Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
           "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
-          "Upstream verifies Linux x86_64 as its main platform and macOS on Apple Silicon (heavy scenes are still slow). Windows is experimental: upstream has tested it only under Proton. Upstream warns uncapped cutscenes can run 3–5x speed; retain the default cap. Portcove has not run it."
+          "Upstream verifies Linux x86_64 (its main platform) and macOS on Apple Silicon, where heavy scenes are still slow. Windows is experimental: upstream has tested it only under Proton. Upstream warns uncapped cutscenes can run 3–5x speed; retain the default cap. Portcove has not run it."
         ],
         "references": [
           {

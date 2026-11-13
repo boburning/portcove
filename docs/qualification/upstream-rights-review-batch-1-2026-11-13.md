@@ -68,8 +68,11 @@ Notes recorded with these packages:
 
 Each offered listing names every desktop platform its upstream publishes a
 package for. Tony Hawk's Project 8 publishes Linux, macOS Apple Silicon and
-Windows packages with the same contents; upstream verifies Linux first and
-calls Windows experimental. Pilotwings 64 publishes Windows and Linux packages.
+Windows packages with the same player files; upstream verifies Linux first and
+calls Windows experimental. Each package bundles its own permissively licensed
+runtime libraries: the macOS one adds MoltenVK, the Vulkan loader and image
+codec libraries that its shared `NOTICE` does not name, and the Windows one
+adds the Microsoft Visual C++ runtime. Pilotwings 64 publishes Windows and Linux packages.
 The four darkuni players and Fable II Pub Games publish Windows packages only.
 None of the seven release
 workflows or readmes publishes an Android package; Portcove's Android host
@@ -93,4 +96,5 @@ remains [#410](https://github.com/boburning/portcove/issues/410).
 | `elmasas-lcs-recomp` (#1836)                                        | Deferred: the content appears eligible, but the listing declares no platform and the latest release (v0.1.6) differs from the reviewed v0.1.7                                                                                                                                                                                                                                             |
 
 Each held listing can be reconsidered when its upstream removes or licenses
-the named content.
+the named content; the two deferred listings resume when their named
+question is decided.
