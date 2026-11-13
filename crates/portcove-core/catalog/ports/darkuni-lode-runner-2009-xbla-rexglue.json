@@ -3,18 +3,18 @@
   "listing": {
     "id": "darkuni-lode-runner-2009-xbla-rexglue",
     "name": "Lode Runner (2009 XBLA, darkuni Recomp)",
-    "summary": "Player-managed Windows setup for Lode Runner (2009) using its own Xbox 360 package.",
+    "summary": "Windows player for Lode Runner (2009) using its own Xbox 360 package.",
     "project_url": "https://github.com/darkuni/lode-runner-recomp",
     "original_game_title": "Lode Runner (2009)",
     "issue_number": 4216,
     "listed_at": "2026-11-08",
     "platforms": ["windows-x86-64"],
-    "availability": "unknown",
+    "availability": "packages",
     "manual_setup": {
       "steps": [
         {
           "title": "Prepare your original in the upstream folder",
-          "instruction": "With an already permitted Windows x64 copy, keep its files together in a writable folder. Put your own Xbox 360 LIVE package for title 5841085B beside lode_runner.exe. The tagged source identifies default.xex 0.0.1.2 and the 5841085B console export. The tagged player checks its 6,205,440-byte default.xex against the expected SHA-1."
+          "instruction": "Keep the Windows x64 package files together in a writable folder. Put your own Xbox 360 LIVE package for title 5841085B beside lode_runner.exe. The tagged source identifies default.xex 0.0.1.2 and the 5841085B console export. The tagged player checks its 6,205,440-byte default.xex against the expected SHA-1."
         },
         {
           "title": "Use the documented Windows prerequisites",
@@ -30,12 +30,16 @@
         }
       ],
       "warnings": [
-        "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
+        "The package includes recompiled game code that the project licence does not cover. Portcove downloads it only from the project’s own releases; you supply your own game.",
         "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data.",
         "The reviewed package README lists OutRun Online Arcade’s title ID in its export example. Use Lode Runner’s 5841085B title folder."
       ],
       "help_url": "https://github.com/darkuni/lode-runner-recomp/blob/9e34a077456f0715df2a1a76b27020421c419e22/README.md"
     },
-    "download_block_reason": "Fresh Portcove downloads are held because the selected Lode Runner (2009) executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
+    "release_url": "https://github.com/darkuni/lode-runner-recomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["lode_runner-", "-win-amd64.zip"]
+    },
+    "recommended_download_channel": "stable"
   }
 }

@@ -8,7 +8,7 @@
     "issue_number": 1275,
     "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64"],
-    "availability": "unknown",
+    "availability": "packages",
     "artwork": {
       "game_id": 3573,
       "cover_id": 257550,
@@ -21,7 +21,7 @@
       "steps": [
         {
           "title": "Prepare your original",
-          "instruction": "For an already permitted copy, keep the selected x64 package’s files together. Use your own 8 MiB Pilotwings 64 USA Rev 0 big-endian .z64 file in the upstream launcher. The direct input validator expects big-endian byte order."
+          "instruction": "Keep the selected x64 package’s files together. Use your own 8 MiB Pilotwings 64 USA Rev 0 big-endian .z64 file in the upstream launcher. The direct input validator expects big-endian byte order."
         },
         {
           "title": "Start the matching upstream player",
@@ -33,11 +33,16 @@
         }
       ],
       "warnings": [
-        "The official frontend has since published a GPLv3 grant for the same code. The selected packages still have separate translated title code and the component conditions in their notices. Use an independently permitted copy.",
+        "The package includes recompiled game code that the project licence does not cover. Portcove downloads it only from the project’s own releases; you supply your own game.",
         "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
       ],
       "help_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/README.md"
     },
-    "download_block_reason": "Fresh Portcove downloads are held for the selected packages while the applicable basis for translated title code and the component conditions in the bundled notices remain unresolved. The later GPLv3 grant covers the official frontend code; it does not resolve those separate conditions. Independently permitted copies retain their own setup route."
+    "release_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["Pilotwings64Recomp-", "-windows-x64.zip"],
+      "linux-x86-64": ["Pilotwings64Recomp-", "-linux-x86_64.tar.gz"]
+    },
+    "recommended_download_channel": "stable"
   }
 }

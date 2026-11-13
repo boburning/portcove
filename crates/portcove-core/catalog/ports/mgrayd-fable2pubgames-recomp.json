@@ -3,18 +3,18 @@
   "listing": {
     "id": "mgrayd-fable2pubgames-recomp",
     "name": "Fable II Pub Games (MGRayd Recomp)",
-    "summary": "Player-managed Windows import for the Xbox 360 Pub Games, with an optional upstream save link.",
+    "summary": "Windows player for the Xbox 360 Pub Games, with an optional upstream save link.",
     "project_url": "https://github.com/MGRayd/Fable2PubGames-Recomp",
     "original_game_title": "Fable II Pub Games",
     "issue_number": 3995,
     "listed_at": "2026-11-08",
     "platforms": ["windows-x86-64"],
-    "availability": "unknown",
+    "availability": "packages",
     "manual_setup": {
       "steps": [
         {
           "title": "Import your own Pub Games container",
-          "instruction": "With an already permitted Windows x64 copy, keep the launcher, game executable, DLLs and extraction tool together. Open Fable2PubGamesLauncher.exe, choose your own Xbox 360 Pub Games container, and use Install Game Files before Play Pub Games."
+          "instruction": "Keep the launcher, game executable, DLLs and extraction tool together. Open Fable2PubGamesLauncher.exe, choose your own Xbox 360 Pub Games container, and use Install Game Files before Play Pub Games."
         },
         {
           "title": "Preserve the upstream data",
@@ -26,12 +26,16 @@
         }
       ],
       "warnings": [
-        "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
+        "The package includes recompiled game code that the project licence does not cover. Portcove downloads it only from the project’s own releases; you supply your own game.",
         "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data.",
         "The upstream launcher owns the import and game handoff. Selecting the launcher or its script does not establish managed installation or save synchronization in Portcove."
       ],
       "help_url": "https://github.com/MGRayd/Fable2PubGames-Recomp/blob/92cedf65ebfd43369c24f81b1e54e1aa12eea18c/README.md"
     },
-    "download_block_reason": "Fresh Portcove downloads are held because the selected Fable II Pub Games executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
+    "release_url": "https://github.com/MGRayd/Fable2PubGames-Recomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["Fable2PubGames-Recomp-v", "-win-x64.zip"]
+    },
+    "recommended_download_channel": "stable"
   }
 }

@@ -2289,9 +2289,83 @@ async fn silent_hill_downpour_downpourrecomp_component_hold_before_network_358()
     assert_embedded_player_download_holds(&["silent-hill-downpour-downpourrecomp"]).await;
 }
 
+// Tier-3 rights policy: these upstream releases bundle only code, so the
+// listing download route is offered again (synthetic bytes, real contracts).
 #[tokio::test]
-async fn tony_hawks_project_8_recomp_component_hold_before_network_1125() {
-    assert_embedded_player_download_holds(&["tony-hawks-project-8-recomp"]).await;
+async fn tony_hawks_project_8_recomp_upstream_release_download_1125() {
+    assert_embedded_resolved_frontend_download(
+        "tony-hawks-project-8-recomp",
+        "v0.3.0",
+        "Project8Recomp-v0.3.0-windows-x86_64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn pilotwings_64_dgv_recomp_upstream_release_download_1275() {
+    assert_embedded_resolved_frontend_download(
+        "pilotwings-64-dgv-recomp",
+        "v0.1.1",
+        "Pilotwings64Recomp-0.1.1-windows-x64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn darkuni_afterburner_climax_recomp_upstream_release_download_4134() {
+    assert_embedded_resolved_frontend_download(
+        "darkuni-afterburner-climax-recomp",
+        "v1.1.0",
+        "AfterBurnerClimax-v1.1.0-win64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn darkuni_lode_runner_2009_xbla_rexglue_upstream_release_download_4216() {
+    assert_embedded_resolved_frontend_download(
+        "darkuni-lode-runner-2009-xbla-rexglue",
+        "v1.0.1",
+        "lode_runner-v1.0.1-win-amd64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn darkuni_outrun_arcade_recomp_upstream_release_download_4133() {
+    assert_embedded_resolved_frontend_download(
+        "darkuni-outrun-arcade-recomp",
+        "v1.0.1",
+        "outrun_arcade-v1.0.1-win-amd64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn darkuni_poker_smash_recomp_upstream_release_download_4122() {
+    assert_embedded_resolved_frontend_download(
+        "darkuni-poker-smash-recomp",
+        "v1.0.0",
+        "PokerSmash-v1.0.0-win64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn mgrayd_fable2pubgames_recomp_upstream_release_download_3995() {
+    assert_embedded_resolved_frontend_download(
+        "mgrayd-fable2pubgames-recomp",
+        "v0.1.0",
+        "Fable2PubGames-Recomp-v0.1.0-win-x64.zip",
+        None,
+    )
+    .await;
 }
 
 #[tokio::test]

@@ -51,7 +51,12 @@
     "issue_number": 553,
     "listed_at": "2026-10-23",
     "platforms": ["linux-x86-64"],
-    "download_block_reason": "Fresh Portcove downloads are held for the selected packages while the applicable basis for translated title code and the component conditions in the bundled notices remain unresolved. The later GPLv3 grant covers the official frontend code; it does not resolve those separate conditions. Independently permitted copies retain their own setup route."
+    "availability": "packages",
+    "release_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/releases",
+    "download_asset_hints": {
+      "linux-x86-64": ["WaveRace64Recomp-", "-linux-x86_64.tar.gz"]
+    },
+    "recommended_download_channel": "stable"
   },
   "integration": {
     "support_tier": "beta",

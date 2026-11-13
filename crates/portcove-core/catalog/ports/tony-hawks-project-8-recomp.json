@@ -3,7 +3,7 @@
   "listing": {
     "id": "tony-hawks-project-8-recomp",
     "name": "Tony Hawks Project 8 Recomp",
-    "summary": "Register an independently permitted, upstream-prepared Tony Hawks Project 8 Recomp native Windows player. Keep original data, preparation and runtime replacement upstream.",
+    "summary": "Native Windows recompilation of Tony Hawk's Project 8 that prepares its game files from your own disc. Upstream supplies the player and its updates.",
     "project_url": "https://github.com/theokyr/Project8Recomp",
     "issue_number": 1125,
     "listed_at": "2026-10-23",
@@ -18,16 +18,16 @@
       "game_slug": "tony-hawks-project-8--1",
       "match_kind": "underlying-game"
     },
-    "release_url": "https://github.com/theokyr/Project8Recomp/releases/tag/v0.3.0",
+    "release_url": "https://github.com/theokyr/Project8Recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["Project8Recomp", "windows"]
+      "windows-x86-64": ["Project8Recomp-", "-windows-x86_64.zip"]
     },
     "manual_setup": {
       "help_url": "https://github.com/theokyr/Project8Recomp/releases",
       "steps": [
         {
-          "title": "Use an independently permitted completed copy",
-          "instruction": "Fresh bundled-player acquisition remains held for the exact generated-code component described in the download restriction. This guide only attaches an existing complete copy you are independently permitted to use; the project grant does not supply the excluded permission."
+          "title": "Use the complete upstream player",
+          "instruction": "Keep the complete downloaded or existing Windows player together. Its BSD-3-Clause licence covers the project code, not the generated game code or your original files."
         },
         {
           "title": "Prepare your own supported original upstream",
@@ -47,8 +47,8 @@
         }
       ],
       "warnings": [
-        "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
-        "BSD-3-Clause project code with NOTICE for dependencies; original-derived generated game units and original data are outside that grant. Only an independently permitted prepared copy is covered by this attachment guide.",
+        "Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
+        "The package includes recompiled game code that the project licence does not cover. Portcove downloads it only from the project’s own releases; you supply your own game.",
         "Windows is explicitly experimental upstream; publisher Proton observations are not native Windows qualification. Upstream warns uncapped cutscenes can run 3–5x speed; retain default cap. No execution performed."
       ],
       "references": [
@@ -58,6 +58,6 @@
         }
       ]
     },
-    "download_block_reason": "Fresh acquisition of the compiled Project 8 recompilation remains held: the selected release contains generated game code that the upstream BSD project grant explicitly excludes. Resume with applicable permission for that exact derived component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold."
+    "recommended_download_channel": "stable"
   }
 }
