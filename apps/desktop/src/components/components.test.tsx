@@ -194,7 +194,7 @@ describe("desktop components", () => {
       ["library-storage", "game-files", 4],
       ["game-files", "updates", 3],
       ["updates", "integrations", 3],
-      ["integrations", "controls", 2],
+      ["integrations", "controls", 3],
       ["controls", "advanced", 2],
       ["advanced", "about", 4],
       ["about", null, 2],
