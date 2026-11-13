@@ -1642,6 +1642,7 @@ void test("fixed tool receiver uses one locked SDK lookup per archive and preser
     process.env.GH_TOKEN = "fixture-fixed-receiver";
     const f = fixture({}, platform);
     const order: string[] = [];
+    let bundleReads = 0;
     const prefix = "/repos/boburning/portcove/";
     const result = await receiveControllerTools(root, f.expected, f.bundle, {
       deadline: performance.now() + 10000,
@@ -1681,6 +1682,8 @@ void test("fixed tool receiver uses one locked SDK lookup per archive and preser
         if (route === "actions/runs/9988/attempts/1")
           return Response.json(await provider.attempt("9988", 1));
         if (route === "actions/jobs/501") return Response.json(await provider.job(501));
+        if (route === "actions/artifacts/100" && bundleReads++ === 0)
+          return Response.json({ message: "Not Found" }, { status: 404 });
         if (route === "actions/artifacts/99" || route === "actions/artifacts/100")
           return Response.json(await provider.artifact(Number(route.split("/").at(-1))));
         assert.fail("unexpected controller tool receiver route");
@@ -1697,6 +1700,7 @@ void test("fixed tool receiver uses one locked SDK lookup per archive and preser
     ];
     assert.deepEqual(order, [
       ...snapshot,
+      "actions/artifacts/100",
       "actions/artifacts/99/zip",
       "/actions-results/99",
       "actions/artifacts/100/zip",
