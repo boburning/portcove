@@ -289,6 +289,41 @@ fn bios_config_value_end(tokens: &[ConfigToken], start: usize) -> Result<usize> 
     Ok(cursor)
 }
 
+/// The catalog BIOS profile a kit's own `[recompiler] bios_config` selects,
+/// when it names one of the reviewed retail images. Unknown or absent
+/// configurations return `None` and are left to the kit.
+fn kit_bios_profile(root: &Path) -> Result<Option<&'static str>> {
+    let Some(config) = bios_config_string(&root.join("game.toml"), "recompiler", "bios_config")?
+    else {
+        return Ok(None);
+    };
+    let stem = Path::new(config.trim())
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .map(str::to_ascii_uppercase);
+    Ok(match stem.as_deref() {
+        Some("SCPH1001") => Some("psx-scph-1001-bios"),
+        Some("SCPH5552" | "SCPH5502") => Some("psx-scph-5552-bios"),
+        _ => None,
+    })
+}
+
+/// A kit configured for one reviewed retail BIOS must not be built with the
+/// image of another. Older frameworks stage whatever file they are given.
+fn require_kit_bios_profile(root: &Path, registered: &str) -> Result<()> {
+    if !matches!(registered, "psx-scph-1001-bios" | "psx-scph-5552-bios") {
+        return Ok(());
+    }
+    match kit_bios_profile(root)? {
+        Some(expected) if expected != registered => Err(PortcoveError::install(
+            "this PS1 kit is set up for a different BIOS than the one this game needs, so nothing was installed or changed",
+        )
+        .detail("kit_bios_profile", expected)
+        .detail("registered_bios_profile", registered)),
+        _ => Ok(()),
+    }
+}
+
 fn staged_bios_path(root: &Path) -> Result<PathBuf> {
     let profile = bios_config_string(&root.join("game.toml"), "recompiler", "bios_config")?
         .map(|value| value.trim().to_owned())
@@ -599,6 +634,7 @@ fn prepare_install_inner(
         .bios
         .as_ref()
         .map(|bios| {
+            require_kit_bios_profile(root, &bios.profile_id)?;
             let staged = staged_bios_path(root)?;
             if crate::path::resolve_existing_ancestor(&staged)? == fs::canonicalize(&bios.path)? {
                 return Err(PortcoveError::verification(
@@ -2844,6 +2880,41 @@ mod tests {
         let error = require_no_build_staged_player_packages(&build).unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Install);
         assert_eq!(error.details["path"], file.display().to_string());
+    }
+
+    #[test]
+    fn a_kit_configured_for_another_retail_bios_is_refused() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        // No configuration, or an unknown one, is left to the kit.
+        fs::write(root.join("game.toml"), "[game]\nname = 'fixture'\n").unwrap();
+        require_kit_bios_profile(root, "psx-scph-1001-bios").unwrap();
+        fs::write(
+            root.join("game.toml"),
+            "[recompiler]\nbios_config = 'psxrecomp/bios/custom.toml'\n",
+        )
+        .unwrap();
+        require_kit_bios_profile(root, "psx-scph-1001-bios").unwrap();
+        fs::write(
+            root.join("game.toml"),
+            "[recompiler]\nbios_config = 'psxrecomp/bios/SCPH5552.toml'\n",
+        )
+        .unwrap();
+        require_kit_bios_profile(root, "psx-scph-5552-bios").unwrap();
+        let error = require_kit_bios_profile(root, "psx-scph-1001-bios").unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Install);
+        assert_eq!(error.details["kit_bios_profile"], "psx-scph-5552-bios");
+        assert_eq!(
+            error.details["registered_bios_profile"],
+            "psx-scph-1001-bios"
+        );
+        fs::write(
+            root.join("game.toml"),
+            "[recompiler]\nbios_config = 'psxrecomp/bios/SCPH1001.toml'\n",
+        )
+        .unwrap();
+        require_kit_bios_profile(root, "psx-scph-1001-bios").unwrap();
+        assert!(require_kit_bios_profile(root, "psx-scph-5552-bios").is_err());
     }
 
     #[test]
