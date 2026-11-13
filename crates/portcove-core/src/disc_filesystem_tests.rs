@@ -806,8 +806,12 @@ mod cd {
         assert!(check(bad).is_err(), "pointer past the file");
         let mut cyclic = chd_with(&[b"CHT2"]);
         cyclic[124 + 8..124 + 16].copy_from_slice(&124_u64.to_be_bytes());
-        assert!(check(cyclic).unwrap(), "a cycle ends at the bound");
+        assert!(check(cyclic).is_err(), "a cycle is refused at the bound");
         assert!(check(b"MComprHD".to_vec()).is_err(), "short header");
+        assert!(
+            check(chd_with(&[b"CHT2"; 65])).is_err(),
+            "more metadata than can be classified"
+        );
     }
 
     #[test]
@@ -840,6 +844,8 @@ mod cd {
             "FILE \"x/a.bin\" BINARY\n TRACK 01 MODE1/2048\n",
             "FILE \"\" BINARY\n TRACK 01 MODE1/2048\n",
             "FILE a.bin BINARY\n TRACK 01 MODE1/2048\n",
+            "FILE \"C:a.bin\" BINARY\n TRACK 01 MODE1/2048\n",
+            "FILE \"a.bin:s\" BINARY\n TRACK 01 MODE1/2048\n",
         ] {
             assert!(cue(bad).is_err(), "{bad:?}");
         }

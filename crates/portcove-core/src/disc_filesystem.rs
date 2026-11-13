@@ -738,7 +738,8 @@ pub(crate) fn cso_header(source: &Path) -> Result<CsoHeader> {
 
 /// Inflate a CSO into a new plain image at `target` (which must not exist) and
 /// return its size. Every block is bounds-checked against the index and the file;
-/// a block that inflates to the wrong size, an index that runs backwards or past
+/// a block that inflates to less than its size (only the final block may be padded past the
+/// image end), an index that runs backwards or past
 /// the file, or a truncated file is an error, never silently padded.
 pub(crate) fn expand_cso(
     source: &Path,
@@ -840,8 +841,10 @@ pub(crate) fn chd_is_cd(source: &Path) -> Result<bool> {
     }
     let mut next = u64::from_be_bytes(header[48..56].try_into().expect("eight bytes"));
     let (mut cd, mut dvd) = (false, false);
+    let mut ended = false;
     for _ in 0..64 {
         if next == 0 {
+            ended = true;
             break;
         }
         if next.saturating_add(16) > file_bytes {
@@ -856,6 +859,9 @@ pub(crate) fn chd_is_cd(source: &Path) -> Result<bool> {
         }
         let following = u64::from_be_bytes(entry[8..16].try_into().expect("eight bytes"));
         next = following;
+    }
+    if !ended && next != 0 {
+        return Err(invalid("the CHD has too much metadata to classify"));
     }
     match (cd, dvd) {
         (true, false) => Ok(true),
@@ -908,7 +914,7 @@ pub(crate) fn first_cd_track(cue: &str) -> Result<(String, CdTrackMode)> {
                 }
             };
             let file = file.ok_or_else(|| invalid("the CD image's cue sheet is not recognised"))?;
-            if file.contains(['/', '\\']) || file == ".." || file == "." {
+            if file.contains(['/', '\\', ':']) || file == ".." || file == "." {
                 return Err(invalid("the CD image's cue sheet names an unsafe file"));
             }
             return Ok((file, mode));

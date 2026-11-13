@@ -1355,11 +1355,15 @@ fn materialize_disc_directory(
             iso
         } else if is_chd {
             let logical = crate::disc_filesystem::chd_logical_bytes(source)?;
-            if logical
-                > disc
-                    .profile
-                    .max_image_bytes
-                    .min(crate::disc_filesystem::MAX_IMAGE_BYTES)
+            let cd = crate::disc_filesystem::chd_is_cd(source)?;
+            // A CD's logical size counts 2448-byte frames; its ISO (2048 per sector) is
+            // bounded exactly when the track is converted, so only a DVD is checked here.
+            if !cd
+                && logical
+                    > disc
+                        .profile
+                        .max_image_bytes
+                        .min(crate::disc_filesystem::MAX_IMAGE_BYTES)
             {
                 return Err(PortcoveError::source(
                     "the disc image is larger than this port allows",
@@ -1370,7 +1374,7 @@ fn materialize_disc_directory(
             ensure_free_space(parent, logical.saturating_mul(2))?;
             let iso = parent.join(format!(".portcove-disc-{}.iso", Uuid::new_v4()));
             staged_iso = Some(iso.clone());
-            if crate::disc_filesystem::chd_is_cd(source)? {
+            if cd {
                 // A CD-type CHD (many PS2 CDs): extract the CD privately, then convert its
                 // first data track to a plain ISO. Both are removed on every path.
                 let scratch = parent.join(format!(".portcove-disc-{}-cd", Uuid::new_v4()));
