@@ -6773,7 +6773,8 @@
     {
       "id": "alexbeav-fighting-force-recomp",
       "name": "Fighting Force / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Portcove builds Fighting Force on Windows or Linux from the upstream setup kit with your own USA (Rev 2) PlayStation disc and retail SCPH-1001 BIOS. The Mac setup kit uses upstream preparation.",
+      "original_game_title": "Fighting Force",
       "project_url": "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp",
       "issue_number": 448,
       "listed_at": "2026-10-23",
@@ -6796,26 +6797,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Fighting Force (USA) (Rev 2) disc (SLUS-00433) with all 27 of its tracks and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player from the setup kit with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt, which asks for your own SCPH-1001 BIOS."
+          },
+          {
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Fighting_Force__Recompiled from the kit folder and choose Generate & rebuild. Keep the CUE and all 27 BIN tracks together if using CUE/BIN. In Portcove, select build-release/Fighting_Force__Recompiled as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp#readme",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -7515,7 +7521,8 @@
     {
       "id": "alexbeav-jackie-chan-stuntmaster-recomp",
       "name": "Jackie Chan Stuntmaster / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Portcove builds Jackie Chan Stuntmaster on Windows or Linux from the upstream setup kit with your own USA PlayStation disc and retail SCPH-1001 BIOS. The Mac setup kit uses upstream preparation.",
+      "original_game_title": "Jackie Chan Stuntmaster",
       "project_url": "https://github.com/alexbeavs-ps1-ports/jackie-chan-stuntmaster-recomp",
       "issue_number": 457,
       "listed_at": "2026-10-23",
@@ -7538,26 +7545,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Jackie Chan Stuntmaster (USA) disc (SLUS-00684) with its single data track and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player from the setup kit with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt, which asks for your own SCPH-1001 BIOS."
+          },
+          {
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Jackie_Chan_Stuntmaster_Recompiled from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Jackie_Chan_Stuntmaster_Recompiled as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/jackie-chan-stuntmaster-recomp#readme",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -8658,7 +8670,8 @@
     {
       "id": "alexbeav-metal-slug-x-recomp",
       "name": "Metal Slug X / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Portcove builds Metal Slug X on Windows or Linux from the upstream setup kit with your own USA PlayStation disc and retail SCPH-1001 BIOS. The Mac setup kit uses upstream preparation.",
+      "original_game_title": "Metal Slug X",
       "project_url": "https://github.com/alexbeavs-ps1-ports/metal-slug-x-recomp",
       "issue_number": 469,
       "listed_at": "2026-10-23",
@@ -8681,26 +8694,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Metal Slug X (USA) disc (SLUS-01212) with its single data track and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player from the setup kit with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt, which asks for your own SCPH-1001 BIOS."
+          },
+          {
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Metal_Slug_X__Recompiled from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Metal_Slug_X__Recompiled as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/metal-slug-x-recomp#readme",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -9234,7 +9252,7 @@
     {
       "id": "alexbeav-parasite-eve-recomp",
       "name": "Parasite Eve / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play Parasite Eve on Windows or Linux with your own matching USA two-disc set and retail SCPH-1001 BIOS. The Mac setup kit uses upstream preparation.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/parasite-eve-recomp",
       "issue_number": 473,
       "listed_at": "2026-10-23",
@@ -9257,49 +9275,56 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Parasite Eve (USA) two-disc set (SLUS-00662, SLUS-00668), each disc with its single data track, and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Use both supported USA discs and your own supported USA SCPH BIOS. Included OpenBIOS supports setup only. Preserve the selected version’s limitation on observed natural disc switching; setup is not proof of a complete playthrough."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play. To change discs, use the game’s own disc change if it offers one, or quit and choose Play with the next disc."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Choose the official Mac ZIP from the upstream releases: -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon, and extract it. Follow its README-SETUP.txt, which asks for your own SCPH-1001 BIOS."
+          },
+          {
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Parasite_Eve from the kit folder, assign both discs in Disc Selection and choose Generate & rebuild. In Portcove, select build-release/Parasite_Eve as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Portcove checks each disc’s data track and track count. Keep every disc intact.",
+          "Upstream reports that each disc starts. A change to Disc 2 during play hasn’t been tested.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/parasite-eve-recomp#readme",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your discs and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/parasite-eve-recomp/releases",
+      "recommended_download_channel": "stable",
+      "original_game_title": "Parasite Eve",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Parasite-Eve-Recompiled-",
-          "-windows-x64.zip"
-        ],
         "linux-x86-64": [
           "Parasite-Eve-Recompiled-",
           "-linux-x64.zip"
+        ],
+        "macos-aarch64": [
+          "Parasite-Eve-Recompiled-",
+          "-macos-arm64.zip"
         ],
         "macos-x86-64": [
           "Parasite-Eve-Recompiled-",
           "-macos-x64.zip"
         ],
-        "macos-aarch64": [
+        "windows-x86-64": [
           "Parasite-Eve-Recompiled-",
-          "-macos-arm64.zip"
+          "-windows-x64.zip"
         ]
-      },
-      "recommended_download_channel": "stable"
+      }
     },
     {
       "id": "alexbeav-pro-pinball-timeshock-recomp",
@@ -11244,16 +11269,11 @@
     {
       "id": "alexbeav-valkyrie-profile-recomp",
       "name": "Valkyrie Profile / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play Valkyrie Profile on Windows or Linux with your own matching USA two-disc set and retail SCPH-1001 BIOS.",
+      "original_game_title": "Valkyrie Profile",
       "project_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp",
       "issue_number": 491,
       "listed_at": "2026-10-23",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
-      "availability": "packages",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp#readme",
       "artwork": {
         "game_id": 3998,
         "cover_id": 85749,
@@ -11262,42 +11282,11 @@
         "game_slug": "valkyrie-profile",
         "match_kind": "underlying-game"
       },
-      "manual_setup": {
-        "steps": [
-          {
-            "title": "Finish the upstream setup package first",
-            "instruction": "Use the complete official v0.1.3 Windows x64 setup package in a separate writable folder. Its root executable is a setup host, not the completed player. Deliberately finish upstream Generate & Build with your own matching originals and its required tools before adding the player. The existing Linux setup download remains separate: use the complete Linux package and this version’s prerequisites, including CMake, Ninja, Python 3 and a C/C++ compiler where required; bundled Windows tools do not supply Linux tools. The Windows completed-player steps here do not qualify a Linux player. The standalone flow is supported; RetComM is an optional upstream manager. Portcove does not start a compiler, helper or installer while discovering a launch target."
-          },
-          {
-            "title": "Keep both USA discs and your BIOS",
-            "instruction": "Use your own complete canonical USA disc pair, SLUS-01156 and SLUS-01179, keeping each CUE with every referenced track, and your own legal SCPH-1001 BIOS. OpenBIOS is not qualified for this title. The published first-track identity is not a complete two-disc verification. Upstream reports one corrected Windows Disc 2 operator test; that does not establish every transition, save/reload or future rebuilt version."
-          },
-          {
-            "title": "Add the completed native player",
-            "instruction": "Select build-release/Valkyrie_Profile_Recompiled.exe, or the actual completed product in your upstream-configured build directory. Use its containing directory as the normal working folder, preserving a different established working directory if your actual working launch requires it. A normally prepared product needs no extra arguments; retain any actual supported --game plus absolute configuration path, disc, BIOS or memory-card arguments used by your working copy as separate literal arguments. Do not select the root setup host, which can forward to another executable and exit. Save launch details, then choose Play separately."
-          },
-          {
-            "title": "Preserve the complete creating project and profiles",
-            "instruction": "Keep the whole setup project, both original discs, BIOS, generated sources, build-release or custom build directory, dependencies, game.toml, game_options.toml, settings.toml, sidecar .cfg files, cards, saves, states, mods, caches, logs and unknown files. Runtime paths anchor to the actual executable, with some source paths searched above it; inspect the actual settings and preserve custom paths and both root/build histories. You or upstream manage rebuilds and updates. Portcove registration provides no managed backup, update, rollback or migration; removing registration leaves every external file untouched."
-          }
-        ],
-        "warnings": [
-          "Project-owned GPL terms do not grant rights to original game data, generated retail code, BIOS or separately licensed dependencies. Keep private prepared outputs private unless their applicable terms permit sharing."
-        ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp#readme"
-      },
-      "release_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp/releases",
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "valkyrie-profile-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "valkyrie-profile-recomp-",
-          "-linux-x64.zip"
-        ]
-      },
-      "recommended_download_channel": "stable"
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "unknown"
     },
     {
       "id": "alexbeav-vampire-hunter-d-recomp",

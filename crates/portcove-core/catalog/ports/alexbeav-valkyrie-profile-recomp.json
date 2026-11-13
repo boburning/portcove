@@ -3,13 +3,11 @@
   "listing": {
     "id": "alexbeav-valkyrie-profile-recomp",
     "name": "Valkyrie Profile / Alexbeav PSXRecomp",
-    "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+    "summary": "Build and play Valkyrie Profile on Windows or Linux with your own matching USA two-disc set and retail SCPH-1001 BIOS.",
+    "original_game_title": "Valkyrie Profile",
     "project_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp",
     "issue_number": 491,
     "listed_at": "2026-10-23",
-    "platforms": ["windows-x86-64", "linux-x86-64"],
-    "availability": "packages",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp#readme",
     "artwork": {
       "game_id": 3998,
       "cover_id": 85749,
@@ -17,36 +15,94 @@
       "image_sha256": "e9453314a3e19807fa7ee8b6d174bcc7373e0a878978b93797a50c51a6139491",
       "game_slug": "valkyrie-profile",
       "match_kind": "underlying-game"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "github",
+      "repository": "alexbeavs-ps1-ports/valkyrie-profile-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["valkyrie-profile-recomp-", "-windows-x64.zip"],
+        "linux-x86-64": ["valkyrie-profile-recomp-", "-linux-x64.zip"]
+      }
     },
-    "manual_setup": {
-      "steps": [
+    "source_profile": "alexbeav-valkyrie-profile-recomp-usa-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Valkyrie_Profile_Recompiled.exe"],
+      "linux-x86-64": ["Valkyrie_Profile_Recompiled"]
+    },
+    "persistent_paths": [
+      "saves",
+      "settings.toml",
+      "settings.toml.bad",
+      "input.ini",
+      "keybinds.ini",
+      "config.ini",
+      "disc.cfg",
+      "bios.cfg",
+      "mods/installed",
+      "mods/packages",
+      "mods/.staging",
+      "mods/state.toml",
+      "mods/state.toml.tmp",
+      "mods/texture-packs",
+      "overlay-captures",
+      "overlay_captures.json",
+      "overlay_captures.json.d",
+      "overlay_captures.addendum.jsonl"
+    ],
+    "runtime_mutable_paths": [
+      "cache",
+      "psx_freeze_heartbeat.json",
+      "psx_freeze_heartbeat.json.tmp",
+      "psx_last_run_report.json",
+      "psx_cps_exit_trace.json",
+      "netplay_lan_lobby.txt",
+      "psx_crash.txt"
+    ],
+    "runtime_mutable_file_patterns": [
+      {
+        "prefix": "psx_freeze_dump_psx-runtime_",
+        "suffix": ".json"
+      },
+      {
+        "prefix": "overlay_captures.json.",
+        "suffix": ".tmp"
+      }
+    ],
+    "launch_environment": {
+      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+    },
+    "launch_arguments": ["--no-launcher"],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
         {
-          "title": "Finish the upstream setup package first",
-          "instruction": "Use the complete official v0.1.3 Windows x64 setup package in a separate writable folder. Its root executable is a setup host, not the completed player. Deliberately finish upstream Generate & Build with your own matching originals and its required tools before adding the player. The existing Linux setup download remains separate: use the complete Linux package and this version’s prerequisites, including CMake, Ninja, Python 3 and a C/C++ compiler where required; bundled Windows tools do not supply Linux tools. The Windows completed-player steps here do not qualify a Linux player. The standalone flow is supported; RetComM is an optional upstream manager. Portcove does not start a compiler, helper or installer while discovering a launch target."
+          "role": "game",
+          "profile_id": "alexbeav-valkyrie-profile-recomp-usa-psx",
+          "label": "Valkyrie Profile (USA) two-disc set",
+          "verification": "catalog-identity"
         },
         {
-          "title": "Keep both USA discs and your BIOS",
-          "instruction": "Use your own complete canonical USA disc pair, SLUS-01156 and SLUS-01179, keeping each CUE with every referenced track, and your own legal SCPH-1001 BIOS. OpenBIOS is not qualified for this title. The published first-track identity is not a complete two-disc verification. Upstream reports one corrected Windows Disc 2 operator test; that does not establish every transition, save/reload or future rebuilt version."
-        },
-        {
-          "title": "Add the completed native player",
-          "instruction": "Select build-release/Valkyrie_Profile_Recompiled.exe, or the actual completed product in your upstream-configured build directory. Use its containing directory as the normal working folder, preserving a different established working directory if your actual working launch requires it. A normally prepared product needs no extra arguments; retain any actual supported --game plus absolute configuration path, disc, BIOS or memory-card arguments used by your working copy as separate literal arguments. Do not select the root setup host, which can forward to another executable and exit. Save launch details, then choose Play separately."
-        },
-        {
-          "title": "Preserve the complete creating project and profiles",
-          "instruction": "Keep the whole setup project, both original discs, BIOS, generated sources, build-release or custom build directory, dependencies, game.toml, game_options.toml, settings.toml, sidecar .cfg files, cards, saves, states, mods, caches, logs and unknown files. Runtime paths anchor to the actual executable, with some source paths searched above it; inspect the actual settings and preserve custom paths and both root/build histories. You or upstream manage rebuilds and updates. Portcove registration provides no managed backup, update, rollback or migration; removing registration leaves every external file untouched."
+          "role": "bios",
+          "profile_id": "psx-scph-1001-bios",
+          "label": "PlayStation SCPH-1001 BIOS",
+          "verification": "catalog-identity"
         }
       ],
-      "warnings": [
-        "Project-owned GPL terms do not grant rights to original game data, generated retail code, BIOS or separately licensed dependencies. Keep private prepared outputs private unless their applicable terms permit sharing."
-      ],
-      "help_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp#readme"
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Provide your own single-track CHDs for SLUS-01156 and SLUS-01179 in disc order and retail SCPH-1001 BIOS. Portcove verifies each disc’s data track and builds a private player with its registered toolchain, retaining its declared saves, settings and installed mods. Choose the disc when you choose Play. To change discs, use the game’s own disc change if it offers one, or quit and choose Play with the next disc. Upstream confirmed one change to Disc 2 on an earlier build; this version’s disc changes haven’t been tested. Bundled mods belong to the runtime version. Windows and Linux package and source fit were statically inspected. Native build, disc switching, gameplay and save compatibility remain unobserved."
     },
-    "release_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["valkyrie-profile-recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["valkyrie-profile-recomp-", "-linux-x64.zip"]
-    },
-    "recommended_download_channel": "stable"
+    "bios_source_profile": "psx-scph-1001-bios",
+    "runtime_source_filename": "runtime-discs",
+    "launch_disc_choice": "psx-settings-selected",
+    "runtime_source_materialization": "psx-raw-set"
   }
 }
