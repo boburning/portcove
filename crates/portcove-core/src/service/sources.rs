@@ -164,6 +164,7 @@ impl PortcoveService {
             let source = self.inspect_source_record(profile_id, path)?;
             if expected_sha256.is_some_and(|expected| !source.sha256.eq_ignore_ascii_case(expected))
             {
+                self.library.forget_game_file_observation(path);
                 return Err(PortcoveError::conflict(
                     "source changed after discovery; review it again",
                 ));

@@ -838,6 +838,7 @@ impl PortcoveService {
                 .is_some_and(|(path, root): (PathBuf, PathBuf)| path.starts_with(root))
         };
         if plan.source.sha256 != candidate.sha256 {
+            self.library.forget_game_file_observation(&candidate.path);
             return Err(PortcoveError::conflict(
                 "these files changed since the last scan; scan again",
             ));

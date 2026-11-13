@@ -155,6 +155,7 @@ function resumableSnapshot(): GameFileScanSnapshot {
       entries_relisted: 1,
       frontier_exhausted: false,
       metadata_checks: 2,
+      observations_reused: 0,
       pending_directories: 1,
       prior_member_rechecks: 1,
       remaining_entries: null,
