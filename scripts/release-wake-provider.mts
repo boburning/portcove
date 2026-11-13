@@ -1,3 +1,4 @@
+import { semanticReviewCheckName } from "./release-control-phases.mts";
 import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
 import { createGitHubClient } from "./github-client.mts";
 import type { GitHubCredential, GitHubRequestPolicy } from "./github-client.mts";
@@ -16,6 +17,7 @@ export type WakeWorkflow =
   | "application-release.yml";
 export interface WakeProvider {
   repository(): Promise<unknown>;
+  applicationChecks?(sha: string): Promise<unknown>;
   run(id: string, retain?: RetainWakeResponse): Promise<unknown>;
   jobs(id: string, attempt?: number): Promise<unknown>;
   ref(name: string): Promise<unknown>;
@@ -87,6 +89,17 @@ export async function createWakeProvider(options: {
   };
   return {
     repository: () => get("/repos/{owner}/{repo}", {}),
+    applicationChecks(sha) {
+      if (!/^[a-f0-9]{40}$/u.test(sha)) throw new Error("wake requires an exact commit");
+      return get("/repos/{owner}/{repo}/commits/{ref}/check-runs", {
+        ref: sha,
+        app_id: 5555053,
+        check_name: semanticReviewCheckName,
+        filter: "all",
+        per_page: 100,
+        page: 1,
+      });
+    },
     run: (id, retain) => get("/repos/{owner}/{repo}/actions/runs/{run_id}", { run_id: id }, retain),
     jobs: (id, attempt = 1) =>
       get("/repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}/jobs", {

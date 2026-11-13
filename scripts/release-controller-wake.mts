@@ -17,7 +17,10 @@ import { fileURLToPath } from "node:url";
 import { createWakeProvider } from "./release-wake-provider.mts";
 import type { WakeProvider, WakeResponse, WakeWorkflow } from "./release-wake-provider.mts";
 import { isRecord, errorMessage } from "./runtime-values.mts";
-import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
+import {
+  inspectControllerExecutionPurpose,
+  semanticReviewCheckName,
+} from "./release-control-phases.mts";
 import {
   maximumProductionControllerWorkflowBytes,
   productionControllerWorkflow,
@@ -25,6 +28,9 @@ import {
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
+import { validateOpportunity } from "./release-opportunity.mts";
+import { inspectSemanticReviewEvidence } from "./release-semantic-review-evidence.mts";
+import { parseVersionClassification } from "../apps/desktop/scripts/release-version-policy.mts";
 import timers from "node:timers/promises";
 
 const repository = "boburning/portcove";
@@ -217,6 +223,7 @@ function dispatchIntent(
   wakeRevision: string,
   qualificationRun?: string,
   qualificationAttempt?: string,
+  semanticCheck?: { id: number; sha256: string },
 ) {
   const native = config.schema_version === 5;
   if (native && !/^[1-9][0-9]{0,15}$/u.test(qualificationRun ?? ""))
@@ -247,6 +254,7 @@ function dispatchIntent(
     },
     wake_run_id: wakeRun,
     wake_revision: wakeRevision,
+    ...(native && semanticCheck ? { semantic_check: semanticCheck } : {}),
   };
 }
 
@@ -373,6 +381,7 @@ async function verifyWakeIntentUpload(
   const matchedConfiguration = options.approved_configurations?.find((config) => {
     let qualificationRun: string | undefined;
     let qualificationAttempt: string | undefined;
+    let semanticCheck: { id: number; sha256: string } | undefined;
     if (config.schema_version === 5) {
       const raw: unknown = JSON.parse(bytes.toString("utf8"));
       if (
@@ -387,6 +396,20 @@ async function verifyWakeIntentUpload(
         return false;
       qualificationRun = raw.body.inputs.qualification_run;
       qualificationAttempt = raw.body.inputs.qualification_attempt;
+      if (raw.semantic_check !== undefined) {
+        const check = raw.semantic_check;
+        if (
+          !isRecord(check) ||
+          Object.keys(check).sort().join(",") !== "id,sha256" ||
+          typeof check.id !== "number" ||
+          !Number.isSafeInteger(check.id) ||
+          check.id < 1 ||
+          typeof check.sha256 !== "string" ||
+          !/^[a-f0-9]{64}$/u.test(check.sha256)
+        )
+          return false;
+        semanticCheck = { id: check.id, sha256: check.sha256 };
+      }
     }
     return bytes.equals(
       Buffer.from(
@@ -397,6 +420,7 @@ async function verifyWakeIntentUpload(
             environment.GITHUB_SHA!,
             qualificationRun,
             qualificationAttempt,
+            semanticCheck,
           ),
         ) + "\n",
       ),
@@ -923,6 +947,77 @@ export function requireJobTokenWakeConfiguration(raw: unknown) {
   return value;
 }
 
+/** Routing only. The protected source job authenticates the complete App
+ * suite inventory, review report and accumulated source before registration. */
+export function inspectApplicationWakeCheck(raw: unknown, source: string) {
+  if (
+    !isRecord(raw) ||
+    !Array.isArray(raw.check_runs) ||
+    raw.total_count !== raw.check_runs.length ||
+    raw.check_runs.length >= 100
+  )
+    throw new Error("native wake independent Check inventory is incomplete");
+  const ids = new Set<number>();
+  let latest: Record<string, unknown> | undefined;
+  for (const check of raw.check_runs) {
+    if (
+      !isRecord(check) ||
+      !isRecord(check.app) ||
+      check.app.id !== 5555053 ||
+      check.name !== semanticReviewCheckName ||
+      check.head_sha !== source ||
+      typeof check.id !== "number" ||
+      !Number.isSafeInteger(check.id) ||
+      check.id < 1 ||
+      ids.has(check.id) ||
+      typeof check.external_id !== "string"
+    )
+      throw new Error("native wake independent Check identity differs");
+    ids.add(check.id);
+    if (/^portcove-catalog-review(?:-negative)?-v1:[a-f0-9]{64}$/u.test(check.external_id))
+      continue;
+    if (!/^portcove-release-review(?:-v2|-negative-v1):[a-f0-9]{64}$/u.test(check.external_id))
+      throw new Error("native wake independent Check namespace differs");
+    if (!latest || check.id > Number(latest.id)) latest = check;
+  }
+  if (
+    !latest ||
+    latest.status !== "completed" ||
+    latest.conclusion !== "success" ||
+    !String(latest.external_id).startsWith("portcove-release-review-v2:") ||
+    typeof latest.completed_at !== "string" ||
+    !Number.isFinite(Date.parse(latest.completed_at)) ||
+    Date.parse(latest.completed_at) > Date.now() ||
+    !isRecord(latest.output) ||
+    latest.output.annotations_count !== 0 ||
+    (latest.output.text != null && latest.output.text !== "") ||
+    latest.output.title !== "Portcove independent release review v1" ||
+    typeof latest.output.summary !== "string" ||
+    Buffer.byteLength(latest.output.summary) > 65536
+  )
+    return null;
+  const report: unknown = JSON.parse(latest.output.summary);
+  if (
+    !isRecord(report) ||
+    report.schema_version !== 2 ||
+    Object.keys(report).sort().join(",") !== "opportunity,opportunity_sha256,review,schema_version"
+  )
+    throw new Error("native wake independent Check report shape differs");
+  const opportunity = validateOpportunity(report.opportunity);
+  const review = inspectSemanticReviewEvidence(report.review);
+  parseVersionClassification(opportunity.classification);
+  if (
+    opportunity.source_commit !== source ||
+    opportunity.classification.change_set_scope !== "portcove-release-net-tree-delta-v1" ||
+    review.completed_at !== latest.completed_at ||
+    digest(opportunity) !== report.opportunity_sha256 ||
+    latest.external_id !== `portcove-release-review-v2:${report.opportunity_sha256}`
+  )
+    throw new Error("native wake independent Check report differs from the source");
+  if (!opportunity.meaningful || opportunity.documentation_only) return null;
+  return { id: Number(latest.id), sha256: digest(latest) };
+}
+
 /** A wake-up schedules the existing fixed controller; it cannot accept a
  * candidate or advance its coordinator. One invocation sends at most one POST.
  * An acknowledgement proves dispatch acceptance only, never run/publication.
@@ -975,6 +1070,9 @@ export async function wakeRatifiedController(
   };
   api = {
     repository: () => read(() => provider.repository()),
+    ...(provider.applicationChecks
+      ? { applicationChecks: (source: string) => read(() => provider.applicationChecks!(source)) }
+      : {}),
     run: (id, retain) => read(() => provider.run(id, retain), retain !== undefined),
     jobs: (id, attempt) => read(() => provider.jobs(id, attempt)),
     ref: (name) => read(() => provider.ref(name)),
@@ -1273,7 +1371,14 @@ export async function wakeRatifiedController(
       if (applicationOpportunityFromRunTitle(run.display_title) === source) existing = true;
     }
     if (existing) return { decision: "existing-run" as const };
-    return selected;
+    if (!api.applicationChecks)
+      throw new Error("native wake requires the fixed independent Check reader");
+    const check = inspectApplicationWakeCheck(
+      await get(() => api.applicationChecks!(source)),
+      source,
+    );
+    if (check === null) return { decision: "semantic-review-held" as const };
+    return { ...selected, semantic_check: check };
   };
   const selection = config.schema_version === 5 ? await nativeSelection() : undefined;
   if (selection && selection.decision !== "candidate") {
@@ -1294,6 +1399,7 @@ export async function wakeRatifiedController(
     environment.GITHUB_SHA!,
     qualificationRun,
     qualificationAttempt,
+    selection?.decision === "candidate" ? selection.semantic_check : undefined,
   );
   const { body } = intent;
   const verifyQualification = async () => {

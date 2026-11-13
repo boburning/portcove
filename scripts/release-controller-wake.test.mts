@@ -1,3 +1,5 @@
+import { semanticReviewCheckName } from "./release-control-phases.mts";
+import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { readFileSync } from "node:fs";
 import { windowsApplicationQualificationFixture } from "./fixtures/application-qualification-fixture.mts";
 import assert from "node:assert/strict";
@@ -1786,7 +1788,72 @@ function nativeFixture(jobToken: boolean, native: boolean) {
     },
   };
   const get = (route: string) => transport.request("GET", `${base}${route}`).body;
+  let semanticCheck: number | null = 555;
   const api: WakeProvider = {
+    async applicationChecks(source) {
+      const tree = "b".repeat(40);
+      const delta = "d".repeat(64);
+      const opportunity = {
+        source_commit: source,
+        source_tree: tree,
+        base_commit: "c".repeat(40),
+        change_set_sha256: delta,
+        complete_change_set: true,
+        meaningful: true,
+        documentation_only: false,
+        urgency: false,
+        requested_channel: "preview",
+        classification: {
+          source_commit: source,
+          reviewed_commit: source,
+          source_tree: tree,
+          reviewed_tree: tree,
+          change_set_sha256: delta,
+          change_set_scope: "portcove-release-net-tree-delta-v1",
+          base_version: "0.1.0-alpha.2",
+          change: "prerelease",
+          compatibility: "compatible",
+        },
+      };
+      const opportunity_sha256 = releaseCanonicalDigest(opportunity);
+      const completed_at = "2026-01-01T00:00:00Z";
+      const report = "Fixture independent decision";
+      const review = {
+        scope: "complete-release-opportunity",
+        runtime: "codex-independent-local-review",
+        session_ref: "fixture:independent-task",
+        completed_at,
+        coverage: { accumulated_changes: true, classification: true, compatibility: true },
+        report,
+        report_sha256: hash(Buffer.from(report)),
+      };
+      const check_runs =
+        semanticCheck === null
+          ? []
+          : [
+              {
+                id: semanticCheck,
+                app: { id: 5555053 },
+                name: semanticReviewCheckName,
+                head_sha: source,
+                status: "completed",
+                conclusion: "success",
+                completed_at,
+                external_id: `portcove-release-review-v2:${opportunity_sha256}`,
+                output: {
+                  annotations_count: 0,
+                  title: "Portcove independent release review v1",
+                  summary: JSON.stringify({
+                    schema_version: 2,
+                    opportunity,
+                    opportunity_sha256,
+                    review,
+                  }),
+                },
+              },
+            ];
+      return { total_count: check_runs.length, check_runs };
+    },
     repository: async () => get(""),
     run: async (id, retain) => {
       const body = get(`/actions/runs/${id}`);
@@ -1897,6 +1964,9 @@ function nativeFixture(jobToken: boolean, native: boolean) {
         ["controller-wake-intent.json", Buffer.from(JSON.stringify(intent) + "\n")],
       ]);
     },
+    semanticCheck: (id: number | null) => {
+      semanticCheck = id;
+    },
     pausePublication: () => {
       publicationPaused = true;
     },
@@ -1937,6 +2007,44 @@ void test("native wake refuses to dispatch a retained intent after the qualifica
   f.qualificationAttempt(2);
   await assert.rejects(f.dispatch(), /intent/u);
   assert.equal(f.calls.filter((call) => call.method === "POST").length, 0);
+});
+
+void test("native wake holds a qualified source until an independent application decision exists", async () => {
+  const f = nativeFixture(true, true);
+  f.semanticCheck(null);
+  const result = await wakeRatifiedController(f.config, f.env, f.api, f.record, {
+    mode: "prepare",
+  });
+  assert.equal(result.decision, "no-intent");
+  assert.equal(f.calls.filter(({ method }) => method === "POST").length, 0);
+  f.semanticCheck(555);
+  await f.prepare();
+  f.semanticCheck(null);
+  await assert.rejects(f.dispatch(), /selection changed/u);
+  assert.equal(f.calls.filter(({ method }) => method === "POST").length, 0);
+});
+
+void test("native wake refuses a malformed App success before retaining intent", async () => {
+  const f = nativeFixture(true, true);
+  const read = f.api.applicationChecks!;
+  f.api.applicationChecks = async (source) => {
+    const inventory = await read(source);
+    assert.ok(isRecord(inventory) && Array.isArray(inventory.check_runs));
+    const check = inventory.check_runs[0];
+    check.output.summary = JSON.stringify({ schema_version: 2 });
+    return inventory;
+  };
+  await assert.rejects(f.prepare(), /report shape differs/u);
+  assert.equal(f.calls.filter(({ method }) => method === "POST").length, 0);
+  assert.ok(!f.records.some(({ phase }) => phase === "dispatch-intent"));
+});
+
+void test("native wake refuses a different accepted Check after intent retention", async () => {
+  const f = nativeFixture(true, true);
+  await f.prepare();
+  f.semanticCheck(556);
+  await assert.rejects(f.dispatch(), /intent/u);
+  assert.equal(f.calls.filter(({ method }) => method === "POST").length, 0);
 });
 
 void test("native wake with no current-main qualification leaves no dispatch intent", async () => {
