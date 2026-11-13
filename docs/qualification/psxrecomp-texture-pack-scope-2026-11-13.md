@@ -33,24 +33,22 @@ created with. Core refused collection, activation and backup whenever the
 current scope differed from that scope (`persistence_contract_for_install`).
 Independent review blocked the first attempt at this change because of this.
 
-Core now keeps a managed PS1 installation's retained scope when all of these
-hold:
+Core now keeps a managed PS1 installation's retained scope when the newer
+definition only adds `mods/texture-packs`, the persistent patterns are
+unchanged, and no retained path overlaps it. Collection, activation, backup
+and restore then use the retained scope, so the receipt stays the single scope
+authority.
 
-- the newer definition only adds directory paths;
-- each added path overlaps no retained path;
-- the persistent patterns are unchanged;
-- in that copy, each added path is absent or holds only empty directories with
-  exact spelling.
-
-Collection, activation, backup and restore then use the retained scope, so the
-receipt stays the single scope authority.
-
-- **Files present:** any file, link or other entry under an added path holds
-  these operations as a changed data contract, and the files stay in place.
-  That would happen in a copy that already ran a `7192402` kit, then got
-  texture files.
+- **Older copies:** texture files in an existing copy stay there unmanaged,
+  as they were before the folder was declared. They are not collected,
+  carried to another version or backed up, and they hold nothing.
+  - **The first version:** it held every data operation when such files
+    existed. That included Play for players already using texture packs,
+    which a second independent review rejected as a regression.
+  - **Removal:** removing such a copy removes those files, as it did before.
 - **New installations:** installations created under the wider definition
   retain it and carry texture data through update, rollback and backup.
+- **Other added paths:** these still get the existing refusal.
 
 Delivered definitions that declare the folder need managed PS1 capability 3,
 which this engine advertises. An older reader therefore refuses the entry
@@ -66,11 +64,13 @@ in-game disc change was found by static review only.
 
 - **Scope rule:** host-portable Core tests, run on Linux, cover these cases.
   Without the rule, the first test fails with the original refusal.
-  - an existing copy with the folder absent, then holding only empty folders;
-  - the same copy refused once a file is added, with the file kept;
-  - an overlapping added path still refused;
+  - an existing copy with the folder absent, then holding only empty folders,
+    then holding a file that stays in place and outside backups;
+  - another added path still refused;
   - a version created under the wider definition carrying texture data
-    through activation and backup.
+    through activation and backup;
+  - rollback to the older copy keeping canonical texture data and the older
+    copy's own files.
 - **Windows lifecycle test:** the split-mods test now also carries texture-pack
   data through activation, backup and rollback. It runs in hosted CI.
 - **Delivery gate:** the definition capability and entry tests cover the

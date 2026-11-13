@@ -34,40 +34,6 @@ pub(crate) fn require_exact_path(root: &Path, relative: &str) -> Result<()> {
     require_path(root, relative, false)
 }
 
-/// Check one newly declared directory path that may already exist only as
-/// empty directories, as a runtime creates before any player data. Any file,
-/// link or other entry, or a tree beyond the inspection limit, is refused.
-pub(crate) fn require_absent_or_empty_tree(root: &Path, relative: &str) -> Result<()> {
-    require_exact_path(root, relative)?;
-    let start = root.join(relative);
-    let mut pending = vec![start];
-    let mut inspected = 0usize;
-    while let Some(directory) = pending.pop() {
-        let metadata = match fs::symlink_metadata(&directory) {
-            Ok(metadata) => metadata,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
-            Err(error) => return Err(error.into()),
-        };
-        if !metadata.is_dir() || metadata.file_type().is_symlink() {
-            return Err(PortcoveError::conflict(
-                "a newly declared player-data path already holds data; preserve it before changing versions",
-            )
-            .detail("path", directory.display().to_string()));
-        }
-        for entry in fs::read_dir(&directory)? {
-            inspected += 1;
-            if inspected > MAX_DIRECTORY_ENTRIES {
-                return Err(PortcoveError::conflict(
-                    "player-data directory exceeds the inspection limit",
-                )
-                .detail("path", directory.display().to_string()));
-            }
-            pending.push(entry?.path());
-        }
-    }
-    Ok(())
-}
-
 fn require_path(root: &Path, relative: &str, absent: bool) -> Result<()> {
     crate::archive::validate_relative_path(relative, false)?;
     for ancestor in root.ancestors() {

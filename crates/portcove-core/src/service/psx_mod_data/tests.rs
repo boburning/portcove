@@ -1550,14 +1550,12 @@ mod retained_scope {
         let backup = service.create_backup(ID).unwrap();
         assert!(backup.path.join("data/saves/card1.mcd").is_file());
 
-        // A file this copy never synchronized holds every data operation.
+        // Files there stay in this copy, unmanaged, and nothing is held.
         let file = textures.join("replacements/tex.png");
-        fs::write(&file, b"player texture").unwrap();
-        let error = service.create_backup(ID).unwrap_err();
-        assert_scope_refusal(&error);
-        assert_eq!(error.details["added_path"], TEXTURES);
-        assert_eq!(fs::read(&file).unwrap(), b"player texture");
-        fs::remove_file(&file).unwrap();
+        fs::write(&file, b"older copy texture").unwrap();
+        let backup = service.create_backup(ID).unwrap();
+        assert!(!backup.path.join("data").join(TEXTURES).exists());
+        assert_eq!(fs::read(&file).unwrap(), b"older copy texture");
 
         // A version created under the wider definition keeps texture data.
         let new = register(&service, &wide, "v2", false);
@@ -1579,10 +1577,23 @@ mod retained_scope {
                 .join("data/mods/texture-packs/SLUS-00000/replacements/tex.png")
                 .is_file()
         );
+
+        // Rolling back keeps the canonical texture data for the wider copy
+        // and leaves the older copy's own files untouched.
+        write(&new.path, LAUNCH_MARKER, b"1");
+        service.rollback(ID).unwrap();
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, old.id);
+        let canonical = service.library.user_dir(ID);
+        assert_eq!(
+            fs::read(canonical.join("mods/texture-packs/SLUS-00000/replacements/tex.png")).unwrap(),
+            b"player texture"
+        );
+        assert_eq!(fs::read(&file).unwrap(), b"older copy texture");
+        service.create_backup(ID).unwrap();
     }
 
     #[test]
-    fn an_overlapping_added_path_still_refuses() {
+    fn another_added_path_still_refuses() {
         let temporary = tempfile::tempdir().unwrap();
         let mut service =
             PortcoveService::new(Library::open(temporary.path().join("library")).unwrap()).unwrap();
@@ -1590,7 +1601,7 @@ mod retained_scope {
         service.replace_catalog_for_test(narrow.clone());
         register(&service, &narrow, "v1", true);
         let mut paths = SPLIT.to_vec();
-        paths.push("mods/installed/extra");
+        paths.push("mods/other");
         service.replace_catalog_for_test(catalog(&paths));
         assert_scope_refusal(&service.create_backup(ID).unwrap_err());
     }

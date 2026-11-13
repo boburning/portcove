@@ -2162,13 +2162,12 @@ restoration when historical scope evidence is absent or interpreted persistence
 paths/patterns differ from their retained scope; the same persistence-authority
 preflight covers inactive versions in read-only Restore review and again before
 canonical publication. Actual restore also checks mod conflicts at its existing
-mutation boundary. A managed PS1 installation is the one exception for an added
-path. When a newer definition only adds a directory path that does not overlap
-the retained paths, the installation keeps its retained scope while that path
-is absent or holds only empty directories, as PSXRecomp `7192402` creates
-`mods/texture-packs/<game id>` on every start. Any file, link or alias there
-holds collection, activation and backup with the files preserved, and new
-installations retain the wider scope.
+mutation boundary. A managed PS1 installation is the one exception: when a
+newer definition only adds `mods/texture-packs`, which PSXRecomp `7192402`
+creates on every start, the installation keeps its retained scope. Files there
+stay in that copy unmanaged, as before the folder was declared, and are not
+collected, carried to another version or backed up. Installations created
+under the wider definition retain it and synchronize the folder.
 The original receipt, manifest and diagnostic-mutability
 behavior remain unchanged. Other existing integration interpretations, including
 the separately qualified Shipwright exception, retain their own boundaries.

@@ -6365,7 +6365,7 @@ impl PortcoveService {
         let mut port =
             self.checked_installed_mutability_port(install, retained, Platform::current()?)?;
         if has_retained_catalog {
-            self.keep_retained_psx_scope(install, retained, &mut port)?;
+            Self::keep_retained_psx_scope(retained, &mut port);
         }
         if crate::persistence::requires_restore_receipt(retained)
             && (!has_retained_catalog
@@ -6825,54 +6825,35 @@ impl PortcoveService {
     }
 
     /// A managed PS1 installation keeps the persistent scope its data-restore
-    /// receipt was issued for. A newer definition may add directory paths the
-    /// runtime creates empty (PSXRecomp `7192402` creates
-    /// `mods/texture-packs/<game id>` on every start) only while this copy
-    /// holds no data under them. New installations retain the wider scope.
-    fn keep_retained_psx_scope(
-        &self,
-        install: &InstallRecord,
-        retained: &PortDefinition,
-        port: &mut PortDefinition,
-    ) -> Result<()> {
-        if retained.adapter != AdapterKind::PsxRecompManaged
-            || retained.persistent_file_patterns != port.persistent_file_patterns
-            || retained.persistent_paths == port.persistent_paths
-            || !retained
-                .persistent_paths
-                .iter()
-                .all(|path| port.persistent_paths.contains(path))
-        {
-            return Ok(());
-        }
+    /// receipt was issued for when a newer definition only adds the
+    /// texture-pack folder that PSXRecomp `7192402` creates on every start.
+    /// Files there stay in that copy, unmanaged, exactly as before the folder
+    /// was declared. Installations created under the wider definition
+    /// retain it and synchronize the folder.
+    fn keep_retained_psx_scope(retained: &PortDefinition, port: &mut PortDefinition) {
         let added = port
             .persistent_paths
             .iter()
             .filter(|path| !retained.persistent_paths.contains(path))
-            .cloned()
             .collect::<Vec<_>>();
-        for path in &added {
-            let key = path.to_lowercase();
-            if retained.persistent_paths.iter().any(|other| {
-                let other = other.to_lowercase();
-                Path::new(&key).starts_with(&other) || Path::new(&other).starts_with(&key)
-            }) {
-                return Ok(());
-            }
+        if retained.adapter == AdapterKind::PsxRecompManaged
+            && retained.persistent_file_patterns == port.persistent_file_patterns
+            && !added.is_empty()
+            && added
+                .iter()
+                .all(|path| *path == crate::persistence::PSX_TEXTURE_PACKS)
+            && retained
+                .persistent_paths
+                .iter()
+                .all(|path| port.persistent_paths.contains(path))
+            && !retained.persistent_paths.iter().any(|path| {
+                let path = path.to_lowercase();
+                let added = crate::persistence::PSX_TEXTURE_PACKS;
+                Path::new(&path).starts_with(added) || Path::new(added).starts_with(&path)
+            })
+        {
+            port.persistent_paths.clone_from(&retained.persistent_paths);
         }
-        let root = self.persistence_root(retained, &install.path)?;
-        for path in &added {
-            crate::persistence::require_absent_or_empty_tree(&root, path).map_err(|error| {
-                error
-                    .detail("install_id", &install.id)
-                    .detail("added_path", path.as_str())
-                    .with_known_cause(
-                        crate::failure::KnownFailureCause::PortableDataContractChanged,
-                    )
-            })?;
-        }
-        port.persistent_paths.clone_from(&retained.persistent_paths);
-        Ok(())
     }
 
     fn persistence_root(&self, port: &PortDefinition, install_root: &Path) -> Result<PathBuf> {

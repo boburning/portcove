@@ -276,10 +276,12 @@ game-file, mod, publisher or gameplay qualification. See the
 [PS1 data boundary](CATALOG.md#managed-ps1-package-and-player-data-restoration).
 
 Managed PS1 version 3 keeps each existing installation's retained persistent
-scope when a newer definition adds a directory path that the copy holds no
-files under. Indexed PS1 entries that declare `mods/texture-packs` require
-minimum version 3, so an older reader refuses the entry instead of treating
-existing installations as a changed scope.
+scope when a newer definition only adds `mods/texture-packs`. Indexed PS1
+entries that declare it require minimum version 3, so an older reader refuses
+the entry instead of treating existing installations as a changed scope. A
+format-1 signed catalog built from a catalog with the folder changes those
+ports' persistent paths, so an older reader refuses the whole catalog and asks
+for a Portcove update, as for earlier persistent-path changes.
 
 Staged-source version 22 covers ready managed archives without a source, build,
 setup-helper, initialization or shared-account contract. New indexed entries of
