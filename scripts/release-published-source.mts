@@ -6,7 +6,10 @@ import type { GitHubRequestPolicy } from "./github-client.mts";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
-import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
+import {
+  inspectRemoteCommitObject,
+  inspectRemotePreparedCommit,
+} from "./release-coordinator-recovery.mts";
 import { inspectPreparationCommitBytes } from "./release-coordinator-state.mts";
 import { preparedCompilerSourceRequests } from "./release-compiler-source.mts";
 import {
@@ -310,16 +313,20 @@ function* publishedSourceRequests(
     };
     return { ...facts, proof_sha256: capacityDigest(facts), authority: "none" as const };
   }
-  const prepared = inspectRemoteCommitObject(preparedBody, publication.prepared_commit);
-  if (prepared.parents.length !== 1)
+  if (
+    !Array.isArray(preparedBody.parents) ||
+    preparedBody.parents.length !== 1 ||
+    !isRecord(preparedBody.parents[0]) ||
+    typeof preparedBody.parents[0].sha !== "string" ||
+    !/^[a-f0-9]{40}$/u.test(preparedBody.parents[0].sha)
+  )
     throw new Error("published preparation source parent is not exact");
-  const source = inspectRemoteCommitObject(
-    yield* get(`git/commits/${prepared.parents[0]!}`),
-    prepared.parents[0]!,
-  );
+  const sourceId = preparedBody.parents[0].sha;
+  const source = inspectRemoteCommitObject(yield* get(`git/commits/${sourceId}`), sourceId);
+  const prepared = inspectRemotePreparedCommit(preparedBody, publication.prepared_commit, source);
   const sourceName = `${namespace}-prepared-source/${source.object.oid}`;
   const firstSource = yield* ref(sourceName);
-  if (Boolean(firstSource) !== Boolean(firstVersion))
+  if (nativePreparation ? firstSource || firstVersion : !firstSource || !firstVersion)
     throw new Error("published source preparation receipt missing or unpaired");
   const preparedBytes = Buffer.from(prepared.object.bytes).toString("utf8");
   const intent = preparedBytes.match(/\nPortcove-Preparation-SHA256: ([a-f0-9]{64})\n/u)?.[1];

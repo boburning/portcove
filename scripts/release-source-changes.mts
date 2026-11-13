@@ -7,6 +7,7 @@ import type { GitHubClientOptions } from "./github-client.mts";
 import {
   inspectRemoteCommitObject,
   inspectRemoteGitObject,
+  inspectRemotePreparedCommit,
 } from "./release-coordinator-recovery.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -139,6 +140,7 @@ export function* releaseSourceChangeRequests(
     deadline?: number;
     applicationComparison?: boolean;
     catalogComparison?: boolean;
+    preparedApplication?: boolean;
   } = {},
 ) {
   const opportunity = object(structuredClone(rawOpportunity));
@@ -147,9 +149,11 @@ export function* releaseSourceChangeRequests(
   oid(opportunity.source_tree);
   const before = opportunity.base_commit;
   const source = opportunity.source_commit;
-  const maximumCommits = options.applicationComparison
-    ? maximumApplicationSourceCommits
-    : maximumReleaseSourceCommits;
+  const maximumCommits = options.preparedApplication
+    ? 1
+    : options.applicationComparison
+      ? maximumApplicationSourceCommits
+      : maximumReleaseSourceCommits;
   const maximumComparisonPages = Math.ceil(maximumCommits / 100);
   const deadline = Math.min(performance.now() + 120000, options.deadline ?? Infinity);
   let requests = 0;
@@ -168,18 +172,25 @@ export function* releaseSourceChangeRequests(
     if (response.status !== 200) throw new Error("release source provider unavailable");
     return response;
   };
+  const preparedParent = options.preparedApplication
+    ? inspectRemoteCommitObject((yield* request(`${base}/git/commits/${before}`)).body, before)
+    : null;
   const inspect = (raw: unknown, id: string) => {
     checkTime();
-    const result = inspectRemoteCommitObject(raw, id, options.readCommitObject?.(id));
+    const result =
+      preparedParent && id === source
+        ? inspectRemotePreparedCommit(raw, id, preparedParent)
+        : inspectRemoteCommitObject(raw, id, options.readCommitObject?.(id));
     checkTime();
     return result;
   };
   const original = inspect((yield* request(`${base}/git/commits/${source}`)).body, source);
   if (original.tree !== opportunity.source_tree) throw new Error("release source tree differs");
   const previous =
-    before === source
+    preparedParent ??
+    (before === source
       ? original
-      : inspect((yield* request(`${base}/git/commits/${before}`)).body, before);
+      : inspect((yield* request(`${base}/git/commits/${before}`)).body, before));
   const comparisonPath = `/${base}/compare/${before}...${source}`;
   const comparisonById = `/repositories/1354613114/compare/${before}...${source}`;
   let total: number | undefined;
@@ -279,7 +290,7 @@ export function* releaseSourceChangeRequests(
     return inspectReleaseSourceTree(
       (yield* request(`${base}/git/trees/${id}?recursive=1`)).body,
       id,
-      options.applicationComparison,
+      options.applicationComparison || options.preparedApplication,
       options.catalogComparison,
     ).entries;
   };
