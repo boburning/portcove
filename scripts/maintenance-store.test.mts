@@ -102,8 +102,8 @@ INSERT INTO portcove_maintenance.notifications (notification_key, subject_key, t
 const executorSeed = `
 UPDATE portcove_maintenance.notifications SET status = 'delivered', delivered_at = '2026-11-02T01:00:00Z', delivery_receipt = 'https://github.com/boburning/portcove/issues/177#issuecomment-1'
   WHERE notification_key = 'digest-2';
-INSERT INTO portcove_maintenance.operations (operation_id, kind, subject_key, fence_sequence, executor, created_at, updated_at)
-  VALUES ('op-1', 'intake', 'port:example-port', 3, 'hosted-discovery-intake', '2026-11-03T00:04:00Z', '2026-11-03T00:04:00Z');
+INSERT INTO portcove_maintenance.operations (operation_id, kind, subject_key, fence_sequence, fence_assessment_id, executor, created_at, updated_at)
+  VALUES ('op-1', 'intake', 'port:example-port', 3, 3, 'hosted-discovery-intake', '2026-11-03T00:04:00Z', '2026-11-03T00:04:00Z');
 UPDATE portcove_maintenance.operations SET state = 'dispatched', revision = 2 WHERE operation_id = 'op-1';
 UPDATE portcove_maintenance.operations SET state = 'ambiguous', revision = 3 WHERE operation_id = 'op-1';
 `;
@@ -232,6 +232,50 @@ void test(
          VALUES ('op-stale', 'intake', 'port:example-port', 2, 'hosted-discovery-intake', now(), now());`,
       /stale maintenance state/u,
     );
+    // A plan binds the applicable assessment: the same result under new inputs invalidates it.
+    runSql(
+      executor,
+      `INSERT INTO portcove_maintenance.operations (operation_id, kind, subject_key, fence_sequence, fence_assessment_id, executor, created_at, updated_at)
+         VALUES ('op-plan', 'intake', 'port:example-port', 3, 3, 'hosted-discovery-intake', now(), now());`,
+    );
+    rejects(
+      collector,
+      "SELECT portcove_maintenance.verify_current(2, 'run-1');",
+      /requires a transition/u,
+    );
+    runSql(
+      collector,
+      `INSERT INTO portcove_maintenance.assessments (subject_key, policy_version, input_digest, state, result_digest, explanation, assessed_at, run_id)
+         VALUES ('port:example-port', 'policy-2', '${hex("6")}', 'offered', '${hex("a")}', '{"why":"A, new inputs"}', now(), 'run-1');
+       SELECT portcove_maintenance.verify_current((SELECT max(assessment_id) FROM portcove_maintenance.assessments), 'run-1');`,
+    );
+    const refreshed = runSql(
+      source.owner,
+      "SELECT max(assessment_id) FROM portcove_maintenance.assessments;",
+    ).trim();
+    assert.equal(
+      runSql(
+        source.owner,
+        `SELECT sequence || ':' || assessment_id || ':' || applicable_assessment_id
+           FROM portcove_maintenance.subject_current WHERE subject_key = 'port:example-port';`,
+      ).trim(),
+      `3:3:${refreshed}`,
+      "the material transition stays; the applicable assessment moves",
+    );
+    rejects(
+      executor,
+      "UPDATE portcove_maintenance.operations SET state = 'dispatched', revision = 2 WHERE operation_id = 'op-plan';",
+      new RegExp(`operation fenced at 3 on assessment 3, current 3 on ${refreshed}`, "u"),
+    );
+    rejects(
+      executor,
+      `INSERT INTO portcove_maintenance.operations (operation_id, kind, subject_key, fence_sequence, fence_assessment_id, executor, created_at, updated_at)
+         VALUES ('op-old-plan', 'intake', 'port:example-port', 3, 3, 'hosted-discovery-intake', now(), now());`,
+      new RegExp(`operation bound to assessment 3, current ${refreshed}`, "u"),
+    );
+    const rebind = `UPDATE portcove_maintenance.operations SET fence_assessment_id = ${refreshed}, state = 'abandoned', revision = 2 WHERE operation_id = 'op-plan';`;
+    rejects(executor, rebind, /permission denied/u);
+    rejects(source.owner, rebind, /identity is immutable/u);
     // Limited roles.
     const report = source.as("report_login");
     assert.match(runSql(report, "SELECT count(*) FROM portcove_maintenance.observations;"), /1/u);
@@ -298,6 +342,15 @@ void test(
     assert.deepEqual(migrationStatus(target.owner).problems, []);
 
     // Guards, sequences and roles work on the restored store.
+    assert.equal(
+      runSql(
+        target.owner,
+        `SELECT portcove_maintenance.acquire_collection() > max(acquisition)
+           FROM portcove_maintenance.collection_runs;`,
+      ).trim(),
+      "t",
+      "a restored store keeps issuing newer acquisitions",
+    );
     runSql(target.owner, "CREATE ROLE executor_login LOGIN IN ROLE portcove_maintenance_executor;");
     const restoredExecutor = target.as("executor_login");
     runSql(

@@ -203,12 +203,22 @@ export function parseHandoffSubject(subject: string) {
 /** Characters the operation and notification identity checks refuse map to '.'. */
 export const identityPart = (value: string) => value.replace(/[^A-Za-z0-9._:-]/gu, ".");
 
-/** `handoff.<kind>.<source>.<fence>`, hashed only when it would exceed the store's 200 characters. */
-export function handoffOperationId(kind: string, source: string, fence: number) {
-  const id = `handoff.${kind}.${identityPart(source)}.${fence}`;
+/**
+ * `handoff.<kind>.<source>.<fence>[.a<assessment>]`, hashed only when it would
+ * exceed the store's 200 characters. The applicable assessment is part of the
+ * identity, so a plan replaced at the same fence gets a new operation.
+ */
+export function handoffOperationId(
+  kind: string,
+  source: string,
+  fence: number,
+  assessment?: number,
+) {
+  const suffix = assessment === undefined ? `${fence}` : `${fence}.a${assessment}`;
+  const id = `handoff.${kind}.${identityPart(source)}.${suffix}`;
   return id.length <= 200
     ? id
-    : `handoff.${kind}.sha256-${createHash("sha256").update(source).digest("hex").slice(0, 40)}.${fence}`;
+    : `handoff.${kind}.sha256-${createHash("sha256").update(source).digest("hex").slice(0, 40)}.${suffix}`;
 }
 
 export interface HandoffCondition {
@@ -390,13 +400,22 @@ INSERT INTO portcove_maintenance.assessments (subject_key, policy_version, input
     FROM target
   ON CONFLICT (subject_key, policy_version, input_digest) DO NOTHING;`,
     `${target}
-INSERT INTO portcove_maintenance.subject_transitions (subject_key, sequence, assessment_id)
-  SELECT a.subject_key, coalesce(c.sequence, 0) + 1, a.assessment_id
+INSERT INTO portcove_maintenance.subject_transitions (subject_key, sequence, assessment_id, verified_run_id)
+  SELECT a.subject_key, coalesce(c.sequence, 0) + 1, a.assessment_id, ${literal(input.run)}
     FROM target t
     JOIN portcove_maintenance.assessments a
       ON a.subject_key = t.key AND a.policy_version = ${policy} AND a.input_digest = t.input_digest
     LEFT JOIN portcove_maintenance.subject_current c ON c.subject_key = t.key
    WHERE c.result_digest IS DISTINCT FROM a.result_digest;`,
+    // An unchanged condition is still verified by this complete run, quietly.
+    `${target}
+SELECT portcove_maintenance.verify_current(a.assessment_id, ${literal(input.run)})
+    FROM target t
+    JOIN portcove_maintenance.assessments a
+      ON a.subject_key = t.key AND a.policy_version = ${policy} AND a.input_digest = t.input_digest
+    JOIN portcove_maintenance.subject_current c ON c.subject_key = t.key
+   WHERE c.result_digest = a.result_digest
+     AND (c.applicable_assessment_id <> a.assessment_id OR c.verified_run_id IS DISTINCT FROM ${literal(input.run)});`,
     `INSERT INTO portcove_maintenance.notifications (notification_key, subject_key, transition_sequence, created_at)
   SELECT 'transition:' || regexp_replace(t.subject_key, '[^A-Za-z0-9._:-]', '.', 'g') || ':' || t.sequence,
          t.subject_key, t.sequence, statement_timestamp()
@@ -410,21 +429,25 @@ INSERT INTO portcove_maintenance.subject_transitions (subject_key, sequence, ass
 /** Open handoffs and each one's newest open operation, as one JSON value. */
 export const openHandoffsSql = `(SELECT coalesce(json_agg(json_build_object(
       'subject_key', c.subject_key, 'sequence', c.sequence, 'updated_at', c.updated_at,
+      'assessment_id', c.applicable_assessment_id,
       'policy_version', a.policy_version, 'explanation', a.explanation,
       'operation', (SELECT json_build_object('operation_id', o.operation_id, 'state', o.state,
-                     'fence_sequence', o.fence_sequence, 'revision', o.revision, 'executor', o.executor)
+                     'fence_sequence', o.fence_sequence, 'fence_assessment_id', o.fence_assessment_id,
+                     'revision', o.revision, 'executor', o.executor)
                       FROM portcove_maintenance.operations o
                      WHERE o.subject_key = c.subject_key AND o.state IN ('planned', 'dispatched', 'ambiguous')
                      ORDER BY o.fence_sequence DESC, o.operation_id COLLATE "C" LIMIT 1))
       ORDER BY c.subject_key COLLATE "C"), '[]')
     FROM portcove_maintenance.subject_current c
-    JOIN portcove_maintenance.assessments a ON a.assessment_id = c.assessment_id
+    JOIN portcove_maintenance.assessments a ON a.assessment_id = c.applicable_assessment_id
    WHERE starts_with(c.subject_key, 'handoff:') AND a.state = 'needs-attention')`;
 
 export interface HandoffOperation {
   operation_id: string;
   state: string;
   fence_sequence: number;
+  /** Null for a plan recorded before migration 0003 that the backfill could not bind. */
+  fence_assessment_id: number | null;
   revision: number;
   executor: string;
 }
@@ -434,6 +457,8 @@ export interface OpenHandoff {
   kind: string;
   source_subject: string;
   sequence: number;
+  /** The latest applicable assessment that a plan must bind. */
+  assessment_id: number;
   updated_at: string;
   condition: unknown;
   /** Null for a kind this registry version does not know. */
@@ -447,17 +472,19 @@ export function openHandoffs(rows: unknown): OpenHandoff[] {
     rows as {
       subject_key: string;
       sequence: number;
+      assessment_id: number;
       updated_at: string;
       explanation: { condition?: unknown };
       operation: HandoffOperation | null;
     }[]
-  ).map(({ subject_key, sequence, updated_at, explanation, operation }) => {
+  ).map(({ subject_key, sequence, assessment_id, updated_at, explanation, operation }) => {
     const parsed = parseHandoffSubject(subject_key);
     return {
       subject_key,
       kind: parsed?.kind ?? "unknown",
       source_subject: parsed?.source ?? subject_key,
       sequence,
+      assessment_id,
       updated_at,
       condition: explanation.condition ?? null,
       registry: handoffEntry(parsed?.kind ?? "") ?? null,
@@ -522,7 +549,7 @@ export function handoffGuidance(entry: HandoffEntry, condition: unknown) {
 export function nextAction(handoff: OpenHandoff) {
   const entry = handoff.registry;
   const operation = handoff.operation
-    ? `operation ${handoff.operation.operation_id} ${handoff.operation.state} at fence ${handoff.operation.fence_sequence}${handoff.operation.fence_sequence === handoff.sequence ? "" : ` (stale; current ${handoff.sequence})`}`
+    ? `operation ${handoff.operation.operation_id} ${handoff.operation.state} at fence ${handoff.operation.fence_sequence}${handoff.operation.fence_sequence === handoff.sequence && handoff.operation.fence_assessment_id === handoff.assessment_id ? "" : ` (stale; current ${handoff.sequence})`}`
     : `no operation recorded (fence ${handoff.sequence})`;
   if (!entry) return `Unregistered handoff kind ${handoff.kind}; dispatch disabled. ${operation}.`;
   const guidance = handoffGuidance(entry, handoff.condition);
@@ -532,14 +559,15 @@ export function nextAction(handoff: OpenHandoff) {
 /**
  * Executor bookkeeping on the local store only: plans one operation per open
  * handoff at its current fence, and abandons each planned handoff operation
- * whose subject has moved on (cleared or a newer condition). Nothing is
+ * whose subject has moved on (cleared, a newer condition, or a newer applicable
+ * assessment of the same result). Nothing is
  * dispatched or completed and no receipt is recorded; replays change nothing.
  */
 export function recordHandoffOperations(environment: NodeJS.ProcessEnv) {
   const open = readOpenHandoffs(environment).filter(({ registry }) => registry !== null);
   const rows = open.map(
-    ({ subject_key, kind, source_subject, sequence, registry }) =>
-      `(${literal(handoffOperationId(kind, source_subject, sequence))}, ${literal(`handoff.${kind}`)}, ${literal(subject_key)}, ${sequence}::bigint, ${literal(registry!.executor)})`,
+    ({ subject_key, kind, source_subject, sequence, assessment_id, registry }) =>
+      `(${literal(handoffOperationId(kind, source_subject, sequence, assessment_id))}, ${literal(`handoff.${kind}`)}, ${literal(subject_key)}, ${sequence}::bigint, ${assessment_id}::bigint, ${literal(registry!.executor)})`,
   );
   const output = runSql(
     environment,
@@ -549,16 +577,22 @@ WITH abandoned AS (
      SET state = 'abandoned', revision = o.revision + 1, updated_at = greatest(clock_timestamp(), o.updated_at)
     FROM portcove_maintenance.subject_current c
    WHERE c.subject_key = o.subject_key AND o.state = 'planned' AND starts_with(o.kind, 'handoff.')
-     AND c.sequence <> o.fence_sequence
+     AND (c.sequence <> o.fence_sequence OR c.applicable_assessment_id IS DISTINCT FROM o.fence_assessment_id)
   RETURNING 1)
 SELECT count(*) FROM abandoned;
 ${
   rows.length
     ? `WITH planned AS (
-  INSERT INTO portcove_maintenance.operations (operation_id, kind, subject_key, fence_sequence, executor, created_at, updated_at)
-    SELECT v.operation_id, v.kind, v.subject_key, v.fence, v.executor, clock_timestamp(), clock_timestamp()
-      FROM (VALUES ${rows.join(",\n      ")}) AS v (operation_id, kind, subject_key, fence, executor)
-      JOIN portcove_maintenance.subject_current c ON c.subject_key = v.subject_key AND c.sequence = v.fence
+  INSERT INTO portcove_maintenance.operations (operation_id, kind, subject_key, fence_sequence, fence_assessment_id, executor, created_at, updated_at)
+    SELECT v.operation_id, v.kind, v.subject_key, v.fence, v.assessment, v.executor, clock_timestamp(), clock_timestamp()
+      FROM (VALUES ${rows.join(",\n      ")}) AS v (operation_id, kind, subject_key, fence, assessment, executor)
+      JOIN portcove_maintenance.subject_current c
+        ON c.subject_key = v.subject_key AND c.sequence = v.fence AND c.applicable_assessment_id = v.assessment
+     -- A plan recorded before migration 0003 under the older identity still counts.
+     WHERE NOT EXISTS (SELECT 1 FROM portcove_maintenance.operations o
+                        WHERE o.subject_key = v.subject_key AND o.fence_sequence = v.fence
+                          AND o.fence_assessment_id = v.assessment
+                          AND o.state IN ('planned', 'dispatched', 'ambiguous'))
   ON CONFLICT (operation_id) DO NOTHING
   RETURNING 1)
 SELECT count(*) FROM planned;`

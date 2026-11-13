@@ -614,26 +614,44 @@ export function membershipDigest(members: ReadonlyMap<string, string>) {
   );
 }
 
-/** Latest present content digest per subject from finished runs of one source. */
-function latestMembers(environment: NodeJS.ProcessEnv, source: string, startedAt: string) {
-  const rows = parseJson(
+/** A source's changes-only baseline: its latest finished run and that run's present members. */
+export interface SourceBaseline {
+  run: string | null;
+  members: ReadonlyMap<string, string>;
+}
+
+/** Latest present content digest per subject, as of the source's latest finished run. */
+function latestMembers(environment: NodeJS.ProcessEnv, source: string): SourceBaseline {
+  const value = parseJson(
     runSql(
       environment,
-      `SELECT coalesce(json_agg(json_build_object('subject', subject_key, 'digest', content_sha256, 'absent', absent)), '[]')
-         FROM (SELECT DISTINCT ON (o.subject_key) o.subject_key, o.content_sha256,
-                      o.payload = portcove_maintenance.absent_payload() AS absent
-                 FROM portcove_maintenance.observations o
-                 JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
-                WHERE r.source = ${literal(source)} AND r.coverage <> 'in_progress'
-                  AND r.started_at <= ${literal(startedAt)}::timestamptz
-                ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC) latest;`,
+      `SELECT json_build_object('run', b.run, 'members', coalesce((
+           SELECT json_agg(json_build_object('subject', m.subject_key, 'digest', m.content_sha256))
+             FROM portcove_maintenance.run_members(b.run) m), '[]'))
+         FROM (SELECT portcove_maintenance.latest_run(${literal(source)}) AS run) b;`,
     ).trim(),
     "latest maintenance members",
-  ) as { subject: string; digest: string; absent: boolean }[];
-  return new Map(
-    rows.filter(({ absent }) => !absent).map(({ subject, digest }) => [subject, digest]),
-  );
+  ) as { run: string | null; members: { subject: string; digest: string }[] };
+  return {
+    run: value.run,
+    members: new Map(value.members.map(({ subject, digest }) => [subject, digest])),
+  };
 }
+
+/** A database-ordered ticket, taken before any external read of a collection. */
+export function acquireCollection(environment: NodeJS.ProcessEnv) {
+  const ticket = Number(
+    runSql(environment, "SELECT portcove_maintenance.acquire_collection();").trim(),
+  );
+  if (!Number.isSafeInteger(ticket) || ticket < 1)
+    throw new MaintenanceStoreError("The maintenance store issued no collection acquisition");
+  return ticket;
+}
+
+/** The store refused the collection: a newer collection of a source already finished. */
+export const staleCollectionPattern = /stale maintenance collection for /u;
+/** Another run finished after the changes-only baseline was read. */
+export const baselineChangedPattern = /maintenance baseline changed for /u;
 
 /**
  * One transaction: the catalog and Core runs, their observations, assessments and
@@ -647,6 +665,8 @@ export function collectionSql(input: {
   apiSchema: number;
   runner: string;
   startedAt: string;
+  /** The ticket taken before external reads; omitted, the store admits at insert time. */
+  acquisition?: number | undefined;
   platform: string;
   subjects: CollectedSubject[];
   latest?: {
@@ -658,29 +678,48 @@ export function collectionSql(input: {
     hostedIntake?: ReadonlyMap<string, string>;
     publication?: ReadonlyMap<string, string>;
   };
+  /**
+   * The latest finished run of each source when `latest` was read. The store
+   * refuses the transaction if any of them changed, so the diff stays exact.
+   */
+  baseline?: Readonly<Record<string, string | null>>;
   publication?: {
     revision: string;
     facts: ReadonlyMap<string, unknown>;
     gaps: { subject_key: string; code: string; message: string }[];
-    expected: number;
+    /** Null when the read failed before any definition was counted. */
+    expected: number | null;
   };
   releaseHealth?: {
     revision: string;
-    expected: number;
+    /** The report could not be read: a failed run, prior facts stay current. */
+    failed?: boolean;
+    expected: number | null;
     facts: ReadonlyMap<string, unknown>;
     gaps: { subject_key: string; code: string; message: string }[];
   };
   upstream?: UpstreamObservation;
   hostedIntake?: HostedIntakeObservation;
-  issues?: { repository: string; observedAt: string; facts: ReadonlyMap<string, unknown> };
+  issues?: {
+    repository: string;
+    observedAt: string;
+    facts: ReadonlyMap<string, unknown>;
+    /** The inventory could not be read completely: a failed run, prior facts stay current. */
+    failure?: SourceGap;
+  };
 }) {
   const token = randomUUID();
+  const acquisition =
+    input.acquisition === undefined ? "DEFAULT" : String(Math.trunc(input.acquisition));
   const coreSource = coreSourceName(input.platform);
   const catalogRun = `catalog-records:${input.revision.slice(0, 12)}:${token}`;
   const coreRun = `${coreSource}:${input.cliSha256.slice(0, 12)}:${token}`;
   const coreRevision = `cli-sha256:${input.cliSha256}`;
   const policy = `port-capabilities;api=${input.apiSchema};cli-sha256=${input.cliSha256}`;
   const lines = [
+    // Freshness checks below must see runs committed while this transaction waited
+    // for its locks, whatever the server or role default isolation is.
+    "SET TRANSACTION ISOLATION LEVEL READ COMMITTED;",
     // Quoting below must never depend on server or role settings.
     "SET LOCAL standard_conforming_strings = on;",
     // Collectors of the same source are serialized; locks are taken in one order.
@@ -699,9 +738,16 @@ export function collectionSql(input: {
          .sort()
          .map(literal)
          .join(", ")}]) AS source ORDER BY source;`,
-    `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at) VALUES
-      (${literal(catalogRun)}, 'catalog-records', ${literal(input.runner)}, ${literal(input.revision)}, ${literal(input.startedAt)}),
-      (${literal(coreRun)}, ${literal(coreSource)}, ${literal(input.runner)}, ${literal(coreRevision)}, ${literal(input.startedAt)});`,
+    // Under the locks: the changes-only diff still matches each source's latest run.
+    ...Object.entries(input.baseline ?? {})
+      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+      .map(
+        ([source, run]) =>
+          `SELECT portcove_maintenance.expect_baseline(${literal(source)}, ${run === null ? "NULL" : literal(run)});`,
+      ),
+    `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
+      (${literal(catalogRun)}, 'catalog-records', ${literal(input.runner)}, ${literal(input.revision)}, ${literal(input.startedAt)}, ${acquisition}),
+      (${literal(coreRun)}, ${literal(coreSource)}, ${literal(input.runner)}, ${literal(coreRevision)}, ${literal(input.startedAt)}, ${acquisition});`,
   ];
   const observe = (run: string, key: string, fact: Fact) =>
     lines.push(
@@ -765,12 +811,20 @@ export function collectionSql(input: {
       `INSERT INTO portcove_maintenance.assessments (subject_key, policy_version, input_digest, state, result_digest, explanation, assessed_at, run_id)
         VALUES (${literal(assessed)}, ${literal(policy)}, ${literal(inputDigest)}, ${literal(result.state)}, ${literal(resultDigest)}, ${jsonLiteral(explanation)}, statement_timestamp(), ${literal(coreRun)})
         ON CONFLICT (subject_key, policy_version, input_digest) DO NOTHING;`,
-      `INSERT INTO portcove_maintenance.subject_transitions (subject_key, sequence, assessment_id)
-        SELECT a.subject_key, coalesce(c.sequence, 0) + 1, a.assessment_id
+      `INSERT INTO portcove_maintenance.subject_transitions (subject_key, sequence, assessment_id, verified_run_id)
+        SELECT a.subject_key, coalesce(c.sequence, 0) + 1, a.assessment_id, ${literal(coreRun)}
           FROM portcove_maintenance.assessments a
           LEFT JOIN portcove_maintenance.subject_current c ON c.subject_key = a.subject_key
           WHERE a.subject_key = ${literal(assessed)} AND a.policy_version = ${literal(policy)} AND a.input_digest = ${literal(inputDigest)}
             AND c.result_digest IS DISTINCT FROM a.result_digest;`,
+      // The same result under new policy or inputs: current provenance and verification
+      // move to this assessment and run, with no transition or notification.
+      `SELECT portcove_maintenance.verify_current(a.assessment_id, ${literal(coreRun)})
+          FROM portcove_maintenance.assessments a
+          JOIN portcove_maintenance.subject_current c ON c.subject_key = a.subject_key
+          WHERE a.subject_key = ${literal(assessed)} AND a.policy_version = ${literal(policy)} AND a.input_digest = ${literal(inputDigest)}
+            AND c.result_digest = a.result_digest
+            AND (c.applicable_assessment_id <> a.assessment_id OR c.verified_run_id IS DISTINCT FROM ${literal(coreRun)});`,
       // Changes-only: a transition after the subject's baseline is a pending notification.
       `INSERT INTO portcove_maintenance.notifications (notification_key, subject_key, transition_sequence, created_at)
         SELECT 'transition:' || replace(t.subject_key, '@', '.') || ':' || t.sequence, t.subject_key, t.sequence, statement_timestamp()
@@ -785,10 +839,12 @@ export function collectionSql(input: {
   let issueRevision = "";
   if (input.issues) {
     if (input.mode !== "all") throw new MaintenanceStoreError("Issue collection requires --all");
-    issueRevision = `issues-sha256:${sha256(canonicalJson([...input.issues.facts]))}`;
+    issueRevision = input.issues.failure
+      ? "issues-project:unavailable"
+      : `issues-sha256:${sha256(canonicalJson([...input.issues.facts]))}`;
     lines.push(
-      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at) VALUES
-        (${literal(issueRun)}, 'issues-project', ${literal(input.runner)}, ${literal(issueRevision)}, ${literal(input.startedAt)});`,
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
+        (${literal(issueRun)}, 'issues-project', ${literal(input.runner)}, ${literal(issueRevision)}, ${literal(input.startedAt)}, ${acquisition});`,
     );
     for (const [key, payload] of input.issues.facts)
       issueFactsByKey.set(key, {
@@ -808,8 +864,8 @@ export function collectionSql(input: {
     if (input.mode !== "all")
       throw new MaintenanceStoreError("Release-health collection requires --all");
     lines.push(
-      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at) VALUES
-        (${literal(healthRun)}, 'release-health', ${literal(input.runner)}, ${literal(input.releaseHealth.revision)}, ${literal(input.startedAt)});`,
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
+        (${literal(healthRun)}, 'release-health', ${literal(input.runner)}, ${literal(input.releaseHealth.revision)}, ${literal(input.startedAt)}, ${acquisition});`,
     );
     for (const [key, payload] of input.releaseHealth.facts)
       healthFacts.set(key, {
@@ -825,8 +881,8 @@ export function collectionSql(input: {
     if (input.mode !== "all")
       throw new MaintenanceStoreError("Upstream-observation collection requires --all");
     lines.push(
-      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at) VALUES
-        (${literal(upstreamRun)}, 'upstream-observations', ${literal(input.runner)}, ${literal(input.upstream.revision)}, ${literal(input.startedAt)});`,
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
+        (${literal(upstreamRun)}, 'upstream-observations', ${literal(input.runner)}, ${literal(input.upstream.revision)}, ${literal(input.startedAt)}, ${acquisition});`,
     );
     for (const [key, payload] of input.upstream.facts)
       upstreamFactsByKey.set(key, {
@@ -842,8 +898,8 @@ export function collectionSql(input: {
     if (input.mode !== "all")
       throw new MaintenanceStoreError("Hosted-intake collection requires --all");
     lines.push(
-      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at) VALUES
-        (${literal(hostedRun)}, 'hosted-intake', ${literal(input.runner)}, ${literal(input.hostedIntake.revision)}, ${literal(input.startedAt)});`,
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
+        (${literal(hostedRun)}, 'hosted-intake', ${literal(input.runner)}, ${literal(input.hostedIntake.revision)}, ${literal(input.startedAt)}, ${acquisition});`,
     );
     for (const [key, payload] of input.hostedIntake.facts)
       hostedFacts.set(key, {
@@ -871,17 +927,21 @@ export function collectionSql(input: {
     runs.push([
       issueRun,
       issueRevision,
-      "complete",
-      [],
+      input.issues.failure ? "failed" : "complete",
+      input.issues.failure ? [input.issues.failure] : [],
       issueFactsByKey,
       input.latest?.issues,
-      issueFactsByKey.size,
+      input.issues.failure ? null : issueFactsByKey.size,
     ]);
   if (input.releaseHealth)
     runs.push([
       healthRun,
       input.releaseHealth.revision,
-      input.releaseHealth.gaps.length ? "partial" : "complete",
+      input.releaseHealth.failed
+        ? "failed"
+        : input.releaseHealth.gaps.length
+          ? "partial"
+          : "complete",
       input.releaseHealth.gaps,
       healthFacts,
       input.latest?.releaseHealth,
@@ -915,8 +975,8 @@ export function collectionSql(input: {
   if (input.publication) {
     const publicationFactsByKey = new Map<string, Fact>();
     lines.push(
-      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at) VALUES
-        (${literal(publicationRun)}, 'definition-publication', ${literal(input.runner)}, ${literal(input.publication.revision)}, ${literal(input.startedAt)});`,
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
+        (${literal(publicationRun)}, 'definition-publication', ${literal(input.runner)}, ${literal(input.publication.revision)}, ${literal(input.startedAt)}, ${acquisition});`,
     );
     for (const [key, payload] of input.publication.facts)
       publicationFactsByKey.set(key, {
@@ -1045,6 +1105,33 @@ async function mapBounded<T, R>(
   return results;
 }
 
+/** One source's per-subject or whole-source gap. */
+export interface SourceGap {
+  subject_key: string;
+  code: string;
+  message: string;
+}
+
+/** A source read as a typed outcome, so one source's failure cannot discard another's facts. */
+async function sourceOutcome<T>(
+  read: () => Promise<T>,
+): Promise<{ ok: true; value: T } | { ok: false; message: string }> {
+  try {
+    return { ok: true, value: await read() };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+const failedSource = (subject_key: string, message: string): SourceGap => ({
+  subject_key,
+  code: "unavailable",
+  message: `The source could not be read completely; prior facts stay current. ${message}`.slice(
+    0,
+    1000,
+  ),
+});
+
 export async function collect(options: {
   cli: string;
   sample?: string | undefined;
@@ -1088,10 +1175,13 @@ export async function collect(options: {
     throw new MaintenanceStoreError(
       "portcove capabilities are unavailable or use an unsupported port capability schema",
     );
-  const startedAt = new Date().toISOString();
+  const apiSchema = capabilities.schema_version;
   const platform = options.platform ?? hostPlatform();
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/u.test(platform))
     throw new MaintenanceStoreError("Invalid platform label");
+  // Freshness is the database's order of this ticket, never this runner's clock.
+  const acquisition = acquireCollection(options.environment);
+  const startedAt = new Date().toISOString();
   const subjects = await mapBounded(ids, options.concurrency ?? 4, async (id) => ({
     id,
     record: committedRecord(revision, id),
@@ -1102,11 +1192,17 @@ export async function collect(options: {
   const mode = options.all ? "all" : "sample";
   if (options.issues && !options.all)
     throw new MaintenanceStoreError("Issue collection requires --all");
-  const issueInventory = options.issues ? await options.issues() : undefined;
+  // Each source fails alone: its run records the gap and every other source still lands.
+  const issueRead = options.issues ? await sourceOutcome(options.issues) : undefined;
+  const issueInventory = issueRead?.ok ? issueRead.value : undefined;
   if (options.releaseHealth && !options.all)
     throw new MaintenanceStoreError("Release-health collection requires --all");
-  const health = options.releaseHealth ? await options.releaseHealth() : undefined;
-  const healthFacts = health ? releaseHealthFacts(health.report) : undefined;
+  const healthRead = options.releaseHealth
+    ? await sourceOutcome(async () => {
+        const report = await options.releaseHealth!();
+        return { revision: report.revision, ...releaseHealthFacts(report.report) };
+      })
+    : undefined;
   if (options.upstream && !options.all)
     throw new MaintenanceStoreError("Upstream-observation collection requires --all");
   const upstream = options.upstream ? await upstreamObservation(options.upstream) : undefined;
@@ -1117,88 +1213,131 @@ export async function collect(options: {
     : undefined;
   if (options.publication && !options.all)
     throw new MaintenanceStoreError("Publication collection requires --all");
-  const publicationObserved = options.publication
-    ? await (typeof options.publication === "function" ? options.publication : readPublication)(
-        options.cli,
-        revision,
+  const publicationRead = options.publication
+    ? await sourceOutcome(() =>
+        (typeof options.publication === "function" ? options.publication : readPublication)(
+          options.cli,
+          revision,
+        ),
       )
     : undefined;
-  runSql(
-    options.environment,
-    collectionSql({
+  const record = (baseline?: Map<string, SourceBaseline>) => {
+    const members = (source: string) => baseline?.get(source)?.members ?? new Map<string, string>();
+    return collectionSql({
       mode,
+      acquisition,
       revision,
       cliSha256,
-      apiSchema: capabilities.schema_version,
+      apiSchema,
       runner: options.runner ?? process.env.PORTCOVE_MAINTENANCE_RUNNER?.trim() ?? "generic",
       startedAt,
       platform,
       subjects,
-      ...(issueInventory
+      ...(issueRead
         ? {
-            issues: {
-              repository: issueInventory.repository,
-              observedAt: issueInventory.observed_at,
-              facts: issueFacts(issueInventory),
-            },
+            issues: issueRead.ok
+              ? {
+                  repository: issueRead.value.repository,
+                  observedAt: issueRead.value.observed_at,
+                  facts: issueFacts(issueRead.value),
+                }
+              : {
+                  repository: "",
+                  observedAt: "",
+                  facts: new Map(),
+                  failure: failedSource("source:issues-project", issueRead.message),
+                },
           }
         : {}),
-      ...(health && healthFacts
-        ? { releaseHealth: { revision: health.revision, ...healthFacts } }
+      ...(healthRead
+        ? {
+            releaseHealth: healthRead.ok
+              ? healthRead.value
+              : {
+                  revision: "release-health:unavailable",
+                  failed: true,
+                  expected: null,
+                  facts: new Map(),
+                  gaps: [failedSource("source:release-health-report", healthRead.message)],
+                },
+          }
         : {}),
       ...(upstream ? { upstream } : {}),
       ...(hostedIntake ? { hostedIntake } : {}),
-      ...(publicationObserved
+      ...(publicationRead
         ? {
-            publication: {
-              revision: `${revision}+published-status:${publicationObserved.published_status ?? "unreachable"}`,
-              ...publicationFacts(publicationObserved),
-            },
+            publication: publicationRead.ok
+              ? {
+                  revision: `${revision}+published-status:${publicationRead.value.published_status ?? "unreachable"}`,
+                  ...publicationFacts(publicationRead.value),
+                }
+              : {
+                  revision: `${revision}+inspection:unavailable`,
+                  facts: new Map(),
+                  expected: null,
+                  gaps: [failedSource("source:definition-publication", publicationRead.message)],
+                },
           }
         : {}),
-      ...(mode === "all"
+      ...(baseline
         ? {
+            baseline: Object.fromEntries([...baseline].map(([source, { run }]) => [source, run])),
             latest: {
-              catalog: latestMembers(options.environment, "catalog-records", startedAt),
-              core: latestMembers(options.environment, coreSourceName(platform), startedAt),
-              ...(issueInventory
-                ? { issues: latestMembers(options.environment, "issues-project", startedAt) }
-                : {}),
-              ...(health
-                ? { releaseHealth: latestMembers(options.environment, "release-health", startedAt) }
-                : {}),
-              ...(upstream
-                ? {
-                    upstream: latestMembers(
-                      options.environment,
-                      "upstream-observations",
-                      startedAt,
-                    ),
-                  }
-                : {}),
-              ...(hostedIntake
-                ? { hostedIntake: latestMembers(options.environment, "hosted-intake", startedAt) }
-                : {}),
-              ...(publicationObserved
-                ? {
-                    publication: latestMembers(
-                      options.environment,
-                      "definition-publication",
-                      startedAt,
-                    ),
-                  }
-                : {}),
+              catalog: members("catalog-records"),
+              core: members(coreSourceName(platform)),
+              ...(issueRead ? { issues: members("issues-project") } : {}),
+              ...(healthRead ? { releaseHealth: members("release-health") } : {}),
+              ...(upstream ? { upstream: members("upstream-observations") } : {}),
+              ...(hostedIntake ? { hostedIntake: members("hosted-intake") } : {}),
+              ...(publicationRead ? { publication: members("definition-publication") } : {}),
             },
           }
         : {}),
-    }),
-  );
+    });
+  };
+  const sources = [
+    "catalog-records",
+    coreSourceName(platform),
+    ...(issueRead ? ["issues-project"] : []),
+    ...(healthRead ? ["release-health"] : []),
+    ...(upstream ? ["upstream-observations"] : []),
+    ...(hostedIntake ? ["hosted-intake"] : []),
+    ...(publicationRead ? ["definition-publication"] : []),
+  ];
+  // A changes-only diff is exact only against the baseline the store still holds;
+  // if another run finished meanwhile, reread it. External reads are not repeated.
+  for (let attempt = 1; ; attempt++) {
+    const baseline =
+      mode === "all"
+        ? new Map(sources.map((source) => [source, latestMembers(options.environment, source)]))
+        : undefined;
+    try {
+      runSql(options.environment, record(baseline));
+      break;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (staleCollectionPattern.test(message))
+        throw new MaintenanceStoreError(
+          `A newer maintenance collection finished first; this one replaced nothing. ${message.slice(0, 1000)}`,
+        );
+      if (attempt < 3 && baselineChangedPattern.test(message)) continue;
+      throw error;
+    }
+  }
   return {
     mode,
     revision,
     cli_sha256: cliSha256,
     subjects: subjects.length,
     issues: issueInventory?.issues.length ?? null,
+    /** Sources whose read failed alone; their runs record the gap and prior facts stay current. */
+    failed_sources: [
+      ...(issueRead && !issueRead.ok ? ["issues-project"] : []),
+      ...(healthRead && !healthRead.ok ? ["release-health"] : []),
+      ...(upstream?.failed ? ["upstream-observations"] : []),
+      ...(hostedIntake?.failed ? ["hosted-intake"] : []),
+      ...(publicationRead && !publicationRead.ok ? ["definition-publication"] : []),
+    ],
     upstream: upstream
       ? {
           revision: upstream.revision,
@@ -1233,7 +1372,7 @@ const reportQuery = `WITH latest_issue AS (
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
       WHERE r.source = 'issues-project' AND r.coverage <> 'in_progress'
-      ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC
+      ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC
   ), present_issue AS (
     SELECT payload FROM latest_issue WHERE payload <> portcove_maintenance.absent_payload()
   ), latest_health AS (
@@ -1241,32 +1380,32 @@ const reportQuery = `WITH latest_issue AS (
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
       WHERE r.source = 'release-health' AND r.coverage <> 'in_progress'
-      ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC
+      ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC
   ), latest_upstream AS (
     SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
       WHERE r.source = 'upstream-observations' AND r.coverage <> 'in_progress'
-      ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC
+      ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC
   ), latest_hosted AS (
     SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
       WHERE r.source = 'hosted-intake' AND r.coverage <> 'in_progress'
-      ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC
+      ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC
   ), latest_catalog AS (
     SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
       WHERE r.source = 'catalog-records' AND r.coverage <> 'in_progress'
-      ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC
+      ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC
   ), core_latest AS (
     -- The latest finished Core run of each host platform.
     SELECT DISTINCT ON (source) source, substring(source FROM ${corePrefix.length + 1}) AS platform,
            run_id, member_digest, gaps
       FROM portcove_maintenance.collection_runs
       WHERE source LIKE '${corePrefix}%' AND coverage <> 'in_progress'
-      ORDER BY source, started_at DESC
+      ORDER BY source, acquisition DESC
   ), core_member AS (
     SELECT cl.platform, m.subject_key
       FROM core_latest cl CROSS JOIN LATERAL portcove_maintenance.run_members(cl.run_id) m
@@ -1289,7 +1428,7 @@ SELECT json_build_object(
         'latest_gap', (SELECT g ->> 'code' FROM (
             SELECT gaps FROM portcove_maintenance.collection_runs
               WHERE source = 'hosted-intake' AND coverage NOT IN ('in_progress', 'failed')
-              ORDER BY started_at DESC LIMIT 1) hr
+              ORDER BY acquisition DESC LIMIT 1) hr
            CROSS JOIN LATERAL jsonb_array_elements(hr.gaps) g
            WHERE g ->> 'subject_key' = h.subject_key LIMIT 1),
         'issues', (SELECT coalesce(json_agg(json_build_object('number', (i.payload ->> 'number')::integer,
@@ -1307,20 +1446,25 @@ SELECT json_build_object(
               FROM portcove_maintenance.observations o
               JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
               WHERE r.source = 'definition-publication' AND r.coverage <> 'in_progress'
-              ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC) p
+              ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC) p
       WHERE p.payload <> portcove_maintenance.absent_payload()),
-  'runs', (SELECT coalesce(json_agg(r ORDER BY r.source, r.started_at DESC), '[]') FROM (
-      SELECT DISTINCT ON (source) source, run_id, runner, source_revision, started_at, completed_at, coverage,
+  'generation', (SELECT coalesce(max(acquisition), 0) FROM portcove_maintenance.collection_runs
+      WHERE coverage <> 'in_progress'),
+  'runs', (SELECT coalesce(json_agg(r ORDER BY r.source, r.acquisition DESC), '[]') FROM (
+      SELECT DISTINCT ON (source) source, run_id, runner, source_revision, started_at, acquisition, completed_at, coverage,
              expected_count, observed_count, gaps, member_count, member_digest
-        FROM portcove_maintenance.collection_runs WHERE coverage <> 'in_progress' ORDER BY source, started_at DESC) r),
+        FROM portcove_maintenance.collection_runs WHERE coverage <> 'in_progress' ORDER BY source, acquisition DESC) r),
   'unassessed_gaps', (SELECT coalesce(json_agg(json_build_object('subject_key', g.subject_key || '@' || g.platform,
         'port_key', g.subject_key, 'platform', g.platform, 'code', g.code, 'message', g.message)
         ORDER BY g.platform, g.subject_key), '[]')
       FROM core_gap g
       WHERE NOT EXISTS (SELECT 1 FROM assessed a WHERE a.port_key = g.subject_key AND a.platform = g.platform)),
   'subjects', (SELECT coalesce(json_agg(s ORDER BY s.subject_key), '[]') FROM (
-      SELECT c.subject_key, c.port_key, c.platform, c.sequence, c.updated_at, a.state, a.policy_version, a.input_digest,
+      SELECT c.subject_key, c.port_key, c.platform, c.sequence, a.state, a.policy_version, a.input_digest,
         a.assessed_at, a.explanation,
+        -- Last material transition, separate from the latest applicable assessment and verification.
+        c.updated_at AS changed_at, c.updated_at, c.assessment_id AS transition_assessment_id,
+        c.applicable_assessment_id AS assessment_id, c.verified_at, c.verified_run_id,
         (SELECT json_agg(json_build_object('sequence', t.sequence, 'state', t.state, 'recorded_at', t.recorded_at,
                  'returns_to_earlier_result', t.returns_to_earlier_result) ORDER BY t.sequence)
            FROM portcove_maintenance.subject_transitions t WHERE t.subject_key = c.subject_key) AS history,
@@ -1332,7 +1476,7 @@ SELECT json_build_object(
                    JOIN portcove_maintenance.collection_runs r ON r.run_id = ob.run_id
                    WHERE ob.subject_key = c.port_key AND r.coverage <> 'in_progress'
                      AND (r.source = 'catalog-records' OR r.source = '${corePrefix}' || c.platform)
-                   ORDER BY r.source, r.started_at DESC, ob.observation_id DESC) o) AS observations,
+                   ORDER BY r.source, r.acquisition DESC, ob.observation_id DESC) o) AS observations,
         EXISTS (SELECT 1 FROM core_member m WHERE m.platform = c.platform AND m.subject_key = c.port_key)
           AS in_latest_core_run,
         (SELECT json_build_object('code', g.code, 'message', g.message) FROM core_gap g
@@ -1342,8 +1486,8 @@ SELECT json_build_object(
            FROM latest_health h WHERE h.subject_key = c.port_key) AS release_health,
         (SELECT g ->> 'code' FROM (
             SELECT gaps FROM portcove_maintenance.collection_runs
-              WHERE source = 'release-health' AND coverage <> 'in_progress'
-              ORDER BY started_at DESC LIMIT 1) hr
+              WHERE source = 'release-health' AND coverage NOT IN ('in_progress', 'failed')
+              ORDER BY acquisition DESC LIMIT 1) hr
            CROSS JOIN LATERAL jsonb_array_elements(hr.gaps) g
            WHERE g ->> 'subject_key' = c.port_key LIMIT 1) AS latest_health_gap,
         (SELECT CASE WHEN u.payload = portcove_maintenance.absent_payload() THEN NULL ELSE u.payload END
@@ -1351,7 +1495,7 @@ SELECT json_build_object(
         (SELECT g FROM (
             SELECT gaps FROM portcove_maintenance.collection_runs
               WHERE source = 'upstream-observations' AND coverage NOT IN ('in_progress', 'failed')
-              ORDER BY started_at DESC LIMIT 1) ur
+              ORDER BY acquisition DESC LIMIT 1) ur
            CROSS JOIN LATERAL jsonb_array_elements(ur.gaps) g
            WHERE g ->> 'subject_key' = c.port_key LIMIT 1) AS latest_upstream_gap,
         json_build_object(
@@ -1377,7 +1521,7 @@ SELECT json_build_object(
            WHERE i.payload -> 'catalog_ids' ? substring(c.port_key FROM 6)
               OR (i.payload ->> 'number') = (lc.payload -> 'authored_record' -> 'listing' ->> 'issue_number')) AS work
         FROM assessed c
-        JOIN portcove_maintenance.assessments a ON a.assessment_id = c.assessment_id
+        JOIN portcove_maintenance.assessments a ON a.assessment_id = c.applicable_assessment_id
         LEFT JOIN latest_catalog lc ON lc.subject_key = c.port_key) s)
 );`;
 
@@ -1385,6 +1529,11 @@ export interface InventoryReport {
   format: "portcove-maintenance-inventory";
   format_version: typeof inventoryFormatVersion;
   generated_at: string;
+  /**
+   * The newest finished collection acquisition the report reflects. A report
+   * never replaces one with a greater generation, whatever the clocks say.
+   */
+  generation: number;
   scope: "declared-sample" | "complete-authored-catalog";
   publication: {
     status: "unknown" | "observed";
@@ -1411,6 +1560,7 @@ export interface HostedIntakeEntry {
 
 export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): InventoryReport {
   const data = JSON.parse(runSql(environment, reportQuery).trim()) as {
+    generation: number;
     runs: unknown[];
     subjects: unknown[];
     unassessed_gaps: { subject_key: string; code: string; message: string }[];
@@ -1439,8 +1589,10 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     if (target && !(byTarget.get(target) ?? []).includes(subject.port_key))
       byTarget.set(target, [...(byTarget.get(target) ?? []), subject.port_key]);
   }
+  // Once read, the source is observed: a later failed read shows as that run's gap,
+  // while the last verified facts stay current.
   const issuesObserved = (data.runs as { source: string; coverage: string }[]).some(
-    ({ source, coverage }) => source === "issues-project" && coverage === "complete",
+    ({ source }) => source === "issues-project",
   );
   // The last known facts stay current through a failed probe; the reason names that probe.
   const latestPublicationRun = (
@@ -1468,6 +1620,7 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     format: "portcove-maintenance-inventory",
     format_version: inventoryFormatVersion,
     generated_at: now.toISOString(),
+    generation: data.generation,
     scope: catalogScope,
     publication: publicationRun
       ? {
@@ -1580,6 +1733,7 @@ ${report.hosted_intake
 export function renderHtml(report: InventoryReport) {
   // The page embeds only what it renders; inventory.json keeps every explanation.
   const upstreamAttempt = failedAttempt(report, "upstream-observations");
+  const healthAttempt = failedAttempt(report, "release-health");
   const view = {
     subjects: (report.subjects as Record<string, unknown>[]).map(
       ({
@@ -1587,7 +1741,8 @@ export function renderHtml(report: InventoryReport) {
         port_key,
         state,
         sequence,
-        assessed_at,
+        verified_at,
+        changed_at,
         latest_core_gap,
         latest_core_run,
         work,
@@ -1604,7 +1759,16 @@ export function renderHtml(report: InventoryReport) {
           ),
           ...upstreamAttention(upstream, latest_upstream_gap),
         ],
-        latest_health_gap,
+        // A failed latest read is visible; per-port gaps come from the latest read that did not fail.
+        latest_health_gap:
+          [
+            healthAttempt ? `latest read failed: ${healthAttempt}` : "",
+            typeof latest_health_gap === "string"
+              ? `${healthAttempt ? "previous read" : "latest read"}: ${latest_health_gap}`
+              : "",
+          ]
+            .filter(Boolean)
+            .join("; ") || null,
         next_actions: nextActions(report, port_key, subject_key),
         upstream: upstreamSummary(upstream, latest_upstream_gap, upstreamAttempt),
         subject_key,
@@ -1614,7 +1778,8 @@ export function renderHtml(report: InventoryReport) {
         alternatives,
         state,
         sequence,
-        assessed_at,
+        verified_at,
+        changed_at,
         latest_core_gap,
         latest_core_run,
         work: Array.isArray(work)
@@ -1675,14 +1840,14 @@ ${hostedIntakeSection(report)}
 <h2>Subjects</h2>
 <label for="search">Search</label>
 <input id="search" type="search" placeholder="Port ID or state">
-<table><thead><tr><th>Subject</th><th>Name and game</th><th>Alternatives</th><th>Core assessment</th><th>Changes</th><th>Assessed</th><th>Latest Core run</th><th>Work</th><th>Upstream</th><th>Needs attention</th><th>Next action</th></tr></thead><tbody id="subjects"></tbody></table>
+<table><thead><tr><th>Subject</th><th>Name and game</th><th>Alternatives</th><th>Core assessment</th><th>Changes</th><th>Last verified</th><th>Last changed</th><th>Latest Core run</th><th>Work</th><th>Upstream</th><th>Needs attention</th><th>Next action</th></tr></thead><tbody id="subjects"></tbody></table>
 <script id="inventory" type="application/json">${embedded}</script>
 <script>
 const report = JSON.parse(document.getElementById("inventory").textContent);
 const body = document.getElementById("subjects");
 function render(filter) {
   body.replaceChildren();
-  for (const subject of [...report.subjects, ...(report.unassessed_gaps ?? []).map((gap) => ({ subject_key: gap.subject_key, state: "unknown", sequence: 0, assessed_at: "never", latest_core_gap: gap }))]) {
+  for (const subject of [...report.subjects, ...(report.unassessed_gaps ?? []).map((gap) => ({ subject_key: gap.subject_key, state: "unknown", sequence: 0, verified_at: "never", changed_at: "never", latest_core_gap: gap }))]) {
     const text = [subject.subject_key, subject.state, subject.name, subject.game, subject.target_key].join(" ").toLowerCase();
     if (filter && !text.includes(filter)) continue;
     const row = body.insertRow();
@@ -1690,7 +1855,7 @@ function render(filter) {
       ? "not assessed: " + subject.latest_core_gap.code
       : subject.latest_core_run === "assessed" ? "assessed"
       : subject.latest_core_run === "removed" ? "removed from the catalog" : "not in latest run";
-    for (const value of [subject.subject_key, [subject.name, subject.game].filter(Boolean).join(" — "), (subject.alternatives ?? []).join(", "), subject.state, String(subject.sequence), subject.assessed_at, gap, (subject.work ?? []).join("; ") || "no linked issue observed", subject.upstream || "not observed", [subject.latest_health_gap ? "health not fresh: " + subject.latest_health_gap : "", ...(subject.attention ?? [])].filter(Boolean).join("; "), (subject.next_actions ?? []).join("; ")])
+    for (const value of [subject.subject_key, [subject.name, subject.game].filter(Boolean).join(" — "), (subject.alternatives ?? []).join(", "), subject.state, String(subject.sequence), subject.verified_at, subject.changed_at, gap, (subject.work ?? []).join("; ") || "no linked issue observed", subject.upstream || "not observed", [subject.latest_health_gap ? "health not fresh: " + subject.latest_health_gap : "", ...(subject.attention ?? [])].filter(Boolean).join("; "), (subject.next_actions ?? []).join("; ")])
       row.insertCell().textContent = value;
   }
 }
@@ -1703,9 +1868,30 @@ render("");
 }
 
 /** Writes inventory.json and index.html atomically into a new directory. */
-export function writeReport(report: InventoryReport, output: string) {
+export function writeReport(
+  report: InventoryReport,
+  output: string,
+  /** The report this one supersedes; a late producer of an older generation is refused. */
+  previous?: string,
+) {
   if (existsSync(output))
     throw new MaintenanceStoreError(`Report destination already exists: ${output}`);
+  if (previous) {
+    const priorFile = path.join(previous, "inventory.json");
+    if (!existsSync(priorFile))
+      throw new MaintenanceStoreError(`The previous report has no inventory.json: ${previous}`);
+    const prior = parseJson(readFileSync(priorFile, "utf8"), "previous maintenance report") as {
+      format?: unknown;
+      generation?: unknown;
+    };
+    if (prior.format !== "portcove-maintenance-inventory")
+      throw new MaintenanceStoreError("The previous report is not a maintenance inventory");
+    const generation = typeof prior.generation === "number" ? prior.generation : 0;
+    if (generation > report.generation)
+      throw new MaintenanceStoreError(
+        `The previous report reflects newer collections (generation ${generation} > ${report.generation}); it is kept`,
+      );
+  }
   mkdirSync(path.dirname(output), { recursive: true });
   const staging = mkdtempSync(`${output}.partial-`);
   try {
@@ -1838,7 +2024,8 @@ commands:
                                        --hosted-intake (with --all) adds every #177 hosted-intake
                                        request through the executor's read-only status, bound by
                                        the #177 revision and a digest of every comment
-  report --output DIR                  write inventory.json and index.html to a new DIR
+  report --output DIR [--previous DIR]  write inventory.json and index.html to a new DIR; with
+                                       --previous, refuse if that report reflects newer collections
   digest --output DIR                  write the pending changes-only digest (digest.json, digest.md)
   acknowledge --digest FILE --receipt REF
                                        record delivery of that digest's notifications against the
@@ -1868,6 +2055,7 @@ export async function main(argv = process.argv.slice(2)) {
   const cli = option(args, "--cli");
   const sample = option(args, "--sample");
   const output = option(args, "--output");
+  const previous = option(args, "--previous");
   const digestFile = option(args, "--digest");
   const receipt = option(args, "--receipt");
   const concurrency = option(args, "--concurrency");
@@ -1904,6 +2092,8 @@ export async function main(argv = process.argv.slice(2)) {
     throw new MaintenanceStoreError("--json and --record apply only to handoffs");
   if (issuesTokenEnvironment !== undefined && (!issues || command !== "collect"))
     throw new MaintenanceStoreError("--issues-token-env applies only to collect --issues");
+  if (previous !== undefined && command !== "report")
+    throw new MaintenanceStoreError("--previous applies only to report");
   if (args.length)
     throw new MaintenanceStoreError(`Unexpected arguments: ${args.join(" ")}\n${usage}`);
   if (command === "collect") {
@@ -1933,7 +2123,7 @@ export async function main(argv = process.argv.slice(2)) {
   } else if (command === "report") {
     if (!output) throw new MaintenanceStoreError("report requires --output DIR");
     const report = buildReport(environment);
-    writeReport(report, path.resolve(output));
+    writeReport(report, path.resolve(output), previous ? path.resolve(previous) : undefined);
     console.log(
       JSON.stringify({ output: path.resolve(output), subjects: report.subjects.length }, null, 2),
     );

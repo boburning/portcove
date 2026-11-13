@@ -65,5 +65,15 @@ GRANT UPDATE (status, delivered_at, delivery_receipt)
 -- Report: read-only (granted SELECT above).
 
 -- Report membership questions run through the verified membership function.
-GRANT EXECUTE ON FUNCTION portcove_maintenance.run_members(text), portcove_maintenance.absent_payload()
+GRANT EXECUTE ON FUNCTION portcove_maintenance.run_members(text), portcove_maintenance.absent_payload(),
+  portcove_maintenance.latest_run(text)
   TO portcove_maintenance_collector, portcove_maintenance_report, portcove_maintenance_executor;
+
+-- Collector freshness: a ticket before external reads, the baseline its
+-- changes-only diff used, and verification of an unchanged current result.
+GRANT EXECUTE ON FUNCTION portcove_maintenance.acquire_collection(),
+  portcove_maintenance.expect_baseline(text, text),
+  portcove_maintenance.verify_current(bigint, text)
+  TO portcove_maintenance_collector;
+-- A run inserted without a ticket takes one from the same sequence at insert.
+GRANT USAGE ON SEQUENCE portcove_maintenance.collection_acquisition TO portcove_maintenance_collector;

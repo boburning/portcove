@@ -128,6 +128,14 @@ void test("subject keys and operation identities are deterministic and within th
     handoffOperationId("upstream-observer-exception", "port:alpha@linux-x86-64", 3),
     "handoff.upstream-observer-exception.port:alpha.linux-x86-64.3",
   );
+  assert.equal(
+    handoffOperationId("upstream-observer-exception", "port:alpha@linux-x86-64", 3, 41),
+    "handoff.upstream-observer-exception.port:alpha.linux-x86-64.3.a41",
+  );
+  assert.match(
+    handoffOperationId("release-health-condition", `port:${"a".repeat(190)}`, 12, 7),
+    /^handoff\.release-health-condition\.sha256-[0-9a-f]{40}\.12\.a7$/u,
+  );
   const long = handoffOperationId("release-health-condition", `port:${"a".repeat(190)}`, 12);
   assert.match(long, /^handoff\.release-health-condition\.sha256-[0-9a-f]{40}\.12$/u);
   assert.equal(long, handoffOperationId("release-health-condition", `port:${"a".repeat(190)}`, 12));
