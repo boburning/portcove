@@ -434,6 +434,55 @@ function completedScanCoverage(
   return { coverage, canContinue, matchCeilingReached };
 }
 
+function ScanCoverageNotice({
+  coverage,
+  canContinue,
+}: {
+  coverage: GameFileScanSnapshot["coverage"];
+  canContinue: boolean;
+}) {
+  if (!coverage) return null;
+  return (
+    <p>
+      {countMessage(coverage.batches, "scanBatches")}{" "}
+      {coverage.restart_required
+        ? "The saved scan cannot continue. Start a new scan to check the current folders."
+        : coverage.frontier_exhausted
+          ? "No more entries remain in this scan's folder list. Skipped files and search limits still apply."
+          : coverage.remaining_entries === null
+            ? "The number of remaining entries is unknown."
+            : countMessage(coverage.remaining_entries, "remainingEntries")}{" "}
+      {canContinue && "Continue the scan to check another bounded batch without moving your files."}
+    </p>
+  );
+}
+
+function ScanLimitNotices({
+  limits,
+  canContinue,
+  matchCeilingReached,
+}: {
+  limits: NonNullable<GameFileScanSnapshot["report"]>["limits_reached"];
+  canContinue: boolean;
+  matchCeilingReached: boolean;
+}) {
+  if (limits.length === 0) return null;
+  return (
+    <ul>
+      {limits.map((limit) => (
+        <li key={limit}>
+          {sourceDiscoveryLimitLabel(limit)}:{" "}
+          {(limit === "entries" || limit === "hash_bytes" || limit === "candidates") && canContinue
+            ? "Continue the scan to check the next batch. Earlier matches were kept."
+            : limit === "candidates" && matchCeilingReached
+              ? "This scan reached its safety limit for matches, so it stopped. The matches found so far were kept. Save narrower subfolders, then scan again to check the rest."
+              : savedRootLimitGuidance(limit)}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function CompletedScan({
   snapshot,
   generation,
@@ -485,20 +534,7 @@ function CompletedScan({
             ? "Saved roots and catalog match this snapshot. Files may have changed since the scan."
             : "Saved roots, availability, catalog, or search rules changed. Scan again before using these results."}
       </p>
-      {coverage && (
-        <p>
-          {countMessage(coverage.batches, "scanBatches")}{" "}
-          {coverage.restart_required
-            ? "The saved scan cannot continue. Start a new scan to check the current folders."
-            : coverage.frontier_exhausted
-              ? "No more entries remain in this scan's folder list. Skipped files and search limits still apply."
-              : coverage.remaining_entries === null
-                ? "The number of remaining entries is unknown."
-                : countMessage(coverage.remaining_entries, "remainingEntries")}{" "}
-          {canContinue &&
-            "Continue the scan to check another bounded batch without moving your files."}
-        </p>
-      )}
+      <ScanCoverageNotice coverage={coverage} canContinue={canContinue} />
       <p>
         Checked {report.entries_examined} entries in {report.searched_roots.length} available
         folders. {countMessage(more.exactTotal, "exactMatches")} This scan does not assess every
@@ -514,21 +550,11 @@ function CompletedScan({
       {roots?.some((root) => root.availability === "unavailable") && (
         <p>Unavailable saved folders were not searched.</p>
       )}
-      {report.limits_reached.length > 0 && (
-        <ul>
-          {report.limits_reached.map((limit) => (
-            <li key={limit}>
-              {sourceDiscoveryLimitLabel(limit)}:{" "}
-              {(limit === "entries" || limit === "hash_bytes" || limit === "candidates") &&
-              canContinue
-                ? "Continue the scan to check the next batch. Earlier matches were kept."
-                : limit === "candidates" && matchCeilingReached
-                  ? "This scan reached its safety limit for matches, so it stopped. The matches found so far were kept. Save narrower subfolders, then scan again to check the rest."
-                  : savedRootLimitGuidance(limit)}
-            </li>
-          ))}
-        </ul>
-      )}
+      <ScanLimitNotices
+        limits={report.limits_reached}
+        canContinue={canContinue}
+        matchCeilingReached={matchCeilingReached}
+      />
       {candidates.map((candidate) => (
         <CandidateRow
           candidate={candidate}

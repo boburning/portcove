@@ -219,51 +219,14 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
         </ActionRow>
       ) : (
         <>
-          {blocked && view.live && (
-            <Notice intent="warning">
-              <div data-slot="notice-body">
-                <p>{t("mods.blocked")}</p>
-                <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
-                  {[...view.live.unmanaged, ...view.live.changed_owned].map((name) => (
-                    <li key={name}>{name}</li>
-                  ))}
-                </ul>
-              </div>
-            </Notice>
-          )}
-          {nativeMessage && <p className="text-sm">{nativeMessage}</p>}
-          {browserBusy && (
-            <p className="text-sm">
-              {t("mods.browse.lockNote", { provider: providerName(view.provider ?? "") })}
-            </p>
-          )}
-          {heldUpdates.length > 0 && (
-            <Notice intent="info">
-              <div data-slot="notice-body">
-                <p>{t("mods.held.intro", { count: heldUpdates.length })}</p>
-                <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
-                  {heldUpdates.map((held) => (
-                    <li key={`${held.project_id}-${held.candidate_file_id}`}>
-                      <Trans
-                        t={t}
-                        i18nKey="mods.held.item"
-                        components={{
-                          mods: <bdi>{held.native_ids.join(t("mods.separator"))}</bdi>,
-                          reason: <bdi>{held.reason}</bdi>,
-                        }}
-                      />
-                    </li>
-                  ))}
-                </ul>
-                <p>
-                  {t("mods.held.next", {
-                    count: heldUpdates.length,
-                    provider: providerName(view.provider ?? ""),
-                  })}
-                </p>
-              </div>
-            </Notice>
-          )}
+          <ModSetupNotices
+            blocked={blocked}
+            live={view.live}
+            nativeMessage={nativeMessage}
+            browserBusy={browserBusy}
+            provider={view.provider}
+            heldUpdates={heldUpdates}
+          />
           <ul aria-label={t("mods.setups")} className="m-0 grid list-none gap-2 p-0">
             {setups.map((entry) => (
               <SetupRow
@@ -462,6 +425,73 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
         </>
       )}
     </section>
+  );
+}
+
+function ModSetupNotices({
+  blocked,
+  live,
+  nativeMessage,
+  browserBusy,
+  provider,
+  heldUpdates,
+}: {
+  blocked: boolean;
+  live: ModSetupsView["live"];
+  nativeMessage: ReactNode;
+  browserBusy: boolean;
+  provider: ModSetupsView["provider"];
+  heldUpdates: NonNullable<ModSetupsView["held_updates"]>;
+}) {
+  const { t } = useAppTranslation("gameSettings");
+  return (
+    <>
+      {blocked && live && (
+        <Notice intent="warning">
+          <div data-slot="notice-body">
+            <p>{t("mods.blocked")}</p>
+            <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
+              {[...live.unmanaged, ...live.changed_owned].map((name) => (
+                <li key={name}>{name}</li>
+              ))}
+            </ul>
+          </div>
+        </Notice>
+      )}
+      {nativeMessage && <p className="text-sm">{nativeMessage}</p>}
+      {browserBusy && (
+        <p className="text-sm">
+          {t("mods.browse.lockNote", { provider: providerName(provider ?? "") })}
+        </p>
+      )}
+      {heldUpdates.length > 0 && (
+        <Notice intent="info">
+          <div data-slot="notice-body">
+            <p>{t("mods.held.intro", { count: heldUpdates.length })}</p>
+            <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
+              {heldUpdates.map((held) => (
+                <li key={`${held.project_id}-${held.candidate_file_id}`}>
+                  <Trans
+                    t={t}
+                    i18nKey="mods.held.item"
+                    components={{
+                      mods: <bdi>{held.native_ids.join(t("mods.separator"))}</bdi>,
+                      reason: <bdi>{held.reason}</bdi>,
+                    }}
+                  />
+                </li>
+              ))}
+            </ul>
+            <p>
+              {t("mods.held.next", {
+                count: heldUpdates.length,
+                provider: providerName(provider ?? ""),
+              })}
+            </p>
+          </div>
+        </Notice>
+      )}
+    </>
   );
 }
 
