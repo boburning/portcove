@@ -236,7 +236,10 @@ services WebView2 and before it publishes that driver, the exact match cannot be
 met (run 43338537697: runtime 157.0.4341.57, driver 404). The step after
 provisioning checks for that driver once a minute for at most 20 minutes, records
 `webview2-driver-availability.json` when it is available, and otherwise stops the
-group before bootstrap with the runtime version and a re-run instruction. On the elevated runner
+group before bootstrap with the runtime version and a re-run instruction. A check
+that gets no response or a server error is retried within the same bound (run
+43502064190 lost `staged-update` to one connection timeout); any other status stops
+the group at once. On the elevated runner
 WebView2 ignores the driver's `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`, so the
 step also sets the WebView2 `AdditionalBrowserArguments` machine policy for
 `portcove-desktop.exe` to `--remote-debugging-port=0`; without it no session can
