@@ -52942,6 +52942,18 @@
           "game_slug": "the-elder-scrolls-ii-daggerfall",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "daggerfallunity_data",
+            "monobleedingedge"
+          ],
+          "executables": [
+            "daggerfallunity.exe",
+            "unitycrashhandler64.exe"
+          ]
+        }
       }
     },
     {
@@ -54428,6 +54440,24 @@
           "image_sha256": "e84e3792a2bb3322534371e801ff214a3b4b6b562cd64f8a8eec466e87856db9",
           "game_slug": "tails-adventure-remake",
           "match_kind": "port"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "tails-adventure.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "tails-adventure"
+          ]
         }
       }
     },
@@ -61214,6 +61244,18 @@
           "game_slug": "street-fighter-iii-3rd-strike--2",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "data",
+            "licenses"
+          ],
+          "executables": [
+            "sf3.exe",
+            "sf3config.exe"
+          ]
+        }
       }
     },
     {
@@ -63773,6 +63815,37 @@
           "warnings": [
             "Use only game data and components you are already permitted to use. The engine license does not grant rights to unrelated assets, music or modifications.",
             "External and shared player-data locations remain outside Portcove backups and removal. Preserve the creating runtime, every actual state root and unknown files before changes."
+          ]
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "translations",
+            "voices"
+          ],
+          "executables": [
+            "wc1-modern.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "translations",
+            "voices"
+          ],
+          "executables": [
+            "wc1-modern"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [
+            "translations",
+            "voices"
+          ],
+          "executables": [
+            "liblzo2.2.dylib",
+            "libsdl2-2.0.0.dylib",
+            "wc1-modern"
           ]
         }
       }
