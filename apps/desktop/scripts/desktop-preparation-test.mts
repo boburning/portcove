@@ -1341,10 +1341,14 @@ export async function preparationScenarios({
       By.xpath('//summary[normalize-space(.)="If setup opens another window"]'),
     );
     await windowGuidance.click();
-    assert.ok(
-      (await browser.findElement(preparationDialog).getText()).includes(
-        "close it without starting the game",
-      ),
+    // The disclosure renders its panel after the click; wait for the guidance itself.
+    await browser.wait(
+      async () =>
+        (await browser.findElement(preparationDialog).getText()).includes(
+          "close it without starting the game",
+        ),
+      5_000,
+      "Setup-window guidance did not appear after opening its disclosure",
     );
     await windowGuidance.click();
     const preparationLayout = await executeBrowserScript(browser, () => {
