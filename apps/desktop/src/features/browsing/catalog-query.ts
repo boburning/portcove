@@ -546,22 +546,67 @@ function coherentMatcher(
     facts.push(fact);
     byPort.set(fact.port_id, facts);
   }
-  const matching = (port: CatalogEntry, override?: [Group, string]) => {
+  const matching = (
+    port: CatalogEntry,
+    override?: [Group, string],
+  ): { fact?: CatalogBrowsingContext; match: Match }[] => {
     const selected = groups.filter((group) => query[group]?.length || override?.[0] === group);
-    return (byPort.get(port.id) ?? []).map((fact) => ({
+    const values = (group: Group) =>
+      override?.[0] === group ? [override[1]] : (query[group] ?? []);
+    const facts = byPort.get(port.id) ?? [];
+    const entries: { fact?: CatalogBrowsingContext; match: Match }[] = facts.map((fact) => ({
       fact,
       match: all(
         selected.map((group) =>
-          any(
-            (override?.[0] === group ? [override[1]] : (query[group] ?? [])).map((value) =>
-              contextMatches(port, fact, group, value, context),
-            ),
-          ),
+          any(values(group).map((value) => contextMatches(port, fact, group, value, context))),
         ),
       ),
     }));
+    if (selected.includes("platforms") && listingOnlyPlatforms(port).length) {
+      const portMember = facts.some((fact) => fact.port_member);
+      entries.push({
+        match: selected.every((group) =>
+          values(group).some((value) => listingOnlyMatch(port, group, value, context, portMember)),
+        ),
+      });
+    }
+    return entries;
   };
   return matching;
+}
+
+/** Platforms only the accepted listing declares; Core has no context for them. */
+function listingOnlyPlatforms(port: CatalogEntry) {
+  return availablePlatforms(port).filter((platform) => !port.platforms.includes(platform));
+}
+
+/** A listing-only platform matches as the listing's own upstream download. It
+ * never borrows a managed context, channel, method, update or game-file fact. */
+function listingOnlyMatch(
+  port: CatalogEntry,
+  group: Group,
+  value: string,
+  context: CatalogQueryContext,
+  portMember: boolean,
+): boolean {
+  switch (group) {
+    case "platforms":
+      return listingOnlyPlatforms(port).some(
+        (platform) =>
+          platform === (value === "this-device" ? context.browsing?.host_platform : value),
+      );
+    case "portOptions":
+    case "originalSystems":
+      return listingMatch(port, group, value, context) === true;
+    case "membership":
+      return value === "not-in-library" && !portMember;
+    case "channels":
+    case "installationMethods":
+    case "attention":
+    case "updates":
+    case "gameFiles":
+      return false;
+  }
 }
 
 function evaluateCoherentQuery(
@@ -586,14 +631,19 @@ function evaluateCoherentQuery(
   const matchingContexts = new Map(
     outcomes.map(({ port, matches }) => [
       port.id,
-      matches.filter((entry) => entry.match === true).map((entry) => entry.fact),
+      matches.flatMap((entry) => (entry.match === true && entry.fact ? [entry.fact] : [])),
     ]),
+  );
+  const matched = new Set(
+    outcomes
+      .filter(({ matches }) => matches.some((entry) => entry.match === true))
+      .map(({ port }) => port.id),
   );
   return {
     state: "matched",
     query,
     counts,
-    ports: unique.filter((port) => matchingContexts.get(port.id)?.length),
+    ports: unique.filter((port) => matched.has(port.id)),
     matchingContexts,
   };
 }

@@ -562,11 +562,12 @@ function matchesFilter(status: PortStatus | undefined, filter: Filter, pendingSe
 }
 
 function searchableText(port: CatalogEntry) {
+  const platforms = availablePlatforms(port);
   const installationMethod = port.presentation?.installation_method
     ? installationMethodLabel(port)
     : "";
   return normalizeGameSearchText(
-    `${gameTitle(port)} ${port.name} ${port.presentation?.variant_label ?? ""} ${port.summary} ${port.id} ${installationMethod} ${port.platforms.join(" ")} ${port.platforms.map(platformLabel).join(" ")}`,
+    `${gameTitle(port)} ${port.name} ${port.presentation?.variant_label ?? ""} ${port.summary} ${port.id} ${installationMethod} ${platforms.join(" ")} ${platforms.map(platformLabel).join(" ")}`,
   );
 }
 
