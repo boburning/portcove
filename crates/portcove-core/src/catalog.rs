@@ -6139,12 +6139,12 @@ mod tests {
             for contract in contracts {
                 assert_eq!(contract["admission_mode"], "enforced");
                 // The game contract keeps the reviewed v0.1.1 kits first and
-                // appends the v0.1.2 kits. The BIOS contract now names
-                // SCPH-1001, which only the v0.1.2 kits select, so it binds
-                // those kits alone.
+                // appends the v0.1.2 and then the v0.1.3 kits. The BIOS
+                // contract names SCPH-1001, which only the v0.1.2 and later
+                // kits select, so it starts with the v0.1.2 kits.
                 let applicability = contract["applicability"].as_array().unwrap();
-                if contract["role"] == "game" {
-                    assert_eq!(applicability.len(), 4, "{id}");
+                let successors = if contract["role"] == "game" {
+                    assert_eq!(applicability.len(), 6, "{id}");
                     assert_eq!(
                         serde_json::json!(applicability[..2]),
                         serde_json::json!([
@@ -6155,11 +6155,15 @@ mod tests {
                             }
                         ])
                     );
+                    &applicability[2..]
                 } else {
-                    assert_eq!(applicability.len(), 2, "{id}");
-                }
-                for binding in &applicability[applicability.len() - 2..] {
-                    assert_eq!(binding["upstream_ref"], "v0.1.2");
+                    assert_eq!(applicability.len(), 4, "{id}");
+                    &applicability[..]
+                };
+                for (pair, version) in successors.chunks(2).zip(["v0.1.2", "v0.1.3"]) {
+                    for binding in pair {
+                        assert_eq!(binding["upstream_ref"], version, "{id}");
+                    }
                 }
                 if contract["role"] == "game" {
                     assert_eq!(contract["authority_ref"], commit);
@@ -6573,21 +6577,21 @@ mod tests {
                 .collect::<Vec<_>>();
             assert_eq!(contracts.len(), 2);
             for contract in contracts {
-                // The historical pair, optionally followed by one reviewed
-                // successor's Windows and Linux kits.
+                // The historical pair, optionally followed by reviewed
+                // successors, each a Windows and Linux kit pair.
                 let applicability = contract["applicability"].as_array().unwrap();
-                assert!(matches!(applicability.len(), 2 | 4), "{id}");
-                if applicability.len() == 4 {
-                    assert_eq!(
-                        applicability[2]["upstream_ref"],
-                        applicability[3]["upstream_ref"]
-                    );
-                    assert_ne!(applicability[2]["upstream_ref"], version);
+                assert!(matches!(applicability.len(), 2 | 4 | 6), "{id}");
+                for pair in applicability[2..].chunks(2) {
+                    assert_eq!(pair[0]["upstream_ref"], pair[1]["upstream_ref"], "{id}");
+                    assert_ne!(pair[0]["upstream_ref"], version, "{id}");
                 }
                 if contract["role"] == "bios" && applicability[0]["upstream_ref"] != version {
                     // A BIOS contract retargeted to a later kit's retail BIOS
-                    // binds only that later pair (see the Dino Crisis test).
-                    assert_eq!(applicability.len(), 2, "{id}");
+                    // binds only those later pairs (see the Dino Crisis test).
+                    assert_eq!(
+                        applicability[0]["upstream_ref"],
+                        applicability[1]["upstream_ref"]
+                    );
                     continue;
                 }
                 assert_eq!(contract["applicability"][1]["artifact_sha256"], sha256);

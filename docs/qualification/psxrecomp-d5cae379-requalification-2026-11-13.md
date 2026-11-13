@@ -18,7 +18,8 @@ or build was run. `d5cae379` is `refs/heads/pin/pin-i-v0.1.20` by
 `git ls-remote`. It dates from 2026-11-12 13:26 +0200, and `7192402` from
 01:07 the same day.
 
-**Verdict:** for Portcove, `d5cae379` runs the same as the reviewed `7192402`
+**Verdict:** for Portcove's build, staging, player data writers and launch,
+`d5cae379` is the same as the reviewed `7192402`; only GPU rendering differs
 ([builder downloads record](psxrecomp-7192402-builder-downloads-2026-11-13.md),
 [texture-pack scope](psxrecomp-texture-pack-scope-2026-11-13.md)).
 
@@ -85,6 +86,11 @@ The review lists these unknowns:
 - **Kits:** the kit trees were outside the review. The per-route check below
   covers them.
 - **recomp-ui `14799da`:** taken as unchanged and not fetched again.
+- **Prebuilt emitters:** managed generation runs the kit's packaged
+  `psxrecomp-game` and `psxrecomp-bios` emitters. In the Windows kits where
+  content was compared, both changed while `recompiler/` source did not, and
+  that rebuild was not examined. Each route binds its exact kit SHA-256, so
+  only the reviewed kit bytes are admitted.
 
 ## Method
 
@@ -263,7 +269,8 @@ These were not observed:
 - **Rendering:** above 1x internal scale or in depth24 FMV.
 - **Data lifecycle:** update, rollback or backup with real player data.
 - **Provider data:** the provider release digests and asset lists.
-- **Out of scope:** the Mac kits and the setup host and prebuilt emitter
-  binaries, which were not inspected beyond their listing entries.
+- **Out of scope:** the Mac kits and the setup host binary, which were not
+  inspected beyond their listing entries. The prebuilt emitters are listed
+  under the review's unknowns above.
 - **Portcove inspection:** `portcove catalog inspect-package-layout` was not
   run on these kits.
