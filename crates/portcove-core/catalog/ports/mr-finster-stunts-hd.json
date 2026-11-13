@@ -84,6 +84,25 @@
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
       "manual_preparation": "On first Play, select your own Stunts 1.1 folder or ZIP in the game’s welcome screen. Other 4D Sports Driving revisions are outside this input claim. Setup requires Internet access to fetch its translation map; it normally caches that map by app version and imports the original into its profile. Retain your original files for reimport if storage fails. No original game files are supplied. Saves, tracks, replays, high scores, preferences, imported originals and cached maps live outside the runtime: %APPDATA%/Stunts HD on Windows, or $XDG_CONFIG_HOME/Stunts HD (normally ~/.config/Stunts HD) on Linux. Back up that whole profile with the app closed. Portcove manages the downloaded runtime only; its backup does not include this profile or chosen screenshot/export destinations. F6 exports are not a complete restorable profile backup. For an existing Windows copy select Stunts HD.exe; on Linux select stunts-hd with its containing folder. The upstream browser player at https://stunts-recomp.pages.dev/ has separate browser-site storage. macOS uses the upstream application through the OS; ARM and AppImage routes remain upstream-owned. A missing version cache downloads a mutable upstream map, so first setup after a version change or runtime rollback may need Internet and may fail if that map no longer matches. Preserve existing cached maps; offline/historical-map and save compatibility are not guaranteed. The desktop carrier is Electron 33.2.1; original x86 game code is translated to JavaScript on a modeled PC, not statically compiled to native game code. Reviewed ordinary writers do not alter package files, and no runtime self-updater was found. Compatible Portcove runtime replacement leaves the external profile in place. Native execution, Linux sandbox/GPU requirements, gameplay and real-save restoration remain unqualified."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["locales", "resources"],
+        "executables": ["stunts hd.exe"]
+      },
+      "linux-x86-64": {
+        "directories": ["locales", "resources"],
+        "executables": [
+          "chrome-sandbox",
+          "chrome_crashpad_handler",
+          "libegl.so",
+          "libffmpeg.so",
+          "libglesv2.so",
+          "libvk_swiftshader.so",
+          "libvulkan.so.1",
+          "stunts-hd"
+        ]
+      }
     }
   }
 }
