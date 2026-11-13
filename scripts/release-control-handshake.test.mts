@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { performance } from "node:perf_hooks";
+import { GitHubApiError } from "./github-operation.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import {
   controlHandshakeArtifactName,
@@ -304,6 +305,28 @@ void test("same active job ready artifact becomes readable before job completion
   assert.throws(() => {
     proof.body.facts_sha256 = "e".repeat(64);
   }, TypeError);
+});
+
+void test("coordinator refresh repeats one timed-out inventory without changing the original deadline", async (t) => {
+  for (const terminal of [false, true]) {
+    const f = await fixture(t, "ready", "coordinator", { index: 2, nonce: "a".repeat(64) });
+    const read = f.options.read;
+    let attempts = 0;
+    f.options.read = async (endpoint) => {
+      if (endpoint.includes("/artifacts?") && (++attempts === 1 || terminal)) {
+        throw new GitHubApiError("deadline_exceeded", "inert request timeout");
+      }
+      return read(endpoint);
+    };
+    const result = f.collect();
+    if (terminal) {
+      await assert.rejects(result, /retain exact attempt/u);
+      assert.equal(attempts, 2);
+    } else {
+      assert.equal((await result).artifact.id, f.artifact.id);
+      assert.equal(attempts, 3);
+    }
+  }
 });
 
 void test("actual immutable report permits live observer consumption without awaiting its queue or completion", async (t) => {

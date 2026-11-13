@@ -1109,10 +1109,19 @@ void test("v13 withdrawal authenticates only the appointed request and signed ad
     ),
   );
   assert.ok(
-    !matchesRetainedV13ReviewWithdrawalHandoff(
+    matchesRetainedV13ReviewWithdrawalHandoff(
       checkpoint,
       producer,
       { ...retry, execution_ref: retry.execution_ref.replace(/r2$/u, "r3") },
+      withdrawal,
+      "application",
+    ),
+  );
+  assert.ok(
+    !matchesRetainedV13ReviewWithdrawalHandoff(
+      checkpoint,
+      producer,
+      { ...retry, execution_ref: retry.execution_ref.replace(/r2$/u, "r4") },
       withdrawal,
       "application",
     ),
