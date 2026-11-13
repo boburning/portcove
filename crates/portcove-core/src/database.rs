@@ -3158,16 +3158,16 @@ mod tests {
                 rusqlite::params![scan, kind, ordinal, path, batch, record],
             )
         };
-        insert(0, 0, "/a", 1, "{}").unwrap();
-        insert(1, 0, "/a", 1, "{}").unwrap();
+        insert(0, 0, "game-a", 1, "{}").unwrap();
+        insert(1, 0, "game-a", 1, "{}").unwrap();
         // The same profile and path is one row per kind and scan.
-        assert!(insert(0, 1, "/a", 1, "{}").is_err());
-        assert!(insert(0, 0, "/b", 1, "{}").is_err());
-        assert!(insert(2, 1, "/b", 1, "{}").is_err());
-        assert!(insert(0, 100_000, "/b", 1, "{}").is_err());
-        assert!(insert(0, 1, "/b", 0, "{}").is_err());
-        assert!(insert(0, 1, "/b", 1, &"x".repeat(262_145)).is_err());
-        insert(0, 1, "/b", 2, &"x".repeat(262_144)).unwrap();
+        assert!(insert(0, 1, "game-a", 1, "{}").is_err());
+        assert!(insert(0, 0, "game-b", 1, "{}").is_err());
+        assert!(insert(2, 1, "game-b", 1, "{}").is_err());
+        assert!(insert(0, 100_000, "game-b", 1, "{}").is_err());
+        assert!(insert(0, 1, "game-b", 0, "{}").is_err());
+        assert!(insert(0, 1, "game-b", 1, &"x".repeat(262_145)).is_err());
+        insert(0, 1, "game-b", 2, &"x".repeat(262_144)).unwrap();
     }
 
     historical_schema_tests! {
