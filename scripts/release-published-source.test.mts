@@ -54,20 +54,18 @@ async function fixture(t: test.TestContext, extraCodeChange = false) {
   git(["commit", "-qm", "original source"]);
   const source = git(["rev-parse", "HEAD"]).trim();
   const sourceTree = git(["rev-parse", "HEAD^{tree}"]).trim();
-  const prepared = await prepareReleaseVersion(
-    root,
-    {
-      source_commit: source,
-      reviewed_commit: source,
-      source_tree: sourceTree,
-      reviewed_tree: sourceTree,
-      change_set_sha256: "c".repeat(64),
-      base_version: "0.1.0-alpha.2",
-      change: "prerelease",
-      compatibility: "compatible",
-    },
-    ["0.1.0-alpha.2"],
-  );
+  const classification = {
+    source_commit: source,
+    reviewed_commit: source,
+    source_tree: sourceTree,
+    reviewed_tree: sourceTree,
+    change_set_sha256: "c".repeat(64),
+    base_version: "0.1.0-alpha.2",
+    change: "prerelease",
+    compatibility: "compatible",
+  };
+  const publishedVersions = ["0.1.0-alpha.2"];
+  const prepared = await prepareReleaseVersion(root, classification, publishedVersions);
   if (extraCodeChange) {
     git(["read-tree", prepared.prepared_tree]);
     await writeFile(path.join(root, "app.rs"), "unreviewed extra prepared code\n");
@@ -92,6 +90,7 @@ async function fixture(t: test.TestContext, extraCodeChange = false) {
     [`${namespace}-prepared-source/${source}`, prepared.prepared_commit],
   ]);
   let fault = "";
+  let nativeRelease: Record<string, unknown> = {};
   const calls: string[] = [];
   const commit = (id: string) => {
     const raw = git(["cat-file", "commit", id]);
@@ -135,6 +134,7 @@ async function fixture(t: test.TestContext, extraCodeChange = false) {
           tag_name: `v${prepared.version}`,
           draft: false,
           published_at: "2026-10-20T01:00:00Z",
+          ...nativeRelease,
         };
       else if (route.startsWith("git/ref/tags/")) {
         const name = decodeURIComponent(route.slice("git/ref/tags/".length));
@@ -210,6 +210,46 @@ async function fixture(t: test.TestContext, extraCodeChange = false) {
     namespace,
     calls,
     prepared,
+    useNativeRelease() {
+      refs.delete(`${namespace}-prepared/v${prepared.version}`);
+      refs.delete(`${namespace}-prepared-source/${source}`);
+      const custody = {
+        schema_version: 1,
+        kind: "application-release-run-custody",
+        source,
+        source_tree: sourceTree,
+        opportunity: source,
+        runs: [
+          {
+            id: "42",
+            control_commit: "1".repeat(40),
+            control_ref: "refs/tags/portcove-production-controller-windows-fixture",
+          },
+        ],
+        preparation: {
+          source_commit: source,
+          source_tree: sourceTree,
+          prepared_commit: prepared.prepared_commit,
+          prepared_tree: prepared.prepared_tree,
+          intent_sha256: prepared.intent_sha256,
+          version: prepared.version,
+          classification,
+          published_versions: publishedVersions,
+          qualification: {
+            workflow: ".github/workflows/application-release.yml",
+            workflow_commit: source,
+            run_id: 43,
+            attempt: 1,
+          },
+        },
+      };
+      const retain = () => {
+        nativeRelease.body = `<!-- portcove-application-runs-v1\n${JSON.stringify(custody)}\n-->`;
+      };
+      nativeRelease = { immutable: true, prerelease: true, target_commitish: source };
+      retain();
+      return { record: nativeRelease, custody, retain };
+    },
     setFault(value: string) {
       fault = value;
     },
@@ -284,6 +324,25 @@ void test("actual paired preparation and exact four-file transform preserve dist
   assert.equal(baseline.tree, f.prepared.prepared_tree);
   assert.deepEqual(baseline.source_baseline, { commit: f.source, tree: f.sourceTree });
   assert.equal(baseline.published_source?.kind, "verified-prepared-publication");
+});
+
+void test("an immutable native executable Release proves the original baseline without allocating extra refs", async (t) => {
+  const f = await fixture(t);
+  const { record, custody, retain } = f.useNativeRelease();
+  const result = await readWithLockedSdk(f);
+  assert.equal(result.kind, "verified-prepared-publication");
+  assert.deepEqual(result.source_baseline, { commit: f.source, tree: f.sourceTree });
+  assert.equal(result.preparation?.intent_sha256, f.prepared.intent_sha256);
+  record.immutable = false;
+  await assert.rejects(readWithLockedSdk(f), /immutable native publication preparation differs/u);
+  record.immutable = true;
+  custody.preparation.intent_sha256 = "0".repeat(64);
+  retain();
+  await assert.rejects(readWithLockedSdk(f), /verified source or release intent/u);
+  custody.preparation.intent_sha256 = f.prepared.intent_sha256;
+  retain();
+  f.refs.set(`${f.namespace}-prepared-source/${f.source}`, f.prepared.prepared_commit);
+  await assert.rejects(readWithLockedSdk(f), /receipt missing or unpaired/u);
 });
 void test("missing/wrong paired receipt, truncated tree, changed blob and tag drift cannot manufacture a source baseline", async (t) => {
   const f = await fixture(t);
