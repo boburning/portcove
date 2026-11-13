@@ -238,6 +238,12 @@ PORTCOVE_MAINTENANCE_DATABASE_URL="$RESTORE_TARGET_URL" node scripts/maintenance
   `PORTCOVE_POSTGRES_BIN` when `PATH` mixes versions). Restore renders the dump
   to a plain-text script in a private temporary directory that is removed when
   the restore finishes; an abruptly killed restore can leave it behind.
+- A restore target must run the backup's PostgreSQL major version or a newer
+  one, with client tools of that version: an older `pg_restore` refuses a newer
+  custom-format archive (PostgreSQL 16 refuses the 1.16 archives that
+  PostgreSQL 18 writes). The production backup records its server version in
+  the manifest (`server_version_num`); install that major's client and server
+  from the PostgreSQL project repository on the restore host.
 - Collectors finish runs under the default READ COMMITTED isolation, so the
   derived observed count includes every committed observation of the run.
 - `backup` writes to a temporary sibling directory and renames it only when
