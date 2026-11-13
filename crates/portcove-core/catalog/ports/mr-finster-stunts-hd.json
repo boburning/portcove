@@ -92,7 +92,16 @@
       },
       "linux-x86-64": {
         "directories": ["locales", "resources"],
-        "executables": ["chrome-sandbox", "chrome_crashpad_handler", "libegl.so", "libffmpeg.so", "libglesv2.so", "libvk_swiftshader.so", "libvulkan.so.1", "stunts-hd"]
+        "executables": [
+          "chrome-sandbox",
+          "chrome_crashpad_handler",
+          "libegl.so",
+          "libffmpeg.so",
+          "libglesv2.so",
+          "libvk_swiftshader.so",
+          "libvulkan.so.1",
+          "stunts-hd"
+        ]
       }
     }
   }
