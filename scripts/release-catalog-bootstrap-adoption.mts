@@ -7,6 +7,8 @@ import {
   immutableApplicationBootstrap,
   retainedR55Renewal,
   retainedR56FeedRecovery,
+  retainedV13FeedRecovery,
+  retainedV8ServedRenewal,
   retainedServedRenewal,
 } from "./application-release-run.mts";
 import {
@@ -27,6 +29,7 @@ import type { CatalogCoordinatorRefusalStage } from "./release-control-step-brid
 import {
   inspectTufPublicationFacts,
   servedNativeBootstrapRenewal,
+  servedV13BootstrapRenewal,
   standaloneBootstrapAdoption,
   standaloneBootstrapForwardAdoption,
   standaloneBootstrapRenewalAdoption,
@@ -225,16 +228,17 @@ export async function authenticateStandaloneBootstrapAdoption(
   const actual = await readApplicationPriorPublication(directory);
   const { discovered, prior } = actual;
   const renewal = discovered.release_id === retainedServedRenewal.release_id;
+  const v13 = discovered.execution.run.id === servedV13BootstrapRenewal.run_id;
+  const native = v13 ? servedV13BootstrapRenewal : servedNativeBootstrapRenewal;
   const selected =
     forward === "native"
-      ? servedNativeBootstrapRenewal
+      ? native
       : forward
         ? standaloneBootstrapForwardAdoption
         : renewal
           ? standaloneBootstrapRenewalAdoption
           : originalSelection;
   if (forward === "native") {
-    const native = servedNativeBootstrapRenewal;
     assert.equal(discovered.release_id, native.release_id);
     assert.equal(discovered.custody.opportunity, native.opportunity);
     assert.equal(discovered.custody.preparation, null);
@@ -246,15 +250,24 @@ export async function authenticateStandaloneBootstrapAdoption(
     assert.equal(discovered.execution.attempt, 1);
     assert.equal(discovered.execution.conclusion, "success");
     assert.equal(discovered.execution.job_id, Number(native.feed_job_id));
-    assert.deepEqual(prior.receipt.producer, discovered.execution.run);
-    assert.equal(prior.receipt.producer_attempt, 1);
-    assert.equal(
-      prior.receipt.site.previous_generation,
-      standaloneBootstrapForwardAdoption.generation,
+    assert.deepEqual(
+      prior.receipt.producer,
+      v13
+        ? {
+            id: retainedV13FeedRecovery.run_id,
+            control_commit: retainedV13FeedRecovery.control_commit,
+            control_ref: retainedV8ServedRenewal.next_ref,
+          }
+        : discovered.execution.run,
     );
+    assert.equal(prior.receipt.producer_attempt, 1);
+    const previousGeneration = v13
+      ? servedNativeBootstrapRenewal.generation
+      : standaloneBootstrapForwardAdoption.generation;
+    assert.equal(prior.receipt.site.previous_generation, previousGeneration);
     assert.ok(isRecord(prior.metadata));
     assert.equal(prior.metadata.purpose, "metadata-renewal");
-    assert.equal(prior.metadata.prior_generation, standaloneBootstrapForwardAdoption.generation);
+    assert.equal(prior.metadata.prior_generation, previousGeneration);
     assert.equal(prior.metadata.prior_repository_sha256, native.prior_repository_sha256);
     await assertSettledRenewalFeed(discovered, deadline, native);
   } else if (forward) {

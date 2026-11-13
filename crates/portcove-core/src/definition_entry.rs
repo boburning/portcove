@@ -419,6 +419,17 @@ impl DefinitionContentIndex {
                 "new managed PS1 entries require package-preserving activation capability version 2",
             ));
         }
+        if crate::persistence::requires_psx_retained_scope(&port)
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "psx-recomp-managed"
+                    && requirement.minimum_version
+                        >= crate::persistence::PSX_RETAINED_SCOPE_CAPABILITY
+            })
+        {
+            return Err(PortcoveError::verification(
+                "managed PS1 entries with a texture-pack folder require retained-scope capability version 3",
+            ));
+        }
         if port
             .release
             .user_prepared

@@ -580,94 +580,21 @@ export function StatusLayer({
                 />
               )}
               {record.phase === "pending" ? (
-                <>
-                  <p className="mb-1 text-sm font-semibold [overflow-wrap:anywhere]">
-                    {record.context.action} · {record.context.target.label}
-                  </p>
-                  <OperationProgress
-                    // Invocation and event identities are distinct. Only an actual
-                    // explicitly owned ID permits this progress association.
-                    operation={
-                      record.context.activityId
-                        ? operationEvents?.get(record.context.activityId)
-                        : undefined
-                    }
-                    busy={record.outcome ? "refresh current state" : record.name}
-                    announcePhase={false}
-                  />
-                  {openActivity && (!onActivity || record.context.activityId) && (
-                    <Button
-                      variant="link"
-                      size="sm"
-                      onClick={() => openActivity(record.context.activityId)}
-                    >
-                      {activityLinkLabel(record.context.activityId, onActivity)}
-                    </Button>
-                  )}
-                </>
+                <PendingInvocation
+                  record={record}
+                  operationEvents={operationEvents}
+                  openActivity={openActivity}
+                  onActivity={onActivity}
+                />
               ) : (
-                invocationFailure(record) === undefined &&
-                (record.id === latestSuccess && readyToPlay?.(record) ? (
-                  <Notice intent="success" className="mb-0 items-center">
-                    <p data-slot="notice-body">{record.context.target.label} is ready to play.</p>
-                    <div data-slot="notice-actions">
-                      <Button
-                        data-focusable
-                        variant="primary"
-                        size="sm"
-                        aria-label={`Play: ${record.context.target.label}`}
-                        onClick={() => {
-                          readyToPlay(record)?.();
-                          dismissInvocation?.(record.id);
-                        }}
-                      >
-                        Play
-                      </Button>
-                      {dismissInvocation && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          aria-label={`Dismiss completion for ${record.context.action}`}
-                          onClick={() => dismissInvocation(record.id)}
-                        >
-                          Dismiss
-                        </Button>
-                      )}
-                    </div>
-                  </Notice>
-                ) : record.id === latestSuccess &&
-                  !(record.context.operation === "launch" && record.outcome === "succeeded") ? (
-                  <Notice intent="success" className="mb-0 items-center">
-                    <p data-slot="notice-body">
-                      {record.context.action} · {record.context.target.label}: finished.
-                    </p>
-                    <div data-slot="notice-actions">
-                      {record.context.activityId && openActivity && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openActivity(record.context.activityId)}
-                        >
-                          {onActivity ? "Show task" : "View in Activity"}
-                        </Button>
-                      )}
-                      {dismissInvocation && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          aria-label={`Dismiss completion for ${record.context.action}`}
-                          onClick={() => dismissInvocation(record.id)}
-                        >
-                          Dismiss
-                        </Button>
-                      )}
-                    </div>
-                  </Notice>
-                ) : record.outcome === "cancelled" ? (
-                  <p className="sr-only">
-                    {record.context.action} · {record.context.target.label}: cancelled.
-                  </p>
-                ) : null)
+                <SettledInvocation
+                  record={record}
+                  latestSuccess={latestSuccess}
+                  readyToPlay={readyToPlay}
+                  dismissInvocation={dismissInvocation}
+                  openActivity={openActivity}
+                  onActivity={onActivity}
+                />
               )}
             </div>
           ))
@@ -2749,4 +2676,119 @@ function noticePresentation(error: unknown, invocation: InvocationRecord | undef
   const cancelled = code === "cancelled";
   const readbackOnly = invocation?.outcome === "succeeded" && invocation.failure === undefined;
   return { presentation, committed, neutral, summary, code, cancelled, readbackOnly };
+}
+
+function PendingInvocation({
+  record,
+  operationEvents,
+  openActivity,
+  onActivity,
+}: {
+  record: InvocationRecord;
+  operationEvents: ReadonlyMap<string, OperationEvent> | undefined;
+  openActivity: ((id?: string) => void) | undefined;
+  onActivity: boolean;
+}) {
+  return (
+    <>
+      <p className="mb-1 text-sm font-semibold [overflow-wrap:anywhere]">
+        {record.context.action} · {record.context.target.label}
+      </p>
+      <OperationProgress
+        // Invocation and event identities are distinct. Only an actual
+        // explicitly owned ID permits this progress association.
+        operation={
+          record.context.activityId ? operationEvents?.get(record.context.activityId) : undefined
+        }
+        busy={record.outcome ? "refresh current state" : record.name}
+        announcePhase={false}
+      />
+      {openActivity && (!onActivity || record.context.activityId) && (
+        <Button variant="link" size="sm" onClick={() => openActivity(record.context.activityId)}>
+          {activityLinkLabel(record.context.activityId, onActivity)}
+        </Button>
+      )}
+    </>
+  );
+}
+
+function SettledInvocation({
+  record,
+  latestSuccess,
+  readyToPlay,
+  dismissInvocation,
+  openActivity,
+  onActivity,
+}: {
+  record: InvocationRecord;
+  latestSuccess: number | undefined;
+  readyToPlay: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
+  dismissInvocation: ((id: number) => void) | undefined;
+  openActivity: ((id?: string) => void) | undefined;
+  onActivity: boolean;
+}) {
+  return (
+    invocationFailure(record) === undefined &&
+    (record.id === latestSuccess && readyToPlay?.(record) ? (
+      <Notice intent="success" className="mb-0 items-center">
+        <p data-slot="notice-body">{record.context.target.label} is ready to play.</p>
+        <div data-slot="notice-actions">
+          <Button
+            data-focusable
+            variant="primary"
+            size="sm"
+            aria-label={`Play: ${record.context.target.label}`}
+            onClick={() => {
+              readyToPlay(record)?.();
+              dismissInvocation?.(record.id);
+            }}
+          >
+            Play
+          </Button>
+          {dismissInvocation && (
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={`Dismiss completion for ${record.context.action}`}
+              onClick={() => dismissInvocation(record.id)}
+            >
+              Dismiss
+            </Button>
+          )}
+        </div>
+      </Notice>
+    ) : record.id === latestSuccess &&
+      !(record.context.operation === "launch" && record.outcome === "succeeded") ? (
+      <Notice intent="success" className="mb-0 items-center">
+        <p data-slot="notice-body">
+          {record.context.action} · {record.context.target.label}: finished.
+        </p>
+        <div data-slot="notice-actions">
+          {record.context.activityId && openActivity && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => openActivity(record.context.activityId)}
+            >
+              {onActivity ? "Show task" : "View in Activity"}
+            </Button>
+          )}
+          {dismissInvocation && (
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={`Dismiss completion for ${record.context.action}`}
+              onClick={() => dismissInvocation(record.id)}
+            >
+              Dismiss
+            </Button>
+          )}
+        </div>
+      </Notice>
+    ) : record.outcome === "cancelled" ? (
+      <p className="sr-only">
+        {record.context.action} · {record.context.target.label}: cancelled.
+      </p>
+    ) : null)
+  );
 }

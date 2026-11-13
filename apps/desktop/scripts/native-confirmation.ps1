@@ -110,10 +110,11 @@ function Write-ObservationProgress([string]$Stage) {
         [IO.File]::AppendAllText($progressPath, "$record`n")
     }
 }
+. (Join-Path $PSScriptRoot 'native-process-tree.ps1')
 function Assert-CapturedPickerDriver([string]$DriverPath, [string]$DriverStartedFiletime) {
     $capturedDriver = [Diagnostics.Process]::GetProcessById($DriverProcessId)
     if ($capturedDriver.StartTime.ToUniversalTime().ToFileTimeUtc().ToString() -ne $DriverStartedFiletime -or
-        -not [string]::Equals($capturedDriver.MainModule.FileName, $DriverPath, [StringComparison]::OrdinalIgnoreCase)) {
+        -not (Test-SameNativePath @($capturedDriver.MainModule.FileName, $DriverPath))) {
         throw 'Captured picker driver identity changed; no input permitted.'
     }
 }
@@ -142,7 +143,6 @@ Write-ObservationProgress 'automation-assemblies-start'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Write-ObservationProgress 'automation-assemblies-ready'
-. (Join-Path $PSScriptRoot 'native-process-tree.ps1')
 if ($ObservePicker) {
     . (Join-Path $PSScriptRoot 'native-window-discovery.ps1')
 }

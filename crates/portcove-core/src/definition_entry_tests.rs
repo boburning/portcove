@@ -1303,9 +1303,28 @@ fn psx_package_preserving_activation_requires_new_admission_floor_but_retains_v1
     entry["required_capabilities"][0]["minimum_version"] = json!(2);
     entry["required_capabilities"][0]["maximum_version"] = json!(2);
     assert!(inspect(&entry).unwrap().capabilities().compatible);
+    entry["required_capabilities"][0]["minimum_version"] = json!(4);
+    entry["required_capabilities"][0]["maximum_version"] = json!(4);
+    assert!(!inspect(&entry).unwrap().capabilities().compatible);
+
+    // A texture-pack folder needs the retained-scope reader.
+    let textures = catalog
+        .ports()
+        .iter()
+        .find(|port| crate::persistence::requires_psx_retained_scope(port))
+        .unwrap();
+    let mut entry = entry_for_port(textures);
+    entry["required_capabilities"][0]["minimum_version"] = json!(2);
+    entry["required_capabilities"][0]["maximum_version"] = json!(2);
+    assert!(
+        inspect(&entry)
+            .unwrap_err()
+            .message
+            .contains("retained-scope capability version 3")
+    );
     entry["required_capabilities"][0]["minimum_version"] = json!(3);
     entry["required_capabilities"][0]["maximum_version"] = json!(3);
-    assert!(!inspect(&entry).unwrap().capabilities().compatible);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
 }
 
 #[test]

@@ -543,7 +543,7 @@ function visibleInView(port: CatalogEntry, statuses: ReadonlyMap<string, PortSta
 }
 
 /** An explicit add-only Library entry. It is not an installation and never counts as one. */
-export function isSavedLibraryEntry(port: CatalogEntry) {
+function isSavedLibraryEntry(port: CatalogEntry) {
   return Boolean(port.listingStatus?.library_membership);
 }
 

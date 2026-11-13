@@ -733,6 +733,48 @@ jobs:
         uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.native-quality-pins.outputs.required_prebuilt }}
+      # Owner-approved on 2026-11-12 for #4879: windows-2022 registers WebView2
+      # 131, below the application's floor, so Portcove correctly refuses to
+      # start. Update to the serviced Evergreen runtime before bootstrap selects
+      # the matching driver. Microsoft's Authenticode signature is verified
+      # before execution; Server 2022 remains no supported-baseline claim.
+      # The WebView2 debugging-port policy set below and the process-creation
+      # auditing of the next step were owner-approved on 2026-11-13 for #4879.
+      - name: Provision the serviced Evergreen WebView2 runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Import-Module ./scripts/windows-webview-driver-policy.psm1
+          $minimum = [string]((Get-Content apps/desktop/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).bundle.windows.minimumWebview2Version)
+          if ($minimum -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw 'Application WebView2 floor is unreadable.' }
+          $before = Get-WebViewRuntimeVersion
+          $record = [ordered]@{ minimum = $minimum; before = $before }
+          if ([version]$before -lt [version]$minimum) {
+            $installer = Join-Path $env:RUNNER_TEMP 'MicrosoftEdgeWebview2Setup.exe'
+            Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile $installer -UseBasicParsing
+            $signature = Get-AuthenticodeSignature -LiteralPath $installer
+            if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') {
+              throw "Evergreen bootstrapper signature is not a valid Microsoft signature: $($signature.Status)"
+            }
+            $record.installer_sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash
+            $record.installer_signer = $signature.SignerCertificate.Subject
+            $process = Start-Process -FilePath $installer -ArgumentList '/silent', '/install' -Wait -PassThru
+            $record.installer_exit_code = $process.ExitCode
+            if ($process.ExitCode -ne 0) { throw "Evergreen bootstrapper exited $($process.ExitCode)." }
+          }
+          $record.after = Get-WebViewRuntimeVersion
+          $record | ConvertTo-Json | Set-Content "$env:PORTCOVE_OUTPUT_DIR/webview2-runtime.json"
+          $record | ConvertTo-Json
+          if ([version]$record.after -lt [version]$minimum) {
+            throw "WebView2 $($record.after) remains below the application floor $minimum."
+          }
+          # The elevated hosted runner's WebView2 ignores msedgedriver's
+          # WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS, so no DevTools endpoint opens.
+          # On this disposable runner only, the machine policy supplies the
+          # automation port for the development executable the harness launches.
+          $policy = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge\WebView2\AdditionalBrowserArguments'
+          New-Item -Path $policy -Force | Out-Null
+          New-ItemProperty -Path $policy -Name 'portcove-desktop.exe' -Value '--remote-debugging-port=0' -PropertyType String -Force | Out-Null
       - name: Install locked packages and existing pinned native tools
         shell: pwsh
         run: |
@@ -741,6 +783,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Locked package installation failed.' }
           ./scripts/bootstrap-quality-tools.ps1 -Desktop
           if ($LASTEXITCODE -ne 0) { throw 'Pinned native bootstrap failed.' }
+      # Diagnostics only: record process creation with command lines so a
+      # failed session shows how the application and WebView2 were launched.
+      - name: Record process creation for failure diagnostics
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          auditpol /set /subcategory:"Process Creation" /success:enable | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Process-creation auditing could not be enabled.' }
+          New-Item -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System\Audit' -Force | Out-Null
+          New-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System\Audit' -Name ProcessCreationIncludeCmdLine_Enabled -Value 1 -PropertyType DWord -Force | Out-Null
       - name: Plan and observe the fixed owned product scenarios
         shell: pwsh
         run: |
@@ -757,6 +809,72 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Owned product scenario plan failed.' }
           just desktop-verify @scenarioArguments --require-clean
           if ($LASTEXITCODE -ne 0) { throw 'Owned native product scenario failed; retain original evidence.' }
+      # Read-only failure diagnostics: the application's own bounded host
+      # diagnostics and Windows' record of an application exit, which the
+      # driver-side evidence cannot observe.
+      - name: Print application startup diagnostics after a failure
+        if: failure()
+        timeout-minutes: 5
+        shell: pwsh
+        run: |
+          $roots = @($env:PORTCOVE_OUTPUT_DIR, $env:PORTCOVE_TEMP_DIR, (Join-Path $env:LOCALAPPDATA 'Portcove')) |
+            Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+          foreach ($root in $roots) {
+            Get-ChildItem -LiteralPath $root -Recurse -Directory -Filter diagnostics -ErrorAction SilentlyContinue |
+              Select-Object -First 8 | ForEach-Object {
+                Get-ChildItem -LiteralPath $_.FullName -Recurse -File -ErrorAction SilentlyContinue |
+                  Where-Object { $_.Length -le 4MB -and $_.Extension -in '.json', '.jsonl', '.log', '.txt' } |
+                  Select-Object -First 16 | ForEach-Object {
+                    "==== $($_.FullName) ($($_.Length) bytes)"
+                    Get-Content -LiteralPath $_.FullName -Tail 200 | ForEach-Object { $_.Substring(0, [Math]::Min(2000, $_.Length)) }
+                  }
+              }
+          }
+          "==== Scenario report failures and largest retained outputs"
+          if ($env:PORTCOVE_OUTPUT_DIR -and (Test-Path -LiteralPath $env:PORTCOVE_OUTPUT_DIR)) {
+            Get-ChildItem -LiteralPath $env:PORTCOVE_OUTPUT_DIR -Recurse -File -Filter '*.json' -ErrorAction SilentlyContinue |
+              Where-Object { $_.Directory.Name -eq 'native' -and $_.Length -le 4MB } | ForEach-Object {
+                $report = try { Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json } catch { $null }
+                if ($report -and ($report.PSObject.Properties.Name -contains 'failure')) {
+                  "-- $($_.Name)"
+                  foreach ($name in 'failure', 'failure_stack', 'cleanup_failure') {
+                    $value = [string]$report.$name
+                    if ($value) { "${name}: $($value.Substring(0, [Math]::Min(4000, $value.Length)))" }
+                  }
+                }
+              }
+            Get-ChildItem -LiteralPath $env:PORTCOVE_OUTPUT_DIR -Recurse -File -ErrorAction SilentlyContinue |
+              Sort-Object Length -Descending | Select-Object -First 15 |
+              ForEach-Object { "$($_.Length) $($_.FullName.Substring($env:PORTCOVE_OUTPUT_DIR.Length))" }
+            $nativeTotal = (Get-ChildItem -LiteralPath $env:PORTCOVE_OUTPUT_DIR -Recurse -File -ErrorAction SilentlyContinue |
+              Where-Object { $_.Directory.Name -eq 'native' -and $_.Extension -in '.json', '.jsonl', '.log', '.png' } | Measure-Object Length -Sum).Sum
+            "native evidence total bytes: $nativeTotal"
+          }
+          "==== DevToolsActivePort files written anywhere the WebView may have used"
+          @($env:PORTCOVE_OUTPUT_DIR, $env:PORTCOVE_TEMP_DIR, $env:LOCALAPPDATA, $env:RUNNER_TEMP) | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | ForEach-Object {
+            Get-ChildItem -LiteralPath $_ -Recurse -File -Filter DevToolsActivePort -Force -ErrorAction SilentlyContinue |
+              Select-Object -First 10 | ForEach-Object { "$($_.FullName) $($_.LastWriteTimeUtc.ToString('o'))" }
+          }
+          "==== Edge and WebView2 policies"
+          foreach ($key in 'HKLM:\SOFTWARE\Policies\Microsoft\Edge', 'HKLM:\SOFTWARE\Policies\Microsoft\Edge\WebView2', 'HKLM:\SOFTWARE\Policies\Microsoft\EdgeUpdate', 'HKCU:\SOFTWARE\Policies\Microsoft\Edge') {
+            if (Test-Path $key) { "-- $key"; Get-ItemProperty -Path $key | Format-List * | Out-String -Width 200 }
+            Get-ChildItem -Path $key -Recurse -ErrorAction SilentlyContinue | ForEach-Object { "-- $($_.Name)"; $_ | Get-ItemProperty | Format-List * | Out-String -Width 200 }
+          }
+          "==== WEBVIEW2 environment"
+          Get-ChildItem env: | Where-Object Name -like 'WEBVIEW2*' | Format-Table -AutoSize | Out-String -Width 200
+          "==== Process creation: application, WebView2 and drivers"
+          Get-WinEvent -FilterHashtable @{ LogName = 'Security'; Id = 4688; StartTime = (Get-Date).AddHours(-2) } -MaxEvents 4000 -ErrorAction SilentlyContinue |
+            ForEach-Object {
+              $data = @{}; ([xml]$_.ToXml()).Event.EventData.Data | ForEach-Object { $data[$_.Name] = $_.'#text' }
+              $toPid = { param($hex) try { [Convert]::ToInt32([string]$hex, 16) } catch { -1 } }
+              [pscustomobject]@{ Time = $_.TimeCreated.ToString('o'); Pid = (& $toPid $data.NewProcessId); ParentPid = (& $toPid $data.ProcessId); Image = $data.NewProcessName; Parent = $data.ParentProcessName; CommandLine = $data.CommandLine }
+            } |
+            Where-Object { "$($_.Image)|$($_.Parent)" -match '\\msedgewebview2\.exe|\\msedgedriver\.exe|tauri-driver|Portcove-Retained-Evidence' -and "$($_.Image)" -notmatch '\\conhost\.exe$' } |
+            Sort-Object Time | Select-Object -Last 80 |
+            ForEach-Object { "$($_.Time) pid=$($_.Pid) parent=$($_.ParentPid) $($_.Image) <- $($_.Parent)`n    $("$($_.CommandLine)".Substring(0, [Math]::Min(700, "$($_.CommandLine)".Length)))" }
+          "==== Windows Application log errors since job start"
+          Get-WinEvent -FilterHashtable @{ LogName = 'Application'; Level = 1, 2; StartTime = (Get-Date).AddHours(-2) } -MaxEvents 30 -ErrorAction SilentlyContinue |
+            ForEach-Object { "$($_.TimeCreated.ToString('o')) $($_.ProviderName) $($_.Id)`n    $("$($_.Message)".Substring(0, [Math]::Min(1500, "$($_.Message)".Length)))" }
       - name: Require the isolated singleton Settings entry evidence
         if: matrix.selection == 'owned-steam'
         shell: pwsh

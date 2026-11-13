@@ -141,6 +141,11 @@ pub(crate) fn checked_port(
                 .push("logs/Ship of Harkinian.log".into());
         }
     }
+    if crate::persistence::only_adds_psx_texture_packs(retained, &current) {
+        current
+            .persistent_paths
+            .clone_from(&retained.persistent_paths);
+    }
     if !retained
         .persistent_paths
         .iter()

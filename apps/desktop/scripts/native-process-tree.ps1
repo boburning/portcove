@@ -1,3 +1,16 @@
+# Windows can report one executable as `D:\x` through CIM and `\\?\D:\x`
+# through the loaded module (long-path libraries). Compare the same path
+# identity without accepting a different file.
+function ConvertTo-ComparableNativePath([string]$Path) {
+    if ($null -eq $Path) { return $null }
+    if ($Path.StartsWith('\\?\UNC\', [StringComparison]::OrdinalIgnoreCase)) { return '\\' + $Path.Substring(8) }
+    if ($Path.StartsWith('\\?\', [StringComparison]::Ordinal)) { return $Path.Substring(4) }
+    return $Path
+}
+function Test-SameNativePath([string[]]$Pair) {
+    return [string]::Equals((ConvertTo-ComparableNativePath $Pair[0]), (ConvertTo-ComparableNativePath $Pair[1]), [StringComparison]::OrdinalIgnoreCase)
+}
+
 function Wait-OwnedNativeProcess(
     $Record,
     $Watch,
@@ -24,7 +37,7 @@ function Wait-OwnedNativeProcess(
         # A reused PID proves the captured process already exited. Never act on it.
         if ($started.ToFileTimeUtc() -ne $Record.started_filetime) { return }
         $identityMatched = $true
-        if (-not [string]::Equals($process.MainModule.FileName, $Record.path, [StringComparison]::OrdinalIgnoreCase)) { throw 'Captured process path changed.' }
+        if (-not (Test-SameNativePath @($process.MainModule.FileName, $Record.path))) { throw 'Captured process path changed.' }
         $remaining = [Math]::Max(0, 5000 - [int]$Watch.ElapsedMilliseconds)
         if (-not $process.WaitForExit($remaining)) { throw "Captured native process $($Record.pid) did not exit within the shared five-second bound." }
     } catch [InvalidOperationException] {
@@ -61,7 +74,7 @@ function Get-OwnedNativeProcessTree([int]$DriverProcessId, [string]$ApplicationP
     $applicationFull = (Resolve-Path -LiteralPath $ApplicationPath).Path
     $tree = Get-OwnedDriverProcessTree $DriverProcessId
     $applications = @($tree.processes | Where-Object {
-        $_.ExecutablePath -and [string]::Equals($_.ExecutablePath, $applicationFull, [StringComparison]::OrdinalIgnoreCase) -and
+        $_.ExecutablePath -and (Test-SameNativePath @($_.ExecutablePath, $applicationFull)) -and
         $_.CreationDate
     })
     if ($applications.Count -ne 1) {

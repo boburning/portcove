@@ -146,7 +146,12 @@ export async function executeCargoPhase(
   );
   if (!lease.inherited) throw new Error("Cargo phase did not inherit validated admission");
   try {
-    await execute("cargo", args, { env: environment });
+    // The first definition-state action can compile the fixture-enabled Core
+    // test binary on a cold Windows runner. Other child budgets stay at ten minutes.
+    await execute("cargo", args, {
+      env: environment,
+      ...(phase === "definition-state" ? { timeout: 20 * 60_000 } : {}),
+    });
   } finally {
     await lease.release(); // Existing inherited lease release is a no-op; the parent owns closure.
   }

@@ -547,6 +547,12 @@ void test(
       }[]
     ).find(({ port_key }) => port_key === "port:not-a-catalog-port")!;
     assert.equal(absent.explanation.catalog_record_present, false);
+    // The universe comes from the same stored facts: the authored port is an entry, and the
+    // id without a catalog record is not invented as one.
+    const universe = new Map((inventory.universe ?? []).map((entry) => [entry.key, entry]));
+    assert.equal(universe.get("port:2ship2harkinian")?.game, "The Legend of Zelda: Majora's Mask");
+    assert.ok(!universe.has("port:not-a-catalog-port"));
+    assert.match(renderHtml(inventory), /Games and implementations/u);
 
     const output = path.join(fixture.root, "report");
     writeReport(inventory, output);

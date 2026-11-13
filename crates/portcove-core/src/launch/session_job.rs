@@ -637,6 +637,7 @@ fn current_user_sid() -> io::Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::process::{ChildProcessClass, ChildProcessPolicy};
     use std::{process::Stdio, time::Instant};
     use windows_sys::Win32::System::JobObjects::TerminateJobObject;
 
@@ -663,7 +664,9 @@ mod tests {
     fn suspended_spawn_runs_tracks_exit_and_releases_the_job_name() {
         let id = session_id();
         let root = system_directory();
-        let mut command = Command::new(root.join("cmd.exe"));
+        let mut command =
+            ChildProcessPolicy::native_command(ChildProcessClass::HostTool, root.join("cmd.exe"))
+                .unwrap();
         command
             .args(["/d", "/c", "exit 7"])
             .stdin(Stdio::null())
@@ -692,7 +695,11 @@ mod tests {
         let install = tempfile::tempdir().unwrap();
         // ping lives outside the install. It is the direct child, so no shell
         // quoting or detached start can keep the fixture from ending.
-        let mut command = Command::new(system.join("ping.exe"));
+        let mut command = ChildProcessPolicy::native_command(
+            ChildProcessClass::HostTool,
+            system.join("ping.exe"),
+        )
+        .unwrap();
         command
             .args(["-n", "30", "127.0.0.1"])
             .stdin(Stdio::null())

@@ -308,6 +308,7 @@ void test("captured picker driver keeps explicit image and birth identity checks
 $ErrorActionPreference = 'Stop'
 $ast = [Management.Automation.Language.Parser]::ParseFile('${helper.replaceAll("'", "''")}', [ref]$null, [ref]$null)
 $guard = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Assert-CapturedPickerDriver' }, $false)
+. '${path.join(path.dirname(helper), "native-process-tree.ps1").replaceAll("'", "''")}'
 . ([scriptblock]::Create($guard.Extent.Text))
 $DriverProcessId = $PID
 $process = [Diagnostics.Process]::GetCurrentProcess()

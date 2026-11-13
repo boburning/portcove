@@ -650,6 +650,7 @@ fn prepare_install_inner(
         operation,
         quiesced,
     )?;
+    require_no_fetched_overlay_toolchain(root, &build_dir)?;
     let executable = platform_executable(&build_dir, configuration.executable_basename);
     if !executable.is_file() {
         return Err(PortcoveError::install(format!(
@@ -1559,6 +1560,7 @@ fn run_cli(
         .env("TEMP", environment_root.join("temp"))
         .env("TMP", environment_root.join("temp"))
         .env("TMPDIR", environment_root.join("temp"));
+    refuse_builder_downloads(&mut command);
     if let Some((sdk, compiler_bin)) = apple_tools {
         command
             .env("CC", compiler_bin.join("clang"))
@@ -1619,6 +1621,59 @@ fn run_cli(
             .detail("output_tail", detail)
             .detail("output_truncated", truncated.to_string()),
     )
+}
+
+/// Closed local proxy for the managed builder. PSXRecomp `7192402` stages an
+/// overlay toolchain on every rebuild by fetching Python (and building tcc on
+/// Linux) through urllib, whatever `--no-toolchain-download` says. Core admits
+/// no executable it has not verified, so every such request is refused at
+/// once; the kit logs the failure, finishes the build and the player
+/// interprets overlays. Environment proxies also take precedence over a
+/// Windows system proxy.
+const BUILDER_REFUSED_PROXY: &str = "http://127.0.0.1:9";
+
+fn refuse_builder_downloads(command: &mut crate::process::NativeToolLaunchSpec) {
+    // Python prefers lowercase names on Unix. Windows names are
+    // case-insensitive, so clear every spelling before setting one.
+    for name in ["https_proxy", "http_proxy", "no_proxy", "NO_PROXY"] {
+        command.env_remove(name);
+    }
+    for name in ["HTTPS_PROXY", "HTTP_PROXY"] {
+        command.env(name, BUILDER_REFUSED_PROXY);
+    }
+}
+
+/// The overlay toolchain folders a PSXRecomp `7192402` rebuild creates. The
+/// refused download leaves them empty; any file means the kit obtained tools
+/// another way (for example a pre-filled cache), which Core does not admit.
+fn require_no_fetched_overlay_toolchain(root: &Path, build_dir: &Path) -> Result<()> {
+    for folder in [
+        build_dir.join("overlay_toolchain"),
+        root.join(".cache").join("overlay-toolchain"),
+    ] {
+        crate::path::refuse_symlink_ancestors(&folder)?;
+        let mut pending = vec![folder.clone()];
+        while let Some(directory) = pending.pop() {
+            let entries = match fs::read_dir(&directory) {
+                Ok(entries) => entries,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => return Err(error.into()),
+            };
+            for entry in entries {
+                let entry = entry?;
+                let kind = entry.file_type()?;
+                if kind.is_dir() {
+                    pending.push(entry.path());
+                } else {
+                    return Err(PortcoveError::install(
+                        "PS1 build obtained an unverified overlay toolchain, so nothing was installed or changed",
+                    )
+                    .detail("path", entry.path().display().to_string()));
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 fn macos_toolchain_sdk(
@@ -2705,6 +2760,60 @@ mod tests {
     #[test]
     fn managed_builder_rebuild_observes_active_cancellation() {
         assert_builder_cancellation("rebuild");
+    }
+
+    #[test]
+    fn managed_builder_refuses_every_download_through_a_closed_local_proxy() {
+        let mut command = crate::process::ChildProcessPolicy::native_tool_spec(
+            crate::process::ChildProcessClass::ManagedBuilder,
+            "python",
+        )
+        .unwrap();
+        command
+            .env("HTTPS_PROXY", "http://proxy.invalid:8080")
+            .env("https_proxy", "http://proxy.invalid:8080")
+            .env("no_proxy", "*")
+            .env("NO_PROXY", "*");
+        refuse_builder_downloads(&mut command);
+        let value = |name: &str| {
+            command
+                .environment
+                .iter()
+                .find(|(key, _)| key.as_os_str() == std::ffi::OsStr::new(name))
+                .map(|(_, value)| value.to_owned())
+        };
+        for name in ["HTTPS_PROXY", "HTTP_PROXY"] {
+            assert_eq!(value(name), Some(BUILDER_REFUSED_PROXY.into()), "{name}");
+        }
+        for name in ["NO_PROXY", "no_proxy", "https_proxy", "http_proxy"] {
+            assert_eq!(value(name), None, "{name}");
+        }
+    }
+
+    #[test]
+    fn managed_builder_refuses_any_fetched_overlay_toolchain_file() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        let build = root.join("build-portcove");
+        fs::create_dir_all(build.join("overlay_toolchain")).unwrap();
+        fs::create_dir_all(root.join(".cache/overlay-toolchain/tcc_linux_build")).unwrap();
+        require_no_fetched_overlay_toolchain(root, &build).unwrap();
+        fs::remove_dir_all(root.join(".cache")).unwrap();
+        fs::remove_dir_all(build.join("overlay_toolchain")).unwrap();
+        require_no_fetched_overlay_toolchain(root, &build).unwrap();
+        for file in [
+            build.join("overlay_toolchain").join("compiler.txt"),
+            root.join(".cache")
+                .join("overlay-toolchain")
+                .join("python.zip"),
+        ] {
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            fs::write(&file, b"unverified").unwrap();
+            let error = require_no_fetched_overlay_toolchain(root, &build).unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Install);
+            assert_eq!(error.details["path"], file.display().to_string());
+            fs::remove_file(&file).unwrap();
+        }
     }
 
     #[test]

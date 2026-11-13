@@ -16,7 +16,7 @@ export const maximumReleaseSourceCommits = 2048;
 // 5,153 tree entries. The other source readers retain their original envelopes.
 export const maximumApplicationSourceCommits = 3072;
 export const maximumApplicationSourceTreeEntries = 6144;
-export const maximumCatalogSourceTreeEntries = 5500;
+export const maximumCatalogSourceTreeEntries = 6144;
 const base = "repos/boburning/portcove";
 const byteOrder = (left: string, right: string) =>
   Buffer.compare(Buffer.from(left), Buffer.from(right));

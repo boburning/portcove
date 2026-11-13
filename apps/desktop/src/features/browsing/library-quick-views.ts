@@ -13,7 +13,7 @@ import { isQuickViewUpdateSelection, quickViewUpdates } from "./quick-view-updat
  */
 export type LibraryQuickView = "all" | "favorites" | "attention" | "updates";
 
-export function isUpdatesQuickView(filter: Filter | CatalogQuery) {
+function isUpdatesQuickView(filter: Filter | CatalogQuery) {
   return isQuickViewUpdateSelection(queryFromFilter(filter).updates);
 }
 
