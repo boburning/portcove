@@ -717,7 +717,7 @@ The coordinator validates the complete inventory and accounting policy before
 network work. It selects ports oldest-attempt-first and admits at most one
 individually oversized port alongside normally fitting scopes. Within that
 scope, locations rotate fairly across owners and oldest actual attempts. Each
-operation permits at most **352 requests**, **512 newly assessed locations**,
+incremental operation permits at most **352 requests**, **512 newly assessed locations**,
 three minutes, fifteen seconds per request, one MiB per response and sixteen MiB
 consumed response bytes. Compatible completed locations may be replayed from the
 validated checkpoint without spending another operation slot or request; their
@@ -734,8 +734,12 @@ resumed invocations and defer related reads without
 blocking unrelated providers. Unknown capacity retains the finite request
 bootstrap. Failed reads are not retried within the same logical job.
 
-The standalone full collector keeps its strict preflight refusal when the
-selected logical inventory exceeds either historical ceiling. The maintained
+The standalone full collector, which the release workflow runs, is bounded by its
+own validated forecast instead of the 352-request ceiling: every request is
+admitted against that conservative plan, the provider quota reserve, the
+three-minute limit and the byte limits. Catalog growth therefore never refuses the
+whole inventory. It still refuses before network work when the selected inventory
+exceeds the 512-location observation ceiling, which bounds one report. The maintained
 workflow uses incremental admission instead: completed locations are checkpointed
 atomically after each operation, under the existing lock and 16 MiB envelope.
 Continuation binds the accounting policy and exact per-owner health contracts.

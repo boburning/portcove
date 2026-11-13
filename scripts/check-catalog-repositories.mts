@@ -1272,8 +1272,11 @@ function prepareHealthCollection(
   const conditionalArchiveRequests = archiveRecords.length * 2;
   const conservativeRequests =
     networkRecords.length + conditionalPinRequests + conditionalArchiveRequests;
-  const overflow =
-    conservativeRequests > HARD_REQUEST_CEILING || records.length > PRIOR_REPORT_ENTRIES;
+  // The request ceiling sizes incremental batches only. A full collection is
+  // bounded by its own validated forecast, the provider quota reserve and the
+  // time and byte limits, so catalog growth never refuses the whole inventory.
+  // The observation ceiling still bounds one report.
+  const overflow = records.length > PRIOR_REPORT_ENTRIES;
   const requestPlan = Object.freeze({
     method: "validated selected inventory; no speculative reuse credit",
     network_records: networkRecords.length,
@@ -1376,7 +1379,9 @@ export async function collectRepositoryHealth(
     requests:
       overflow && !incremental
         ? 0
-        : Math.min(HARD_REQUEST_CEILING, requestPlan.conservative_requests),
+        : incremental
+          ? Math.min(HARD_REQUEST_CEILING, requestPlan.conservative_requests)
+          : requestPlan.conservative_requests,
   });
   const lineage = assessedLineage(catalog, lineageRecords);
   const currentPortHashes = healthCatalogPortHashes(catalog, lineageRecords);
@@ -1870,7 +1875,7 @@ export async function collectRepositoryHealth(
       if (overflow && !incremental) {
         fail("budget");
         result.resume_condition =
-          "The validated request forecast exceeds the fixed hard ceiling; reduce legitimate obligations or deliver a separately reviewed capacity redesign. Partial collections do not establish full health.";
+          "The selected inventory exceeds the per-report observation ceiling; narrow the scope or use incremental collection. Partial collections do not establish full health.";
         continue;
       }
       const operationRequests =
@@ -2532,10 +2537,10 @@ export function renderRepositoryHealth(
     ...(report.scope?.mode === "none"
       ? ["No selected upstream health inputs; no live requests. Global health is not assessed."]
       : []),
-    `Request plan: ${report.request_plan.conservative_requests} conservative calls; ${report.request_plan.conditional_repository_reuses} conditional repository reuses; fixed ceiling ${report.request_plan.hard_ceiling}; ${report.request_plan.status}.`,
+    `Request plan: ${report.request_plan.conservative_requests} conservative calls; ${report.request_plan.conditional_repository_reuses} conditional repository reuses; incremental batch ceiling ${report.request_plan.hard_ceiling}; ${report.request_plan.status}.`,
     ...(report.request_plan.status === "overflow"
       ? [
-          "Preflight overflow: no live requests permitted; selected scope and global health unassessed.",
+          "Preflight overflow: the selected inventory exceeds the observation ceiling; no live requests permitted; selected scope and global health unassessed.",
         ]
       : []),
     `Repository reachability: ${coverage.reachable_repositories}/${coverage.repositories} reachable; ${coverage.unknown_repositories} unknown; ${coverage.attempted_repositories} attempted.`,
