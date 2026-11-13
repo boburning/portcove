@@ -154,6 +154,7 @@ mod tests {
             checked_files: 3,
             valid: true,
             failures: Vec::new(),
+            ..VerificationReport::default()
         }
     }
 

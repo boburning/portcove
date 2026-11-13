@@ -4003,7 +4003,8 @@ impl PortcoveService {
                 )?;
             }
             self.restore_user_data_to(&port, &previous.path)?;
-            Installer::new(self.library.clone())?.verify_critical(&previous, &qualification)?;
+            Installer::new(self.library.clone())?
+                .verify_critical_for_replacement(&previous, &qualification)?;
             self.library.rollback(port_id)
         })();
         self.finish_activity(activity, result)
@@ -4094,7 +4095,7 @@ impl PortcoveService {
             });
         }
         installer
-            .verify_critical(previous, &qualification)
+            .verify_critical_for_replacement(previous, &qualification)
             .map_err(invalid)?;
         Ok((port, qualification))
     }
@@ -4673,6 +4674,10 @@ impl PortcoveService {
                 &locked_preview.preview_sha256,
             )?;
             self.collect_active_user_data_if_launched(port_id)?;
+            // Removal deletes the version folders. Unknown player-side files
+            // (#5359) go to a separate area of a backup first; past a cap the
+            // removal holds instead of deleting what it could not keep.
+            self.create_removal_safety_backup_locked(port_id)?;
             let paths = self.library.port_install_paths(port_id)?;
             let removals = paths
                 .iter()
@@ -4701,7 +4706,7 @@ impl PortcoveService {
                 }
             }
             let mut removal = RemovalOperation::decode(&self.library, &lifecycle)?;
-            removal.require_retained_outputs(self, &lifecycle)?;
+            removal.require_retained_outputs_after_safety_backup(self, &lifecycle)?;
             // Remember the explicit uninstall before the removal starts, so a
             // removal that later needs recovery is still never undone by
             // standing setup. Failing here changes nothing.
@@ -4719,7 +4724,7 @@ impl PortcoveService {
             for paths in removal.paths(&self.library)? {
                 crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
             }
-            removal.require_retained_outputs(self, &lifecycle)?;
+            removal.require_retained_outputs_after_safety_backup(self, &lifecycle)?;
             self.library.remove_port(port_id)?;
             removal.advance(RemovalPhase::Committed, &mut lifecycle, &store)?;
             self.faults
@@ -4729,7 +4734,7 @@ impl PortcoveService {
             for paths in removal.paths(&self.library)? {
                 crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
             }
-            removal.require_retained_outputs(self, &lifecycle)?;
+            removal.require_retained_outputs_after_safety_backup(self, &lifecycle)?;
             for cleanup_root in removal
                 .paths(&self.library)?
                 .iter()
@@ -18960,11 +18965,8 @@ fn main() {
         fs::write(active.join("new-settings.ini"), b"unadmitted preference").unwrap();
         let report = service.verify("zelda64-recomp").unwrap();
         assert!(!report.valid);
-        assert!(
-            report
-                .failures
-                .contains(&"unexpected: new-settings.ini".into())
-        );
+        assert!(!report.has_hazards(), "{:?}", report.failures);
+        assert_eq!(report.unknown_files, vec!["new-settings.ini".to_owned()]);
         assert!(service.prepare_launch("zelda64-recomp", None).is_err());
         assert!(
             !service

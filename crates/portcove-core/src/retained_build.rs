@@ -325,10 +325,11 @@ impl PortcoveService {
             self.installed_mutability_qualification_for_platform(install, identity.platform)?;
         let report = installer.verify_managed(install, &qualification)?;
         if !report.valid {
-            let missing = report
-                .failures
-                .iter()
-                .all(|failure| failure.starts_with("missing:"));
+            let missing = report.unknown_file_count == 0
+                && report
+                    .failures
+                    .iter()
+                    .all(|failure| failure.starts_with("missing:"));
             return Err(PortcoveError::new(
                 if missing {
                     ErrorCode::NotFound
@@ -338,7 +339,7 @@ impl PortcoveService {
                 "exact retained build failed immutable verification",
             )
             .detail("install_id", &install.id)
-            .detail("failures", report.failures.join(", ")));
+            .detail("failures", report.findings().join(", ")));
         }
         self.require_retained_build_permission(&installer, install, &catalog)?;
         Ok(identity)

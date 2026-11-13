@@ -419,12 +419,61 @@ impl InstallQualification {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+/// Whether a critical check admits a launch or a managed replacement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CriticalCheck {
+    Launch,
+    Replacement,
+}
+
+/// Most unknown player-side file paths a verification report lists.
+pub(crate) const REPORTED_UNKNOWN_FILES: usize = 64;
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct VerificationReport {
     pub install_id: String,
     pub checked_files: u64,
+    /// True only when the installation exactly matches its record: no
+    /// failures and no unknown player-side files.
     pub valid: bool,
+    /// Changed, missing or unsafe package files and unexpected programs,
+    /// scripts or libraries. These hold managed replacement, rollback,
+    /// removal and backup.
     pub failures: Vec<String>,
+    /// Undeclared regular files that are not programs, scripts, libraries or
+    /// links, such as settings a game wrote beside itself (#5359). They stay
+    /// in place, do not hold managed operations and are copied to backups in a
+    /// separate area.
+    #[serde(default)]
+    pub unknown_file_count: u64,
+    /// The first unknown player-side file paths, in sorted order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unknown_files: Vec<String>,
+}
+
+impl VerificationReport {
+    /// Whether verification found a hazard rather than only unknown
+    /// player-side files.
+    pub fn has_hazards(&self) -> bool {
+        !self.failures.is_empty()
+    }
+
+    /// Failures and listed unknown files, for technical details.
+    pub(crate) fn findings(&self) -> Vec<String> {
+        let mut findings = self.failures.clone();
+        findings.extend(
+            self.unknown_files
+                .iter()
+                .map(|path| format!("unknown player-side file: {path}")),
+        );
+        let unlisted = self
+            .unknown_file_count
+            .saturating_sub(self.unknown_files.len() as u64);
+        if unlisted > 0 {
+            findings.push(format!("{unlisted} more unknown player-side files"));
+        }
+        findings
+    }
 }
 
 pub(crate) struct RetainedPersistenceMetadata {
@@ -2084,7 +2133,17 @@ impl Installer {
         install: &InstallRecord,
         qualification: &InstallQualification,
     ) -> Result<VerificationReport> {
-        self.verify_with_metadata(
+        Ok(self.verify_managed_with_unknown(install, qualification)?.0)
+    }
+
+    /// Verification plus every unknown player-side file path, not only the
+    /// report's bounded list.
+    pub(crate) fn verify_managed_with_unknown(
+        &self,
+        install: &InstallRecord,
+        qualification: &InstallQualification,
+    ) -> Result<(VerificationReport, Vec<String>)> {
+        self.verify_with_unknown(
             install,
             &qualification.generated_metadata_paths(install)?,
             &qualification.current_mutable_paths(install)?,
@@ -2195,6 +2254,23 @@ impl Installer {
         current_mutable_paths: &[String],
         staged_fallback: bool,
     ) -> Result<VerificationReport> {
+        Ok(self
+            .verify_with_unknown(
+                install,
+                generated_metadata,
+                current_mutable_paths,
+                staged_fallback,
+            )?
+            .0)
+    }
+
+    fn verify_with_unknown(
+        &self,
+        install: &InstallRecord,
+        generated_metadata: &[String],
+        current_mutable_paths: &[String],
+        staged_fallback: bool,
+    ) -> Result<(VerificationReport, Vec<String>)> {
         let manifest = verified_manifest(install)?;
         let strict_staged = full_immutable_integrity(&manifest, install, staged_fallback)?;
         let graphics_exports = regaiden_graphics_exports(install, &manifest)?;
@@ -2214,6 +2290,7 @@ impl Installer {
             None
         };
         let mut failures = Vec::new();
+        let mut unknown = Vec::new();
         failures.extend(mutable_file_pattern_failures(&install.path, &manifest)?);
         for file in &manifest.files {
             let candidate = manifest_member(&install.path, &file.path)?;
@@ -2276,15 +2353,31 @@ impl Installer {
                 continue;
             }
             if !expected.contains(relative.as_str()) {
-                failures.push(format!("unexpected: {relative}"));
+                // Both inventories list only regular files: the strict walk
+                // refuses links and other objects, the legacy walk skips them.
+                if crate::package_layout::is_unknown_file_hazard(&candidate)? {
+                    failures.push(format!("unexpected: {relative}"));
+                } else {
+                    unknown.push(relative);
+                }
             }
         }
-        Ok(VerificationReport {
-            install_id: install.id.clone(),
-            checked_files: manifest.files.len() as u64,
-            valid: failures.is_empty(),
-            failures,
-        })
+        unknown.sort();
+        Ok((
+            VerificationReport {
+                install_id: install.id.clone(),
+                checked_files: manifest.files.len() as u64,
+                valid: failures.is_empty() && unknown.is_empty(),
+                failures,
+                unknown_file_count: unknown.len() as u64,
+                unknown_files: unknown
+                    .iter()
+                    .take(REPORTED_UNKNOWN_FILES)
+                    .cloned()
+                    .collect(),
+            },
+            unknown,
+        ))
     }
 
     pub(crate) fn require_curated_operation(
@@ -2370,6 +2463,27 @@ impl Installer {
         install: &InstallRecord,
         qualification: &InstallQualification,
     ) -> Result<PathBuf> {
+        self.verify_critical_for(install, qualification, CriticalCheck::Launch)
+    }
+
+    /// The same check before a managed update or version switch away from or
+    /// back to this runtime (#5359 Tier 1). Unknown player-side files,
+    /// including configuration beside the executable, do not hold it; every
+    /// hazard still does. Launch keeps [`Self::verify_critical`].
+    pub(crate) fn verify_critical_for_replacement(
+        &self,
+        install: &InstallRecord,
+        qualification: &InstallQualification,
+    ) -> Result<PathBuf> {
+        self.verify_critical_for(install, qualification, CriticalCheck::Replacement)
+    }
+
+    fn verify_critical_for(
+        &self,
+        install: &InstallRecord,
+        qualification: &InstallQualification,
+        check: CriticalCheck,
+    ) -> Result<PathBuf> {
         check_retained_runtime_paths(install, &install.path)?;
         let manifest = verified_manifest(install)?;
         // Mutable verification projections may intentionally omit the retained
@@ -2382,15 +2496,25 @@ impl Installer {
         )?;
         let full_integrity =
             full_immutable_integrity(&manifest, install, qualification.strict_staged_source)?;
+        // Only a complete inventory can tell unknown files from hazards.
+        let check = if full_integrity {
+            check
+        } else {
+            CriticalCheck::Launch
+        };
         if full_integrity {
             let report = self.verify_managed(install, qualification)?;
-            if !report.valid {
+            let held = match check {
+                CriticalCheck::Launch => !report.valid,
+                CriticalCheck::Replacement => report.has_hazards(),
+            };
+            if held {
                 return Err(PortcoveError::verification(format!(
                     "immutable install integrity failed for {}",
                     install.port_id,
                 ))
                 .detail("install_id", &install.id)
-                .detail("failures", report.failures.join(", ")));
+                .detail("failures", report.findings().join(", ")));
             }
         }
         let mut current_mutable = qualification.current_mutable_paths(install)?;
@@ -2450,10 +2574,17 @@ impl Installer {
                 continue;
             }
             let file_type = entry.file_type()?;
-            if file_type.is_symlink()
-                || (file_type.is_file()
-                    && is_critical_companion(&candidate, &executable, platform)?)
-            {
+            let sensitive = file_type.is_file()
+                && match check {
+                    CriticalCheck::Launch => {
+                        is_critical_companion(&candidate, &executable, platform)?
+                    }
+                    CriticalCheck::Replacement => {
+                        is_executable_companion(&candidate, &executable, platform)?
+                            || crate::package_layout::is_unknown_file_hazard(&candidate)?
+                    }
+                };
+            if file_type.is_symlink() || sensitive {
                 failures.push(format!("unexpected launch-sensitive file: {relative}"));
             }
         }
@@ -4141,7 +4272,7 @@ fn validate_runtime_manifest(manifest: &InstallManifest) -> Result<()> {
     Ok(())
 }
 
-fn manifest_member(root: &Path, relative: &str) -> Result<PathBuf> {
+pub(crate) fn manifest_member(root: &Path, relative: &str) -> Result<PathBuf> {
     use std::path::Component;
 
     let path = Path::new(relative);

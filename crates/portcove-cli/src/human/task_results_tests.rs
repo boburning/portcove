@@ -345,6 +345,7 @@ fn installed_file_check_names_recorded_manifest_scope_without_gameplay_assurance
             } else {
                 vec!["changed: game.exe".into()]
             },
+            ..Default::default()
         };
         let text = verification_report(&report, "starship", &catalog);
         assert!(text.contains("Scope: All files in the recorded installation manifest; launch-critical checks are separate."));
@@ -356,7 +357,30 @@ fn installed_file_check_names_recorded_manifest_scope_without_gameplay_assurance
             assert!(text.contains("changed: game.exe"));
             assert!(text.contains("Preserve local files"));
         }
+        assert!(!text.contains("Unrecognized file"));
     }
+}
+
+#[test]
+fn installed_file_check_lists_unrecognized_files_separately_from_findings() {
+    let catalog = Catalog::embedded().unwrap();
+    let report = portcove_core::VerificationReport {
+        install_id: "retained-instance".into(),
+        checked_files: 3,
+        valid: false,
+        failures: vec![],
+        unknown_file_count: 3,
+        unknown_files: vec!["settings.ini".into(), "logs/run.txt".into()],
+    };
+    let text = verification_report(&report, "starship", &catalog);
+    assert!(text.contains("Result: Recorded file checks passed"));
+    assert!(!text.contains("Finding:"));
+    assert!(text.contains("Unrecognized files: 3."));
+    assert!(text.contains("Unrecognized file: settings.ini"));
+    assert!(text.contains("Unrecognized file: logs/run.txt"));
+    assert!(text.contains("1 more unrecognized file is not listed."));
+    assert!(text.contains("does not prove gameplay"));
+    assert!(!text.contains("Preserve local files"));
 }
 
 #[test]

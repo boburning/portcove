@@ -1579,6 +1579,11 @@ Human task wording follows the [glossary](../GLOSSARY.md) and
 [content-design guidance](CONTENT-DESIGN.md). **Check installed files** (`verify`)
 compares the full recorded installation manifest; its report names that scope
 and the actual checked-file count. Launch-critical checks are separate.
+**Unrecognized files** are files the installation didn't ship that are not
+programs, scripts, libraries or links. The report lists them apart from its
+findings; JSON reports them as `unknown_file_count` and up to 64
+`unknown_files` paths, and `valid` stays false while any remain
+([#5359](https://github.com/boburning/portcove/issues/5359)).
 **Update saved for later** names a retained staged version, and `activate` applies
 that version. A **saved-data backup** covers its declared player files, which can
 include more than progress saves; it is separate from original game files,

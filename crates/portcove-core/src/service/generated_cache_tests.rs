@@ -106,14 +106,16 @@ fn generated_cache_declared_outputs_and_exact_metadata_remain_usable() {
 }
 
 #[test]
-fn generated_cache_unclaimed_outputs_hold_every_prewrite_data_route() {
+fn generated_cache_unclaimed_programs_hold_every_prewrite_data_route() {
     let clock = std::time::Instant::now();
     for active in [false, true] {
+        // Unknown player-side data no longer holds (#5359 Tier 1); programs,
+        // scripts and libraries still do.
         for unknown in [
-            "saves/red/slot1.lua",
-            "options.lua.bak",
-            "options.lua.tmp",
-            "save.lua.tmp",
+            "saves/red/slot1.dll",
+            "options.lua.sh",
+            "options.bat",
+            "save.lua.so",
         ] {
             eprintln!(
                 "generated-cache-matrix phase=fixture-begin active={active} path={unknown} elapsed_ms={}",
@@ -198,8 +200,20 @@ fn generated_cache_no_launch_marker_is_not_evidence_of_no_output() {
         "saves/red/slot1.lua",
         b"outside-Core progress",
     );
-    assert!(service.collect_active_user_data_if_launched(ID).is_err());
-    assert!(service.create_backup(ID).is_err());
+    // Unknown player-side output is kept in place and backed up apart from
+    // declared data (#5359 Tier 1); it is never enrolled as player data.
+    service.collect_active_user_data_if_launched(ID).unwrap();
+    let backup = service.create_backup(ID).unwrap();
+    assert_eq!(
+        fs::read(
+            backup
+                .path
+                .join("unknown-files/original/saves/red/slot1.lua")
+        )
+        .unwrap(),
+        b"outside-Core progress"
+    );
+    assert_eq!(fs::read_dir(backup.path.join("data")).unwrap().count(), 0);
     assert!(install.path.join("saves/red/slot1.lua").is_file());
     assert!(!service.library.user_dir(ID).exists());
 }
@@ -229,11 +243,11 @@ fn generated_cache_new_catalog_paths_cannot_enroll_old_outputs() {
             .persistent_paths
             .contains(&"saves".into())
     );
-    assert!(
-        service
-            .collect_user_data_from_install(ID, &install.path)
-            .is_err()
-    );
+    service
+        .collect_user_data_from_install(ID, &install.path)
+        .unwrap();
+    assert!(!service.library.user_dir(ID).join("saves").exists());
+    assert!(install.path.join("saves/red/slot1.lua").is_file());
 }
 
 #[test]
@@ -464,8 +478,8 @@ fn generated_cache_backup_restore_rechecks_inactive_outputs_before_replacing_can
 
     write(
         &install.path,
-        "saves/red/slot1.lua",
-        b"unclaimed newer progress",
+        "saves/red/slot1.dll",
+        b"unclaimed newer code",
     );
     assert!(
         service
@@ -477,10 +491,51 @@ fn generated_cache_backup_restore_rechecks_inactive_outputs_before_replacing_can
         b"new canonical progress"
     );
     assert_eq!(
+        fs::read(install.path.join("saves/red/slot1.dll")).unwrap(),
+        b"unclaimed newer code"
+    );
+    assert_eq!(service.library.all_installs().unwrap().len(), 1);
+
+    // Unknown player-side output in an inactive copy does not hold restore;
+    // the safety backup keeps it apart and restore leaves it in place.
+    fs::remove_file(install.path.join("saves/red/slot1.dll")).unwrap();
+    write(
+        &install.path,
+        "saves/red/slot1.lua",
+        b"unclaimed newer progress",
+    );
+    let preview = service
+        .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
+        .unwrap();
+    let authorization = service
+        .authorize_backup_action(
+            ID,
+            &backup.id,
+            crate::BackupAction::Restore,
+            &preview.preview_sha256,
+        )
+        .unwrap();
+    let restored = service
+        .restore_backup(ID, &backup.id, &authorization.token)
+        .unwrap();
+    assert_eq!(
+        fs::read(service.library.user_dir(ID).join("save.lua")).unwrap(),
+        b"backup progress"
+    );
+    assert_eq!(
         fs::read(install.path.join("saves/red/slot1.lua")).unwrap(),
         b"unclaimed newer progress"
     );
-    assert_eq!(service.library.all_installs().unwrap().len(), 1);
+    let safety = restored.safety_backup.expect("safety backup");
+    assert_eq!(
+        fs::read(
+            safety
+                .path
+                .join("unknown-files/original/saves/red/slot1.lua")
+        )
+        .unwrap(),
+        b"unclaimed newer progress"
+    );
 }
 
 #[cfg(windows)]

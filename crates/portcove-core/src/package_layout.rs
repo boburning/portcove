@@ -332,6 +332,31 @@ fn lowercase_name(name: &std::ffi::OsStr) -> String {
     name.to_string_lossy().to_ascii_lowercase()
 }
 
+/// Program and script names reviewed layouts record, by lowercase file name.
+fn is_program_name(name: &str) -> bool {
+    matches!(
+        Path::new(name)
+            .extension()
+            .and_then(|extension| extension.to_str()),
+        Some("exe" | "appimage" | "bat" | "cmd" | "ps1" | "sh" | "msi" | "jar" | "vbs" | "lnk")
+    )
+}
+
+/// Whether an undeclared regular file in a managed runtime could run or be
+/// loaded as code (#5359 Tier 1). This is the reviewed-layout program
+/// classifier plus native libraries and any executable mode bit, on every
+/// platform. Callers have already refused links and other non-regular entries.
+pub(crate) fn is_unknown_file_hazard(path: &Path) -> Result<bool> {
+    let name = path.file_name().map(lowercase_name).unwrap_or_default();
+    let library = matches!(
+        Path::new(&name)
+            .extension()
+            .and_then(|extension| extension.to_str()),
+        Some("dll" | "so" | "dylib")
+    ) || name.contains(".so.");
+    Ok(is_program_name(&name) || library || crate::permissions::executable_intent(path)?)
+}
+
 fn is_executable(
     entry: &fs::DirEntry,
     platform: Platform,
@@ -341,10 +366,7 @@ fn is_executable(
     let extension = Path::new(&name)
         .extension()
         .and_then(|extension| extension.to_str());
-    if matches!(
-        extension,
-        Some("exe" | "appimage" | "bat" | "cmd" | "ps1" | "sh" | "msi" | "jar" | "vbs" | "lnk")
-    ) {
+    if is_program_name(&name) {
         return Ok(true);
     }
     if platform == Platform::WindowsX86_64 || !crate::permissions::executable_intent(&entry.path())?
@@ -581,6 +603,37 @@ mod tests {
     }
 
     #[cfg(unix)]
+    #[test]
+    fn unknown_file_hazards_are_programs_scripts_libraries_and_executable_bits() {
+        let temporary = tempfile::tempdir().unwrap();
+        for (name, hazard) in [
+            ("Helper.EXE", true),
+            ("tools.ps1", true),
+            ("start.sh", true),
+            ("launch.lnk", true),
+            ("plugin.dll", true),
+            ("libmod.so", true),
+            ("libmod.so.1", true),
+            ("engine.dylib", true),
+            ("easy-access.ini", false),
+            ("settings.json", false),
+            ("replay.txt", false),
+            ("no-extension", false),
+        ] {
+            let path = temporary.path().join(name);
+            fs::write(&path, b"bytes").unwrap();
+            assert_eq!(is_unknown_file_hazard(&path).unwrap(), hazard, "{name}");
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let path = temporary.path().join("run-me");
+            fs::write(&path, b"#!/bin/true").unwrap();
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+            assert!(is_unknown_file_hazard(&path).unwrap());
+        }
+    }
+
     #[test]
     fn verified_macos_libraries_may_change_names_but_programs_still_drift() {
         let package = tempfile::tempdir().unwrap();
