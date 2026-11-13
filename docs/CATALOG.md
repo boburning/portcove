@@ -2506,15 +2506,17 @@ matching Linux x64 sibling when independently enrolled. Use the
 [Tony Hawk’s Pro Skater 3 record](../crates/portcove-core/catalog/ports/alexbeav-tony-hawk-s-pro-skater-3-recomp.json)
 as the example. Keep the release selector, generated executable basename,
 original-disc profile and source contract explicit. Set the value to
-`true` for a required retail SCPH-1001 or SCPH-5552 BIOS with its own profile
-and contract; the kit's `game.toml` names the BIOS configuration it builds with.
-When that configuration names SCPH-1001 or SCPH-5552 and the route registers the
-other retail profile, Core refuses the build before anything is installed,
+`true` for a required retail SCPH-1001, SCPH-5552 or SCPH-5500 (Japan) BIOS
+with its own profile and contract; the kit's `game.toml` names the BIOS
+configuration it builds with.
+When that configuration names one of these images and the route registers
+another retail profile, Core refuses the build before anything is installed,
 because older frameworks stage whichever image they are given.
+[SCPH-5500 record](qualification/psxrecomp-7192402-scph5500-2026-11-13.md).
 Use `"bundled-openbios"` when the reviewed kit supplies and supports OpenBIOS.
 This projects the literal `--bios bios/openbios.bin` argument and rejects a
 retail BIOS profile. Use `"split-mods"` for the reviewed dual-platform kits
-with explicit retail SCPH-1001 or SCPH-5552 BIOS. Their player-owned mod paths
+with explicit retail SCPH-1001, SCPH-5552 or SCPH-5500 BIOS. Their player-owned mod paths
 are `mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml`,
 `mods/state.toml.tmp` and `mods/texture-packs`. Each verified runtime version keeps `mods/bundled` and
 its other build-provided files. The existing whole-`mods` forms keep their

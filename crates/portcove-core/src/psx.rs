@@ -304,6 +304,7 @@ fn kit_bios_profile(root: &Path) -> Result<Option<&'static str>> {
     Ok(match stem.as_deref() {
         Some("SCPH1001") => Some("psx-scph-1001-bios"),
         Some("SCPH5552" | "SCPH5502") => Some("psx-scph-5552-bios"),
+        Some("SCPH5500") => Some("psx-scph-5500-bios"),
         _ => None,
     })
 }
@@ -311,7 +312,10 @@ fn kit_bios_profile(root: &Path) -> Result<Option<&'static str>> {
 /// A kit configured for one reviewed retail BIOS must not be built with the
 /// image of another. Older frameworks stage whatever file they are given.
 fn require_kit_bios_profile(root: &Path, registered: &str) -> Result<()> {
-    if !matches!(registered, "psx-scph-1001-bios" | "psx-scph-5552-bios") {
+    if !matches!(
+        registered,
+        "psx-scph-1001-bios" | "psx-scph-5552-bios" | "psx-scph-5500-bios"
+    ) {
         return Ok(());
     }
     match kit_bios_profile(root)? {
@@ -2116,12 +2120,22 @@ fn locate_pack_root(unpacked: &Path) -> Result<PathBuf> {
 pub(crate) fn bios_launch_fixture(
     root: &Path,
 ) -> (Library, crate::Catalog, crate::InstallRecord, SourceRecord) {
+    bios_launch_fixture_for(root, "psx-scph-1001-bios")
+}
+
+/// The same fixture with the inert BIOS registered under another retail
+/// profile, whose catalog identity is rebound to the fixture bytes.
+#[cfg(test)]
+pub(crate) fn bios_launch_fixture_for(
+    root: &Path,
+    profile_id: &str,
+) -> (Library, crate::Catalog, crate::InstallRecord, SourceRecord) {
     let library = Library::open(root.join("library")).unwrap();
     let path = root.join("original.BIN");
     fs::write(&path, b"inert owned BIOS fixture").unwrap();
     let (digest, size) = hash_file(&path).unwrap();
     let bios = SourceRecord {
-        profile_id: "psx-scph-1001-bios".into(),
+        profile_id: profile_id.into(),
         path,
         sha256: digest.clone(),
         size,
@@ -2915,6 +2929,18 @@ mod tests {
         .unwrap();
         require_kit_bios_profile(root, "psx-scph-1001-bios").unwrap();
         assert!(require_kit_bios_profile(root, "psx-scph-5552-bios").is_err());
+        assert!(require_kit_bios_profile(root, "psx-scph-5500-bios").is_err());
+        fs::write(
+            root.join("game.toml"),
+            "[recompiler]\nbios_config = 'psxrecomp/bios/SCPH5500.toml'\n",
+        )
+        .unwrap();
+        require_kit_bios_profile(root, "psx-scph-5500-bios").unwrap();
+        for other in ["psx-scph-1001-bios", "psx-scph-5552-bios"] {
+            let error = require_kit_bios_profile(root, other).unwrap_err();
+            assert_eq!(error.details["kit_bios_profile"], "psx-scph-5500-bios");
+            assert_eq!(error.details["registered_bios_profile"], other);
+        }
     }
 
     #[test]

@@ -56,6 +56,14 @@ const splitModPaths = [
   "mods/texture-packs",
 ];
 
+// Retail BIOS profiles a reviewed kit's own `bios_config` can name. Core's
+// kit guard (psx.rs `kit_bios_profile`) maps the same images.
+const retailBiosProfiles = new Set<unknown>([
+  "psx-scph-1001-bios",
+  "psx-scph-5552-bios",
+  "psx-scph-5500-bios",
+]);
+
 const explicitFields = new Set([
   "support_tier",
   "channels",
@@ -110,7 +118,7 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
     !integration.source_profile ||
     (bundledOpenBios
       ? Object.hasOwn(integration, "bios_source_profile")
-      : biosProfile !== "psx-scph-1001-bios" && biosProfile !== "psx-scph-5552-bios") ||
+      : !retailBiosProfiles.has(biosProfile)) ||
     !Array.isArray(executable) ||
     executable.length !== 1 ||
     typeof executable[0] !== "string" ||
@@ -124,7 +132,7 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
     record.settings_observation_v1 !== undefined
   )
     throw new Error(
-      "PSX managed Windows authoring requires the reviewed Windows GitHub kit, a generated player, an explicit disc profile and either retail SCPH-1001 BIOS, an explicit retail SCPH-5552 BIOS, or explicit bundled OpenBIOS without a retail profile. A Linux x64 sibling requires the same generated player basename and an explicit asset selector.",
+      "PSX managed Windows authoring requires the reviewed Windows GitHub kit, a generated player, an explicit disc profile and either retail SCPH-1001 BIOS, an explicit retail SCPH-5552 or SCPH-5500 BIOS, or explicit bundled OpenBIOS without a retail profile. A Linux x64 sibling requires the same generated player basename and an explicit asset selector.",
     );
 
   if (

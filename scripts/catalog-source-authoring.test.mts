@@ -839,7 +839,10 @@ void test("PSX split mods retain player data with explicit dual-platform and ret
   const { records } = readCatalogSource(catalogRoot);
   const consumers = records.filter((record) => record.psx_managed_windows_v1 === "split-mods");
   const biosProfiles = new Set(consumers.map((record) => record.integration!.bios_source_profile));
-  assert.deepEqual(biosProfiles, new Set(["psx-scph-1001-bios", "psx-scph-5552-bios"]));
+  assert.deepEqual(
+    biosProfiles,
+    new Set(["psx-scph-1001-bios", "psx-scph-5552-bios", "psx-scph-5500-bios"]),
+  );
   for (const record of consumers) {
     const projected = projectAuthoredPort(record);
     assert.ok(projected);

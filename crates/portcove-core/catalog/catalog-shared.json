@@ -541,6 +541,16 @@
         "live_url": "https://github.com/Alexbeav/psxrecomp/blob/main/bios/SCPH5552.toml"
       },
       {
+        "id": "psx-scph-5500-7192402-source-contract",
+        "role": "upstream_support",
+        "authority": "Alexbeav/psxrecomp",
+        "authority_ref": "7192402c283880e318c97732c9b733c4d1b144d0",
+        "reviewed_at": "2026-11-13",
+        "claim": "SCPH5500.toml at PSXRecomp 7192402c283880e318c97732c9b733c4d1b144d0, the framework pinned by the King's Field and Ace Combat 3 (Japan) v0.3.7 kits, declares the Japan v3.0 09/09/96 retail SCPH-5500 BIOS image identity (SHA-256 9c0421858e217805f4abe18698afea8d5aa36ff0727eb8484944e00eb5e7eadb, CRC32 FF3EEB8C, 512 KiB) and the staged bios/SCPH5500.BIN path; the recompiler refuses to generate from any other image (main_bios.cpp declared-identity gate). This is a required use-time raw BIOS input, not redistributed content or a generation/runtime observation.",
+        "immutable_url": "https://github.com/Alexbeav/psxrecomp/blob/7192402c283880e318c97732c9b733c4d1b144d0/bios/SCPH5500.toml",
+        "live_url": "https://github.com/Alexbeav/psxrecomp/blob/main/bios/SCPH5500.toml"
+      },
+      {
         "id": "alexbeav-diablo-recomp-v0-1-4-linux-static-contract",
         "role": "upstream_support",
         "authority": "alexbeavs-ps1-ports/diablo-recomp",
@@ -588,6 +598,16 @@
         "reviewed_at": "2026-10-11",
         "claim": "Independently reviewed expected Japan/Asia Rev 1 disc 2 raw-track identity, single data-track mapping and zero pregap; no game bytes accessed. Accepted provenance retained at https://github.com/boburning/portcove/issues/427#issuecomment-6113385516. This is expected source identity, not upstream kit support, executed materialization or gameplay qualification.",
         "immutable_url": "https://redump.info/disc/584",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-ace-combat-3-electrosphere-recomp-v037-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp",
+        "authority_ref": "61be123f74aa8427c6e607b7b5a6e02f344c1c62",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.3.7 Windows (47927467 bytes, SHA-256 7ba37d16578590f0d016b7e443e78881bcd457f57bab42d1cc194f721c3192a1) and Linux x64 (45734277 bytes, SHA-256 44cd1920c5c036d69f403c99c8931e44dc7bb9b9f35e4f330f370abe239ff3c7) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 7192402c283880e318c97732c9b733c4d1b144d0 and carry the same game.toml with serials SLPS-02020 and SLPS-02021, 1 track per disc, known data track SHA-1s 8c6d58308eb389a7b18bc213a6d1e23d14fd3c10 (Disc 1) and a23e046b1eb695e02d214d269fca70dbe0a437f7 (Disc 2), a two-disc roster under Redump file names, and the psxrecomp/bios/SCPH5500.toml BIOS configuration with OpenBIOS off and bios_hle on. The kit's project manifest and README-SETUP.txt require the player's own SCPH-5500 (Japan) BIOS with SHA-256 9c0421858e217805f4abe18698afea8d5aa36ff0727eb8484944e00eb5e7eadb (524288 bytes), the psx-scph-5500-bios profile, and PSXRecomp 7192402's SCPH5500.toml declares the same image SHA-256. SCPH5500.toml declares the deliver_event_ret and shell_entry_phys anchors, so bios_hle services only the kernel calls it implements and skips the shell intro; kernel initialization and every other call still run in the recompiled retail BIOS. Unlike the earlier kits, which selected no retail configuration and were bound to SCPH-1001, these kits need that retail BIOS. Core replaces the roster with its own ordered runtime-discs entries, so the renamed cue files do not change preparation or the launch disc choice. They use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player Ace_Combat_3__Electrosphere__Japan__Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay, disc switching and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp/blob/61be123f74aa8427c6e607b7b5a6e02f344c1c62/game.toml",
         "live_url": null
       },
       {
@@ -1720,6 +1740,16 @@
         "reviewed_at": "2026-11-08",
         "claim": "Official v0.3.6 Windows and Linux assets 544446434 and 544446077 matched provider digests and passed safe-entry and CRC inspection. Tagged game, CMake and setup files match the kits. The packaged original contract identifies Japan SLPS-00017, one track and first data-track SHA-1 00bfd94ce99bf214b03bdaa07de99b9ca1466550. The shared runtime and setup CLI match a reviewed kit. The generated player is King_s_Field_Recompiled with the bundled OpenBIOS. Native title operation and save compatibility were not observed.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp/blob/95d4b9ef47ba1e73be981e6f72f3bb16788b80c6/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-kings-field-recomp-v037-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/kings-field-recomp",
+        "authority_ref": "bbac8aa12632e86d80fb8ae0ec4c577c22ca7e22",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.3.7 Windows (47931734 bytes, SHA-256 f4e81074bc920f5dbf08ffa629bc58ce104c4f8d7f743ed9741943225015ace7) and Linux x64 (45738884 bytes, SHA-256 27c4a3ff90a619f0d2473ca217d8e85cc50aca43a7fff058d7a068fe61d5b047) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 7192402c283880e318c97732c9b733c4d1b144d0 and carry the same game.toml with 1 track, serial SLPS-00017, first data track SHA-1 00bfd94ce99bf214b03bdaa07de99b9ca1466550, and the psxrecomp/bios/SCPH5500.toml BIOS configuration with OpenBIOS off and bios_hle off. The kit's project manifest and README-SETUP.txt require the player's own SCPH-5500 (Japan) BIOS with SHA-256 9c0421858e217805f4abe18698afea8d5aa36ff0727eb8484944e00eb5e7eadb (524288 bytes), the psx-scph-5500-bios profile, and PSXRecomp 7192402's SCPH5500.toml declares the same image SHA-256. Unlike the earlier kits, which this route ran with the bundled OpenBIOS, these kits need that retail BIOS. They use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player King_s_Field_Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp/blob/bbac8aa12632e86d80fb8ae0ec4c577c22ca7e22/game.toml",
         "live_url": null
       },
       {
@@ -7901,6 +7931,49 @@
             ],
             "evidence_ids": [
               "psx-scph-5552-f7672e5-source-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "psx-scph-5500-bios",
+        "label": "PlayStation SCPH-5500 BIOS (Japan)",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "japan-v3-0",
+            "title": "PlayStation SCPH-5500 BIOS (Japan)",
+            "region": "Japan",
+            "revision": "v3.0 09/09/96",
+            "product_codes": [
+              "SCPH-5500"
+            ],
+            "representations": [
+              {
+                "id": "raw-file",
+                "extensions": [
+                  "bin",
+                  "rom"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "normalized-content",
+                    "sha1": null,
+                    "sha256": "9c0421858e217805f4abe18698afea8d5aa36ff0727eb8484944e00eb5e7eadb",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "psx-scph-5500-7192402-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "psx-scph-5500-7192402-source-contract"
             ]
           }
         ],
@@ -16670,7 +16743,8 @@
         "evidence_ids": [
           "alexbeav-ace-combat-3-electrosphere-recomp-v0-3-6-static-contract",
           "ace-combat-3-japan-disc-1-redump",
-          "ace-combat-3-japan-disc-2-redump"
+          "ace-combat-3-japan-disc-2-redump",
+          "alexbeav-ace-combat-3-electrosphere-recomp-v037-static-contract"
         ],
         "authority_ref": "1c0c156fca1dd8ea8978efe3c66b5f3667760efa",
         "reviewed_at": "2026-10-13",
@@ -16685,6 +16759,14 @@
           {
             "upstream_ref": "v0.3.6",
             "artifact_sha256": "b9e7f4493b80b528e91f9c2382da1fd9e2b9bfeb267935082c312b3ee1c33009"
+          },
+          {
+            "upstream_ref": "v0.3.7",
+            "artifact_sha256": "7ba37d16578590f0d016b7e443e78881bcd457f57bab42d1cc194f721c3192a1"
+          },
+          {
+            "upstream_ref": "v0.3.7",
+            "artifact_sha256": "44cd1920c5c036d69f403c99c8931e44dc7bb9b9f35e4f330f370abe239ff3c7"
           }
         ],
         "aliases": [],
@@ -16694,28 +16776,29 @@
         "id": "alexbeav-ace-combat-3-electrosphere-recomp-bios-source",
         "port_id": "alexbeav-ace-combat-3-electrosphere-recomp",
         "role": "bios",
-        "profile_id": "psx-scph-1001-bios",
+        "profile_id": "psx-scph-5500-bios",
         "admission_mode": "enforced",
         "supported_variant_ids": [
-          "legacy-accepted"
+          "japan-v3-0"
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-ace-combat-3-electrosphere-recomp-v0-3-6-static-contract"
+          "alexbeav-ace-combat-3-electrosphere-recomp-v037-static-contract",
+          "psx-scph-5500-7192402-source-contract"
         ],
-        "authority_ref": "1c0c156fca1dd8ea8978efe3c66b5f3667760efa",
-        "reviewed_at": "2026-10-13",
-        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp/blob/1c0c156fca1dd8ea8978efe3c66b5f3667760efa/game.toml",
+        "authority_ref": "61be123f74aa8427c6e607b7b5a6e02f344c1c62",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp/blob/61be123f74aa8427c6e607b7b5a6e02f344c1c62/game.toml",
         "live_review_url": null,
         "evidence_gap": null,
         "applicability": [
           {
-            "upstream_ref": "v0.3.6",
-            "artifact_sha256": "602843385f5d1e74560e39f7f4741ab8bcd1380711316e1cac80cf69f6a127d9"
+            "upstream_ref": "v0.3.7",
+            "artifact_sha256": "7ba37d16578590f0d016b7e443e78881bcd457f57bab42d1cc194f721c3192a1"
           },
           {
-            "upstream_ref": "v0.3.6",
-            "artifact_sha256": "b9e7f4493b80b528e91f9c2382da1fd9e2b9bfeb267935082c312b3ee1c33009"
+            "upstream_ref": "v0.3.7",
+            "artifact_sha256": "44cd1920c5c036d69f403c99c8931e44dc7bb9b9f35e4f330f370abe239ff3c7"
           }
         ],
         "aliases": [],
@@ -18972,7 +19055,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-kings-field-recomp-v036-managed-psx"
+          "alexbeav-kings-field-recomp-v036-managed-psx",
+          "alexbeav-kings-field-recomp-v037-static-contract"
         ],
         "authority_ref": "95d4b9ef47ba1e73be981e6f72f3bb16788b80c6",
         "reviewed_at": "2026-11-08",
@@ -18987,6 +19071,46 @@
           {
             "upstream_ref": "v0.3.6",
             "artifact_sha256": "96c843bd6237fbd5e4f0e4bceb7fb843b6fe47ebd683b30fcd77b097c83b5e6a"
+          },
+          {
+            "upstream_ref": "v0.3.7",
+            "artifact_sha256": "f4e81074bc920f5dbf08ffa629bc58ce104c4f8d7f743ed9741943225015ace7"
+          },
+          {
+            "upstream_ref": "v0.3.7",
+            "artifact_sha256": "27c4a3ff90a619f0d2473ca217d8e85cc50aca43a7fff058d7a068fe61d5b047"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-kings-field-recomp-bios-source",
+        "port_id": "alexbeav-kings-field-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5500-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "japan-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-kings-field-recomp-v037-static-contract",
+          "psx-scph-5500-7192402-source-contract"
+        ],
+        "authority_ref": "bbac8aa12632e86d80fb8ae0ec4c577c22ca7e22",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp/blob/bbac8aa12632e86d80fb8ae0ec4c577c22ca7e22/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.7",
+            "artifact_sha256": "f4e81074bc920f5dbf08ffa629bc58ce104c4f8d7f743ed9741943225015ace7"
+          },
+          {
+            "upstream_ref": "v0.3.7",
+            "artifact_sha256": "27c4a3ff90a619f0d2473ca217d8e85cc50aca43a7fff058d7a068fe61d5b047"
           }
         ],
         "aliases": [],

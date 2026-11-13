@@ -162,7 +162,7 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
     projections.push({
       field: "psx_managed_windows_v1",
       scope: "Managed Windows PSXRecomp generated-player launch and reviewed local data layout.",
-      next: "Check the exact kit and generated executable, owned disc, explicit BIOS choice, and the reviewed shared writer layout. Every retail form takes an explicit SCPH-1001 or SCPH-5552 profile; bundled OpenBIOS forms take none. Both split-mods layouts also require both x64 kit selectors. Reuse applicable PSX preparation and preservation evidence. Keep original-file identities, exact release-specific source evidence, external setup, and independent fixture expectations explicit.",
+      next: "Check the exact kit and generated executable, owned disc, explicit BIOS choice, and the reviewed shared writer layout. Every retail form takes an explicit SCPH-1001, SCPH-5552 or SCPH-5500 profile; bundled OpenBIOS forms take none. Both split-mods layouts also require both x64 kit selectors. Reuse applicable PSX preparation and preservation evidence. Keep original-file identities, exact release-specific source evidence, external setup, and independent fixture expectations explicit.",
     });
   }
   return {
