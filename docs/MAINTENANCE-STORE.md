@@ -447,14 +447,16 @@ verified as published, and what the appointed location serves right now.
   - A verified read is complete: a definition it no longer indexes is recorded
     as withdrawn.
   - Every other serving status is the run's gap code and makes the run `failed`:
-    `not_served` (the location answers 403, 404 or 410), `unreachable`,
-    `expired`, `verification_failed` or `not_configured`. An HTTP status alone
-    is never a publication fact, and neither a 404 nor an outage erases the
-    last verified publication.
+    `not_served` (the timestamp metadata is absent: HTTP 404 or 410),
+    `incomplete` (metadata is served but a file it requires is absent),
+    `unreachable` (including HTTP 403), `expired`, `verification_failed` or
+    `not_configured`. An HTTP status alone is never a publication fact, and
+    neither a 404 nor an outage erases the last verified publication.
 - **Report.** Per definition, the report compares `main` with the last verified
   publication by identity: `published-matches-main` (same revision and
   content-addressed target), `published-differs-from-main`,
-  `never-verified-published`, `published-not-on-main`, or `main-unobserved`.
+  `never-verified-published`, `published-withdrawn` (a later verified read no
+  longer indexed it), `published-not-on-main`, or `main-unobserved`.
   Separately, it shows the latest read's serving status and when the location
   last verified. A main-only target comparison does not cover the policy and
   launch targets, which the published index does not list per definition.

@@ -292,7 +292,7 @@ const verifiedDelivery = (
 });
 
 const unverifiedDelivery = (
-  serving: "not_served" | "unreachable" | "expired",
+  serving: "not_served" | "incomplete" | "unreachable" | "expired",
 ): DefinitionDeliveryInspection => ({
   format_version: 1,
   metadata_base_url: "https://example.test/metadata/",
@@ -312,7 +312,7 @@ void test("only Core-verified delivery records published definitions", () => {
     published: { revision: 2, target: "sha256/y.json", sha256: "d".repeat(64), length: 10 },
   });
   // Not served, unreachable and expired are the run's gap, never "not published".
-  for (const serving of ["not_served", "unreachable", "expired"] as const) {
+  for (const serving of ["not_served", "incomplete", "unreachable", "expired"] as const) {
     const outcome = deliveryFacts(unverifiedDelivery(serving));
     assert.equal(outcome.facts.size, 0);
     assert.equal(outcome.expected, null);
@@ -368,6 +368,16 @@ void test("publication entries compare main with the last verified publication b
   assert.equal(
     publicationEntries([], [published("only", 1, "a")], false)[0]?.comparison,
     "main-unobserved",
+  );
+  const absent = (id: string) => ({
+    definition: `definition:official/${id}`,
+    facts: { absent: true },
+  });
+  assert.deepEqual(
+    publicationEntries([main("pulled", 1, "a")], [absent("pulled"), absent("gone")], true).map(
+      ({ definition, comparison, published: value }) => [definition, comparison, value],
+    ),
+    [["definition:official/pulled", "published-withdrawn", null]],
   );
 });
 
@@ -1129,9 +1139,10 @@ void test(
       runner: "fixture",
     });
     const withdrawn = buildReport(store.owner);
+    // The withdrawal stays visible; it is never relabelled as never published.
     assert.deepEqual(
       withdrawn.publication.definitions?.map(({ comparison }) => comparison),
-      ["never-verified-published"],
+      ["published-withdrawn"],
     );
     assert.equal(withdrawn.publication.serving?.status, "verified");
     assert.match(renderHtml(inventory), /provider-redirect \(observe-availability\)/u);
@@ -1178,7 +1189,7 @@ void test(
     assert.deepEqual(bundleFailure.failed_sources, ["definition-publication"]);
     assert.match(
       buildReport(store.owner).publication.reason,
-      /definition:official\/example: never-verified-published \(main revision 2/u,
+      /definition:official\/example: published-withdrawn \(main revision 2/u,
     );
     assert.equal(
       runSql(

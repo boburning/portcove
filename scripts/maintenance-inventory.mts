@@ -536,6 +536,7 @@ export interface DefinitionDeliveryInspection {
   serving:
     | "verified"
     | "not_served"
+    | "incomplete"
     | "unreachable"
     | "expired"
     | "verification_failed"
@@ -555,6 +556,7 @@ export interface DefinitionDeliveryInspection {
 const deliveryServing = new Set([
   "verified",
   "not_served",
+  "incomplete",
   "unreachable",
   "expired",
   "verification_failed",
@@ -1849,14 +1851,14 @@ SELECT json_build_object(
               ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC) p
       WHERE p.payload <> portcove_maintenance.absent_payload()),
   -- Last verified publication only: a run that did not verify records no facts.
+  -- A withdrawal (absent after a verified read) stays visible as such.
   'delivery', (SELECT coalesce(json_agg(json_build_object('definition', d.subject_key, 'facts', d.payload)
         ORDER BY d.subject_key), '[]')
       FROM (SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
               FROM portcove_maintenance.observations o
               JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
               WHERE r.source = 'definition-delivery' AND r.coverage = 'complete'
-              ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC) d
-      WHERE d.payload <> portcove_maintenance.absent_payload()),
+              ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC) d),
   'delivery_verified', (SELECT json_build_object('run_id', run_id, 'source_revision', source_revision,
         'completed_at', completed_at)
       FROM portcove_maintenance.collection_runs
@@ -2004,6 +2006,7 @@ export interface PublicationEntry {
     | "published-matches-main"
     | "published-differs-from-main"
     | "never-verified-published"
+    | "published-withdrawn"
     | "published-not-on-main"
     | "main-unobserved";
 }
@@ -2022,21 +2025,32 @@ export function publicationEntries(
 ): PublicationEntry[] {
   const mainByKey = new Map(main.map(({ definition, facts }) => [definition, facts]));
   const publishedByKey = new Map(published.map(({ definition, facts }) => [definition, facts]));
-  return [...new Set([...mainByKey.keys(), ...publishedByKey.keys()])].sort().map((definition) => {
+  const withdrawn = (facts: unknown) =>
+    (facts as { absent?: unknown } | undefined)?.absent === true;
+  const entries: PublicationEntry[] = [];
+  for (const definition of [...new Set([...mainByKey.keys(), ...publishedByKey.keys()])].sort()) {
     const onMain = mainByKey.get(definition) as MainDefinition | undefined;
-    const served = publishedByKey.get(definition) as PublishedDefinitionFact | undefined;
+    const servedFacts = publishedByKey.get(definition);
+    // Gone from main and withdrawn from the location: nothing left to compare.
+    if (!onMain && withdrawn(servedFacts)) continue;
+    const served = withdrawn(servedFacts)
+      ? undefined
+      : (servedFacts as PublishedDefinitionFact | undefined);
     const comparison: PublicationEntry["comparison"] = !onMain
       ? mainObserved
         ? "published-not-on-main"
         : "main-unobserved"
-      : !served
-        ? "never-verified-published"
-        : onMain.main?.revision === served.published?.revision &&
-            onMain.main?.definition_target === served.published?.target
-          ? "published-matches-main"
-          : "published-differs-from-main";
-    return { definition, facts: onMain ?? null, published: served ?? null, comparison };
-  });
+      : withdrawn(servedFacts)
+        ? "published-withdrawn"
+        : !served
+          ? "never-verified-published"
+          : onMain.main?.revision === served.published?.revision &&
+              onMain.main?.definition_target === served.published?.target
+            ? "published-matches-main"
+            : "published-differs-from-main";
+    entries.push({ definition, facts: onMain ?? null, published: served ?? null, comparison });
+  }
+  return entries;
 }
 
 export interface HostedIntakeEntry {
@@ -2238,12 +2252,12 @@ function publicationSection(report: InventoryReport) {
   const target = (value: unknown, field: "main" | "published") => {
     const facts = (value as Record<string, Record<string, unknown>> | null)?.[field];
     if (!facts) return "none";
-    return `revision ${String(facts.revision)} <code>${escapeHtml(field === "main" ? facts.definition_target : facts.target)}</code>`;
+    return `revision ${escapeHtml(revisionLabel(facts.revision))} <code>${escapeHtml(field === "main" ? facts.definition_target : facts.target)}</code>`;
   };
   return `<h2>Definition publication</h2>
 <p>Main is what the repository commits; published is the last content Core verified at the appointed location as a client would. ${
     serving
-      ? `Latest read: <span class="${serving.status === "verified" ? "" : "unknown"}">${escapeHtml(serving.status)}</span> at ${escapeHtml(serving.observed_at)}; last verified: ${escapeHtml(serving.last_verified_at ?? "never")}. A read that did not verify changes nothing published.`
+      ? `Latest read: <span class="${serving.status === "verified" ? "" : "unknown"}">${escapeHtml(serving.status)}</span> at ${escapeHtml(serving.observed_at ?? "unknown")}; last verified: ${escapeHtml(serving.last_verified_at ?? "never")}. A read that did not verify changes nothing published.`
       : "The appointed location has not been read."
   }</p>
 <table><thead><tr><th>Definition</th><th>Comparison</th><th>Main</th><th>Last verified published</th></tr></thead><tbody>

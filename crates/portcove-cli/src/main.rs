@@ -392,8 +392,8 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             portcove_core::inspect_official_definition_delivery().await,
             |report| {
                 format!(
-                    "Official definition delivery: {:?}; {} verified definitions.{}",
-                    report.serving,
+                    "Official definition delivery: {}; {} verified definitions.{}",
+                    report.serving.as_str(),
                     report.definitions.len(),
                     report
                         .reason

@@ -22,7 +22,7 @@ use crate::definition_eligibility::DefinitionOperationContext;
 use crate::{
     Catalog, CatalogOrigin, DefinitionEligibilityOutcome, DefinitionEligibilityReason,
     DefinitionOperation, DefinitionPublisherObservation, DefinitionPublisherStatus, ErrorCode,
-    Library, PortcoveService,
+    Library, PortcoveError, PortcoveService,
     test_fixture::{indexed_catalog_bundle, post_client_catalog},
 };
 
@@ -1835,6 +1835,74 @@ async fn metadata_that_is_not_served_is_distinguished_from_an_outage() {
         error.details.get("delivery").map(String::as_str),
         Some("not_served")
     );
+}
+
+#[tokio::test]
+async fn a_partial_publication_is_incomplete_rather_than_not_served() {
+    let fixture = RepositoryFixture::new();
+    let targets = metadata_targets();
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let metadata = fixture.metadata_url().to_file_path().unwrap();
+    let mut removed = 0;
+    for entry in std::fs::read_dir(&metadata).unwrap() {
+        let path = entry.unwrap().path();
+        if path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.ends_with("snapshot.json"))
+        {
+            std::fs::remove_file(path).unwrap();
+            removed += 1;
+        }
+    }
+    assert!(removed > 0, "the fixture publishes snapshot metadata");
+    let error = acquire(&fixture, &root).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::Network);
+    assert_eq!(
+        error.details.get("delivery").map(String::as_str),
+        Some("incomplete")
+    );
+}
+
+#[test]
+fn delivery_serving_names_each_failure_without_guessing_publication() {
+    use super::publisher_policy::provisioning::official_catalog::{
+        DefinitionDeliveryServing as Serving, delivery_serving,
+    };
+    let network =
+        || PortcoveError::network("could not acquire authenticated definition repository");
+    for (error, expected) in [
+        (
+            network().detail("delivery", "not_served"),
+            Serving::NotServed,
+        ),
+        (
+            network().detail("delivery", "incomplete"),
+            Serving::Incomplete,
+        ),
+        (network(), Serving::Unreachable),
+        (
+            PortcoveError::verification("expired").detail("delivery", "expired"),
+            Serving::Expired,
+        ),
+        (
+            PortcoveError::verification("definition repository authentication failed"),
+            Serving::VerificationFailed,
+        ),
+        // A delivery detail never upgrades a verification failure into "not served".
+        (
+            PortcoveError::verification("x").detail("delivery", "not_served"),
+            Serving::VerificationFailed,
+        ),
+    ] {
+        assert_eq!(delivery_serving(&error), expected);
+        assert_eq!(
+            serde_json::to_value(expected).unwrap(),
+            serde_json::Value::String(expected.as_str().to_owned())
+        );
+    }
 }
 
 #[tokio::test]

@@ -263,9 +263,11 @@ pub struct DefinitionDeliveryInspection {
 pub enum DefinitionDeliveryServing {
     /// The appointed metadata and index verified against the compiled root.
     Verified,
-    /// The appointed location serves no metadata (HTTP 403, 404 or 410).
+    /// The appointed location serves no metadata: its timestamp is absent (HTTP 404 or 410).
     NotServed,
-    /// The location could not be reached or did not answer completely.
+    /// Metadata is served, but a file it requires is absent: a partial publication.
+    Incomplete,
+    /// The location could not be reached, refused access (HTTP 403) or did not answer completely.
     Unreachable,
     /// Signed metadata was served but has expired.
     Expired,
@@ -273,6 +275,21 @@ pub enum DefinitionDeliveryServing {
     VerificationFailed,
     /// This build appoints no official catalog location.
     NotConfigured,
+}
+
+impl DefinitionDeliveryServing {
+    /// The machine name, as serialized.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Verified => "verified",
+            Self::NotServed => "not_served",
+            Self::Incomplete => "incomplete",
+            Self::Unreachable => "unreachable",
+            Self::Expired => "expired",
+            Self::VerificationFailed => "verification_failed",
+            Self::NotConfigured => "not_configured",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -305,6 +322,11 @@ pub async fn inspect_official_definition_delivery() -> DefinitionDeliveryInspect
     let source = match official_repository_source() {
         Ok(source) => source,
         Err(error) => {
+            // Only a build without an appointed location is "not configured"; an
+            // invalid compiled location is a failure, never hidden as absent.
+            if configured.is_some() || error.code != crate::ErrorCode::Unsupported {
+                report.serving = DefinitionDeliveryServing::VerificationFailed;
+            }
             report.reason = Some(error.message);
             return report;
         }
@@ -331,19 +353,23 @@ pub async fn inspect_official_definition_delivery() -> DefinitionDeliveryInspect
                 .collect();
         }
         Err(error) => {
-            report.serving = match (
-                error.code,
-                error.details.get("delivery").map(String::as_str),
-            ) {
-                (_, Some("expired")) => DefinitionDeliveryServing::Expired,
-                (crate::ErrorCode::Network, Some("not_served")) => {
-                    DefinitionDeliveryServing::NotServed
-                }
-                (crate::ErrorCode::Network, _) => DefinitionDeliveryServing::Unreachable,
-                _ => DefinitionDeliveryServing::VerificationFailed,
-            };
+            report.serving = delivery_serving(&error);
             report.reason = Some(error.message);
         }
     }
     report
+}
+
+/// The serving status of a failed client acquisition.
+pub(crate) fn delivery_serving(error: &PortcoveError) -> DefinitionDeliveryServing {
+    match (
+        error.code,
+        error.details.get("delivery").map(String::as_str),
+    ) {
+        (_, Some("expired")) => DefinitionDeliveryServing::Expired,
+        (crate::ErrorCode::Network, Some("not_served")) => DefinitionDeliveryServing::NotServed,
+        (crate::ErrorCode::Network, Some("incomplete")) => DefinitionDeliveryServing::Incomplete,
+        (crate::ErrorCode::Network, _) => DefinitionDeliveryServing::Unreachable,
+        _ => DefinitionDeliveryServing::VerificationFailed,
+    }
 }

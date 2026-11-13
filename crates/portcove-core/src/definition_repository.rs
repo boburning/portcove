@@ -4,7 +4,6 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     error::Error as StdError,
-    io,
     time::Duration,
 };
 
@@ -670,7 +669,7 @@ impl Transport for DefinitionHttpsTransport {
             return Err(TransportError::new_with_cause(
                 kind,
                 url.as_str(),
-                io::Error::other(format!("HTTP {}", response.status())),
+                HttpStatus(response.status().as_u16()),
             ));
         }
         let stream_url = url;
@@ -681,17 +680,31 @@ impl Transport for DefinitionHttpsTransport {
     }
 }
 
+/// The HTTP status behind a failed fetch, kept typed for delivery classification.
+#[derive(Debug)]
+struct HttpStatus(u16);
+
+impl std::fmt::Display for HttpStatus {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "HTTP {}", self.0)
+    }
+}
+
+impl StdError for HttpStatus {}
+
 fn map_tough_error(error: tough::error::Error) -> PortcoveError {
     let mut current: Option<&(dyn StdError + 'static)> = Some(&error);
     let mut network = false;
-    let mut not_published = false;
+    let mut missing_url: Option<String> = None;
+    let mut http_status: Option<u16> = None;
     while let Some(value) = current {
-        // A 403, 404 or 410 from the appointed location: nothing is served there.
-        if value
-            .downcast_ref::<TransportError>()
-            .is_some_and(|transport| transport.kind() == TransportErrorKind::FileNotFound)
+        if let Some(transport) = value.downcast_ref::<TransportError>()
+            && transport.kind() == TransportErrorKind::FileNotFound
         {
-            not_published = true;
+            missing_url = Some(transport.url().to_owned());
+        }
+        if let Some(status) = value.downcast_ref::<HttpStatus>() {
+            http_status = Some(status.0);
         }
         if let Some(tough) = value.downcast_ref::<tough::error::Error>() {
             match tough {
@@ -731,10 +744,15 @@ fn map_tough_error(error: tough::error::Error) -> PortcoveError {
     }
     if network {
         let error = PortcoveError::network("could not acquire authenticated definition repository");
-        if not_published {
-            error.detail("delivery", "not_served")
-        } else {
-            error
+        match (missing_url, http_status) {
+            // Access refused (auth wall, firewall, rate limit) says nothing about publication.
+            (Some(_), Some(403)) | (None, _) => error,
+            // The first top-level metadata is absent: the location serves nothing.
+            (Some(url), _) if url.ends_with("/timestamp.json") => {
+                error.detail("delivery", "not_served")
+            }
+            // Metadata is served but a file it requires is missing: a partial publication.
+            (Some(_), _) => error.detail("delivery", "incomplete"),
         }
     } else {
         PortcoveError::verification("definition repository authentication failed")

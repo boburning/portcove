@@ -538,9 +538,11 @@ root, signed TUF metadata and the signed definition index. It runs before host
 preferences or a library are opened and writes no trust, replay floor or
 selection.
 
-- `serving` is `verified`, `not_served` (the location answers 403, 404 or 410),
-  `unreachable`, `expired`, `verification_failed` or `not_configured`, with a
-  `reason` when it did not verify.
+- `serving` is `verified`, `not_served` (the timestamp metadata is absent: HTTP
+  404 or 410), `incomplete` (metadata is served but a file it requires is
+  absent), `unreachable` (including HTTP 403), `expired`, `verification_failed`
+  or `not_configured` (this build appoints no location; an invalid compiled
+  location is `verification_failed`), with a `reason` when it did not verify.
 - Only a `verified` report carries `provenance` (the authenticated metadata
   versions, digests, earliest expiration and index digest) and `definitions`:
   each indexed definition's namespace, stable ID, revision, target, and the
