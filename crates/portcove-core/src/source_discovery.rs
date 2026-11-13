@@ -2070,7 +2070,7 @@ impl Discovery<'_> {
             self.issue(
                 Some(path.to_path_buf()),
                 Some(profile_id.to_owned()),
-                "this match's details are too large for a saved scan; select the file directly to use it".to_owned(),
+                "This match's details are too large for a saved scan. Select the file directly to use it.".to_owned(),
             );
             return Ok(None);
         }
