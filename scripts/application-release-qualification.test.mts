@@ -307,6 +307,12 @@ for (const historical of [
     head_sha: "29f33f577dd08888daa308f6534e1ba2e0d10eaf",
     path: ".github/workflows/application-release.yml",
   },
+  {
+    id: 43389863363,
+    run_attempt: 1,
+    head_sha: "6de70052a7f3483657bfca27d02624657f3a5bf0",
+    path: ".github/workflows/application-release.yml",
+  },
 ]) {
   void test(`historical Windows qualification ${historical.id} requires exact source, attempt and recipes`, async () => {
     const content = Buffer.from("different workflow bytes");
