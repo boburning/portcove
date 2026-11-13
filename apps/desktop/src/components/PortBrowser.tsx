@@ -1900,13 +1900,7 @@ function CollectionResultSummary({
     <div className="collection-result-summary">
       {showCount && <span>{model.resultsUnavailable ? "Ports unavailable" : count}</span>}
       {model.organizationView !== "all" && (
-        <span>
-          Collection:{" "}
-          {model.organizationView.startsWith("collection:")
-            ? (model.organization?.snapshot?.collections[model.organizationView.slice(11)]?.name ??
-              "Unavailable collection")
-            : model.organizationView}
-        </span>
+        <span>Collection: {collectionViewLabel(model.organizationView, model.organization)}</span>
       )}
       {model.libraryReadiness !== "all" && model.view === "library" && (
         <span>Readiness: {filterLabel(model.libraryReadiness as Filter)}</span>
@@ -1927,6 +1921,14 @@ function CollectionResultSummary({
       )}
     </div>
   );
+}
+
+function collectionViewLabel(
+  view: ReturnType<typeof usePortBrowser>["organizationView"],
+  organization: ReturnType<typeof usePortBrowser>["organization"],
+) {
+  if (!view.startsWith("collection:")) return view;
+  return organization?.snapshot?.collections[view.slice(11)]?.name ?? "Unavailable collection";
 }
 
 function libraryResultCount(visible: number, installed: number) {

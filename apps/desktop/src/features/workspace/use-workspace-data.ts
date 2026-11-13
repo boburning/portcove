@@ -55,6 +55,34 @@ interface WorkspaceRead {
   needsRecovery: boolean;
 }
 
+async function probeWorkspaceChange(
+  libraryGeneration: number,
+  localWrites: { current: { revision: number; at: number } },
+  observedLocalWrites: { current: number },
+  deferredDiscovery: { current: boolean },
+) {
+  let changed = false;
+  let ownChange = false;
+  let deferredDue = false;
+  try {
+    changed = await desktopApi.workspaceChanged(libraryGeneration);
+    const localRevision = localWrites.current.revision;
+    ownChange = changed && localRevision !== observedLocalWrites.current;
+    observedLocalWrites.current = localRevision;
+    if (ownChange) deferredDiscovery.current = true;
+    else if (
+      deferredDiscovery.current &&
+      Date.now() - localWrites.current.at >= localOperationEventWindowMs
+    ) {
+      deferredDiscovery.current = false;
+      deferredDue = true;
+    }
+  } catch {
+    /* Periodic/full read remains the actionable fallback. */
+  }
+  return { changed, ownChange, deferredDue };
+}
+
 // Extend the documented focus adapter for desktop window focus as well as visibility.
 // Query's manager owns listener installation/removal with its mounted clients.
 focusManager.setEventListener((onFocus) => {
@@ -242,25 +270,12 @@ export function usePortcoveData(libraryGeneration = 0) {
         queryClient.getQueryState(queryKey)?.status === "error";
       fullReadRequested.current = false;
       if (!full && previous) {
-        let changed = false;
-        let ownChange = false;
-        let deferredDue = false;
-        try {
-          changed = await desktopApi.workspaceChanged(libraryGeneration);
-          const localRevision = localWrites.current.revision;
-          ownChange = changed && localRevision !== observedLocalWrites.current;
-          observedLocalWrites.current = localRevision;
-          if (ownChange) deferredDiscovery.current = true;
-          else if (
-            deferredDiscovery.current &&
-            Date.now() - localWrites.current.at >= localOperationEventWindowMs
-          ) {
-            deferredDiscovery.current = false;
-            deferredDue = true;
-          }
-        } catch {
-          /* Periodic/full read remains the actionable fallback. */
-        }
+        const { changed, ownChange, deferredDue } = await probeWorkspaceChange(
+          libraryGeneration,
+          localWrites,
+          observedLocalWrites,
+          deferredDiscovery,
+        );
         signal.throwIfAborted(); // Stops frontend continuations, not the already-started backend read.
         // A change coinciding with this window's own writes only needs a fresh read;
         // other commits (CLI or another process) still run orphan discovery first.

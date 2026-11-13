@@ -464,34 +464,13 @@ function DiscoverGameCard({
         {group.ports.length === 1 && favorite(first, true)}
         <SaveGameButton card port={first} groupPorts={group.ports} organization={organization} />
       </div>
-      <div className="discover-game-metadata grid content-start gap-2">
-        {artworkNotice && <p className="text-xs text-pc-muted-foreground">{artworkNotice}</p>}
-        {/* Most catalog ports offer only Stable; that chip does not help choose a game.
-            Preview, Rolling, mixed channels and a differing selected channel stay visible. */}
-        {/* On a known device, platform chips repeat on every card; show only the
-            exception. Without a known device, the platforms stay listed. */}
-        {exact && (
-          <IdentityChips
-            port={{
-              ...first,
-              ...(devicePlatform ? { platforms: [] } : {}),
-              ...(first.channels?.length === 1 &&
-              first.channels[0] === "stable" &&
-              (!status?.channel || status.channel === "stable")
-                ? { channels: [] }
-                : {}),
-            }}
-          />
-        )}
-        {exact &&
-          devicePlatform &&
-          first.platforms.length > 0 &&
-          !first.platforms.includes(devicePlatform) && (
-            <p className="m-0 text-xs text-pc-muted-foreground">
-              {t("discover.unavailableFor", { platform: platformLabel(devicePlatform) })}
-            </p>
-          )}
-      </div>
+      <DiscoverGameMetadata
+        port={first}
+        status={status}
+        exact={exact}
+        devicePlatform={devicePlatform}
+        artworkNotice={artworkNotice}
+      />
       <DiscoverGameObservation
         group={actionGroup}
         first={first}
@@ -520,6 +499,52 @@ function DiscoverGameCard({
         </div>
       )}
     </article>
+  );
+}
+
+function DiscoverGameMetadata({
+  port,
+  status,
+  exact,
+  devicePlatform,
+  artworkNotice,
+}: {
+  port: CatalogEntry;
+  status: PortStatus | undefined;
+  exact: boolean;
+  devicePlatform: PortDefinition["platforms"][number] | undefined;
+  artworkNotice: ReturnType<typeof artworkDisplayNotice>;
+}) {
+  const { t } = useAppTranslation("browsing");
+  return (
+    <div className="discover-game-metadata grid content-start gap-2">
+      {artworkNotice && <p className="text-xs text-pc-muted-foreground">{artworkNotice}</p>}
+      {/* Most catalog ports offer only Stable; that chip does not help choose a game.
+          Preview, Rolling, mixed channels and a differing selected channel stay visible. */}
+      {/* On a known device, platform chips repeat on every card; show only the
+          exception. Without a known device, the platforms stay listed. */}
+      {exact && (
+        <IdentityChips
+          port={{
+            ...port,
+            ...(devicePlatform ? { platforms: [] } : {}),
+            ...(port.channels?.length === 1 &&
+            port.channels[0] === "stable" &&
+            (!status?.channel || status.channel === "stable")
+              ? { channels: [] }
+              : {}),
+          }}
+        />
+      )}
+      {exact &&
+        devicePlatform &&
+        port.platforms.length > 0 &&
+        !port.platforms.includes(devicePlatform) && (
+          <p className="m-0 text-xs text-pc-muted-foreground">
+            {t("discover.unavailableFor", { platform: platformLabel(devicePlatform) })}
+          </p>
+        )}
+    </div>
   );
 }
 

@@ -23,6 +23,26 @@ export type RunPreparation = (
   onEvent: (event: OperationEvent) => void,
 ) => Promise<InstallRecord | undefined>;
 
+type PreparationStatus = "starting" | "prepared" | "unfinished" | "cancelled" | { text: string };
+
+function preparationStatusMessage(
+  t: ReturnType<typeof useAppTranslation<"installation">>["t"],
+  status: PreparationStatus | undefined,
+) {
+  if (status === undefined) return undefined;
+  if (typeof status === "object") return status.text;
+  switch (status) {
+    case "starting":
+      return t("preparation.status.starting");
+    case "prepared":
+      return t("preparation.status.prepared");
+    case "unfinished":
+      return t("preparation.status.unfinished");
+    case "cancelled":
+      return t("preparation.status.cancelled");
+  }
+}
+
 export function PreparationControl({
   portId,
   taskLabel,
@@ -45,21 +65,8 @@ export function PreparationControl({
   const [plan, setPlan] = useState<PreparationPlan>();
   const [pending, setPending] = useState<"review" | "prepare">();
   // App-owned outcomes are codes translated at render; Core progress text stays verbatim.
-  const [status, setStatus] = useState<
-    "starting" | "prepared" | "unfinished" | "cancelled" | { text: string }
-  >();
-  const message =
-    status === undefined
-      ? undefined
-      : typeof status === "object"
-        ? status.text
-        : status === "starting"
-          ? t("preparation.status.starting")
-          : status === "prepared"
-            ? t("preparation.status.prepared")
-            : status === "unfinished"
-              ? t("preparation.status.unfinished")
-              : t("preparation.status.cancelled");
+  const [status, setStatus] = useState<PreparationStatus>();
+  const message = preparationStatusMessage(t, status);
   const [error, setError] = useState<string>();
   const [operationId, setOperationId] = useState<string>();
   const request = useRef(0);

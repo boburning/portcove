@@ -1050,81 +1050,7 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
               }
             >
               {model.renderPageHeader()}
-              <div className="flow-root min-w-0" data-workspace-feedback>
-                <StatusLayer
-                  invocations={model.operations.invocations}
-                  operationEvents={model.operations.operationEvents}
-                  dismissInvocation={model.operations.dismissInvocation}
-                  onActivity={model.ui.view === "updates"}
-                  openActivity={(id) => {
-                    model.ui.revealActivity(id);
-                    // Also selects the Tasks section, even when Activity is already open.
-                    model.setPrimaryView("updates");
-                  }}
-                  error={model.operations.error}
-                  clearError={() => model.operations.setError(undefined)}
-                  reviewCurrentState={model.data.retryRefresh}
-                  preparationRecovery={(record) => {
-                    const id = preparationRecoveryPort(
-                      record.failure,
-                      model.data.catalog?.ports ?? [],
-                      model.data.statuses,
-                    );
-                    return id
-                      ? () => model.openPortDetails(id, "error:preparation-review")
-                      : undefined;
-                  }}
-                  readyToPlay={(record) => {
-                    const { target } = record.context;
-                    const port = model.data.catalog?.ports.find((entry) => entry.id === target.id);
-                    if (!readyToPlayAfter(record, model.model.statusMap.get(target.id), port))
-                      return undefined;
-                    return () =>
-                      launchKnownPort(
-                        target.id,
-                        port,
-                        model.operations.perform,
-                        model.bootstrap.generation,
-                      );
-                  }}
-                  operation={model.operations.operation}
-                  busy={model.operations.busy}
-                  featureNotices={
-                    <ApplicationUpdateNotices
-                      updateNotice={model.applicationUpdate.notice}
-                      updateChoiceRequired={model.applicationUpdateChoice.choiceRequired}
-                      productionTransitionRequired={
-                        model.applicationUpdateProductionTransition.offerRequired
-                      }
-                      productionTransitionBusy={model.applicationUpdateProductionTransition.busy}
-                      reviewUpdate={model.reviewApplicationUpdate}
-                      dismissUpdate={model.applicationUpdate.dismiss}
-                      dismissUpdateChoice={model.dismissApplicationUpdateChoice}
-                      useStable={() =>
-                        void model.completeApplicationUpdateProductionTransition("use-stable")
-                      }
-                      keepPreview={() =>
-                        void model.completeApplicationUpdateProductionTransition("keep-preview")
-                      }
-                      dismissProductionTransition={
-                        model.dismissApplicationUpdateProductionTransition
-                      }
-                    />
-                  }
-                />
-                <WorkspaceRefreshNotice
-                  failure={model.data.refreshFailure}
-                  recoveryFailure={model.data.recoveryFailure}
-                  hasSnapshot={Boolean(model.data.catalog)}
-                  refreshing={model.data.refreshing}
-                  retry={model.data.retryRefresh}
-                  retryRecovery={model.data.retryRecovery}
-                  subscriptionFailure={
-                    model.data.subscriptionFailure?.error ?? model.operations.subscriptionFailure
-                  }
-                />
-                {model.renderPreferenceFailure()}
-              </div>
+              <WorkspaceFeedback model={model} />
               {model.renderWorkspaceView()}
               {model.addGamesStarted && (
                 <AddGames
@@ -1162,6 +1088,73 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
         </div>
       </ArtworkProvider>
     </OperationPresentationProvider>
+  );
+}
+
+function WorkspaceFeedback({ model }: { model: Omit<WorkspaceModel, "workspace"> }) {
+  return (
+    <div className="flow-root min-w-0" data-workspace-feedback>
+      <StatusLayer
+        invocations={model.operations.invocations}
+        operationEvents={model.operations.operationEvents}
+        dismissInvocation={model.operations.dismissInvocation}
+        onActivity={model.ui.view === "updates"}
+        openActivity={(id) => {
+          model.ui.revealActivity(id);
+          // Also selects the Tasks section, even when Activity is already open.
+          model.setPrimaryView("updates");
+        }}
+        error={model.operations.error}
+        clearError={() => model.operations.setError(undefined)}
+        reviewCurrentState={model.data.retryRefresh}
+        preparationRecovery={(record) => {
+          const id = preparationRecoveryPort(
+            record.failure,
+            model.data.catalog?.ports ?? [],
+            model.data.statuses,
+          );
+          return id ? () => model.openPortDetails(id, "error:preparation-review") : undefined;
+        }}
+        readyToPlay={(record) => {
+          const { target } = record.context;
+          const port = model.data.catalog?.ports.find((entry) => entry.id === target.id);
+          if (!readyToPlayAfter(record, model.model.statusMap.get(target.id), port))
+            return undefined;
+          return () =>
+            launchKnownPort(target.id, port, model.operations.perform, model.bootstrap.generation);
+        }}
+        operation={model.operations.operation}
+        busy={model.operations.busy}
+        featureNotices={
+          <ApplicationUpdateNotices
+            updateNotice={model.applicationUpdate.notice}
+            updateChoiceRequired={model.applicationUpdateChoice.choiceRequired}
+            productionTransitionRequired={model.applicationUpdateProductionTransition.offerRequired}
+            productionTransitionBusy={model.applicationUpdateProductionTransition.busy}
+            reviewUpdate={model.reviewApplicationUpdate}
+            dismissUpdate={model.applicationUpdate.dismiss}
+            dismissUpdateChoice={model.dismissApplicationUpdateChoice}
+            useStable={() => void model.completeApplicationUpdateProductionTransition("use-stable")}
+            keepPreview={() =>
+              void model.completeApplicationUpdateProductionTransition("keep-preview")
+            }
+            dismissProductionTransition={model.dismissApplicationUpdateProductionTransition}
+          />
+        }
+      />
+      <WorkspaceRefreshNotice
+        failure={model.data.refreshFailure}
+        recoveryFailure={model.data.recoveryFailure}
+        hasSnapshot={Boolean(model.data.catalog)}
+        refreshing={model.data.refreshing}
+        retry={model.data.retryRefresh}
+        retryRecovery={model.data.retryRecovery}
+        subscriptionFailure={
+          model.data.subscriptionFailure?.error ?? model.operations.subscriptionFailure
+        }
+      />
+      {model.renderPreferenceFailure()}
+    </div>
   );
 }
 
