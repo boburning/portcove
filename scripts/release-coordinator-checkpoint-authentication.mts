@@ -235,6 +235,36 @@ export function matchesRetainedCatalogAdoptionWithdrawal(
   );
 }
 
+export const retainedChameleonReviewClaim = {
+  previous: "9d687629c60fc85c9a150a38eaf1dd8081934a87",
+  child: "21a0966d794b1e35c25a5f302db7593052e7cc9c",
+  tree: "6e54642ea8c272a78d2c746f9197cd4e18f9df0a",
+  state_sha256: "4f16e23205f32c0d04340d61b8a13502b6b5d98a6261e920a05023b55960385d",
+  request_id: "be18be3b8a760b4805281924444926d85f5c5c3f3489ed437b125884b0ced140",
+  source: "2e0699dc8b6bc4cc6d28b6648d2ad79d0517d2f8",
+  source_tree: "b4cb930ee6fcbd1c6693a17b895dc8076513f3f2",
+  clock: "2026-11-13T15:09:18.154Z",
+  original_revision: "3551454a53fee6bf898f8d0f00fd798384f1b0ea",
+  original_ref: "refs/tags/portcove-production-controller-catalog-chameleon-canary",
+  original_run: "43448527355",
+  original_job: 131966991529,
+  recovery_ref: "refs/tags/portcove-production-controller-catalog-chameleon-review-settle",
+} as const;
+
+export function selectRetainedChameleonReviewClaim(
+  executionRef: string,
+  runAttempt: number,
+  checkpoint: string,
+) {
+  const claim = retainedChameleonReviewClaim;
+  if (executionRef !== claim.recovery_ref) return undefined;
+  if (runAttempt !== 1 || checkpoint !== claim.previous)
+    throw new Error(
+      "Chameleon review recovery requires the original predecessor and first attempt",
+    );
+  return claim;
+}
+
 /** The Chameleon coordinator may authenticate the exact stopped application
  * request's signed withdrawal as its idle predecessor. */
 export function matchesRetainedChameleonWithdrawalHandoff(
@@ -246,9 +276,11 @@ export function matchesRetainedChameleonWithdrawalHandoff(
   const workflow = "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb";
   return (
     purpose === "catalog-publication" &&
-    source.execution_ref === "refs/tags/portcove-production-controller-catalog-chameleon-canary" &&
+    [retainedChameleonReviewClaim.original_ref, retainedChameleonReviewClaim.recovery_ref].some(
+      (ref) => ref === source.execution_ref,
+    ) &&
     source.workflow_sha256 === workflow &&
-    checkpoint.checkpoint === "9d687629c60fc85c9a150a38eaf1dd8081934a87" &&
+    checkpoint.checkpoint === retainedChameleonReviewClaim.previous &&
     checkpoint.previous === retainedCatalogV13AdoptionClaim.child &&
     producer.controller_revision === "4cd5a0d9f9e3f3184bb680a298489a9db5dc18ba" &&
     producer.controller_ref ===

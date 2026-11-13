@@ -27,6 +27,8 @@ import {
   matchesRetainedCatalogBootstrapHandoff,
   matchesRetainedCatalogAdoptionWithdrawal,
   matchesRetainedChameleonWithdrawalHandoff,
+  retainedChameleonReviewClaim,
+  selectRetainedChameleonReviewClaim,
   matchesRetainedCatalogForwardAdoptionHandoff,
   matchesRetainedApplicationRenewalHandoff,
   matchesRetainedNativeAdoptionPredecessor,
@@ -1301,6 +1303,17 @@ void test("the Chameleon coordinator can carry only the exact signed v13 withdra
       matchesRetainedChameleonWithdrawalHandoff(checkpoint, producer, source, other),
       false,
     );
+});
+
+void test("Chameleon review settlement is one ref, predecessor and first attempt", () => {
+  const claim = retainedChameleonReviewClaim;
+  assert.equal(
+    selectRetainedChameleonReviewClaim(claim.original_ref, 1, claim.previous),
+    undefined,
+  );
+  assert.equal(selectRetainedChameleonReviewClaim(claim.recovery_ref, 1, claim.previous), claim);
+  assert.throws(() => selectRetainedChameleonReviewClaim(claim.recovery_ref, 2, claim.previous));
+  assert.throws(() => selectRetainedChameleonReviewClaim(claim.recovery_ref, 1, claim.child));
 });
 
 void test("only the appointed successor and exact r66 adoption producer can carry the shared journal", () => {
