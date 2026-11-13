@@ -26,8 +26,9 @@ emulation differs
 ([builder downloads record](psxrecomp-7192402-builder-downloads-2026-11-13.md),
 [texture-pack scope](psxrecomp-texture-pack-scope-2026-11-13.md)). The
 `d5cae379` review that covers the GPU changes between `7192402` and `d5cae379`
-is in its own change (#5346), and its findings are repeated here only where
-this route depends on them.
+is in the [d5cae379 requalification record](psxrecomp-d5cae379-requalification-2026-11-13.md)
+(#5346), and its findings are repeated here only where this route depends on
+them.
 
 Against `d5cae379`, the diff touches 3 files, with 134 insertions and 1
 deletion:
