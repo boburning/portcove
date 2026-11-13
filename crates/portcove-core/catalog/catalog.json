@@ -2623,6 +2623,26 @@
         "live_url": null
       },
       {
+        "id": "alexbeav-medievil-ii-recomp-v026-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/medievil-ii-recomp",
+        "authority_ref": "8eac316b519fdc81b509fc64faac6944eb7f075a",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.2.6 Windows (47782043 bytes, SHA-256 15b93eccd3b354601d6903d9baec13a7e0f616d63b80f0c7e2ef139a2ce45b70) and Linux x64 (45589438 bytes, SHA-256 54a7351fa7d024986e72e147d340df5199dbf00291b58c878bbce0baf381aa4b) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI are byte-identical to reviewed 7192402, and carry the tagged game.toml (SHA-256 04288170b56d762821b10746bcd9fc7437be29f9f4c4e05bf67b801d216e0cd6) with serial SCUS-94564, 2 required tracks, first data track SHA-1 017b855353abd86c22aa516690e852b641e4fa71 and the psxrecomp/bios/SCPH1001.toml BIOS configuration with OpenBIOS and bios_hle off. Its second known SHA-1 is a merged single-BIN image that this route does not bind. The kit's README-SETUP.txt requires the player's own SCPH-1001 BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3, the psx-scph-1001-bios profile. The kits use the split mod layout with 11 generic psx.* packages in mods/bundled, none of the six medievil2.* title mods of the prebuilt v0.2.4-alpha and v0.2.5-alpha players, an empty mods/preloaded, empty mods/texture-packs/SCUS-94564 folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player MediEvil_II__Recompiled. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/blob/8eac316b519fdc81b509fc64faac6944eb7f075a/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-medievil-ii-recomp-redump-2503",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/2503; modified 2024-10-01 15:50 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump MediEvil II (USA), SCUS-94564, disc 2503, has 2 tracks. Track 1 is 450885456 bytes, SHA-1 017b855353abd86c22aa516690e852b641e4fa71, MD5 a4bd203f3a59fa92a64c176774919293 and CRC32 9ba3ab69, matching the v0.2.6 kit's game.toml. Track 2 is a 32989152-byte audio track. Core binds the first data track and track count; the second track and full TOC are not independently authenticated.",
+        "immutable_url": "https://redump.info/disc/2503",
+        "live_url": null
+      },
+      {
         "id": "alexbeav-quake-ii-recomp-v012-static-contract",
         "role": "upstream_support",
         "authority": "alexbeavs-ps1-ports/quake-ii-recomp",
@@ -13105,6 +13125,53 @@
         "evidence_gap": null
       },
       {
+        "id": "alexbeav-medievil-ii-recomp-usa-psx",
+        "label": "MediEvil II (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "MediEvil II (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SCUS-94564"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  2
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "017b855353abd86c22aa516690e852b641e4fa71",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-medievil-ii-recomp-v026-static-contract",
+                  "alexbeav-medievil-ii-recomp-redump-2503"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-medievil-ii-recomp-v026-static-contract",
+              "alexbeav-medievil-ii-recomp-redump-2503"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
         "id": "alexbeav-quake-ii-recomp-usa-psx",
         "label": "Quake II (USA) disc",
         "kind": "optical-disc",
@@ -21702,6 +21769,69 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "26097ec363f6850fbb7575ce2155c7841913f4317b844dca0683ecabc6864d2e"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-medievil-ii-recomp-setup-kit-game-source",
+        "port_id": "alexbeav-medievil-ii-recomp-setup-kit",
+        "role": "game",
+        "profile_id": "alexbeav-medievil-ii-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-medievil-ii-recomp-v026-static-contract",
+          "alexbeav-medievil-ii-recomp-redump-2503"
+        ],
+        "authority_ref": "8eac316b519fdc81b509fc64faac6944eb7f075a",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/blob/8eac316b519fdc81b509fc64faac6944eb7f075a/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.2.6",
+            "artifact_sha256": "15b93eccd3b354601d6903d9baec13a7e0f616d63b80f0c7e2ef139a2ce45b70"
+          },
+          {
+            "upstream_ref": "v0.2.6",
+            "artifact_sha256": "54a7351fa7d024986e72e147d340df5199dbf00291b58c878bbce0baf381aa4b"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-medievil-ii-recomp-setup-kit-bios-source",
+        "port_id": "alexbeav-medievil-ii-recomp-setup-kit",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-medievil-ii-recomp-v026-static-contract"
+        ],
+        "authority_ref": "8eac316b519fdc81b509fc64faac6944eb7f075a",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/blob/8eac316b519fdc81b509fc64faac6944eb7f075a/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.2.6",
+            "artifact_sha256": "15b93eccd3b354601d6903d9baec13a7e0f616d63b80f0c7e2ef139a2ce45b70"
+          },
+          {
+            "upstream_ref": "v0.2.6",
+            "artifact_sha256": "54a7351fa7d024986e72e147d340df5199dbf00291b58c878bbce0baf381aa4b"
           }
         ],
         "aliases": [],
@@ -39715,7 +39845,7 @@
     {
       "id": "alexbeav-medievil-ii-recomp",
       "name": "MediEvil II / Alexbeav PSXRecomp",
-      "summary": "Explore MediEvil II / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Play MediEvil II on Windows with the prebuilt player, which includes OpenBIOS and MediEvil II widescreen, frame-rate and control mods. You need your own USA PlayStation disc.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp",
       "support_tier": "beta",
       "channels": [
@@ -39779,6 +39909,153 @@
           "match_kind": "underlying-game"
         }
       }
+    },
+    {
+      "id": "alexbeav-medievil-ii-recomp-setup-kit",
+      "name": "MediEvil II (setup kit) / Alexbeav PSXRecomp",
+      "summary": "Portcove builds MediEvil II on Windows or Linux from the upstream setup kit with your own USA PlayStation disc and retail SCPH-1001 BIOS. The prebuilt player’s MediEvil II mods aren’t included. The Mac setup kit uses upstream preparation.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/medievil-ii-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "medievil-ii-recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "medievil-ii-recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-medievil-ii-recomp-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "MediEvil_II__Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "MediEvil_II__Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods/installed",
+        "mods/packages",
+        "mods/.staging",
+        "mods/state.toml",
+        "mods/state.toml.tmp",
+        "mods/texture-packs",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-medievil-ii-recomp-usa-psx",
+            "label": "MediEvil II (USA) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-1001-bios",
+            "label": "PlayStation SCPH-1001 BIOS",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select your own MediEvil II (USA) complete CHD (SCUS-94564, 2 tracks) and retail SCPH-1001 BIOS. Portcove builds a private player from the upstream setup kit and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version; the prebuilt player’s MediEvil II mods aren’t part of this kit. Saves from the prebuilt MediEvil II route stay with that installation. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "MediEvil II",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original files",
+              "instruction": "Use your own MediEvil II (USA) disc (SCUS-94564) with both of its tracks and your own retail SCPH-1001 BIOS. This setup kit doesn’t include OpenBIOS."
+            },
+            {
+              "title": "Set up the managed Windows or Linux player",
+              "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player from the setup kit with its registered toolchain. Choose Play after the build finishes."
+            },
+            {
+              "title": "Prepare a separate Mac copy",
+              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt, which asks for Python 3 and your own SCPH-1001 BIOS."
+            },
+            {
+              "title": "Build and add the completed Mac player",
+              "instruction": "Run MediEvil_II__Recompiled from the kit folder and choose Generate & rebuild. Keep the CUE and both BIN tracks together if using CUE/BIN. In Portcove, select build-release/MediEvil_II__Recompiled as the player and build-release as its start folder."
+            }
+          ],
+          "warnings": [
+            "This route doesn’t include the widescreen, frame-rate and control mods of the prebuilt MediEvil II player. Choose the prebuilt route if you want them.",
+            "Portcove checks the first data track and track count. Keep the complete disc intact.",
+            "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp#readme",
+          "references": [
+            {
+              "title": "Keep the original files and your data",
+              "instruction": "Keep your disc and BIOS separately. Saves from the prebuilt player stay in that installation; this route doesn’t import them. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 4002,
+          "cover_id": 84942,
+          "image_id": "co1tji",
+          "image_sha256": "a7a6b4931e4693816a02c5e8bd22b7c6cfca8b7f6f4d58a2c65e9c45504c62ff",
+          "game_slug": "medievil-ii--1",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-1001-bios"
     },
     {
       "id": "alexbeav-medievil-recomp",
