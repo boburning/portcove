@@ -7873,6 +7873,11 @@ mod tests {
                 "alexbeav-ace-combat-3-electrosphere-recomp",
                 "alexbeav-armored-core-master-of-arena-recomp",
                 "alexbeav-fear-effect-2-retro-helix-recomp",
+                "alexbeav-final-fantasy-ix-recomp",
+                "alexbeav-final-fantasy-viii-recomp",
+                "alexbeav-galerians-recomp",
+                "alexbeav-in-cold-blood-recomp",
+                "alexbeav-koudelka-recomp",
             ]
         );
         let arena = "alexbeav-armored-core-master-of-arena-recomp";

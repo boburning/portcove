@@ -6838,7 +6838,7 @@
     {
       "id": "alexbeav-final-fantasy-ix-recomp",
       "name": "Final Fantasy IX / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play Final Fantasy IX on Windows or Linux with your own matching USA and Canada four-disc set and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-ix-recomp",
       "issue_number": 450,
       "listed_at": "2026-10-23",
@@ -6861,54 +6861,60 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Final Fantasy IX (USA, Canada) (Rev 1) four-disc set (SLUS-01251, SLUS-01295, SLUS-01296, SLUS-01297), each disc with its single data track, and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Choose the official Mac ZIP from the upstream releases: -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon, and extract it. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Follow the kit's README-SETUP.txt."
+          },
+          {
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Final_Fantasy_IX_Recompiled from the kit folder, assign every disc in Disc Selection and choose Generate & rebuild. In Portcove, select build-release/Final_Fantasy_IX_Recompiled as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Portcove checks each disc's data track and track count. Keep every disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-ix-recomp#readme",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your discs and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-ix-recomp/releases",
+      "recommended_download_channel": "stable",
+      "original_game_title": "Final Fantasy IX",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "final-fantasy-ix-",
-          "-windows-x64.zip"
-        ],
         "linux-x86-64": [
           "final-fantasy-ix-",
           "-linux-x64.zip"
+        ],
+        "macos-aarch64": [
+          "final-fantasy-ix-",
+          "-macos-arm64.zip"
         ],
         "macos-x86-64": [
           "final-fantasy-ix-",
           "-macos-x64.zip"
         ],
-        "macos-aarch64": [
+        "windows-x86-64": [
           "final-fantasy-ix-",
-          "-macos-arm64.zip"
+          "-windows-x64.zip"
         ]
-      },
-      "recommended_download_channel": "stable"
+      }
     },
     {
       "id": "alexbeav-final-fantasy-viii-recomp",
       "name": "Final Fantasy VIII / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play Final Fantasy VIII on Windows or Linux with your own matching USA four-disc set and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-viii-recomp",
       "issue_number": 449,
       "listed_at": "2026-10-23",
@@ -6931,49 +6937,55 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Final Fantasy VIII (USA) four-disc set (SLUS-00892, SLUS-00908, SLUS-00909, SLUS-00910), each disc with its single data track, and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Choose the official Mac ZIP from the upstream releases: -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon, and extract it. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Follow the kit's README-SETUP.txt."
+          },
+          {
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Final_Fantasy_VIII_Recompiled from the kit folder, assign every disc in Disc Selection and choose Generate & rebuild. In Portcove, select build-release/Final_Fantasy_VIII_Recompiled as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Portcove checks each disc's data track and track count. Keep every disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-viii-recomp#readme",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your discs and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-viii-recomp/releases",
+      "recommended_download_channel": "stable",
+      "original_game_title": "Final Fantasy VIII",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "final-fantasy-viii-",
-          "-windows-x64.zip"
-        ],
         "linux-x86-64": [
           "final-fantasy-viii-",
           "-linux-x64.zip"
+        ],
+        "macos-aarch64": [
+          "final-fantasy-viii-",
+          "-macos-arm64.zip"
         ],
         "macos-x86-64": [
           "final-fantasy-viii-",
           "-macos-x64.zip"
         ],
-        "macos-aarch64": [
+        "windows-x86-64": [
           "final-fantasy-viii-",
-          "-macos-arm64.zip"
+          "-windows-x64.zip"
         ]
-      },
-      "recommended_download_channel": "stable"
+      }
     },
     {
       "id": "alexbeav-future-cop-lapd-recomp",
@@ -7200,7 +7212,7 @@
     {
       "id": "alexbeav-galerians-recomp",
       "name": "Galerians / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play Galerians on Windows or Linux with your own matching European three-disc set and retail SCPH-5552 BIOS. You can also use a separately prepared upstream copy.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/galerians-recomp",
       "issue_number": 1597,
       "listed_at": "2026-10-23",
@@ -7223,39 +7235,37 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official ZIP for your system from the upstream releases and extract it to a writable folder. On Mac, use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Follow the setup instructions included in your kit."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Galerians (Europe) three-disc set (SLES-02328, SLES-12328, SLES-22328), each disc with its single data track, and your own retail SCPH-5552 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use the three European discs in order, SLES-02328, SLES-12328 and SLES-22328. In the upstream launcher’s Disc Selection, use Browse For Disc to assign every image to its numbered slot before starting setup with Disc 1. Supply your own retail SCPH-5552 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Choose the official Mac ZIP from the upstream releases: -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon, and extract it. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run Galerians (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Galerians (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Galerians from the kit folder, assign every disc in Disc Selection and choose Generate & rebuild. In Portcove, select build-release/Galerians as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit.",
-          "The v0.1.0 kit can assign the discs during setup. Its game configuration says switching discs during play is unimplemented."
+          "Portcove checks each disc's data track and track count. Keep every disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/galerians-recomp#readme",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your discs and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/galerians-recomp/releases",
+      "recommended_download_channel": "stable",
+      "original_game_title": "Galerians",
       "download_asset_hints": {
         "linux-x86-64": [
           "galerians-",
@@ -7273,8 +7283,7 @@
           "galerians-",
           "-windows-x64.zip"
         ]
-      },
-      "recommended_download_channel": "stable"
+      }
     },
     {
       "id": "alexbeav-ghost-in-the-shell-recomp",
@@ -7349,7 +7358,7 @@
     {
       "id": "alexbeav-in-cold-blood-recomp",
       "name": "In Cold Blood / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play In Cold Blood on Windows or Linux with your own matching USA two-disc set and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp",
       "issue_number": 458,
       "listed_at": "2026-10-23",
@@ -7372,31 +7381,37 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux use your native C/C++ compiler, CMake, Ninja and Python 3. The packaged setup host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon archive and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH."
+            "title": "Use the exact original files",
+            "instruction": "Use your own In Cold Blood (USA) two-disc set (SLUS-01294, SLUS-01314), each disc with its single data track, and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Supply the matching originals in order",
-            "instruction": "Use your own USA two-disc set SLUS-01294 then SLUS-01314. Keep each disc image and every referenced track together. Use the kit’s supported BIOS instructions. Follow the bundled setup guide for the image formats and BIOS selection."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc."
           },
           {
-            "title": "Build and add the completed player",
-            "instruction": "Run the In_Cold_Blood_Recompiled setup host (with .exe on Windows), then use its Generate & rebuild wizard. Add the completed player from build-release with that folder as its start folder. Keep the whole creating folder and its runtime companions."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Choose the official Mac ZIP from the upstream releases: -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon, and extract it. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host requires macOS 11 or newer."
+          },
+          {
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run In_Cold_Blood_Recompiled from the kit folder, assign every disc in Disc Selection and choose Generate & rebuild. In Portcove, select build-release/In_Cold_Blood_Recompiled as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package.",
-          "The guide covers upstream-owned setup and replacement. Preserve all discs, saves, settings and overlay captures. Disc changes during gameplay remain unobserved."
+          "Portcove checks each disc's data track and track count. Keep every disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp#readme",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your discs and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp/releases",
+      "recommended_download_channel": "stable",
+      "original_game_title": "In Cold Blood",
       "download_asset_hints": {
         "linux-x86-64": [
           "In-Cold-Blood-Recomp-",
@@ -7414,8 +7429,7 @@
           "In-Cold-Blood-Recomp-",
           "-windows-x64.zip"
         ]
-      },
-      "recommended_download_channel": "stable"
+      }
     },
     {
       "id": "alexbeav-incredible-crisis-recomp",
@@ -7791,7 +7805,7 @@
     {
       "id": "alexbeav-koudelka-recomp",
       "name": "Koudelka / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play Koudelka on Windows or Linux with your own matching European four-disc set and retail SCPH-5552 BIOS. You can also use a separately prepared upstream copy.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/koudelka-recomp",
       "issue_number": 453,
       "listed_at": "2026-10-23",
@@ -7814,31 +7828,37 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux use your native C/C++ compiler, CMake, Ninja and Python 3. The packaged setup host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon archive and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Koudelka (Europe) four-disc set (SLES-02897, SLES-12897, SLES-22897, SLES-32897), each disc with its single data track, and your own retail SCPH-5552 BIOS."
           },
           {
-            "title": "Supply the matching originals in order",
-            "instruction": "Use your own European four-disc set SLES-02897, SLES-12897, SLES-22897 and SLES-32897 in that order. Keep each disc image and every referenced track together. Use the kit’s supported BIOS instructions. Follow the bundled setup guide for the image formats and BIOS selection."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc."
           },
           {
-            "title": "Build and add the completed player",
-            "instruction": "Run the Koudelka_Recompiled setup host (with .exe on Windows), then use its Generate & rebuild wizard. Add the completed player from build-release with that folder as its start folder. Keep the whole creating folder and its runtime companions."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Choose the official Mac ZIP from the upstream releases: -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon, and extract it. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host requires macOS 11 or newer."
+          },
+          {
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Koudelka_Recompiled from the kit folder, assign every disc in Disc Selection and choose Generate & rebuild. In Portcove, select build-release/Koudelka_Recompiled as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package.",
-          "The guide covers upstream-owned setup and replacement. Preserve all discs, saves, settings and overlay captures. Disc changes during gameplay remain unobserved."
+          "Portcove checks each disc's data track and track count. Keep every disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/koudelka-recomp#readme",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your discs and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/koudelka-recomp/releases",
+      "recommended_download_channel": "stable",
+      "original_game_title": "Koudelka",
       "download_asset_hints": {
         "linux-x86-64": [
           "Koudelka-Recomp-",
@@ -7856,8 +7876,7 @@
           "Koudelka-Recomp-",
           "-windows-x64.zip"
         ]
-      },
-      "recommended_download_channel": "stable"
+      }
     },
     {
       "id": "alexbeav-kula-world-recomp",

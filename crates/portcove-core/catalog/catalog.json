@@ -2391,6 +2391,226 @@
         "claim": "One owner-provided Xbox 360 image of Ace Combat 6: Fires of Liberation (USA, Japan), read with the managed disc-image reader and an independent standalone parser: XGD2 volume descriptor, 13 files in 1 directory, 5,443,410,412 file bytes, title ID 4E4D07D1, default.xex SHA-256 6eefba42cdfe9121207e534d8d290009c98b1a8c60ae5334a33a4f15167cbbbc, whole-image SHA-1 fc0796fa56149e35a50d49205233a8cc06e13f03 and SHA-256 204c5e645d79da8776699c12f17bd069f869fbdb10ae79015d1a0ef2b743c98c. A local observation of one image; no other edition, installed-application, physical-media, gameplay or Supported claim.",
         "immutable_url": "https://github.com/boburning/portcove/blob/be7f7857243e6c897f1b471c9235c4bbdb4e1d89/docs/qualification/ace-combat-6-owner-image-disc-reader-2026-11-11.md",
         "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/ace-combat-6-owner-image-disc-reader-2026-11-11.md"
+      },
+      {
+        "id": "alexbeav-galerians-recomp-v011-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/galerians-recomp",
+        "authority_ref": "dfe40d4de62052dc16aaaa7c468d0038de919fee",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/galerians-recomp/blob/dfe40d4de62052dc16aaaa7c468d0038de919fee/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.1.1 Windows (47704878 bytes, SHA-256 99f0d0ea90d015d9973807a9e5e4e34af04e82616dbb356737ac3819895be142) and Linux x64 (45593961 bytes, SHA-256 0d685a126da6afe78feffea52cd0eba1f5ba45c177023a1c2a4a8ceb6bd7ad81) setup kits gave the same SHA-256 on three separate downloads and pass Core package-layout inspection; the provider digest was not read. The Linux kit has no case-colliding paths. Both carry the game.toml of this commit: SLES-02328, a 3-disc discs roster whose known_sha1 lists each disc's data-track SHA-1 (b35fe93b79226fb23f31a4822487d8cbade42d89, 77637261f9b2c61979c0be735fa43dc7a5457512, 3f0656c644b243bf7c9c61bf45d974a2244b170f), and the SCPH5552 BIOS configuration; README-SETUP requires a retail SCPH-5552 (Europe) BIOS. The kits pin PSXRecomp 7192402c283880e318c97732c9b733c4d1b144d0, ship mods/bundled, mods/preloaded and mods/texture-packs and set EXE_NAME Galerians. The runtime mounts the disc named by the 1-based [disc] selected setting and uses it for the save-state disc scope; its in-game menu can also change discs. Native generation, gameplay and saves remain unobserved."
+      },
+      {
+        "id": "alexbeav-galerians-recomp-disc-1-redump-7420",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/7420",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://redump.info/disc/7420",
+        "live_url": null,
+        "claim": "Redump Galerians (Europe) (Disc 1), SLES-02328, has one data track: 683248944 bytes, SHA-1 b35fe93b79226fb23f31a4822487d8cbade42d89, MD5 6ff87c94b34d9371fd57a744b245a74e and CRC32 4f8c21f8, which agree with the kit. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-galerians-recomp-disc-2-redump-7421",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/7421",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://redump.info/disc/7421",
+        "live_url": null,
+        "claim": "Redump Galerians (Europe) (Disc 2), SLES-12328, has one data track: 672867216 bytes, SHA-1 77637261f9b2c61979c0be735fa43dc7a5457512, MD5 fdc2d4e05af3a9cded3c667c77544fc5 and CRC32 b6b5fe85, which agree with the kit. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-galerians-recomp-disc-3-redump-7422",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/7422",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://redump.info/disc/7422",
+        "live_url": null,
+        "claim": "Redump Galerians (Europe) (Disc 3), SLES-22328, has one data track: 595923888 bytes, SHA-1 3f0656c644b243bf7c9c61bf45d974a2244b170f, MD5 3a54d9ce02016a20c0dc085b21bf1975 and CRC32 912a15df, which agree with the kit. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-in-cold-blood-recomp-v037-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/in-cold-blood-recomp",
+        "authority_ref": "8d64a31616c9b0beb50d2e3707f1eac2f96d10c9",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp/blob/8d64a31616c9b0beb50d2e3707f1eac2f96d10c9/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.3.7 Windows (47930909 bytes, SHA-256 5a5c2dc456fe6eec12e5085e431fbcfb0aa3e41bbd18e2186583cf021d92ebe1) and Linux x64 (45737089 bytes, SHA-256 86ee3409f3f70162a99a99530a0e33e2b633919ebeea5ca7d42cfa335fac6960) setup kits gave the same SHA-256 on three separate downloads and pass Core package-layout inspection; the provider digest was not read. The Linux kit has no case-colliding paths. Both carry the game.toml of this commit, the Windows copy with CRLF line endings: SLUS-01294, a 2-disc discs roster whose known_sha1 lists each disc's data-track SHA-1 (9a33a893574cb28a896691a43ba4c603a0af681a, f788994d5b2974c2b97551c6e6d73965e64a3e9c), and the SCPH1001 BIOS configuration; README-SETUP requires a retail SCPH-1001 (USA) BIOS. The kits pin PSXRecomp 7192402c283880e318c97732c9b733c4d1b144d0, ship mods/bundled, mods/preloaded and mods/texture-packs and set EXE_NAME In_Cold_Blood_Recompiled. The runtime mounts the disc named by the 1-based [disc] selected setting and uses it for the save-state disc scope; its in-game menu can also change discs. Native generation, gameplay and saves remain unobserved."
+      },
+      {
+        "id": "alexbeav-in-cold-blood-recomp-disc-1-redump-1849",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/1849",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://redump.info/disc/1849",
+        "live_url": null,
+        "claim": "Redump In Cold Blood (USA) (Disc 1), SLUS-01294, has one data track: 555591792 bytes, SHA-1 9a33a893574cb28a896691a43ba4c603a0af681a, MD5 42756266fd32297c07ed754e891bb5b4 and CRC32 3e3f5bcc, which agree with the kit. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-in-cold-blood-recomp-disc-2-redump-1850",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/1850",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://redump.info/disc/1850",
+        "live_url": null,
+        "claim": "Redump In Cold Blood (USA) (Disc 2), SLUS-01314, has one data track: 657543936 bytes, SHA-1 f788994d5b2974c2b97551c6e6d73965e64a3e9c, MD5 3f3fbd4fea74448ffd0d8a7623c37fec and CRC32 fd450b93, which agree with the kit. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-koudelka-recomp-v037-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/koudelka-recomp",
+        "authority_ref": "b27046a1f484f9fad56b8f799502548ca94f2555",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/koudelka-recomp/blob/b27046a1f484f9fad56b8f799502548ca94f2555/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.3.7 Windows (47932903 bytes, SHA-256 c7b739ed9eee89059b3a36c072114e419802d26c8381481d8d6c15deca79b7c5) and Linux x64 (45739541 bytes, SHA-256 8246957e5f84cc699a6e6947e838f63dcabb5b2e2a566d4f73c282cc8be00d63) setup kits gave the same SHA-256 on three separate downloads and pass Core package-layout inspection; the provider digest was not read. The Linux kit has no case-colliding paths. Both carry the game.toml of this commit, the Windows copy with CRLF line endings: SLES-02897, a 4-disc discs roster whose known_sha1 lists each disc's data-track SHA-1 (43cfec263deaaf482536506596d53b175972fe7f, 8e779283ee927d9793e82e31cf6251afe61591e4, cab865b5d55be812d8004832921ebadabae174fe, 3a64731471a96b917207e609610bd7c3e5eb64f1), and the SCPH5552 BIOS configuration; README-SETUP requires a retail SCPH-5552 (Europe) BIOS. The kits pin PSXRecomp 7192402c283880e318c97732c9b733c4d1b144d0, ship mods/bundled, mods/preloaded and mods/texture-packs and set EXE_NAME Koudelka_Recompiled. The runtime mounts the disc named by the 1-based [disc] selected setting and uses it for the save-state disc scope; its in-game menu can also change discs. Native generation, gameplay and saves remain unobserved."
+      },
+      {
+        "id": "alexbeav-koudelka-recomp-disc-1-redump-7357",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/7357",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://redump.info/disc/7357",
+        "live_url": null,
+        "claim": "Redump Koudelka (Europe) (Disc 1), SLES-02897, has one data track: 542302992 bytes, SHA-1 43cfec263deaaf482536506596d53b175972fe7f, MD5 4644d60361161a52212dd9053413626d and CRC32 61cb5610, which agree with the kit. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-koudelka-recomp-disc-2-redump-7358",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/7358",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://redump.info/disc/7358",
+        "live_url": null,
+        "claim": "Redump Koudelka (Europe) (Disc 2), SLES-12897, has one data track: 527073792 bytes, SHA-1 8e779283ee927d9793e82e31cf6251afe61591e4, MD5 a00cdc548e99d59b13e299dce769680b and CRC32 40cf1cc5, which agree with the kit. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-koudelka-recomp-disc-3-redump-7359",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/7359",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://redump.info/disc/7359",
+        "live_url": null,
+        "claim": "Redump Koudelka (Europe) (Disc 3), SLES-22897, has one data track: 680294832 bytes, SHA-1 cab865b5d55be812d8004832921ebadabae174fe, MD5 9cd01443686d19677c6b51b8ae19aef3 and CRC32 2e810962, which agree with the kit. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-koudelka-recomp-disc-4-redump-7360",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/7360",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://redump.info/disc/7360",
+        "live_url": null,
+        "claim": "Redump Koudelka (Europe) (Disc 4), SLES-32897, has one data track: 633061968 bytes, SHA-1 3a64731471a96b917207e609610bd7c3e5eb64f1, MD5 137c2512d55e9d6174fe4685bf553860 and CRC32 fee955d2, which agree with the kit. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-final-fantasy-viii-recomp-v012-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/final-fantasy-viii-recomp",
+        "authority_ref": "cd8498c03b5f900641128db5cc15ed2859e89577",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-viii-recomp/blob/cd8498c03b5f900641128db5cc15ed2859e89577/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.1.2 Windows (47809027 bytes, SHA-256 ed238836a09031c9cb728222d13e50dcb60f64f53162b9260ce9d2a82450c4b1) and Linux x64 (45740444 bytes, SHA-256 3d2c770a630e49eb0e0d375160badd128b72fb483891ea84e360a18cf751b17f) setup kits gave the same SHA-256 on three separate downloads and pass Core package-layout inspection; the provider digest was not read. The Linux kit has no case-colliding paths. Both carry the game.toml of this commit: SLUS-00892, a 4-disc discs roster whose known_sha1 lists each disc's data-track SHA-1 (5028a4f815a50d6ffe16f9c3e44ec6235a81f3f5, 2af26ce916c1b5bbb74fbacb0a8ca1a5171dc510, 9417003499803d9a9c3d26783570a967b0e4fba2, 68a3e8e96eb63018f728014a8044959bcb1b2272), and the SCPH1001 BIOS configuration; README-SETUP requires a retail SCPH-1001 (USA) BIOS. The kits pin PSXRecomp 7192402c283880e318c97732c9b733c4d1b144d0, ship mods/bundled and mods/texture-packs (no mods/preloaded) and set EXE_NAME Final_Fantasy_VIII_Recompiled. The runtime mounts the disc named by the 1-based [disc] selected setting and uses it for the save-state disc scope; its in-game menu can also change discs. Native generation, gameplay and saves remain unobserved."
+      },
+      {
+        "id": "alexbeav-final-fantasy-viii-recomp-disc-1-redump-69",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/69",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://redump.info/disc/69",
+        "live_url": null,
+        "claim": "Redump Final Fantasy VIII (USA) (Disc 1), SLUS-00892, has one data track: 732271680 bytes, SHA-1 5028a4f815a50d6ffe16f9c3e44ec6235a81f3f5, MD5 50d5b62e81b5369f18c8a145af716af9 and CRC32 2691d2de, which agree with the kit. Its Original and Greatest Hits releases share this dump. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-final-fantasy-viii-recomp-disc-2-redump-70",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/70",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://redump.info/disc/70",
+        "live_url": null,
+        "claim": "Redump Final Fantasy VIII (USA) (Disc 2), SLUS-00908, has one data track: 692932128 bytes, SHA-1 2af26ce916c1b5bbb74fbacb0a8ca1a5171dc510, MD5 2ae4e2022d376a0775e66369de96dc59 and CRC32 e3eb68df, which agree with the kit. Its Original and Greatest Hits releases share this dump. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-final-fantasy-viii-recomp-disc-3-redump-71",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/71",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://redump.info/disc/71",
+        "live_url": null,
+        "claim": "Redump Final Fantasy VIII (USA) (Disc 3), SLUS-00909, has one data track: 721356048 bytes, SHA-1 9417003499803d9a9c3d26783570a967b0e4fba2, MD5 58461d8ea573b990c7bbcc32d0feb8a8 and CRC32 d38ee91e, which agree with the kit. Its Original and Greatest Hits releases share this dump. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-final-fantasy-viii-recomp-disc-4-redump-72",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/72",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://redump.info/disc/72",
+        "live_url": null,
+        "claim": "Redump Final Fantasy VIII (USA) (Disc 4), SLUS-00910, has one data track: 694475040 bytes, SHA-1 68a3e8e96eb63018f728014a8044959bcb1b2272, MD5 5a83d022aa592d4e91c02943467d1fd6 and CRC32 6cfb6adf, which agree with the kit. Its Original and Greatest Hits releases share this dump. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-final-fantasy-ix-recomp-v012-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/final-fantasy-ix-recomp",
+        "authority_ref": "ca43695a7cfbdd0d87167f55695ed60f845fdbf5",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-ix-recomp/blob/ca43695a7cfbdd0d87167f55695ed60f845fdbf5/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.1.2 Windows (47809442 bytes, SHA-256 0a95cf3743c647c53e6547b4581af25662d5710facd32f4c507d9174cdc4645f) and Linux x64 (45741914 bytes, SHA-256 eedac0d09e8655bb376385ffe800e22531cca65132c3cdefc8cf61ba79431c65) setup kits gave the same SHA-256 on three separate downloads and pass Core package-layout inspection; the provider digest was not read. The Linux kit has no case-colliding paths. Both carry the game.toml of this commit: SLUS-01251, a 4-disc discs roster whose known_sha1 lists each disc's data-track SHA-1 (8b8feaf91f63ae615d763803b094833dc20ca63c, 232c9b94f232006798f466c126a121d256e4122b, f7177bd1194ff1a642494cf867819d2d3b897c99, ce78c21e3793e04e594429133b05ddf24ed3fc6b), and the SCPH1001 BIOS configuration; README-SETUP requires a retail SCPH-1001 (USA) BIOS. The kits pin PSXRecomp 7192402c283880e318c97732c9b733c4d1b144d0, ship mods/bundled and mods/texture-packs (no mods/preloaded) and set EXE_NAME Final_Fantasy_IX_Recompiled. The runtime mounts the disc named by the 1-based [disc] selected setting and uses it for the save-state disc scope; its in-game menu can also change discs. Native generation, gameplay and saves remain unobserved."
+      },
+      {
+        "id": "alexbeav-final-fantasy-ix-recomp-disc-1-redump-4005",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/4005",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://redump.info/disc/4005",
+        "live_url": null,
+        "claim": "Redump Final Fantasy IX (USA, Canada) (Disc 1) (Rev 1), SLUS-01251, has one data track: 740715360 bytes, SHA-1 8b8feaf91f63ae615d763803b094833dc20ca63c, MD5 aabe193e058f166d1a88d99219792598 and CRC32 7a46108f, which agree with the kit. Redump lists the Greatest Hits serial SLUS-01251GH for this Rev 1 dump. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-final-fantasy-ix-recomp-disc-2-redump-5030",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/5030",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://redump.info/disc/5030",
+        "live_url": null,
+        "claim": "Redump Final Fantasy IX (USA, Canada) (Disc 2) (Rev 1), SLUS-01295, has one data track: 689004288 bytes, SHA-1 232c9b94f232006798f466c126a121d256e4122b, MD5 a18dfcec1e01c4616cdf1bedd0e2b89a and CRC32 575e60d5, which agree with the kit. Redump lists the Greatest Hits serial SLUS-01295GH for this Rev 1 dump. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-final-fantasy-ix-recomp-disc-3-redump-5028",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/5028",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://redump.info/disc/5028",
+        "live_url": null,
+        "claim": "Redump Final Fantasy IX (USA, Canada) (Disc 3) (Rev 1), SLUS-01296, has one data track: 729755040 bytes, SHA-1 f7177bd1194ff1a642494cf867819d2d3b897c99, MD5 5aa1d8663d6b9b50b3ce6112b3cccf23 and CRC32 a1d53b67, which agree with the kit. Redump lists the Greatest Hits serial SLUS-01296GH for this Rev 1 dump. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-final-fantasy-ix-recomp-disc-4-redump-5029",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/5029",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://redump.info/disc/5029",
+        "live_url": null,
+        "claim": "Redump Final Fantasy IX (USA, Canada) (Disc 4) (Rev 1), SLUS-01297, has one data track: 688413936 bytes, SHA-1 ce78c21e3793e04e594429133b05ddf24ed3fc6b, MD5 5796b286ddd0335db2d9631701153a42 and CRC32 a4c892a4, which agree with the kit. Redump lists the Greatest Hits serial SLUS-01297GH for this Rev 1 dump. A Redump search for that SHA-1 resolves only to this disc."
       }
     ],
     "identities": [
@@ -12821,6 +13041,504 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-galerians-recomp-europe-psx",
+        "label": "Galerians (Europe) three-disc set",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Galerians (Europe) three-disc set",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SLES-02328",
+              "SLES-12328",
+              "SLES-22328"
+            ],
+            "representations": [
+              {
+                "id": "disc-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "multi-disc-set",
+                "discs": [
+                  {
+                    "id": "disc-1",
+                    "label": "Galerians Disc 1",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "b35fe93b79226fb23f31a4822487d8cbade42d89",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-2",
+                    "label": "Galerians Disc 2",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "77637261f9b2c61979c0be735fa43dc7a5457512",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-3",
+                    "label": "Galerians Disc 3",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "3f0656c644b243bf7c9c61bf45d974a2244b170f",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-galerians-recomp-v011-static-contract",
+                  "alexbeav-galerians-recomp-disc-1-redump-7420",
+                  "alexbeav-galerians-recomp-disc-2-redump-7421",
+                  "alexbeav-galerians-recomp-disc-3-redump-7422"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-galerians-recomp-v011-static-contract",
+              "alexbeav-galerians-recomp-disc-1-redump-7420",
+              "alexbeav-galerians-recomp-disc-2-redump-7421",
+              "alexbeav-galerians-recomp-disc-3-redump-7422"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-in-cold-blood-recomp-usa-psx",
+        "label": "In Cold Blood (USA) two-disc set",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "In Cold Blood (USA) two-disc set",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-01294",
+              "SLUS-01314"
+            ],
+            "representations": [
+              {
+                "id": "disc-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "multi-disc-set",
+                "discs": [
+                  {
+                    "id": "disc-1",
+                    "label": "In Cold Blood Disc 1",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "9a33a893574cb28a896691a43ba4c603a0af681a",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-2",
+                    "label": "In Cold Blood Disc 2",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "f788994d5b2974c2b97551c6e6d73965e64a3e9c",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-in-cold-blood-recomp-v037-static-contract",
+                  "alexbeav-in-cold-blood-recomp-disc-1-redump-1849",
+                  "alexbeav-in-cold-blood-recomp-disc-2-redump-1850"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-in-cold-blood-recomp-v037-static-contract",
+              "alexbeav-in-cold-blood-recomp-disc-1-redump-1849",
+              "alexbeav-in-cold-blood-recomp-disc-2-redump-1850"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-koudelka-recomp-europe-psx",
+        "label": "Koudelka (Europe) four-disc set",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Koudelka (Europe) four-disc set",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SLES-02897",
+              "SLES-12897",
+              "SLES-22897",
+              "SLES-32897"
+            ],
+            "representations": [
+              {
+                "id": "disc-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "multi-disc-set",
+                "discs": [
+                  {
+                    "id": "disc-1",
+                    "label": "Koudelka Disc 1",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "43cfec263deaaf482536506596d53b175972fe7f",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-2",
+                    "label": "Koudelka Disc 2",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "8e779283ee927d9793e82e31cf6251afe61591e4",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-3",
+                    "label": "Koudelka Disc 3",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "cab865b5d55be812d8004832921ebadabae174fe",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-4",
+                    "label": "Koudelka Disc 4",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "3a64731471a96b917207e609610bd7c3e5eb64f1",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-koudelka-recomp-v037-static-contract",
+                  "alexbeav-koudelka-recomp-disc-1-redump-7357",
+                  "alexbeav-koudelka-recomp-disc-2-redump-7358",
+                  "alexbeav-koudelka-recomp-disc-3-redump-7359",
+                  "alexbeav-koudelka-recomp-disc-4-redump-7360"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-koudelka-recomp-v037-static-contract",
+              "alexbeav-koudelka-recomp-disc-1-redump-7357",
+              "alexbeav-koudelka-recomp-disc-2-redump-7358",
+              "alexbeav-koudelka-recomp-disc-3-redump-7359",
+              "alexbeav-koudelka-recomp-disc-4-redump-7360"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-final-fantasy-viii-recomp-usa-psx",
+        "label": "Final Fantasy VIII (USA) four-disc set",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Final Fantasy VIII (USA) four-disc set",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00892",
+              "SLUS-00908",
+              "SLUS-00909",
+              "SLUS-00910"
+            ],
+            "representations": [
+              {
+                "id": "disc-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "multi-disc-set",
+                "discs": [
+                  {
+                    "id": "disc-1",
+                    "label": "Final Fantasy VIII Disc 1",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "5028a4f815a50d6ffe16f9c3e44ec6235a81f3f5",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-2",
+                    "label": "Final Fantasy VIII Disc 2",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "2af26ce916c1b5bbb74fbacb0a8ca1a5171dc510",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-3",
+                    "label": "Final Fantasy VIII Disc 3",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "9417003499803d9a9c3d26783570a967b0e4fba2",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-4",
+                    "label": "Final Fantasy VIII Disc 4",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "68a3e8e96eb63018f728014a8044959bcb1b2272",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-final-fantasy-viii-recomp-v012-static-contract",
+                  "alexbeav-final-fantasy-viii-recomp-disc-1-redump-69",
+                  "alexbeav-final-fantasy-viii-recomp-disc-2-redump-70",
+                  "alexbeav-final-fantasy-viii-recomp-disc-3-redump-71",
+                  "alexbeav-final-fantasy-viii-recomp-disc-4-redump-72"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-final-fantasy-viii-recomp-v012-static-contract",
+              "alexbeav-final-fantasy-viii-recomp-disc-1-redump-69",
+              "alexbeav-final-fantasy-viii-recomp-disc-2-redump-70",
+              "alexbeav-final-fantasy-viii-recomp-disc-3-redump-71",
+              "alexbeav-final-fantasy-viii-recomp-disc-4-redump-72"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-final-fantasy-ix-recomp-usa-canada-rev-1-psx",
+        "label": "Final Fantasy IX (USA, Canada) (Rev 1) four-disc set",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa-canada-rev-1",
+            "title": "Final Fantasy IX (USA, Canada) (Rev 1) four-disc set",
+            "region": "USA, Canada",
+            "revision": "Rev 1",
+            "product_codes": [
+              "SLUS-01251",
+              "SLUS-01295",
+              "SLUS-01296",
+              "SLUS-01297"
+            ],
+            "representations": [
+              {
+                "id": "disc-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "multi-disc-set",
+                "discs": [
+                  {
+                    "id": "disc-1",
+                    "label": "Final Fantasy IX Disc 1",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "8b8feaf91f63ae615d763803b094833dc20ca63c",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-2",
+                    "label": "Final Fantasy IX Disc 2",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "232c9b94f232006798f466c126a121d256e4122b",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-3",
+                    "label": "Final Fantasy IX Disc 3",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "f7177bd1194ff1a642494cf867819d2d3b897c99",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-4",
+                    "label": "Final Fantasy IX Disc 4",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "ce78c21e3793e04e594429133b05ddf24ed3fc6b",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-final-fantasy-ix-recomp-v012-static-contract",
+                  "alexbeav-final-fantasy-ix-recomp-disc-1-redump-4005",
+                  "alexbeav-final-fantasy-ix-recomp-disc-2-redump-5030",
+                  "alexbeav-final-fantasy-ix-recomp-disc-3-redump-5028",
+                  "alexbeav-final-fantasy-ix-recomp-disc-4-redump-5029"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-final-fantasy-ix-recomp-v012-static-contract",
+              "alexbeav-final-fantasy-ix-recomp-disc-1-redump-4005",
+              "alexbeav-final-fantasy-ix-recomp-disc-2-redump-5030",
+              "alexbeav-final-fantasy-ix-recomp-disc-3-redump-5028",
+              "alexbeav-final-fantasy-ix-recomp-disc-4-redump-5029"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -19728,6 +20446,333 @@
         "live_review_url": null,
         "evidence_gap": null,
         "applicability": [],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-galerians-recomp-game-source",
+        "port_id": "alexbeav-galerians-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-galerians-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-galerians-recomp-v011-static-contract",
+          "alexbeav-galerians-recomp-disc-1-redump-7420",
+          "alexbeav-galerians-recomp-disc-2-redump-7421",
+          "alexbeav-galerians-recomp-disc-3-redump-7422"
+        ],
+        "authority_ref": "dfe40d4de62052dc16aaaa7c468d0038de919fee",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/galerians-recomp/blob/dfe40d4de62052dc16aaaa7c468d0038de919fee/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "99f0d0ea90d015d9973807a9e5e4e34af04e82616dbb356737ac3819895be142"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "0d685a126da6afe78feffea52cd0eba1f5ba45c177023a1c2a4a8ceb6bd7ad81"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-galerians-recomp-bios-source",
+        "port_id": "alexbeav-galerians-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-galerians-recomp-v011-static-contract"
+        ],
+        "authority_ref": "dfe40d4de62052dc16aaaa7c468d0038de919fee",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/galerians-recomp/blob/dfe40d4de62052dc16aaaa7c468d0038de919fee/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "99f0d0ea90d015d9973807a9e5e4e34af04e82616dbb356737ac3819895be142"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "0d685a126da6afe78feffea52cd0eba1f5ba45c177023a1c2a4a8ceb6bd7ad81"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-in-cold-blood-recomp-game-source",
+        "port_id": "alexbeav-in-cold-blood-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-in-cold-blood-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-in-cold-blood-recomp-v037-static-contract",
+          "alexbeav-in-cold-blood-recomp-disc-1-redump-1849",
+          "alexbeav-in-cold-blood-recomp-disc-2-redump-1850"
+        ],
+        "authority_ref": "8d64a31616c9b0beb50d2e3707f1eac2f96d10c9",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp/blob/8d64a31616c9b0beb50d2e3707f1eac2f96d10c9/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.7",
+            "artifact_sha256": "5a5c2dc456fe6eec12e5085e431fbcfb0aa3e41bbd18e2186583cf021d92ebe1"
+          },
+          {
+            "upstream_ref": "v0.3.7",
+            "artifact_sha256": "86ee3409f3f70162a99a99530a0e33e2b633919ebeea5ca7d42cfa335fac6960"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-in-cold-blood-recomp-bios-source",
+        "port_id": "alexbeav-in-cold-blood-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-in-cold-blood-recomp-v037-static-contract"
+        ],
+        "authority_ref": "8d64a31616c9b0beb50d2e3707f1eac2f96d10c9",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp/blob/8d64a31616c9b0beb50d2e3707f1eac2f96d10c9/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.7",
+            "artifact_sha256": "5a5c2dc456fe6eec12e5085e431fbcfb0aa3e41bbd18e2186583cf021d92ebe1"
+          },
+          {
+            "upstream_ref": "v0.3.7",
+            "artifact_sha256": "86ee3409f3f70162a99a99530a0e33e2b633919ebeea5ca7d42cfa335fac6960"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-koudelka-recomp-game-source",
+        "port_id": "alexbeav-koudelka-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-koudelka-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-koudelka-recomp-v037-static-contract",
+          "alexbeav-koudelka-recomp-disc-1-redump-7357",
+          "alexbeav-koudelka-recomp-disc-2-redump-7358",
+          "alexbeav-koudelka-recomp-disc-3-redump-7359",
+          "alexbeav-koudelka-recomp-disc-4-redump-7360"
+        ],
+        "authority_ref": "b27046a1f484f9fad56b8f799502548ca94f2555",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/koudelka-recomp/blob/b27046a1f484f9fad56b8f799502548ca94f2555/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.7",
+            "artifact_sha256": "c7b739ed9eee89059b3a36c072114e419802d26c8381481d8d6c15deca79b7c5"
+          },
+          {
+            "upstream_ref": "v0.3.7",
+            "artifact_sha256": "8246957e5f84cc699a6e6947e838f63dcabb5b2e2a566d4f73c282cc8be00d63"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-koudelka-recomp-bios-source",
+        "port_id": "alexbeav-koudelka-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-koudelka-recomp-v037-static-contract"
+        ],
+        "authority_ref": "b27046a1f484f9fad56b8f799502548ca94f2555",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/koudelka-recomp/blob/b27046a1f484f9fad56b8f799502548ca94f2555/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.7",
+            "artifact_sha256": "c7b739ed9eee89059b3a36c072114e419802d26c8381481d8d6c15deca79b7c5"
+          },
+          {
+            "upstream_ref": "v0.3.7",
+            "artifact_sha256": "8246957e5f84cc699a6e6947e838f63dcabb5b2e2a566d4f73c282cc8be00d63"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-final-fantasy-viii-recomp-game-source",
+        "port_id": "alexbeav-final-fantasy-viii-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-final-fantasy-viii-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-final-fantasy-viii-recomp-v012-static-contract",
+          "alexbeav-final-fantasy-viii-recomp-disc-1-redump-69",
+          "alexbeav-final-fantasy-viii-recomp-disc-2-redump-70",
+          "alexbeav-final-fantasy-viii-recomp-disc-3-redump-71",
+          "alexbeav-final-fantasy-viii-recomp-disc-4-redump-72"
+        ],
+        "authority_ref": "cd8498c03b5f900641128db5cc15ed2859e89577",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-viii-recomp/blob/cd8498c03b5f900641128db5cc15ed2859e89577/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "ed238836a09031c9cb728222d13e50dcb60f64f53162b9260ce9d2a82450c4b1"
+          },
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "3d2c770a630e49eb0e0d375160badd128b72fb483891ea84e360a18cf751b17f"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-final-fantasy-viii-recomp-bios-source",
+        "port_id": "alexbeav-final-fantasy-viii-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-final-fantasy-viii-recomp-v012-static-contract"
+        ],
+        "authority_ref": "cd8498c03b5f900641128db5cc15ed2859e89577",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-viii-recomp/blob/cd8498c03b5f900641128db5cc15ed2859e89577/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "ed238836a09031c9cb728222d13e50dcb60f64f53162b9260ce9d2a82450c4b1"
+          },
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "3d2c770a630e49eb0e0d375160badd128b72fb483891ea84e360a18cf751b17f"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-final-fantasy-ix-recomp-game-source",
+        "port_id": "alexbeav-final-fantasy-ix-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-final-fantasy-ix-recomp-usa-canada-rev-1-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-canada-rev-1"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-final-fantasy-ix-recomp-v012-static-contract",
+          "alexbeav-final-fantasy-ix-recomp-disc-1-redump-4005",
+          "alexbeav-final-fantasy-ix-recomp-disc-2-redump-5030",
+          "alexbeav-final-fantasy-ix-recomp-disc-3-redump-5028",
+          "alexbeav-final-fantasy-ix-recomp-disc-4-redump-5029"
+        ],
+        "authority_ref": "ca43695a7cfbdd0d87167f55695ed60f845fdbf5",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-ix-recomp/blob/ca43695a7cfbdd0d87167f55695ed60f845fdbf5/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "0a95cf3743c647c53e6547b4581af25662d5710facd32f4c507d9174cdc4645f"
+          },
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "eedac0d09e8655bb376385ffe800e22531cca65132c3cdefc8cf61ba79431c65"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-final-fantasy-ix-recomp-bios-source",
+        "port_id": "alexbeav-final-fantasy-ix-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-final-fantasy-ix-recomp-v012-static-contract"
+        ],
+        "authority_ref": "ca43695a7cfbdd0d87167f55695ed60f845fdbf5",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-ix-recomp/blob/ca43695a7cfbdd0d87167f55695ed60f845fdbf5/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "0a95cf3743c647c53e6547b4581af25662d5710facd32f4c507d9174cdc4645f"
+          },
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "eedac0d09e8655bb376385ffe800e22531cca65132c3cdefc8cf61ba79431c65"
+          }
+        ],
         "aliases": [],
         "tombstones": []
       }
@@ -34652,6 +35697,304 @@
       "runtime_source_materialization": "psx-raw-set"
     },
     {
+      "id": "alexbeav-final-fantasy-ix-recomp",
+      "name": "Final Fantasy IX / Alexbeav PSXRecomp",
+      "summary": "Build and play Final Fantasy IX on Windows or Linux with your own matching USA and Canada four-disc set and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-ix-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/final-fantasy-ix-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "final-fantasy-ix-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "final-fantasy-ix-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-final-fantasy-ix-recomp-usa-canada-rev-1-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Final_Fantasy_IX_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Final_Fantasy_IX_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods/installed",
+        "mods/packages",
+        "mods/.staging",
+        "mods/state.toml",
+        "mods/state.toml.tmp",
+        "mods/texture-packs",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-final-fantasy-ix-recomp-usa-canada-rev-1-psx",
+            "label": "Final Fantasy IX (USA, Canada) (Rev 1) four-disc set",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-1001-bios",
+            "label": "PlayStation SCPH-1001 BIOS",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own single-track CHDs for SLUS-01251, SLUS-01295, SLUS-01296, SLUS-01297 in disc order and retail SCPH-1001 BIOS. Portcove verifies each disc's data track and builds a private player with its registered toolchain, retaining its declared saves, settings and installed mods. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc. Bundled mods belong to the runtime version. Windows and Linux package and source fit were statically inspected. Native build, disc switching, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Final Fantasy IX",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original files",
+              "instruction": "Use your own Final Fantasy IX (USA, Canada) (Rev 1) four-disc set (SLUS-01251, SLUS-01295, SLUS-01296, SLUS-01297), each disc with its single data track, and your own retail SCPH-1001 BIOS."
+            },
+            {
+              "title": "Set up the managed Windows or Linux player",
+              "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc."
+            },
+            {
+              "title": "Prepare a separate Mac copy",
+              "instruction": "Choose the official Mac ZIP from the upstream releases: -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon, and extract it. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Follow the kit's README-SETUP.txt."
+            },
+            {
+              "title": "Build and add the completed Mac player",
+              "instruction": "Run Final_Fantasy_IX_Recompiled from the kit folder, assign every disc in Disc Selection and choose Generate & rebuild. In Portcove, select build-release/Final_Fantasy_IX_Recompiled as the player and build-release as its start folder."
+            }
+          ],
+          "warnings": [
+            "Portcove checks each disc's data track and track count. Keep every disc intact.",
+            "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-ix-recomp#readme",
+          "references": [
+            {
+              "title": "Keep the original files and your data",
+              "instruction": "Keep your discs and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 421,
+          "cover_id": 133032,
+          "image_id": "co2unc",
+          "image_sha256": "379e466f02aba5ce556094222e6edd9f7b86034484323a99e7c42cfc17feabeb",
+          "game_slug": "final-fantasy-ix",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-1001-bios",
+      "runtime_source_filename": "runtime-discs",
+      "launch_disc_choice": "psx-settings-selected",
+      "runtime_source_materialization": "psx-raw-set"
+    },
+    {
+      "id": "alexbeav-final-fantasy-viii-recomp",
+      "name": "Final Fantasy VIII / Alexbeav PSXRecomp",
+      "summary": "Build and play Final Fantasy VIII on Windows or Linux with your own matching USA four-disc set and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-viii-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/final-fantasy-viii-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "final-fantasy-viii-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "final-fantasy-viii-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-final-fantasy-viii-recomp-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Final_Fantasy_VIII_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Final_Fantasy_VIII_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods/installed",
+        "mods/packages",
+        "mods/.staging",
+        "mods/state.toml",
+        "mods/state.toml.tmp",
+        "mods/texture-packs",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-final-fantasy-viii-recomp-usa-psx",
+            "label": "Final Fantasy VIII (USA) four-disc set",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-1001-bios",
+            "label": "PlayStation SCPH-1001 BIOS",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own single-track CHDs for SLUS-00892, SLUS-00908, SLUS-00909, SLUS-00910 in disc order and retail SCPH-1001 BIOS. Portcove verifies each disc's data track and builds a private player with its registered toolchain, retaining its declared saves, settings and installed mods. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc. Bundled mods belong to the runtime version. Windows and Linux package and source fit were statically inspected. Native build, disc switching, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Final Fantasy VIII",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original files",
+              "instruction": "Use your own Final Fantasy VIII (USA) four-disc set (SLUS-00892, SLUS-00908, SLUS-00909, SLUS-00910), each disc with its single data track, and your own retail SCPH-1001 BIOS."
+            },
+            {
+              "title": "Set up the managed Windows or Linux player",
+              "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc."
+            },
+            {
+              "title": "Prepare a separate Mac copy",
+              "instruction": "Choose the official Mac ZIP from the upstream releases: -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon, and extract it. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Follow the kit's README-SETUP.txt."
+            },
+            {
+              "title": "Build and add the completed Mac player",
+              "instruction": "Run Final_Fantasy_VIII_Recompiled from the kit folder, assign every disc in Disc Selection and choose Generate & rebuild. In Portcove, select build-release/Final_Fantasy_VIII_Recompiled as the player and build-release as its start folder."
+            }
+          ],
+          "warnings": [
+            "Portcove checks each disc's data track and track count. Keep every disc intact.",
+            "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-viii-recomp#readme",
+          "references": [
+            {
+              "title": "Keep the original files and your data",
+              "instruction": "Keep your discs and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 425,
+          "cover_id": 138937,
+          "image_id": "co2z7d",
+          "image_sha256": "0eb01a9e190dda911b8f9216ee23e69ca198691b5372f0b76f33652282498c9c",
+          "game_slug": "final-fantasy-viii",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-1001-bios",
+      "runtime_source_filename": "runtime-discs",
+      "launch_disc_choice": "psx-settings-selected",
+      "runtime_source_materialization": "psx-raw-set"
+    },
+    {
       "id": "alexbeav-future-cop-lapd-recomp",
       "name": "Future Cop: L.A.P.D. / Alexbeav PSXRecomp",
       "summary": "Build a native Future Cop: L.A.P.D. player from your matching original PlayStation disc and BIOS.",
@@ -34942,6 +36285,304 @@
         }
       },
       "bios_source_profile": "psx-scph-1001-bios"
+    },
+    {
+      "id": "alexbeav-galerians-recomp",
+      "name": "Galerians / Alexbeav PSXRecomp",
+      "summary": "Build and play Galerians on Windows or Linux with your own matching European three-disc set and retail SCPH-5552 BIOS. You can also use a separately prepared upstream copy.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/galerians-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/galerians-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "galerians-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "galerians-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-galerians-recomp-europe-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Galerians.exe"
+        ],
+        "linux-x86-64": [
+          "Galerians"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods/installed",
+        "mods/packages",
+        "mods/.staging",
+        "mods/state.toml",
+        "mods/state.toml.tmp",
+        "mods/texture-packs",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-galerians-recomp-europe-psx",
+            "label": "Galerians (Europe) three-disc set",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-5552-bios",
+            "label": "PlayStation SCPH-5552 BIOS (Europe)",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own single-track CHDs for SLES-02328, SLES-12328, SLES-22328 in disc order and retail SCPH-5552 BIOS. Portcove verifies each disc's data track and builds a private player with its registered toolchain, retaining its declared saves, settings and installed mods. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc. Bundled mods belong to the runtime version. Windows and Linux package and source fit were statically inspected. Native build, disc switching, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Galerians",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original files",
+              "instruction": "Use your own Galerians (Europe) three-disc set (SLES-02328, SLES-12328, SLES-22328), each disc with its single data track, and your own retail SCPH-5552 BIOS."
+            },
+            {
+              "title": "Set up the managed Windows or Linux player",
+              "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc."
+            },
+            {
+              "title": "Prepare a separate Mac copy",
+              "instruction": "Choose the official Mac ZIP from the upstream releases: -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon, and extract it. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
+            },
+            {
+              "title": "Build and add the completed Mac player",
+              "instruction": "Run Galerians from the kit folder, assign every disc in Disc Selection and choose Generate & rebuild. In Portcove, select build-release/Galerians as the player and build-release as its start folder."
+            }
+          ],
+          "warnings": [
+            "Portcove checks each disc's data track and track count. Keep every disc intact.",
+            "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/galerians-recomp#readme",
+          "references": [
+            {
+              "title": "Keep the original files and your data",
+              "instruction": "Keep your discs and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 54552,
+          "cover_id": 220251,
+          "image_id": "co4py3",
+          "image_sha256": "55a63b62e83d29cc69f8394f5e2d07dce4f010203ec327b9e1377c8f7662e42d",
+          "game_slug": "galerians",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-5552-bios",
+      "runtime_source_filename": "runtime-discs",
+      "launch_disc_choice": "psx-settings-selected",
+      "runtime_source_materialization": "psx-raw-set"
+    },
+    {
+      "id": "alexbeav-in-cold-blood-recomp",
+      "name": "In Cold Blood / Alexbeav PSXRecomp",
+      "summary": "Build and play In Cold Blood on Windows or Linux with your own matching USA two-disc set and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/in-cold-blood-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "In-Cold-Blood-Recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "In-Cold-Blood-Recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-in-cold-blood-recomp-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "In_Cold_Blood_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "In_Cold_Blood_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods/installed",
+        "mods/packages",
+        "mods/.staging",
+        "mods/state.toml",
+        "mods/state.toml.tmp",
+        "mods/texture-packs",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-in-cold-blood-recomp-usa-psx",
+            "label": "In Cold Blood (USA) two-disc set",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-1001-bios",
+            "label": "PlayStation SCPH-1001 BIOS",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own single-track CHDs for SLUS-01294, SLUS-01314 in disc order and retail SCPH-1001 BIOS. Portcove verifies each disc's data track and builds a private player with its registered toolchain, retaining its declared saves, settings and installed mods. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc. Bundled mods belong to the runtime version. Windows and Linux package and source fit were statically inspected. Native build, disc switching, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "In Cold Blood",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original files",
+              "instruction": "Use your own In Cold Blood (USA) two-disc set (SLUS-01294, SLUS-01314), each disc with its single data track, and your own retail SCPH-1001 BIOS."
+            },
+            {
+              "title": "Set up the managed Windows or Linux player",
+              "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc."
+            },
+            {
+              "title": "Prepare a separate Mac copy",
+              "instruction": "Choose the official Mac ZIP from the upstream releases: -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon, and extract it. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host requires macOS 11 or newer."
+            },
+            {
+              "title": "Build and add the completed Mac player",
+              "instruction": "Run In_Cold_Blood_Recompiled from the kit folder, assign every disc in Disc Selection and choose Generate & rebuild. In Portcove, select build-release/In_Cold_Blood_Recompiled as the player and build-release as its start folder."
+            }
+          ],
+          "warnings": [
+            "Portcove checks each disc's data track and track count. Keep every disc intact.",
+            "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp#readme",
+          "references": [
+            {
+              "title": "Keep the original files and your data",
+              "instruction": "Keep your discs and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 9680,
+          "cover_id": 276485,
+          "image_id": "co5xc5",
+          "image_sha256": "106480e2cbf77c276dcf4492a12c716cded6cfd73303d05d38d8bb6d13a50355",
+          "game_slug": "in-cold-blood",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-1001-bios",
+      "runtime_source_filename": "runtime-discs",
+      "launch_disc_choice": "psx-settings-selected",
+      "runtime_source_materialization": "psx-raw-set"
     },
     {
       "id": "alexbeav-incredible-crisis-recomp",
@@ -35513,6 +37154,155 @@
           "match_kind": "underlying-game"
         }
       }
+    },
+    {
+      "id": "alexbeav-koudelka-recomp",
+      "name": "Koudelka / Alexbeav PSXRecomp",
+      "summary": "Build and play Koudelka on Windows or Linux with your own matching European four-disc set and retail SCPH-5552 BIOS. You can also use a separately prepared upstream copy.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/koudelka-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/koudelka-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Koudelka-Recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Koudelka-Recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-koudelka-recomp-europe-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Koudelka_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Koudelka_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods/installed",
+        "mods/packages",
+        "mods/.staging",
+        "mods/state.toml",
+        "mods/state.toml.tmp",
+        "mods/texture-packs",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-koudelka-recomp-europe-psx",
+            "label": "Koudelka (Europe) four-disc set",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-5552-bios",
+            "label": "PlayStation SCPH-5552 BIOS (Europe)",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own single-track CHDs for SLES-02897, SLES-12897, SLES-22897, SLES-32897 in disc order and retail SCPH-5552 BIOS. Portcove verifies each disc's data track and builds a private player with its registered toolchain, retaining its declared saves, settings and installed mods. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc. Bundled mods belong to the runtime version. Windows and Linux package and source fit were statically inspected. Native build, disc switching, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Koudelka",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original files",
+              "instruction": "Use your own Koudelka (Europe) four-disc set (SLES-02897, SLES-12897, SLES-22897, SLES-32897), each disc with its single data track, and your own retail SCPH-5552 BIOS."
+            },
+            {
+              "title": "Set up the managed Windows or Linux player",
+              "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc."
+            },
+            {
+              "title": "Prepare a separate Mac copy",
+              "instruction": "Choose the official Mac ZIP from the upstream releases: -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon, and extract it. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host requires macOS 11 or newer."
+            },
+            {
+              "title": "Build and add the completed Mac player",
+              "instruction": "Run Koudelka_Recompiled from the kit folder, assign every disc in Disc Selection and choose Generate & rebuild. In Portcove, select build-release/Koudelka_Recompiled as the player and build-release as its start folder."
+            }
+          ],
+          "warnings": [
+            "Portcove checks each disc's data track and track count. Keep every disc intact.",
+            "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/koudelka-recomp#readme",
+          "references": [
+            {
+              "title": "Keep the original files and your data",
+              "instruction": "Keep your discs and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 4169,
+          "cover_id": 335366,
+          "image_id": "co76rq",
+          "image_sha256": "a13c7b3ae7be0310a8ec3170e86aaefa400e72f9a424c75260cd15bd7083a242",
+          "game_slug": "koudelka",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-5552-bios",
+      "runtime_source_filename": "runtime-discs",
+      "launch_disc_choice": "psx-settings-selected",
+      "runtime_source_materialization": "psx-raw-set"
     },
     {
       "id": "alexbeav-kula-world-recomp",
