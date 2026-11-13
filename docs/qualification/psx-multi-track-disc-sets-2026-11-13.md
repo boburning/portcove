@@ -43,11 +43,14 @@ projection checks them after it has the whole catalog: an indexed entry whose
 set has a disc with more than one track requires minimum version 4.
 
 The tests are Linux-runnable and cover the cue rewrite (one and two tracks,
-FILE and TRACK mismatches, unsafe and repeated names), staging with a missing
-track file, the launch roster with audio track files present, the catalog rule
-and the capability floor. The host-tool probe was not changed: Windows CI runs
-a prebuilt copy, and the end-to-end `chdman` path for two tracks is therefore
-exercised only through those pure and staging functions.
+FILE and TRACK mismatches, unsafe and repeated names, including names that
+differ only in case), staging with a missing track file, the launch roster with
+audio track files present, the catalog rule and the capability floor. Two
+Unix-only tests run the managed runtime raw-set installation end to end with a
+stand-in `chdman` script that writes `-sb` output. They cover one- and
+two-track sets, a track count that differs from the catalog, and a source record
+whose size counts the audio bytes. The host-tool probe was not changed, and
+Windows CI does not run these two tests.
 
 ## Inputs
 
