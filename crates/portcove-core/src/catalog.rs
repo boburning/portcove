@@ -8168,6 +8168,8 @@ mod tests {
                 "alexbeav-galerians-recomp",
                 "alexbeav-in-cold-blood-recomp",
                 "alexbeav-koudelka-recomp",
+                "alexbeav-parasite-eve-recomp",
+                "alexbeav-valkyrie-profile-recomp",
             ]
         );
         let arena = "alexbeav-armored-core-master-of-arena-recomp";

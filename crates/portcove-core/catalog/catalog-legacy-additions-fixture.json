@@ -119,7 +119,11 @@
     "alexbeav-final-fantasy-ix-recomp-usa-canada-rev-1-psx",
     "alexbeav-medievil-ii-recomp-usa-psx",
     "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-europe-psx",
-    "goldeneye-007-ntsc-u-big-endian"
+    "goldeneye-007-ntsc-u-big-endian",
+    "alexbeav-fighting-force-recomp-usa-rev-2-psx",
+    "alexbeav-jackie-chan-stuntmaster-recomp-usa-psx",
+    "alexbeav-parasite-eve-recomp-usa-psx",
+    "alexbeav-valkyrie-profile-recomp-usa-psx"
   ],
   "port_ids": [
     "alexbeav-vib-ribbon-recomp",
@@ -430,6 +434,11 @@
     "alexbeav-final-fantasy-ix-recomp",
     "alexbeav-medievil-ii-recomp-setup-kit",
     "alexbeav-alone-in-the-dark-the-new-nightmare-recomp",
-    "goldeneye-007-n64-pc-port"
+    "goldeneye-007-n64-pc-port",
+    "alexbeav-fighting-force-recomp",
+    "alexbeav-jackie-chan-stuntmaster-recomp",
+    "alexbeav-metal-slug-x-recomp",
+    "alexbeav-parasite-eve-recomp",
+    "alexbeav-valkyrie-profile-recomp"
   ]
 }

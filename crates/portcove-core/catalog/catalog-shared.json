@@ -2863,6 +2863,126 @@
         "live_url": null
       },
       {
+        "id": "alexbeav-fighting-force-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/fighting-force-recomp",
+        "authority_ref": "afbbbb061e831aa4c9a07ff64ef86ef9467a121a",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.3 Windows x64 (47782128 bytes, SHA-256 4e986f798ee315aee969d949c5b003c15f6bd7ef333ca20920aefe83610a0046) and Linux x64 (45590045 bytes, SHA-256 0ad37f49b41129b72000bc95597d41c0814f5f313d34048a4eaa40d2e4e536ca) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI are byte-identical to reviewed 7192402 (the kits' psxrecomp trees differ from 7192402 only in runtime test files and tools/stage_setup_sdk.sh), and recomp-ui 14799da, and carry the tagged game.toml (SHA-256 04ee6c83423b21b62f70ced00bcb13c224ad96ef79877f2ec923f6638f6e9a9a; the Windows copy differs only in CRLF line endings) with game id and disc serial SLUS-00433, 27 required tracks, first data track 231888384 bytes with SHA-1 0f1491eccf460ad5f9d564cb658927db55ccd4e9; its second known SHA-1 (198a7e0a858b719f227e3b046c3e6609fdeac7de, 745290000 bytes) is a merged single-image value that this route does not bind, and the psxrecomp/bios/SCPH1001.toml BIOS configuration with OpenBIOS and bios_hle off; CMakeLists.txt accepts only the SCPH1001 stem, and README-SETUP.txt requires the player's own SCPH-1001 (USA) BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3 (524288 bytes), the psx-scph-1001-bios profile. The kits use the split mod layout with 11 generic psx.* packages in mods/bundled, an empty mods/preloaded/packages, empty mods/texture-packs/SLUS-00433 folders, no flat mods/packages, no playtest diagnostics, no links, no unsafe or case-colliding paths, and build the generated player Fighting_Force__Recompiled from the window title \"Fighting Force  Recompiled\". Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp/blob/afbbbb061e831aa4c9a07ff64ef86ef9467a121a/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-fighting-force-recomp-redump-16730",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/16730; modified 2021-04-24 18:46 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Fighting Force (USA) (Rev 2), SLUS-00433, disc 16730, has 27 tracks. Track 1 is 231888384 bytes, SHA-1 0f1491eccf460ad5f9d564cb658927db55ccd4e9, MD5 133bc651431c396b1d56bcfaf466bd09 and CRC32 fb0c5c9e, matching the kit's game.toml. Tracks 2 to 27 are audio. Its merged 745290000-byte image has CRC32 d49f9c96, the kit's second known CRC32. Core binds the first data track and track count; the audio tracks and full TOC are not independently authenticated. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/16730",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-jackie-chan-stuntmaster-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/jackie-chan-stuntmaster-recomp",
+        "authority_ref": "9c60d7f7f683cdfe0f361a7762678c7283b2a263",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.3 Windows x64 (47787843 bytes, SHA-256 c828aa7cf9b85b85442d57bae62457bbb48b48d4b3e909888e787c6c2cd69551) and Linux x64 (45595210 bytes, SHA-256 a60aaaad9e3f09f75268d3db3d80e99da8faccc7f40f78fa9c36d8c7c191e595) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI are byte-identical to reviewed 7192402 (the kits' psxrecomp trees differ from 7192402 only in runtime test files and tools/stage_setup_sdk.sh), and recomp-ui 14799da, and carry the tagged game.toml (SHA-256 ba5898f7675209ed96f3453f297423b4afdff46aac31e421a7032480ddcb122f; the Windows copy differs only in CRLF line endings) with game id and disc serial SLUS-00684, 1 required track, data track 627972240 bytes with SHA-1 afa11e3b087bca1c7e64fdc49c9c4af05c136e39, and the psxrecomp/bios/SCPH1001.toml BIOS configuration with OpenBIOS and bios_hle off; CMakeLists.txt accepts only the SCPH1001 stem, and README-SETUP.txt requires the player's own SCPH-1001 (USA) BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3 (524288 bytes), the psx-scph-1001-bios profile. The kits use the split mod layout with 11 generic psx.* packages in mods/bundled, an empty mods/preloaded/packages, empty mods/texture-packs/SLUS-00684 folders, no flat mods/packages, no playtest diagnostics, no links, no unsafe or case-colliding paths, and build the generated player Jackie_Chan_Stuntmaster_Recompiled from the window title. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/jackie-chan-stuntmaster-recomp/blob/9c60d7f7f683cdfe0f361a7762678c7283b2a263/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-jackie-chan-stuntmaster-recomp-redump-7374",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/7374; modified 2021-08-20 18:31 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Jackie Chan Stuntmaster (USA), SLUS-00684, disc 7374, has one data track: 627972240 bytes, SHA-1 afa11e3b087bca1c7e64fdc49c9c4af05c136e39, MD5 d4c9bdde0e8741972d7b262b8ffd3093 and CRC32 b68270eb, which agree with the kit's game.toml. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/7374",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-metal-slug-x-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/metal-slug-x-recomp",
+        "authority_ref": "4d6cc56a7daf7b5710ca5e8ab1df1708f42c636d",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.3 Windows x64 (47786925 bytes, SHA-256 ca2c54817fc5f7de7e4bef63dffdef7e95799c917fc99fd07aa53689e58d1601) and Linux x64 (45594831 bytes, SHA-256 02024ce3cb1d594178271d740f80851b5095684bc8c553fbccedf422a754098d) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI are byte-identical to reviewed 7192402 (the kits' psxrecomp trees differ from 7192402 only in runtime test files and tools/stage_setup_sdk.sh), and recomp-ui 14799da, and carry the tagged game.toml (SHA-256 e5b3879850a495a59f55ce8fbee0411e5a119cf1586cc2bfbdbb3842f55832d5; the Windows copy differs only in CRLF line endings) with game id and disc serial SLUS-01212, 1 required track, data track 104315904 bytes with SHA-1 f1ea9a0ae2115f476bd4767b1ac0ba9d0b5ac972, the identity of the existing metal-slug-x-psx profile, and the psxrecomp/bios/SCPH1001.toml BIOS configuration with OpenBIOS and bios_hle off; CMakeLists.txt accepts only the SCPH1001 stem, and README-SETUP.txt requires the player's own SCPH-1001 (USA) BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3 (524288 bytes), the psx-scph-1001-bios profile. The kits use the split mod layout with 11 generic psx.* packages in mods/bundled, an empty mods/preloaded/packages, empty mods/texture-packs/SLUS-01212 folders, no flat mods/packages, no playtest diagnostics, no links, no unsafe or case-colliding paths, and build the generated player Metal_Slug_X__Recompiled from the window title \"Metal Slug X  Recompiled\". Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/metal-slug-x-recomp/blob/4d6cc56a7daf7b5710ca5e8ab1df1708f42c636d/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-metal-slug-x-recomp-redump-7410",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/7410; modified 2021-08-14 22:59 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Metal Slug X (USA), SLUS-01212, disc 7410, has one data track: 104315904 bytes, SHA-1 f1ea9a0ae2115f476bd4767b1ac0ba9d0b5ac972, MD5 37d9e1179a32661800e74858009a4f8b and CRC32 34100b04, which agree with the kit's game.toml. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/7410",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-parasite-eve-recomp-v041-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/parasite-eve-recomp",
+        "authority_ref": "aa070962ba2c1d3265c7871f8d8bfb1c483f4c6d",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.4.1 Windows x64 (47932161 bytes, SHA-256 06efae8f4687d5c1bb5ec6c7dbf98d95906e199c1877d7b8aacf19496e20b5c3) and Linux x64 (45740193 bytes, SHA-256 d90ca4b104810916612c89404c91943e00f892b160ac0ca19e1fc44de65cb5eb) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 7192402c283880e318c97732c9b733c4d1b144d0 and recomp-ui 14799da, and carry the tagged game.toml (SHA-256 74ed898c08d80a9b49199354ebc6f94c1d0b247651659c1912fbfa2307c6b596; the Windows copy differs only in CRLF line endings) with game id SLUS-00662, a 2-disc discs roster (SLUS-00662, SLUS-00668) whose known_sha1 lists each disc's data-track SHA-1 (c339455d5b1dae04f77c2ee847d0932adaf2e84b, 6dc5b537527aa0d54bdbbd0c14b458083b0743e4), 1 required track per disc, and the psxrecomp/bios/SCPH1001.toml BIOS configuration with OpenBIOS and bios_hle off; CMakeLists.txt accepts only the SCPH1001 stem, and README-SETUP.txt requires the player's own SCPH-1001 (USA) BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3 (524288 bytes), the psx-scph-1001-bios profile. The kits use the split mod layout with 11 generic psx.* packages in mods/bundled, an empty mods/preloaded/packages, empty mods/texture-packs/SLUS-00662 folders, no flat mods/packages, no playtest diagnostics, no links, no unsafe or case-colliding paths, and build the generated player Parasite_Eve from the window title \"Parasite Eve\". The runtime mounts the disc named by the 1-based [disc] selected setting and its in-game menu can also change discs. The kits also carry the framework's unselected psxrecomp/bios/openbios.bin. Upstream reports that each disc starts and that a natural in-game change to Disc 2 is untested. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/parasite-eve-recomp/blob/aa070962ba2c1d3265c7871f8d8bfb1c483f4c6d/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-parasite-eve-recomp-disc-1-redump-116",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/116; modified 2026-02-19 09:59 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Parasite Eve (USA) (Disc 1), SLUS-00662, disc 116, has one data track: 495531120 bytes, SHA-1 c339455d5b1dae04f77c2ee847d0932adaf2e84b, MD5 efae1df4faf4aadbfd4dc3aa022296cf and CRC32 488641e0, which agree with the kit's game.toml. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/116",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-parasite-eve-recomp-disc-2-redump-117",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/117; modified 2025-07-08 18:09 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Parasite Eve (USA) (Disc 2), SLUS-00668, disc 117, has one data track: 646877616 bytes, SHA-1 6dc5b537527aa0d54bdbbd0c14b458083b0743e4, MD5 c8e01c1d77baadcb89685eaee839a824 and CRC32 226ee2ee, which agree with the kit's game.toml. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/117",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-valkyrie-profile-recomp-v014-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/valkyrie-profile-recomp",
+        "authority_ref": "3f9b39fef7a36843e2a63b82e973ab8fa63d84d7",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.4 Windows x64 (47703176 bytes, SHA-256 66db6912a3204c58ed19e15018516b7b743f96e2bbb9ac29e55f2a35e5138fcf) and Linux x64 (45594047 bytes, SHA-256 554b7f0aae060abe6ec8adfc251d4b489b1de49346179b313c1d6a4d3a1dfefe) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 7192402c283880e318c97732c9b733c4d1b144d0 and recomp-ui 14799da, and carry the tagged game.toml (SHA-256 a34dd2e3550ab78d4cde39b0db88e580d6cc0f3a5bba812ad45f20cf56e9f2b1, the same bytes in both kits) with game id SLUS-01156, a 2-disc discs roster (SLUS-01156, SLUS-01179) whose known_sha1 lists each disc's data-track SHA-1 (fa13cbde448a47fa87b6c7829df1c5e6215f5f66, 7cc65766b46273b4ee166269170ecbaa433908fd), 1 required track per disc, and the psxrecomp/bios/SCPH1001.toml BIOS configuration with OpenBIOS and bios_hle off; CMakeLists.txt accepts only the SCPH1001 stem, and README-SETUP.txt requires the player's own SCPH-1001 (USA) BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3 (524288 bytes), the psx-scph-1001-bios profile. The kits use the split mod layout with 11 generic psx.* packages in mods/bundled, an empty mods/preloaded/packages, empty mods/texture-packs/SLUS-01156 folders, no flat mods/packages, no playtest diagnostics, no links, no unsafe or case-colliding paths, and build the generated player Valkyrie_Profile_Recompiled from EXE_NAME. The runtime mounts the disc named by the 1-based [disc] selected setting and its in-game menu can also change discs. Their psxrecomp runtime sources match the Parasite Eve v0.4.1 kits on the same framework; docs/DISC2_FIX.md describes one operator Disc 2 load on an earlier build and does not cover this version. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp/blob/3f9b39fef7a36843e2a63b82e973ab8fa63d84d7/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-valkyrie-profile-recomp-disc-1-redump-655",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/655; modified 2025-07-08 22:38 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Valkyrie Profile (USA) (Disc 1), SLUS-01156, disc 655, has one data track: 730448880 bytes, SHA-1 fa13cbde448a47fa87b6c7829df1c5e6215f5f66, MD5 f579cb951587081019f91af9458d305b and CRC32 dd0422d5, which agree with the kit's game.toml. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/655",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-valkyrie-profile-recomp-disc-2-redump-656",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/656; modified 2025-07-09 20:22 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Valkyrie Profile (USA) (Disc 2), SLUS-01179, disc 656, has one data track: 747352704 bytes, SHA-1 7cc65766b46273b4ee166269170ecbaa433908fd, MD5 19f36bd625e676ea5d74db612d26eb6c and CRC32 c2132829, which agree with the kit's game.toml. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/656",
+        "live_url": null
+      },
+      {
         "id": "alexbeav-quake-ii-recomp-v012-static-contract",
         "role": "upstream_support",
         "authority": "alexbeavs-ps1-ports/quake-ii-recomp",
@@ -6579,7 +6699,9 @@
             "title": "Metal Slug X (USA) disc",
             "region": null,
             "revision": null,
-            "product_codes": [],
+            "product_codes": [
+              "SLUS-01212"
+            ],
             "representations": [
               {
                 "id": "normalized-track-set",
@@ -6604,7 +6726,9 @@
               }
             ],
             "evidence_ids": [
-              "alpha1-schema1-source-contracts"
+              "alpha1-schema1-source-contracts",
+              "alexbeav-metal-slug-x-recomp-v013-static-contract",
+              "alexbeav-metal-slug-x-recomp-redump-7410"
             ]
           }
         ],
@@ -13537,6 +13661,246 @@
             "evidence_ids": [
               "alexbeav-medievil-ii-recomp-v026-static-contract",
               "alexbeav-medievil-ii-recomp-redump-2503"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-fighting-force-recomp-usa-rev-2-psx",
+        "label": "Fighting Force (USA) (Rev 2) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa-rev-2",
+            "title": "Fighting Force (USA) (Rev 2) disc",
+            "region": "USA",
+            "revision": "Rev 2",
+            "product_codes": [
+              "SLUS-00433"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  27
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "0f1491eccf460ad5f9d564cb658927db55ccd4e9",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-fighting-force-recomp-v013-static-contract",
+                  "alexbeav-fighting-force-recomp-redump-16730"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-fighting-force-recomp-v013-static-contract",
+              "alexbeav-fighting-force-recomp-redump-16730"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-jackie-chan-stuntmaster-recomp-usa-psx",
+        "label": "Jackie Chan Stuntmaster (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Jackie Chan Stuntmaster (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00684"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "afa11e3b087bca1c7e64fdc49c9c4af05c136e39",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-jackie-chan-stuntmaster-recomp-v013-static-contract",
+                  "alexbeav-jackie-chan-stuntmaster-recomp-redump-7374"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-jackie-chan-stuntmaster-recomp-v013-static-contract",
+              "alexbeav-jackie-chan-stuntmaster-recomp-redump-7374"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-parasite-eve-recomp-usa-psx",
+        "label": "Parasite Eve (USA) two-disc set",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Parasite Eve (USA) two-disc set",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00662",
+              "SLUS-00668"
+            ],
+            "representations": [
+              {
+                "id": "disc-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "multi-disc-set",
+                "discs": [
+                  {
+                    "id": "disc-1",
+                    "label": "Parasite Eve Disc 1",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "c339455d5b1dae04f77c2ee847d0932adaf2e84b",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-2",
+                    "label": "Parasite Eve Disc 2",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "6dc5b537527aa0d54bdbbd0c14b458083b0743e4",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-parasite-eve-recomp-v041-static-contract",
+                  "alexbeav-parasite-eve-recomp-disc-1-redump-116",
+                  "alexbeav-parasite-eve-recomp-disc-2-redump-117"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-parasite-eve-recomp-v041-static-contract",
+              "alexbeav-parasite-eve-recomp-disc-1-redump-116",
+              "alexbeav-parasite-eve-recomp-disc-2-redump-117"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-valkyrie-profile-recomp-usa-psx",
+        "label": "Valkyrie Profile (USA) two-disc set",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Valkyrie Profile (USA) two-disc set",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-01156",
+              "SLUS-01179"
+            ],
+            "representations": [
+              {
+                "id": "disc-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "multi-disc-set",
+                "discs": [
+                  {
+                    "id": "disc-1",
+                    "label": "Valkyrie Profile Disc 1",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "fa13cbde448a47fa87b6c7829df1c5e6215f5f66",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-2",
+                    "label": "Valkyrie Profile Disc 2",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "7cc65766b46273b4ee166269170ecbaa433908fd",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-valkyrie-profile-recomp-v014-static-contract",
+                  "alexbeav-valkyrie-profile-recomp-disc-1-redump-655",
+                  "alexbeav-valkyrie-profile-recomp-disc-2-redump-656"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-valkyrie-profile-recomp-v014-static-contract",
+              "alexbeav-valkyrie-profile-recomp-disc-1-redump-655",
+              "alexbeav-valkyrie-profile-recomp-disc-2-redump-656"
             ]
           }
         ],
@@ -22840,6 +23204,323 @@
           {
             "upstream_ref": "v0.2.6",
             "artifact_sha256": "54a7351fa7d024986e72e147d340df5199dbf00291b58c878bbce0baf381aa4b"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-fighting-force-recomp-game-source",
+        "port_id": "alexbeav-fighting-force-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-fighting-force-recomp-usa-rev-2-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-rev-2"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-fighting-force-recomp-v013-static-contract",
+          "alexbeav-fighting-force-recomp-redump-16730"
+        ],
+        "authority_ref": "afbbbb061e831aa4c9a07ff64ef86ef9467a121a",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp/blob/afbbbb061e831aa4c9a07ff64ef86ef9467a121a/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "4e986f798ee315aee969d949c5b003c15f6bd7ef333ca20920aefe83610a0046"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "0ad37f49b41129b72000bc95597d41c0814f5f313d34048a4eaa40d2e4e536ca"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-fighting-force-recomp-bios-source",
+        "port_id": "alexbeav-fighting-force-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-fighting-force-recomp-v013-static-contract"
+        ],
+        "authority_ref": "afbbbb061e831aa4c9a07ff64ef86ef9467a121a",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp/blob/afbbbb061e831aa4c9a07ff64ef86ef9467a121a/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "4e986f798ee315aee969d949c5b003c15f6bd7ef333ca20920aefe83610a0046"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "0ad37f49b41129b72000bc95597d41c0814f5f313d34048a4eaa40d2e4e536ca"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-jackie-chan-stuntmaster-recomp-game-source",
+        "port_id": "alexbeav-jackie-chan-stuntmaster-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-jackie-chan-stuntmaster-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-jackie-chan-stuntmaster-recomp-v013-static-contract",
+          "alexbeav-jackie-chan-stuntmaster-recomp-redump-7374"
+        ],
+        "authority_ref": "9c60d7f7f683cdfe0f361a7762678c7283b2a263",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/jackie-chan-stuntmaster-recomp/blob/9c60d7f7f683cdfe0f361a7762678c7283b2a263/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "c828aa7cf9b85b85442d57bae62457bbb48b48d4b3e909888e787c6c2cd69551"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "a60aaaad9e3f09f75268d3db3d80e99da8faccc7f40f78fa9c36d8c7c191e595"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-jackie-chan-stuntmaster-recomp-bios-source",
+        "port_id": "alexbeav-jackie-chan-stuntmaster-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-jackie-chan-stuntmaster-recomp-v013-static-contract"
+        ],
+        "authority_ref": "9c60d7f7f683cdfe0f361a7762678c7283b2a263",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/jackie-chan-stuntmaster-recomp/blob/9c60d7f7f683cdfe0f361a7762678c7283b2a263/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "c828aa7cf9b85b85442d57bae62457bbb48b48d4b3e909888e787c6c2cd69551"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "a60aaaad9e3f09f75268d3db3d80e99da8faccc7f40f78fa9c36d8c7c191e595"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-metal-slug-x-recomp-game-source",
+        "port_id": "alexbeav-metal-slug-x-recomp",
+        "role": "game",
+        "profile_id": "metal-slug-x-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-metal-slug-x-recomp-v013-static-contract",
+          "alexbeav-metal-slug-x-recomp-redump-7410"
+        ],
+        "authority_ref": "4d6cc56a7daf7b5710ca5e8ab1df1708f42c636d",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/metal-slug-x-recomp/blob/4d6cc56a7daf7b5710ca5e8ab1df1708f42c636d/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "ca2c54817fc5f7de7e4bef63dffdef7e95799c917fc99fd07aa53689e58d1601"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "02024ce3cb1d594178271d740f80851b5095684bc8c553fbccedf422a754098d"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-metal-slug-x-recomp-bios-source",
+        "port_id": "alexbeav-metal-slug-x-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-metal-slug-x-recomp-v013-static-contract"
+        ],
+        "authority_ref": "4d6cc56a7daf7b5710ca5e8ab1df1708f42c636d",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/metal-slug-x-recomp/blob/4d6cc56a7daf7b5710ca5e8ab1df1708f42c636d/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "ca2c54817fc5f7de7e4bef63dffdef7e95799c917fc99fd07aa53689e58d1601"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "02024ce3cb1d594178271d740f80851b5095684bc8c553fbccedf422a754098d"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-parasite-eve-recomp-game-source",
+        "port_id": "alexbeav-parasite-eve-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-parasite-eve-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-parasite-eve-recomp-v041-static-contract",
+          "alexbeav-parasite-eve-recomp-disc-1-redump-116",
+          "alexbeav-parasite-eve-recomp-disc-2-redump-117"
+        ],
+        "authority_ref": "aa070962ba2c1d3265c7871f8d8bfb1c483f4c6d",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/parasite-eve-recomp/blob/aa070962ba2c1d3265c7871f8d8bfb1c483f4c6d/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.4.1",
+            "artifact_sha256": "06efae8f4687d5c1bb5ec6c7dbf98d95906e199c1877d7b8aacf19496e20b5c3"
+          },
+          {
+            "upstream_ref": "v0.4.1",
+            "artifact_sha256": "d90ca4b104810916612c89404c91943e00f892b160ac0ca19e1fc44de65cb5eb"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-parasite-eve-recomp-bios-source",
+        "port_id": "alexbeav-parasite-eve-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-parasite-eve-recomp-v041-static-contract"
+        ],
+        "authority_ref": "aa070962ba2c1d3265c7871f8d8bfb1c483f4c6d",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/parasite-eve-recomp/blob/aa070962ba2c1d3265c7871f8d8bfb1c483f4c6d/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.4.1",
+            "artifact_sha256": "06efae8f4687d5c1bb5ec6c7dbf98d95906e199c1877d7b8aacf19496e20b5c3"
+          },
+          {
+            "upstream_ref": "v0.4.1",
+            "artifact_sha256": "d90ca4b104810916612c89404c91943e00f892b160ac0ca19e1fc44de65cb5eb"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-valkyrie-profile-recomp-game-source",
+        "port_id": "alexbeav-valkyrie-profile-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-valkyrie-profile-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-valkyrie-profile-recomp-v014-static-contract",
+          "alexbeav-valkyrie-profile-recomp-disc-1-redump-655",
+          "alexbeav-valkyrie-profile-recomp-disc-2-redump-656"
+        ],
+        "authority_ref": "3f9b39fef7a36843e2a63b82e973ab8fa63d84d7",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp/blob/3f9b39fef7a36843e2a63b82e973ab8fa63d84d7/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "66db6912a3204c58ed19e15018516b7b743f96e2bbb9ac29e55f2a35e5138fcf"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "554b7f0aae060abe6ec8adfc251d4b489b1de49346179b313c1d6a4d3a1dfefe"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-valkyrie-profile-recomp-bios-source",
+        "port_id": "alexbeav-valkyrie-profile-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-valkyrie-profile-recomp-v014-static-contract"
+        ],
+        "authority_ref": "3f9b39fef7a36843e2a63b82e973ab8fa63d84d7",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp/blob/3f9b39fef7a36843e2a63b82e973ab8fa63d84d7/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "66db6912a3204c58ed19e15018516b7b743f96e2bbb9ac29e55f2a35e5138fcf"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "554b7f0aae060abe6ec8adfc251d4b489b1de49346179b313c1d6a4d3a1dfefe"
           }
         ],
         "aliases": [],
