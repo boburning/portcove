@@ -16,6 +16,7 @@ import test from "node:test";
 import { parse } from "yaml";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import {
+  deferralChanges,
   deliveryFacts,
   publicationEntries,
   publicationFacts,
@@ -40,6 +41,8 @@ import {
   type InventoryReport,
 } from "./maintenance-inventory.mts";
 import type { UpstreamInput } from "./maintenance-upstream.mts";
+import { issueReconsiderations, targetReconsiderations } from "./maintenance-reconsiderations.mts";
+import { explicitBlockerFields } from "./roadmap-qualification.mts";
 import type { HostedRequestStatus, HostedStatusAll } from "./hosted-discovery-intake.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import { migrate, migrationTransaction, readMigrations, runSql } from "./maintenance-store.mts";
@@ -2447,3 +2450,259 @@ void test("target routes are read in bounded batches and malformed entries are r
   writeFileSync(responses, JSON.stringify({ "targets:port-7": 5 }));
   await assert.rejects(readTargetRoutes(cli, ids.slice(0, 10)), /unsupported entry for port-7/u);
 });
+
+void test("explicit blocker fields are read only when present and substantive", () => {
+  const body = (section: string) => `## Dependencies and blockers\n\n${section}\n\n## Other\n`;
+  assert.deepEqual(
+    explicitBlockerFields(
+      body(
+        "Blocker: Upstream has not published a usable native player.\nResume condition: Upstream publishes a usable player.",
+      ),
+    ),
+    {
+      blocker: "Upstream has not published a usable native player.",
+      resume_condition: "Upstream publishes a usable player.",
+    },
+  );
+  assert.equal(explicitBlockerFields(body("Resume condition: TBD")), null);
+  assert.equal(explicitBlockerFields(body("Waiting until upstream ships a player.")), null);
+  assert.equal(explicitBlockerFields("no section"), null);
+});
+
+void test("holds and deferrals come only from their owners and episodes stay distinct", () => {
+  const issue = (number: number, status: string, state = "OPEN", archived = false) => [
+    `issue:${number}`,
+    { number, state, project: [{ archived, fields: { Status: status } }] },
+  ];
+  const conditions = issueReconsiderations(
+    new Map<string, unknown>([
+      issue(1, "Deferred"),
+      issue(2, "Blocked"),
+      issue(3, "Ready"),
+      issue(4, "Deferred", "CLOSED"),
+      issue(5, "Deferred", "OPEN", true),
+    ] as [string, unknown][]),
+  );
+  assert.deepEqual(
+    conditions.map(({ subject_key, kind, revisit_authority }) => [
+      subject_key,
+      kind,
+      revisit_authority,
+    ]),
+    [
+      ["issue:1", "intentional_deferral", "Project owner of issue #1 (Status: Deferred)"],
+      ["issue:2", "technical_hold", "Project owner of issue #2 (Status: Blocked)"],
+    ],
+  );
+  assert.match(conditions[0]!.base, /^reconsider\.intentional_deferral\.issue-1\.[0-9a-f]{12}$/u);
+  assert.deepEqual(
+    targetReconsiderations(
+      new Map<string, unknown>([
+        ["port:held", { acquisition_hold: "Held while review completes." }],
+        ["port:open", { acquisition_hold: null }],
+      ]),
+    ).map(({ subject_key, kind, condition }) => [subject_key, kind, condition]),
+    [
+      [
+        "port:held",
+        "technical_hold",
+        { source: "core-target-routes", acquisition_hold: "Held while review completes." },
+      ],
+    ],
+  );
+  const entries = deferralChanges(
+    [
+      {
+        reconsideration_id: "r",
+        subject_key: "issue:7",
+        kind: "intentional_deferral",
+        status: "pending",
+        revisit_authority: "Project owner of issue #7 (Status: Deferred)",
+        condition: { source: "issues-project" },
+        created_at: "2026-11-10T00:00:00Z",
+        resolved_at: null,
+        resolution: null,
+      },
+    ],
+    [
+      {
+        subject_key: "port:a@linux-x86-64",
+        state: "s",
+        changed_at: "2026-11-11T00:00:00Z",
+        work: [{ number: 7 }],
+      },
+      {
+        subject_key: "port:b@linux-x86-64",
+        state: "s",
+        changed_at: "2026-11-09T00:00:00Z",
+        work: [{ number: 7 }],
+      },
+      {
+        subject_key: "port:c@linux-x86-64",
+        state: "s",
+        changed_at: "2026-11-11T00:00:00Z",
+        work: [{ number: 8 }],
+      },
+    ],
+  );
+  assert.deepEqual(
+    entries[0]!.technical_changes?.map(({ subject_key }) => subject_key),
+    ["port:a@linux-x86-64"],
+  );
+});
+
+void test(
+  "typed reconsiderations follow complete owner reads, stay quiet and keep episodes",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("reconsider");
+    migrate(store.owner);
+    const { cli, responses } = stubCli(fixture.root);
+    writeFileSync(responses, JSON.stringify({ "2ship2harkinian": report("automatic") }));
+    let status = "Deferred";
+    let resume = "Resume condition: The owner reprioritizes native Linux packaging.";
+    let issuesFail = false;
+    let hold: string | null = "Held while upstream launcher updates are reviewed.";
+    const issues = () =>
+      issuesFail
+        ? Promise.reject(new Error("GraphQL unavailable"))
+        : Promise.resolve({
+            repository: "boburning/portcove",
+            observed_at: "2026-11-13T00:00:00Z",
+            total: 1,
+            issues: [
+              {
+                id: "I1",
+                number: 1,
+                title: "Ship",
+                state: "OPEN",
+                body: `<!-- portcove-catalog-id: 2ship2harkinian -->\n\n## Dependencies and blockers\n\nBlocker: Native packaging is deliberately deferred.\n${resume}\n`,
+              },
+            ],
+            memberships: [
+              {
+                project_id: "P1",
+                issue_id: "I1",
+                isArchived: false,
+                fieldValues: { nodes: [{ name: status, field: { name: "Status" } }] },
+              },
+            ],
+          });
+    const targets = () =>
+      Promise.resolve({
+        facts: new Map<string, unknown>([
+          [
+            "port:2ship2harkinian",
+            {
+              presence: "operational",
+              declared_platforms: ["linux-x86-64"],
+              acquisition_hold: hold,
+              download_restriction: null,
+              targets: [],
+            },
+          ],
+        ]),
+        producer: null,
+      });
+    const run = () =>
+      collect({
+        cli,
+        all: true,
+        ports: ["2ship2harkinian"],
+        issues,
+        targets,
+        environment: store.owner,
+        runner: "fixture",
+      });
+    const rows = () =>
+      JSON.parse(
+        runSql(
+          store.owner,
+          `SELECT coalesce(json_agg(json_build_object('id', reconsideration_id, 'kind', kind, 'status', status,
+             'outcome', resolution ->> 'outcome', 'authority', resolution ->> 'authority') ORDER BY created_at, reconsideration_id), '[]')
+             FROM portcove_maintenance.reconsiderations;`,
+        ),
+      ) as {
+        id: string;
+        kind: string;
+        status: string;
+        outcome: string | null;
+        authority: string | null;
+      }[];
+
+    await run();
+    await run();
+    assert.deepEqual(
+      rows().map(({ kind, status }) => [kind, status]),
+      [
+        ["intentional_deferral", "pending"],
+        ["technical_hold", "pending"],
+      ],
+      "recorded once; an unchanged read is quiet",
+    );
+    const report1 = buildReport(store.owner);
+    assert.match(
+      String(report1.reconsiderations?.[0]?.condition.resume_condition),
+      /reprioritizes native Linux packaging/u,
+    );
+    assert.match(renderHtml(report1), /Holds and deferrals/u);
+
+    // A failed owner read resolves nothing.
+    issuesFail = true;
+    status = "Ready";
+    await run();
+    assert.ok(rows().every(({ status: value }) => value === "pending"));
+
+    // The Project owner lifts the deferral: resolved under its recorded authority.
+    issuesFail = false;
+    await run();
+    const lifted = rows().find(({ kind }) => kind === "intentional_deferral")!;
+    assert.deepEqual(
+      [lifted.status, lifted.outcome, lifted.authority],
+      ["satisfied", "condition-lifted", "Project owner of issue #1 (Status: Deferred)"],
+    );
+    // Deferred again with the same condition: a new episode, not the old row.
+    status = "Deferred";
+    await run();
+    const deferrals = rows().filter(({ kind }) => kind === "intentional_deferral");
+    assert.deepEqual(
+      deferrals.map(({ status: value }) => value),
+      ["satisfied", "pending"],
+    );
+    assert.equal(deferrals[1]!.id, `${deferrals[0]!.id}.1`);
+    // A changed resume condition withdraws the old condition and records the new one.
+    resume = "Resume condition: Upstream publishes a reproducible Linux build.";
+    await run();
+    assert.deepEqual(
+      rows()
+        .filter(({ kind }) => kind === "intentional_deferral")
+        .map(({ status: value, outcome }) => [value, outcome]),
+      [
+        ["satisfied", "condition-lifted"],
+        ["withdrawn", "condition-changed"],
+        ["pending", null],
+      ],
+    );
+    // Lifting the reviewed acquisition hold satisfies the technical hold.
+    hold = null;
+    await run();
+    assert.deepEqual(
+      rows()
+        .filter(({ kind }) => kind === "technical_hold")
+        .map(({ status: value, outcome }) => [value, outcome]),
+      [["satisfied", "condition-lifted"]],
+    );
+    // Only the recorded authority may reconsider a deferral.
+    assert.throws(
+      () =>
+        runSql(
+          store.owner,
+          `UPDATE portcove_maintenance.reconsiderations SET status = 'satisfied', resolved_at = now(),
+             resolution = '{"authority":"technical viability"}'
+             WHERE kind = 'intentional_deferral' AND status = 'pending';`,
+        ),
+      /only by its recorded authority/u,
+    );
+  },
+);

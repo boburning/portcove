@@ -30,6 +30,12 @@ import {
   runSql,
 } from "./maintenance-store.mts";
 import { portCatalogMarkers, portKeyMarkers } from "./roadmap-issue.mts";
+import { explicitBlockerFields } from "./roadmap-qualification.mts";
+import {
+  issueReconsiderations,
+  reconsiderationSql,
+  targetReconsiderations,
+} from "./maintenance-reconsiderations.mts";
 import { buildUniverse, type UniverseEntry } from "./maintenance-universe.mts";
 import {
   attentionConditions,
@@ -429,6 +435,11 @@ export function issueFacts(inventory: IssueInventory) {
             fields: projectFields(fieldValues),
           }))
           .sort((left, right) => (left.project_id < right.project_id ? -1 : 1)),
+        // Present only when the issue records explicit fields, so other issues' facts are unchanged.
+        ...(() => {
+          const fields = explicitBlockerFields(issue.body);
+          return fields ? { reconsideration: fields } : {};
+        })(),
       },
     ]),
   );
@@ -1381,6 +1392,23 @@ export function collectionSql(input: {
     // A kind no longer in the registry clears on any complete handoff source run.
     const first = [...complete.values()][0];
     if (first) lines.push(...handoffCollectionSql({ retired: true, run: first.run }));
+    // Holds and deferrals follow only a complete read of their owning source.
+    if (input.issues && !input.issues.failure)
+      lines.push(
+        ...reconsiderationSql({
+          source: "issues-project",
+          run: issueRun,
+          conditions: issueReconsiderations(input.issues.facts),
+        }),
+      );
+    if (input.targets && !input.targets.failure)
+      lines.push(
+        ...reconsiderationSql({
+          source: "core-target-routes",
+          run: targetsRun,
+          conditions: targetReconsiderations(input.targets.facts),
+        }),
+      );
   }
   // The two session settings run as their own statements first: the server parses a
   // batched query whole, so a setting inside it could not govern the literals after it.
@@ -1873,6 +1901,17 @@ SELECT json_build_object(
                  FROM present_issue i),
     'intake', (SELECT coalesce(json_object_agg(h.subject_key, h.payload), '{}')
                  FROM latest_hosted h WHERE h.payload <> portcove_maintenance.absent_payload())),
+  -- Every pending condition, and the most recent resolutions as history.
+  'reconsiderations', (SELECT coalesce(json_agg(x ORDER BY x.status <> 'pending', x.resolved_at DESC NULLS FIRST, x.reconsideration_id), '[]')
+      FROM (SELECT reconsideration_id, subject_key, kind, status, revisit_authority, condition, created_at,
+                   resolved_at, resolution
+              FROM portcove_maintenance.reconsiderations
+             WHERE status = 'pending'
+            UNION ALL
+            (SELECT reconsideration_id, subject_key, kind, status, revisit_authority, condition, created_at,
+                    resolved_at, resolution
+               FROM portcove_maintenance.reconsiderations
+              WHERE status <> 'pending' ORDER BY resolved_at DESC LIMIT 200)) x),
   'generation', (SELECT coalesce(max(acquisition), 0) FROM portcove_maintenance.collection_runs
       WHERE coverage <> 'in_progress'),
   'runs', (SELECT coalesce(json_agg(r ORDER BY r.source, r.acquisition DESC), '[]') FROM (
@@ -1985,6 +2024,57 @@ export interface InventoryReport {
   hosted_intake?: HostedIntakeEntry[];
   /** Open executor handoffs with their registry entry and newest open operation; dispatch is disabled. */
   handoffs?: OpenHandoff[];
+  /** Pending holds and deferrals with their revisit authority, then the latest resolutions. */
+  reconsiderations?: ReconsiderationEntry[];
+}
+
+export interface ReconsiderationEntry {
+  reconsideration_id: string;
+  subject_key: string;
+  kind: string;
+  status: "pending" | "satisfied" | "withdrawn";
+  revisit_authority: string;
+  condition: Record<string, unknown>;
+  created_at: string;
+  resolved_at: string | null;
+  resolution: Record<string, unknown> | null;
+  /**
+   * For a pending deferral: linked port assessments that changed since it was
+   * recorded. Shown for its authority to reconsider; never applied automatically.
+   */
+  technical_changes?: { subject_key: string; state: string; changed_at: string }[];
+}
+
+/** Adds, to each pending deferral, the linked assessments that changed after it. */
+export function deferralChanges(
+  entries: readonly ReconsiderationEntry[],
+  subjects: readonly {
+    subject_key: string;
+    state?: string;
+    changed_at?: string;
+    work?: { number?: number }[];
+  }[],
+): ReconsiderationEntry[] {
+  return entries.map((entry) => {
+    const issue = /^issue:([1-9][0-9]*)$/u.exec(entry.subject_key)?.[1];
+    if (entry.kind !== "intentional_deferral" || entry.status !== "pending" || !issue) return entry;
+    const since = Date.parse(entry.created_at);
+    return {
+      ...entry,
+      technical_changes: subjects
+        .filter(
+          (subject) =>
+            (subject.work ?? []).some(({ number }) => String(number) === issue) &&
+            typeof subject.changed_at === "string" &&
+            Date.parse(subject.changed_at) > since,
+        )
+        .map(({ subject_key, state, changed_at }) => ({
+          subject_key,
+          state: state ?? "unknown",
+          changed_at: changed_at!,
+        })),
+    };
+  });
 }
 
 export interface PublicationServing {
@@ -2077,6 +2167,7 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     delivery_verified: { run_id: string; source_revision: string; completed_at: string } | null;
     hosted_intake: HostedIntakeEntry[];
     handoffs: unknown;
+    reconsiderations: ReconsiderationEntry[];
   };
   // Membership-verified catalog runs cover every authored record at their revision.
   const catalogScope = (data.runs as { source: string; member_digest: string | null }[]).some(
@@ -2218,6 +2309,10 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     unassessed_gaps: data.unassessed_gaps,
     ...(hostedObserved ? { hosted_intake: data.hosted_intake } : {}),
     handoffs: openHandoffs(data.handoffs),
+    reconsiderations: deferralChanges(
+      data.reconsiderations,
+      data.subjects as Parameters<typeof deferralChanges>[1],
+    ),
   };
 }
 
@@ -2265,6 +2360,47 @@ ${definitions
   .map(
     (entry) =>
       `<tr><td>${escapeHtml(entry.definition)}</td><td>${escapeHtml(entry.comparison)}</td><td>${target(entry.facts, "main")}</td><td>${target(entry.published, "published")}</td></tr>`,
+  )
+  .join("\n")}
+</tbody></table>`;
+}
+
+function reconsiderationSection(report: InventoryReport) {
+  const entries = report.reconsiderations ?? [];
+  if (!entries.length) return "";
+  const condition = (entry: ReconsiderationEntry) => {
+    const value = entry.condition;
+    const resume =
+      typeof value.resume_condition === "string"
+        ? `Resume condition: ${value.resume_condition}`
+        : value.source === "issues-project"
+          ? "No explicit resume condition recorded on the issue."
+          : "";
+    const hold = typeof value.acquisition_hold === "string" ? value.acquisition_hold : "";
+    return [hold, typeof value.blocker === "string" ? `Blocker: ${value.blocker}` : "", resume]
+      .filter(Boolean)
+      .map(escapeHtml)
+      .join("<br>");
+  };
+  return `<h2>Holds and deferrals</h2>
+<p>Recorded by their owners: Project Status Deferred or Blocked on an open issue, and reviewed catalog acquisition holds. Only the named authority reconsiders a deferral; a technical change is shown for that authority and never lifts it.</p>
+<table><thead><tr><th>Subject</th><th>Kind</th><th>Status</th><th>Condition</th><th>Revisit authority</th><th>Since</th><th>Technical changes since</th></tr></thead><tbody>
+${entries
+  .map(
+    (entry) =>
+      `<tr><td>${escapeHtml(entry.subject_key)}</td><td>${escapeHtml(entry.kind)}</td><td>${escapeHtml(entry.status)}${
+        entry.resolved_at
+          ? ` ${escapeHtml(entry.resolved_at)} (${escapeHtml(entry.resolution?.outcome ?? "")})`
+          : ""
+      }</td><td>${condition(entry)}</td><td>${escapeHtml(entry.revisit_authority)}</td><td>${escapeHtml(entry.created_at)}</td><td>${
+        (entry.technical_changes ?? [])
+          .map(
+            (change) =>
+              `${escapeHtml(change.subject_key)}: ${escapeHtml(change.state)} at ${escapeHtml(change.changed_at)}`,
+          )
+          .join("<br>") ||
+        (entry.kind === "intentional_deferral" && entry.status === "pending" ? "none observed" : "")
+      }</td></tr>`,
   )
   .join("\n")}
 </tbody></table>`;
@@ -2445,6 +2581,7 @@ ${report.unsupported_sources
   .join("\n")}
 </tbody></table>
 ${publicationSection(report)}
+${reconsiderationSection(report)}
 ${hostedIntakeSection(report)}
 <p>Next actions are executor handoffs. Disabled: ${escapeHtml(disabledCapabilities.join("; "))}.</p>
 <h2>Games and implementations</h2>

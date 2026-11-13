@@ -141,6 +141,7 @@ in this section runs unchanged against any PostgreSQL host and generic runner.
   required to revisit it. Conditions are immutable, and an intentional deferral is
   satisfied or withdrawn only by a resolution naming its recorded authority. The
   store records that reference; it does not authenticate who supplied it.
+  Collections derive them from their owners ([holds and deferrals](#holds-and-deferrals)).
 - **Notifications.** Each notification binds one recorded transition, so an
   unchanged observation cannot create one. Delivery requires a delivery receipt.
 - **Operations.** Deterministic operation IDs fenced to the subject sequence and
@@ -317,7 +318,10 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
     issue-side Project memberships (`RoadmapClient.repositoryIssues`), through a
     read-only request scope.
   - Each issue keeps its state, title, Project placement and field values, archive
-    state, blockers and canonical port markers. Bodies are not stored.
+    state, blockers and canonical port markers. Bodies are not stored. When the
+    issue's dependencies section records explicit, substantive `Blocker:` and
+    `Resume condition:` fields (the doctor's shared parser), the issue also keeps
+    them as `reconsideration`; issues without them are unchanged.
   - Port assessments stay Core-only, so issue activity never creates a false port
     transition. The report links each port to its work through the catalog's
     canonical `issue_number` and the issue's `portcove-catalog-id` marker.
@@ -661,6 +665,37 @@ marker-bearing owner requests (19 active and 10 withdrawn). The run was
 `complete` with no gaps, and an immediate repeat stored no observations. One
 active request was `blocked` and is the only attention item. One active request
 was a routine `partial`, and 17 were `complete`.
+
+## Holds and deferrals
+
+Typed reconsideration conditions are derived from their canonical owners on
+each complete read of that owner, inside the same collection transaction. They
+are never edited in the store, and a partial or failed read creates and resolves
+nothing.
+
+| Kind                   | Owner and source                                                    | Revisit authority                         |
+| ---------------------- | ------------------------------------------------------------------- | ----------------------------------------- |
+| `intentional_deferral` | Open issue whose non-archived Project Status is `Deferred`          | The Project owner of that issue           |
+| `technical_hold`       | Open issue whose non-archived Project Status is `Blocked`           | The Project owner of that issue           |
+| `technical_hold`       | A port's reviewed catalog acquisition hold, from Core target routes | The catalog review that recorded the hold |
+
+- The condition records the source, the Project status or hold reason, and the
+  issue's explicit blocker and resume condition when recorded (`null` otherwise).
+- A complete read that no longer records a pending condition resolves it under
+  its recorded authority, naming the observing run: `satisfied`
+  (`condition-lifted`) when the Status or hold is gone, or `withdrawn`
+  (`condition-changed`) when a changed condition replaces it. The store refuses
+  any other authority for a deferral.
+- Technical viability never resolves a deferral. For each pending deferral, the
+  report lists the linked port assessments that changed after it was recorded,
+  for its authority to reconsider.
+- Episodes have their own IDs: a condition lifted and later recorded again
+  becomes `<id>.1`, so a return to an earlier state stays in history, while an
+  unchanged read writes nothing.
+- The report's "Holds and deferrals" section shows every pending condition and
+  the latest 200 resolutions.
+- `upstream_change` and `evidence_refresh` are not derived yet: upstream and
+  release-health attention stays with [executor handoffs](#executor-handoffs).
 
 ## Executor handoffs
 
