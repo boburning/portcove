@@ -122,6 +122,7 @@
     "goldeneye-007-ntsc-u-big-endian"
   ],
   "port_ids": [
+    "vcmi-vcmi",
     "alexbeav-vib-ribbon-recomp",
     "alexbeav-wipeout-xl-recomp",
     "snap64-recomp",

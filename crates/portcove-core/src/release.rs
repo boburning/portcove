@@ -2041,6 +2041,10 @@ fn choose_asset<'a>(
                     port, platform, &name,
                 )
                 || !crate::native_portable_data::matches_archive(port, platform, &name)
+                || (port.external_profile_policy
+                    == Some(crate::ExternalProfilePolicy::VcmiWindowsV1)
+                    && platform == Platform::WindowsX86_64
+                    && name != "vcmi-windows.zip")
             {
                 return None;
             }
