@@ -54,7 +54,12 @@
     "reviewed_package_layouts": {
       "windows-x86-64": {
         "directories": [],
-        "executables": ["battletanxga.exe", "launch battletanx ga.cmd", "run dedicated server.cmd", "run-dedicated-server.ps1"]
+        "executables": [
+          "battletanxga.exe",
+          "launch battletanx ga.cmd",
+          "run dedicated server.cmd",
+          "run-dedicated-server.ps1"
+        ]
       }
     }
   }
