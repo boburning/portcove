@@ -71056,7 +71056,7 @@
           "steps": [
             {
               "title": "Use the modern SDL2 player and your own Kilrathi Saga data",
-              "instruction": "Use the official modern SDL2 package for Windows x64, Linux x86-64 or an Apple silicon Mac with all companion libraries, or an already permitted working copy of that same route. Select normal wc1-modern.exe (wc1-modern on Linux or a Mac) for an attached copy. The separate win32-msvc420 reconstruction package is not this player. Use your own full Wing Commander Kilrathi Saga installation: GAMEDAT plus STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. DOS support is partial and does not inherit this offer."
+              "instruction": "Use the official modern SDL2 package for Windows x64, Linux x86-64 or an Apple silicon Mac with all companion libraries, or an already permitted working copy of that same route. Select normal wc1-modern.exe (wc1-modern on Linux or a Mac) for an attached copy. On an Intel Mac, the official Intel ZIP needs macOS 15 and a compatible Intel SDL3 library supplied separately for its SDL2 compatibility library. The separate win32-msvc420 reconstruction package is not this player. Use your own full Wing Commander Kilrathi Saga installation: GAMEDAT plus STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. DOS support is partial and does not inherit this offer."
             },
             {
               "title": "Choose the actual writable original directory in upstream setup",
