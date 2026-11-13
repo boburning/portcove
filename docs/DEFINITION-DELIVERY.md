@@ -1520,7 +1520,9 @@ The automatic catalog authoring boundary is the fixed inert source subtree
 the managed index, checksum-addressed definitions and official policy/launch
 records. This is separate from the compiled catalog. The existing coordinator
 freezes exact raw Git inputs, actual Core projection, accumulated changes from
-the accepted catalog baseline and current component/site identities. Its neutral
+the accepted catalog baseline and current component/site identities. The catalog
+source readers reconstruct at most 6,144 entries per complete Git tree and refuse
+truncated or mismatched trees. Its neutral
 request is consumed by the selected independent whole-opportunity producer;
 parser success or persistence does not establish acceptance. Negative results
 retain the actual authenticated Check and bounded repair history in the same
