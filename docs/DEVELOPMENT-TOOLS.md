@@ -1623,10 +1623,9 @@ only when that transport is needed.
 
 Pick up the owning specification once, implement with useful focused feedback,
 then freeze a coherent commit for separate review and exact-head CI in parallel.
-Supply the reviewer exact head/base/diff, relevant acceptance/contracts and known
-risks. Repair blocking findings and return the delta/affected interactions to the
-same reviewer. [Contribution conventions](CONTRIBUTION-CONVENTIONS.md#review-and-merge)
-owns review and merge; [pickup](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep)
+The [review and repair loop](QUALITY.md#review-and-repair-loop) owns the reviewer
+packet, findings and repair;
+[contribution conventions](CONTRIBUTION-CONVENTIONS.md#review-and-merge) owns merge; [pickup](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep)
 owns requirement refresh and interrupted-work preservation. Do not add a routine
 task-contract matrix or duplicate status narrative.
 
@@ -1799,7 +1798,8 @@ loop. This section is the single place for concrete model recommendations.
 
 Recommendations as of 2026-11-13. They are starting assignments by
 responsibility, not claims of equivalent performance or compute across
-providers; Terra and Sonnet in particular are evaluated independently.
+providers. The two visual-helper choices in particular are separate starting
+points, each to be evaluated on its own evidence.
 
 | Responsibility                      | Codex                   | Claude                      |
 | ----------------------------------- | ----------------------- | --------------------------- |
@@ -1818,9 +1818,9 @@ pages, none is on a listed retirement, and every listed model documents both
 0.164.0 model list cached 2026-10-25 offered `gpt-6.1-sol`, `gpt-6-astra` and
 `gpt-6-luna` but not `gpt-6.1-terra`; Claude Code 2.1.323 accepted and ran a
 delegated research scout requested as `haiku` at `medium` effort, without
-separately reporting the served model. A model the client does
-not offer falls back to the nearest listed model for that responsibility, and
-the owner records the substitution.
+separately reporting the served model. When the client does not
+offer a listed model, use the closest model it offers in the same provider's
+tier for that responsibility and record the substitution.
 
 Default to the provider and environment selected for the session. Request each
 delegated assignment's model and effort through the client's native delegation
@@ -1844,18 +1844,25 @@ reports it.
 A reviewer told not to write is _instructed_ non-writing. A _technically
 restricted_ reviewer lacks write tools or runs in a read-only sandbox. Claude
 Code's read-only agent types (for example `Explore`) omit edit and write tools
-but keep a shell, so they are restricted from editing tools, not sandboxed.
-Codex documentation describes custom agents as inheriting the parent session's
-sandbox; that was not observed here. Portcove's review policy
+but keep a shell and may keep write-capable MCP tools, so they are restricted
+from editing tools, not sandboxed. They also start without project instructions,
+so give them the packet in full. Codex documentation describes subagents as
+inheriting the parent session's sandbox, with no separate read-only reviewer
+sandbox; a Codex reviewer in a writable session is therefore instructed
+non-writing only. This was not observed here. Portcove's review policy
 requires a non-writing reviewer, not a particular enforcement mechanism: prefer a
 restricted agent type where one exists, and in every case confirm the reviewed
 head and `git status` are unchanged after review.
 
-No native agent configuration is checked in. Both clients load `AGENTS.md` and
-their native delegation already accepts the needed model, effort and tool
-restrictions. Claude Code reads `AGENTS.md` only when no `CLAUDE.md` exists, so
-any future `CLAUDE.md` must be the single line `@AGENTS.md` rather than a second
-copy of the contract. Add native configuration only for a demonstrated gap that
+No native agent configuration is checked in. Both clients load `AGENTS.md`.
+Claude Code's delegation was observed accepting a model alias, an effort and a
+read-only agent type. Codex documents per-spawn model and effort but no
+read-only reviewer sandbox, and neither was observed here; the post-review
+`git status` check covers that gap without new configuration. Claude Code reads
+`AGENTS.md` only when no `CLAUDE.md` applies: a `CLAUDE.md`, `.claude/CLAUDE.md`,
+personal `CLAUDE.local.md` or ancestor-directory `CLAUDE.md` suppresses it, as do
+instruction settings that select only `CLAUDE.md`. Any such file for Portcove
+must be the single line `@AGENTS.md`, not a second copy of the contract. Add native configuration only for a demonstrated gap that
 Markdown cannot close, and record that gap with the change.
 
 ### Keeping recommendations current

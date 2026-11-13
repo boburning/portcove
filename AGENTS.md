@@ -95,7 +95,8 @@ Most issues need only some responsibilities.
 Substantive candidates follow the [review and repair loop](docs/QUALITY.md#review-and-repair-loop):
 a fresh non-writing reviewer who did not help design or implement the candidate,
 a complete review packet, classified evidence-backed findings, repair and
-reassessment. Risky changes start with a critical reviewer. After repeated
+reassessment. Changes in the loop's listed critical areas start with a critical
+reviewer. After repeated
 unsuccessful attempts, change approach, investigate a discriminating
 reproduction or bring in a specialist; no attempt count turns a blocker into
 approval. While CI, review or an external prerequisite is pending, keep the

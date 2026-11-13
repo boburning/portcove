@@ -91,8 +91,8 @@ not automatically low risk. This policy refactor itself requires independent rev
 
 State the review performed briefly in the PR description. No certificate, score
 or exception form is needed. Blocking findings identify a concrete correctness,
-security, data-loss, compatibility or acceptance defect. Cosmetic preference and
-speculative unrelated cleanup are nonblocking unless acceptance requires them.
+security, data-loss, compatibility or acceptance defect. Cosmetic preference,
+speculative generalization and unrelated cleanup are nonblocking unless acceptance requires them.
 Repair review can examine the delta and affected interactions; harmless amendments
 do not require a new reviewer or a repeated complete investigation.
 
@@ -117,18 +117,18 @@ unchanged afterward.
 candidate head (and target when composed), the change context and known
 consequential decisions, the verification actually executed with its results,
 and known limitations or skipped checks. The reviewer may inspect further source,
-tests and contracts when the packet is insufficient, and says what it did not
-examine.
+tests and contracts when the packet is insufficient, reports findings in the
+classes below, and says what it did not examine.
 
 **Findings.** Each finding is one of:
 
 - _Confirmed defect_: a concrete failure mechanism or acceptance gap with
   supporting evidence such as a cited path, a focused reproduction or a probe.
-  Only these block, under the [review scope](#review-scope) criteria.
+  These block under the [review scope](#review-scope) criteria.
 - _Refuted claim_: a suspected problem the evidence shows does not occur.
 - _Unresolved question_: something the reviewer could not settle. It names the
-  evidence that would settle it; the owner obtains that evidence or treats the
-  affected acceptance as not yet met.
+  evidence that would settle it. It does not block as a defect, but the owner
+  obtains that evidence or treats the affected acceptance as not yet met.
 - _Advisory suggestion_: nonblocking improvement.
 
 Missing evidence is not a pass: an absent result, a skipped check, a timeout or an
@@ -147,8 +147,8 @@ Record the blocker and resume condition under
 when it cannot be resolved in the session.
 
 Use the existing issue and PR description for evidence: the PR states the
-reviewer responsibility and model actually used, the reviewed head and the
-result. No separate receipt or report is required for ordinary work.
+reviewer responsibility, the model and effort requested (and the served model
+where the client reports it), the reviewed head and the result. No separate receipt or report is required for ordinary work.
 
 ## Canonical commands
 
