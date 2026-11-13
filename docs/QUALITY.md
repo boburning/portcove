@@ -388,6 +388,20 @@ defer is left to finish. The re-run is best effort; if it does not happen, use "
 all jobs" on the head's CI run; re-running only failed jobs keeps the draft
 classification. Push, qualification, release and reused plans never defer.
 
+A superseded pull request run stops taking runners before its cancellation arrives.
+The supersede workflow needs a runner of its own to cancel older runs, and under
+queue pressure that can take as long as any other job. The classifier and the fast
+Rust, frontend and catalog producers therefore run
+`.github/actions/stop-if-superseded` right after checkout: on a pull request event it
+reads `refs/pull/<number>/head` from the remote and fails the job with a "Superseded"
+error when that head differs from the head the run validates. The job has done no
+work for that head, so nothing is lost; the failure lands on a commit that is no
+longer that pull request's head and cannot satisfy a required context. CI health
+excludes such an attempt from the first-attempt pass rate, as it does a cancelled one.
+An unreadable or missing head keeps the job running. Push, qualification and release
+callers have no pull request and never stop. `windows-helper-contracts` keeps its
+fixed admitted step list and is left to the supersede workflow.
+
 Retain failures, diagnose the smallest useful reproduction, and repeat only
 invalidated obligations. Preserve assertions, coverage, cleanup and finite
 termination; an unchanged later pass does not establish a causal repair.

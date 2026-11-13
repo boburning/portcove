@@ -5,6 +5,7 @@ function required<T>(value: T | null | undefined): T {
 }
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   collectHistory,
@@ -12,6 +13,7 @@ import {
   renderReport,
   summarizeAttempt,
   summarizeHistory,
+  supersededStopStep,
 } from "./ci-health.mts";
 import { localDeveloperCredential } from "./github-cli.mts";
 import { buildWorkflowProvenance } from "./workflow-provenance.mts";
@@ -715,4 +717,27 @@ void test("nullable provider links and old artifacts preserve unknown provenance
     assert.equal(required(result.jobs[0]).url, null);
     assert.deepEqual(result.provenance, { status: "unknown", reason: expected });
   }
+});
+
+void test("first-attempt pass rate excludes attempts that stopped because a newer head superseded them", () => {
+  const stopped = summarizeAttempt(run({ id: 4, conclusion: "failure" }), [
+    job({
+      conclusion: "failure",
+      steps: [
+        {
+          name: supersededStopStep,
+          status: "completed",
+          conclusion: "failure",
+        },
+      ],
+    }),
+  ]);
+  const summary = summarizeHistory([
+    attempt({ id: 1 }),
+    attempt({ id: 2, conclusion: "failure" }),
+    stopped,
+  ]);
+  assert.deepEqual(summary.firstAttemptPass, { decided: 2, passed: 1, rate: 0.5 });
+  const workflow = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+  assert.ok(workflow.includes(`- name: ${supersededStopStep}\n`));
 });
