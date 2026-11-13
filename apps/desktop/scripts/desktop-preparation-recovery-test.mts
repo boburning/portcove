@@ -636,7 +636,7 @@ export async function interruptedPreparationScenario({
       "Setup working folder to delete",
       privatePath,
       "Original installation preserved",
-      "Registered source preserved",
+      "Original game files preserved",
       "Saved data preserved",
       "Backups preserved",
       "Logs preserved",
