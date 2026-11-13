@@ -45,12 +45,14 @@ it("saves the player's own key without ever showing it back, then removes it", a
   expect(save).toHaveBeenCalledWith("0123456789abcdef0123456789abcdef");
   await vi.waitFor(() => expect(container.textContent).toContain("key is saved on this device"));
   expect(container.querySelector("#steamgriddb-api-key")).toBeNull();
+  await vi.waitFor(() => expect(document.activeElement?.textContent).toBe("Remove key"));
   expect(container.innerHTML).not.toContain("0123456789abcdef");
   await act(async () => buttonNamed("Remove key")!.click());
   expect(clear).toHaveBeenCalled();
   await vi.waitFor(() =>
     expect(container.textContent).toContain("Images you already chose stay in your library"),
   );
+  await vi.waitFor(() => expect(document.activeElement?.id).toBe("steamgriddb-api-key"));
 });
 
 it("states a secure-store problem without exposing input it could not save", async () => {

@@ -15,6 +15,22 @@ use serde::{Deserialize, Serialize};
 use super::DestinationArtworkRole;
 use crate::{PortcoveError, Result};
 
+/// Where a player creates their own key; the only fixed SteamGridDB page Desktop opens.
+pub const STEAMGRIDDB_KEY_PREFERENCES_URL: &str =
+    "https://www.steamgriddb.com/profile/preferences/api";
+
+/// The public SteamGridDB page that credits a stored provider image.
+pub fn steamgriddb_credit_url(attribution: &crate::ArtworkAttribution) -> String {
+    let collection = match attribution.role {
+        DestinationArtworkRole::HeroBanner => "hero",
+        DestinationArtworkRole::PortraitCover | DestinationArtworkRole::LandscapeCover => "grid",
+    };
+    format!(
+        "https://www.steamgriddb.com/{collection}/{}",
+        attribution.asset_id
+    )
+}
+
 /// The only origin that ever receives the player's key.
 pub const STEAMGRIDDB_API_ORIGIN: &str = "https://www.steamgriddb.com/api/v2";
 /// Image and thumbnail URLs are accepted only from this HTTPS host.
@@ -548,7 +564,13 @@ impl HttpTransport {
         // No `bearer_auth`: the image host never receives the player's key.
         let response = http_client()?
             .get(url)
-            .timeout(Duration::from_secs(60))
+            // Previews are small and share capacity with catalog covers, so a
+            // stalled CDN gives them up sooner than a chosen original.
+            .timeout(if max_bytes <= MAX_PREVIEW_BYTES as u64 {
+                Duration::from_secs(15)
+            } else {
+                Duration::from_secs(60)
+            })
             .send()
             .map_err(|_| PortcoveError::from(SteamGridDbFailure::Unavailable))?;
         let status = response.status().as_u16();

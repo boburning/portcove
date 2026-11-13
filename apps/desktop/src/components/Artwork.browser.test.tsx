@@ -830,6 +830,8 @@ describe("SteamGridDB picker", () => {
     await vi.waitFor(() => expect(container.textContent).toContain("Example Game (verified)"));
     await click("cover", "Example Game (verified)");
     expect(list).toHaveBeenCalledWith(42, "portrait_cover");
+    // Choosing a match removes the list; focus moves to the way back.
+    await vi.waitFor(() => expect(document.activeElement?.textContent).toBe("Back to matches"));
     await vi.waitFor(() =>
       expect(container.querySelectorAll('[aria-label^="Use image by"]').length).toBe(12),
     );
@@ -914,6 +916,7 @@ describe("SteamGridDB picker", () => {
     await vi.waitFor(() => expect(container.textContent).toContain("Preview unavailable"));
     expect(preview).toHaveBeenCalledTimes(1);
     await click("cover", "Back to matches");
+    await vi.waitFor(() => expect(document.activeElement?.textContent).toBe("Preview Game"));
     await click("cover", "Preview Game");
     await vi.waitFor(() => expect(container.textContent).toContain("Preview unavailable"));
     expect(preview).toHaveBeenCalledTimes(1);

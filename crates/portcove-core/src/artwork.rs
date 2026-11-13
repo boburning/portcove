@@ -22,9 +22,10 @@ pub use destination::{
 };
 pub use igdb_cache::IGDB_ARTWORK_WORK_LIMIT;
 pub use steamgriddb::{
-    STEAMGRIDDB_API_ORIGIN, SteamGridDbAuthor, SteamGridDbCandidate, SteamGridDbFailure,
-    SteamGridDbGame, SteamGridDbKeyStatus, clear_steamgriddb_key, search_steamgriddb_games,
-    set_steamgriddb_key, steamgriddb_candidates, steamgriddb_key_status, steamgriddb_preview,
+    STEAMGRIDDB_API_ORIGIN, STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbAuthor,
+    SteamGridDbCandidate, SteamGridDbFailure, SteamGridDbGame, SteamGridDbKeyStatus,
+    clear_steamgriddb_key, search_steamgriddb_games, set_steamgriddb_key, steamgriddb_candidates,
+    steamgriddb_credit_url, steamgriddb_key_status, steamgriddb_preview,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

@@ -87,6 +87,16 @@ export function SteamGridDbPicker({
   const [blockedFor, setBlockedFor] = useState(0);
   const blocked = blockedFor > 0;
   const request = useRef(0);
+  // Steps that remove the focused control move focus to the next useful one.
+  const pendingFocus = useRef<"images" | "matches">(undefined);
+  const backButton = useRef<HTMLButtonElement>(null);
+  const matchList = useRef<HTMLUListElement>(null);
+  useEffect(() => {
+    if (pendingFocus.current === "images" && game) backButton.current?.focus();
+    if (pendingFocus.current === "matches" && !game)
+      matchList.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    pendingFocus.current = undefined;
+  }, [game]);
   useEffect(() => {
     if (!blocked) return;
     const timer = setTimeout(() => setBlockedFor(0), blockedFor);
@@ -133,6 +143,7 @@ export function SteamGridDbPicker({
       },
     );
   const pickGame = (selected: SteamGridDbGame) => {
+    pendingFocus.current = "images";
     setGame(selected);
     setCandidates(undefined);
     setShown(PAGE);
@@ -188,7 +199,7 @@ export function SteamGridDbPicker({
           <p className="text-[length:var(--text-sm)] text-[var(--color-text-muted)]">
             Matches are suggestions. Choose the game whose artwork you want.
           </p>
-          <ul className="grid gap-1">
+          <ul ref={matchList} className="grid gap-1">
             {games.map((match) => (
               <li key={match.id}>
                 <Button data-focusable variant="ghost" size="sm" onClick={() => pickGame(match)}>
@@ -205,12 +216,14 @@ export function SteamGridDbPicker({
           <div className="flex items-center justify-between gap-2">
             <strong>{game.name}</strong>
             <Button
+              ref={backButton}
               data-focusable
               variant="link"
               size="sm"
               onClick={() => {
                 // Supersede any listing still in flight for the abandoned game.
                 request.current += 1;
+                pendingFocus.current = "matches";
                 setLoading(false);
                 setError(undefined);
                 setGame(undefined);

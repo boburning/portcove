@@ -3153,3 +3153,54 @@ fn schema_eight_library_import_restores_provider_attribution_and_origins() {
         vec![chosen.selection.unwrap().sha256]
     );
 }
+
+#[test]
+fn only_stored_steamgriddb_credits_and_the_key_page_are_reviewed_links() {
+    use crate::DestinationArtworkRole as Role;
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("library");
+    let service = open_service(&root);
+    let port = service.artwork_port("zelda64-recomp").unwrap();
+    assert!(
+        service
+            .is_reviewed_resource_url(crate::STEAMGRIDDB_KEY_PREFERENCES_URL)
+            .unwrap()
+    );
+    assert!(
+        !service
+            .is_reviewed_resource_url("https://www.steamgriddb.com/grid/7")
+            .unwrap()
+    );
+    let chosen = service
+        .choose_fetched_artwork(
+            &port,
+            ArtworkSlot::Cover,
+            42,
+            provider_candidate(
+                7,
+                Role::PortraitCover,
+                12,
+                24,
+                "image/png",
+                encoded(12, 24, image::ImageFormat::Png),
+            ),
+            0,
+        )
+        .unwrap();
+    let credit = crate::steamgriddb_credit_url(&chosen.attribution[0]);
+    assert_eq!(credit, "https://www.steamgriddb.com/grid/7");
+    assert!(service.is_reviewed_resource_url(&credit).unwrap());
+    for refused in [
+        "https://www.steamgriddb.com/hero/7",
+        "https://www.steamgriddb.com/grid/8",
+        "https://www.steamgriddb.com/grid/7?x=1",
+        "https://www.steamgriddb.com/grid/07",
+        "https://www.steamgriddb.com.evil.example/grid/7",
+        "https://www.steamgriddb.com/profile/preferences/api/../../x",
+    ] {
+        assert!(
+            !service.is_reviewed_resource_url(refused).unwrap(),
+            "{refused}"
+        );
+    }
+}

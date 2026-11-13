@@ -19,6 +19,15 @@ export function SteamGridDbSettings() {
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
   const mounted = useRef(true);
+  // Saving or removing replaces the focused control; focus follows the change.
+  const keyInput = useRef<HTMLInputElement>(null);
+  const removeButton = useRef<HTMLButtonElement>(null);
+  const focusAfter = useRef(false);
+  useEffect(() => {
+    if (!focusAfter.current || status === undefined) return;
+    focusAfter.current = false;
+    (status.configured ? removeButton.current : keyInput.current)?.focus();
+  }, [status]);
   useEffect(() => {
     mounted.current = true;
     desktopApi
@@ -36,6 +45,7 @@ export function SteamGridDbSettings() {
     try {
       const next = await action();
       if (!mounted.current) return;
+      focusAfter.current = true;
       setStatus(next);
       setKey("");
       setMessage(done);
@@ -66,6 +76,7 @@ export function SteamGridDbSettings() {
           </label>
           <div className="mt-2 flex gap-2">
             <Input
+              ref={keyInput}
               id="steamgriddb-api-key"
               data-focusable
               className="flex-1"
@@ -101,6 +112,7 @@ export function SteamGridDbSettings() {
       )}
       {status?.configured && (
         <Button
+          ref={removeButton}
           data-focusable
           variant="outline"
           size="sm"
