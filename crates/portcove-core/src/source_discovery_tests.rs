@@ -6741,3 +6741,30 @@ fn scan_matches_are_paged_in_order_by_folder_and_refuse_a_replaced_scan() {
         ErrorCode::Conflict
     );
 }
+
+#[test]
+fn a_busy_database_keeps_a_continuation_but_other_storage_faults_restart() {
+    let failure = |code: rusqlite::ffi::ErrorCode, extended: i32| {
+        rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error {
+                code,
+                extended_code: extended,
+            },
+            None,
+        )
+    };
+    for (code, extended) in [
+        (rusqlite::ffi::ErrorCode::DatabaseBusy, 5),
+        (rusqlite::ffi::ErrorCode::DatabaseLocked, 6),
+    ] {
+        let error = super::storage_read(failure(code, extended));
+        assert_eq!(
+            error.details.get(super::RETRY_DETAIL).map(String::as_str),
+            Some("storage")
+        );
+    }
+    let corrupt = super::storage_read(failure(rusqlite::ffi::ErrorCode::DatabaseCorrupt, 11));
+    assert!(!corrupt.details.contains_key(super::RETRY_DETAIL));
+    let missing = super::storage_read(rusqlite::Error::QueryReturnedNoRows);
+    assert!(!missing.details.contains_key(super::RETRY_DETAIL));
+}

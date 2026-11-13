@@ -719,6 +719,8 @@ fn build_game_file_scan_with_registry_events(
         match validated {
             Ok(continuation) => Some(continuation),
             Err(error) if error.code == crate::ErrorCode::Cancelled => return Err(error),
+            // The saved scan stays resumable; nothing is published.
+            Err(error) if error.details.contains_key(RETRY_DETAIL) => return Err(error),
             Err(error) => {
                 let mut invalidated = snapshot.clone();
                 invalidated.continuation = None;
@@ -1282,6 +1284,28 @@ fn validate_continuation(
     Ok(cursor)
 }
 
+/// A busy or locked library database is a passing condition, not evidence
+/// that the stored matches changed, so the continuation is kept for the next
+/// attempt. Any other storage failure still restarts the scan, so a lasting
+/// fault can never block it.
+fn storage_read(error: rusqlite::Error) -> PortcoveError {
+    let busy = matches!(
+        error.sqlite_error_code(),
+        Some(rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked)
+    );
+    let converted = PortcoveError::from(error);
+    if busy {
+        PortcoveError::state("the library database is busy; scan again to continue")
+            .detail("cause", converted.message)
+            .detail(RETRY_DETAIL, "storage")
+    } else {
+        converted
+    }
+}
+
+/// Marks a validation failure that leaves the continuation in place.
+const RETRY_DETAIL: &str = "retry";
+
 /// The stored rows must be exactly the ones the continuation was published
 /// with: contiguous ordinals per kind, the recorded counts and bytes, and the
 /// chained digest. Anything else restarts the scan; the prior report and its
@@ -1294,22 +1318,26 @@ fn validate_match_rows(
     operation: &crate::OperationCoordinator,
 ) -> Result<()> {
     let connection = library.connection()?;
-    let foreign: i64 = connection.query_row(
-        "SELECT count(*) FROM game_file_scan_matches WHERE scan_id<>?1",
-        [&summary.scan_id],
-        |row| row.get(0),
-    )?;
-    let mut statement = connection.prepare(
-        "SELECT kind,ordinal,profile_id,path,path_key,batch,record_json
+    let foreign: i64 = connection
+        .query_row(
+            "SELECT count(*) FROM game_file_scan_matches WHERE scan_id<>?1",
+            [&summary.scan_id],
+            |row| row.get(0),
+        )
+        .map_err(storage_read)?;
+    let mut statement = connection
+        .prepare(
+            "SELECT kind,ordinal,profile_id,path,path_key,batch,record_json
          FROM game_file_scan_matches WHERE scan_id=?1 ORDER BY kind,ordinal",
-    )?;
-    let mut rows = statement.query([&summary.scan_id])?;
+        )
+        .map_err(storage_read)?;
+    let mut rows = statement.query([&summary.scan_id]).map_err(storage_read)?;
     let mut next = [0u32; 2];
     let mut bytes = 0u64;
     let mut chains = [EMPTY_MATCH_CHAIN.to_owned(), EMPTY_MATCH_CHAIN.to_owned()];
     let mut seen = 0u64;
     let mut valid = foreign == 0;
-    while valid && let Some(row) = rows.next()? {
+    while valid && let Some(row) = rows.next().map_err(storage_read)? {
         if seen.is_multiple_of(1024) {
             operation.checkpoint()?;
         }
