@@ -20,15 +20,15 @@ const MAXIMUM_REVIEWED_PATHS: usize = 4_096;
 const REPORTED_NAMES: usize = 3;
 pub(crate) const NATIVE_CAPABILITY: u32 = 18;
 pub(crate) const EXECUTABLE_GRANT_CAPABILITY: u32 = 29;
-pub(crate) const UNIX_PROGRAMS_CAPABILITY: u32 = 30;
+pub(crate) const MACOS_LIBRARY_FILTER_CAPABILITY: u32 = 30;
 
 pub(crate) fn layout_capability(port: &PortDefinition) -> u32 {
     if port
         .reviewed_package_layouts
         .values()
-        .any(|layout| layout.ignore_verified_unix_libraries)
+        .any(|layout| layout.ignore_verified_macos_libraries)
     {
-        UNIX_PROGRAMS_CAPABILITY
+        MACOS_LIBRARY_FILTER_CAPABILITY
     } else {
         NATIVE_CAPABILITY
     }
@@ -71,17 +71,19 @@ pub fn inspect_package_archive(
     )
 }
 
-/// Inspect a verified archive with the optional Unix program-only layout policy.
+/// Inspect a verified archive with the optional macOS shared library filter.
 pub fn inspect_package_archive_with_program_filter(
     source: &Path,
     platform: Platform,
     expected_size: u64,
     expected_sha256: &str,
-    ignore_verified_unix_libraries: bool,
+    ignore_verified_macos_libraries: bool,
 ) -> Result<ReviewedPackageLayout> {
-    if ignore_verified_unix_libraries && platform == Platform::WindowsX86_64 {
+    if ignore_verified_macos_libraries
+        && !matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64)
+    {
         return Err(PortcoveError::usage(
-            "the Unix program filter requires a Unix platform",
+            "the shared library filter requires macOS",
         ));
     }
     let name = source
@@ -148,7 +150,7 @@ pub fn inspect_package_archive_with_program_filter(
     let layout = observe_root(
         look_through_wrapper(&payload)?,
         platform,
-        ignore_verified_unix_libraries,
+        ignore_verified_macos_libraries,
     )?;
     if !valid_layout(&layout) {
         return Err(PortcoveError::verification(
@@ -176,9 +178,9 @@ fn valid_layout(layout: &ReviewedPackageLayout) -> bool {
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     for (platform, layout) in &port.reviewed_package_layouts {
         if !port.platforms.contains(platform)
-            || (layout.ignore_verified_unix_libraries
+            || (layout.ignore_verified_macos_libraries
                 && (port.adapter != crate::AdapterKind::NativePortable
-                    || *platform == Platform::WindowsX86_64))
+                    || !matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64)))
             || !valid_layout(layout)
         {
             return Err(PortcoveError::verification(format!(
@@ -203,7 +205,7 @@ pub(crate) fn require_reviewed_layout(
     } else {
         look_through_wrapper(payload_root)?
     };
-    let observed = observe_root(root, platform, reviewed.ignore_verified_unix_libraries)?;
+    let observed = observe_root(root, platform, reviewed.ignore_verified_macos_libraries)?;
     match compare(reviewed, &observed) {
         None => Ok(()),
         Some(drift) => Err(PortcoveError::unsupported(drift.player_reason())),
@@ -237,7 +239,7 @@ pub(crate) fn native_mac_bundle_root(
 fn observe_root(
     root: PathBuf,
     platform: Platform,
-    ignore_verified_unix_libraries: bool,
+    ignore_verified_macos_libraries: bool,
 ) -> Result<ReviewedPackageLayout> {
     let mut directories = BTreeSet::new();
     for entry in fs::read_dir(&root)? {
@@ -263,7 +265,7 @@ fn observe_root(
             if file_type.is_dir() {
                 pending.push((entry.path(), format!("{relative}/")));
             } else if file_type.is_file()
-                && is_executable(&entry, platform, ignore_verified_unix_libraries)?
+                && is_executable(&entry, platform, ignore_verified_macos_libraries)?
             {
                 // Location matters: a launcher moved into a subfolder or a second
                 // program with the same name is a different layout.
@@ -272,7 +274,7 @@ fn observe_root(
         }
     }
     Ok(ReviewedPackageLayout {
-        ignore_verified_unix_libraries,
+        ignore_verified_macos_libraries,
         directories: directories.into_iter().collect(),
         executables: executables.into_iter().collect(),
     })
@@ -300,7 +302,7 @@ fn lowercase_name(name: &std::ffi::OsStr) -> String {
 fn is_executable(
     entry: &fs::DirEntry,
     platform: Platform,
-    ignore_verified_unix_libraries: bool,
+    ignore_verified_macos_libraries: bool,
 ) -> Result<bool> {
     let name = lowercase_name(&entry.file_name());
     let extension = Path::new(&name)
@@ -316,28 +318,14 @@ fn is_executable(
     {
         return Ok(false);
     }
-    if !ignore_verified_unix_libraries {
+    if !ignore_verified_macos_libraries {
         return Ok(true);
     }
-    let linux_library_name = name.rsplit_once(".so").is_some_and(|(base, suffix)| {
-        !base.is_empty()
-            && (suffix.is_empty()
-                || suffix.strip_prefix('.').is_some_and(|version| {
-                    version
-                        .split('.')
-                        .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()))
-                }))
-    });
-    let verified_library = match platform {
-        Platform::LinuxX86_64 if linux_library_name => {
-            let mut file = crate::external_runtime::open_single_link_file(&entry.path())?;
-            is_elf_library(&mut file)?
-        }
-        Platform::MacosX86_64 | Platform::MacosAarch64 if extension == Some("dylib") => {
-            let mut file = crate::external_runtime::open_single_link_file(&entry.path())?;
-            is_macho_library(&mut file)?
-        }
-        _ => false,
+    let verified_library = if extension == Some("dylib") {
+        let mut file = crate::external_runtime::open_single_link_file(&entry.path())?;
+        is_macho_library(&mut file)?
+    } else {
+        false
     };
     Ok(!verified_library)
 }
@@ -350,106 +338,6 @@ fn read_header_at<const N: usize>(file: &mut fs::File, offset: u64) -> io::Resul
         Err(error) if error.kind() == io::ErrorKind::UnexpectedEof => Ok(None),
         Err(error) => Err(error),
     }
-}
-
-fn is_elf_library(file: &mut fs::File) -> io::Result<bool> {
-    let Some(header) = read_header_at::<64>(file, 0)? else {
-        return Ok(false);
-    };
-    if !header.starts_with(b"\x7fELF\x02\x01\x01") || header[16..20] != [3, 0, 62, 0] {
-        return Ok(false);
-    }
-    let word = |bytes: &[u8]| u64::from_le_bytes(bytes.try_into().unwrap());
-    let count = u16::from_le_bytes([header[56], header[57]]);
-    let start = word(&header[32..40]);
-    let length = file.metadata()?.len();
-    if !(1..=64).contains(&count)
-        || header[54..56] != [56, 0]
-        || start < 64
-        || start
-            .checked_add(u64::from(count) * 56)
-            .is_none_or(|end| end > length)
-    {
-        return Ok(false);
-    }
-    let mut dynamic = None;
-    let mut loads = Vec::new();
-    for index in 0..u64::from(count) {
-        let Some(program) = read_header_at::<56>(file, start + index * 56)? else {
-            return Ok(false);
-        };
-        match u32::from_le_bytes(program[..4].try_into().unwrap()) {
-            1 => loads.push((
-                word(&program[16..24]),
-                word(&program[8..16]),
-                word(&program[32..40]),
-            )),
-            3 => return Ok(false), // PT_INTERP identifies a program even if renamed.
-            2 if dynamic.is_none() => {
-                dynamic = Some((word(&program[8..16]), word(&program[32..40])))
-            }
-            2 => return Ok(false),
-            _ => {}
-        }
-    }
-    let Some((offset, size)) = dynamic else {
-        return Ok(false);
-    };
-    if !(16..=16 * 256).contains(&size)
-        || size % 16 != 0
-        || offset.checked_add(size).is_none_or(|end| end > length)
-    {
-        return Ok(false);
-    }
-    let mut soname = None;
-    let mut strings = None;
-    let mut strings_size = None;
-    let mut terminated = false;
-    for index in 0..size / 16 {
-        let Some(entry) = read_header_at::<16>(file, offset + index * 16)? else {
-            return Ok(false);
-        };
-        match word(&entry[..8]) {
-            0 => {
-                terminated = true;
-                break;
-            }
-            5 => strings = Some(word(&entry[8..])),
-            10 => strings_size = Some(word(&entry[8..])),
-            14 => soname = Some(word(&entry[8..])),
-            0x6fff_fffb if word(&entry[8..]) & 0x0800_0000 != 0 => return Ok(false), // DF_1_PIE
-            _ => {}
-        }
-    }
-    let (true, Some(strings), Some(strings_size), Some(soname)) =
-        (terminated, strings, strings_size, soname)
-    else {
-        return Ok(false);
-    };
-    if soname == 0 || soname >= strings_size {
-        return Ok(false);
-    }
-    for (address, offset, size) in loads {
-        let Some(relative) = strings.checked_sub(address) else {
-            continue;
-        };
-        if relative
-            .checked_add(strings_size)
-            .is_none_or(|end| end > size)
-            || offset.checked_add(size).is_none_or(|end| end > length)
-        {
-            continue;
-        }
-        let count = (strings_size - soname).min(256) as usize;
-        let mut name = [0; 256];
-        file.seek(SeekFrom::Start(offset + relative + soname))?;
-        file.read_exact(&mut name[..count])?;
-        return Ok(name[..count]
-            .iter()
-            .position(|&byte| byte == 0)
-            .is_some_and(|end| end > 0));
-    }
-    Ok(false)
 }
 
 fn is_macho_library(file: &mut fs::File) -> io::Result<bool> {
@@ -659,45 +547,9 @@ mod tests {
         observe(package.path(), Platform::WindowsX86_64).unwrap()
     }
 
-    #[test]
-    fn elf_library_requires_soname_without_program_flags() {
-        let temporary = tempfile::tempdir().unwrap();
-        let path = temporary.path().join("libgame.so.1");
-        let mut bytes = [0_u8; 320];
-        bytes[..7].copy_from_slice(b"\x7fELF\x02\x01\x01");
-        bytes[16..20].copy_from_slice(&[3, 0, 62, 0]);
-        bytes[32] = 64;
-        bytes[54] = 56;
-        bytes[56] = 3;
-        bytes[64] = 2;
-        bytes[72] = 240;
-        bytes[96] = 64;
-        bytes[120] = 1;
-        bytes[152..160].copy_from_slice(&320_u64.to_le_bytes());
-        bytes[240] = 14;
-        bytes[248] = 1;
-        bytes[256..264].copy_from_slice(&5_u64.to_le_bytes());
-        bytes[264..272].copy_from_slice(&304_u64.to_le_bytes());
-        bytes[272..280].copy_from_slice(&10_u64.to_le_bytes());
-        bytes[280] = 16;
-        bytes[305..317].copy_from_slice(b"libgame.so.1");
-        let check = |bytes: &[u8]| {
-            fs::write(&path, bytes).unwrap();
-            is_elf_library(&mut fs::File::open(&path).unwrap()).unwrap()
-        };
-        assert!(check(&bytes));
-        bytes[176] = 3; // PT_INTERP
-        assert!(!check(&bytes));
-        bytes[176] = 0;
-        bytes[248] = 0; // Empty SONAME.
-        assert!(!check(&bytes));
-        bytes[248] = 1;
-        assert!(!check(&bytes[..300]));
-    }
-
     #[cfg(unix)]
     #[test]
-    fn verified_unix_libraries_may_change_names_but_programs_still_drift() {
+    fn verified_macos_libraries_may_change_names_but_programs_still_drift() {
         let package = tempfile::tempdir().unwrap();
         let root = package.path().to_path_buf();
         let platform = Platform::MacosAarch64;
@@ -772,7 +624,7 @@ mod tests {
         assert_eq!(
             reviewed(),
             ReviewedPackageLayout {
-                ignore_verified_unix_libraries: false,
+                ignore_verified_macos_libraries: false,
                 directories: vec!["data".to_owned(), "lib".to_owned()],
                 executables: vec!["game.exe".to_owned()],
             }

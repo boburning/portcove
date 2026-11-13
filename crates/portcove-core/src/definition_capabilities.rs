@@ -288,7 +288,7 @@ impl EngineTemplateCapability {
         });
         supported.push(Self {
             template: AdapterKind::NativePortable,
-            contract_version: crate::package_layout::UNIX_PROGRAMS_CAPABILITY,
+            contract_version: crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY,
         });
         supported
     }

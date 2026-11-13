@@ -45623,14 +45623,6 @@
         }
       },
       "reviewed_package_layouts": {
-        "linux-x86-64": {
-          "ignore_verified_unix_libraries": true,
-          "directories": [],
-          "executables": [
-            "gpl-2.0.txt",
-            "reflectionhle"
-          ]
-        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -47115,14 +47107,6 @@
         }
       },
       "reviewed_package_layouts": {
-        "linux-x86-64": {
-          "ignore_verified_unix_libraries": true,
-          "directories": [],
-          "executables": [
-            "gpl-2.0.txt",
-            "reflectionhle"
-          ]
-        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -53162,14 +53146,6 @@
         }
       },
       "reviewed_package_layouts": {
-        "linux-x86-64": {
-          "ignore_verified_unix_libraries": true,
-          "directories": [],
-          "executables": [
-            "gpl-2.0.txt",
-            "reflectionhle"
-          ]
-        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -56216,7 +56192,7 @@
           ]
         },
         "macos-x86-64": {
-          "ignore_verified_unix_libraries": true,
+          "ignore_verified_macos_libraries": true,
           "directories": [
             "contents"
           ],
@@ -56225,7 +56201,7 @@
           ]
         },
         "macos-aarch64": {
-          "ignore_verified_unix_libraries": true,
+          "ignore_verified_macos_libraries": true,
           "directories": [
             "contents"
           ],
@@ -60074,14 +60050,6 @@
         }
       },
       "reviewed_package_layouts": {
-        "linux-x86-64": {
-          "ignore_verified_unix_libraries": true,
-          "directories": [],
-          "executables": [
-            "gpl-2.0.txt",
-            "reflectionhle"
-          ]
-        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -61416,14 +61384,6 @@
         }
       },
       "reviewed_package_layouts": {
-        "linux-x86-64": {
-          "ignore_verified_unix_libraries": true,
-          "directories": [],
-          "executables": [
-            "gpl-2.0.txt",
-            "reflectionhle"
-          ]
-        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -62010,14 +61970,6 @@
         }
       },
       "reviewed_package_layouts": {
-        "linux-x86-64": {
-          "ignore_verified_unix_libraries": true,
-          "directories": [],
-          "executables": [
-            "gpl-2.0.txt",
-            "reflectionhle"
-          ]
-        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -62342,14 +62294,6 @@
         }
       },
       "reviewed_package_layouts": {
-        "linux-x86-64": {
-          "ignore_verified_unix_libraries": true,
-          "directories": [],
-          "executables": [
-            "gpl-2.0.txt",
-            "reflectionhle"
-          ]
-        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -62674,14 +62618,6 @@
         }
       },
       "reviewed_package_layouts": {
-        "linux-x86-64": {
-          "ignore_verified_unix_libraries": true,
-          "directories": [],
-          "executables": [
-            "gpl-2.0.txt",
-            "reflectionhle"
-          ]
-        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -63819,14 +63755,6 @@
         }
       },
       "reviewed_package_layouts": {
-        "linux-x86-64": {
-          "ignore_verified_unix_libraries": true,
-          "directories": [],
-          "executables": [
-            "gpl-2.0.txt",
-            "reflectionhle"
-          ]
-        },
         "windows-x86-64": {
           "directories": [],
           "executables": [

@@ -331,7 +331,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 platform,
                 size,
                 sha256,
-                ignore_verified_unix_libraries,
+                ignore_verified_macos_libraries,
             },
     } = &cli.command
     {
@@ -345,7 +345,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 platform,
                 *size,
                 sha256,
-                *ignore_verified_unix_libraries,
+                *ignore_verified_macos_libraries,
             )?,
             |layout| {
                 format!(

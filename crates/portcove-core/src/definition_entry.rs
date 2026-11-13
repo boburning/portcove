@@ -170,7 +170,7 @@ impl DefinitionContentIndex {
         let adapter = serde_json::to_value(port.adapter)?;
         if (!retained && !port.reviewed_package_layouts.is_empty())
             || crate::package_layout::layout_capability(&port)
-                == crate::package_layout::UNIX_PROGRAMS_CAPABILITY
+                == crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY
         {
             let minimum = crate::package_layout::layout_capability(&port);
             crate::package_layout::validate(&port)?;

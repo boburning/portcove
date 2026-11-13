@@ -381,13 +381,8 @@ fn openomf_appimage_requires_27_in_fresh_and_retained_readers() {
 #[test]
 fn native_mac_bundle_tar_xz_requires_version_26_and_reviewed_bundle() {
     let catalog = crate::Catalog::embedded().unwrap();
-    let mut port = catalog
-        .port("wolfenstein-3d-reflectionhle")
-        .unwrap()
-        .clone();
-    port.reviewed_package_layouts
-        .remove(&crate::Platform::LinuxX86_64);
-    let mut entry = entry_for_port(&port);
+    let port = catalog.port("wolfenstein-3d-reflectionhle").unwrap();
+    let mut entry = entry_for_port(port);
     for minimum in [25, 26] {
         entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
         entry["required_capabilities"][0]["maximum_version"] = json!(minimum);
@@ -567,7 +562,7 @@ fn reviewed_unix_layout_with_executable_grant_requires_version_29() {
 }
 
 #[test]
-fn unix_library_filter_requires_native_30_for_fresh_and_retained_reads() {
+fn macos_library_filter_requires_native_30_for_fresh_and_retained_reads() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("openrct2-openrct2").unwrap();
     let mut entry = entry_for_port(port);
@@ -595,7 +590,7 @@ fn reviewed_package_layouts_require_a_capable_native_reader() {
     port.reviewed_package_layouts.insert(
         port.platforms[0],
         crate::ReviewedPackageLayout {
-            ignore_verified_unix_libraries: false,
+            ignore_verified_macos_libraries: false,
             directories: vec![],
             executables: vec!["fixture.exe".to_owned()],
         },
@@ -1546,9 +1541,9 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             // a later chain that matched first would silently skip the requirement.
             30
         } else if crate::package_layout::layout_capability(port)
-            == crate::package_layout::UNIX_PROGRAMS_CAPABILITY
+            == crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY
         {
-            crate::package_layout::UNIX_PROGRAMS_CAPABILITY
+            crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY
         } else if port.linux_portable_data_directory.is_some() {
             crate::native_portable_data::NATIVE_CAPABILITY
         } else if !port.release.tar_xz_platforms.is_empty() {

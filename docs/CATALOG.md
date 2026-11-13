@@ -1757,14 +1757,14 @@ compatible release; plain data files, documentation and libraries may change. A
 different layout is refused with a player-facing reason naming the new or missing
 programs and folders, leaves the installed copy untouched, and uses the existing
 unsupported-acquisition surface, not a new hold authority. Platforms without a
-fingerprint keep today's behavior. Unix layouts may opt into `ignore_verified_unix_libraries` when an upstream
+fingerprint keep today's behavior. macOS layouts may opt into `ignore_verified_macos_libraries` when an upstream
 archive stores patch-versioned shared libraries with execute permission. The
 classifier excludes a matching library filename only when bounded native header
 inspection identifies it as a shared library. Executable-mode files with an
 unknown or contradictory type still count, including license text packaged
 with execute permission. Existing fingerprints continue to use their declared
 rules. The matching authoring observation is `catalog inspect-package-layout
---ignore-verified-unix-libraries`.
+--ignore-verified-macos-libraries`.
 
 Independent definitions using this gate
 require [NativePortable version 18](DEFINITION-DELIVERY.md) so readers that
