@@ -53839,6 +53839,16 @@
           "game_slug": "blood",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "soundfonts"
+          ],
+          "executables": [
+            "raze.exe"
+          ]
+        }
       }
     },
     {
@@ -57915,6 +57925,16 @@
           "image_sha256": "8c04ef5da0d94761f148f784e5887ad8fe314a7dbea0a03320bd5d5cac971abb",
           "game_slug": "duke-nukem-3d",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "soundfonts"
+          ],
+          "executables": [
+            "raze.exe"
+          ]
         }
       }
     },
@@ -62933,6 +62953,16 @@
           "game_slug": "nam",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "soundfonts"
+          ],
+          "executables": [
+            "raze.exe"
+          ]
+        }
       }
     },
     {
@@ -63517,6 +63547,40 @@
           "image_sha256": "c0abeae6419dafca83fec6b39ec5dcee2bf5bcf8b48d718e6e835e7dd7a5d254",
           "game_slug": "x-com-apocalypse",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "data",
+            "generic",
+            "iconengines",
+            "imageformats",
+            "networkinformation",
+            "platforms",
+            "styles",
+            "tls",
+            "translations"
+          ],
+          "executables": [
+            "openapoc.exe",
+            "openapoc_dataextractor.exe",
+            "openapoc_gamestateserializegen.exe",
+            "openapoc_imagedump.exe",
+            "openapoc_launcher.exe",
+            "openapoc_luagamestatesupportgen.exe",
+            "openapoc_serializationtool.exe",
+            "test_backtrace.exe",
+            "test_colour.exe",
+            "test_images.exe",
+            "test_lab_assignment.exe",
+            "test_rect.exe",
+            "test_rng.exe",
+            "test_serialize.exe",
+            "test_tilemap.exe",
+            "test_unicode.exe",
+            "test_voxel.exe"
+          ]
         }
       }
     },
@@ -65461,6 +65525,16 @@
           "game_slug": "powerslave--1",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "soundfonts"
+          ],
+          "executables": [
+            "raze.exe"
+          ]
+        }
       }
     },
     {
@@ -66057,6 +66131,16 @@
           "image_sha256": "ce6dc5fa7b81ceb247e02f7f54e81290213d429e3882dce43adbaebcf1719bba",
           "game_slug": "redneck-rampage",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "soundfonts"
+          ],
+          "executables": [
+            "raze.exe"
+          ]
         }
       }
     },
@@ -67057,6 +67141,16 @@
           "image_sha256": "cdcb7c96f99239b1a1583900de4a63200ea89a0718acf746798d6ac35cd66529",
           "game_slug": "shadow-warrior",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "soundfonts"
+          ],
+          "executables": [
+            "raze.exe"
+          ]
         }
       }
     },
@@ -71791,6 +71885,16 @@
           "game_slug": "world-war-ii-gi",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "soundfonts"
+          ],
+          "executables": [
+            "raze.exe"
+          ]
+        }
       }
     },
     {
@@ -72095,6 +72199,17 @@
               "title": "Keep your profile and saved games",
               "instruction": "A Portcove-managed Windows install keeps gzdoom_portable.ini, Save, Screenshots and Demos beside the managed player and does not share or import the normal-profile locations described next. GZDoom normally keeps Windows settings in Documents/My Games/GZDoom and saved games in Saved Games/GZDoom. Portable Windows mode uses gzdoom_portable.ini and Save beside the player instead. On Linux, preserve ~/.config/gzdoom. On Mac, preserve its Preferences and Documents data. Keep your actual data locations, original files and mods when updating the upstream runtime."
             }
+          ]
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "fm_banks",
+            "soundfonts"
+          ],
+          "executables": [
+            "gzdoom.exe"
           ]
         }
       }
