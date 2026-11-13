@@ -873,12 +873,8 @@ void test("external recovery is proof-bound and resumes partial release without 
     original.push({ slot, bytes });
   }
   await assert.rejects(
-    Reflect.apply(reconcileExternalCapacity, undefined, [
-      lease.reference,
-      external,
-      undefined,
-      { root },
-    ]),
+    // @ts-expect-error Node callers can omit the required callback.
+    reconcileExternalCapacity(lease.reference, external, undefined, { root }),
     /stopped proof required/,
   );
   await assert.rejects(
