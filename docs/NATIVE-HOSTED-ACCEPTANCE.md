@@ -225,8 +225,9 @@ artwork picking, appearance restart/refresh recovery, and each of the three
 standalone startup-preferences/startup-library/library-switch recovery journeys.
 This preserves the planner's standalone and incompatible-fixture refusals.
 Public `windows-2022` registers WebView2 below the application's floor, so the
-application correctly refuses to start there. With owner approval (2026-11-12,
-#4879), a group whose runtime is below the floor downloads Microsoft's Evergreen
+application correctly refuses to start there. With owner approval (#4879: runtime
+provisioning 2026-11-12; the debugging-port policy and process auditing below
+2026-11-13), a group whose runtime is below the floor downloads Microsoft's Evergreen
 bootstrapper, requires a valid Microsoft Authenticode signature before running it,
 records its digest and the before/after runtime versions, and refuses to continue
 below the floor. Evergreen installs Microsoft's newest runtime, and driver

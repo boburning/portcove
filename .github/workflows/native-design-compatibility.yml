@@ -738,6 +738,8 @@ jobs:
       # start. Update to the serviced Evergreen runtime before bootstrap selects
       # the matching driver. Microsoft's Authenticode signature is verified
       # before execution; Server 2022 remains no supported-baseline claim.
+      # The WebView2 debugging-port policy set below and the process-creation
+      # auditing of the next step were owner-approved on 2026-11-13 for #4879.
       - name: Provision the serviced Evergreen WebView2 runtime
         shell: pwsh
         run: |
