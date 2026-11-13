@@ -3,7 +3,7 @@
   "listing": {
     "id": "alexbeav-valkyrie-profile-recomp",
     "name": "Valkyrie Profile / Alexbeav PSXRecomp",
-    "summary": "Build and play Valkyrie Profile on Windows or Linux with your own matching USA two-disc set and retail SCPH-1001 BIOS.",
+    "summary": "Build and play Valkyrie Profile on Windows or Linux with your own matching USA two-disc set and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Valkyrie Profile",
     "project_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp",
     "issue_number": 491,

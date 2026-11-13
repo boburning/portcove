@@ -138,10 +138,11 @@ capability 3 ([texture-pack record](psxrecomp-texture-pack-scope-2026-11-13.md))
 
 The tags have no prerelease suffix, but GitHub's prerelease flag is unknown.
 If a tag is flagged as a prerelease, the `stable` channel would select an
-older stable tag, whose assets were not checked against these selectors. If
-those assets do not match, nothing is installed; if they do, an older kit
-would be built. Confirm the flags when these routes are enrolled in the
-release-selection corpus.
+older stable tag, whose assets were not checked against these selectors.
+Either way nothing is built: the game and BIOS contracts are enforced and bind
+only the kits above, so an older kit has no applicable contract and its disc
+and BIOS are reported as not bound to that release. Confirm the flags when these
+routes are enrolled in the release-selection corpus.
 
 ## Not observed
 
