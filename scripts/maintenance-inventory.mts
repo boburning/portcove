@@ -1951,6 +1951,18 @@ SELECT json_build_object(
                     resolved_at, resolution
                FROM portcove_maintenance.reconsiderations
               WHERE status <> 'pending' ORDER BY resolved_at DESC LIMIT 200)) x),
+  -- Per source: the latest attempt and the latest read that did not fail.
+  -- A serving observation (verified, or a typed not-served, incomplete or expired
+  -- result) observes the source; an outage or a failed tool does not.
+  'freshness', (SELECT coalesce(json_agg(json_build_object('source', f.source, 'attempted_at', f.attempted_at,
+        'last_good_at', f.last_good_at, 'observed_at', f.observed_at) ORDER BY f.source), '[]')
+      FROM (SELECT source, max(completed_at) AS attempted_at,
+                   max(completed_at) FILTER (WHERE coverage IN ('complete', 'partial')) AS last_good_at,
+                   max(completed_at) FILTER (WHERE coverage IN ('complete', 'partial')
+                     OR (coverage = 'failed' AND gaps -> 0 ->> 'code' IN ('not_served', 'incomplete', 'expired')))
+                     AS observed_at
+              FROM portcove_maintenance.collection_runs
+             WHERE coverage <> 'in_progress' GROUP BY source) f),
   'generation', (SELECT coalesce(max(acquisition), 0) FROM portcove_maintenance.collection_runs
       WHERE coverage <> 'in_progress'),
   'runs', (SELECT coalesce(json_agg(r ORDER BY r.source, r.acquisition DESC), '[]') FROM (
@@ -2057,6 +2069,8 @@ export interface InventoryReport {
   };
   unsupported_sources: { source: string; reason: string }[];
   runs: unknown[];
+  /** Per source: when it was last attempted and last read successfully, aged against this report. */
+  freshness?: SourceFreshness[];
   subjects: unknown[];
   unassessed_gaps?: { subject_key: string; code: string; message: string }[];
   /** Latest facts per `intake:<request>`, with linked issues joined to issue facts. */
@@ -2112,6 +2126,123 @@ export function deferralChanges(
           state: state ?? "unknown",
           changed_at: changed_at!,
         })),
+    };
+  });
+}
+
+/**
+ * What a subject's Core assessment depends on and what would reassess it.
+ * Every complete run re-reads Core for every port, but only a change in one of
+ * these inputs records a new assessment; only a changed result records a
+ * transition. A rebuild with the same output, a failed run, or a port Core
+ * could not read in a partial run records neither.
+ */
+export const reassessmentTriggers = [
+  "its catalog fact changes (authored record, operational definition or scoped qualification at the pinned revision)",
+  "Core's output for the port changes (embedded catalog and listings, Core code, catalog-wide hold policy, or clock-dated recommendation observations)",
+  "the assessment policy changes (Core API schema or projection version)",
+] as const;
+
+export interface SubjectReassessment {
+  depends_on: string[];
+  /** When the catalog fact last changed: its latest changes-only observation. */
+  catalog_changed_at: string | null;
+  /** When Core's output for this port and platform last changed. */
+  core_output_changed_at: string | null;
+  /**
+   * The latest of the catalog change, the Core output change and the
+   * assessment time. Assessments are deduplicated by input, so after inputs
+   * return to an earlier value the assessment time alone would be too early.
+   */
+  inputs_unchanged_since: string | null;
+  /** The latest Core run that re-read the subject and found the same inputs. */
+  last_verified_at: string | null;
+}
+
+/** Derives a subject's reassessment basis from its stored provenance and observations. */
+export function subjectReassessment(subject: {
+  platform?: string | null;
+  assessed_at?: string | null;
+  verified_at?: string | null;
+  observations?: { source: string; observed_at: string }[] | null;
+}): SubjectReassessment {
+  const observed = (source: string) =>
+    (subject.observations ?? []).find((observation) => observation.source === source)
+      ?.observed_at ?? null;
+  const core = subject.platform ? coreSourceName(subject.platform) : null;
+  return {
+    depends_on: ["catalog-records", ...(core ? [core] : []), "assessment policy"],
+    catalog_changed_at: observed("catalog-records"),
+    core_output_changed_at: core ? observed(core) : null,
+    inputs_unchanged_since:
+      [observed("catalog-records"), core ? observed(core) : null, subject.assessed_at ?? null]
+        .filter(
+          (value): value is string => typeof value === "string" && !Number.isNaN(Date.parse(value)),
+        )
+        .sort((left, right) => Date.parse(left) - Date.parse(right))
+        .at(-1) ?? null,
+    last_verified_at: subject.verified_at ?? null,
+  };
+}
+
+/** A source older than this, relative to the report, is flagged stale (the schedule is daily). */
+export const staleSourceHours = 36;
+
+/**
+ * Sources whose only good read is a verified one: any other outcome (such as
+ * nothing served yet) is recorded as a failed run with its reason. Their
+ * freshness is their latest serving observation (verified, not served,
+ * incomplete or expired); an outage or failed tool is not one. The source's own
+ * section shows what was last verified.
+ */
+const verifiedOnlySources = new Set(["definition-delivery"]);
+
+export interface SourceFreshness {
+  source: string;
+  attempted_at: string | null;
+  /** The latest complete or partial read; failed reads never refresh it. */
+  last_good_at: string | null;
+  /** Hours from the last good read to this report's generation; null when never read. */
+  age_hours: number | null;
+  /** The latest typed serving observation, for verified-only sources. */
+  observed_at: string | null;
+  /** Hours from that observation to this report's generation. */
+  observation_age_hours: number | null;
+  /** Only a verified read counts as good; freshness is the latest serving observation. */
+  verified_only: boolean;
+  stale: boolean;
+}
+
+/** Ages each source's last good read against the report's own generation time. */
+export function sourceFreshness(
+  rows: readonly {
+    source: string;
+    attempted_at: string | null;
+    last_good_at: string | null;
+    observed_at?: string | null;
+  }[],
+  generatedAt: Date,
+): SourceFreshness[] {
+  const hours = (value: string | null) => {
+    const time = value === null ? Number.NaN : Date.parse(value);
+    return Number.isFinite(time)
+      ? Math.max(0, Math.round(((generatedAt.getTime() - time) / 3_600_000) * 10) / 10)
+      : null;
+  };
+  return rows.map(({ source, attempted_at, last_good_at, observed_at = null }) => {
+    const age_hours = hours(last_good_at);
+    const observation_age_hours = hours(observed_at);
+    const verified_only = verifiedOnlySources.has(source);
+    const freshest = verified_only ? observation_age_hours : age_hours;
+    return {
+      source,
+      attempted_at,
+      last_good_at,
+      age_hours,
+      observed_at,
+      observation_age_hours,
+      verified_only,
+      stale: freshest === null || freshest > staleSourceHours,
     };
   });
 }
@@ -2199,6 +2330,12 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
       intake: Record<string, unknown>;
     };
     runs: unknown[];
+    freshness: {
+      source: string;
+      attempted_at: string | null;
+      last_good_at: string | null;
+      observed_at: string | null;
+    }[];
     subjects: unknown[];
     unassessed_gaps: { subject_key: string; code: string; message: string }[];
     publication: { definition: string; facts: unknown }[];
@@ -2327,10 +2464,12 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
       .filter(([source]) => !(serving && source === "definition-delivery"))
       .map(([source, reason]) => ({ source, reason })),
     runs: data.runs,
+    freshness: sourceFreshness(data.freshness, now),
     subjects: subjects.map((subject) => {
       const target = subject.identity?.target_key;
       return {
         ...subject,
+        reassessment: subjectReassessment(subject as Parameters<typeof subjectReassessment>[0]),
         alternatives: target
           ? (byTarget.get(target) ?? []).filter((key) => key !== subject.port_key)
           : [],
@@ -2379,6 +2518,41 @@ function failedAttempt(report: InventoryReport, name: string) {
 }
 
 /** Hosted-intake requests with their linked work and the executor's own attention conditions. */
+function sourceAge(report: InventoryReport, source: string) {
+  const entry = report.freshness?.find((value) => value.source === source);
+  if (!entry) return "";
+  if (entry.verified_only) {
+    const observed =
+      entry.observation_age_hours === null
+        ? "no serving observation yet"
+        : `latest serving observation ${entry.observation_age_hours} h ago`;
+    const verified =
+      entry.age_hours === null ? "no verified read yet" : `last verified ${entry.age_hours} h ago`;
+    return `<span${entry.stale ? ' class="unknown"' : ""}>${escapeHtml(`${verified}; ${observed}`)}${entry.stale ? " (stale)" : ""}</span>`;
+  }
+  if (entry.age_hours === null) return '<span class="unknown">never read successfully</span>';
+  const age = `${entry.age_hours} h`;
+  return entry.stale ? `<span class="unknown">${escapeHtml(age)} (stale)</span>` : escapeHtml(age);
+}
+
+/** Report and data age: when this report was made, and the oldest last good source read. */
+function freshnessSummary(report: InventoryReport) {
+  const entries = report.freshness ?? [];
+  if (!entries.length) return "";
+  const stale = entries.filter(({ stale: value }) => value).map(({ source }) => source);
+  const ages = entries.flatMap(({ age_hours, verified_only }) =>
+    verified_only || age_hours === null ? [] : [age_hours],
+  );
+  const oldest = ages.length ? Math.max(...ages) : null;
+  return `<p>Data age: the oldest last good source read (excluding verified-only sources such as definition-delivery, aged by their serving observation) is ${
+    oldest === null ? "unknown" : escapeHtml(`${oldest} h`)
+  } before this report. ${
+    stale.length
+      ? `<span class="unknown">Stale (over ${staleSourceHours} h, or never read): ${escapeHtml(stale.join(", "))}.</span> Their last known facts stay current.`
+      : `Every source was read within ${staleSourceHours} h.`
+  }</p>`;
+}
+
 function publicationSection(report: InventoryReport) {
   const serving = report.publication.serving;
   const definitions = report.publication.definitions ?? [];
@@ -2542,6 +2716,39 @@ export function qualificationSummary(fact: TargetRoutesFact | null | undefined) 
   return parts.length ? parts.join("; ") : "no recorded qualification";
 }
 
+/**
+ * The report page's subject filter, as plain JavaScript source: the page embeds
+ * exactly this text, and tests evaluate the same text. It decides only what is
+ * shown; every value comes from the report.
+ */
+export const subjectFilterSource = `function subjectRowText(subject) {
+  return [subject.subject_key, subject.name, subject.game, subject.target_key,
+    ...(subject.alternatives || []), subject.state, String(subject.sequence ?? ""),
+    subject.verified_at, subject.changed_at, subject.latest_core_run,
+    ...(subject.work || []), subject.inputs, subject.upstream, subject.offered, subject.qualified,
+    subject.latest_health_gap, ...(subject.attention || []), ...(subject.next_actions || []),
+    subject.latest_core_gap ? subject.latest_core_gap.code : ""]
+    .filter((value) => typeof value === "string" && value).join(" ").toLowerCase();
+}
+function subjectNeedsAttention(subject) {
+  return Boolean((subject.attention || []).length || subject.port_health_gap ||
+    (subject.next_actions || []).length || subject.latest_core_gap);
+}
+function subjectMatches(subject, filters, generatedAt) {
+  const text = subjectRowText(subject);
+  for (const token of (filters.text || "").toLowerCase().split(/\\s+/u).filter(Boolean))
+    if (!text.includes(token)) return false;
+  if (filters.platform && !String(subject.subject_key).endsWith("@" + filters.platform)) return false;
+  if (filters.state && subject.state !== filters.state) return false;
+  if (filters.attention && !subjectNeedsAttention(subject)) return false;
+  if (filters.changedWithinDays) {
+    const changed = Date.parse(subject.changed_at);
+    const since = Date.parse(generatedAt) - filters.changedWithinDays * 86400000;
+    if (!(changed >= since)) return false;
+  }
+  return true;
+}`;
+
 /** A self-contained, searchable page; data is embedded as escaped JSON, never as markup. */
 export function renderHtml(report: InventoryReport) {
   // The page embeds only what it renders; inventory.json keeps every explanation.
@@ -2566,7 +2773,17 @@ export function renderHtml(report: InventoryReport) {
         upstream,
         latest_upstream_gap,
         target_routes,
+        reassessment,
       }) => ({
+        inputs: (() => {
+          const value = reassessment as SubjectReassessment | undefined;
+          if (!value) return null;
+          return [
+            `catalog fact changed ${value.catalog_changed_at ?? "never observed"}`,
+            `Core output changed ${value.core_output_changed_at ?? "never observed"}`,
+            `inputs unchanged since ${value.inputs_unchanged_since ?? "never"}`,
+          ].join("; ");
+        })(),
         offered: targetSummary(target_routes as TargetRoutesFact | null | undefined),
         qualified: qualificationSummary(target_routes as TargetRoutesFact | null | undefined),
         attention: [
@@ -2586,6 +2803,8 @@ export function renderHtml(report: InventoryReport) {
             .filter(Boolean)
             .join("; ") || null,
         next_actions: nextActions(report, port_key, subject_key),
+        // A source-wide failed read is shown, but only a per-port gap needs this port's attention.
+        port_health_gap: typeof latest_health_gap === "string" ? latest_health_gap : null,
         upstream: upstreamSummary(upstream, latest_upstream_gap, upstreamAttempt),
         subject_key,
         name: (identity as { name?: string } | undefined)?.name ?? null,
@@ -2613,6 +2832,7 @@ export function renderHtml(report: InventoryReport) {
           : [],
       }),
     ),
+    generated_at: report.generated_at,
     unassessed_gaps: report.unassessed_gaps ?? [],
     universe: (report.universe ?? []).map(
       ({ key, kind, name, game, target_key, port_keys, relations, identity_gap }) => ({
@@ -2646,19 +2866,20 @@ input { width: 100%; padding: .5rem; font: inherit; }
 <h1>Portcove maintenance inventory</h1>
 <p>Generated ${escapeHtml(report.generated_at)}. Scope: ${escapeHtml(report.scope)} (not the complete inventory).
 Published delivery: <span class="unknown">${escapeHtml(report.publication.status)}</span> — ${escapeHtml(report.publication.reason)}</p>
-<p>Core assessments come from a fully isolated CLI run on the collecting host; the CLI binary is bound by digest and its build source is <span class="unknown">unverified</span>.</p>
+<p>Core assessments come from a fully isolated CLI run on the collecting host; the CLI binary is bound by digest, and each Core run's revision states whether its build source is verified (<code>binding=verified</code>) or only claimed.</p>
+${freshnessSummary(report)}
 <h2>Sources</h2>
-<table><thead><tr><th>Source</th><th>Coverage</th><th>Revision</th><th>Observed</th><th>Completed</th><th>Gaps</th></tr></thead><tbody>
+<table><thead><tr><th>Source</th><th>Coverage</th><th>Revision</th><th>Observed</th><th>Completed</th><th>Age of last good read</th><th>Gaps</th></tr></thead><tbody>
 ${(report.runs as Record<string, unknown>[])
   .map(
     (run) =>
-      `<tr><td>${escapeHtml(run.source)}</td><td>${escapeHtml(run.coverage)}</td><td><code>${escapeHtml(run.source_revision)}</code></td><td>${escapeHtml(run.observed_count)} of ${escapeHtml(run.expected_count ?? "unknown")} declared</td><td>${escapeHtml(run.completed_at)}</td><td>${(Array.isArray(run.gaps) ? (run.gaps as { subject_key: string; code: string }[]) : []).map((gap) => `${escapeHtml(gap.subject_key)}: ${escapeHtml(gap.code)}`).join("<br>")}</td></tr>`,
+      `<tr><td>${escapeHtml(run.source)}</td><td>${escapeHtml(run.coverage)}</td><td><code>${escapeHtml(run.source_revision)}</code></td><td>${escapeHtml(run.observed_count)} of ${escapeHtml(run.expected_count ?? "unknown")} declared</td><td>${escapeHtml(run.completed_at)}</td><td>${sourceAge(report, String(run.source))}</td><td>${(Array.isArray(run.gaps) ? (run.gaps as { subject_key: string; code: string }[]) : []).map((gap) => `${escapeHtml(gap.subject_key)}: ${escapeHtml(gap.code)}`).join("<br>")}</td></tr>`,
   )
   .join("\n")}
 ${report.unsupported_sources
   .map(
     (source) =>
-      `<tr><td>${escapeHtml(source.source)}</td><td class="unknown">unknown</td><td colspan="4">${escapeHtml(source.reason)}</td></tr>`,
+      `<tr><td>${escapeHtml(source.source)}</td><td class="unknown">unknown</td><td colspan="5">${escapeHtml(source.reason)}</td></tr>`,
   )
   .join("\n")}
 </tbody></table>
@@ -2672,29 +2893,62 @@ ${hostedIntakeSection(report)}
 <input id="universe-search" type="search" placeholder="Name, game, port key or identity">
 <table><thead><tr><th>Identity</th><th>Kind</th><th>Name and game</th><th>Port keys</th><th>Related</th></tr></thead><tbody id="universe"></tbody></table>
 <h2>Subjects</h2>
-<label for="search">Search</label>
-<input id="search" type="search" placeholder="Port ID or state">
-<table><thead><tr><th>Subject</th><th>Name and game</th><th>Alternatives</th><th>Core assessment</th><th>Changes</th><th>Last verified</th><th>Last changed</th><th>Latest Core run</th><th>Work</th><th>Upstream</th><th>Offered for a fresh library</th><th>Qualification for the offered artifact (Core)</th><th>Needs attention</th><th>Next action</th></tr></thead><tbody id="subjects"></tbody></table>
+<p>Every complete run re-reads Core for every port. A port is reassessed, recording a new assessment, only when ${reassessmentTriggers.map(escapeHtml).join("; or ")}. Only a changed result records a change; a rebuild with the same output, a failed run, or a port Core could not read in a partial run records nothing. "Last verified" is the latest run that re-read the port and found the same inputs.</p>
+<form id="filters" role="search" onsubmit="return false">
+<label for="search">Search every column</label>
+<input id="search" type="search" placeholder="Port, game, issue, upstream, offering, attention or action">
+<label for="platform">Platform</label>
+<select id="platform"><option value="">All platforms</option></select>
+<label for="state">Core assessment</label>
+<select id="state"><option value="">All states</option></select>
+<label for="changed">Last changed</label>
+<select id="changed"><option value="">Any time</option><option value="1">Within a day of this report</option><option value="7">Within 7 days</option><option value="30">Within 30 days</option></select>
+<label><input id="attention" type="checkbox"> Needs attention or has a next action</label>
+</form>
+<p id="shown" aria-live="polite"></p>
+<table><thead><tr><th>Subject</th><th>Name and game</th><th>Alternatives</th><th>Core assessment</th><th>Changes</th><th>Last verified</th><th>Last changed</th><th>Inputs last changed</th><th>Latest Core run</th><th>Work</th><th>Upstream</th><th>Offered for a fresh library</th><th>Qualification for the offered artifact (Core)</th><th>Needs attention</th><th>Next action</th></tr></thead><tbody id="subjects"></tbody></table>
 <script id="inventory" type="application/json">${embedded}</script>
 <script>
 const report = JSON.parse(document.getElementById("inventory").textContent);
 const body = document.getElementById("subjects");
-function render(filter) {
+${subjectFilterSource}
+const allSubjects = [...report.subjects, ...(report.unassessed_gaps ?? []).map((gap) => ({ subject_key: gap.subject_key, state: "unknown", sequence: 0, verified_at: "never", changed_at: "never", latest_core_gap: gap }))];
+for (const [id, values] of [
+  ["platform", [...new Set(allSubjects.map((subject) => String(subject.subject_key).split("@")[1]).filter(Boolean))].sort()],
+  ["state", [...new Set(allSubjects.map((subject) => subject.state).filter(Boolean))].sort()],
+]) {
+  const select = document.getElementById(id);
+  for (const value of values) select.add(new Option(value, value));
+}
+function currentFilters() {
+  return {
+    text: document.getElementById("search").value.trim(),
+    platform: document.getElementById("platform").value,
+    state: document.getElementById("state").value,
+    changedWithinDays: Number(document.getElementById("changed").value) || 0,
+    attention: document.getElementById("attention").checked,
+  };
+}
+function render() {
   body.replaceChildren();
-  for (const subject of [...report.subjects, ...(report.unassessed_gaps ?? []).map((gap) => ({ subject_key: gap.subject_key, state: "unknown", sequence: 0, verified_at: "never", changed_at: "never", latest_core_gap: gap }))]) {
-    const text = [subject.subject_key, subject.state, subject.name, subject.game, subject.target_key].join(" ").toLowerCase();
-    if (filter && !text.includes(filter)) continue;
+  const filters = currentFilters();
+  let shown = 0;
+  for (const subject of allSubjects) {
+    if (!subjectMatches(subject, filters, report.generated_at)) continue;
+    shown += 1;
     const row = body.insertRow();
     const gap = subject.latest_core_gap
       ? "not assessed: " + subject.latest_core_gap.code
       : subject.latest_core_run === "assessed" ? "assessed"
       : subject.latest_core_run === "removed" ? "removed from the catalog" : "not in latest run";
-    for (const value of [subject.subject_key, [subject.name, subject.game].filter(Boolean).join(" — "), (subject.alternatives ?? []).join(", "), subject.state, String(subject.sequence), subject.verified_at, subject.changed_at, gap, (subject.work ?? []).join("; ") || "no linked issue observed", subject.upstream || "not observed", subject.offered || "not observed", subject.qualified || "not observed", [subject.latest_health_gap ? "health not fresh: " + subject.latest_health_gap : "", ...(subject.attention ?? [])].filter(Boolean).join("; "), (subject.next_actions ?? []).join("; ")])
+    for (const value of [subject.subject_key, [subject.name, subject.game].filter(Boolean).join(" — "), (subject.alternatives ?? []).join(", "), subject.state, String(subject.sequence), subject.verified_at, subject.changed_at, subject.inputs || "not observed", gap, (subject.work ?? []).join("; ") || "no linked issue observed", subject.upstream || "not observed", subject.offered || "not observed", subject.qualified || "not observed", [subject.latest_health_gap ? "health not fresh: " + subject.latest_health_gap : "", ...(subject.attention ?? [])].filter(Boolean).join("; "), (subject.next_actions ?? []).join("; ")])
       row.insertCell().textContent = value;
   }
+  document.getElementById("shown").textContent = shown + " of " + allSubjects.length + " subjects shown.";
 }
-document.getElementById("search").addEventListener("input", (event) => render(event.target.value.trim().toLowerCase()));
-render("");
+document.getElementById("filters").addEventListener("input", render);
+document.getElementById("filters").addEventListener("change", render);
+render();
 const universe = document.getElementById("universe");
 function renderUniverse(filter) {
   universe.replaceChildren();

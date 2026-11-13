@@ -13,11 +13,16 @@ import {
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import vm from "node:vm";
 import { parse } from "yaml";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import {
   deferralChanges,
   deliveryFacts,
+  reassessmentTriggers,
+  subjectReassessment,
+  sourceFreshness,
+  subjectFilterSource,
   qualificationSummary,
   publicationEntries,
   publicationFacts,
@@ -39,6 +44,7 @@ import {
   takeIssueCredential,
   writeReport,
   type DefinitionDeliveryInspection,
+  type SubjectReassessment,
   type InventoryReport,
 } from "./maintenance-inventory.mts";
 import type { UpstreamInput } from "./maintenance-upstream.mts";
@@ -417,6 +423,12 @@ void test("the static report escapes untrusted text and states unknown publicati
   assert.equal(page.match(/<\/script>/gu)?.length, 2, "only the page's own two scripts close");
   assert.doesNotMatch(page, /<b>none<\/b>|<i>x<\/i>/u);
   assert.match(page, /unknown/u);
+  // The page's own script is valid JavaScript and embeds the tested filter.
+  const script = /<script>\n([\s\S]*?)<\/script>/u.exec(page)?.[1] ?? "";
+  assert.ok(script.includes(subjectFilterSource));
+  assert.doesNotThrow(() => new vm.Script(script));
+  for (const id of ["search", "platform", "state", "changed", "attention", "shown"])
+    assert.match(page, new RegExp(`id="${id}"`, "u"));
 });
 
 const server = postgresServer();
@@ -888,8 +900,12 @@ void test(
     const current = (environment: NodeJS.ProcessEnv) =>
       runSql(
         environment,
-        `SELECT json_agg(json_build_object('subject', c.subject_key, 'result', c.result_digest) ORDER BY c.subject_key)
-           FROM portcove_maintenance.subject_current c WHERE c.subject_key LIKE 'port:2ship2harkinian@%';`,
+        // The whole applicable assessment agrees, not only its result.
+        `SELECT json_agg(json_build_object('subject', c.subject_key, 'result', c.result_digest,
+             'state', a.state, 'policy', a.policy_version, 'input', a.input_digest) ORDER BY c.subject_key)
+           FROM portcove_maintenance.subject_current c
+           JOIN portcove_maintenance.assessments a ON a.assessment_id = c.applicable_assessment_id
+          WHERE c.subject_key LIKE 'port:2ship2harkinian@%';`,
       ).trim();
     assert.equal(current(incremental.owner), current(direct.owner));
     assert.equal(
@@ -1073,6 +1089,18 @@ void test(
       });
       assert.deepEqual(outcome.delivery, { serving, published: 0 });
       const afterOutage = buildReport(store.owner);
+      // A typed "not served" read observes the location; an outage does not.
+      const deliveryAge = afterOutage.freshness?.find(
+        ({ source }) => source === "definition-delivery",
+      );
+      const latestDelivery = runSql(
+        store.owner,
+        `SELECT completed_at FROM portcove_maintenance.collection_runs
+          WHERE run_id = portcove_maintenance.latest_run('definition-delivery');`,
+      ).trim();
+      if (serving === "not_served")
+        assert.equal(Date.parse(deliveryAge!.observed_at!), Date.parse(latestDelivery));
+      else assert.ok(Date.parse(deliveryAge!.observed_at!) < Date.parse(latestDelivery));
       assert.equal(afterOutage.publication.serving?.status, serving);
       assert.equal(
         afterOutage.publication.serving?.last_verified_at,
@@ -1175,6 +1203,13 @@ void test(
     );
     await collectWith(() => Promise.reject(new Error("artifact download refused")));
     const afterHealthFailure = buildReport(store.owner);
+    // A failed read is an attempt, never a refresh of the last good read.
+    const healthAge = afterHealthFailure.freshness?.find(
+      ({ source }) => source === "release-health",
+    );
+    assert.ok(healthAge?.attempted_at && healthAge.last_good_at);
+    assert.ok(Date.parse(healthAge.attempted_at) > Date.parse(healthAge.last_good_at));
+    assert.match(renderHtml(afterHealthFailure), /Data age: the oldest last good source read/u);
     const shipHealth = (
       afterHealthFailure.subjects as { port_key: string; latest_health_gap: string | null }[]
     ).find(({ port_key }) => port_key === "port:2ship2harkinian");
@@ -2330,6 +2365,13 @@ void test(
     );
     await assert.rejects(readTargetRoutes(cli, ["2ship2harkinian"]), /unsupported|format/iu);
     assert.match(renderHtml(inventory), /Offered for a fresh library/u);
+    // Each subject names when its inputs last changed, from stored observations.
+    const shipInputs = (
+      inventory.subjects as { port_key: string; reassessment: SubjectReassessment }[]
+    ).find(({ port_key }) => port_key === "port:2ship2harkinian")?.reassessment;
+    assert.ok(shipInputs?.catalog_changed_at && shipInputs.core_output_changed_at);
+    assert.ok(shipInputs.inputs_unchanged_since && shipInputs.last_verified_at);
+    assert.match(renderHtml(inventory), /Inputs last changed/u);
     assert.equal(
       targetSummary({
         presence: "not_found",
@@ -2824,5 +2866,160 @@ void test("qualification is worded from Core's states without deciding applicabi
   assert.equal(
     qualificationSummary(target({ state: "structural_only" }) as never),
     "structural checks only on windows-x86-64; evidence does not record which route it exercised",
+  );
+});
+
+void test("the report page filters subjects by text, platform, state, attention and recency", () => {
+  const { subjectMatches } = vm.runInNewContext(`${subjectFilterSource}; ({ subjectMatches })`) as {
+    subjectMatches: (subject: unknown, filters: unknown, generatedAt: string) => boolean;
+  };
+  const generated = "2026-11-13T00:00:00.000Z";
+  const quiet = {
+    subject_key: "port:alpha@linux-x86-64",
+    name: "Alpha",
+    game: "Shared Game",
+    state: "managed-setup.automatic",
+    changed_at: "2026-10-01T00:00:00.000Z",
+    work: ["#10 (canonical) OPEN · Ready"],
+    offered: "managed install on linux-x86-64",
+    attention: [],
+    next_actions: [],
+  };
+  const busy = {
+    ...quiet,
+    subject_key: "port:beta@windows-x86-64",
+    name: "Beta",
+    state: "external.registration",
+    changed_at: "2026-11-12T12:00:00.000Z",
+    attention: ["provider-redirect (observe-availability)"],
+  };
+  const shown = (filters: Record<string, unknown>) =>
+    [quiet, busy]
+      .filter((subject) => subjectMatches(subject, filters, generated))
+      .map(({ name }) => name);
+  assert.deepEqual(shown({}), ["Alpha", "Beta"]);
+  // Every token must match somewhere in the row, including linked work and offerings.
+  assert.deepEqual(shown({ text: "shared #10 READY" }), ["Alpha", "Beta"]);
+  assert.deepEqual(shown({ text: "provider-redirect" }), ["Beta"]);
+  assert.deepEqual(shown({ text: "alpha missing-token" }), []);
+  assert.deepEqual(shown({ platform: "windows-x86-64" }), ["Beta"]);
+  assert.deepEqual(shown({ state: "managed-setup.automatic" }), ["Alpha"]);
+  assert.deepEqual(shown({ attention: true }), ["Beta"]);
+  // A source-wide failed health read alone does not need every port's attention.
+  assert.equal(
+    subjectMatches(
+      { ...quiet, latest_health_gap: "latest read failed: unavailable" },
+      { attention: true },
+      generated,
+    ),
+    false,
+  );
+  assert.equal(
+    subjectMatches({ ...quiet, port_health_gap: "stale" }, { attention: true }, generated),
+    true,
+  );
+  assert.deepEqual(shown({ changedWithinDays: 7 }), ["Beta"]);
+  // An unparseable change time never counts as recent.
+  assert.deepEqual(
+    [{ ...busy, changed_at: "never" }].filter((subject) =>
+      subjectMatches(subject, { changedWithinDays: 30 }, generated),
+    ).length,
+    0,
+  );
+});
+
+void test("source freshness ages the last good read against the report and flags stale sources", () => {
+  const now = new Date("2026-11-13T12:00:00.000Z");
+  assert.deepEqual(
+    sourceFreshness(
+      [
+        {
+          source: "fresh",
+          attempted_at: "2026-11-13T06:00:00.000Z",
+          last_good_at: "2026-11-13T06:00:00.000Z",
+        },
+        // A later failed attempt does not make the facts fresh.
+        {
+          source: "failing",
+          attempted_at: "2026-11-13T06:00:00.000Z",
+          last_good_at: "2026-11-11T00:00:00.000Z",
+        },
+        { source: "never", attempted_at: "2026-11-13T06:00:00.000Z", last_good_at: null },
+      ],
+      now,
+    ).map(({ source, age_hours, stale }) => [source, age_hours, stale]),
+    [
+      ["fresh", 6, false],
+      ["failing", 60, true],
+      ["never", null, true],
+    ],
+  );
+  // A verified-only source is as fresh as its latest serving observation;
+  // failed attempts (an outage or a failed tool) never make it fresh.
+  assert.deepEqual(
+    sourceFreshness(
+      [
+        {
+          source: "definition-delivery",
+          attempted_at: "2026-11-13T06:00:00.000Z",
+          last_good_at: null,
+          observed_at: "2026-11-13T06:00:00.000Z",
+        },
+        {
+          source: "definition-delivery",
+          attempted_at: "2026-11-13T11:00:00.000Z",
+          last_good_at: "2026-11-03T12:00:00.000Z",
+          observed_at: "2026-11-03T12:00:00.000Z",
+        },
+      ],
+      now,
+    ).map(({ age_hours, observation_age_hours, verified_only, stale }) => [
+      age_hours,
+      observation_age_hours,
+      verified_only,
+      stale,
+    ]),
+    [
+      [null, 6, true, false],
+      [240, 240, true, true],
+    ],
+  );
+});
+
+void test("each subject names its assessment inputs, when they last changed and what reassesses it", () => {
+  assert.deepEqual(
+    subjectReassessment({
+      platform: "linux-x86-64",
+      assessed_at: "2026-11-10T00:00:00Z",
+      verified_at: "2026-11-13T00:00:00Z",
+      observations: [
+        { source: "catalog-records", observed_at: "2026-11-01T00:00:00Z" },
+        { source: "core-port-capabilities-linux-x86-64", observed_at: "2026-11-10T00:00:00Z" },
+        // Another host's Core output is never this subject's input.
+        { source: "core-port-capabilities-windows-x86-64", observed_at: "2026-11-12T00:00:00Z" },
+      ],
+    }),
+    {
+      depends_on: ["catalog-records", "core-port-capabilities-linux-x86-64", "assessment policy"],
+      catalog_changed_at: "2026-11-01T00:00:00Z",
+      core_output_changed_at: "2026-11-10T00:00:00Z",
+      inputs_unchanged_since: "2026-11-10T00:00:00Z",
+      last_verified_at: "2026-11-13T00:00:00Z",
+    },
+  );
+  assert.equal(reassessmentTriggers.length, 3);
+  // Inputs that returned to an earlier value reuse the older assessment: the
+  // latest input change, not the assessment time, bounds "unchanged since".
+  assert.equal(
+    subjectReassessment({
+      platform: "linux-x86-64",
+      assessed_at: "2026-11-01T00:00:00Z",
+      verified_at: "2026-11-13T00:00:00Z",
+      observations: [
+        { source: "catalog-records", observed_at: "2026-11-01T00:00:00Z" },
+        { source: "core-port-capabilities-linux-x86-64", observed_at: "2026-11-12T00:00:00Z" },
+      ],
+    }).inputs_unchanged_since,
+    "2026-11-12T00:00:00Z",
   );
 });

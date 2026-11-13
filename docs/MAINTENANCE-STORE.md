@@ -136,6 +136,27 @@ in this section runs unchanged against any PostgreSQL host and generic runner.
   transaction runs at `READ COMMITTED`, so its checks see every run committed
   while it waited for its locks.
 
+- **Reassessment.** Every complete collection re-reads Core for every authored
+  port; with unchanged inputs that only re-verifies (`verified_run_id`,
+  `verified_at`). A new assessment is recorded only when the subject's catalog
+  fact changes (authored record, operational definition or scoped
+  qualification at the pinned revision), Core's output for the port changes
+  (embedded catalog and listings, Core code, catalog-wide hold policy, the
+  platform, or recommendation observations Core filters by the current time),
+  or the assessment policy changes (API schema or projection version). Only a
+  changed result records a transition. A rebuild with the same output, a failed
+  run, or a port Core could not read in a partial run records neither. The
+  report shows each subject's `reassessment`: what it depends on, when its
+  catalog fact and Core output last changed (their latest changes-only
+  observations from `--all` runs), since when its inputs are unchanged (the
+  latest of those and the assessment time, because assessments are deduplicated
+  by input and a return to earlier inputs reuses the older assessment) and when
+  it was last re-verified.
+  - Selective reuse (skipping Core for unchanged inputs) is not built: Core is
+    rebuilt from a new commit almost every day, its output depends on the
+    current time, so no sound reuse key would match, and the full read fits the
+    collection budget (about 350 s of a 40-minute step). Reconsider only if the
+    collection approaches its budget.
 - **Reconsiderations.** Typed as `technical_hold`, `intentional_deferral`,
   `upstream_change` or `evidence_refresh`, each with the owner or policy reference
   required to revisit it. Conditions are immutable, and an intentional deferral is
@@ -217,6 +238,13 @@ PORTCOVE_MAINTENANCE_DATABASE_URL="$RESTORE_TARGET_URL" node scripts/maintenance
   `PORTCOVE_POSTGRES_BIN` when `PATH` mixes versions). Restore renders the dump
   to a plain-text script in a private temporary directory that is removed when
   the restore finishes; an abruptly killed restore can leave it behind.
+- A restore target must run the backup's PostgreSQL major version or a newer
+  one, with client tools of that version: an older `pg_restore` refuses a newer
+  custom-format archive (PostgreSQL 16 refuses the 1.16 archives that
+  PostgreSQL 18 writes). The production backup records its server version in
+  the manifest (`server_version_num`); install that major (or a newer one),
+  client and server, from the PostgreSQL project repository on the restore
+  host.
 - Collectors finish runs under the default READ COMMITTED isolation, so the
   derived observed count includes every committed observation of the run.
 - `backup` writes to a temporary sibling directory and renames it only when
@@ -285,6 +313,29 @@ node scripts/maintenance-inventory.mts report --output work/maintenance-report/2
   current Core assessment, history and latest observations, and whether the
   latest Core run assessed it, recorded a gap or did not include it. Unsupported sources
   and published delivery are shown as unknown with their reasons.
+  - The subjects table searches every column: each word must appear somewhere
+    in the row, including linked work, upstream, offering, qualification,
+    attention and next action. Filters narrow it by host platform, Core
+    assessment, last change within 1, 7 or 30 days of the report's own
+    generation time, and "needs attention or has a next action" (attention
+    conditions, this port's own health gap, a next action or a Core gap; a
+    source-wide failed read alone does not select every port). The page
+    shows how many subjects match. Filtering only selects rows; it never
+    changes a value. The filter is one plain-JavaScript function that the page
+    embeds and the tests run unchanged.
+  - Freshness: for each source the report records its latest attempt and its
+    latest complete or partial read (`freshness`). A failed read is an attempt,
+    never a refresh. The age of the last good read is measured against the
+    report's own generation time; over 36 hours (the schedule is daily) or never
+    read is flagged stale. `definition-delivery` counts only a verified read as
+    good and records anything else (such as nothing served yet) as a failed
+    run, so its freshness is its latest serving observation (verified, not
+    served, incomplete or expired); an outage or a failed tool does not count.
+    The page shows when it was last verified and last observed, and the
+    oldest data age excludes it; the Definition publication section shows what
+    was last verified. The page states the oldest data age, names stale
+    sources, and shows each source's age; stale facts stay current and visible,
+    never treated as absent.
 
 Listing-only records are marked `listing_only`. A listing establishes neither an
 install nor a launch route, and the report adds no support, admission or
