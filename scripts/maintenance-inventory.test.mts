@@ -451,6 +451,7 @@ function stubCli(root: string) {
           routes: [{ action: "install", offered: true, reason: null }, { action: "register_external", offered: false, reason: "route_not_offered" }],
           provider_resolution_required: false, definition_eligibility: "unknown", readiness: "unknown",
           qualification: responses["qualification:" + id] ?? { state: "unqualified", known_failure: false,
+            qualified_refs: [], evidence_route: "unrecorded",
             offered_artifact: { state: "provider_resolved", route: "install" }, scopes: [], legacy_coverage: [] } }] : [] })) } });
   } else {
     const id = args.at(-1);
@@ -2768,6 +2769,8 @@ void test("qualification is worded from Core's states without deciding applicabi
         readiness: "unknown",
         qualification: {
           known_failure: false,
+          qualified_refs: [],
+          evidence_route: "unrecorded",
           offered_artifact: { state: "provider_resolved", route: "install" },
           scopes: [],
           legacy_coverage: [],
@@ -2780,6 +2783,7 @@ void test("qualification is worded from Core's states without deciding applicabi
     qualificationSummary(
       target({
         state: "reviewed_binding_qualified",
+        qualified_refs: ["v1.8.3"],
         known_failure: true,
         scopes: [
           { applicability: "reviewed_release_binding", upstream_ref: "v1.8.3", check_version: "a" },
@@ -2787,16 +2791,17 @@ void test("qualification is worded from Core's states without deciding applicabi
         ],
       }) as never,
     ),
-    "qualified for reviewed release v1.8.3 on windows-x86-64 only if the provider resolves it; known failure recorded on windows-x86-64",
+    "qualified for reviewed release v1.8.3 on windows-x86-64 only if the provider resolves it; known failure recorded on windows-x86-64; evidence does not record which route it exercised",
   );
   assert.equal(
     qualificationSummary(
       target({
         state: "offered_artifact_qualified",
+        qualified_refs: ["v2"],
         offered_artifact: { state: "fixed", route: "install", upstream_ref: "v2" },
       }) as never,
     ),
-    "qualified for the offered artifact v2 on windows-x86-64",
+    "qualified for the offered artifact v2 on windows-x86-64; evidence does not record which route it exercised",
   );
   assert.equal(
     qualificationSummary(
@@ -2806,10 +2811,14 @@ void test("qualification is worded from Core's states without deciding applicabi
   );
   assert.equal(
     qualificationSummary(target({ state: "future_state" }) as never),
-    "future_state on windows-x86-64",
+    "future_state on windows-x86-64; evidence does not record which route it exercised",
   );
   assert.equal(
     qualificationSummary(target({ state: "unqualified" }) as never),
     "no recorded qualification",
+  );
+  assert.equal(
+    qualificationSummary(target({ state: "structural_only" }) as never),
+    "structural checks only on windows-x86-64; evidence does not record which route it exercised",
   );
 });

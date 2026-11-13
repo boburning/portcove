@@ -602,8 +602,10 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
   linux-x86-64; trust eligibility and readiness not assessed", and
   "Qualification for the offered artifact (Core)", worded from Core's state
   only: for example "qualified for reviewed release v1.8.3 on windows-x86-64
-  only if the provider resolves it", "historical qualification only", a known
-  failure, or legacy port-wide coverage marked as not artifact-bound.
+  only if the provider resolves it", "structural checks only", "historical
+  qualification only", a known failure, or legacy port-wide coverage marked as
+  not artifact-bound. A qualified statement always adds that the evidence does
+  not record which route it exercised.
 
 ### Hosted intake
 

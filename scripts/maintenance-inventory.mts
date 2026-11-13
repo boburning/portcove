@@ -682,6 +682,10 @@ export interface TargetRoutesFact {
     /** Core's match of recorded qualification to the catalog-offered artifact. */
     qualification: {
       state: string;
+      /** Upstream refs Core found qualified by applicable lifecycle or hands-on evidence. */
+      qualified_refs: string[];
+      /** Whether the evidence names the route it exercised; today always `unrecorded`. */
+      evidence_route: string;
       known_failure: boolean;
       offered_artifact: { state: string; route?: string; upstream_ref?: string };
       scopes: { applicability: string; upstream_ref: string; check_version: string }[];
@@ -795,6 +799,9 @@ function isTargetRoutesFact(value: unknown): value is TargetRoutesFact {
             text(route.reason),
         ) &&
         typeof target.qualification?.state === "string" &&
+        Array.isArray(target.qualification.qualified_refs) &&
+        target.qualification.qualified_refs.every((value) => typeof value === "string") &&
+        typeof target.qualification.evidence_route === "string" &&
         typeof target.qualification.known_failure === "boolean" &&
         typeof target.qualification.offered_artifact?.state === "string" &&
         Array.isArray(target.qualification.scopes) &&
@@ -2500,25 +2507,28 @@ export function targetSummary(fact: TargetRoutesFact | null | undefined) {
 export function qualificationSummary(fact: TargetRoutesFact | null | undefined) {
   if (!fact || fact.presence !== "operational") return null;
   const parts: string[] = [];
+  let routeUnrecorded = false;
   for (const { platform, qualification } of fact.targets) {
     if (!qualification) continue;
-    const refs = (applicability: string) => [
-      ...new Set(
-        qualification.scopes
-          .filter((scope) => scope.applicability === applicability)
-          .map(({ upstream_ref }) => upstream_ref),
-      ),
-    ];
+    const refs = qualification.qualified_refs.join(", ");
     const statement =
       qualification.state === "offered_artifact_qualified"
-        ? `qualified for the offered artifact ${qualification.offered_artifact.upstream_ref ?? ""} on ${platform}`
+        ? `qualified for the offered artifact ${refs} on ${platform}`
         : qualification.state === "reviewed_binding_qualified"
-          ? `qualified for reviewed release ${refs("reviewed_release_binding").join(", ")} on ${platform} only if the provider resolves it`
-          : qualification.state === "historical_only"
-            ? `historical qualification only on ${platform}`
-            : qualification.state === "unqualified"
-              ? ""
-              : `${qualification.state} on ${platform}`;
+          ? `qualified for reviewed release ${refs} on ${platform} only if the provider resolves it`
+          : qualification.state === "structural_only"
+            ? `structural checks only on ${platform}`
+            : qualification.state === "historical_only"
+              ? `historical qualification only on ${platform}`
+              : qualification.state === "unqualified"
+                ? ""
+                : `${qualification.state} on ${platform}`;
+    if (
+      statement &&
+      qualification.state !== "historical_only" &&
+      qualification.evidence_route === "unrecorded"
+    )
+      routeUnrecorded = true;
     if (statement) parts.push(statement.replace(/ {2,}/gu, " "));
     if (qualification.known_failure) parts.push(`known failure recorded on ${platform}`);
     if (qualification.legacy_coverage.length)
@@ -2526,6 +2536,7 @@ export function qualificationSummary(fact: TargetRoutesFact | null | undefined) 
         `legacy port-wide coverage (${qualification.legacy_coverage.join(", ")}) on ${platform}, not artifact-bound`,
       );
   }
+  if (routeUnrecorded) parts.push("evidence does not record which route it exercised");
   return parts.length ? parts.join("; ") : "no recorded qualification";
 }
 

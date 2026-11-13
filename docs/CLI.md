@@ -539,10 +539,17 @@ since can differ.
     release), `unbound_release`, `no_catalog_artifact`, `route_not_offered` or
     `source_scope_withdrawn`. A contract's release policy admits sources for any
     release but never qualifies one.
-  - `state` is `offered_artifact_qualified`, `reviewed_binding_qualified`
-    (applies only if the provider resolves exactly that release),
-    `historical_only` or `unqualified`; `known_failure` covers applicable scopes
-    only. Check versions are reported side by side, not ranked.
+  - `state` is `offered_artifact_qualified` or `reviewed_binding_qualified`
+    (passed automated-lifecycle or hands-on evidence; the latter applies only
+    if the provider resolves exactly that release), `structural_only` (only
+    structural checks passed), `historical_only` or `unqualified`.
+    `qualified_refs` names the releases that qualify, and `known_failure`
+    covers applicable scopes only. Check versions are reported side by side,
+    not ranked.
+  - `evidence_route` is `unrecorded`: recorded scopes do not name the route or
+    operation that produced them, so the check version is the only operation
+    discriminator and a qualified state never says that the offered route
+    itself was exercised.
   - `legacy_coverage` repeats the port-wide historical platform arrays, which
     are never artifact-bound.
 - Definition trust eligibility and readiness are always `unknown`: a library

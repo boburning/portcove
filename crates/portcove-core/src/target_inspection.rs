@@ -117,6 +117,12 @@ pub struct TargetRoutes {
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct TargetQualification {
     pub state: TargetQualificationState,
+    /// Upstream refs whose applicable lifecycle or hands-on evidence passed.
+    pub qualified_refs: Vec<String>,
+    /// Recorded scopes do not name the route or operation that produced them:
+    /// the check version is the only operation discriminator, so a qualified
+    /// state never says the offered route itself was exercised.
+    pub evidence_route: EvidenceRoute,
     /// A known failure is recorded for a scope that applies to what is offered.
     pub known_failure: bool,
     pub offered_artifact: OfferedArtifact,
@@ -127,12 +133,21 @@ pub struct TargetQualification {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
+pub enum EvidenceRoute {
+    Unrecorded,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum TargetQualificationState {
-    /// Passed evidence for the exact artifact the catalog offers.
+    /// Passed lifecycle or hands-on evidence for the exact artifact the catalog offers.
     OfferedArtifactQualified,
-    /// Passed evidence for a reviewed release binding; it applies only when the
-    /// provider resolves exactly that release, which this report never does.
+    /// Passed lifecycle or hands-on evidence for a reviewed release binding; it
+    /// applies only when the provider resolves exactly that release, which this
+    /// report never does.
     ReviewedBindingQualified,
+    /// Only structural checks passed for what is offered: not a lifecycle claim.
+    StructuralOnly,
     /// Evidence exists, but none of it applies to what is offered.
     HistoricalOnly,
     Unqualified,
@@ -443,12 +458,16 @@ fn target_qualification(
                     },
                     _,
                 ) => {
+                    // Digests compare without case; the record keeps its own spelling.
+                    let same_artifact = scope
+                        .artifact_sha256
+                        .as_deref()
+                        .is_some_and(|sha256| sha256.eq_ignore_ascii_case(offered_sha256));
                     let candidate = crate::SourceEvidenceScope {
                         upstream_ref: Some(offered_ref.clone()),
-                        artifact_sha256: Some(offered_sha256.clone()),
                         ..scope.clone()
                     };
-                    if records.iter().any(|record| record.applies_to(&candidate)) {
+                    if same_artifact && records.iter().any(|record| record.applies_to(&candidate)) {
                         ScopeApplicability::OfferedArtifact
                     } else {
                         ScopeApplicability::OtherArtifact
@@ -497,14 +516,17 @@ fn target_qualification(
         )
     };
     scopes.sort_by_key(key);
+    // Structural, lifecycle and hands-on results stay separate: only lifecycle or
+    // hands-on evidence qualifies; a structural check alone is reported as such.
     let passed = |scope: &&TargetQualificationScope| {
         [
-            scope.assessment.structural_check,
             scope.assessment.automated_lifecycle,
             scope.assessment.hands_on,
         ]
         .contains(&Evidence::Passed)
     };
+    let structural =
+        |scope: &&TargetQualificationScope| scope.assessment.structural_check == Evidence::Passed;
     let applicable = |scope: &&TargetQualificationScope| {
         matches!(
             scope.applicability,
@@ -523,11 +545,25 @@ fn target_qualification(
         .any(|scope| passed(&scope))
     {
         TargetQualificationState::ReviewedBindingQualified
+    } else if scopes
+        .iter()
+        .filter(applicable)
+        .any(|scope| structural(&scope))
+    {
+        TargetQualificationState::StructuralOnly
     } else if scopes.is_empty() {
         TargetQualificationState::Unqualified
     } else {
         TargetQualificationState::HistoricalOnly
     };
+    let mut qualified_refs: Vec<String> = scopes
+        .iter()
+        .filter(applicable)
+        .filter(|scope| passed(scope))
+        .map(|scope| scope.upstream_ref.clone())
+        .collect();
+    qualified_refs.sort();
+    qualified_refs.dedup();
     let known_failure = scopes
         .iter()
         .filter(applicable)
@@ -541,6 +577,8 @@ fn target_qualification(
     }
     TargetQualification {
         state,
+        qualified_refs,
+        evidence_route: EvidenceRoute::Unrecorded,
         known_failure,
         offered_artifact,
         scopes,
@@ -587,6 +625,9 @@ mod tests {
             fzero.state,
             TargetQualificationState::ReviewedBindingQualified
         );
+        assert_eq!(fzero.qualified_refs, ["v1.8.3"]);
+        // The evidence never says which route produced it.
+        assert_eq!(fzero.evidence_route, EvidenceRoute::Unrecorded);
         assert!(!fzero.known_failure);
         // Each check version is its own claim, reported side by side.
         assert_eq!(
@@ -668,6 +709,9 @@ mod tests {
             .insert(Platform::WindowsX86_64, pin(&"0".repeat(64)));
         let other = target_qualification(&catalog, &port, Platform::WindowsX86_64, &install);
         assert_eq!(other.state, TargetQualificationState::HistoricalOnly);
+        assert!(other.qualified_refs.is_empty());
+        // A known failure on another artifact is not this target's failure.
+        assert!(!other.known_failure);
         assert!(
             other
                 .scopes

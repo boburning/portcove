@@ -1841,7 +1841,10 @@ inherit an older result. Missing or not-run evidence remains distinct from a
 bounded failure and does not change source admission. For a provider-resolved
 release, a contract's reviewed release binding qualifies only that exact
 release when the provider resolves it; `release_policy` widens source admission
-but never qualification (`catalog inspect-targets` reports both, per target).
+but never qualification. `catalog inspect-targets` reports reviewed bindings
+per target, never policy-admitted releases. Scoped records do not record the
+route or operation they exercised; until a reviewed field does, the check
+version is the only operation discriminator.
 
 `automated_tested_platforms` and `manually_validated_platforms` are retained as
 legacy historical coverage. They identify a port/platform intersection but do
