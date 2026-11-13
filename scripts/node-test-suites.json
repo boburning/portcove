@@ -250,6 +250,14 @@
       ]
     },
     {
+      "file": "scripts/app-release.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3501],
+        ["release-check", 4301]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
       "file": "scripts/application-release-artifacts.test.mts",
       "memberships": [
         ["catalog-full-3", 300],
