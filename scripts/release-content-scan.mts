@@ -235,6 +235,11 @@ export async function scan(
         rules: RULES_VERSION,
         signals: packageSignals(entries, heads),
       };
+      if (record.heads_unread && !record.signals.length && clock() >= deadline) {
+        // A read cut by the clock says nothing about the package: retry it later.
+        skip(`asset ${asset.name} was cut by the time budget; scanned in a later run`);
+        continue;
+      }
       next.set(key, record);
       report.scanned.push(record);
       if (record.signals.length) report.findings.push(record);
@@ -527,7 +532,8 @@ async function main(argv: string[]) {
     const value = option(name);
     if (value === undefined) return undefined;
     const number = Number(value);
-    if (!Number.isFinite(number) || number <= 0) throw new Error(`${name} needs a positive number`);
+    if (!Number.isSafeInteger(number) || number <= 0)
+      throw new Error(`${name} needs a positive whole number`);
     return number;
   };
   const { report, checkpoint } = await scan(

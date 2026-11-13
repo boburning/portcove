@@ -299,3 +299,25 @@ void test("every external call is capped at the run's deadline", async () => {
   assert.throws(() => callTimeout(300_000, 1000, 1000), /time budget reached/);
   assert.equal(escapeCommand("a%b\r\n::stop-commands::x"), "a%25b%0D%0A::stop-commands::x");
 });
+
+void test("a package whose reads the deadline cut is retried instead of recorded as clean", async () => {
+  let now = 0;
+  const deps = fakes([]);
+  const slow: ScanDependencies = {
+    ...deps,
+    async heads() {
+      now = 10;
+      return new Map();
+    },
+    async list() {
+      return [{ path: "data.bin", size: 100 }];
+    },
+  };
+  const { report, checkpoint } = await scan(scanTargets(listings), new Map(), slow, {
+    deadline: 5,
+    clock: () => now,
+  });
+  assert.equal(report.scanned.length, 0);
+  assert.equal(checkpoint.size, 0);
+  assert.ok(report.unscanned.some((entry) => entry.reason.includes("cut by the time budget")));
+});
