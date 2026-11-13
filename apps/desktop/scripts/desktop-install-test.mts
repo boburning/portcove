@@ -1298,7 +1298,8 @@ export async function installScenarios({
       assert.equal(plan.plan.release.asset.sha256, release.sha256);
       await reviewGameUpdateDisposition(browser, "download");
       // Calibrated from 15 s: on hosted Windows (debug build) the v3 download review
-      // after a real rollback opened after 15 s; it shares the acquisition budget.
+      // opened after 15 s once (cause not diagnosed; 14.9 s in the passing run). It
+      // shares the acquisition budget.
       const reviewWaitStarted = Date.now();
       await browser.wait(
         until.elementLocated(By.css("[data-game-update-review]")),
@@ -1606,7 +1607,7 @@ export async function installScenarios({
       assert.equal(
         await readFile(path.join(rollbackSnapshot.path, "data", path.basename(save)), "utf8"),
         saveBeforeRollback,
-        "The rollback snapshot must hold the saves from before the version change",
+        "The rollback snapshot must hold the current saves (unchanged since the update snapshot)",
       );
       assert.equal(
         await readFile(save, "utf8"),

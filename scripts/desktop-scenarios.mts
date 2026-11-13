@@ -309,7 +309,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   ),
   scenario(
     "native-update-acquisition-lifecycle",
-    "Real immutable transfers coexist with owned Play, fresh exclusive apply/prepare reuse exact archives, the activating update keeps one labelled automatic snapshot shown in history, restore review, rollback and Settings, retained cancellation is discarded after reviewed uninstall, and a real Restore previous version keeps saves and one labelled rollback snapshot.",
+    "Real immutable transfers coexist with owned Play, fresh exclusive apply/prepare reuse exact archives, the activating update keeps one labelled automatic snapshot shown in history, restore review, rollback and Settings, a real Restore previous version then keeps saves and one labelled rollback snapshot, and retained cancellation is discarded after reviewed uninstall.",
     {
       prerequisites: ["desktop", "install-fixture", "owned-fixture"],
       dependencies: ["install-commit-refresh-recovery"],
