@@ -280,7 +280,7 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
     const reviewedBeforeNativeCancel = await review.dialog.getText();
     await review.action.click();
     await confirmNative(
-      "Confirm external runtime",
+      "Use this installation?",
       "Cancel",
       fixture.port.id,
       "external-runtime-registration-cancel",
@@ -346,8 +346,8 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
     review = await selectFolder("external-runtime-register-picker");
     await review.action.click();
     await confirmNative(
-      "Confirm external runtime",
-      "Register runtime",
+      "Use this installation?",
+      "Add installation",
       fixture.port.id,
       "external-runtime-registration-accept",
     );
