@@ -551,6 +551,16 @@
         "live_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/blob/main/game.toml"
       },
       {
+        "id": "alexbeav-diablo-recomp-v015-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/diablo-recomp",
+        "authority_ref": "cc5d1884f10d12f2ccdc7bb99420907a3ebc55ee",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.5 Windows (47782111 bytes, SHA-256 780ed938fe3f9e7475d80f55a3c8c85b3f6e1ad6fb0ce2dfb8b595362b7ca45c) and Linux x64 (45589957 bytes, SHA-256 0a6a5ebe8b5383d304062df78dd0d0f9bda2b7db4d3fbf58b2c09adfb013de3c) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI match the reviewed 7192402 framework, and carry the same game.toml with 1 track, first data track SHA-1 3dcfffb32c962d7ee2b00ea532b044aaeaaeb8ad, and the psxrecomp/bios/SCPH5552.toml BIOS configuration that the route's BIOS profile names. Unlike the earlier kits they use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player Diablo_Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/blob/cc5d1884f10d12f2ccdc7bb99420907a3ebc55ee/game.toml",
+        "live_url": null
+      },
+      {
         "id": "alexbeav-ace-combat-3-electrosphere-recomp-v0-3-6-static-contract",
         "role": "upstream_support",
         "authority": "alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp",
@@ -611,6 +621,16 @@
         "live_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/blob/main/game.toml"
       },
       {
+        "id": "alexbeav-alien-resurrection-recomp-v015-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/alien-resurrection-recomp",
+        "authority_ref": "1c8580aba26f5024b65ffa096f866db3ba904ba2",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.5 Windows (47781243 bytes, SHA-256 9c7f812e2f72a1dce599e3845dfecb1ac5c3cac0a6300fd3b4224249d5f895b5) and Linux x64 (45589397 bytes, SHA-256 cc53e2a6c6dd565102b88aad028c341b86ffdd106f8040ee65f6b524261d9962) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI match the reviewed 7192402 framework, and carry the same game.toml with 4 tracks, first data track SHA-1 5642c4f4ba6f06323778ae29c59c6dc863d49f55, and the psxrecomp/bios/SCPH5552.toml BIOS configuration that the route's BIOS profile names. Unlike the earlier kits they use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player Alien_Resurrection_Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/blob/1c8580aba26f5024b65ffa096f866db3ba904ba2/game.toml",
+        "live_url": null
+      },
+      {
         "id": "alexbeav-brave-fencer-musashi-recomp-v0-1-3-static-contract",
         "role": "upstream_support",
         "authority": "alexbeavs-ps1-ports/brave-fencer-musashi-recomp",
@@ -619,6 +639,16 @@
         "claim": "Exact v0.1.3 Windows asset 600784962 SHA256 9c65de1c5b539495f9ec2909ff786ac5b655aba05045d74e4801943a8c3158f5, tag/package game.toml normalized-equal source, project manifest, catalog_identity and safe ZIP inventory declare Brave Fencer Musashi SLUS-00726, four-track disc, first data track SHA256 5455c324a026e22a8e53ca38f673e9e96e2cf653686ae553f933683aa16d4401, and required retail SCPH-1001 BIOS. Static CLI/build/executable/runtime ownership fits the existing managed route. Core authenticates first data track and count, not later track digests or full TOC. Title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT scopes remain separate; retail/generated-retail rights are not inferred. Generation/runtime/lifecycle/gameplay were Not run.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/blob/54ddfe971dfd79134f2593b00dbd9b78ae51536b/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/blob/main/game.toml"
+      },
+      {
+        "id": "alexbeav-brave-fencer-musashi-recomp-v014-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/brave-fencer-musashi-recomp",
+        "authority_ref": "9005dad2a416fe1215378ff3986baa897d4b1e42",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.4 Windows (47783422 bytes, SHA-256 4840243261defdd7d7226ed3e1907a33ca3268925d29b388ed3b540a6b61ec1a) and Linux x64 (45590623 bytes, SHA-256 ffe43ae807c504d8e522d45d6940bf7a2d05616f57d8239af16e187078162e52) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI match the reviewed 7192402 framework, and carry the same game.toml with 4 tracks, first data track SHA-1 b44f0f0a19936f23b26188b658e13201a6a9c211, and the psxrecomp/bios/SCPH1001.toml BIOS configuration that the route's BIOS profile names. Unlike the earlier kits they use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player Brave_Fencer_Musashi_Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/blob/9005dad2a416fe1215378ff3986baa897d4b1e42/game.toml",
+        "live_url": null
       },
       {
         "id": "alexbeav-dino-crisis-recomp-v0-1-1-linux-static-contract",
@@ -1083,6 +1113,16 @@
         "claim": "Official Windows v0.1.3 ZIP asset 600797028 matched publisher SHA-256 3fc8d00777b5e9d13e8de32907f4b290d48a7a68ad0baa140a25de30d268a8f9 and passed CRC and safe-entry checks. The packaged game.toml and project manifest match tagged source. Catalog identity declares one USA data track for SLUS-01066. The game uses SCPH-1001 and the psx-runtime CMake target generates Tony_Hawks_Pro_Skater_2_Recompiled.exe. Framework and UI match the reviewed Musashi package at the static scope; the two AMD64 emitter binaries differ in build identity. No native generation, gameplay or save observation."
       },
       {
+        "id": "alexbeav-tony-hawk-s-pro-skater-2-recomp-v014-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp",
+        "authority_ref": "86a376584f02889107598bec7b978fd50ff28399",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp/blob/86a376584f02889107598bec7b978fd50ff28399/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.1.4 Windows (47787465 bytes, SHA-256 51739cfbf09352b6ae394309996809414befb18e7bc08e51df77c6f999a5c470) and Linux x64 (45595594 bytes, SHA-256 38831ff8662f4eadcbda0b25e95c291fec81fbad1e1261692f967cdefe483e89) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI match the reviewed 7192402 framework, and carry the same game.toml with 1 track, first data track SHA-1 f5cb80a7d55aaced7fcc9c5a82a6c28b89dc489a, and the psxrecomp/bios/SCPH1001.toml BIOS configuration that the route's BIOS profile names. Unlike the earlier kits they use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player Tony_Hawks_Pro_Skater_2_Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved."
+      },
+      {
         "id": "alexbeav-tony-hawk-s-pro-skater-3-recomp-v0-1-3-static-contract",
         "role": "upstream_support",
         "authority": "alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp",
@@ -1091,6 +1131,16 @@
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp/blob/0331e76300569de7133bc1a70730e9fb005f02b6/game.toml",
         "live_url": null,
         "claim": "Official Windows v0.1.3 ZIP asset 600798492 matched publisher SHA-256 ec59e95c4079662fa697b46cb84adebfff321e0fbee56b95d6da8741913ad581 and passed CRC and safe-entry checks. The packaged game.toml and project manifest match tagged source. Catalog identity declares one USA data track for SLUS-01419. The game uses SCPH-1001 and the psx-runtime CMake target generates Tony_Hawks_Pro_Skater_3_Recompiled.exe. Framework and UI match the reviewed Musashi package at the static scope; the two AMD64 emitter binaries differ in build identity. No native generation, gameplay or save observation."
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-3-recomp-v014-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp",
+        "authority_ref": "ec870e3a5398b48ff4762c2a1d5c9edcfb546720",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp/blob/ec870e3a5398b48ff4762c2a1d5c9edcfb546720/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.1.4 Windows (47787531 bytes, SHA-256 0fa4952c77f6dfc4d2c04ab7b4c485d2d38d9c9992f11309af600a41c154a084) and Linux x64 (45595681 bytes, SHA-256 a206b084236cb7523976d24eb3f2facf4e4cbadc40488c16dcc8175d333fb804) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI match the reviewed 7192402 framework, and carry the same game.toml with 1 track, first data track SHA-1 757cc517b2d25f6d0112d0d4efa9efdfa2553967, and the psxrecomp/bios/SCPH1001.toml BIOS configuration that the route's BIOS profile names. Unlike the earlier kits they use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player Tony_Hawks_Pro_Skater_3_Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved."
       },
       {
         "id": "alexbeav-tony-hawk-s-pro-skater-4-recomp-v0-1-3-static-contract",
@@ -1103,6 +1153,16 @@
         "claim": "Official Windows v0.1.3 ZIP asset 600799909 matched publisher SHA-256 b227e220e6b1c5ecc3516572cb523cc7f8e1af353b10bbf4cf4ef216a0ed85a6 and passed CRC and safe-entry checks. The packaged game.toml and project manifest match tagged source. Catalog identity declares one USA data track for SLUS-01485. The game uses SCPH-1001 and the psx-runtime CMake target generates Tony_Hawks_Pro_Skater_4_Recompiled.exe. Framework and UI match the reviewed Musashi package at the static scope; the two AMD64 emitter binaries differ in build identity. No native generation, gameplay or save observation."
       },
       {
+        "id": "alexbeav-tony-hawk-s-pro-skater-4-recomp-v014-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp",
+        "authority_ref": "fa137a5af911ad6a3a11b81c3abe4835b28135aa",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp/blob/fa137a5af911ad6a3a11b81c3abe4835b28135aa/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.1.4 Windows (47787482 bytes, SHA-256 5042ef46679d6ecb3475ae8e8bfb480e031bf35f81c9a5fdf50098177e272fb4) and Linux x64 (45595629 bytes, SHA-256 717a2ce4fa618cae85a702008d07b872d7f31db1759c1c14e2d2dde47079008c) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI match the reviewed 7192402 framework, and carry the same game.toml with 1 track, first data track SHA-1 4857b347c6aec4180311b8f1beafc281d34a254a, and the psxrecomp/bios/SCPH1001.toml BIOS configuration that the route's BIOS profile names. Unlike the earlier kits they use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player Tony_Hawks_Pro_Skater_4_Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved."
+      },
+      {
         "id": "alexbeav-tony-hawk-s-pro-skater-recomp-v0-1-3-static-contract",
         "role": "upstream_support",
         "authority": "alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp",
@@ -1111,6 +1171,16 @@
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp/blob/820fcda34cacc39b946cb20b05df221a77667e4a/game.toml",
         "live_url": null,
         "claim": "Official Windows v0.1.3 ZIP asset 600801453 matched publisher SHA-256 e1c21f2507629cf16114dd91707e12a5246912dea7a46bde281782c1d3028233 and passed CRC and safe-entry checks. The packaged game.toml and project manifest match tagged source. Catalog identity declares one USA data track for SLUS-00860. The game uses SCPH-1001 and the psx-runtime CMake target generates Tony_Hawks_Pro_Skater_Recompiled.exe. Framework and UI match the reviewed Musashi package at the static scope; the two AMD64 emitter binaries differ in build identity. No native generation, gameplay or save observation."
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-recomp-v014-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp",
+        "authority_ref": "2eaca0ed5b5a40d8e02b8aa6bc05440e8b941461",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp/blob/2eaca0ed5b5a40d8e02b8aa6bc05440e8b941461/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.1.4 Windows (47786049 bytes, SHA-256 56a39e8679d417ab07f38f2f95167ce2c94fe3406023e337cc0d57845adfdb48) and Linux x64 (45594225 bytes, SHA-256 0650f2f2f352931d57b2a830a457ee313dfd7d0841bcc2bd9eb8c502cceef98f) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI match the reviewed 7192402 framework, and carry the same game.toml with 1 track, first data track SHA-1 84fb50ddf68ced4ad8549b51a6dbfdb96650f266, and the psxrecomp/bios/SCPH1001.toml BIOS configuration that the route's BIOS profile names. Unlike the earlier kits they use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player Tony_Hawks_Pro_Skater_Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved."
       },
       {
         "id": "alexbeav-oddworld-abe-s-oddysee-recomp-v0-1-3-static-contract",
@@ -1123,6 +1193,16 @@
         "claim": "Official Windows v0.1.3 ZIP asset 600791246 matched publisher SHA-256 f9edfe427e913271937aacb8cd5bc46f33c85bc88d61e1dfe3e05fb7992fa6d4 and passed CRC and safe-entry checks. The packaged game.toml and project manifest match tagged source. Catalog identity declares one USA data track for SLUS-00190. The game uses SCPH-1001 and the psx-runtime CMake target generates Oddworld__Abe_s_Oddysee_Recompiled.exe. Framework and UI match the reviewed Musashi package at the static scope; the two AMD64 emitter binaries differ in build identity. No native generation, gameplay or save observation."
       },
       {
+        "id": "alexbeav-oddworld-abe-s-oddysee-recomp-v014-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp",
+        "authority_ref": "f1cbf802930baeda94a6ca7f476a0c7c000b6262",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp/blob/f1cbf802930baeda94a6ca7f476a0c7c000b6262/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.1.4 Windows (47784218 bytes, SHA-256 eea18a4d3c816f4bab814a16e884297fc9d5b078f38326c9be6b75666c357c93) and Linux x64 (45592454 bytes, SHA-256 239f6e1d38f4700406132f4fd08c2f0444e36397a1c05ed0f39e84e065772cb9) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI match the reviewed 7192402 framework, and carry the same game.toml with 1 track, first data track SHA-1 3507fb96d6c5d60f30b1d1b9e4b6dfc468f7cef0, and the psxrecomp/bios/SCPH1001.toml BIOS configuration that the route's BIOS profile names. Unlike the earlier kits they use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player Oddworld__Abe_s_Oddysee_Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved."
+      },
+      {
         "id": "alexbeav-syphon-filter-3-recomp-v0-1-3-static-contract",
         "role": "upstream_support",
         "authority": "alexbeavs-ps1-ports/syphon-filter-3-recomp",
@@ -1131,6 +1211,16 @@
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp/blob/1059cfabe56727520f29fc5ed6a0e53226b7a4f0/game.toml",
         "live_url": null,
         "claim": "Official Windows v0.1.3 ZIP asset 600794363 matched publisher SHA-256 48ca990e6390c810c3d802ffa7d1623d50474ad2f791f577e01b930b8b89a636 and passed CRC and safe-entry checks. The packaged game.toml and project manifest match tagged source. Catalog identity declares one USA data track for SCUS-94640. The game uses SCPH-1001 and the psx-runtime CMake target generates Syphon_Filter_3_Recompiled.exe. Framework and UI match the reviewed Musashi package at the static scope; the two AMD64 emitter binaries differ in build identity. No native generation, gameplay or save observation."
+      },
+      {
+        "id": "alexbeav-syphon-filter-3-recomp-v014-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/syphon-filter-3-recomp",
+        "authority_ref": "d3e1bc95639a46954e29163107b014c326eb4122",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp/blob/d3e1bc95639a46954e29163107b014c326eb4122/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.1.4 Windows (47788677 bytes, SHA-256 dbe41506e80f8b178cfe9ffcf22816797aaf69d17574d6f3e2961c6ee220f818) and Linux x64 (45596417 bytes, SHA-256 2b853e5260b1e9e756dee0d30372242640efc61da362fd85dc9e91ee3676dc85) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI match the reviewed 7192402 framework, and carry the same game.toml with 1 track, first data track SHA-1 4abe30077c2b449ea68239083df7932d47ae0b69, and the psxrecomp/bios/SCPH1001.toml BIOS configuration that the route's BIOS profile names. Unlike the earlier kits they use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player Syphon_Filter_3_Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved."
       },
       {
         "id": "alexbeav-tenchu-stealth-assassins-recomp-v0-1-3-static-contract",
@@ -1143,6 +1233,16 @@
         "claim": "Official Windows v0.1.3 ZIP asset 600795737 matched publisher SHA-256 9615fe1e90610276d0cd9391d847d62311adde72ebc0e93df17b97508d386976 and passed CRC and safe-entry checks. The packaged game.toml and project manifest match tagged source. Catalog identity declares one USA data track for SLUS-00706. The game uses SCPH-1001 and the psx-runtime CMake target generates Tenchu_Stealth_Assassins_Recompiled.exe. Framework and UI match the reviewed Musashi package at the static scope; the two AMD64 emitter binaries differ in build identity. No native generation, gameplay or save observation."
       },
       {
+        "id": "alexbeav-tenchu-stealth-assassins-recomp-v014-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp",
+        "authority_ref": "f3a66b1a496515e6f9f8c70891cf02c7601fee02",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp/blob/f3a66b1a496515e6f9f8c70891cf02c7601fee02/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.1.4 Windows (47782751 bytes, SHA-256 00ca7e0eec89bc439f1f02f50d48f34a6ce4978c6a7ca59ad6193bd4c7caac19) and Linux x64 (45590751 bytes, SHA-256 eabbd72175ac100c22331ae47b9d04c4bf7e29fe8da8e405c0afee5bfe383fd2) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI match the reviewed 7192402 framework, and carry the same game.toml with 1 track, first data track SHA-1 a33ca500872e3471b8d096b21eff3d30a310284c, and the psxrecomp/bios/SCPH1001.toml BIOS configuration that the route's BIOS profile names. Unlike the earlier kits they use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player Tenchu_Stealth_Assassins_Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved."
+      },
+      {
         "id": "alexbeav-monster-rancher-2-recomp-v0-1-3-static-contract",
         "role": "upstream_support",
         "authority": "alexbeavs-ps1-ports/monster-rancher-2-recomp",
@@ -1150,6 +1250,16 @@
         "reviewed_at": "2026-11-07",
         "claim": "Official Windows v0.1.3 ZIP asset 600788796 matched publisher SHA-256 227787825930e0fd93fbed5821e304bd23cbd5a46d9de469a561d0de76dda50f and passed CRC and safe-entry checks. Packaged game.toml and project manifest match tagged source. Catalog identity declares USA SLUS-00917, 1 tracks and a first data-track SHA-1. Packaged setup requires retail SCPH-1001. The reviewed PSX kit builds Monster_Rancher_2_Recompiled.exe. Complete-disc identity, native generation, gameplay and saves are unobserved.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-2-recomp/blob/d5b13817a97f3daf0e9c71ec7022044242c8addb/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-monster-rancher-2-recomp-v014-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/monster-rancher-2-recomp",
+        "authority_ref": "1b9dbb2c155be5a27ea10c339f623a8b2cb2c985",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.4 Windows (47786734 bytes, SHA-256 abb71a7c539fd3bd83be8e40b4fd3f292c6b5265238e5e745e0dbaaa51222fe2) and Linux x64 (45594658 bytes, SHA-256 da90b637e8a89455224ce8bfe2ae4c833a89aaba1127723fd904f6f3e14763c8) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI match the reviewed 7192402 framework, and carry the same game.toml with 1 track, first data track SHA-1 e7418d1491e1809490b2e5fe20d738cb730e5e22, and the psxrecomp/bios/SCPH1001.toml BIOS configuration that the route's BIOS profile names. Unlike the earlier kits they use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player Monster_Rancher_2_Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-2-recomp/blob/1b9dbb2c155be5a27ea10c339f623a8b2cb2c985/game.toml",
         "live_url": null
       },
       {
@@ -1163,6 +1273,16 @@
         "live_url": null
       },
       {
+        "id": "alexbeav-nightmare-creatures-recomp-v014-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/nightmare-creatures-recomp",
+        "authority_ref": "7f9bac5fc86556343c1182612d68b2c75b6a283a",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.4 Windows (47781296 bytes, SHA-256 3634c7001f8f0a30135f85c1015ceedb351afd67d0c23dbd89e4920901d75170) and Linux x64 (45588616 bytes, SHA-256 37acaa4828c424faa28cb96fe27f0023ea3f832011912a640cec57b1a6073535) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI match the reviewed 7192402 framework, and carry the same game.toml with 26 tracks, first data track SHA-1 67d9fb2ab81a54c1129a5a42ec0991c756a2f125, and the psxrecomp/bios/SCPH1001.toml BIOS configuration that the route's BIOS profile names. Unlike the earlier kits they use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player Nightmare_Creatures_Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp/blob/7f9bac5fc86556343c1182612d68b2c75b6a283a/game.toml",
+        "live_url": null
+      },
+      {
         "id": "alexbeav-bloody-roar-ii-recomp-v0-1-2-static-contract",
         "role": "upstream_support",
         "authority": "alexbeavs-ps1-ports/bloody-roar-ii-recomp",
@@ -1170,6 +1290,16 @@
         "reviewed_at": "2026-11-07",
         "claim": "Official Windows v0.1.2 ZIP asset 544444855 matched publisher SHA-256 8cc8dccbbed28b68c11a1108b170377b235c50b6da880e27db989e49b4c65eda and passed CRC and safe-entry checks. The packaged game, identity, project manifest and title build files match tagged source. The source declares one USA data track for SCUS-94424 and requires retail SCPH-1001. CMake generates Bloody_Roar_II__Recompiled.exe. Framework and UI match the reviewed Monster Rancher 2 Windows kit except for the two AMD64 emitter binaries. Native generation, gameplay and saves are unobserved. Official Linux v0.1.2 linux-x64 ZIP asset 544444484 (27796218 bytes, SHA-256 a3e5422e00fd5c768c09f4e4e8fb97586a5fcfb2877d18419897e2b66ad0da89) also matched provider metadata and passed CRC and safe-entry checks. Its game, identity, manifest, build files and CLI match the Windows package after line-ending normalization. The managed Linux route builds Bloody_Roar_II__Recompiled with the registered toolchain and uses the same ownership contract. No Linux generation or launch was observed.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp/blob/a8332fc2144184f9d30d8e946b34c77b0114f0d7/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-bloody-roar-ii-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/bloody-roar-ii-recomp",
+        "authority_ref": "769997e324484ad62747eb5564ae704086ed18a4",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.3 Windows (47785224 bytes, SHA-256 94bcee3d19bdb837c7b1da1f91283c84200783630c519f0bab39ad32a09c2ff5) and Linux x64 (45592598 bytes, SHA-256 90d4ed564cdf5c9a1c02399fd30824341e3b168851b45a04fd76853f2f859382) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI match the reviewed 7192402 framework, and carry the same game.toml with 1 track, first data track SHA-1 75a13364ae026fe555e9c666c7c3434e5b403cc8, and the psxrecomp/bios/SCPH1001.toml BIOS configuration that the route's BIOS profile names. Unlike the earlier kits they use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player Bloody_Roar_II__Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp/blob/769997e324484ad62747eb5564ae704086ed18a4/game.toml",
         "live_url": null
       },
       {
@@ -1190,6 +1320,16 @@
         "reviewed_at": "2026-11-07",
         "claim": "Official v0.1.0 windows-x64 ZIP asset 564078040 (27059877 bytes, SHA-256 52397048849c696cdddadcba938a51e0253e06473df085c522a6a53e99c13993); linux-x64 ZIP asset 564078031 (24986708 bytes, SHA-256 d6b968fe9f116cc49e98f4d1077449a94c17439c3a4175e75a98cc38fb7ade25) matched provider metadata and passed CRC and safe-entry checks. Packaged game, identity, manifest, build files and CLI agree across Windows and Linux after line-ending normalization. Source declares SLUS-00912 with 13 tracks and first data-track SHA-1 131463c47379b9a38888f548a44f43dcc6e7f959. The managed kit generates Destruction_Derby_Raw with retail SCPH-1001 BIOS. No native generation, launch, gameplay, full-disc identity or saves were observed.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp/blob/33ab1fb744a1c4fdc48626e2e5dfde17b07667cd/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-destruction-derby-raw-recomp-v011-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/destruction-derby-raw-recomp",
+        "authority_ref": "4db8ba595affa9680d40785e8e5eda120e3bc11d",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.1 Windows (47708984 bytes, SHA-256 4a9ee3c71e285538b777e5fa9e83b7cc48c0c9ade8c21f03da70b1aa68f4e378) and Linux x64 (45600544 bytes, SHA-256 dffe2dbcbd373831a2d01aa76e8b1d43e7b2ba61aea6edbc6585becd54f76832) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 7192402c283880e318c97732c9b733c4d1b144d0 and carry the same game.toml with 13 tracks, first data track SHA-1 131463c47379b9a38888f548a44f43dcc6e7f959, and the psxrecomp/bios/SCPH1001.toml BIOS configuration that the route's BIOS profile names. Unlike the earlier kits they use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player Destruction_Derby_Raw. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp/blob/4db8ba595affa9680d40785e8e5eda120e3bc11d/game.toml",
         "live_url": null
       },
       {
@@ -1393,6 +1533,16 @@
         "live_url": null
       },
       {
+        "id": "xena-warrior-princess-xena-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/xena-warrior-princess-recomp",
+        "authority_ref": "8752c33b64478891992da31b85f4709851de6725",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.3 Windows (47702735 bytes, SHA-256 63b2d851c9b71af0122460e5ba9420d321edcdb9b2384549e6be2fe68ece3b6c) and Linux x64 (45592553 bytes, SHA-256 d158c82240554541d8a367690658d7aa37aed61015d087fee7ce0ca8a154bad7) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 7192402c283880e318c97732c9b733c4d1b144d0 and carry the same game.toml with 1 track, first data track SHA-1 2f7ee5625aaa02c536938fb66fcf06d4d8f6b422, and the psxrecomp/bios/SCPH1001.toml BIOS configuration that the route's BIOS profile names. Unlike the earlier kits they use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player Xena__Warrior_Princess_Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp/blob/8752c33b64478891992da31b85f4709851de6725/game.toml",
+        "live_url": null
+      },
+      {
         "id": "alexbeav-colin-mcrae-rally-2-0-recomp-v036-managed-psx",
         "role": "upstream_support",
         "authority": "alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp",
@@ -1503,6 +1653,16 @@
         "live_url": null
       },
       {
+        "id": "alexbeav-legacy-of-kain-soul-reaver-recomp-v015-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp",
+        "authority_ref": "a479837a0b9fea831d70ff159695ff4fee3f5196",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.5 Windows (47787369 bytes, SHA-256 764ba185fa6a8ed82aef0f905fd70c7e385abbbab3e9e492b2a4c732c2770af2) and Linux x64 (45594884 bytes, SHA-256 afd865f44e3805ee9b60433d815fc23bb2ddfaf2d48a258261ea18970cd61a46) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI match the reviewed 7192402 framework, and carry the same game.toml with 1 track, first data track SHA-1 f1ec508b68d24608f0ce1a939faa3e2a7d80f329, and the psxrecomp/bios/SCPH5552.toml BIOS configuration that the route's BIOS profile names. Unlike the earlier kits they use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player Legacy_of_Kain__Soul_Reaver_Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp/blob/a479837a0b9fea831d70ff159695ff4fee3f5196/game.toml",
+        "live_url": null
+      },
+      {
         "id": "alexbeav-mdk-recomp-v014-static-contract",
         "role": "upstream_support",
         "authority": "alexbeavs-ps1-ports/mdk-recomp",
@@ -1510,6 +1670,16 @@
         "reviewed_at": "2026-11-08",
         "claim": "Exact v0.1.4 Windows and Linux kits (assets 605931966 and 605931956) match provider SHA-256 and tagged source. The kit identifies SLES-00599, 30 disc tracks, data Track 1 SHA-1 c59f5cec719fd43df0ff763b7cc2e9584be4b4fe, and the required retail SCPH-5552 BIOS. Static runtime and CLI match the admitted Alien Resurrection v0.1.4 family. Managed preparation selects the generated player, and the first track plus count does not authenticate additional tracks or the complete TOC. Native operation and gameplay were not observed.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp/blob/450139b72a8ea290174b83fdcf60a34b3e71dde0/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-mdk-recomp-v015-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/mdk-recomp",
+        "authority_ref": "d19c29d7537d190cc8362ffc79ef95af30525c12",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.5 Windows (47784075 bytes, SHA-256 3fce1b86c008d4647d77a00e18ec2a93fd3e0cd7abaafa875862f322179544d8) and Linux x64 (45591670 bytes, SHA-256 d955f972df84cb68cbcedbaed5cf77be789f29467c56473c02e10eb04ca16420) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI match the reviewed 7192402 framework, and carry the same game.toml with 30 tracks, first data track SHA-1 c59f5cec719fd43df0ff763b7cc2e9584be4b4fe, and the psxrecomp/bios/SCPH5552.toml BIOS configuration that the route's BIOS profile names. Unlike the earlier kits they use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player MDK_Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp/blob/d19c29d7537d190cc8362ffc79ef95af30525c12/game.toml",
         "live_url": null
       },
       {
@@ -1523,6 +1693,16 @@
         "live_url": null
       },
       {
+        "id": "alexbeav-spyro-the-dragon-recomp-v015-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/spyro-the-dragon-recomp",
+        "authority_ref": "d00016137fb9b768b92ea580d78cc35d043f8b13",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.5 Windows (47782482 bytes, SHA-256 05422c51d57c4f3bbdbef26e6a4274834d548a68c3c38938d821c38ffb92c568) and Linux x64 (45590434 bytes, SHA-256 a8278880bc8e968e179fc1eb75419cfd0d722d538ed3a64dea037535657b9345) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI match the reviewed 7192402 framework, and carry the same game.toml with 1 track, first data track SHA-1 52bba2f6a7eec6ac7dc4d08de13a01b0bbce30b6, and the psxrecomp/bios/SCPH5552.toml BIOS configuration that the route's BIOS profile names. Unlike the earlier kits they use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player Spyro_the_Dragon_Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/blob/d00016137fb9b768b92ea580d78cc35d043f8b13/game.toml",
+        "live_url": null
+      },
+      {
         "id": "alexbeav-wipeout-recomp-v014-static-contract",
         "role": "upstream_support",
         "authority": "alexbeavs-ps1-ports/wipeout-recomp",
@@ -1530,6 +1710,16 @@
         "reviewed_at": "2026-11-08",
         "claim": "Exact v0.1.4 Windows and Linux kits match provider SHA-256 and tagged source. The original European SCES-00010 alternate in game.toml agrees with the packaged catalog identity for a 12-track disc. Use the retail SCPH-5552 BIOS and generated WipEout_Recompiled player. The older unmatched digest is excluded. Known BIOS-stage audio and FMV placement defects remain scoped. Native operation and gameplay were not observed.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/wipeout-recomp/blob/021c82ec5a884d258c8aabd9b02b8cbd6f0a6d50/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-wipeout-recomp-v015-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/wipeout-recomp",
+        "authority_ref": "ff201c980bd71acb56bb3f1e900e8920173838e8",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.5 Windows (47783637 bytes, SHA-256 daaa811914e5d5650dbc0fd54ca190ac9b3ee0f54a9034ff320d009dc764e390) and Linux x64 (45591583 bytes, SHA-256 0936ac15549ecdf80145e865f3a47f87a5fd6c41c422a5ff780919608607a977) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI match the reviewed 7192402 framework, and carry the same game.toml with 12 tracks, first data track SHA-1 93a70ff5be6d8a4b25bf40ba453e6ded864ad645, and the psxrecomp/bios/SCPH5552.toml BIOS configuration that the route's BIOS profile names. Unlike the earlier kits they use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player WipEout_Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/wipeout-recomp/blob/ff201c980bd71acb56bb3f1e900e8920173838e8/game.toml",
         "live_url": null
       },
       {
@@ -2193,6 +2383,16 @@
         "claim": "Exact v0.1.2 Windows (29903257 bytes, SHA-256 dd9fc377d91b0ce789308278487eb1f9bf892384e7637968f646828163e176cb) and Linux x64 (27797758 bytes, SHA-256 c3d3e196db2efd296940b25bd8fc94a11c58bbbb34e3e7ea6a00726d368711d1) setup kits match provider SHA-256 and pass Core package-layout inspection. Both kits carry the same game.toml: SLUS-00757, two tracks, first data track size 323642256 and SHA-1 f936e7cc477b0daf456c86eff86acc82e7f549ce. README-SETUP requires a retail SCPH-1001 BIOS and states OpenBIOS is not supported. The kit pins PSXRecomp 40ce47896026be52bcaae7de03b69766e0bd03e4, the reviewed Tony Hawk's Pro Skater 3 framework, ships its packages under mods/packages and generates Quake_II_Recompiled from the window title through the psx-runtime target. Native generation, gameplay and saves remain unobserved."
       },
       {
+        "id": "alexbeav-quake-ii-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/quake-ii-recomp",
+        "authority_ref": "3dbe2d630f881a6ce4516e0ef72000abee0246d7",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/blob/3dbe2d630f881a6ce4516e0ef72000abee0246d7/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.1.3 Windows (47787981 bytes, SHA-256 31b5d2e7c90013b2073bf8debaddd7a91f57fbdaa8411420930e32a90745415d) and Linux x64 (45592327 bytes, SHA-256 49a5c9b95199e481b8f94baacf2cfea8c1c1b3e1c122f144e38825a97204a0b3) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI match the reviewed 7192402 framework, and carry the same game.toml with 2 tracks, first data track SHA-1 f936e7cc477b0daf456c86eff86acc82e7f549ce, and the psxrecomp/bios/SCPH1001.toml BIOS configuration that the route's BIOS profile names. Unlike the earlier kits they use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player Quake_II_Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved."
+      },
+      {
         "id": "alexbeav-quake-ii-recomp-redump-6643",
         "role": "byte_identity",
         "authority": "Redump disc database",
@@ -2231,6 +2431,16 @@
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/blob/bc491c6ca40caa2058bf63d7199191dac9659897/game.toml",
         "live_url": null,
         "claim": "Exact v0.1.1 Windows (26207167 bytes, SHA-256 f846b3e99aa7769ad8fb0fa786bd5566a220f97833325c69ba0b16658ecbd124) and Linux x64 (24180676 bytes, SHA-256 cca1c12b83ae016920e12c842fc835a39a6a31e1b6fb067ed0322e6e8b294a48) setup kits match provider SHA-256 and pass Core package-layout inspection. Both carry the same game.toml: SLES-02792, 1 track, first data track size 383601792 and SHA-1 c9293c685b16321c08e8f4f5cf4f93f21cf8df27, and the SCPH5552 BIOS configuration. README-SETUP requires the SCPH-5502/5552 Europe BIOS with SHA-256 1faaa18fa820a0225e488d9f086296b8e6c46df739666093987ff7d8fd352c09. The kits pin PSXRecomp a839474e2941cdc44488ace4d53584e6a485ea41, keep the whole mods/packages layout and set EXE_NAME Silent_Bomber_Recompiled for the psx-runtime target. Native generation, gameplay and saves remain unobserved."
+      },
+      {
+        "id": "alexbeav-silent-bomber-recomp-v012-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/silent-bomber-recomp",
+        "authority_ref": "f132d940b4c434b65a709bb895976f212b467e6c",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/blob/f132d940b4c434b65a709bb895976f212b467e6c/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.1.2 Windows (47809186 bytes, SHA-256 3aebb600aac7e410a95386c5a7712b259034427eea743765cc84fd4dc2b75be4) and Linux x64 (45741069 bytes, SHA-256 3bd3321bb238c45f1ecb4436e5b4ddafb05f8f9aabed96db59f4a964a29ec3e5) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp 7192402c283880e318c97732c9b733c4d1b144d0 and carry the same game.toml with 1 track, first data track SHA-1 c9293c685b16321c08e8f4f5cf4f93f21cf8df27, and the psxrecomp/bios/SCPH5552.toml BIOS configuration that the route's BIOS profile names. Unlike the earlier kits they use the split mod layout with build-staged mods/bundled and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player Silent_Bomber_Recompiled. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved."
       },
       {
         "id": "alexbeav-silent-bomber-recomp-redump-3617",
@@ -15776,7 +15986,8 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-diablo-recomp-v0-1-4-source-contract",
-          "alexbeav-diablo-recomp-v0-1-4-linux-static-contract"
+          "alexbeav-diablo-recomp-v0-1-4-linux-static-contract",
+          "alexbeav-diablo-recomp-v015-static-contract"
         ],
         "authority_ref": "1e71257166f6a2c0e087f7a36e0e3bde984132d4",
         "reviewed_at": "2026-10-11",
@@ -15791,6 +16002,14 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "0579d28ce0f1d8bcb5aca3b1a68b8fe43ea866aa141202b2bc80d0d17f1943e1"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "780ed938fe3f9e7475d80f55a3c8c85b3f6e1ad6fb0ce2dfb8b595362b7ca45c"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "0a6a5ebe8b5383d304062df78dd0d0f9bda2b7db4d3fbf58b2c09adfb013de3c"
           }
         ],
         "aliases": [],
@@ -15809,7 +16028,8 @@
         "evidence_ids": [
           "psx-scph-5552-f7672e5-source-contract",
           "alexbeav-diablo-recomp-v0-1-4-source-contract",
-          "alexbeav-diablo-recomp-v0-1-4-linux-static-contract"
+          "alexbeav-diablo-recomp-v0-1-4-linux-static-contract",
+          "alexbeav-diablo-recomp-v015-static-contract"
         ],
         "authority_ref": "f7672e53b8504fd20bd2b2ad70e62adc6a87a5de",
         "reviewed_at": "2026-10-11",
@@ -15824,6 +16044,14 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "0579d28ce0f1d8bcb5aca3b1a68b8fe43ea866aa141202b2bc80d0d17f1943e1"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "780ed938fe3f9e7475d80f55a3c8c85b3f6e1ad6fb0ce2dfb8b595362b7ca45c"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "0a6a5ebe8b5383d304062df78dd0d0f9bda2b7db4d3fbf58b2c09adfb013de3c"
           }
         ],
         "aliases": [],
@@ -16035,6 +16263,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-alien-resurrection-recomp-v0-1-4-static-contract",
+          "alexbeav-alien-resurrection-recomp-v015-static-contract",
           "alexbeav-alien-resurrection-recomp-v0-1-4-linux-static-contract"
         ],
         "authority_ref": "38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c",
@@ -16050,6 +16279,14 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "9c7f812e2f72a1dce599e3845dfecb1ac5c3cac0a6300fd3b4224249d5f895b5"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "cc53e2a6c6dd565102b88aad028c341b86ffdd106f8040ee65f6b524261d9962"
           }
         ],
         "aliases": [],
@@ -16067,6 +16304,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-alien-resurrection-recomp-v0-1-4-static-contract",
+          "alexbeav-alien-resurrection-recomp-v015-static-contract",
           "alexbeav-alien-resurrection-recomp-v0-1-4-linux-static-contract"
         ],
         "authority_ref": "38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c",
@@ -16082,6 +16320,14 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "9c7f812e2f72a1dce599e3845dfecb1ac5c3cac0a6300fd3b4224249d5f895b5"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "cc53e2a6c6dd565102b88aad028c341b86ffdd106f8040ee65f6b524261d9962"
           }
         ],
         "aliases": [],
@@ -16099,6 +16345,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-brave-fencer-musashi-recomp-v0-1-3-static-contract",
+          "alexbeav-brave-fencer-musashi-recomp-v014-static-contract",
           "alexbeav-brave-fencer-musashi-recomp-v0-1-3-linux-static-contract"
         ],
         "authority_ref": "54ddfe971dfd79134f2593b00dbd9b78ae51536b",
@@ -16114,6 +16361,14 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "4840243261defdd7d7226ed3e1907a33ca3268925d29b388ed3b540a6b61ec1a"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "ffe43ae807c504d8e522d45d6940bf7a2d05616f57d8239af16e187078162e52"
           }
         ],
         "aliases": [],
@@ -16131,6 +16386,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-brave-fencer-musashi-recomp-v0-1-3-static-contract",
+          "alexbeav-brave-fencer-musashi-recomp-v014-static-contract",
           "alexbeav-brave-fencer-musashi-recomp-v0-1-3-linux-static-contract"
         ],
         "authority_ref": "54ddfe971dfd79134f2593b00dbd9b78ae51536b",
@@ -16146,6 +16402,14 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "4840243261defdd7d7226ed3e1907a33ca3268925d29b388ed3b540a6b61ec1a"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "ffe43ae807c504d8e522d45d6940bf7a2d05616f57d8239af16e187078162e52"
           }
         ],
         "aliases": [],
@@ -16833,6 +17097,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-tony-hawk-s-pro-skater-2-recomp-v0-1-3-static-contract",
+          "alexbeav-tony-hawk-s-pro-skater-2-recomp-v014-static-contract",
           "alexbeav-tony-hawk-s-pro-skater-2-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "5edd843cdc4e92a7012609897e2e6c2c30991d4d",
@@ -16848,6 +17113,14 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "9952c8298ee8e84cd8a43a75c72291c106b178d77a59d0ae6647af284db9a005"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "51739cfbf09352b6ae394309996809414befb18e7bc08e51df77c6f999a5c470"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "38831ff8662f4eadcbda0b25e95c291fec81fbad1e1261692f967cdefe483e89"
           }
         ],
         "aliases": [],
@@ -16865,6 +17138,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-tony-hawk-s-pro-skater-2-recomp-v0-1-3-static-contract",
+          "alexbeav-tony-hawk-s-pro-skater-2-recomp-v014-static-contract",
           "alexbeav-tony-hawk-s-pro-skater-2-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "5edd843cdc4e92a7012609897e2e6c2c30991d4d",
@@ -16880,6 +17154,14 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "9952c8298ee8e84cd8a43a75c72291c106b178d77a59d0ae6647af284db9a005"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "51739cfbf09352b6ae394309996809414befb18e7bc08e51df77c6f999a5c470"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "38831ff8662f4eadcbda0b25e95c291fec81fbad1e1261692f967cdefe483e89"
           }
         ],
         "aliases": [],
@@ -16897,6 +17179,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-tony-hawk-s-pro-skater-3-recomp-v0-1-3-static-contract",
+          "alexbeav-tony-hawk-s-pro-skater-3-recomp-v014-static-contract",
           "alexbeav-tony-hawk-s-pro-skater-3-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "0331e76300569de7133bc1a70730e9fb005f02b6",
@@ -16912,6 +17195,14 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "9670ddf158bb6e00966e69d45de8161fb53e0cc78d7cae40e979ea9e4bc7558c"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "0fa4952c77f6dfc4d2c04ab7b4c485d2d38d9c9992f11309af600a41c154a084"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "a206b084236cb7523976d24eb3f2facf4e4cbadc40488c16dcc8175d333fb804"
           }
         ],
         "aliases": [],
@@ -16929,6 +17220,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-tony-hawk-s-pro-skater-3-recomp-v0-1-3-static-contract",
+          "alexbeav-tony-hawk-s-pro-skater-3-recomp-v014-static-contract",
           "alexbeav-tony-hawk-s-pro-skater-3-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "0331e76300569de7133bc1a70730e9fb005f02b6",
@@ -16944,6 +17236,14 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "9670ddf158bb6e00966e69d45de8161fb53e0cc78d7cae40e979ea9e4bc7558c"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "0fa4952c77f6dfc4d2c04ab7b4c485d2d38d9c9992f11309af600a41c154a084"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "a206b084236cb7523976d24eb3f2facf4e4cbadc40488c16dcc8175d333fb804"
           }
         ],
         "aliases": [],
@@ -16961,6 +17261,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-tony-hawk-s-pro-skater-4-recomp-v0-1-3-static-contract",
+          "alexbeav-tony-hawk-s-pro-skater-4-recomp-v014-static-contract",
           "alexbeav-tony-hawk-s-pro-skater-4-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "65ee011a0a36ca07c51ab28dadfb3b7320617768",
@@ -16976,6 +17277,14 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "5731d1851c94144aa8c19d648afb2665a4526e28b850a26afb06e72717822234"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "5042ef46679d6ecb3475ae8e8bfb480e031bf35f81c9a5fdf50098177e272fb4"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "717a2ce4fa618cae85a702008d07b872d7f31db1759c1c14e2d2dde47079008c"
           }
         ],
         "aliases": [],
@@ -16993,6 +17302,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-tony-hawk-s-pro-skater-4-recomp-v0-1-3-static-contract",
+          "alexbeav-tony-hawk-s-pro-skater-4-recomp-v014-static-contract",
           "alexbeav-tony-hawk-s-pro-skater-4-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "65ee011a0a36ca07c51ab28dadfb3b7320617768",
@@ -17008,6 +17318,14 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "5731d1851c94144aa8c19d648afb2665a4526e28b850a26afb06e72717822234"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "5042ef46679d6ecb3475ae8e8bfb480e031bf35f81c9a5fdf50098177e272fb4"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "717a2ce4fa618cae85a702008d07b872d7f31db1759c1c14e2d2dde47079008c"
           }
         ],
         "aliases": [],
@@ -17025,6 +17343,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-tony-hawk-s-pro-skater-recomp-v0-1-3-static-contract",
+          "alexbeav-tony-hawk-s-pro-skater-recomp-v014-static-contract",
           "alexbeav-tony-hawk-s-pro-skater-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "820fcda34cacc39b946cb20b05df221a77667e4a",
@@ -17040,6 +17359,14 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "c9e97b03e77f7c2455a6a9fee2fd43712ed6ae13fa7c1023712ae53202a18643"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "56a39e8679d417ab07f38f2f95167ce2c94fe3406023e337cc0d57845adfdb48"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "0650f2f2f352931d57b2a830a457ee313dfd7d0841bcc2bd9eb8c502cceef98f"
           }
         ],
         "aliases": [],
@@ -17057,6 +17384,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-tony-hawk-s-pro-skater-recomp-v0-1-3-static-contract",
+          "alexbeav-tony-hawk-s-pro-skater-recomp-v014-static-contract",
           "alexbeav-tony-hawk-s-pro-skater-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "820fcda34cacc39b946cb20b05df221a77667e4a",
@@ -17072,6 +17400,14 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "c9e97b03e77f7c2455a6a9fee2fd43712ed6ae13fa7c1023712ae53202a18643"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "56a39e8679d417ab07f38f2f95167ce2c94fe3406023e337cc0d57845adfdb48"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "0650f2f2f352931d57b2a830a457ee313dfd7d0841bcc2bd9eb8c502cceef98f"
           }
         ],
         "aliases": [],
@@ -17089,6 +17425,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-oddworld-abe-s-oddysee-recomp-v0-1-3-static-contract",
+          "alexbeav-oddworld-abe-s-oddysee-recomp-v014-static-contract",
           "alexbeav-oddworld-abe-s-oddysee-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "d41305b83ab35ef23dbedb3a6fee00290e9b1101",
@@ -17104,6 +17441,14 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "177256f195ba86d4a011db99d6c59cf708fac43f03c655cc5685c470b436512b"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "eea18a4d3c816f4bab814a16e884297fc9d5b078f38326c9be6b75666c357c93"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "239f6e1d38f4700406132f4fd08c2f0444e36397a1c05ed0f39e84e065772cb9"
           }
         ],
         "aliases": [],
@@ -17121,6 +17466,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-oddworld-abe-s-oddysee-recomp-v0-1-3-static-contract",
+          "alexbeav-oddworld-abe-s-oddysee-recomp-v014-static-contract",
           "alexbeav-oddworld-abe-s-oddysee-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "d41305b83ab35ef23dbedb3a6fee00290e9b1101",
@@ -17136,6 +17482,14 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "177256f195ba86d4a011db99d6c59cf708fac43f03c655cc5685c470b436512b"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "eea18a4d3c816f4bab814a16e884297fc9d5b078f38326c9be6b75666c357c93"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "239f6e1d38f4700406132f4fd08c2f0444e36397a1c05ed0f39e84e065772cb9"
           }
         ],
         "aliases": [],
@@ -17153,6 +17507,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-syphon-filter-3-recomp-v0-1-3-static-contract",
+          "alexbeav-syphon-filter-3-recomp-v014-static-contract",
           "alexbeav-syphon-filter-3-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "1059cfabe56727520f29fc5ed6a0e53226b7a4f0",
@@ -17168,6 +17523,14 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "82ec298edfa5b9cb95323523199ad7ee0df73b5a969687c039271509c0540a06"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "dbe41506e80f8b178cfe9ffcf22816797aaf69d17574d6f3e2961c6ee220f818"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "2b853e5260b1e9e756dee0d30372242640efc61da362fd85dc9e91ee3676dc85"
           }
         ],
         "aliases": [],
@@ -17185,6 +17548,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-syphon-filter-3-recomp-v0-1-3-static-contract",
+          "alexbeav-syphon-filter-3-recomp-v014-static-contract",
           "alexbeav-syphon-filter-3-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "1059cfabe56727520f29fc5ed6a0e53226b7a4f0",
@@ -17200,6 +17564,14 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "82ec298edfa5b9cb95323523199ad7ee0df73b5a969687c039271509c0540a06"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "dbe41506e80f8b178cfe9ffcf22816797aaf69d17574d6f3e2961c6ee220f818"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "2b853e5260b1e9e756dee0d30372242640efc61da362fd85dc9e91ee3676dc85"
           }
         ],
         "aliases": [],
@@ -17217,6 +17589,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-tenchu-stealth-assassins-recomp-v0-1-3-static-contract",
+          "alexbeav-tenchu-stealth-assassins-recomp-v014-static-contract",
           "alexbeav-tenchu-stealth-assassins-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "2d3ce1718f6e47e3be6d35d15a688f44e1034060",
@@ -17232,6 +17605,14 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "70bbc868a1542af53256c2e2f396905f8071fb657adb9dd75d4eb9617d35e205"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "00ca7e0eec89bc439f1f02f50d48f34a6ce4978c6a7ca59ad6193bd4c7caac19"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "eabbd72175ac100c22331ae47b9d04c4bf7e29fe8da8e405c0afee5bfe383fd2"
           }
         ],
         "aliases": [],
@@ -17249,6 +17630,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-tenchu-stealth-assassins-recomp-v0-1-3-static-contract",
+          "alexbeav-tenchu-stealth-assassins-recomp-v014-static-contract",
           "alexbeav-tenchu-stealth-assassins-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "2d3ce1718f6e47e3be6d35d15a688f44e1034060",
@@ -17264,6 +17646,14 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "70bbc868a1542af53256c2e2f396905f8071fb657adb9dd75d4eb9617d35e205"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "00ca7e0eec89bc439f1f02f50d48f34a6ce4978c6a7ca59ad6193bd4c7caac19"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "eabbd72175ac100c22331ae47b9d04c4bf7e29fe8da8e405c0afee5bfe383fd2"
           }
         ],
         "aliases": [],
@@ -17281,6 +17671,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-monster-rancher-2-recomp-v0-1-3-static-contract",
+          "alexbeav-monster-rancher-2-recomp-v014-static-contract",
           "alexbeav-monster-rancher-2-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "d5b13817a97f3daf0e9c71ec7022044242c8addb",
@@ -17296,6 +17687,14 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "f5c0046db7a19576524fce80d9379629abb7baaba94bf693f2142df843b9ed7f"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "abb71a7c539fd3bd83be8e40b4fd3f292c6b5265238e5e745e0dbaaa51222fe2"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "da90b637e8a89455224ce8bfe2ae4c833a89aaba1127723fd904f6f3e14763c8"
           }
         ],
         "aliases": [],
@@ -17313,6 +17712,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-monster-rancher-2-recomp-v0-1-3-static-contract",
+          "alexbeav-monster-rancher-2-recomp-v014-static-contract",
           "alexbeav-monster-rancher-2-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "d5b13817a97f3daf0e9c71ec7022044242c8addb",
@@ -17328,6 +17728,14 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "f5c0046db7a19576524fce80d9379629abb7baaba94bf693f2142df843b9ed7f"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "abb71a7c539fd3bd83be8e40b4fd3f292c6b5265238e5e745e0dbaaa51222fe2"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "da90b637e8a89455224ce8bfe2ae4c833a89aaba1127723fd904f6f3e14763c8"
           }
         ],
         "aliases": [],
@@ -17345,6 +17753,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-nightmare-creatures-recomp-v0-1-3-static-contract",
+          "alexbeav-nightmare-creatures-recomp-v014-static-contract",
           "alexbeav-nightmare-creatures-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "85b86b419e019647fa961ff41cdc992f7b2e6a72",
@@ -17360,6 +17769,14 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "b05e43cc8eb8a927a331d0307c30e36b78e4ea7c3413874215e2a9d42b471ec3"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "3634c7001f8f0a30135f85c1015ceedb351afd67d0c23dbd89e4920901d75170"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "37acaa4828c424faa28cb96fe27f0023ea3f832011912a640cec57b1a6073535"
           }
         ],
         "aliases": [],
@@ -17377,6 +17794,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-nightmare-creatures-recomp-v0-1-3-static-contract",
+          "alexbeav-nightmare-creatures-recomp-v014-static-contract",
           "alexbeav-nightmare-creatures-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "85b86b419e019647fa961ff41cdc992f7b2e6a72",
@@ -17392,6 +17810,14 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "b05e43cc8eb8a927a331d0307c30e36b78e4ea7c3413874215e2a9d42b471ec3"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "3634c7001f8f0a30135f85c1015ceedb351afd67d0c23dbd89e4920901d75170"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "37acaa4828c424faa28cb96fe27f0023ea3f832011912a640cec57b1a6073535"
           }
         ],
         "aliases": [],
@@ -17408,7 +17834,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-bloody-roar-ii-recomp-v0-1-2-static-contract"
+          "alexbeav-bloody-roar-ii-recomp-v0-1-2-static-contract",
+          "alexbeav-bloody-roar-ii-recomp-v013-static-contract"
         ],
         "authority_ref": "a8332fc2144184f9d30d8e946b34c77b0114f0d7",
         "reviewed_at": "2026-11-07",
@@ -17423,6 +17850,14 @@
           {
             "upstream_ref": "v0.1.2",
             "artifact_sha256": "a3e5422e00fd5c768c09f4e4e8fb97586a5fcfb2877d18419897e2b66ad0da89"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "94bcee3d19bdb837c7b1da1f91283c84200783630c519f0bab39ad32a09c2ff5"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "90d4ed564cdf5c9a1c02399fd30824341e3b168851b45a04fd76853f2f859382"
           }
         ],
         "aliases": [],
@@ -17439,7 +17874,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-bloody-roar-ii-recomp-v0-1-2-static-contract"
+          "alexbeav-bloody-roar-ii-recomp-v0-1-2-static-contract",
+          "alexbeav-bloody-roar-ii-recomp-v013-static-contract"
         ],
         "authority_ref": "a8332fc2144184f9d30d8e946b34c77b0114f0d7",
         "reviewed_at": "2026-11-07",
@@ -17454,6 +17890,14 @@
           {
             "upstream_ref": "v0.1.2",
             "artifact_sha256": "a3e5422e00fd5c768c09f4e4e8fb97586a5fcfb2877d18419897e2b66ad0da89"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "94bcee3d19bdb837c7b1da1f91283c84200783630c519f0bab39ad32a09c2ff5"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "90d4ed564cdf5c9a1c02399fd30824341e3b168851b45a04fd76853f2f859382"
           }
         ],
         "aliases": [],
@@ -17501,7 +17945,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-destruction-derby-raw-recomp-static-contract"
+          "alexbeav-destruction-derby-raw-recomp-static-contract",
+          "alexbeav-destruction-derby-raw-recomp-v011-static-contract"
         ],
         "authority_ref": "33ab1fb744a1c4fdc48626e2e5dfde17b07667cd",
         "reviewed_at": "2026-11-07",
@@ -17516,6 +17961,14 @@
           {
             "upstream_ref": "v0.1.0",
             "artifact_sha256": "d6b968fe9f116cc49e98f4d1077449a94c17439c3a4175e75a98cc38fb7ade25"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "4a9ee3c71e285538b777e5fa9e83b7cc48c0c9ade8c21f03da70b1aa68f4e378"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "dffe2dbcbd373831a2d01aa76e8b1d43e7b2ba61aea6edbc6585becd54f76832"
           }
         ],
         "aliases": [],
@@ -17532,7 +17985,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-destruction-derby-raw-recomp-static-contract"
+          "alexbeav-destruction-derby-raw-recomp-static-contract",
+          "alexbeav-destruction-derby-raw-recomp-v011-static-contract"
         ],
         "authority_ref": "33ab1fb744a1c4fdc48626e2e5dfde17b07667cd",
         "reviewed_at": "2026-11-07",
@@ -17547,6 +18001,14 @@
           {
             "upstream_ref": "v0.1.0",
             "artifact_sha256": "d6b968fe9f116cc49e98f4d1077449a94c17439c3a4175e75a98cc38fb7ade25"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "4a9ee3c71e285538b777e5fa9e83b7cc48c0c9ade8c21f03da70b1aa68f4e378"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "dffe2dbcbd373831a2d01aa76e8b1d43e7b2ba61aea6edbc6585becd54f76832"
           }
         ],
         "aliases": [],
@@ -17594,7 +18056,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "xena-warrior-princess-xena-recomp-managed-psx-static-contract"
+          "xena-warrior-princess-xena-recomp-managed-psx-static-contract",
+          "xena-warrior-princess-xena-recomp-v013-static-contract"
         ],
         "authority_ref": "acb27a20e1c940a243447a1e4b27bccaafdd82eb",
         "reviewed_at": "2026-11-08",
@@ -17609,6 +18072,14 @@
           {
             "upstream_ref": "v0.1.2",
             "artifact_sha256": "967bae1054bcebf3439373fcbc49e0ec8698e7a1567bfb8a7aa82115b97ae138"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "63b2d851c9b71af0122460e5ba9420d321edcdb9b2384549e6be2fe68ece3b6c"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "d158c82240554541d8a367690658d7aa37aed61015d087fee7ce0ca8a154bad7"
           }
         ],
         "aliases": [],
@@ -17625,7 +18096,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "xena-warrior-princess-xena-recomp-managed-psx-static-contract"
+          "xena-warrior-princess-xena-recomp-managed-psx-static-contract",
+          "xena-warrior-princess-xena-recomp-v013-static-contract"
         ],
         "authority_ref": "acb27a20e1c940a243447a1e4b27bccaafdd82eb",
         "reviewed_at": "2026-11-08",
@@ -17640,6 +18112,14 @@
           {
             "upstream_ref": "v0.1.2",
             "artifact_sha256": "967bae1054bcebf3439373fcbc49e0ec8698e7a1567bfb8a7aa82115b97ae138"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "63b2d851c9b71af0122460e5ba9420d321edcdb9b2384549e6be2fe68ece3b6c"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "d158c82240554541d8a367690658d7aa37aed61015d087fee7ce0ca8a154bad7"
           }
         ],
         "aliases": [],
@@ -17966,7 +18446,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-legacy-of-kain-soul-reaver-recomp-v014-static-contract"
+          "alexbeav-legacy-of-kain-soul-reaver-recomp-v014-static-contract",
+          "alexbeav-legacy-of-kain-soul-reaver-recomp-v015-static-contract"
         ],
         "authority_ref": "c6ea4e292a04716e3b57203a646e11bbbaeaebb0",
         "reviewed_at": "2026-11-08",
@@ -17981,6 +18462,14 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "2f3b3a20f3b6cf25f7da3e1f03f78a084472c6d25192428466219c436e5b2a10"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "764ba185fa6a8ed82aef0f905fd70c7e385abbbab3e9e492b2a4c732c2770af2"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "afd865f44e3805ee9b60433d815fc23bb2ddfaf2d48a258261ea18970cd61a46"
           }
         ],
         "aliases": [],
@@ -17997,7 +18486,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-legacy-of-kain-soul-reaver-recomp-v014-static-contract"
+          "alexbeav-legacy-of-kain-soul-reaver-recomp-v014-static-contract",
+          "alexbeav-legacy-of-kain-soul-reaver-recomp-v015-static-contract"
         ],
         "authority_ref": "c6ea4e292a04716e3b57203a646e11bbbaeaebb0",
         "reviewed_at": "2026-11-08",
@@ -18012,6 +18502,14 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "2f3b3a20f3b6cf25f7da3e1f03f78a084472c6d25192428466219c436e5b2a10"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "764ba185fa6a8ed82aef0f905fd70c7e385abbbab3e9e492b2a4c732c2770af2"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "afd865f44e3805ee9b60433d815fc23bb2ddfaf2d48a258261ea18970cd61a46"
           }
         ],
         "aliases": [],
@@ -18028,7 +18526,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-mdk-recomp-v014-static-contract"
+          "alexbeav-mdk-recomp-v014-static-contract",
+          "alexbeav-mdk-recomp-v015-static-contract"
         ],
         "authority_ref": "450139b72a8ea290174b83fdcf60a34b3e71dde0",
         "reviewed_at": "2026-11-08",
@@ -18043,6 +18542,14 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "a77f827298449e32edc028bed8ce7cb36cd3d2dab855e02263e56f45a24084a0"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "3fce1b86c008d4647d77a00e18ec2a93fd3e0cd7abaafa875862f322179544d8"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "d955f972df84cb68cbcedbaed5cf77be789f29467c56473c02e10eb04ca16420"
           }
         ],
         "aliases": [],
@@ -18059,7 +18566,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-mdk-recomp-v014-static-contract"
+          "alexbeav-mdk-recomp-v014-static-contract",
+          "alexbeav-mdk-recomp-v015-static-contract"
         ],
         "authority_ref": "450139b72a8ea290174b83fdcf60a34b3e71dde0",
         "reviewed_at": "2026-11-08",
@@ -18074,6 +18582,14 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "a77f827298449e32edc028bed8ce7cb36cd3d2dab855e02263e56f45a24084a0"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "3fce1b86c008d4647d77a00e18ec2a93fd3e0cd7abaafa875862f322179544d8"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "d955f972df84cb68cbcedbaed5cf77be789f29467c56473c02e10eb04ca16420"
           }
         ],
         "aliases": [],
@@ -18090,7 +18606,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-spyro-the-dragon-recomp-v014-static-contract"
+          "alexbeav-spyro-the-dragon-recomp-v014-static-contract",
+          "alexbeav-spyro-the-dragon-recomp-v015-static-contract"
         ],
         "authority_ref": "62118ec415d2d3be51a8961556534fa66e7dd619",
         "reviewed_at": "2026-11-08",
@@ -18105,6 +18622,14 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "e8b54a666b66ae3657013ee55a4c40cf3779e103901a67da7385b903d50aa61b"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "05422c51d57c4f3bbdbef26e6a4274834d548a68c3c38938d821c38ffb92c568"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "a8278880bc8e968e179fc1eb75419cfd0d722d538ed3a64dea037535657b9345"
           }
         ],
         "aliases": [],
@@ -18121,7 +18646,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-spyro-the-dragon-recomp-v014-static-contract"
+          "alexbeav-spyro-the-dragon-recomp-v014-static-contract",
+          "alexbeav-spyro-the-dragon-recomp-v015-static-contract"
         ],
         "authority_ref": "62118ec415d2d3be51a8961556534fa66e7dd619",
         "reviewed_at": "2026-11-08",
@@ -18136,6 +18662,14 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "e8b54a666b66ae3657013ee55a4c40cf3779e103901a67da7385b903d50aa61b"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "05422c51d57c4f3bbdbef26e6a4274834d548a68c3c38938d821c38ffb92c568"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "a8278880bc8e968e179fc1eb75419cfd0d722d538ed3a64dea037535657b9345"
           }
         ],
         "aliases": [],
@@ -18153,6 +18687,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-wipeout-recomp-v014-static-contract",
+          "alexbeav-wipeout-recomp-v015-static-contract",
           "alexbeav-wipeout-recomp-redump-352"
         ],
         "authority_ref": "021c82ec5a884d258c8aabd9b02b8cbd6f0a6d50",
@@ -18168,6 +18703,14 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "fa83b3be67076b4c70136392469564cf14a2989a750ff091aa40478ccbf22438"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "daaa811914e5d5650dbc0fd54ca190ac9b3ee0f54a9034ff320d009dc764e390"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "0936ac15549ecdf80145e865f3a47f87a5fd6c41c422a5ff780919608607a977"
           }
         ],
         "aliases": [],
@@ -18184,7 +18727,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-wipeout-recomp-v014-static-contract"
+          "alexbeav-wipeout-recomp-v014-static-contract",
+          "alexbeav-wipeout-recomp-v015-static-contract"
         ],
         "authority_ref": "021c82ec5a884d258c8aabd9b02b8cbd6f0a6d50",
         "reviewed_at": "2026-11-08",
@@ -18199,6 +18743,14 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "fa83b3be67076b4c70136392469564cf14a2989a750ff091aa40478ccbf22438"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "daaa811914e5d5650dbc0fd54ca190ac9b3ee0f54a9034ff320d009dc764e390"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "0936ac15549ecdf80145e865f3a47f87a5fd6c41c422a5ff780919608607a977"
           }
         ],
         "aliases": [],
@@ -19989,6 +20541,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-quake-ii-recomp-v012-static-contract",
+          "alexbeav-quake-ii-recomp-v013-static-contract",
           "alexbeav-quake-ii-recomp-redump-6643"
         ],
         "authority_ref": "348015cc55f945d71dd13edba2f975bbab34bcdb",
@@ -20004,6 +20557,14 @@
           {
             "upstream_ref": "v0.1.2",
             "artifact_sha256": "c3d3e196db2efd296940b25bd8fc94a11c58bbbb34e3e7ea6a00726d368711d1"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "31b5d2e7c90013b2073bf8debaddd7a91f57fbdaa8411420930e32a90745415d"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "49a5c9b95199e481b8f94baacf2cfea8c1c1b3e1c122f144e38825a97204a0b3"
           }
         ],
         "aliases": [],
@@ -20020,7 +20581,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-quake-ii-recomp-v012-static-contract"
+          "alexbeav-quake-ii-recomp-v012-static-contract",
+          "alexbeav-quake-ii-recomp-v013-static-contract"
         ],
         "authority_ref": "348015cc55f945d71dd13edba2f975bbab34bcdb",
         "reviewed_at": "2026-11-12",
@@ -20035,6 +20597,14 @@
           {
             "upstream_ref": "v0.1.2",
             "artifact_sha256": "c3d3e196db2efd296940b25bd8fc94a11c58bbbb34e3e7ea6a00726d368711d1"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "31b5d2e7c90013b2073bf8debaddd7a91f57fbdaa8411420930e32a90745415d"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "49a5c9b95199e481b8f94baacf2cfea8c1c1b3e1c122f144e38825a97204a0b3"
           }
         ],
         "aliases": [],
@@ -20115,6 +20685,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-silent-bomber-recomp-v011-static-contract",
+          "alexbeav-silent-bomber-recomp-v012-static-contract",
           "alexbeav-silent-bomber-recomp-redump-3617"
         ],
         "authority_ref": "bc491c6ca40caa2058bf63d7199191dac9659897",
@@ -20130,6 +20701,14 @@
           {
             "upstream_ref": "v0.1.1",
             "artifact_sha256": "cca1c12b83ae016920e12c842fc835a39a6a31e1b6fb067ed0322e6e8b294a48"
+          },
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "3aebb600aac7e410a95386c5a7712b259034427eea743765cc84fd4dc2b75be4"
+          },
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "3bd3321bb238c45f1ecb4436e5b4ddafb05f8f9aabed96db59f4a964a29ec3e5"
           }
         ],
         "aliases": [],
@@ -20146,7 +20725,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-silent-bomber-recomp-v011-static-contract"
+          "alexbeav-silent-bomber-recomp-v011-static-contract",
+          "alexbeav-silent-bomber-recomp-v012-static-contract"
         ],
         "authority_ref": "bc491c6ca40caa2058bf63d7199191dac9659897",
         "reviewed_at": "2026-11-12",
@@ -20161,6 +20741,14 @@
           {
             "upstream_ref": "v0.1.1",
             "artifact_sha256": "cca1c12b83ae016920e12c842fc835a39a6a31e1b6fb067ed0322e6e8b294a48"
+          },
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "3aebb600aac7e410a95386c5a7712b259034427eea743765cc84fd4dc2b75be4"
+          },
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "3bd3321bb238c45f1ecb4436e5b4ddafb05f8f9aabed96db59f4a964a29ec3e5"
           }
         ],
         "aliases": [],

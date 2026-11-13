@@ -6197,10 +6197,10 @@ mod tests {
             for contract in contracts {
                 assert_eq!(contract["admission_mode"], "enforced");
                 assert_eq!(contract["authority_ref"], commit);
-                // Historical release-specific source evidence stays exact;
-                // it does not pin the current provider's reusable selection.
+                // Historical release-specific source evidence stays exact and
+                // first; later reviewed releases are appended after it.
                 assert_eq!(
-                    contract["applicability"],
+                    serde_json::json!(contract["applicability"].as_array().unwrap()[..2]),
                     serde_json::json!([
                         { "upstream_ref": version, "artifact_sha256": digest },
                         {
@@ -6307,7 +6307,7 @@ mod tests {
                 .collect::<Vec<_>>();
             assert_eq!(contracts.len(), 2);
             for contract in contracts {
-                assert_eq!(contract["applicability"].as_array().unwrap().len(), 2);
+                assert!(contract["applicability"].as_array().unwrap().len() >= 2);
                 assert_eq!(contract["applicability"][1]["artifact_sha256"], sha256);
                 assert!(
                     contract["evidence_ids"]
