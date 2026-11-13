@@ -2078,11 +2078,21 @@ it("offers a folder's game choice for files matched beyond the shown results", a
   await root.rerender(<GameFileLibraries generation={1} ports={[first, second]} profiles={[]} />);
   await act(async () => {});
   expect(desktopApi.gameFileRootMatchProfiles).toHaveBeenCalledWith(saved.id, 1);
-  expect(
+  const offered = () =>
     [...document.querySelectorAll<HTMLSelectElement>("select")].some((item) =>
       [...item.options].some((option) => option.value === "second"),
-    ),
-  ).toBe(true);
+    );
+  expect(offered()).toBe(true);
+  // A later scan no longer matches those files; the choice follows it even
+  // though the shown results did not change.
+  vi.mocked(desktopApi.gameFileRootMatchProfiles).mockResolvedValue([]);
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({
+    ...snapshot,
+    completed_at: 2,
+    report: { ...snapshot.report, candidates: [], limits_reached: [] },
+  });
+  await click("Refresh folders");
+  expect(offered()).toBe(false);
 });
 
 it("offers keeping a local copy only once automatic setup is on, and saves the choice", async () => {

@@ -51,6 +51,7 @@ export function FolderSetupChoice({
   generation,
   ports,
   candidates,
+  scanKey,
   disabled,
 }: {
   root: GameFileRoot;
@@ -59,12 +60,15 @@ export function FolderSetupChoice({
   /** Matched files from the last scan that the view has shown. Core also
    * reports every profile matched in this folder, beyond what was shown. */
   candidates: SourceRecord[];
+  /** Identity of the saved scan, so a new scan rereads this folder's matches. */
+  scanKey?: string | undefined;
   disabled?: boolean | undefined;
 }) {
   const name = useId();
   const { t } = useAppTranslation("gameFiles");
   const [consent, setConsent] = useState<RootSetupConsent | null>();
   const [matched, setMatched] = useState<{ rootId: string; profiles: string[] }>();
+  const [matchError, setMatchError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const owner = useRef(generation);
@@ -90,20 +94,22 @@ export function FolderSetupChoice({
   }, [generation, root.id]);
 
   // A new scan changes which games this folder's files match.
-  const shownProfiles = [...new Set(candidates.map((candidate) => candidate.profile_id))]
-    .sort()
-    .join("\n");
   useEffect(() => {
-    const expected = generation;
+    let current = true;
     desktopApi
-      .gameFileRootMatchProfiles(root.id, expected)
+      .gameFileRootMatchProfiles(root.id, generation)
       .then((profiles) => {
-        if (owner.current === expected) setMatched({ rootId: root.id, profiles });
+        if (!current) return;
+        setMatched({ rootId: root.id, profiles });
+        setMatchError(undefined);
       })
       .catch((value: unknown) => {
-        if (owner.current === expected) setError(errorText(value));
+        if (current) setMatchError(errorText(value));
       });
-  }, [generation, root.id, shownProfiles]);
+    return () => {
+      current = false;
+    };
+  }, [generation, root.id, scanKey]);
 
   const save = async (change: () => Promise<RootSetupConsent | null>) => {
     const expected = generation;
@@ -244,6 +250,7 @@ export function FolderSetupChoice({
           </p>
         ))}
       {error && <p role="alert">{error}</p>}
+      {matchError && <p role="alert">{matchError}</p>}
     </fieldset>
   );
 }

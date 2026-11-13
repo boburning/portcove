@@ -1300,6 +1300,7 @@ export function GameFileLibraries({
             candidates={shownCandidates.filter((candidate) =>
               isInsideFolder(candidate.path, root.path),
             )}
+            scanKey={snapshot ? `${snapshot.matches?.scan_id ?? ""}:${snapshot.completed_at}` : ""}
             disabled={Boolean(busy) || scanning}
           />
         )}
