@@ -10,6 +10,7 @@ import {
   lstat,
   mkdir,
   open,
+  readdir,
   readFile,
   statfs,
   unlink,
@@ -57,7 +58,9 @@ $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User
 $allowed=@($sid.Value,'S-1-5-18','S-1-5-32-544')
 if($env:PORTCOVE_PRIVATE_EVIDENCE_NEW -eq '1') {
   $acl=[Security.AccessControl.DirectorySecurity]::new()
-  $acl.SetOwner($sid)
+  # Writing the owner needs WRITE_OWNER, which a non-elevated account lacks even
+  # on a directory it already owns. Set it only when the creator is not the owner.
+  if([IO.FileSystemAclExtensions]::GetAccessControl($directory).GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $sid.Value){$acl.SetOwner($sid)}
   $acl.SetAccessRuleProtection($true,$false)
   foreach($principal in $allowed) {
     $rule=[Security.AccessControl.FileSystemAccessRule]::new([Security.Principal.SecurityIdentifier]::new($principal),'FullControl','ContainerInherit,ObjectInherit','None','Allow')
@@ -71,6 +74,50 @@ foreach($rule in $observed.GetAccessRules($true,$true,[Security.Principal.Securi
   if($rule.AccessControlType -eq 'Allow' -and $rule.IdentityReference.Value -notin $allowed){throw 'Evidence directory permits another principal'}
 }
 `;
+
+const MARKER_NAME = "retained-evidence.json";
+const MAX_ADOPTION_ENTRIES = 256;
+const MAX_ADOPTION_DEPTH = 4;
+
+/**
+ * True only when a directory without its own marker is empty or contains only
+ * subdirectories and Portcove's own marked sub-stores (for example the
+ * namespaced `container-browser` store created before its parent). A
+ * subdirectory with a valid marker is an owned store and is not descended into.
+ * Any other file, link, an invalid marker, or a tree beyond the bound is treated
+ * as unknown content.
+ */
+async function holdsOnlyOwnedEvidence(root: string): Promise<boolean> {
+  let seen = 0;
+  const isOwnedStore = async (directory: string): Promise<boolean | undefined> => {
+    let text: string;
+    try {
+      text = await readFile(path.join(directory, MARKER_NAME), "utf8");
+    } catch (error) {
+      if (errorCode(error) === "ENOENT") return undefined;
+      return false;
+    }
+    try {
+      const record: unknown = JSON.parse(text);
+      return isRecord(record) && record.format_version === 1 && record.kind === "retained-evidence";
+    } catch {
+      return false;
+    }
+  };
+  const walk = async (directory: string, depth: number): Promise<boolean> => {
+    if (depth > MAX_ADOPTION_DEPTH) return false;
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      if (++seen > MAX_ADOPTION_ENTRIES) return false;
+      if (!entry.isDirectory()) return false;
+      const full = path.join(directory, entry.name);
+      const owned = await isOwnedStore(full);
+      if (owned === false) return false;
+      if (owned === undefined && !(await walk(full, depth + 1))) return false;
+    }
+    return true;
+  };
+  return walk(root, 0);
+}
 
 export async function ensureRetainedEvidenceStore(root: string) {
   root = path.resolve(root);
@@ -95,9 +142,26 @@ export async function ensureRetainedEvidenceStore(root: string) {
     }
     const marker = path.join(root, "retained-evidence.json");
     if (!created) {
-      const record: unknown = JSON.parse(await readFile(marker, "utf8"));
-      if (!isRecord(record) || record.format_version !== 1 || record.kind !== "retained-evidence")
-        throw new Error("Unknown evidence directory; refusing initialization");
+      let text: string | undefined;
+      try {
+        text = await readFile(marker, "utf8");
+      } catch (error) {
+        if (errorCode(error) !== "ENOENT") throw error;
+      }
+      if (text === undefined) {
+        // The marker is written last. An interrupted first initialization, or a
+        // namespaced store whose ancestor was created recursively, leaves a
+        // directory without it. Adopt only a tree that holds no foreign files.
+        if (!(await holdsOnlyOwnedEvidence(root)))
+          throw new Error(
+            "Unknown evidence directory has no retained-evidence marker and contains other files; refusing initialization",
+          );
+        created = true;
+      } else {
+        const record: unknown = JSON.parse(text);
+        if (!isRecord(record) || record.format_version !== 1 || record.kind !== "retained-evidence")
+          throw new Error("Unknown evidence directory; refusing initialization");
+      }
     }
     if (!verifiedPrivateRoots.has(root)) {
       if (process.platform === "win32") {

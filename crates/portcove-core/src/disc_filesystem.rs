@@ -761,11 +761,11 @@ pub(crate) fn expand_cso(
     }
     let mut raw_index = vec![0_u8; index_bytes as usize];
     read_exact_at(&mut input, CSO_HEADER_BYTES, &mut raw_index)?;
-    let index: Vec<u32> = raw_index
-        .as_chunks::<4>()
-        .0
+    // index_bytes is a whole number of four-byte entries, so no remainder.
+    let (entries_le, _) = raw_index.as_chunks::<4>();
+    let index: Vec<u32> = entries_le
         .iter()
-        .map(|chunk| u32::from_le_bytes(*chunk))
+        .map(|entry| u32::from_le_bytes(*entry))
         .collect();
     drop(raw_index);
     let offset_of = |entry: u32| u64::from(entry & 0x7FFF_FFFF) << header.index_shift;

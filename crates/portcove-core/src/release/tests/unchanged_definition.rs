@@ -1304,6 +1304,14 @@ async fn unchanged_authored_rules_follow_versioned_packages_after_cache_expiry_a
             "v0.1.2",
             "BombermanRecomp-windows-x64-v0.1.2.zip",
         ),
+        // v0.5.1 is a controlled successor, not a published-release claim.
+        (
+            "goldeneye-007-n64-pc-port",
+            "v0.5.0",
+            "goldeneye-pc-port-0.5.0-win64.zip",
+            "v0.5.1",
+            "goldeneye-pc-port-0.5.1-win64.zip",
+        ),
     ] {
         // Use each adopted route’s actual shipped rules unchanged.
         let port = catalog.port(id).unwrap();

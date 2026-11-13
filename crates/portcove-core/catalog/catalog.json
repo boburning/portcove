@@ -3151,6 +3151,16 @@
         "immutable_url": "https://redump.info/disc/893",
         "live_url": null,
         "claim": "Redump Alone in the Dark: The New Nightmare (Europe) (Disc 2), SLES-12801, has two tracks. Data track 1: 638403360 bytes, SHA-1 ab2cadfb095ee5980d99740ca584487e469668ba, MD5 81aeedeac7e806d878b4c9444026604f and CRC32 ff74942e, which agree with the kit. Audio track 2 has a 2-second pregap and 39701760 bytes, SHA-1 16772899aa261f293cac0eb42dda924837f48a87, identical on both discs. A Redump search for the data-track SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "goldeneye-007-source-sha1-5c43e69b",
+        "role": "upstream_support",
+        "authority": "jkdansereau/goldeneye-pc-port",
+        "authority_ref": "5c43e69b23f76d1ba30d1120dab427d09968a8c8",
+        "reviewed_at": "2026-10-25",
+        "claim": "Pinned upstream README, ge007.u.sha1 and converter agree on the exact NTSC-U USA big-endian GoldenEye 007 SHA-1. No other byte order, region, modified image, size or gameplay observation is asserted.",
+        "immutable_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/5c43e69b23f76d1ba30d1120dab427d09968a8c8/ge007.u.sha1",
+        "live_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/main/ge007.u.sha1"
       }
     ],
     "identities": [
@@ -14245,6 +14255,46 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "goldeneye-007-ntsc-u-big-endian",
+        "label": "GoldenEye 007 NTSC-U USA big-endian original",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "ntsc-u-usa",
+            "title": "GoldenEye 007",
+            "region": "USA",
+            "revision": "NTSC-U supported by pinned upstream",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "big-endian-z64",
+                "extensions": [
+                  "z64"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "abe01e4aeb033b6c0836819f549c791b26cfde83",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "goldeneye-007-source-sha1-5c43e69b"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "goldeneye-007-source-sha1-5c43e69b"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -22901,6 +22951,33 @@
           {
             "upstream_ref": "v0.3.7",
             "artifact_sha256": "3ab2be5cbd868184a10cd090f8489565f4b6be25f083e968e2a975d39a5f40a2"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "goldeneye-007-n64-pc-port-game-source",
+        "port_id": "goldeneye-007-n64-pc-port",
+        "role": "game",
+        "profile_id": "goldeneye-007-ntsc-u-big-endian",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "ntsc-u-usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "goldeneye-007-source-sha1-5c43e69b"
+        ],
+        "authority_ref": "5c43e69b23f76d1ba30d1120dab427d09968a8c8",
+        "reviewed_at": "2026-10-25",
+        "immutable_review_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/5c43e69b23f76d1ba30d1120dab427d09968a8c8/README.md",
+        "live_review_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/main/README.md",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.5.0",
+            "artifact_sha256": "b49bfb826566367a4d1af16466530f0fadd85e522b33859521d849c143a005ef"
           }
         ],
         "aliases": [],
@@ -46794,6 +46871,20 @@
           "warnings": [],
           "help_url": "https://github.com/Brawmario/infinite-mario-64-ever/blob/v0.1.5/README.md"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "infinite mario 64.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "infinite-mario-64.x86_64"
+          ]
+        }
       }
     },
     {
@@ -51267,6 +51358,26 @@
           "game_slug": "gearhead-garage",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "opengg"
+          ],
+          "executables": [
+            "opengg/data_opengg_windows_x86_64/createdump.exe",
+            "opengg/opengg.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "data",
+            "data_opengg_linuxbsd_x86_64"
+          ],
+          "executables": [
+            "opengg.x86_64"
+          ]
+        }
       }
     },
     {
@@ -51412,6 +51523,204 @@
           "image_id": "coc2fl",
           "image_sha256": "ddabf593da503a4f6f737dcb5b5698da4a061998a8a34746d0985c8384e6a5a8",
           "game_slug": "gladiator--1",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "goldeneye-007-n64-pc-port",
+      "name": "GoldenEye 007 N64 PC Port",
+      "summary": "Native GoldenEye 007 player using your own matching NTSC-U original. The game prepares its assets on first Play.",
+      "project_url": "https://github.com/jkdansereau/goldeneye-pc-port",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "release": {
+        "provider": "github",
+        "repository": "jkdansereau/goldeneye-pc-port",
+        "asset_hints": {
+          "windows-x86-64": [
+            "goldeneye-pc-port-",
+            "-win64.zip"
+          ]
+        }
+      },
+      "source_profile": "goldeneye-007-ntsc-u-big-endian",
+      "runtime_source_filename": "data/ge007.ntsc-final.z64",
+      "runtime_source_materialization": "copy",
+      "executable_hints": {
+        "windows-x86-64": [
+          "ge007.x86_64.exe"
+        ]
+      },
+      "persistent_paths": [
+        "data/ge007.ntsc-final.z64",
+        "data/ge007.eep",
+        "data/ge007.ini",
+        "ppm",
+        "data/ge007.eep.emulator.bak",
+        "data/ge007.eep.emulator.bak2",
+        "data/ge007.eep.emulator.bak3",
+        "data/ge007.eep.emulator.bak4",
+        "data/ge007.eep.emulator.bak5",
+        "data/ge007.eep.emulator.bak6",
+        "data/ge007.eep.emulator.bak7",
+        "data/ge007.eep.emulator.bak8",
+        "data/ge007.eep.emulator.bak9",
+        "data/ge007.eep.emulator.bak10",
+        "data/ge007.eep.emulator.bak11",
+        "data/ge007.eep.emulator.bak12",
+        "data/ge007.eep.emulator.bak13",
+        "data/ge007.eep.emulator.bak14",
+        "data/ge007.eep.emulator.bak15",
+        "data/ge007.eep.emulator.bak16",
+        "data/ge007.eep.emulator.bak17",
+        "data/ge007.eep.emulator.bak18",
+        "data/ge007.eep.emulator.bak19",
+        "data/ge007.eep.emulator.bak20",
+        "data/ge007.eep.emulator.bak21",
+        "data/ge007.eep.emulator.bak22",
+        "data/ge007.eep.emulator.bak23",
+        "data/ge007.eep.emulator.bak24",
+        "data/ge007.eep.emulator.bak25",
+        "data/ge007.eep.emulator.bak26",
+        "data/ge007.eep.emulator.bak27",
+        "data/ge007.eep.emulator.bak28",
+        "data/ge007.eep.emulator.bak29",
+        "data/ge007.eep.emulator.bak30",
+        "data/ge007.eep.emulator.bak31",
+        "data/ge007.eep.emulator.bak32",
+        "data/ge007.eep.emulator.bak33",
+        "data/ge007.eep.emulator.bak34",
+        "data/ge007.eep.emulator.bak35",
+        "data/ge007.eep.emulator.bak36",
+        "data/ge007.eep.emulator.bak37",
+        "data/ge007.eep.emulator.bak38",
+        "data/ge007.eep.emulator.bak39",
+        "data/ge007.eep.emulator.bak40",
+        "data/ge007.eep.emulator.bak41",
+        "data/ge007.eep.emulator.bak42",
+        "data/ge007.eep.emulator.bak43",
+        "data/ge007.eep.emulator.bak44",
+        "data/ge007.eep.emulator.bak45",
+        "data/ge007.eep.emulator.bak46",
+        "data/ge007.eep.emulator.bak47",
+        "data/ge007.eep.emulator.bak48",
+        "data/ge007.eep.emulator.bak49",
+        "data/ge007.eep.emulator.bak50",
+        "data/ge007.eep.emulator.bak51",
+        "data/ge007.eep.emulator.bak52",
+        "data/ge007.eep.emulator.bak53",
+        "data/ge007.eep.emulator.bak54",
+        "data/ge007.eep.emulator.bak55",
+        "data/ge007.eep.emulator.bak56",
+        "data/ge007.eep.emulator.bak57",
+        "data/ge007.eep.emulator.bak58",
+        "data/ge007.eep.emulator.bak59",
+        "data/ge007.eep.emulator.bak60",
+        "data/ge007.eep.emulator.bak61",
+        "data/ge007.eep.emulator.bak62",
+        "data/ge007.eep.emulator.bak63",
+        "data/ge007.eep.emulator.bak64",
+        "data/ge007.eep.emulator.bak65",
+        "data/ge007.eep.emulator.bak66",
+        "data/ge007.eep.emulator.bak67",
+        "data/ge007.eep.emulator.bak68",
+        "data/ge007.eep.emulator.bak69",
+        "data/ge007.eep.emulator.bak70",
+        "data/ge007.eep.emulator.bak71",
+        "data/ge007.eep.emulator.bak72",
+        "data/ge007.eep.emulator.bak73",
+        "data/ge007.eep.emulator.bak74",
+        "data/ge007.eep.emulator.bak75",
+        "data/ge007.eep.emulator.bak76",
+        "data/ge007.eep.emulator.bak77",
+        "data/ge007.eep.emulator.bak78",
+        "data/ge007.eep.emulator.bak79",
+        "data/ge007.eep.emulator.bak80",
+        "data/ge007.eep.emulator.bak81",
+        "data/ge007.eep.emulator.bak82",
+        "data/ge007.eep.emulator.bak83",
+        "data/ge007.eep.emulator.bak84",
+        "data/ge007.eep.emulator.bak85",
+        "data/ge007.eep.emulator.bak86",
+        "data/ge007.eep.emulator.bak87",
+        "data/ge007.eep.emulator.bak88",
+        "data/ge007.eep.emulator.bak89",
+        "data/ge007.eep.emulator.bak90",
+        "data/ge007.eep.emulator.bak91",
+        "data/ge007.eep.emulator.bak92",
+        "data/ge007.eep.emulator.bak93",
+        "data/ge007.eep.emulator.bak94",
+        "data/ge007.eep.emulator.bak95",
+        "data/ge007.eep.emulator.bak96",
+        "data/ge007.eep.emulator.bak97",
+        "data/ge007.eep.emulator.bak98",
+        "data/ge007.eep.emulator.bak99"
+      ],
+      "runtime_mutable_paths": [
+        "data/pcmodels-ntsc-final",
+        "data/pccg-ntsc-final",
+        "data/ge007.shaders",
+        "prepare-assets/vendor/data",
+        "ge007.crash.log",
+        "mixertrace.log",
+        "audiotrace.log",
+        "audiotrace_wire.log",
+        "audiodump.raw",
+        "voicedump.raw",
+        "texdump"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "goldeneye-007-ntsc-u-big-endian",
+            "label": "GoldenEye 007 NTSC-U USA big-endian original",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Supply your own matching NTSC-U USA big-endian original when Portcove requests it. Portcove verifies and copies that exact file; choose Play for the game’s own asset preparation. Portcove manages compatible Windows runtime replacements and preserves the declared original, EEPROM, settings, emulator-import backups and screenshots, including before first Play. Backups include your original game file. Generated sidecars, shader warmup lists, conversion staging and diagnostics stay with their producing runtime and are regenerated when needed. Optional source/Python tool output and custom paths require separate preservation. Runtime rollback carries current declared data; it does not rewind saves or guarantee older readers can use newer data. Upstream conversion and emulator import retain their own error/recovery limitations.",
+        "original_game_title": "GoldenEye 007",
+        "manual_setup": {
+          "help_url": "https://github.com/jkdansereau/goldeneye-pc-port/releases/tag/v0.5.0",
+          "warnings": [
+            "The upstream importer has 99 backup names and can overwrite its last slot when full."
+          ],
+          "steps": [
+            {
+              "title": "Supply your matching original",
+              "instruction": "For the managed Windows route, choose your own exact GoldenEye 007 NTSC-U USA big-endian .z64 original. Portcove verifies its declared identity and copies it to data/ge007.ntsc-final.z64 beside the player. PAL, Japanese, byte-swapped and modified images are not accepted by this contract. No BIOS or separate installer is required."
+            },
+            {
+              "title": "Choose Play for first-run preparation",
+              "instruction": "Keep the complete official Windows ZIP together. Play starts ge007.x86_64.exe, which invokes its bundled frozen converter when generated sidecars are missing. Portcove does not run a discovered helper during download or setup, and does not certify successful upstream conversion or gameplay. If conversion fails, follow the selected upstream troubleshooting instructions and keep your original and saves recoverable."
+            },
+            {
+              "title": "Use an existing copy on Linux or Windows",
+              "instruction": "For a copy you already have, keep the complete v0.5.0 folder and place your own matching USA NTSC-U big-endian ROM at data/ge007.ntsc-final.z64. Choose ge007.x86_64.exe on Windows or ge007.x86_64 on Linux, with its containing folder as the start folder. The Linux x64 kit uses glibc 2.29 or newer, system zlib and OpenGL, and its adjacent SDL2 library. Save your details in Portcove, then choose Play."
+            }
+          ],
+          "references": [
+            {
+              "title": "Preserve your actual data before changing copies",
+              "instruction": "For an externally owned copy, preserve data/ge007.ntsc-final.z64, data/ge007.eep, data/ge007.ini, emulator-import backups and ppm screenshots, plus any selected custom locations. The upstream importer has 99 backup names and can overwrite its last slot when full. Keep generated sidecars and shader lists with their producing runtime; optional source/Python tools are separate deliberate actions. You or upstream provide external updates. Portcove registration does not update, back up, roll back or delete those external files."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 1638,
+          "cover_id": 576176,
+          "image_id": "cocckw",
+          "image_sha256": "6937741f1cbcd1394211af3a808040fdff0c9fc02eab5f2f506f7ea700c5f779",
+          "game_slug": "goldeneye-007",
           "match_kind": "underlying-game"
         }
       }
@@ -52340,6 +52649,33 @@
           "game_slug": "ico",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "docs",
+            "x64"
+          ],
+          "executables": [
+            "x64/ico_pc_x64.exe",
+            "x64/tools/ico_icon_stamp.exe",
+            "x64/tools/mc_import.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "docs",
+            "models",
+            "reshade",
+            "textures",
+            "tools"
+          ],
+          "executables": [
+            "ico_pc",
+            "libsdl3.so.0",
+            "tools/mc_import"
+          ]
+        }
       }
     },
     {
@@ -52670,6 +53006,28 @@
           "image_sha256": "9f83154dea1e9290b5ee8da05570f9022bca43d6125ff19b72b485026282d190",
           "game_slug": "lego-island",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "bin"
+          ],
+          "executables": [
+            "bin/isle-config.exe",
+            "bin/isle.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "bin",
+            "lib",
+            "share"
+          ],
+          "executables": [
+            "bin/isle",
+            "bin/isle-config"
+          ]
         }
       }
     },
@@ -53322,6 +53680,33 @@
           "game_slug": "knuckles-chaotix",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "tools"
+          ],
+          "executables": [
+            "chaotixrecompiled.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "chaotixrecompiled",
+            "libsdl3.so.0",
+            "libsdl3_ttf.so.0"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [
+            "chaotixrecompiled.app",
+            "licenses"
+          ],
+          "executables": [
+            "chaotixrecompiled.app/contents/macos/chaotixrecompiled"
+          ]
+        }
       }
     },
     {
@@ -53949,6 +54334,28 @@
           "image_sha256": "1419a475923b58ac1c10e48944b6dff9744b2afb9825a095d42426113fbcd61b",
           "game_slug": "mdk",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "mdk_sdl.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "libsdl3.so",
+            "mdk_sdl"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [],
+          "executables": [
+            "libsdl3.dylib",
+            "mdk_sdl"
+          ]
         }
       }
     },
@@ -56080,7 +56487,27 @@
           "match_kind": "underlying-game"
         }
       },
-      "external_profile_policy": "openrct2-mac-v1"
+      "external_profile_policy": "openrct2-mac-v1",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "data"
+          ],
+          "executables": [
+            "openrct2.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "data",
+            "doc"
+          ],
+          "executables": [
+            "openrct2",
+            "openrct2-cli"
+          ]
+        }
+      }
     },
     {
       "id": "opentyrian-opentyrian",
@@ -58192,7 +58619,36 @@
           "match_kind": "underlying-game"
         }
       },
-      "setup_marker": "game-data/extract-info.json"
+      "setup_marker": "game-data/extract-info.json",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "rerac-extract.exe",
+            "rerac.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "rerac",
+            "rerac-extract"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "rerac",
+            "rerac-extract"
+          ]
+        }
+      }
     },
     {
       "id": "redneck-rampage-raze",
@@ -58987,6 +59443,22 @@
           "image_sha256": "ec3e1a158432cdef557e2121b58c6375444f8fe7056c10e096ed48ec49a91e43",
           "game_slug": "looney-tunes-sheep-raider",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "sheepd3d.exe",
+            "sheeplauncher.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "sheepd3d",
+            "sheeplauncher"
+          ]
         }
       }
     },
@@ -60567,6 +61039,36 @@
           "game_slug": "starlancer",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "openreliant.exe",
+            "sltool.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "openreliant",
+            "sltool"
+          ]
+        },
+        "macos-x86-64": {
+          "directories": [],
+          "executables": [
+            "openreliant",
+            "sltool"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [],
+          "executables": [
+            "openreliant",
+            "sltool"
+          ]
+        }
       }
     },
     {
@@ -60619,6 +61121,28 @@
           "image_sha256": "0c24051e22899da1b44f3730cf39b1f319aac6e773ce22c5733e63c9f295dc33",
           "game_slug": "street-fighter-iii-3rd-strike--2",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "licenses",
+            "shaders"
+          ],
+          "executables": [
+            "3sx.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "bin",
+            "lib",
+            "share"
+          ],
+          "executables": [
+            "bin/3sx"
+          ]
         }
       }
     },

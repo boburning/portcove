@@ -4990,8 +4990,18 @@ impl AcquisitionHttp {
                 stream
                     .set_write_timeout(Some(std::time::Duration::from_secs(2)))
                     .unwrap();
+                // Read the whole request head before replying. Closing a socket
+                // with unread request bytes resets the connection on macOS, so
+                // the client saw a send error and retried (ARM Qualification
+                // 43431499321). These GET fixtures carry no request body.
                 let mut buffer = vec![0u8; 16 * 1024];
-                let size = stream.read(&mut buffer).unwrap();
+                let mut size = 0;
+                while size < buffer.len() && !buffer[..size].windows(4).any(|w| w == b"\r\n\r\n") {
+                    match stream.read(&mut buffer[size..]).unwrap() {
+                        0 => break,
+                        read => size += read,
+                    }
+                }
                 captured
                     .lock()
                     .unwrap()

@@ -60,6 +60,20 @@
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "Choose Play, then select your own ICO European SCES-50760, Japanese SCPS-11003 or Korean SCPS-56001 disc image when asked. Use ISO, CHD, or BIN with its matching CUE; the US disc is not supported. Keep the image outside the runtime folder. The game verifies and extracts its data on first launch (about 1 GB); later launches use that extracted copy. Keep your original image available if a future data-format change requires extraction again. Portcove manages the official portable runtime with portable=1. It preserves userdata (extracted game data, memory cards, settings, screenshots and achievements), ico-pc.ini and its interrupted-write temporary file, logs, textures and models beside the executable. Use userdata/memcard2 for an optional second card. Custom save locations, portable=0, and fallback user-profile storage are outside Portcove backups; keep a separate backup of those locations. Runtime rollback carries current declared data and cannot guarantee older versions can read newer saves. Optional injected graphics tools and custom output paths need separate preservation before changing runtime versions. Requires Windows 10/11 x64 or a recent Linux x64 system (Debian 13/Ubuntu 24.04 or newer), with an up-to-date Vulkan-capable graphics driver; Windows also offers Direct3D 12."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["docs", "x64"],
+        "executables": [
+          "x64/ico_pc_x64.exe",
+          "x64/tools/ico_icon_stamp.exe",
+          "x64/tools/mc_import.exe"
+        ]
+      },
+      "linux-x86-64": {
+        "directories": ["docs", "models", "reshade", "textures", "tools"],
+        "executables": ["ico_pc", "libsdl3.so.0", "tools/mc_import"]
+      }
     }
   }
 }

@@ -564,6 +564,49 @@ fn blocked(action: &str, blocker: PortableSaveBlocker) -> PortcoveError {
     )
 }
 
-#[cfg(test)]
+// The reviewed Shipwright contract covers Windows and Linux only, so its
+// export/import contracts run where portable saves are offered.
+#[cfg(all(test, any(windows, target_os = "linux")))]
 #[path = "portable_saves_tests.rs"]
 mod tests;
+
+// Runs on every host, including those the contract excludes (macOS), so the
+// platform gate itself is exercised where the full contracts above are not.
+#[cfg(test)]
+mod host_gate_tests {
+    use crate::{Library, Platform, PortableSaveBlocker, PortcoveService};
+
+    #[test]
+    fn export_is_refused_exactly_on_hosts_outside_the_reviewed_contract() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let mut service = PortcoveService::new(library.clone()).unwrap();
+        // Shipwright itself ships no macOS build; declare the host so the
+        // portable-save contract, not the catalog, decides support.
+        let catalog =
+            crate::test_fixture::host_declared_catalog(service.catalog(), &["shipwright"]);
+        crate::test_fixture::register_qualification_install(&library, &catalog, "shipwright");
+        service.replace_catalog_for_test(catalog);
+        let preview = service.preview_portable_save_export("shipwright").unwrap();
+        // The platform gate is only evaluated for an active install.
+        assert!(
+            !preview
+                .blockers
+                .contains(&PortableSaveBlocker::NotInstalled),
+            "{:?}",
+            preview.blockers
+        );
+        let offered = crate::portable_saves::contract_for("shipwright")
+            .unwrap()
+            .platforms
+            .contains(&Platform::current().unwrap());
+        assert_eq!(
+            preview
+                .blockers
+                .contains(&PortableSaveBlocker::UnsupportedPlatform),
+            !offered,
+            "{:?}",
+            preview.blockers
+        );
+    }
+}

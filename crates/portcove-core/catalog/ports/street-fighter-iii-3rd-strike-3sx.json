@@ -41,6 +41,16 @@
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
       "manual_preparation": "This is the deliberately selected rolling prerelease, with upstream bugs and instability expected. Complete the normal in-process setup wizard using your legally obtained Street Fighter III: 3rd Strike or Street Fighter Anniversary Collection for PlayStation 2, or prepare the exact SF33RD.AFS from THIRD/ in the upstream resources location. A CPS-3/MAME set, future arcade-ROM-only roadmap or a different edition is not the current source contract. The selected Windows player 3sx.exe and Linux x86-64 player 3sx live in bin/ and use their executable parent as the launch working directory; keep all packaged dependencies, including the Linux lib/ folder. The Linux player needs glibc 2.38 or later, libz and OpenGL. Normal resources, configuration, cache, logs and user storage live under AppData/Roaming/CrowdedStreet/3SX on Windows, or $XDG_DATA_HOME (default ~/.local/share)/CrowdedStreet/3SX on Linux; preserve the whole actual profile and any custom effective roots. Upstream checks the expected AFS when its checksum option is enabled; Core does not authenticate, acquire, copy or import original data. Core owns engine replacement on the declared rolling provider channel; upstream owns original-data preparation and shared external profiles. Core supplies no external-profile backup, migration or deletion. Preserve the complete old runtime and compatible actual player data before changes. Rolling tag/assets can change; published provider identity and reviewed current selection remain required, and ambiguity or missing independent identity must refuse. No netplay, rollback gameplay, actual original import, save compatibility or physical-platform acceptance is claimed."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["assets", "licenses", "shaders"],
+        "executables": ["3sx.exe"]
+      },
+      "linux-x86-64": {
+        "directories": ["bin", "lib", "share"],
+        "executables": ["bin/3sx"]
+      }
     }
   }
 }

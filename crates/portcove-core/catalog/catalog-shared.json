@@ -3151,6 +3151,16 @@
         "immutable_url": "https://redump.info/disc/893",
         "live_url": null,
         "claim": "Redump Alone in the Dark: The New Nightmare (Europe) (Disc 2), SLES-12801, has two tracks. Data track 1: 638403360 bytes, SHA-1 ab2cadfb095ee5980d99740ca584487e469668ba, MD5 81aeedeac7e806d878b4c9444026604f and CRC32 ff74942e, which agree with the kit. Audio track 2 has a 2-second pregap and 39701760 bytes, SHA-1 16772899aa261f293cac0eb42dda924837f48a87, identical on both discs. A Redump search for the data-track SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "goldeneye-007-source-sha1-5c43e69b",
+        "role": "upstream_support",
+        "authority": "jkdansereau/goldeneye-pc-port",
+        "authority_ref": "5c43e69b23f76d1ba30d1120dab427d09968a8c8",
+        "reviewed_at": "2026-10-25",
+        "claim": "Pinned upstream README, ge007.u.sha1 and converter agree on the exact NTSC-U USA big-endian GoldenEye 007 SHA-1. No other byte order, region, modified image, size or gameplay observation is asserted.",
+        "immutable_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/5c43e69b23f76d1ba30d1120dab427d09968a8c8/ge007.u.sha1",
+        "live_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/main/ge007.u.sha1"
       }
     ],
     "identities": [
@@ -14245,6 +14255,46 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "goldeneye-007-ntsc-u-big-endian",
+        "label": "GoldenEye 007 NTSC-U USA big-endian original",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "ntsc-u-usa",
+            "title": "GoldenEye 007",
+            "region": "USA",
+            "revision": "NTSC-U supported by pinned upstream",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "big-endian-z64",
+                "extensions": [
+                  "z64"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "abe01e4aeb033b6c0836819f549c791b26cfde83",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "goldeneye-007-source-sha1-5c43e69b"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "goldeneye-007-source-sha1-5c43e69b"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -22901,6 +22951,33 @@
           {
             "upstream_ref": "v0.3.7",
             "artifact_sha256": "3ab2be5cbd868184a10cd090f8489565f4b6be25f083e968e2a975d39a5f40a2"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "goldeneye-007-n64-pc-port-game-source",
+        "port_id": "goldeneye-007-n64-pc-port",
+        "role": "game",
+        "profile_id": "goldeneye-007-ntsc-u-big-endian",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "ntsc-u-usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "goldeneye-007-source-sha1-5c43e69b"
+        ],
+        "authority_ref": "5c43e69b23f76d1ba30d1120dab427d09968a8c8",
+        "reviewed_at": "2026-10-25",
+        "immutable_review_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/5c43e69b23f76d1ba30d1120dab427d09968a8c8/README.md",
+        "live_review_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/main/README.md",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.5.0",
+            "artifact_sha256": "b49bfb826566367a4d1af16466530f0fadd85e522b33859521d849c143a005ef"
           }
         ],
         "aliases": [],

@@ -5330,7 +5330,12 @@ fn finished_folders_drop_every_stamp_and_leave_changed_matches_to_reverification
             fs::write(later.join(format!("note-{file:02}.txt")), b"x").unwrap();
         }
         let library = crate::Library::open(temporary.path().join("library")).unwrap();
-        library.add_game_file_root(&root).unwrap();
+        // Selected roots are scanned in sorted order, while read_dir order
+        // within a folder is not stable (macOS listed b-later first in
+        // Qualification 43431499321). Select both folders so the finished one
+        // is always traversed first.
+        library.add_game_file_root(&finished).unwrap();
+        library.add_game_file_root(&later).unwrap();
         let limits = SourceDiscoveryLimits {
             max_entries: 8,
             ..Default::default()

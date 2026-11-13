@@ -1595,6 +1595,35 @@ export async function installScenarios({
         acquisitionScriptBudgetMs,
         "Restore previous version did not activate the previous installation",
       );
+      // Core activates before it finishes the rollback activity and releases the
+      // port lock; observe the settled outcome, not only the switched version.
+      await browser.wait(
+        async () => {
+          const activities = transportValue("activity", success(await invoke("get_activities")));
+          return !activities.records.some(
+            (record) =>
+              record.operation === "rollback" &&
+              record.target_id === port.id &&
+              record.status === "running",
+          );
+        },
+        acquisitionScriptBudgetMs,
+        "Core rollback activity did not settle after the previous version activated",
+      );
+      const rollbackActivities = transportValue(
+        "activity",
+        success(await invoke("get_activities")),
+      ).records.filter((record) => record.operation === "rollback" && record.target_id === port.id);
+      assert.equal(
+        rollbackActivities.length,
+        1,
+        "Expected exactly one rollback activity for the port",
+      );
+      assert.equal(
+        rollbackActivities[0]?.status,
+        "succeeded",
+        "Core did not record a successful rollback",
+      );
       const rollbackSnapshots = (await backups()).backups.filter(
         (item) => item.automatic && !backupsBeforeRollback.has(item.id),
       );

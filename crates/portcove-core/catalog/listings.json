@@ -27045,12 +27045,11 @@
     {
       "id": "goldeneye-007-n64-pc-port",
       "name": "GoldenEye 007 N64 PC Port",
-      "summary": "Native GoldenEye 007 project with original-file setup; fresh package acquisition awaits the inherited-code permission decision.",
+      "summary": "Native GoldenEye 007 player using your own matching NTSC-U original. The game prepares its assets on first Play.",
       "project_url": "https://github.com/jkdansereau/goldeneye-pc-port",
       "issue_number": 1129,
       "listed_at": "2026-10-23",
-      "platforms": [],
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/jkdansereau/goldeneye-pc-port#readme",
       "artwork": {
         "game_id": 1638,
@@ -27062,7 +27061,6 @@
       },
       "original_game_title": "GoldenEye 007",
       "release_url": "https://github.com/jkdansereau/goldeneye-pc-port/releases",
-      "download_block_reason": "Fresh package acquisition is held while the linked inherited n64decomp/007 code has no attributable grant: the upstream NOTICE excludes it from the port-layer MIT license. Reconsider after an attributable grant or an explicitly reviewed operation basis covers that exact linked code; a published archive or owned original alone does not settle it.",
       "manual_setup": {
         "help_url": "https://github.com/jkdansereau/goldeneye-pc-port/releases/tag/v0.5.0",
         "warnings": [
@@ -27070,16 +27068,16 @@
         ],
         "steps": [
           {
-            "title": "Check the permission for your exact copy",
-            "instruction": "Fresh Windows and Linux v0.5.0 acquisition remains held. The package NOTICE excludes inherited decompilation code and assets from the MIT grant. Resume acquisition when permission for the exact package is established."
+            "title": "Supply your matching original",
+            "instruction": "For the managed Windows route, choose your own exact GoldenEye 007 NTSC-U USA big-endian .z64 original. Portcove verifies its declared identity and copies it to data/ge007.ntsc-final.z64 beside the player. PAL, Japanese, byte-swapped and modified images are not accepted by this contract. No BIOS or separate installer is required."
           },
           {
-            "title": "Prepare your original in a permitted copy",
-            "instruction": "Keep the complete v0.5.0 folder. Place your own matching USA NTSC-U big-endian ROM at data/ge007.ntsc-final.z64. Run the upstream player in that folder to prepare its local assets before adding it."
+            "title": "Choose Play for first-run preparation",
+            "instruction": "Keep the complete official Windows ZIP together. Play starts ge007.x86_64.exe, which invokes its bundled frozen converter when generated sidecars are missing. Portcove does not run a discovered helper during download or setup, and does not certify successful upstream conversion or gameplay. If conversion fails, follow the selected upstream troubleshooting instructions and keep your original and saves recoverable."
           },
           {
-            "title": "Use the matching native player",
-            "instruction": "Choose ge007.x86_64.exe on Windows or ge007.x86_64 on Linux, and use its containing folder as the start folder. The Linux x64 kit uses glibc 2.29 or newer, system zlib and OpenGL, and its adjacent SDL2 library. Save your details in Portcove, then choose Play."
+            "title": "Use an existing copy on Linux or Windows",
+            "instruction": "For a copy you already have, keep the complete v0.5.0 folder and place your own matching USA NTSC-U big-endian ROM at data/ge007.ntsc-final.z64. Choose ge007.x86_64.exe on Windows or ge007.x86_64 on Linux, with its containing folder as the start folder. The Linux x64 kit uses glibc 2.29 or newer, system zlib and OpenGL, and its adjacent SDL2 library. Save your details in Portcove, then choose Play."
           }
         ],
         "references": [
@@ -27088,7 +27086,17 @@
             "instruction": "For an externally owned copy, preserve data/ge007.ntsc-final.z64, data/ge007.eep, data/ge007.ini, emulator-import backups and ppm screenshots, plus any selected custom locations. The upstream importer has 99 backup names and can overwrite its last slot when full. Keep generated sidecars and shader lists with their producing runtime; optional source/Python tools are separate deliberate actions. You or upstream provide external updates. Portcove registration does not update, back up, roll back or delete those external files."
           }
         ]
-      }
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "goldeneye-pc-port-",
+          "-win64.zip"
+        ]
+      },
+      "recommended_download_channel": "stable",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "goldeneye-007-xbla-recomp",
