@@ -6,8 +6,10 @@ name: Release content scan
 # download hold. See docs/CATALOG.md#rights-basis-for-upstream-hosted-packages.
 
 on:
+  # Every six hours, so a new release is scanned soon after it appears. Each run
+  # stops at its 75-minute deadline, well inside this interval.
   schedule:
-    - cron: "19 7 * * *"
+    - cron: "19 1,7,13,19 * * *"
   workflow_dispatch:
 
 permissions:

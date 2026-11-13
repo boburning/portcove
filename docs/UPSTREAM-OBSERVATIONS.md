@@ -1031,7 +1031,7 @@ Metroid's build-specific quickstates retain their pins.
 The [`release-content-scan.yml`](../.github/workflows/release-content-scan.yml)
 workflow applies the automated half of the
 [rights basis for upstream-hosted packages](CATALOG.md#rights-basis-for-upstream-hosted-packages)
-([#5353](https://github.com/boburning/portcove/issues/5353)). Once a day it reads
+([#5353](https://github.com/boburning/portcove/issues/5353)). Every six hours it reads
 every unheld GitHub or GitLab listing that offers a download, finds the newest
 release in the listing's recommended channel and the single asset each
 platform's hints select, and downloads each asset it has not scanned before.

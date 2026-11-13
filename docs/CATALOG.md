@@ -150,7 +150,7 @@ upstream itself publishes and holds a package only for concrete reasons.
   upstream observation; installed copies and player data stay as they are.
 - **Requests from upstream or rights holders** follow the route below; a
   verified request to stop future acquisition withdraws tier 3 for that scope.
-- **Release content scan.** A daily hosted scan lists each listing's newest
+- **Release content scan.** A hosted scan every six hours lists each listing's newest
   hinted release package per platform and flags game-data signals for review;
   a person confirms a finding before setting the hold. See
   [release content scan](UPSTREAM-OBSERVATIONS.md#release-content-scan).
