@@ -1340,6 +1340,20 @@
         ["catalog-full-2", 1800],
         ["development-tools", 3800]
       ],
+      "platform_skips": [
+        {
+          "platform": "linux",
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Linux boot identity and host-local resource admission",
+          "reason": "Linux boot recovery is enabled only on Linux, where these fixtures exercise admission.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2",
+          "cases": [
+            "a prior Linux boot releases local watchdog custody through normal admission",
+            "Linux boot recovery retains ambiguous, same-boot and external custody"
+          ]
+        }
+      ],
       "ordinary_families": ["containment-contract-tests"]
     },
     {
