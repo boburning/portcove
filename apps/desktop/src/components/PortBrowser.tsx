@@ -209,6 +209,39 @@ function browserResultCountLabel({
   return browserResultCount(view, visiblePorts.length);
 }
 
+function usePortBrowserFocus() {
+  const browserOwner = useRef({ closed: false });
+  const filterButton = useRef<HTMLButtonElement>(null);
+  const browserRoot = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const owner = { closed: false };
+    browserOwner.current = owner;
+    return () => {
+      owner.closed = true;
+    };
+  }, []);
+  const restoreAfter = useCallback(async (button: HTMLElement, action: () => Promise<boolean>) => {
+    const owner = browserOwner.current;
+    const ownedFocus = document.activeElement === button;
+    const accepted = await action();
+    if (!accepted || !ownedFocus) return;
+    window.requestAnimationFrame(() => {
+      if (
+        owner.closed ||
+        browserOwner.current !== owner ||
+        button.isConnected ||
+        document.activeElement !== document.body
+      )
+        return;
+      (
+        filterButton.current ??
+        browserRoot.current?.querySelector<HTMLButtonElement>("[data-focusable]:not([disabled])")
+      )?.focus();
+    });
+  }, []);
+  return { browserOwner, browserRoot, filterButton, restoreAfter };
+}
+
 function usePortBrowser({
   organization,
   organizationSelection,
@@ -289,40 +322,12 @@ function usePortBrowser({
     if (organizationSelection) organizationSelection.onChange(value);
     else setOrganizationViews((current) => ({ ...current, [organizationKey]: value }));
   };
-  const browserOwner = useRef({ closed: false });
-  const filterButton = useRef<HTMLButtonElement>(null);
-  const browserRoot = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const owner = { closed: false };
-    browserOwner.current = owner;
-    return () => {
-      owner.closed = true;
-    };
-  }, []);
+  const { browserOwner, browserRoot, filterButton, restoreAfter } = usePortBrowserFocus();
   // Card callbacks keep their identity across renders so memoized cards can skip
   // unrelated workspace updates; each call still uses the latest owner handler.
   const stableSelect = useLatestCallback(onSelect);
   const stableContinue = useLatestCallback(onContinue);
   const stableTask = useLatestCallback(onTask);
-  const restoreAfter = useCallback(async (button: HTMLElement, action: () => Promise<boolean>) => {
-    const owner = browserOwner.current;
-    const ownedFocus = document.activeElement === button;
-    const accepted = await action();
-    if (!accepted || !ownedFocus) return;
-    window.requestAnimationFrame(() => {
-      if (
-        owner.closed ||
-        browserOwner.current !== owner ||
-        button.isConnected ||
-        document.activeElement !== document.body
-      )
-        return;
-      (
-        filterButton.current ??
-        browserRoot.current?.querySelector<HTMLButtonElement>("[data-focusable]:not([disabled])")
-      )?.focus();
-    });
-  }, []);
   const onFavoriteToggle = useCallback(
     (portId: string, button: HTMLElement) => {
       if (favorites) void restoreAfter(button, () => favorites.toggle(portId));

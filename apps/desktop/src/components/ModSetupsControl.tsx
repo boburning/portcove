@@ -273,52 +273,26 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                   components={{ name: <bdi>{selected.profile.display_name}</bdi> }}
                 />
               </h4>
-              {(selected.revision.packages ?? []).length === 0 ? (
-                <p className="text-sm">{t("mods.empty")}</p>
-              ) : (
-                <ul className="m-0 grid list-none gap-1 p-0">
-                  {inOverrideOrder(selected).map((item) => (
-                    <li key={item.native_id}>
-                      <label className="flex items-center gap-2 text-sm [overflow-wrap:anywhere]">
-                        <Checkbox
-                          checked={item.enabled}
-                          disabled={locked || blocked}
-                          onCheckedChange={(value) =>
-                            void perform(
-                              () =>
-                                desktopApi.setModPackageEnabled(
-                                  portId,
-                                  selected.profile.id,
-                                  item.native_id,
-                                  value,
-                                  selected.profile.current_revision,
-                                  generation,
-                                ),
-                              value
-                                ? t("mods.outcome.turnedOn", { name: item.native_id })
-                                : t("mods.outcome.turnedOff", { name: item.native_id }),
-                            )
-                          }
-                        />
-                        {item.provider ? (
-                          <span>
-                            <Trans
-                              t={t}
-                              i18nKey="mods.fromProvider"
-                              components={{
-                                name: <bdi>{item.native_id}</bdi>,
-                                provider: <bdi>{item.provider.provider}</bdi>,
-                              }}
-                            />
-                          </span>
-                        ) : (
-                          <bdi>{item.native_id}</bdi>
-                        )}
-                      </label>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <ModSetupPackages
+                selected={selected}
+                disabled={locked || blocked}
+                setEnabled={(nativeId, value) =>
+                  void perform(
+                    () =>
+                      desktopApi.setModPackageEnabled(
+                        portId,
+                        selected.profile.id,
+                        nativeId,
+                        value,
+                        selected.profile.current_revision,
+                        generation,
+                      ),
+                    value
+                      ? t("mods.outcome.turnedOn", { name: nativeId })
+                      : t("mods.outcome.turnedOff", { name: nativeId }),
+                  )
+                }
+              />
               <p className="text-sm text-pc-muted-foreground">
                 {view.later_mods_take_priority ? t("mods.laterPriority") : t("mods.loadOrder")}
               </p>
@@ -504,6 +478,49 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
 }
 
 /** Packages in the setup's priority order: the last one wins when two overlap. */
+function ModSetupPackages({
+  selected,
+  disabled,
+  setEnabled,
+}: {
+  selected: ModSetupView;
+  disabled: boolean;
+  setEnabled: (nativeId: string, value: boolean) => void;
+}) {
+  const { t } = useAppTranslation("gameSettings");
+  return (selected.revision.packages ?? []).length === 0 ? (
+    <p className="text-sm">{t("mods.empty")}</p>
+  ) : (
+    <ul className="m-0 grid list-none gap-1 p-0">
+      {inOverrideOrder(selected).map((item) => (
+        <li key={item.native_id}>
+          <label className="flex items-center gap-2 text-sm [overflow-wrap:anywhere]">
+            <Checkbox
+              checked={item.enabled}
+              disabled={disabled}
+              onCheckedChange={(value) => setEnabled(item.native_id, value)}
+            />
+            {item.provider ? (
+              <span>
+                <Trans
+                  t={t}
+                  i18nKey="mods.fromProvider"
+                  components={{
+                    name: <bdi>{item.native_id}</bdi>,
+                    provider: <bdi>{item.provider.provider}</bdi>,
+                  }}
+                />
+              </span>
+            ) : (
+              <bdi>{item.native_id}</bdi>
+            )}
+          </label>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function inOverrideOrder(entry: ModSetupView) {
   const order =
     (entry.revision.orderings ?? []).find((ordering) => ordering.domain === "asset-override")

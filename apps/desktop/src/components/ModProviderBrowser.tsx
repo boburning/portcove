@@ -197,90 +197,7 @@ export function ModProviderBrowser(props: Props) {
               />{" "}
               {inUse ? t("mods.browse.inUse") : t("mods.browse.notInUse")}
             </p>
-            <p className="font-semibold">{t("mods.browse.installs")}</p>
-            <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
-              {plan.members.map((member) => (
-                <li key={member.file_name}>
-                  <Trans
-                    t={t}
-                    i18nKey="mods.browse.member"
-                    values={{ size: formatBytes(member.size) }}
-                    components={{ file: <bdi>{member.file_name}</bdi> }}
-                  />
-                </li>
-              ))}
-              {plan.replaces.map((replaced) => (
-                <li key={`replaces-${replaced}`}>
-                  <Trans
-                    t={t}
-                    i18nKey="mods.browse.replaces"
-                    components={{ name: <bdi>{replaced}</bdi> }}
-                  />
-                </li>
-              ))}
-            </ul>
-            {plan.ignored_entries > 0 && (
-              <p>{t("mods.browse.ignored", { count: plan.ignored_entries })}</p>
-            )}
-            {plan.conflicts.length > 0 && (
-              <>
-                <p className="font-semibold">{t("mods.browse.conflictsHeading")}</p>
-                <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
-                  {plan.conflicts.map((conflict) => (
-                    <li key={`conflict-${conflict.path}`}>
-                      <Trans
-                        t={t}
-                        i18nKey="mods.browse.conflict"
-                        components={{
-                          path: <bdi>{conflict.path}</bdi>,
-                          providers: <bdi>{conflict.providers.join(t("mods.separator"))}</bdi>,
-                          winner: <bdi>{conflict.winner}</bdi>,
-                        }}
-                      />
-                    </li>
-                  ))}
-                </ul>
-                {plan.conflicts_truncated && <p>{t("mods.browse.truncated")}</p>}
-              </>
-            )}
-            {plan.unverified_claims.length > 0 && (
-              <>
-                <p className="font-semibold">{t("mods.browse.unverifiedHeading")}</p>
-                <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
-                  {plan.unverified_claims.map((claim) => (
-                    <li key={`claim-${claim}`}>
-                      <bdi>{claim}</bdi>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-            <p className="text-sm [overflow-wrap:anywhere] text-pc-muted-foreground">
-              <Trans
-                t={t}
-                i18nKey="mods.browse.digests"
-                components={{
-                  download: <code dir="ltr">{plan.download_sha256}</code>,
-                  review: <code dir="ltr">{plan.plan_sha256}</code>,
-                }}
-              />
-            </p>
-            {codeMembers.length > 0 && (
-              <Notice intent="warning">
-                <div data-slot="notice-body">
-                  <p className="[overflow-wrap:anywhere]">
-                    <Trans
-                      t={t}
-                      i18nKey="mods.browse.code"
-                      count={codeMembers.length}
-                      components={{
-                        names: <bdi>{codeMembers.join(t("mods.separator"))}</bdi>,
-                      }}
-                    />
-                  </p>
-                </div>
-              </Notice>
-            )}
+            <ProviderInstallDetails plan={plan} codeMembers={codeMembers} />
             <ActionRow>
               <Button
                 disabled={locked}
@@ -488,5 +405,103 @@ export function ModProviderBrowser(props: Props) {
         </ActionRow>
       )}
     </section>
+  );
+}
+
+function ProviderInstallDetails({
+  plan,
+  codeMembers,
+}: {
+  plan: ProviderInstallPlan;
+  codeMembers: string[];
+}) {
+  const { t } = useAppTranslation("gameSettings");
+  return (
+    <>
+      <p className="font-semibold">{t("mods.browse.installs")}</p>
+      <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
+        {plan.members.map((member) => (
+          <li key={member.file_name}>
+            <Trans
+              t={t}
+              i18nKey="mods.browse.member"
+              values={{ size: formatBytes(member.size) }}
+              components={{ file: <bdi>{member.file_name}</bdi> }}
+            />
+          </li>
+        ))}
+        {plan.replaces.map((replaced) => (
+          <li key={`replaces-${replaced}`}>
+            <Trans
+              t={t}
+              i18nKey="mods.browse.replaces"
+              components={{ name: <bdi>{replaced}</bdi> }}
+            />
+          </li>
+        ))}
+      </ul>
+      {plan.ignored_entries > 0 && (
+        <p>{t("mods.browse.ignored", { count: plan.ignored_entries })}</p>
+      )}
+      {plan.conflicts.length > 0 && (
+        <>
+          <p className="font-semibold">{t("mods.browse.conflictsHeading")}</p>
+          <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
+            {plan.conflicts.map((conflict) => (
+              <li key={`conflict-${conflict.path}`}>
+                <Trans
+                  t={t}
+                  i18nKey="mods.browse.conflict"
+                  components={{
+                    path: <bdi>{conflict.path}</bdi>,
+                    providers: <bdi>{conflict.providers.join(t("mods.separator"))}</bdi>,
+                    winner: <bdi>{conflict.winner}</bdi>,
+                  }}
+                />
+              </li>
+            ))}
+          </ul>
+          {plan.conflicts_truncated && <p>{t("mods.browse.truncated")}</p>}
+        </>
+      )}
+      {plan.unverified_claims.length > 0 && (
+        <>
+          <p className="font-semibold">{t("mods.browse.unverifiedHeading")}</p>
+          <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
+            {plan.unverified_claims.map((claim) => (
+              <li key={`claim-${claim}`}>
+                <bdi>{claim}</bdi>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <p className="text-sm [overflow-wrap:anywhere] text-pc-muted-foreground">
+        <Trans
+          t={t}
+          i18nKey="mods.browse.digests"
+          components={{
+            download: <code dir="ltr">{plan.download_sha256}</code>,
+            review: <code dir="ltr">{plan.plan_sha256}</code>,
+          }}
+        />
+      </p>
+      {codeMembers.length > 0 && (
+        <Notice intent="warning">
+          <div data-slot="notice-body">
+            <p className="[overflow-wrap:anywhere]">
+              <Trans
+                t={t}
+                i18nKey="mods.browse.code"
+                count={codeMembers.length}
+                components={{
+                  names: <bdi>{codeMembers.join(t("mods.separator"))}</bdi>,
+                }}
+              />
+            </p>
+          </div>
+        </Notice>
+      )}
+    </>
   );
 }

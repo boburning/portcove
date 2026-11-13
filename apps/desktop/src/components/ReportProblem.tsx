@@ -293,45 +293,7 @@ export function ReportProblem({
           )}
           {phase.kind === "loading" && <p role="status">{t("choice.preparing")}</p>}
           {draft && (
-            <div className="grid gap-3">
-              {draft.choices.map((choice) => (
-                <label key={choice.id} className="grid gap-1 text-sm font-semibold">
-                  {choice.label}
-                  <select
-                    className={selectClassName}
-                    value={valueOf(draft.fields, choice.id)}
-                    disabled={phase.kind === "opening"}
-                    onChange={(event) => edit(choice.id, event.target.value)}
-                  >
-                    <option value="">{t("send.choose")}</option>
-                    {choice.options.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ))}
-              {draft.fields
-                .filter((field) => !draft.choices.some((choice) => choice.id === field.id))
-                .map((field) =>
-                  editableFields.has(field.id) ? (
-                    <label key={field.id} className="grid gap-1 text-sm font-semibold">
-                      {field.label}
-                      <textarea
-                        className={textareaClassName}
-                        value={field.value}
-                        disabled={phase.kind === "opening"}
-                        onChange={(event) => edit(field.id, event.target.value)}
-                      />
-                    </label>
-                  ) : (
-                    <p key={field.id} className="text-sm">
-                      <span className="font-semibold">{field.label}:</span> {field.value}
-                    </p>
-                  ),
-                )}
-            </div>
+            <ReportDraftFields draft={draft} opening={phase.kind === "opening"} edit={edit} />
           )}
           {phase.kind === "submitted" && (
             <p role="status">{t("send.done", { number: phase.issue.number })}</p>
@@ -395,5 +357,58 @@ export function ReportProblem({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function ReportDraftFields({
+  draft,
+  opening,
+  edit,
+}: {
+  draft: Extract<Phase, { kind: "ready" | "opening" }>;
+  opening: boolean;
+  edit: (id: string, value: string) => void;
+}) {
+  const { t } = useAppTranslation("report");
+  return (
+    <div className="grid gap-3">
+      {draft.choices.map((choice) => (
+        <label key={choice.id} className="grid gap-1 text-sm font-semibold">
+          {choice.label}
+          <select
+            className={selectClassName}
+            value={valueOf(draft.fields, choice.id)}
+            disabled={opening}
+            onChange={(event) => edit(choice.id, event.target.value)}
+          >
+            <option value="">{t("send.choose")}</option>
+            {choice.options.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+      ))}
+      {draft.fields
+        .filter((field) => !draft.choices.some((choice) => choice.id === field.id))
+        .map((field) =>
+          editableFields.has(field.id) ? (
+            <label key={field.id} className="grid gap-1 text-sm font-semibold">
+              {field.label}
+              <textarea
+                className={textareaClassName}
+                value={field.value}
+                disabled={opening}
+                onChange={(event) => edit(field.id, event.target.value)}
+              />
+            </label>
+          ) : (
+            <p key={field.id} className="text-sm">
+              <span className="font-semibold">{field.label}:</span> {field.value}
+            </p>
+          ),
+        )}
+    </div>
   );
 }
