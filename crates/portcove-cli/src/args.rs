@@ -508,6 +508,7 @@ pub(crate) enum InstallationCommand {
 pub(crate) enum ArtworkSlotArg {
     Cover,
     Detail,
+    Landscape,
 }
 
 impl From<ArtworkSlotArg> for portcove_core::ArtworkSlot {
@@ -515,6 +516,7 @@ impl From<ArtworkSlotArg> for portcove_core::ArtworkSlot {
         match slot {
             ArtworkSlotArg::Cover => Self::Cover,
             ArtworkSlotArg::Detail => Self::Detail,
+            ArtworkSlotArg::Landscape => Self::Landscape,
         }
     }
 }
@@ -558,14 +560,14 @@ pub(crate) enum SteamGridDbCommand {
         /// Game name to search for, up to 120 characters.
         term: String,
     },
-    /// Choose one SteamGridDB image for a port's cover or detail image.
+    /// Choose one SteamGridDB image for a port's cover, detail or landscape image.
     #[command(
-        after_help = "Cover uses portrait images and detail uses hero images. Portcove looks the image up again with your key, downloads it without sending your key, and keeps the artist credit with the copy in your library. The previous choice is replaced only if the image is valid and the choice revision has not changed."
+        after_help = "Cover uses portrait images, detail uses hero images and landscape uses wide grid images. Portcove looks the image up again with your key, downloads it without sending your key, and keeps the artist credit with the copy in your library. The previous choice is replaced only if the image is valid and the choice revision has not changed."
     )]
     Choose {
         /// Catalog port ID; run `portcove catalog list` to find it.
         port_id: String,
-        /// Artwork slot to change; cover is the library image and detail is the detail view image.
+        /// Artwork slot to change; cover is the library image, detail is the detail view image, and landscape is the wide cover Steam uses as its library capsule.
         #[arg(long, value_enum, default_value = "cover")]
         slot: ArtworkSlotArg,
         /// SteamGridDB game ID from `artwork steamgriddb search`.
@@ -632,7 +634,7 @@ pub(crate) enum ArtworkCommand {
     Show {
         /// Catalog port ID; run `portcove catalog list` to find it.
         port_id: String,
-        /// Artwork slot to inspect or change; cover is the library image and detail is the detail view image.
+        /// Artwork slot to inspect or change; cover is the library image, detail is the detail view image, and landscape is the wide cover Steam uses as its library capsule.
         #[arg(long, value_enum, default_value = "cover")]
         slot: ArtworkSlotArg,
     },
@@ -642,7 +644,7 @@ pub(crate) enum ArtworkCommand {
         port_id: String,
         /// Local image file to import; the original stays outside Portcove ownership.
         path: PathBuf,
-        /// Artwork slot to inspect or change; cover is the library image and detail is the detail view image.
+        /// Artwork slot to inspect or change; cover is the library image, detail is the detail view image, and landscape is the wide cover Steam uses as its library capsule.
         #[arg(long, value_enum, default_value = "cover")]
         slot: ArtworkSlotArg,
         /// Require the artwork revision to match the value previously read.
@@ -653,7 +655,7 @@ pub(crate) enum ArtworkCommand {
     Reset {
         /// Catalog port ID; run `portcove catalog list` to find it.
         port_id: String,
-        /// Artwork slot to inspect or change; cover is the library image and detail is the detail view image.
+        /// Artwork slot to inspect or change; cover is the library image, detail is the detail view image, and landscape is the wide cover Steam uses as its library capsule.
         #[arg(long, value_enum, default_value = "cover")]
         slot: ArtworkSlotArg,
         /// Require the artwork revision to match the value previously read.

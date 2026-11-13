@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 56;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 57;
 
 struct Migration {
     version: i64,
@@ -359,7 +359,30 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_56,
         verify: verify_migration_56,
     },
+    Migration {
+        version: 57,
+        name: "landscape artwork slot",
+        apply: migration_57,
+        verify: verify_migration_57,
+    },
 ];
+
+fn migration_57(transaction: &Transaction<'_>) -> Result<()> {
+    // SQLite cannot widen a CHECK, so the choice table is rebuilt in this
+    // migration's transaction exactly as migration 24 created it, admitting
+    // only the additional `landscape` slot. Every row and revision is copied.
+    crate::artwork_store::migrate_landscape_slot(transaction)?;
+    verify_migration_57(transaction)
+}
+
+fn verify_migration_57(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "artwork_choices",
+        &["port_id", "slot", "revision", "asset_sha256"],
+    )?;
+    crate::artwork_store::verify_landscape_slot(connection)
+}
 
 fn migration_56(transaction: &Transaction<'_>) -> Result<()> {
     // One player preference: whether ready notices are shown. No row means
@@ -3147,6 +3170,101 @@ mod tests {
     }
 
     #[test]
+    fn landscape_slot_migration_keeps_every_choice_and_constraint() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 56).unwrap();
+        let connection = connect(root).unwrap();
+        let asset = "a".repeat(64);
+        connection
+            .execute_batch(&format!(
+                "INSERT INTO artwork_assets(sha256,payload,byte_size) VALUES ('{asset}','{{}}',10);
+                 INSERT INTO artwork_choices(port_id,slot,revision,asset_sha256)
+                     VALUES ('shipwright','cover',3,'{asset}'),('shipwright','detail',5,NULL);
+                 INSERT INTO artwork_thumbnails(asset_sha256,format_version,sha256,byte_size)
+                     VALUES ('{asset}',2,'{asset}',4);
+                 INSERT INTO artwork_provider_only_assets(asset_sha256) VALUES ('{asset}');"
+            ))
+            .unwrap();
+        // Before 57 the stored definition does not admit the landscape slot.
+        assert!(crate::artwork_store::verify_landscape_slot(&connection).is_err());
+        assert!(
+            connection
+                .execute(
+                    "INSERT INTO artwork_choices(port_id,slot,revision) VALUES ('x','landscape',1)",
+                    [],
+                )
+                .is_err()
+        );
+        let read = |connection: &Connection| {
+            connection
+                .prepare(
+                    "SELECT port_id,slot,revision,asset_sha256 FROM artwork_choices ORDER BY slot",
+                )
+                .unwrap()
+                .query_map([], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, i64>(2)?,
+                        row.get::<_, Option<String>>(3)?,
+                    ))
+                })
+                .unwrap()
+                .collect::<std::result::Result<Vec<_>, _>>()
+                .unwrap()
+        };
+        let before = read(&connection);
+        drop(connection);
+        migrate_to(root, 57).unwrap();
+        let connection = connect(root).unwrap();
+        assert_eq!(read(&connection), before);
+        crate::artwork_store::verify_landscape_slot(&connection).unwrap();
+        connection
+            .execute(
+                "INSERT INTO artwork_choices(port_id,slot,revision) VALUES ('x','landscape',1)
+                 ON CONFLICT(port_id,slot) DO UPDATE SET revision=excluded.revision+1",
+                [],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO artwork_choices(port_id,slot,revision) VALUES ('x','landscape',1)
+                 ON CONFLICT(port_id,slot) DO UPDATE SET revision=excluded.revision+1",
+                [],
+            )
+            .unwrap();
+        for refused in [
+            "INSERT INTO artwork_choices(port_id,slot,revision) VALUES ('y','banner',1)",
+            "INSERT INTO artwork_choices(port_id,slot,revision) VALUES ('y','cover',0)",
+            "INSERT INTO artwork_choices(port_id,slot,revision,asset_sha256) VALUES ('y','cover',1,'missing')",
+        ] {
+            assert!(connection.execute(refused, []).is_err(), "{refused}");
+        }
+        // The asset is still protected by the rebuilt table's foreign key.
+        assert!(
+            connection
+                .execute("DELETE FROM artwork_assets WHERE sha256=?1", [&asset])
+                .is_err()
+        );
+        let leftover: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE name='artwork_choices_v56'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(leftover, 0);
+        let violations: i64 = connection
+            .query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(violations, 0);
+    }
+
+    #[test]
     fn snapshot_setting_migration_keeps_identity_and_defaults_existing_libraries_on() {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
@@ -3325,6 +3443,7 @@ mod tests {
         schema_53: 53,
         schema_54: 54,
         schema_55: 55,
+        schema_56: 56,
     }
 
     #[test]

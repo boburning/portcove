@@ -35,8 +35,21 @@ function retryAfterMs(error: unknown) {
 }
 
 /** The destination role each local slot takes from SteamGridDB. */
+const slotRoles: Record<ArtworkSlot, DestinationArtworkRole> = {
+  cover: "portrait_cover",
+  detail: "hero_banner",
+  landscape: "landscape_cover",
+};
+
+/** Preview frames follow each role's shape, so wide images are not squeezed. */
+const roleAspect: Record<DestinationArtworkRole, string> = {
+  portrait_cover: "aspect-[2/3]",
+  hero_banner: "aspect-[96/31]",
+  landscape_cover: "aspect-[92/43]",
+};
+
 export function steamGridDbRole(slot: ArtworkSlot): DestinationArtworkRole {
-  return slot === "cover" ? "portrait_cover" : "hero_banner";
+  return slotRoles[slot];
 }
 
 /**
@@ -338,7 +351,9 @@ function CandidateButton({
       disabled={disabled}
       onClick={choose}
     >
-      <span className="bg-pc-subtle grid aspect-[2/3] place-items-center overflow-hidden rounded-pc-sm">
+      <span
+        className={`bg-pc-subtle grid ${roleAspect[candidate.role]} place-items-center overflow-hidden rounded-pc-sm`}
+      >
         {preview ? (
           <img className="max-h-full max-w-full object-contain" src={preview} alt="" />
         ) : (

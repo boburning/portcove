@@ -66,7 +66,7 @@ fn destination_handoff_preserves_original_identity_and_separate_roles_after_cach
         .artwork("zelda64-recomp", ArtworkSlot::Detail)
         .unwrap()
         .choice;
-    assert_eq!(hero.handoff_schema, 3);
+    assert_eq!(hero.handoff_schema, 4);
     assert!(hero.attribution.is_empty());
     assert_eq!(hero.choice.as_ref(), Some(&detail_choice));
     assert!(matches!(
@@ -84,6 +84,8 @@ fn destination_handoff_preserves_original_identity_and_separate_roles_after_cach
         .unwrap();
     assert_eq!(hero_bytes.original, fs::read(&detail).unwrap());
     assert_ne!(hero_bytes.original, bytes.original);
+    // Schema 4 binds the landscape role to its own slot; with nothing chosen it
+    // reports no local original, never a borrowed cover or detail image.
     let missing = reopened
         .destination_artwork("zelda64-recomp", Role::LandscapeCover)
         .unwrap();
@@ -94,10 +96,13 @@ fn destination_handoff_preserves_original_identity_and_separate_roles_after_cach
     assert_eq!(
         missing.content,
         DestinationArtworkContent::Unavailable {
-            reason: crate::DestinationArtworkUnavailableReason::RoleNotProvided,
+            reason: crate::DestinationArtworkUnavailableReason::NoLocalOriginal,
         }
     );
-    assert!(missing.choice.is_none());
+    assert_eq!(
+        missing.choice.as_ref().map(|choice| choice.slot),
+        Some(ArtworkSlot::Landscape)
+    );
     assert!(image.is_file());
     assert!(detail.is_file());
 }
@@ -227,8 +232,8 @@ fn destination_handoff_reader_refuses_unknown_or_contradictory_consequential_val
     }
     for (field, invalid) in [
         ("handoff_schema", serde_json::json!(1)),
-        ("handoff_schema", serde_json::json!(2)),
-        ("handoff_schema", serde_json::json!(4)),
+        ("handoff_schema", serde_json::json!(3)),
+        ("handoff_schema", serde_json::json!(5)),
         ("attribution", serde_json::json!(null)),
         (
             "attribution",
@@ -335,7 +340,7 @@ fn destination_handoff_catalog_defaults_remain_observations_without_cache_or_pro
             .is_err()
     );
     let mut legacy = serde_json::to_value(crate::CapabilityDocument::current()).unwrap();
-    assert_eq!(legacy["artwork_handoff_schema"], 3);
+    assert_eq!(legacy["artwork_handoff_schema"], 4);
     legacy
         .as_object_mut()
         .unwrap()
@@ -2982,7 +2987,7 @@ fn chosen_provider_images_keep_attribution_through_identical_local_imports() {
     let handoff = service
         .destination_artwork("zelda64-recomp", Role::PortraitCover)
         .unwrap();
-    assert_eq!(handoff.handoff_schema, 3);
+    assert_eq!(handoff.handoff_schema, 4);
     assert_eq!(handoff.attribution, chosen.attribution);
     let value = serde_json::to_value(&handoff).unwrap();
     assert!(serde_json::from_value::<crate::DestinationArtworkHandoff>(value).is_ok());
@@ -3203,4 +3208,129 @@ fn only_stored_steamgriddb_credits_and_the_key_page_are_reviewed_links() {
             "{refused}"
         );
     }
+}
+
+#[test]
+fn landscape_slot_feeds_only_the_landscape_role_under_the_wide_rules() {
+    use crate::{
+        DestinationArtworkContent, DestinationArtworkRole as Role,
+        DestinationArtworkUnavailableReason as Reason,
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let wide = temp.path().join("wide.png");
+    image::RgbImage::from_pixel(46, 21, image::Rgb([10, 90, 40]))
+        .save(&wide)
+        .unwrap();
+    let chosen = service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Landscape, &wide, 0)
+        .unwrap();
+    assert_eq!(chosen.choice.slot, ArtworkSlot::Landscape);
+    let landscape = service
+        .destination_artwork("zelda64-recomp", Role::LandscapeCover)
+        .unwrap();
+    assert!(matches!(
+        landscape.content,
+        DestinationArtworkContent::Available { .. }
+    ));
+    let bytes = service
+        .destination_artwork_bytes(
+            "zelda64-recomp",
+            Role::LandscapeCover,
+            &landscape.library.id,
+            chosen.choice.revision,
+            chosen.choice.asset_sha256.as_deref().unwrap(),
+        )
+        .unwrap();
+    assert_eq!(bytes.original, fs::read(&wide).unwrap());
+    // The landscape choice never feeds the hero or portrait roles.
+    for role in [Role::HeroBanner, Role::PortraitCover] {
+        let other = service.destination_artwork("zelda64-recomp", role).unwrap();
+        assert_ne!(other.selected_asset_sha256, chosen.choice.asset_sha256);
+    }
+    // A tall image and a stored-wide image displayed tall are both not wide.
+    let tall = image_file(temp.path(), "tall.png", image::ImageFormat::Png);
+    service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Landscape, &tall, 1)
+        .unwrap();
+    assert_eq!(
+        service
+            .destination_artwork("zelda64-recomp", Role::LandscapeCover)
+            .unwrap()
+            .content,
+        DestinationArtworkContent::Unavailable {
+            reason: Reason::SelectedImageNotWide
+        }
+    );
+    let rotated = temp.path().join("rotated.jpg");
+    fs::write(
+        &rotated,
+        crate::artwork_image::quarter_turn_jpeg(&image::RgbImage::from_pixel(
+            40,
+            12,
+            image::Rgb([90, 40, 20]),
+        )),
+    )
+    .unwrap();
+    service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Landscape, &rotated, 2)
+        .unwrap();
+    let turned = service
+        .destination_artwork("zelda64-recomp", Role::LandscapeCover)
+        .unwrap();
+    assert_eq!(
+        turned.content,
+        DestinationArtworkContent::Unavailable {
+            reason: Reason::SelectedImageNotWide
+        }
+    );
+    let value = serde_json::to_value(&turned).unwrap();
+    assert!(serde_json::from_value::<crate::DestinationArtworkHandoff>(value).is_ok());
+}
+
+#[test]
+fn landscape_choices_require_metadata_schema_nine_and_round_trip() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("library");
+    let service = open_service(&root);
+    let catalogs =
+        crate::library_import::PortabilityCatalogs::from_catalog(service.catalog().clone());
+    let png = image_file(temp.path(), "cover.png", image::ImageFormat::Png);
+    service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 0)
+        .unwrap();
+    // Without a landscape choice the export keeps its earlier schema.
+    assert!(service.export_library_metadata().unwrap().schema_version < 9);
+    let wide = temp.path().join("wide.png");
+    image::RgbImage::from_pixel(46, 21, image::Rgb([10, 90, 40]))
+        .save(&wide)
+        .unwrap();
+    service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Landscape, &wide, 0)
+        .unwrap();
+    // A reset row still records a landscape choice and keeps schema 9.
+    service
+        .reset_artwork("zelda64-recomp", ArtworkSlot::Landscape, 1)
+        .unwrap();
+    let metadata = service.export_library_metadata().unwrap();
+    assert_eq!(metadata.schema_version, 9);
+    crate::library_import::validate_metadata(&metadata, &catalogs).unwrap();
+    let mut older = metadata.clone();
+    older.schema_version = 8;
+    assert!(crate::library_import::validate_metadata(&older, &catalogs).is_err());
+    service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Landscape, &wide, 2)
+        .unwrap();
+    let export = temp.path().join("export.json");
+    service.write_library_metadata(&export).unwrap();
+    let destination = temp.path().join("imported");
+    let plan = PortcoveService::plan_library_import(&export, &root, &destination).unwrap();
+    assert_eq!(plan.metadata.schema_version, 9);
+    PortcoveService::import_library(&export, &root, &destination, &plan.plan_sha256).unwrap();
+    let imported = open_service(&destination);
+    let state = imported
+        .artwork("zelda64-recomp", ArtworkSlot::Landscape)
+        .unwrap();
+    assert_eq!(state.choice.revision, 3);
+    assert_eq!(state.availability, ArtworkAvailability::Available);
 }

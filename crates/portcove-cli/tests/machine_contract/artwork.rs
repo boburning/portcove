@@ -95,7 +95,7 @@ fn artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle() 
     ]);
     let observed: portcove_core::DestinationArtworkHandoff =
         serde_json::from_value(handoff.clone()).unwrap();
-    assert_eq!(observed.handoff_schema, 3);
+    assert_eq!(observed.handoff_schema, 4);
     assert_eq!(handoff["attribution"], serde_json::json!([]));
     assert_eq!(handoff["choice"], choices[0]["choice"]);
     assert_eq!(handoff["source"]["asset"], choices[0]["selection"]);
@@ -143,8 +143,10 @@ fn artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle() 
     ]);
     let _: portcove_core::DestinationArtworkHandoff =
         serde_json::from_value(missing.clone()).unwrap();
-    assert_eq!(missing["content"]["reason"], "role_not_provided");
-    assert!(missing["choice"].is_null());
+    // Schema 4: the landscape role has its own slot; with nothing chosen it
+    // reports no local original and binds the empty Landscape choice.
+    assert_eq!(missing["content"]["reason"], "no_local_original");
+    assert_eq!(missing["choice"]["slot"], "landscape");
     // The square detail import is bound to the hero role but not offered as wide art.
     let hero = run(&[
         "--json",

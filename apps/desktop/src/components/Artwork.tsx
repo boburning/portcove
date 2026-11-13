@@ -133,6 +133,17 @@ function DetailArtwork({ port }: { port: Pick<PortDefinition, "id"> }) {
   );
 }
 
+/** Every slot's player copy; a new slot must be described here to compile. */
+const slotCopy: Record<ArtworkSlot, { label: string; description: string }> = {
+  cover: { label: "Cover image", description: "Portrait cover · other shapes are letterboxed." },
+  detail: { label: "Detail image", description: "Optional wide image for this game's details." },
+  landscape: {
+    label: "Landscape image",
+    description:
+      "Optional wide cover for landscape views, including Steam's library capsule. Separate from the detail image.",
+  },
+};
+
 export function ArtworkControls({
   port,
 }: {
@@ -148,6 +159,7 @@ export function ArtworkControls({
         <div className="artwork-slots grid gap-5">
           <ArtworkSlotControl key={`${port.id}:cover`} port={port} slot="cover" />
           <ArtworkSlotControl key={`${port.id}:detail`} port={port} slot="detail" />
+          <ArtworkSlotControl key={`${port.id}:landscape`} port={port} slot="landscape" />
           <DetailArtwork port={port} />
         </div>
       )}
@@ -285,7 +297,12 @@ function ArtworkSlotControl({
     }
   };
 
-  const label = slot === "cover" ? "Cover image" : "Detail image";
+  const { label, description } = slotCopy[slot];
+  const selection = display.state?.selection;
+  const notWide =
+    slot !== "cover" && selection !== null && selection !== undefined
+      ? selection.width <= selection.height
+      : false;
   return (
     <section
       className="artwork-slot min-w-0 rounded-pc-md border border-[var(--color-border)] p-4"
@@ -293,11 +310,13 @@ function ArtworkSlotControl({
       aria-busy={pending}
     >
       <h3 className="m-0">{label}</h3>
-      <p>
-        {slot === "cover"
-          ? "Portrait cover · other shapes are letterboxed."
-          : "Optional wide image for this game's details."}
-      </p>
+      <p>{description}</p>
+      {notWide && (
+        <p className="artwork-notice text-[length:var(--text-sm)] text-[var(--color-text-muted)]">
+          This image is not wider than tall, so it is not offered where a wide image is needed, such
+          as Steam.
+        </p>
+      )}
       <div className="artwork-actions flex flex-wrap gap-3">
         <Button
           ref={pickerButton}

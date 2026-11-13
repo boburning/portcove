@@ -72,6 +72,51 @@ pub(crate) fn migrate(transaction: &Transaction<'_>) -> Result<()> {
     Ok(())
 }
 
+const LANDSCAPE_CHOICES_TABLE: &str = "CREATE TABLE artwork_choices (
+        port_id TEXT NOT NULL, slot TEXT NOT NULL CHECK(slot IN ('cover','detail','landscape')),
+        revision INTEGER NOT NULL CHECK(revision>0), asset_sha256 TEXT REFERENCES artwork_assets(sha256),
+        PRIMARY KEY(port_id,slot)
+    )";
+
+/// Library migration 57: the same choice table with the landscape slot admitted.
+/// Nothing references `artwork_choices`, so the rename keeps every constraint.
+pub(crate) fn migrate_landscape_slot(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(&format!(
+        "ALTER TABLE artwork_choices RENAME TO artwork_choices_v56;
+        {LANDSCAPE_CHOICES_TABLE};
+        INSERT INTO artwork_choices(port_id,slot,revision,asset_sha256)
+            SELECT port_id,slot,revision,asset_sha256 FROM artwork_choices_v56;
+        DROP TABLE artwork_choices_v56;"
+    ))?;
+    Ok(())
+}
+
+/// Checked on migration and every later open: the stored definition admits the
+/// landscape slot and no intermediate table remains.
+pub(crate) fn verify_landscape_slot(connection: &Connection) -> Result<()> {
+    let definition: Option<String> = connection
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='artwork_choices'",
+            [],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let leftover: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='artwork_choices_v56')",
+        [],
+        |row| row.get(0),
+    )?;
+    if leftover
+        || !definition
+            .is_some_and(|sql| sql.contains("CHECK(slot IN ('cover','detail','landscape'))"))
+    {
+        return Err(PortcoveError::state(
+            "artwork choices do not admit the landscape slot",
+        ));
+    }
+    Ok(())
+}
+
 pub(crate) fn validate_hash(id: &str) -> Result<()> {
     if id.len() != 64
         || !id
@@ -402,11 +447,8 @@ pub(crate) fn snapshot(connection: &Connection) -> Result<ArtworkMetadata> {
     let choices = rows
         .map(|row| {
             let (port_id, slot, revision, asset_sha256) = row?;
-            let slot = match slot.as_str() {
-                "cover" => ArtworkSlot::Cover,
-                "detail" => ArtworkSlot::Detail,
-                _ => return Err(PortcoveError::verification("unknown artwork slot")),
-            };
+            let slot = ArtworkSlot::from_key(&slot)
+                .ok_or_else(|| PortcoveError::verification("unknown artwork slot"))?;
             Ok(ArtworkChoice {
                 port_id,
                 slot,

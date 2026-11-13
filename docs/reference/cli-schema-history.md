@@ -26,6 +26,16 @@ renaming; this history does not deliver future commands or migrate stored data.
 
 ## Documented API changes
 
+API90 adds the `landscape` artwork slot: `artwork_state.choice.slot` and the CLI
+`--slot` gain the value, and `artwork steamgriddb choose --slot landscape` uses wide
+grid images. The optional destination artwork handoff moves to schema 4: the
+`landscape_cover` role is bound to the Landscape choice under the hero role's wide
+rule, and `role_not_provided` is no longer produced or accepted; schema-3 readers
+must refuse schema 4. The Library database moves to writer schema 57, which rebuilds
+`artwork_choices` to admit the slot; older writers refuse the upgraded library.
+Library metadata exports that contain any landscape choice, including a reset one,
+use metadata schema 9, which older readers refuse.
+
 API89 adds `attribution` to `artwork_state`: provider credits for the selected
 image, empty for purely local imports. The optional destination artwork handoff
 moves to schema 3 with the same required `attribution` array; schema-2 readers must

@@ -3508,11 +3508,20 @@
         ]
       },
       "ArtworkSlot": {
-        "enum": [
-          "cover",
-          "detail"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "cover",
+              "detail"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "landscape",
+            "description": "A wide cover, separate from the detail image; Steam's library capsule.",
+            "type": "string"
+          }
+        ]
       },
       "DestinationArtworkRole": {
         "enum": [
@@ -10931,11 +10940,20 @@
         "type": "string"
       },
       "ArtworkSlot": {
-        "enum": [
-          "cover",
-          "detail"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "cover",
+              "detail"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "landscape",
+            "description": "A wide cover, separate from the detail image; Steam's library capsule.",
+            "type": "string"
+          }
+        ]
       },
       "DestinationArtworkContent": {
         "oneOf": [
@@ -11001,8 +11019,8 @@
           },
           "handoff_schema": {
             "format": "uint32",
-            "maximum": 3,
-            "minimum": 3,
+            "maximum": 4,
+            "minimum": 4,
             "type": "integer"
           },
           "library": {
@@ -11354,11 +11372,20 @@
         "type": "string"
       },
       "ArtworkSlot": {
-        "enum": [
-          "cover",
-          "detail"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "cover",
+              "detail"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "landscape",
+            "description": "A wide cover, separate from the detail image; Steam's library capsule.",
+            "type": "string"
+          }
+        ]
       },
       "DestinationArtworkContent": {
         "oneOf": [
@@ -11620,8 +11647,8 @@
       },
       "handoff_schema": {
         "format": "uint32",
-        "maximum": 3,
-        "minimum": 3,
+        "maximum": 4,
+        "minimum": 4,
         "type": "integer"
       },
       "library": {
@@ -20337,11 +20364,20 @@
         "type": "object"
       },
       "ArtworkSlot": {
-        "enum": [
-          "cover",
-          "detail"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "cover",
+              "detail"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "landscape",
+            "description": "A wide cover, separate from the detail image; Steam's library capsule.",
+            "type": "string"
+          }
+        ]
       },
       "AuthenticatedDefinitionProvenance": {
         "additionalProperties": false,
@@ -21954,11 +21990,20 @@
         "type": "object"
       },
       "ArtworkSlot": {
-        "enum": [
-          "cover",
-          "detail"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "cover",
+              "detail"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "landscape",
+            "description": "A wide cover, separate from the detail image; Steam's library capsule.",
+            "type": "string"
+          }
+        ]
       },
       "AuthenticatedDefinitionProvenance": {
         "additionalProperties": false,
@@ -23548,11 +23593,20 @@
         "type": "object"
       },
       "ArtworkSlot": {
-        "enum": [
-          "cover",
-          "detail"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "cover",
+              "detail"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "landscape",
+            "description": "A wide cover, separate from the detail image; Steam's library capsule.",
+            "type": "string"
+          }
+        ]
       },
       "AuthenticatedDefinitionProvenance": {
         "additionalProperties": false,

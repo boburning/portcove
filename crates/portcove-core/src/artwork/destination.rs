@@ -7,7 +7,9 @@ use crate::{LibraryIdentity, PortcoveError, PortcoveService, Result};
 /// This optional handoff evolves independently of API envelopes and events.
 /// Version 2 adds the selected landscape-oriented `detail` import as the hero banner.
 /// Version 3 adds provider attribution for the selected image.
-pub const ARTWORK_HANDOFF_SCHEMA: u32 = 3;
+/// Version 4 offers the Landscape slot as `landscape_cover`, under the same wide
+/// rules as the hero role; `role_not_provided` is no longer produced or accepted.
+pub const ARTWORK_HANDOFF_SCHEMA: u32 = 4;
 const MAX_ATTRIBUTIONS: usize = 64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -58,7 +60,7 @@ pub enum DestinationArtworkContent {
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct DestinationArtworkHandoff {
-    #[schemars(range(min = 3, max = 3))]
+    #[schemars(range(min = 4, max = 4))]
     pub handoff_schema: u32,
     pub library: LibraryIdentity,
     pub port_id: String,
@@ -91,22 +93,8 @@ impl DestinationArtworkHandoff {
         if let Some(id) = &self.selected_asset_sha256 {
             crate::artwork_store::validate_hash(id)?;
         }
-        if self.role == DestinationArtworkRole::HeroBanner {
-            return self.validate_hero();
-        }
-        if self.role != DestinationArtworkRole::PortraitCover {
-            return if self.choice.is_none()
-                && self.source == DestinationArtworkSource::UnassignedRole
-                && self.selected_asset_sha256.is_none()
-                && self.content
-                    == (DestinationArtworkContent::Unavailable {
-                        reason: DestinationArtworkUnavailableReason::RoleNotProvided,
-                    })
-            {
-                Ok(())
-            } else {
-                Err(invalid())
-            };
+        if let Some(slot) = wide_role_slot(self.role) {
+            return self.validate_wide(slot);
         }
         let choice = self.choice.as_ref().ok_or_else(invalid)?;
         if choice.port_id != self.port_id || choice.slot != ArtworkSlot::Cover {
@@ -169,10 +157,12 @@ impl DestinationArtworkHandoff {
 }
 
 impl DestinationArtworkHandoff {
-    fn validate_hero(&self) -> Result<()> {
+    /// Hero banner and landscape cover share one rule: the bound slot's original,
+    /// only when it is displayed wider than tall.
+    fn validate_wide(&self, slot: ArtworkSlot) -> Result<()> {
         let invalid = || PortcoveError::verification("invalid destination artwork handoff");
         let choice = self.choice.as_ref().ok_or_else(invalid)?;
-        if choice.port_id != self.port_id || choice.slot != ArtworkSlot::Detail {
+        if choice.port_id != self.port_id || choice.slot != slot {
             return Err(invalid());
         }
         match (&self.source, &self.content) {
@@ -218,6 +208,15 @@ impl DestinationArtworkHandoff {
             _ => return Err(invalid()),
         }
         Ok(())
+    }
+}
+
+/// The slot a wide role is bound to; portrait is not a wide role.
+fn wide_role_slot(role: DestinationArtworkRole) -> Option<ArtworkSlot> {
+    match role {
+        DestinationArtworkRole::PortraitCover => None,
+        DestinationArtworkRole::HeroBanner => Some(ArtworkSlot::Detail),
+        DestinationArtworkRole::LandscapeCover => Some(ArtworkSlot::Landscape),
     }
 }
 
@@ -286,7 +285,7 @@ impl DestinationArtworkBytes {
         validate_decoded(&self.original, asset)?;
         // Match Core's resolver: a stored-wide original whose embedded
         // orientation displays it rotated by a quarter turn is not wide.
-        if self.handoff.role == DestinationArtworkRole::HeroBanner
+        if wide_role_slot(self.handoff.role).is_some()
             && crate::artwork_image::transposes_axes(&self.original)?
         {
             return Err(PortcoveError::verification(
@@ -390,7 +389,7 @@ impl PortcoveService {
         let slot = match role {
             DestinationArtworkRole::PortraitCover => Some(ArtworkSlot::Cover),
             DestinationArtworkRole::HeroBanner => Some(ArtworkSlot::Detail),
-            DestinationArtworkRole::LandscapeCover => None,
+            DestinationArtworkRole::LandscapeCover => Some(ArtworkSlot::Landscape),
         };
         if let Some(slot) = slot {
             let connection = self.library().connection()?;
@@ -402,8 +401,7 @@ impl PortcoveService {
                     asset: asset.clone(),
                 };
                 handoff.selected_asset_sha256 = Some(id.clone());
-                handoff.content = if role == DestinationArtworkRole::HeroBanner && !is_wide(&asset)
-                {
+                handoff.content = if wide_role_slot(role).is_some() && !is_wide(&asset) {
                     DestinationArtworkContent::Unavailable {
                         reason: DestinationArtworkUnavailableReason::SelectedImageNotWide,
                     }
@@ -414,7 +412,7 @@ impl PortcoveService {
                     }) {
                         // A quarter-turn orientation displays a stored-wide image tall.
                         Ok(bytes)
-                            if role == DestinationArtworkRole::HeroBanner
+                            if wide_role_slot(role).is_some()
                                 && crate::artwork_image::transposes_axes(&bytes)
                                     .unwrap_or(true) =>
                         {
@@ -444,7 +442,7 @@ impl PortcoveService {
                     reason: DestinationArtworkUnavailableReason::NoLocalOriginal,
                 };
             } else {
-                // No catalog default or generated fallback exists for the hero role.
+                // No catalog default or generated fallback exists for a wide role.
                 handoff.content = DestinationArtworkContent::Unavailable {
                     reason: DestinationArtworkUnavailableReason::NoLocalOriginal,
                 };

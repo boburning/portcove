@@ -122,7 +122,7 @@ program/argument objects, not shell command strings:
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
 only the required command names and formats: launch-only needs JSON plus raw
 `exec`, read-only library integration needs JSON, and lifecycle operations add
-JSONL. The reference supports API 42–57, 60–63 or 65–89/events 2–3; schema 50 advertises
+JSONL. The reference supports API 42–57, 60–63 or 65–90/events 2–3; schema 50 advertises
 the event authority as `operation_event_schema_version`, while the historical
 42–49 window retains its documented event-2 contract. Schema 51 replaces the
 activity array with a feed whose protected ID sets and completeness fields must
@@ -279,11 +279,15 @@ builds or require clients to acquire compilers. See
 Clients display Core's complete current plan, acquisitions and capacity when
 offered, obtain its required consent and consume its action/readiness decisions.
 They must not execute catalog build instructions or derive eligibility from a
-historical recipe name. The maintained reference accepts API89 within its reviewed
-42–57, 60–63 or 65–89 membership and event schemas 2–3; unknown future APIs,
+historical recipe name. The maintained reference accepts API90 within its reviewed
+42–57, 60–63 or 65–90 membership and event schemas 2–3; unknown future APIs,
 unsupported required capabilities and unknown execution/ownership semantics
 remain refused. API or template negotiation alone grants no admission or operation
 authority.
+
+API90 adds the landscape artwork slot to `artwork_state` and the CLI `--slot`,
+and moves the destination handoff to schema 4; the reference client consumes
+neither.
 
 API89 adds provider attribution for chosen SteamGridDB images to
 `artwork_state` and the destination handoff (handoff schema 3); the reference
@@ -395,7 +399,7 @@ see [the managed contract and recovery path](reference/managed-regaiden.md).
 
 Current event records have **event schema 3 at the root**; they are not nested in API
 envelopes. A final root record has `type: "result"` and a negotiated API
-schema within the client's supported 42–57, 60–63 or 65–89 membership. Some
+schema within the client's supported 42–57, 60–63 or 65–90 membership. Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
 do not fabricate progress when a phase or event is missing. A valid terminal
 result and matching exit status establish the command response; refresh core
@@ -446,7 +450,7 @@ claim for the core result.
 
 API 67 introduced an optional, independently versioned `artwork_handoff_schema`
 capability and the `artwork.handoff` / `artwork.handoff-bytes` commands; current
-Core advertises and accepts only schema 3. A destination
+Core advertises and accepts only schema 4. A destination
 adapter such as #292 must negotiate all three before using them. API envelopes and
 operation events retain their existing versions; existing cover/detail clients
 and clients that ignore this optional capability remain compatible.
@@ -471,8 +475,10 @@ Schema 2 adds the hero role: it is bound to the Detail choice and offers the
 accepted Detail original only when that image is displayed wider than tall,
 including any embedded quarter-turn orientation; a selected
 Detail image that is not reports `selected_image_not_wide`, and no Detail import
-reports `no_local_original`. The landscape role explicitly reports
-`role_not_provided`. Catalog defaults report `no_local_original`, even if a
+reports `no_local_original`. Schema 4 binds the landscape role to the Landscape
+choice under the same wide rule and reasons as the hero role; `role_not_provided`
+is no longer produced, and readers of schema 4 refuse it. Catalog defaults report
+`no_local_original`, even if a
 disposable display thumbnail exists. Missing or invalid selected originals report
 `selected_original_unavailable` while retaining the choice and provenance.
 Generated fallback also has no reusable original. Never stretch or destructively
@@ -492,7 +498,7 @@ original whose embedded orientation turns it a quarter turn. Stale bindings fail
 preview. Originals retain the existing 16 MiB limit; bound process output for JSON
 array expansion as well. Validate the handoff, byte count, digest and decode before
 storing a durable destination copy. Exported `destination_artwork_handoff` and
-`destination_artwork_bytes` schemas describe schema 3; the Core readers additionally reject
+`destination_artwork_bytes` schemas describe schema 4; the Core readers additionally reject
 contradictory identity/source/content combinations. Unknown versions, roles,
 provenance kinds or availability values require refusal, not inferred success.
 

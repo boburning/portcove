@@ -215,6 +215,7 @@ pub(crate) fn artwork_state(state: &portcove_core::ArtworkState, catalog: &Catal
     let slot = match state.choice.slot {
         ArtworkSlot::Cover => "Cover",
         ArtworkSlot::Detail => "Detail image",
+        ArtworkSlot::Landscape => "Landscape image",
     };
     let availability = match state.availability {
         ArtworkAvailability::Fallback => "Generated fallback",
@@ -311,9 +312,14 @@ pub(crate) fn artwork_handoff(
             DestinationArtworkUnavailableReason::SelectedOriginalUnavailable => {
                 "\nThe selected local original is unavailable."
             }
-            DestinationArtworkUnavailableReason::SelectedImageNotWide => {
-                "\nThe selected detail image is not displayed wider than tall, so it is not offered as a wide role."
-            }
+            DestinationArtworkUnavailableReason::SelectedImageNotWide => match handoff.role {
+                DestinationArtworkRole::LandscapeCover => {
+                    "\nThe selected landscape image is not displayed wider than tall, so it is not offered as a wide role."
+                }
+                _ => {
+                    "\nThe selected detail image is not displayed wider than tall, so it is not offered as a wide role."
+                }
+            },
         }),
     }
     if let Some(credits) = artwork_credits(&handoff.attribution) {

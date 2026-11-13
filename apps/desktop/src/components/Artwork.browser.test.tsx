@@ -62,14 +62,14 @@ async function open() {
   });
 }
 
-function button(slot: "cover" | "detail", label: string) {
-  const section = container.querySelector(
-    `[aria-label="${slot === "cover" ? "Cover" : "Detail"} image"]`,
-  )!;
+const slotLabels = { cover: "Cover", detail: "Detail", landscape: "Landscape" } as const;
+
+function button(slot: keyof typeof slotLabels, label: string) {
+  const section = container.querySelector(`[aria-label="${slotLabels[slot]} image"]`)!;
   return [...section.querySelectorAll("button")].find((item) => item.textContent === label)!;
 }
 
-async function click(slot: "cover" | "detail", label: string) {
+async function click(slot: keyof typeof slotLabels, label: string) {
   await act(async () => button(slot, label).click());
 }
 
@@ -597,7 +597,12 @@ describe("local artwork controls", () => {
       vi.mocked(desktopApi.artwork).mockImplementation(
         async (port, slot) => saved.get(`${port}:${slot}`) ?? artworkState(port, slot),
       );
-      const save = (port: string, slot: "cover" | "detail", revision: number, selected = false) => {
+      const save = (
+        port: string,
+        slot: ArtworkState["choice"]["slot"],
+        revision: number,
+        selected = false,
+      ) => {
         const state = artworkState(port, slot, revision + 1, selected);
         saved.set(`${port}:${slot}`, state);
         return state;
@@ -920,5 +925,40 @@ describe("SteamGridDB picker", () => {
     await click("cover", "Preview Game");
     await vi.waitFor(() => expect(container.textContent).toContain("Preview unavailable"));
     expect(preview).toHaveBeenCalledTimes(1);
+  });
+
+  it("lists wide grid images for the Landscape slot in wide preview frames", async () => {
+    vi.spyOn(desktopApi, "steamGridDbKeyStatus").mockResolvedValue({ configured: true });
+    vi.spyOn(desktopApi, "searchSteamGridDbGames").mockResolvedValue([
+      { id: 55, name: "Wide Game", verified: false },
+    ]);
+    const list = vi.spyOn(desktopApi, "steamGridDbCandidates").mockResolvedValue([
+      {
+        ...candidate(701),
+        role: "landscape_cover",
+        width: 920,
+        height: 430,
+        thumb: "https://cdn2.steamgriddb.com/thumb/701-wide.png",
+      },
+    ]);
+    vi.spyOn(desktopApi, "steamGridDbPreview").mockResolvedValue({ png_base64: pixel });
+    await render();
+    await open();
+    expect(container.querySelector('[aria-label="Landscape image"]')?.textContent).toContain(
+      "Steam's library capsule",
+    );
+    await click("landscape", "Find on SteamGridDB");
+    await vi.waitFor(() =>
+      expect(container.querySelector("#steamgriddb-search-landscape")).not.toBeNull(),
+    );
+    await click("landscape", "Search");
+    await vi.waitFor(() => expect(container.textContent).toContain("Wide Game"));
+    await click("landscape", "Wide Game");
+    expect(list).toHaveBeenCalledWith(55, "landscape_cover");
+    await vi.waitFor(() =>
+      expect(
+        container.querySelector('[aria-label^="Use image by Artist 701"] span')?.className,
+      ).toContain("aspect-[92/43]"),
+    );
   });
 });

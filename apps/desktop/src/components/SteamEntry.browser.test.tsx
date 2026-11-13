@@ -390,7 +390,7 @@ const artworkReview: SteamArtworkReview = {
       existing_paths: [],
       existing_sha256: null,
       proposed_sha256: null,
-      unavailable_reason: "role_not_provided",
+      unavailable_reason: "no_local_original",
       forget_ownership: false,
     },
     {
@@ -435,7 +435,7 @@ it("reviews artwork separately, keeps existing art by default and applies only t
   expect(shortcutPreview).not.toHaveBeenCalled();
   for (const value of [
     "Portrait cover: Will be added",
-    "Landscape cover: Not available: Portcove has no image for this role yet",
+    "Landscape cover: Not available: choose a wide landscape image for this game in Portcove first",
     "Hero banner: Kept: Steam already has artwork here",
     artworkReview.grid_path,
   ])

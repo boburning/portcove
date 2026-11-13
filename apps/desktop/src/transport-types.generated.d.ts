@@ -262,7 +262,7 @@ export type OutputArtworkAssets = LocalArtworkAsset[];
 export type ArtworkProvider = "steamgriddb";
 export type DestinationArtworkRole = "portrait_cover" | "landscape_cover" | "hero_banner";
 export type ArtworkAvailability = "fallback" | "available" | "unavailable";
-export type ArtworkSlot = "cover" | "detail";
+export type ArtworkSlot = ("cover" | "detail") | "landscape";
 /**
  * The source core resolves for one slot before a client attempts to transport
  * or render it. A client can still display the generated fallback if a

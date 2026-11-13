@@ -53,11 +53,15 @@ function steamArtworkUnavailableLabel(
     case "no_local_original":
       return role === "hero_banner"
         ? "Not available: import a wide detail image for this game in Portcove first"
-        : "Not available: choose an imported image for this game in Portcove first";
+        : role === "landscape_cover"
+          ? "Not available: choose a wide landscape image for this game in Portcove first"
+          : "Not available: choose an imported image for this game in Portcove first";
     case "selected_original_unavailable":
       return "Not available: the selected image could not be read; import it again";
     case "selected_image_not_wide":
-      return "Not available: the selected detail image is not wide, so it is not used as a banner";
+      return role === "landscape_cover"
+        ? "Not available: the selected landscape image is not wide, so it is not used as a capsule"
+        : "Not available: the selected detail image is not wide, so it is not used as a banner";
     default:
       return "Not available: Portcove has no image for this role yet";
   }

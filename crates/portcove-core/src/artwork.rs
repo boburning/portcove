@@ -33,14 +33,24 @@ pub use steamgriddb::{
 pub enum ArtworkSlot {
     Cover,
     Detail,
+    /// A wide cover, separate from the detail image; Steam's library capsule.
+    Landscape,
 }
 
 impl ArtworkSlot {
+    pub(crate) const ALL: [Self; 3] = [Self::Cover, Self::Detail, Self::Landscape];
+
+    /// The single stored key for each slot; `from_key` is its exact inverse.
     pub(crate) fn key(self) -> &'static str {
         match self {
             Self::Cover => "cover",
             Self::Detail => "detail",
+            Self::Landscape => "landscape",
         }
+    }
+
+    pub(crate) fn from_key(key: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|slot| slot.key() == key)
     }
 }
 
@@ -178,6 +188,7 @@ pub(crate) fn provider_role(slot: ArtworkSlot) -> DestinationArtworkRole {
     match slot {
         ArtworkSlot::Cover => DestinationArtworkRole::PortraitCover,
         ArtworkSlot::Detail => DestinationArtworkRole::HeroBanner,
+        ArtworkSlot::Landscape => DestinationArtworkRole::LandscapeCover,
     }
 }
 
@@ -623,7 +634,8 @@ impl PortcoveService {
         let port = self.artwork_port(port_id)?;
         let mapped_cover = match slot {
             ArtworkSlot::Cover => port.artwork.as_ref(),
-            ArtworkSlot::Detail => None,
+            // Catalog defaults are portrait covers; other slots fall back.
+            ArtworkSlot::Detail | ArtworkSlot::Landscape => None,
         };
         if let Some(artwork) = mapped_cover {
             let connection = self.library().connection()?;
