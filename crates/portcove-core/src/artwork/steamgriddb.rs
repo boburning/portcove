@@ -179,6 +179,47 @@ pub(crate) fn fetch_chosen_candidate(
     with_key(|key| fetch_candidate(&HttpTransport, key, game_id, role, candidate_id))
 }
 
+/// Largest thumbnail Portcove downloads to show a candidate before it is chosen.
+const MAX_PREVIEW_BYTES: usize = 4 * 1024 * 1024;
+
+/// A bounded local preview of a candidate thumbnail: fetched from the CDN
+/// without the key, decoded with the shared limits (refusing animation) and
+/// re-encoded as a small PNG, so the renderer never loads a remote image.
+pub fn steamgriddb_preview(thumb_url: &str) -> Result<Vec<u8>> {
+    preview(&HttpTransport, thumb_url)
+}
+
+pub(crate) fn preview(transport: &impl SteamGridDbTransport, thumb_url: &str) -> Result<Vec<u8>> {
+    if !is_image_url(thumb_url) {
+        return Err(PortcoveError::usage(
+            "previews come only from SteamGridDB's image server",
+        ));
+    }
+    let response = transport.fetch_image(thumb_url)?;
+    match response.status {
+        200 => {}
+        404 => {
+            return Err(PortcoveError::not_found(
+                "this preview is no longer available",
+            ));
+        }
+        429 => {
+            return Err(SteamGridDbFailure::RateLimited {
+                retry_after_seconds: retry_after_seconds(response.retry_after.as_deref()),
+            }
+            .into());
+        }
+        500..=599 => return Err(SteamGridDbFailure::Unavailable.into()),
+        _ => return Err(SteamGridDbFailure::InvalidResponse.into()),
+    }
+    if response.body.is_empty() || response.body.len() > MAX_PREVIEW_BYTES {
+        return Err(PortcoveError::verification(
+            "the SteamGridDB preview is empty or too large",
+        ));
+    }
+    Ok(crate::artwork_image::decode_with_thumbnail_bounds(&response.body, 240, 360)?.thumbnail)
+}
+
 fn retry_after_seconds(value: Option<&str>) -> Option<u64> {
     value
         .and_then(|value| value.trim().parse::<u64>().ok())

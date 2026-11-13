@@ -611,9 +611,13 @@ describe("local artwork controls", () => {
       const reset = vi
         .spyOn(desktopApi, "resetArtwork")
         .mockImplementation(async (port, slot, revision) => save(port, slot, revision));
+      const steamGridDbStatus = vi.spyOn(desktopApi, "steamGridDbKeyStatus");
+      const steamGridDbSearch = vi.spyOn(desktopApi, "searchSteamGridDbGames");
       await render();
       await open();
-      expect(container.textContent).not.toContain("SteamGridDB");
+      // Opening artwork never contacts SteamGridDB; only an explicit Find does.
+      expect(steamGridDbStatus).not.toHaveBeenCalled();
+      expect(steamGridDbSearch).not.toHaveBeenCalled();
       await expect
         .poll(() => container.querySelector(".artwork-image > span")?.textContent)
         .toBe("SF");
@@ -757,3 +761,121 @@ describe("local artwork controls", () => {
 });
 
 vi.mock("../file-picker", { spy: true });
+
+describe("SteamGridDB picker", () => {
+  const candidate = (id: number) => ({
+    id,
+    role: "portrait_cover" as const,
+    url: `https://cdn2.steamgriddb.com/grid/${id}.png`,
+    thumb: `https://cdn2.steamgriddb.com/thumb/${id}.png`,
+    mime: "image/png",
+    width: 600,
+    height: 900,
+    style: "alternate",
+    score: 1,
+    author: { name: `Artist ${id}`, steam64: null },
+  });
+  const pixel =
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=";
+
+  it("explains setup when no player key is saved and makes no lookup", async () => {
+    vi.spyOn(desktopApi, "steamGridDbKeyStatus").mockResolvedValue({ configured: false });
+    const search = vi.spyOn(desktopApi, "searchSteamGridDbGames");
+    await render();
+    await open();
+    await click("cover", "Find on SteamGridDB");
+    await vi.waitFor(() => expect(container.textContent).toContain("under Integrations"));
+    expect(search).not.toHaveBeenCalled();
+  });
+
+  it("searches, previews locally, chooses by revision and credits the artist", async () => {
+    vi.spyOn(desktopApi, "steamGridDbKeyStatus").mockResolvedValue({ configured: true });
+    const search = vi
+      .spyOn(desktopApi, "searchSteamGridDbGames")
+      .mockResolvedValue([{ id: 42, name: "Example Game", verified: true }]);
+    const list = vi
+      .spyOn(desktopApi, "steamGridDbCandidates")
+      .mockResolvedValue(Array.from({ length: 14 }, (_, index) => candidate(index + 1)));
+    const preview = vi
+      .spyOn(desktopApi, "steamGridDbPreview")
+      .mockResolvedValue({ png_base64: pixel });
+    const chosen: ArtworkState = {
+      ...artworkState("sample", "cover", 1, true),
+      attribution: [
+        {
+          provider: "steamgriddb",
+          asset_id: 3,
+          game_id: 42,
+          role: "portrait_cover",
+          author_name: "Artist 3",
+          author_steam64: null,
+          source_url: "https://cdn2.steamgriddb.com/grid/3.png",
+          fetched_at: 1789038047,
+        },
+      ],
+    };
+    const choose = vi.spyOn(desktopApi, "chooseSteamGridDbArtwork").mockResolvedValue(chosen);
+    await render();
+    await open();
+    await click("cover", "Find on SteamGridDB");
+    const input = await vi.waitFor(() => {
+      const element = container.querySelector<HTMLInputElement>("#steamgriddb-search-cover");
+      expect(element).not.toBeNull();
+      return element!;
+    });
+    // The search starts from the port name.
+    expect(input.value).toContain("unusually long game title");
+    await click("cover", "Search");
+    expect(search).toHaveBeenCalledWith(input.value);
+    await vi.waitFor(() => expect(container.textContent).toContain("Example Game (verified)"));
+    await click("cover", "Example Game (verified)");
+    expect(list).toHaveBeenCalledWith(42, "portrait_cover");
+    await vi.waitFor(() =>
+      expect(container.querySelectorAll('[aria-label^="Use image by"]').length).toBe(12),
+    );
+    // Previews are local data URLs from Core, never remote image URLs.
+    await vi.waitFor(() =>
+      expect(container.querySelector<HTMLImageElement>(".steamgriddb-picker img")?.src).toMatch(
+        /^data:image\/png;base64,/,
+      ),
+    );
+    expect(preview).toHaveBeenCalledWith("https://cdn2.steamgriddb.com/thumb/1.png");
+    await click("cover", "Show more images");
+    expect(container.querySelectorAll('[aria-label^="Use image by"]').length).toBe(14);
+    vi.mocked(desktopApi.artwork).mockResolvedValue(chosen);
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[aria-label^="Use image by Artist 3,"]')!.click(),
+    );
+    await vi.waitFor(() => expect(container.textContent).toContain("Image by Artist 3"));
+    expect(choose).toHaveBeenCalledWith("sample", "cover", 42, 3, 0, 7);
+    expect(container.querySelector(".steamgriddb-picker")).toBeNull();
+    await vi.waitFor(() => expect(container.textContent).toContain("SteamGridDB image 3"));
+    expect(
+      [...container.querySelectorAll<HTMLAnchorElement>(".artwork-source a")].some(
+        (link) => link.href === "https://www.steamgriddb.com/grid/3",
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps the current art and offers a retry when SteamGridDB slows Portcove down", async () => {
+    vi.spyOn(desktopApi, "steamGridDbKeyStatus").mockResolvedValue({ configured: true });
+    const search = vi.spyOn(desktopApi, "searchSteamGridDbGames").mockRejectedValueOnce({
+      code: "network",
+      message: "SteamGridDB asked Portcove to slow down",
+      details: { retry_after_seconds: "30" },
+    });
+    const choose = vi.spyOn(desktopApi, "chooseSteamGridDbArtwork");
+    await render();
+    await open();
+    await click("cover", "Find on SteamGridDB");
+    await vi.waitFor(() =>
+      expect(container.querySelector("#steamgriddb-search-cover")).not.toBeNull(),
+    );
+    await click("cover", "Search");
+    await vi.waitFor(() => expect(container.textContent).toContain("Try again in 30 seconds"));
+    expect(choose).not.toHaveBeenCalled();
+    search.mockResolvedValueOnce([]);
+    await click("cover", "Try again");
+    await vi.waitFor(() => expect(container.textContent).toContain("No SteamGridDB games matched"));
+  });
+});

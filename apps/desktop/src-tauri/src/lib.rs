@@ -67,6 +67,7 @@ mod source_removal;
 pub mod steam_artwork;
 pub mod steam_entries;
 pub mod steam_entry_commands;
+mod steamgriddb;
 mod transport;
 mod webview_boundary;
 #[cfg(feature = "native-compatibility-qualification")]
@@ -3267,6 +3268,13 @@ pub fn run() -> std::process::ExitCode {
             artwork::get_catalog_media_thumbnail,
             artwork::import_artwork,
             artwork::reset_artwork,
+            steamgriddb::get_steamgriddb_key_status,
+            steamgriddb::set_steamgriddb_key,
+            steamgriddb::clear_steamgriddb_key,
+            steamgriddb::search_steamgriddb_games,
+            steamgriddb::get_steamgriddb_candidates,
+            steamgriddb::get_steamgriddb_preview,
+            steamgriddb::choose_steamgriddb_artwork,
             backup_review::restore_backup,
             backup_review::delete_backup,
             portable_saves_commands::preview_portable_save_export,

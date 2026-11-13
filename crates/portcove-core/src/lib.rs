@@ -164,7 +164,7 @@ pub use artwork::{
     IGDB_ARTWORK_WORK_LIMIT, LocalArtworkAsset, STEAMGRIDDB_API_ORIGIN, SteamGridDbAuthor,
     SteamGridDbCandidate, SteamGridDbFailure, SteamGridDbGame, SteamGridDbKeyStatus,
     clear_steamgriddb_key, search_steamgriddb_games, set_steamgriddb_key, steamgriddb_candidates,
-    steamgriddb_key_status,
+    steamgriddb_key_status, steamgriddb_preview,
 };
 pub use auth::{
     GithubAuthSource, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,

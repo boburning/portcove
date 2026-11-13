@@ -441,6 +441,30 @@ export class ArtworkCache {
     await this.load(portId, slot, true, stillInterested);
   }
 
+  /** Chooses one SteamGridDB image through Core's shared ingestion path. */
+  chooseSteamGridDb(
+    portId: string,
+    slot: ArtworkSlot,
+    revision: number,
+    gameId: number,
+    candidateId: number,
+    stillCurrent: () => boolean,
+  ) {
+    return this.schedule(undefined, async () => {
+      if (!stillCurrent() || this.read(portId, slot).stale) return undefined;
+      const state = await desktopApi.chooseSteamGridDbArtwork(
+        portId,
+        slot,
+        gameId,
+        candidateId,
+        revision,
+        this.generation,
+      );
+      await this.display(portId, slot, state, stillCurrent);
+      return state;
+    });
+  }
+
   change(
     portId: string,
     slot: ArtworkSlot,

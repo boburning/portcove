@@ -754,9 +754,24 @@ provider-first asset is named `steamgriddb-<image-id>.<png|jpg>`. Removing an un
 asset removes its provenance. Library metadata that carries provenance uses schema 8,
 which older readers refuse; a same-user export copies provider originals like every
 other original. `artwork_state` and the handoff expose the credits. Withdrawal
-handling and a Desktop picker are later #527 slices. The CLI's `artwork steamgriddb`
-commands are thin adapters: lookups run on a blocking task, and `choose` runs Core's
-fetch and ingestion in place on a runtime worker thread (`block_in_place`).
+handling (player-triggered, per the 2026-11-13 owner decision) and the landscape slot
+are later #527 slices. The CLI's `artwork steamgriddb` commands are thin adapters:
+lookups run on a blocking task, and `choose` runs Core's fetch and ingestion in place
+on a runtime worker thread (`block_in_place`).
+
+Desktop exposes the same Core functions through thin Tauri commands. Settings →
+Integrations saves or removes the player's key; the key is passed to Core once and
+never returned to the renderer, and saving it starts no lookups. Each artwork slot's
+**Find on SteamGridDB** opens a picker only when asked: it searches from the port
+name, lists the slot's role (Cover takes portrait images, Detail takes hero images)
+and chooses through Core with the slot's choice revision and library generation.
+Opening artwork makes no SteamGridDB request. The webview's content policy blocks
+remote images, so candidate previews come from Core: it fetches the thumbnail from
+the SteamGridDB CDN without the key (4 MiB cap), decodes it with the shared limits and
+returns a small re-encoded PNG. Previews share the bounded remote-image admission used
+by catalog covers. A newer search or game choice supersedes older results, rate limits
+show their retry time with a manual retry, and a failed preview is not refetched while
+its list is shown. The source details credit the artist and link the SteamGridDB image.
 
 Core owns independent cover/detail choices, copied local originals, deterministic
 generated fallbacks, bounded raster decoding and disposable thumbnails. SQLite

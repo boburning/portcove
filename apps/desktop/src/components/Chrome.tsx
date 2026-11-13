@@ -14,6 +14,7 @@ import { ActionRow, Notice, SettingsRow } from "./ui/patterns";
 import { SourceRemovalControl } from "./SourceRemoval";
 import { AutomaticSnapshotsSetting } from "./AutomaticSnapshotsSetting";
 import { ReportProblem } from "./ReportProblem";
+import { SteamGridDbSettings } from "./SteamGridDbSettings";
 import { SupportBundleExport } from "./SupportBundleExport";
 import { desktopApi } from "../api";
 import {
@@ -1996,6 +1997,7 @@ export function SettingsView(props: SettingsViewProps) {
             ) : null}
           </SettingsRow>
           <GithubSettings github={github} busy={busy} />
+          <SteamGridDbSettings />
         </SettingsSection>
         <SettingsSection
           id="controls"

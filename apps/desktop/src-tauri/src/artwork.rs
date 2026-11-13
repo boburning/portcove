@@ -9,14 +9,14 @@ use std::{
 };
 use tokio::sync::Semaphore;
 
-fn remote_thumbnail_workers() -> Arc<Semaphore> {
+pub(crate) fn remote_thumbnail_workers() -> Arc<Semaphore> {
     static WORKERS: OnceLock<Arc<Semaphore>> = OnceLock::new();
     Arc::clone(
         WORKERS.get_or_init(|| Arc::new(Semaphore::new(portcove_core::IGDB_ARTWORK_WORK_LIMIT))),
     )
 }
 
-async fn thumbnail_worker<T, F>(
+pub(crate) async fn thumbnail_worker<T, F>(
     workers: Arc<Semaphore>,
     remote: bool,
     operation: F,
