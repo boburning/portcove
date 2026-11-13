@@ -962,7 +962,7 @@ void test("watcher rejects green checks from another run/attempt or incomplete j
   );
 });
 
-void test("check-run pagination admits only this repository's bound numeric-id Link path", async () => {
+void test("check-run pagination follows only this repository's bound numeric-id Link, by owner/name", async () => {
   const repositoryId = 1354613114;
   const runs = successfulRuns();
   const split = Math.ceil(runs.length / 2);
@@ -978,9 +978,10 @@ void test("check-run pagination admits only this repository's bound numeric-id L
         requests.push(url.pathname + url.search);
         if (url.pathname === `/repos/${repository}`)
           return Response.json({ id: boundId, full_name: fullName });
-        if (url.pathname.startsWith("/repositories/"))
-          return Response.json({ total_count: runs.length, check_runs: runs.slice(split) });
+        assert.ok(!url.pathname.startsWith("/repositories/"), "numeric-id path was requested");
         assert.equal(url.pathname, `/repos/${repository}/commits/${head}/check-runs`);
+        if (url.searchParams.get("page") === "2")
+          return Response.json({ total_count: runs.length, check_runs: runs.slice(split) });
         return Response.json(
           { total_count: runs.length, check_runs: runs.slice(0, split) },
           { headers: { link: `<https://api.github.com${pagePath(linkedId)}>; rel="next"` } },
@@ -994,7 +995,7 @@ void test("check-run pagination admits only this repository's bound numeric-id L
   assert.deepEqual(admitted.requests, [
     `/repos/${repository}/commits/${head}/check-runs?filter=all&per_page=100`,
     `/repos/${repository}`,
-    pagePath(repositoryId),
+    `/repos/${repository}/commits/${head}/check-runs?filter=all&per_page=100&page=2`,
   ]);
   // The identity is bound once per client; later collections reuse it.
   admitted.requests.length = 0;
@@ -1013,7 +1014,7 @@ void test("check-run pagination admits only this repository's bound numeric-id L
       refused.client.checkRuns(head),
       /outside the admitted scope|identity is incomplete or differs/u,
     );
-    assert.ok(!refused.requests.some((path) => path.startsWith("/repositories/")));
+    assert.ok(!refused.requests.some((path) => path.includes("page=2")));
   }
 });
 

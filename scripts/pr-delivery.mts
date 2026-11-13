@@ -431,7 +431,15 @@ export class PullRequestDeliveryClient {
       url: `https://api.github.com/${endpoint}`,
       deadline: Math.min(this.scope.deadline, this.observationDeadline),
       prepareRequest: async (url) => {
-        if (new URL(url).pathname.startsWith("/repositories/")) await this.bindRepositoryId();
+        const parsed = new URL(url);
+        if (!parsed.pathname.startsWith("/repositories/")) return;
+        const prefix = `/repositories/${await this.bindRepositoryId()}/`;
+        // Another id stays unchanged, so admission refuses it.
+        if (!parsed.pathname.startsWith(prefix)) return;
+        // Some GitHub proxies refuse numeric-id paths; this bound id names this
+        // repository, so the same page is requested through its owner/name path.
+        parsed.pathname = `/repos/${repository}/${parsed.pathname.slice(prefix.length)}`;
+        return parsed.toString();
       },
     })) {
       const body: unknown = response.data;

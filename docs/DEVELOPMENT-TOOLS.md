@@ -256,8 +256,10 @@ GitHub may link later REST pages through `/repositories/{id}/…` instead of
 `/repos/{owner}/{repo}/…`, for example check runs with `filter=all` beyond one
 100-result page. The delivery helper follows such a `Link` only after binding
 `{id}` from an authenticated `GET /repos/{owner}/{repo}` whose `full_name` is
-this repository, never from the `Link` itself. A different id is refused as
-outside the admitted scope. The closing-inventory timeline reads take only the
+this repository, never from the `Link` itself. It then requests the same page,
+query unchanged, through `/repos/{owner}/{repo}/…`, because some proxies refuse
+numeric-id repository paths. A different id is refused as outside the admitted
+scope. The closing-inventory timeline reads take only the
 page number from `Link`, so they keep requesting the `/repos/` route.
 
 The existing delivery command has two offline operations for connector callers:
