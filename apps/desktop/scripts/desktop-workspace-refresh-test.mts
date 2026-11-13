@@ -449,9 +449,12 @@ export async function workspaceRefreshScenario({
         }),
         1,
       );
-      assert.equal(
-        observations.commands.filter((command) => command === "get_workspace_snapshot").length,
-        2,
+      // The failed read and the retry read, plus any visible-idle poll (every 10 s,
+      // use-workspace-data.ts) or focus refetch in between. Every command stays
+      // read-only below, so a retry still never repeats a mutation.
+      assert.ok(
+        observations.commands.filter((command) => command === "get_workspace_snapshot").length >= 2,
+        JSON.stringify(observations.commands),
       );
       assert.equal(
         observations.commands.filter((command) => command === "discover_orphaned_operations")
