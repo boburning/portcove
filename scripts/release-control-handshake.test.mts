@@ -144,6 +144,77 @@ void test("coordinator artifact transfer has scoped headroom and retains a safe 
   );
 });
 
+void test("coordinator transfer re-joins the same just-listed archive after a bounded provider 404", async (t) => {
+  for (const role of ["ready", "observation"] as const) {
+    const f = await fixture(t, role, "coordinator");
+    const archive = await f.options.download();
+    let unavailable = 1;
+    const proof = await waitForControlArtifact(f.root, role, f.input, {
+      ...f.options,
+      download: async () => {
+        if (unavailable-- > 0)
+          throw new GitHubApiError("request_failed", "artifact archive pending", { status: 404 });
+        return archive;
+      },
+    });
+    assert.equal(proof.artifact.id, f.artifact.id);
+  }
+});
+
+void test("coordinator transfer 404 stays bounded, identity-bound and coordinator-only", async (t) => {
+  const missing = () => {
+    throw new GitHubApiError("request_failed", "artifact archive pending", { status: 404 });
+  };
+  const bounded = await fixture(t, "ready", "coordinator");
+  const phases: Record<string, unknown>[] = [];
+  let downloads = 0;
+  await assert.rejects(
+    waitForControlArtifact(bounded.root, "ready", bounded.input, {
+      ...bounded.options,
+      download: async () => {
+        downloads++;
+        return missing();
+      },
+      onRefusal: (receipt) => phases.push(receipt),
+    }),
+    /handoff refused/u,
+  );
+  assert.equal(downloads, 4);
+  assert.equal(phases[0]?.stage, "artifact-transfer");
+  assert.equal(phases[0]?.provider_status, 404);
+
+  const changed = await fixture(t, "ready", "coordinator");
+  let first = true;
+  await assert.rejects(
+    waitForControlArtifact(changed.root, "ready", changed.input, {
+      ...changed.options,
+      download: async () => {
+        if (first) {
+          first = false;
+          changed.artifact.digest = `sha256:${"0".repeat(64)}`;
+          return missing();
+        }
+        throw new Error("changed artifact must not be downloaded");
+      },
+    }),
+    /handoff refused/u,
+  );
+
+  const other = await fixture(t, "observation", "payload");
+  let otherDownloads = 0;
+  await assert.rejects(
+    waitForControlArtifact(other.root, "observation", other.input, {
+      ...other.options,
+      download: async () => {
+        otherDownloads++;
+        return missing();
+      },
+    }),
+    /handoff refused/u,
+  );
+  assert.equal(otherDownloads, 1);
+});
+
 void test("legacy phase inventory keeps its own producer when the admission/shared name also exists", async (t) => {
   const f = await fixture(t, "observation", "payload");
   const request = f.options.read;

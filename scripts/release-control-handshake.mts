@@ -274,6 +274,8 @@ export async function waitForControlArtifact(
     ).artifacts;
   const coordinatorRefresh = role === "ready" && input.phase === "coordinator" && input.round;
   let recoveredInventoryRead = false;
+  const maximumUnavailableTransfers = 3;
+  let pendingTransfer: { id: number; digest: string; unavailable: number } | undefined;
   const waitForPoll = async () => {
     const wait = remaining(3000);
     if (options.sleep) await options.sleep(wait);
@@ -378,17 +380,43 @@ export async function waitForControlArtifact(
         stage = "artifact-transfer";
         const transferDeadline = Math.min(deadline, performance.now() + remaining(providerTimeout));
         const item = { id: Number(artifact.id), bytes: Number(artifact.size_in_bytes) };
-        const zip = options.download
-          ? await options.download(item, transferDeadline)
-          : await (
-              await import("./github-artifact-download.mts")
-            ).downloadGitHubArtifactArchive(`${base}/actions/artifacts/${item.id}/zip`, {
-              credential: { kind: "explicit", token },
-              deadline: transferDeadline,
-              maxBytes: item.bytes,
-              fetch,
-              lookup: { reserve },
-            });
+        if (
+          pendingTransfer &&
+          (pendingTransfer.id !== item.id || pendingTransfer.digest !== artifact.digest)
+        )
+          throw new Error("control artifact changed while its archive was unavailable");
+        let zip: Buffer;
+        try {
+          zip = options.download
+            ? await options.download(item, transferDeadline)
+            : await (
+                await import("./github-artifact-download.mts")
+              ).downloadGitHubArtifactArchive(`${base}/actions/artifacts/${item.id}/zip`, {
+                credential: { kind: "explicit", token },
+                deadline: transferDeadline,
+                maxBytes: item.bytes,
+                fetch,
+                lookup: { reserve },
+              });
+        } catch (error) {
+          // A just-listed coordinator control artifact can briefly 404 on its
+          // archive. Re-list and re-join the same artifact identity, boundedly.
+          if (
+            input.phase !== "coordinator" ||
+            !(error instanceof GitHubApiError) ||
+            error.status !== 404 ||
+            (pendingTransfer?.unavailable ?? 0) >= maximumUnavailableTransfers
+          )
+            throw error;
+          pendingTransfer = {
+            id: item.id,
+            digest: artifact.digest,
+            unavailable: (pendingTransfer?.unavailable ?? 0) + 1,
+          };
+          stage = "poll-wait";
+          await waitForPoll();
+          continue;
+        }
         stage = "artifact-validation";
         remaining();
         await writeFile(path.join(privateRoot, `control-${role}.zip`), zip, {
