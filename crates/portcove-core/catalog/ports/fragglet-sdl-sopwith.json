@@ -8,9 +8,9 @@
     "issue_number": 1879,
     "listed_at": "2026-10-23",
     "availability": "packages",
-    "setup_url": "https://github.com/fragglet/sdl-sopwith/blob/sdl-sopwith-2.9.0/README.md",
+    "setup_url": "https://fragglet.github.io/sdl-sopwith/",
     "original_game_title": "Sopwith",
-    "release_url": "https://github.com/fragglet/sdl-sopwith/releases/tag/sdl-sopwith-2.9.0",
+    "release_url": "https://github.com/fragglet/sdl-sopwith/releases",
     "manual_setup": {
       "steps": [
         {
@@ -26,7 +26,7 @@
         "This project has not been verified for play through Portcove.",
         "You and upstream own the Mac setup, updates and preference files."
       ],
-      "help_url": "https://github.com/fragglet/sdl-sopwith/blob/sdl-sopwith-2.9.0/README.md"
+      "help_url": "https://fragglet.github.io/sdl-sopwith/"
     },
     "artwork": {
       "game_id": 24424,
