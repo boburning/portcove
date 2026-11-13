@@ -8215,6 +8215,12 @@ mod tests {
             Some(vec![2, 2])
         );
         assert!(embedded.requires_psx_multi_track_set(port));
+        let colony_wars = embedded.port("alexbeav-colony-wars-recomp").unwrap();
+        assert_eq!(
+            embedded.managed_psx_set_track_counts(colony_wars),
+            Some(vec![2, 2])
+        );
+        assert!(embedded.requires_psx_multi_track_set(colony_wars));
         let galerians = embedded.port("alexbeav-galerians-recomp").unwrap();
         assert_eq!(
             embedded.managed_psx_set_track_counts(galerians),

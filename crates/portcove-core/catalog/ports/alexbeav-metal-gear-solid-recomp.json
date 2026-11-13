@@ -3,7 +3,7 @@
   "listing": {
     "id": "alexbeav-metal-gear-solid-recomp",
     "name": "Metal Gear Solid / Alexbeav PSXRecomp",
-    "summary": "Build and play Metal Gear Solid on Windows or Linux with your own matching USA two-disc set and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+    "summary": "Build and play Metal Gear Solid on Windows or Linux with your own matching USA (Rev 1) two-disc set and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Metal Gear Solid",
     "project_url": "https://github.com/alexbeavs-ps1-ports/metal-gear-solid-recomp",
     "issue_number": 466,
