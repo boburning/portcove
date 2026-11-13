@@ -256,91 +256,35 @@ export function ModProviderBrowser(props: Props) {
           </div>
         </Notice>
       ) : project ? (
-        <section
-          aria-label={t("mods.browse.filesLabel", { name: project.project.name })}
-          className="grid gap-2"
-        >
-          <p className="text-sm font-semibold">
-            <bdi>{project.project.name}</bdi>
-          </p>
-          {projectStale && <p className="text-sm">{projectStale}</p>}
-          {project.project.obsolete && <p className="text-sm">{t("mods.browse.obsolete")}</p>}
-          {project.project.files.length === 0 ? (
-            <p className="text-sm">{t("mods.browse.noFiles")}</p>
-          ) : (
-            <ul className="m-0 grid list-none gap-1 p-0">
-              {project.project.files.map((file) => {
-                const installable = !file.archived && !project.project.obsolete && !projectStale;
-                return (
-                  <li
-                    key={file.file_id}
-                    className="flex flex-wrap items-center gap-2 text-sm [overflow-wrap:anywhere]"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <Trans
-                        t={t}
-                        i18nKey={file.archived ? "mods.browse.fileArchived" : "mods.browse.file"}
-                        values={{ size: formatBytes(file.size) }}
-                        components={{ file: <bdi>{file.file_name}</bdi> }}
-                      />
-                    </span>
-                    {installable && (
-                      <Button
-                        variant="outline"
-                        disabled={locked}
-                        onClick={() =>
-                          void run(
-                            t("mods.browse.downloading", { file: file.file_name }),
-                            () =>
-                              desktopApi.planProviderInstall(
-                                portId,
-                                profileId,
-                                project.project.project_id,
-                                file.file_id,
-                                generation,
-                              ),
-                            showPlan,
-                          ).then((reviewed) => {
-                            // An answer for a view that was left is discarded.
-                            if (reviewed && !alive.current) discard(reviewed);
-                          })
-                        }
-                      >
-                        {t("mods.browse.review", { file: file.file_name })}
-                      </Button>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          {project.project.unreadable_files > 0 && (
-            <p className="text-sm">
-              {t("mods.browse.unreadable", { count: project.project.unreadable_files, provider })}
-            </p>
-          )}
-          <ActionRow>
-            {projectStale && (
-              <Button
-                variant="outline"
-                disabled={locked}
-                onClick={() => showProject(project.project.project_id)}
-              >
-                {t("mods.browse.checkAgain", { provider })}
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              disabled={Boolean(working)}
-              onClick={() => {
-                setError(undefined);
-                setProject(undefined);
-              }}
-            >
-              {t("mods.browse.back")}
-            </Button>
-          </ActionRow>
-        </section>
+        <ProviderProjectFiles
+          project={project}
+          projectStale={projectStale}
+          provider={provider}
+          locked={locked}
+          working={Boolean(working)}
+          showProject={showProject}
+          back={() => {
+            setError(undefined);
+            setProject(undefined);
+          }}
+          reviewFile={(file) =>
+            void run(
+              t("mods.browse.downloading", { file: file.file_name }),
+              () =>
+                desktopApi.planProviderInstall(
+                  portId,
+                  profileId,
+                  project.project.project_id,
+                  file.file_id,
+                  generation,
+                ),
+              showPlan,
+            ).then((reviewed) => {
+              // An answer for a view that was left is discarded.
+              if (reviewed && !alive.current) discard(reviewed);
+            })
+          }
+        />
       ) : page ? (
         <ProviderProjectList
           page={page}
@@ -534,6 +478,88 @@ function ProviderProjectList({
         </Button>
         <Button variant="outline" disabled={working} onClick={close}>
           {t("mods.browse.close")}
+        </Button>
+      </ActionRow>
+    </section>
+  );
+}
+
+function ProviderProjectFiles({
+  project,
+  projectStale,
+  provider,
+  locked,
+  working,
+  showProject,
+  back,
+  reviewFile,
+}: {
+  project: ProviderProjectView;
+  projectStale: string | undefined;
+  provider: string;
+  locked: boolean;
+  working: boolean;
+  showProject: (projectId: string) => void;
+  back: () => void;
+  reviewFile: (file: ProviderProjectView["project"]["files"][number]) => void;
+}) {
+  const { t } = useAppTranslation("gameSettings");
+  return (
+    <section
+      aria-label={t("mods.browse.filesLabel", { name: project.project.name })}
+      className="grid gap-2"
+    >
+      <p className="text-sm font-semibold">
+        <bdi>{project.project.name}</bdi>
+      </p>
+      {projectStale && <p className="text-sm">{projectStale}</p>}
+      {project.project.obsolete && <p className="text-sm">{t("mods.browse.obsolete")}</p>}
+      {project.project.files.length === 0 ? (
+        <p className="text-sm">{t("mods.browse.noFiles")}</p>
+      ) : (
+        <ul className="m-0 grid list-none gap-1 p-0">
+          {project.project.files.map((file) => {
+            const installable = !file.archived && !project.project.obsolete && !projectStale;
+            return (
+              <li
+                key={file.file_id}
+                className="flex flex-wrap items-center gap-2 text-sm [overflow-wrap:anywhere]"
+              >
+                <span className="min-w-0 flex-1">
+                  <Trans
+                    t={t}
+                    i18nKey={file.archived ? "mods.browse.fileArchived" : "mods.browse.file"}
+                    values={{ size: formatBytes(file.size) }}
+                    components={{ file: <bdi>{file.file_name}</bdi> }}
+                  />
+                </span>
+                {installable && (
+                  <Button variant="outline" disabled={locked} onClick={() => reviewFile(file)}>
+                    {t("mods.browse.review", { file: file.file_name })}
+                  </Button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {project.project.unreadable_files > 0 && (
+        <p className="text-sm">
+          {t("mods.browse.unreadable", { count: project.project.unreadable_files, provider })}
+        </p>
+      )}
+      <ActionRow>
+        {projectStale && (
+          <Button
+            variant="outline"
+            disabled={locked}
+            onClick={() => showProject(project.project.project_id)}
+          >
+            {t("mods.browse.checkAgain", { provider })}
+          </Button>
+        )}
+        <Button variant="outline" disabled={working} onClick={back}>
+          {t("mods.browse.back")}
         </Button>
       </ActionRow>
     </section>

@@ -322,14 +322,7 @@ function isConflict(error: unknown) {
   );
 }
 
-function useMoreMatches(
-  snapshot: GameFileScanSnapshot | null | undefined,
-  generation: number,
-  onReload: () => void,
-) {
-  const [more, setMore] = useState<MoreMatches>();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string>();
+function scanMatchIdentity(snapshot: GameFileScanSnapshot | null | undefined) {
   const report = snapshot?.report;
   const scanId = snapshot?.matches?.scan_id;
   const key = scanId
@@ -341,11 +334,14 @@ function useMoreMatches(
         snapshot?.matches?.preliminary_selections ?? 0,
       ].join(":")
     : undefined;
-  const currentKey = useRef(key);
-  useLayoutEffect(() => {
-    currentKey.current = key;
-  }, [key]);
-  const current = more && more.key === key ? more : undefined;
+  return { report, scanId, key };
+}
+
+function scanMatchCounts(
+  snapshot: GameFileScanSnapshot | null | undefined,
+  report: GameFileScanSnapshot["report"] | undefined,
+  current: MoreMatches | undefined,
+) {
   const exactShown = (report?.candidates.length ?? 0) + (current?.candidates.length ?? 0);
   const preliminaryShown =
     (report?.preliminary_selections?.length ?? 0) + (current?.preliminary.length ?? 0);
@@ -353,6 +349,28 @@ function useMoreMatches(
   const preliminaryTotal =
     snapshot?.matches?.preliminary_selections ?? report?.preliminary_selections?.length ?? 0;
   const remaining = exactTotal - exactShown + (preliminaryTotal - preliminaryShown);
+  return { exactShown, preliminaryShown, exactTotal, remaining };
+}
+
+function useMoreMatches(
+  snapshot: GameFileScanSnapshot | null | undefined,
+  generation: number,
+  onReload: () => void,
+) {
+  const [more, setMore] = useState<MoreMatches>();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>();
+  const { report, scanId, key } = scanMatchIdentity(snapshot);
+  const currentKey = useRef(key);
+  useLayoutEffect(() => {
+    currentKey.current = key;
+  }, [key]);
+  const current = more && more.key === key ? more : undefined;
+  const { exactShown, preliminaryShown, exactTotal, remaining } = scanMatchCounts(
+    snapshot,
+    report,
+    current,
+  );
   const showMore = async () => {
     if (!scanId || !key || loading) return;
     const kind = exactShown < exactTotal ? "exact" : "preliminary";
@@ -399,6 +417,23 @@ function useMoreMatches(
   };
 }
 
+function completedScanCoverage(
+  snapshot: GameFileScanSnapshot,
+  report: NonNullable<GameFileScanSnapshot["report"]>,
+  readConfirmed: boolean,
+) {
+  const coverage = snapshot.coverage;
+  const canContinue = savedScanAction(snapshot, readConfirmed) === "Continue scan";
+  const matchCeilingReached =
+    coverage !== undefined &&
+    coverage !== null &&
+    !coverage.can_resume &&
+    !coverage.frontier_exhausted &&
+    !coverage.restart_required &&
+    report.limits_reached.includes("candidates");
+  return { coverage, canContinue, matchCeilingReached };
+}
+
 function CompletedScan({
   snapshot,
   generation,
@@ -433,15 +468,11 @@ function CompletedScan({
   const more = useMoreMatches(snapshot, generation, onReload);
   const report = snapshot?.report;
   if (!snapshot || !report) return null;
-  const coverage = snapshot.coverage;
-  const canContinue = savedScanAction(snapshot, readConfirmed) === "Continue scan";
-  const matchCeilingReached =
-    coverage !== undefined &&
-    coverage !== null &&
-    !coverage.can_resume &&
-    !coverage.frontier_exhausted &&
-    !coverage.restart_required &&
-    report.limits_reached.includes("candidates");
+  const { coverage, canContinue, matchCeilingReached } = completedScanCoverage(
+    snapshot,
+    report,
+    readConfirmed,
+  );
   const candidates = [...report.candidates, ...more.candidates];
   const preliminarySelections = [...(report.preliminary_selections ?? []), ...more.preliminary];
   return (

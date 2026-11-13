@@ -110,6 +110,11 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
     return succeeded;
   };
 
+  const refreshAfterProviderInstall = (message: string) => {
+    setOutcome(message);
+    setFresh(false);
+    setRequest((value) => value + 1);
+  };
   return {
     view,
     error,
@@ -121,8 +126,7 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
     setWorking,
     setOutcome,
     setFailure,
-    setFresh,
-    setRequest,
+    refreshAfterProviderInstall,
   };
 }
 
@@ -139,8 +143,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
     setWorking,
     setOutcome,
     setFailure,
-    setFresh,
-    setRequest,
+    refreshAfterProviderInstall,
   } = useModSetupInventory(portId, generation, busy);
   const [browserBusy, setBrowserBusy] = useState(false);
   const [copyName, setCopyName] = useState("");
@@ -420,11 +423,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                   inUse={selected.profile.id === selectedId}
                   onBusyChange={setBrowserBusy}
                   disabled={working || !fresh || blocked}
-                  onInstalled={(message) => {
-                    setOutcome(message);
-                    setFresh(false);
-                    setRequest((value) => value + 1);
-                  }}
+                  onInstalled={refreshAfterProviderInstall}
                 />
               )}
               {onOtherBuild && (
@@ -434,62 +433,78 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                   </div>
                 </Notice>
               )}
-              <p className="text-sm text-pc-muted-foreground">{t("mods.copyIntro")}</p>
-              <ActionRow>
-                <label htmlFor={copyId} className="text-sm">
-                  {t("mods.copyName")}
-                </label>
-                <Input
-                  id={copyId}
-                  className="max-w-64"
-                  value={copyName}
-                  onValueChange={(value) => setCopyName(value)}
-                />
-                <Button
-                  variant="outline"
-                  disabled={locked || copyName.trim() === ""}
-                  onClick={() => {
-                    const name = copyName.trim();
-                    void perform(
-                      () => desktopApi.copyModSetup(portId, selected.profile.id, name, generation),
-                      t("mods.outcome.copied", { name }),
-                    ).then((created) => {
-                      if (created) setCopyName("");
-                    });
-                  }}
-                >
-                  {t("mods.copy")}
-                </Button>
-                {onOtherBuild && (
-                  <Button
-                    variant="outline"
-                    disabled={locked || copyName.trim() === ""}
-                    onClick={() => {
-                      const name = copyName.trim();
-                      void perform(
-                        () =>
-                          desktopApi.copyModSetup(
+              <CopyModSetup
+                copyId={copyId}
+                copyName={copyName}
+                setCopyName={setCopyName}
+                locked={locked}
+                onOtherBuild={onOtherBuild}
+                copy={(name, currentBuild) =>
+                  perform(
+                    () =>
+                      currentBuild
+                        ? desktopApi.copyModSetup(
                             portId,
                             selected.profile.id,
                             name,
                             generation,
                             true,
-                          ),
-                        t("mods.outcome.copiedCurrent", { name }),
-                      ).then((created) => {
-                        if (created) setCopyName("");
-                      });
-                    }}
-                  >
-                    {t("mods.copyCurrent")}
-                  </Button>
-                )}
-              </ActionRow>
+                          )
+                        : desktopApi.copyModSetup(portId, selected.profile.id, name, generation),
+                    currentBuild
+                      ? t("mods.outcome.copiedCurrent", { name })
+                      : t("mods.outcome.copied", { name }),
+                  )
+                }
+              />
             </section>
           )}
         </>
       )}
     </section>
+  );
+}
+
+function CopyModSetup({
+  copyId,
+  copyName,
+  setCopyName,
+  locked,
+  onOtherBuild,
+  copy,
+}: {
+  copyId: string;
+  copyName: string;
+  setCopyName: (name: string) => void;
+  locked: boolean;
+  onOtherBuild: boolean;
+  copy: (name: string, currentBuild: boolean) => Promise<boolean>;
+}) {
+  const { t } = useAppTranslation("gameSettings");
+  const name = copyName.trim();
+  const disabled = locked || name === "";
+  const submit = (currentBuild: boolean) =>
+    void copy(name, currentBuild).then((created) => {
+      if (created) setCopyName("");
+    });
+  return (
+    <>
+      <p className="text-sm text-pc-muted-foreground">{t("mods.copyIntro")}</p>
+      <ActionRow>
+        <label htmlFor={copyId} className="text-sm">
+          {t("mods.copyName")}
+        </label>
+        <Input id={copyId} className="max-w-64" value={copyName} onValueChange={setCopyName} />
+        <Button variant="outline" disabled={disabled} onClick={() => submit(false)}>
+          {t("mods.copy")}
+        </Button>
+        {onOtherBuild && (
+          <Button variant="outline" disabled={disabled} onClick={() => submit(true)}>
+            {t("mods.copyCurrent")}
+          </Button>
+        )}
+      </ActionRow>
+    </>
   );
 }
 

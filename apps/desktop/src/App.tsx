@@ -1091,7 +1091,27 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
   );
 }
 
-function WorkspaceFeedback({ model }: { model: Omit<WorkspaceModel, "workspace"> }) {
+type WorkspaceFeedbackModel = Pick<
+  WorkspaceModel,
+  | "operations"
+  | "data"
+  | "openPortDetails"
+  | "setPrimaryView"
+  | "applicationUpdate"
+  | "applicationUpdateChoice"
+  | "applicationUpdateProductionTransition"
+  | "reviewApplicationUpdate"
+  | "dismissApplicationUpdateChoice"
+  | "completeApplicationUpdateProductionTransition"
+  | "dismissApplicationUpdateProductionTransition"
+  | "renderPreferenceFailure"
+> & {
+  ui: Pick<WorkspaceModel["ui"], "view" | "revealActivity">;
+  model: Pick<WorkspaceModel["model"], "statusMap">;
+  bootstrap: Pick<WorkspaceModel["bootstrap"], "generation">;
+};
+
+function WorkspaceFeedback({ model }: { model: WorkspaceFeedbackModel }) {
   return (
     <div className="flow-root min-w-0" data-workspace-feedback>
       <StatusLayer

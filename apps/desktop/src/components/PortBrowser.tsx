@@ -252,6 +252,58 @@ function usePortBrowserFocus() {
   return { browserRoot, filterButton, restoreAfter, prepareSearchFocusRestore };
 }
 
+type BrowserQuickViewInputs = Pick<
+  Parameters<typeof usePortBrowser>[0],
+  "favorites" | "filter" | "organization" | "statuses" | "catalogUniverse" | "ports"
+> & {
+  queryContext: CatalogQueryContext | undefined;
+  libraryReadiness: string;
+  composedLibrary: boolean;
+  organizationView: string;
+  candidates: CatalogEntry[] | undefined;
+};
+
+function browserQuickViews({
+  favorites,
+  libraryReadiness,
+  filter,
+  composedLibrary,
+  organizationView,
+  organization,
+  candidates,
+  statuses,
+  queryContext,
+  catalogUniverse,
+  ports,
+}: BrowserQuickViewInputs) {
+  const activeQuickView = activeLibraryQuickView({
+    favoritesOnly: favorites?.only === true,
+    readiness: libraryReadiness,
+    filter,
+  });
+  const favoriteIds = favorites?.ids;
+  const quickViewCounts = libraryQuickViewCounts({
+    // An unread collection snapshot makes a selected collection's counts unknown.
+    base:
+      composedLibrary && (organizationView === "all" || organization?.snapshot)
+        ? candidates
+        : undefined,
+    filter,
+    readiness: libraryReadiness,
+    favoriteIds,
+    statuses,
+    // Match filterPorts: group facts use the full catalog, not the searched base.
+    context: {
+      ...queryContext,
+      catalogUniverse: queryContext?.catalogUniverse ?? catalogUniverse ?? candidates ?? [],
+    },
+    scope: (scoped) =>
+      organizedPorts(scoped, organization, organizationView, false, catalogUniverse ?? ports),
+  });
+
+  return { activeQuickView, quickViewCounts };
+}
+
 function usePortBrowser({
   organization,
   organizationSelection,
@@ -378,29 +430,18 @@ function usePortBrowser({
     view === "catalog",
     catalogUniverse ?? ports,
   );
-  const activeQuickView = activeLibraryQuickView({
-    favoritesOnly: favorites?.only === true,
-    readiness: libraryReadiness,
+  const { activeQuickView, quickViewCounts } = browserQuickViews({
+    favorites,
+    libraryReadiness,
     filter,
-  });
-  const favoriteIds = favorites?.ids;
-  const quickViewCounts = libraryQuickViewCounts({
-    // An unread collection snapshot makes a selected collection's counts unknown.
-    base:
-      composedLibrary && (organizationView === "all" || organization?.snapshot)
-        ? candidates
-        : undefined,
-    filter,
-    readiness: libraryReadiness,
-    favoriteIds,
+    composedLibrary,
+    organizationView,
+    organization,
+    candidates,
     statuses,
-    // Match filterPorts: group facts use the full catalog, not the searched base.
-    context: {
-      ...queryContext,
-      catalogUniverse: queryContext?.catalogUniverse ?? catalogUniverse ?? candidates ?? [],
-    },
-    scope: (scoped) =>
-      organizedPorts(scoped, organization, organizationView, false, catalogUniverse ?? ports),
+    queryContext,
+    catalogUniverse,
+    ports,
   });
 
   const resultCount = browserResultCountLabel({
