@@ -277,6 +277,30 @@ export async function runFixedCatalogCoordinatorConfiguration(
         });
       if (reader.identity.evidence_scope !== "github.com")
         throw new Error("actual catalog coordinator reader required");
+      const reviewClaim = selectRetainedChameleonReviewClaim(
+        reader.admitted.execution_ref,
+        reader.admitted.run_attempt,
+      );
+      const earlyRecovery = reader.admitted.execution_ref === reviewClaim?.early_recovery_ref;
+      const reviewClaimSubject = reviewClaim
+        ? capacityDigest({
+            checkpoint: reviewClaim.previous,
+            child: reviewClaim.child,
+            request_id: reviewClaim.request_id,
+          })
+        : undefined;
+      const announceControlReadiness = async (subjectSha256: string) => {
+        const runId = reader.admitted.run_id;
+        if (!runId) throw new Error("catalog coordinator run identity unavailable");
+        const ready = path.join(directory, "ready-coordinator.json");
+        await writeFile(
+          ready,
+          `${JSON.stringify(prepareControlReadiness(reader.identity, subjectSha256, "coordinator"))}\n`,
+          { flag: "wx", mode: 0o600 },
+        );
+        await retainControlStepLocator(ready, "coordinator", 0);
+      };
+      if (earlyRecovery && reviewClaimSubject) await announceControlReadiness(reviewClaimSubject);
       stage = "catalog-tool-custody";
       const tools = await receiveControllerTools(
           directory,
@@ -312,13 +336,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
       const observeControls = async (subjectSha256: string) => {
         const runId = reader.admitted.run_id;
         if (!runId) throw new Error("catalog coordinator run identity unavailable");
-        const ready = path.join(directory, "ready-coordinator.json");
-        await writeFile(
-          ready,
-          `${JSON.stringify(prepareControlReadiness(reader.identity, subjectSha256, "coordinator"))}\n`,
-          { flag: "wx", mode: 0o600 },
-        );
-        await retainControlStepLocator(ready, "coordinator", 0);
+        if (!earlyRecovery) await announceControlReadiness(subjectSha256);
         const observation = await waitForControlArtifact(
           directory,
           "observation",
@@ -485,11 +503,8 @@ export async function runFixedCatalogCoordinatorConfiguration(
           throw new Error("catalog journal CAS readback differs; retain original");
         return readback;
       };
-      const reviewClaim = selectRetainedChameleonReviewClaim(
-        reader.admitted.execution_ref,
-        reader.admitted.run_attempt,
-        recovered.checkpoint,
-      );
+      if (reviewClaim && recovered.checkpoint !== reviewClaim.previous)
+        throw new Error("Chameleon review recovery requires the original predecessor");
       const adoptForward =
         isStandaloneBootstrapForwardPreimage(inspectPublishedMetadata(input.published_metadata)) &&
         !Object.hasOwn(input, "published_site") &&
@@ -868,7 +883,9 @@ export async function runFixedCatalogCoordinatorConfiguration(
         );
       stage = "neutral-request-control-and-CAS";
       const { controls, readMaintenance, observed, stable } = await observeControls(
-        capacityDigest({ checkpoint: recovered.checkpoint, request }),
+        earlyRecovery && reviewClaimSubject
+          ? reviewClaimSubject
+          : capacityDigest({ checkpoint: recovered.checkpoint, request }),
       );
       const publicationReader = await openPublicationReader();
       const tags = await publicationReader.tags();

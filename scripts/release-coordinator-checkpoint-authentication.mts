@@ -249,19 +249,16 @@ export const retainedChameleonReviewClaim = {
   original_run: "43448527355",
   original_job: 131966991529,
   recovery_ref: "refs/tags/portcove-production-controller-catalog-chameleon-review-settle",
+  early_recovery_ref:
+    "refs/tags/portcove-production-controller-catalog-chameleon-review-settle-early",
 } as const;
 
-export function selectRetainedChameleonReviewClaim(
-  executionRef: string,
-  runAttempt: number,
-  checkpoint: string,
-) {
+export function selectRetainedChameleonReviewClaim(executionRef: string, runAttempt: number) {
   const claim = retainedChameleonReviewClaim;
-  if (executionRef !== claim.recovery_ref) return undefined;
-  if (runAttempt !== 1 || checkpoint !== claim.previous)
-    throw new Error(
-      "Chameleon review recovery requires the original predecessor and first attempt",
-    );
+  if (executionRef !== claim.recovery_ref && executionRef !== claim.early_recovery_ref)
+    return undefined;
+  if (runAttempt !== 1)
+    throw new Error("Chameleon review recovery requires its appointed first attempt");
   return claim;
 }
 
@@ -276,9 +273,11 @@ export function matchesRetainedChameleonWithdrawalHandoff(
   const workflow = "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb";
   return (
     purpose === "catalog-publication" &&
-    [retainedChameleonReviewClaim.original_ref, retainedChameleonReviewClaim.recovery_ref].some(
-      (ref) => ref === source.execution_ref,
-    ) &&
+    [
+      retainedChameleonReviewClaim.original_ref,
+      retainedChameleonReviewClaim.recovery_ref,
+      retainedChameleonReviewClaim.early_recovery_ref,
+    ].some((ref) => ref === source.execution_ref) &&
     source.workflow_sha256 === workflow &&
     checkpoint.checkpoint === retainedChameleonReviewClaim.previous &&
     checkpoint.previous === retainedCatalogV13AdoptionClaim.child &&
