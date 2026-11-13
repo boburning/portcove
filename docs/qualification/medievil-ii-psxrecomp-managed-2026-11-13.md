@@ -1,6 +1,6 @@
 # MediEvil II: a managed setup-kit route beside the prebuilt player
 
-Dated evidence from November 13, 2026, under #459 and #2926. The repository
+Dated evidence from November 13, 2026, under #5299, #459 and #2926. The repository
 owner chose to keep the existing prebuilt-player route and add a separate
 managed PS1 route for the v0.2.6 setup kits, so players can choose either. No
 upstream program was executed, and no original disc or BIOS was used.
@@ -117,7 +117,9 @@ plus `-windows-x64.zip` or `-linux-x64.zip`. It declares
 
 If GitHub flags `v0.2.6` as a prerelease, the `stable` channel would select
 an older stable tag such as `v0.1.2`, whose assets were not checked against
-the selector. The flag is unknown.
+the selector. The flag is unknown. If those assets do not match, nothing is
+installed; if they do, an older kit would be built. Confirm the flag when this
+route is enrolled in the release-selection corpus.
 
 ## Not observed
 
