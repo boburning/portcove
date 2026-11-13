@@ -3601,6 +3601,18 @@ retain a separate host desktop lock with process creation identity and a legacy
 compatibility record. Unknown/PID-only orphan ownership is retained for positive
 quiescence investigation, never reclaimed merely by age or PID absence.
 
+Linux snapshot restoration and reboot have one bounded automatic recovery rule:
+the current process and recorded owner/child must carry valid Linux kernel boot
+identities, and both recorded processes must belong to the same previous boot.
+For a local `unix-watchdog` child without a foreign tree contract, a different
+current boot proves those local processes cannot survive, so normal token-checked
+admission can reclaim the reservation even without the old cleanup receipt.
+This applies to host-local resource state, not shared coordination across live
+machines. External custody, mixed/malformed identities, legacy child containment,
+unavailable current identity and same-boot missing receipts remain fail closed.
+Snapshot setup should use the ordinary guarded bootstrap; it must not delete
+resource records or reset the coordination root on startup.
+
 The supported frontend, native-build, native-verification and container routes
 reuse the existing process supervisor and descendant cleanup. On Windows/Linux,
 heavy frontend and host bundle preparation therefore need the pinned Rust compiler

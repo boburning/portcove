@@ -345,6 +345,32 @@ function cleanupReceiptOutcome(
   }
 }
 
+function linuxBoot(record: HeavyProcessRecord) {
+  const match =
+    /^linux:([a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}):([1-9][0-9]*):([0-9]+)$/u.exec(
+      record.identity,
+    );
+  return match && Number(match[2]) === record.pid ? match[1] : null;
+}
+
+/** A previous kernel cannot retain local processes. Remote custody is separate. */
+function previousLinuxBoot(
+  owner: HeavyRustOwner,
+  inspectProcessIdentity: typeof readProcessIdentity,
+) {
+  if (process.platform !== "linux" || owner.external) return false;
+  if (
+    owner.child &&
+    (owner.child.containment !== "unix-watchdog" || owner.child.tree_platform !== undefined)
+  )
+    return false;
+  const previous = linuxBoot(owner.process);
+  if (!previous || (owner.child && linuxBoot(owner.child) !== previous)) return false;
+  const identity = inspectProcessIdentity(process.pid);
+  const current = identity ? linuxBoot({ pid: process.pid, identity }) : null;
+  return current !== null && current !== previous;
+}
+
 function activeRecord(
   owner: HeavyRustOwner,
   inspectProcessIdentity: typeof readProcessIdentity,
@@ -353,6 +379,7 @@ function activeRecord(
 ): ActiveRecord | null {
   if (owner.external)
     return { kind: "external work awaiting quiescence proof", record: owner.process };
+  if (previousLinuxBoot(owner, inspectProcessIdentity)) return null;
   for (const [kind, record] of [
     ["owner", owner.process],
     ["child", owner.child],

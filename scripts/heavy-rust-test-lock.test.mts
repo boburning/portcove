@@ -20,6 +20,7 @@ import test from "node:test";
 import {
   acquireHeavyRustTestLock,
   heavyRustLockTiming,
+  heavyRustOwnerActivity,
   processTreeMembers,
   readProcessIdentity,
 } from "./heavy-rust-test-lock.mts";
@@ -58,7 +59,7 @@ async function readPersistedOwner(lockPath: string) {
 
 function owner(processRecord: unknown, child: unknown = null) {
   return {
-    format_version: 1,
+    format_version: 1 as const,
     token: "existing-token",
     process: processRecord,
     child,
@@ -634,6 +635,102 @@ void test("Unix watchdog cleanup must prove quiescence before a dead lock is rec
     await rm(root, { recursive: true, force: true });
   }
 });
+
+void test(
+  "a prior Linux boot releases local watchdog custody through normal admission",
+  {
+    skip: process.platform !== "linux",
+  },
+  async () => {
+    const { root, lockPath } = await fixture();
+    const previous = "1031e709-2ed8-45f3-bbe3-44d414c0fc62";
+    const current = "b924a278-2380-4056-b815-8f9226b17a62";
+    const existing = {
+      ...owner(null),
+      process: { pid: 915, identity: `linux:${previous}:915:100` },
+      child: {
+        pid: 916,
+        identity: `linux:${previous}:916:200`,
+        containment: "unix-watchdog" as const,
+        cleanup_receipt: path.join(root, "missing-cleanup.json"),
+      },
+    };
+    const identities = new Map([[process.pid, `linux:${current}:${process.pid}:300`]]);
+    try {
+      await writeFile(lockPath, JSON.stringify({ ...existing, child: null }));
+      await writeFile(
+        `${lockPath}.child-${existing.token}`,
+        JSON.stringify({
+          format_version: 1,
+          token: existing.token,
+          child: existing.child,
+        }),
+      );
+      const acquired = await acquireHeavyRustTestLock(
+        {},
+        {
+          lockPath,
+          waitMilliseconds: 0,
+          inspectProcessIdentity: identityInspector(identities),
+        },
+      );
+      assert.notEqual(acquired.owner.token, existing.token);
+      await acquired.release();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+void test(
+  "Linux boot recovery retains ambiguous, same-boot and external custody",
+  {
+    skip: process.platform !== "linux",
+  },
+  async (t) => {
+    const previous = "1031e709-2ed8-45f3-bbe3-44d414c0fc62";
+    const current = "b924a278-2380-4056-b815-8f9226b17a62";
+    const existing = {
+      ...owner(null),
+      process: { pid: 915, identity: `linux:${previous}:915:100` },
+      child: {
+        pid: 916,
+        identity: `linux:${previous}:916:200`,
+        containment: "unix-watchdog" as const,
+        cleanup_receipt: "/missing-receipt.json",
+      },
+    };
+    const self = `linux:${current}:${process.pid}:300`;
+    for (const [name, candidate, identity] of [
+      ["same boot", existing, `linux:${previous}:${process.pid}:300`],
+      ["unavailable current boot", existing, null],
+      ["malformed current identity", existing, "linux:invalid:1:1"],
+      [
+        "mixed boots",
+        { ...existing, child: { ...existing.child, identity: `linux:${current}:916:200` } },
+        self,
+      ],
+      [
+        "mismatched PID",
+        { ...existing, child: { ...existing.child, identity: `linux:${previous}:917:200` } },
+        self,
+      ],
+      ["legacy child", { ...existing, child: { ...existing.child, containment: undefined } }, self],
+      ["foreign tree", { ...existing, child: { ...existing.child, tree_platform: "win32" } }, self],
+      ["external custody", { ...existing, external: { kind: "remote" } }, self],
+    ] as const) {
+      await t.test(name, () => {
+        assert.ok(
+          heavyRustOwnerActivity(candidate, {
+            inspectProcessIdentity: (pid) => (pid === process.pid ? identity : null),
+            inspectProcessTree: () => [],
+            readCleanupReceipt: () => '{"outcome":"failed:EPERM"}',
+          }),
+        );
+      });
+    }
+  },
+);
 
 void test("ambiguous legacy child containment blocks automatic reclamation", async () => {
   const { root, lockPath } = await fixture();
