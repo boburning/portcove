@@ -6900,7 +6900,16 @@ mod tests {
         let library = Library::open(temporary.path().join("library")).unwrap();
         let server = Server::new();
         let release = |version: &str, revision| {
-            let mut release = server.release_in_folder(version, revision, "", program_name);
+            let mut release = server.release_with_files(
+                version,
+                revision,
+                "",
+                program_name,
+                &[
+                    ("translations/fixture.txt", b"fixture"),
+                    ("voices/fixture.txt", b"fixture"),
+                ],
+            );
             release.asset.name = format!("wc1-re-{version}-windows-x86_64-sdl2.zip");
             release
         };
@@ -6980,6 +6989,11 @@ mod tests {
                 ("assets/fixture.txt", b"fixture"),
                 ("licenses/fixture.txt", b"fixture"),
                 ("shaders/fixture.txt", b"fixture"),
+            ],
+            "street-fighter-iii-3rd-strike-3sxw" => &[
+                ("data/fixture.txt", b"fixture"),
+                ("licenses/fixture.txt", b"fixture"),
+                ("sf3config.exe", b"MZ"),
             ],
             "jagged-alliance-2-ja2-stracciatella" => &[
                 ("externalized/fixture.txt", b"fixture"),
