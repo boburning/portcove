@@ -6976,6 +6976,11 @@ mod tests {
                 ("shaders/fixture.txt", b"fixture"),
             ],
             "elraro-atomic-bomberman" => &[("atomic_server.exe", b"MZ")],
+            "street-fighter-iii-3rd-strike-3sx" => &[
+                ("assets/fixture.txt", b"fixture"),
+                ("licenses/fixture.txt", b"fixture"),
+                ("shaders/fixture.txt", b"fixture"),
+            ],
             "jagged-alliance-2-ja2-stracciatella" => &[
                 ("externalized/fixture.txt", b"fixture"),
                 ("mods/fixture.txt", b"fixture"),
