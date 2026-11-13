@@ -189,6 +189,9 @@ PORTCOVE_MAINTENANCE_DATABASE_URL="$RESTORE_TARGET_URL" node scripts/maintenance
   complete, so a failed backup leaves nothing to clean up.
 - `digest` prints the same per-table counts and digests for an ad hoc
   comparison.
+- `server` prints the server version number, its major version and
+  `pg_database_size` of the current database, so an operator can pick a matching
+  client and measure storage against a provider's limits.
 
 Digests hash UTF-8 row text with SHA-256 under pinned `TimeZone`, `DateStyle`,
 `IntervalStyle` and float settings and `C` collation ordering, so they are
@@ -641,8 +644,120 @@ report.
 
 **Explicitly disabled:** executor dispatch (every executor is owner-only or needs
 a reviewed change no executor is authorized to deliver, and no delegated
-credential exists), digest posting, schedules and publication. A kind resumes
-only when its registry resume condition holds and a reviewed change enables it.
+credential exists), digest posting and publication. A kind resumes only when its
+registry resume condition holds and a reviewed change enables it. The
+[hosted operation](#hosted-operation) records handoffs daily and never
+dispatches them.
+
+## Hosted operation
+
+[`maintenance-inventory.yml`](../.github/workflows/maintenance-inventory.yml)
+runs the generic commands above unchanged on a GitHub-hosted runner. It follows
+owner decisions recorded on 2026-11-13. Unattended evidence belongs to #4129
+checkpoint 5 and is recorded there.
+
+- **Schedule.** Once daily at 04:47 UTC, plus `workflow_dispatch` without inputs.
+  Both jobs run only on `main` of this repository. One concurrency group
+  serializes store writers, and a queued run never cancels a running one.
+- **Database.** A standard PostgreSQL 16 or newer database; the owner chose
+  Neon. Its URL is the repository secret `PORTCOVE_MAINTENANCE_DATABASE_URL`.
+  - Use the direct (unpooled) connection string. Backup holds an exported
+    snapshot across two sessions, and migration and collection use advisory
+    locks. Transaction-mode poolers preserve neither.
+  - The URL reaches only the step environments of the store commands, which
+    translate it to libpq variables.
+  - The hosted store runs as the URL's own role, which owns the schema. The
+    limited roles stay available to operators who grant separate logins.
+- **Configuration errors.** The first step checks that
+  `PORTCOVE_MAINTENANCE_DATABASE_URL` and `PORTCOVE_ROADMAP_TOKEN` are set.
+  - When either is empty, the job fails before checkout and nothing is read or
+    written.
+  - Its step summary and error annotation name only the missing secrets.
+  - A server older than PostgreSQL 16 fails the same way.
+- **Client version.** `maintenance-store.mts server` reports the server's major
+  version through the runner's default client. When the runner image has no
+  client of that major version, the job installs one from the PostgreSQL apt
+  repository and sets `PORTCOVE_POSTGRES_BIN`. Ubuntu's own `postgresql-common`
+  script configures that repository.
+- **Credentials.** The collect job has `contents: read`, `actions: read` and
+  `issues: read`.
+  - Release health, upstream observer snapshots and hosted intake read through
+    that job's `GITHUB_TOKEN`, passed as `GH_TOKEN`.
+  - Only the issue and Project source reads the existing
+    `PORTCOVE_ROADMAP_TOKEN`, read-only, as the Roadmap health workflow does. The
+    token is passed as `PORTCOVE_ROADMAP_GH_TOKEN` and read through
+    `collect --issues-token-env`, which never falls back to another credential.
+  - The collector removes that variable from its own environment once read, so
+    Core, Git and `psql` do not inherit it.
+  - Definition publication needs no credential.
+- **Collect job.** It runs these steps in order:
+  1. Build the debug Core CLI, sharing the observer's Rust cache.
+  2. `migrate`.
+  3. `collect --all` with `--issues`, `--release-health`, `--publication`,
+     `--upstream` and `--hosted-intake`.
+  4. `handoffs --record`, which plans and never dispatches.
+  5. `report`, `digest` and `backup`.
+- **Artifacts.** These are GitHub Actions artifacts kept for 30 days. Nothing is
+  published to GitHub Pages.
+  - `maintenance-report-<run>-<attempt>` holds the report (`report/index.html`,
+    `report/inventory.json`), the changes-only digest (`digest/digest.json`,
+    `digest/digest.md`) and `evidence.json`.
+  - `maintenance-backup-<run>-<attempt>` holds `maintenance.dump` and
+    `manifest.json`.
+  - `maintenance-restore-proof-<run>-<attempt>` holds the restore evidence.
+  - No executor acknowledges or posts the digest, so pending changes accumulate
+    until an authorized executor delivers them
+    ([changes-only digest](#changes-only-digest)).
+- **Restore proof.** A second job downloads the backup artifact and starts a
+  fresh PostgreSQL server of the same major version on its own runner, reachable
+  only through a private Unix socket. It then runs `restore`, which verifies the
+  dump digest and every table's count and digest in its own transaction. The job
+  also compares the restored digests with the manifest and fails on any
+  difference.
+- **Evidence.** `evidence.json` (`portcove-maintenance-hosted-evidence`, format 1)
+  and the step summary record these fields:
+  - the run ID, attempt, event and head commit;
+  - the collect, report and backup step outcomes;
+  - the report's `generated_at`, so report age is observable;
+  - every source's latest run: ID, coverage, revision, counts and gap count;
+  - the pending change count;
+  - the server version and `pg_database_size`;
+  - the schema version, dump size and digest, and per-table row counts;
+  - the duration of each step;
+  - the size and SHA-256 of every report, digest and backup file.
+
+  The restore evidence records both server versions, the restore duration and
+  the verification result.
+
+**Interruption and provider failure.** Each mutation is atomic. A failed or
+interrupted run therefore leaves the last committed state, and the next
+scheduled run continues from it with no manual cleanup.
+
+- Each migration commits with its ledger row or not at all. A collection commits
+  in one transaction, or commits nothing.
+- A failed source within a collection is a `failed` or `partial` run, never an
+  absence.
+- When the collection step fails, the handoff, report and backup steps still run
+  against the last committed state, so the report and backup stay visibly dated.
+- A backup renames into place only when complete. A restore that fails
+  verification rolls back.
+- An unreachable or suspended database fails the run before anything is
+  written.
+- A run cancelled or timed out mid-collection leaves no in-progress run, because
+  the open transaction ends with the connection.
+
+**$0 activation.** GitHub charges nothing here because the repository is public,
+and standard hosted runners and artifact storage are free for public
+repositories. The database must stay inside the provider's free plan, and no
+paid fallback exists. At activation, compare each run's measured inputs with the
+provider's published free limits:
+
+- `database_size_bytes` for storage;
+- step durations for compute time;
+- dump and report sizes for data transfer.
+
+When the free plan cannot sustain them, an owner disables the workflow and the
+issue records the hold.
 
 ## Changes-only digest
 
@@ -705,6 +820,8 @@ stub Core CLI, using the collector and report roles. It checks:
   `planned` to `abandoned` after a complete run, supersession and return
   detection, no handoff from Core changes, clearing of unregistered kinds,
   stale-fence refusal and role boundaries;
+- the hosted workflow's schedule, permissions, secret placement and artifact
+  retention, and the issue collector's own named credential;
 - report output and HTML escaping. The
   cases need non-root PostgreSQL 16+ server binaries and are a declared
   prerequisite skip elsewhere. These are fixture results. Hosted provider, backup

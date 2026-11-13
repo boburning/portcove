@@ -2418,6 +2418,7 @@ const workflowTests = new Map([
   ["application-release-package.yml", applicationReleaseTests],
   ["application-release-private.yml", applicationReleaseTests],
   ["qualification.yml", ["scripts/qualification-coverage.test.mts"]],
+  ["maintenance-inventory.yml", ["scripts/maintenance-inventory.test.mts"]],
   [
     "configured-upstream-observer.yml",
     [

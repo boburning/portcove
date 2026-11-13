@@ -51,6 +51,7 @@ import {
   type HostedIntakeObservation,
 } from "./maintenance-hosted-intake.mts";
 import type { HostedStatusAll } from "./hosted-discovery-intake.mts";
+import type { GitHubCredential } from "./github-client.mts";
 import {
   disabledCapabilities,
   handoffCollectionSql,
@@ -424,8 +425,30 @@ export function issueFacts(inventory: IssueInventory) {
   );
 }
 
-/** The maintained, completeness-verified issue and Project inventory, read-only. */
-export async function readIssueInventory(): Promise<IssueInventory> {
+/**
+ * The issue and Project collector's own credential, read from the named variable so
+ * that it can differ from the credential the other sources read (`GH_TOKEN`). It never
+ * falls back to another credential. The variable is removed from this process's
+ * environment once read, so no child process (Core CLI, Git, psql) inherits it.
+ */
+export function takeIssueCredential(
+  name: string,
+  environment: NodeJS.ProcessEnv = process.env,
+): GitHubCredential {
+  if (!/^[A-Z_][A-Z0-9_]*$/u.test(name))
+    throw new MaintenanceStoreError("--issues-token-env must name an environment variable");
+  const token = environment[name]?.trim();
+  delete environment[name];
+  if (!token)
+    throw new MaintenanceStoreError(`Set ${name} to the issue and Project read credential`);
+  return { kind: "explicit", token };
+}
+
+/**
+ * The maintained, completeness-verified issue and Project inventory, read-only. Without
+ * an explicit credential it uses the local developer credential like the other sources.
+ */
+export async function readIssueInventory(credential?: GitHubCredential): Promise<IssueInventory> {
   const { RoadmapClient, validateConfig } = await import("./roadmap.mts");
   const { createRoadmapRequestScope } = await import("./roadmap-capacity-continuation.mts");
   const config = validateConfig(
@@ -435,6 +458,7 @@ export async function readIssueInventory(): Promise<IssueInventory> {
     config,
     createRoadmapRequestScope({
       allowMutations: false,
+      ...(credential ? { credential } : {}),
       ghCommand: process.env.PORTCOVE_ROADMAP_GH,
     }),
   );
@@ -1804,6 +1828,8 @@ commands:
                                        assessment into the store; --all stores changes only;
                                        --issues (with --all) adds the verified issue and Project
                                        inventory through the maintained read-only roadmap collector;
+                                       --issues-token-env NAME (with --issues) reads that collector's
+                                       credential from NAME instead of GH_TOKEN, never falling back;
                                        --release-health (with --all) adds the latest scheduled
                                        main upstream-health report, bound by run and digest;
                                        --upstream (with --all) adds the newest retained upstream
@@ -1844,6 +1870,7 @@ export async function main(argv = process.argv.slice(2)) {
   const digestFile = option(args, "--digest");
   const receipt = option(args, "--receipt");
   const concurrency = option(args, "--concurrency");
+  const issuesTokenEnvironment = option(args, "--issues-token-env");
   const allIndex = args.indexOf("--all");
   const all = allIndex >= 0;
   if (all) args.splice(allIndex, 1);
@@ -1874,10 +1901,16 @@ export async function main(argv = process.argv.slice(2)) {
     throw new MaintenanceStoreError("--concurrency must be 1-99");
   if ((json || record) && command !== "handoffs")
     throw new MaintenanceStoreError("--json and --record apply only to handoffs");
+  if (issuesTokenEnvironment !== undefined && (!issues || command !== "collect"))
+    throw new MaintenanceStoreError("--issues-token-env applies only to collect --issues");
   if (args.length)
     throw new MaintenanceStoreError(`Unexpected arguments: ${args.join(" ")}\n${usage}`);
   if (command === "collect") {
     if (!cli) throw new MaintenanceStoreError("collect requires --cli PATH");
+    const issueCredential =
+      issuesTokenEnvironment === undefined
+        ? undefined
+        : takeIssueCredential(issuesTokenEnvironment);
     console.log(
       JSON.stringify(
         await collect({
@@ -1885,7 +1918,7 @@ export async function main(argv = process.argv.slice(2)) {
           sample,
           all,
           concurrency: concurrency === undefined ? undefined : Number(concurrency),
-          issues: issues ? readIssueInventory : undefined,
+          issues: issues ? () => readIssueInventory(issueCredential) : undefined,
           releaseHealth: releaseHealth ? readReleaseHealth : undefined,
           upstream: upstreamSource ? () => readUpstreamObservations(committedBytes) : undefined,
           hostedIntake: hostedSource ? readHostedIntake : undefined,

@@ -332,6 +332,19 @@ export function migrate(environment: NodeJS.ProcessEnv, directory = defaultMigra
   return { ...migrationStatus(environment, directory), newly_applied: applied };
 }
 
+/**
+ * The server's version and the current database's size, so an operator can pick a
+ * client of the matching major version and measure storage against provider limits.
+ */
+export function serverInfo(environment: NodeJS.ProcessEnv) {
+  const info = queryJson(
+    environment,
+    `SELECT json_build_object('server_version_num', current_setting('server_version_num')::integer,
+       'database_size_bytes', pg_catalog.pg_database_size(current_database()));`,
+  ) as { server_version_num: number; database_size_bytes: number };
+  return { ...info, server_major: Math.floor(info.server_version_num / 10_000) };
+}
+
 export type StoreDigest = Record<string, { rows: number; sha256: string }>;
 
 /** Settings that make row text identical on every host; applied inside the digest's transaction. */
@@ -649,6 +662,7 @@ commands:
   status    report applied, pending and drifted migrations
   migrate   apply pending migrations and the limited-role contract
   digest    print per-table row counts and content digests
+  server    print the server version, its major version and the database size in bytes
   backup    --output DIR   write maintenance.dump and manifest.json to a new DIR
   restore   --input DIR    restore a backup into a database without maintenance schemas
 
@@ -676,6 +690,7 @@ export async function main(argv = process.argv.slice(2)) {
   if (command === "status") result = migrationStatus(environment, directory);
   else if (command === "migrate") result = migrate(environment, directory);
   else if (command === "digest") result = storeDigest(environment);
+  else if (command === "server") result = serverInfo(environment);
   else if (command === "backup") {
     if (!output) throw new MaintenanceStoreError("backup requires --output DIR");
     result = await backup(environment, path.resolve(output), directory);
