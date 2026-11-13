@@ -525,10 +525,39 @@ since can differ.
   and `catalog_override` when a qualification build replaced that catalog at
   runtime. The revision is the build's own record, not a proof. Maintenance
   binds results to the producer.
+- Each target also reports `qualification`: the recorded Portcove
+  qualification matched to the artifact the catalog offers there.
+  - `offered_artifact` is `fixed` (a direct-manifest pin or an accepted
+    external package, with its upstream ref and SHA-256), `provider_resolved`
+    (known only after provider resolution, which this command never performs),
+    `user_selected` or `none_offered`. `provider_resolution_required` above is a
+    narrower acquisition fact, not this.
+  - Each recorded scope (contract, source variant, upstream ref, artifact and
+    check version) carries Core's exact-scope `assessment`, its evidence IDs and
+    an `applicability`: `offered_artifact`, `other_artifact`,
+    `reviewed_release_binding` (the contract's reviewed binding names that
+    release), `unbound_release`, `no_catalog_artifact`, `route_not_offered` or
+    `source_scope_withdrawn`. A contract's release policy admits sources for any
+    release but never qualifies one.
+  - `state` is `offered_artifact_qualified` or `reviewed_binding_qualified`
+    (passed automated-lifecycle or hands-on evidence; the latter applies only
+    if the provider resolves exactly that release), `structural_only` (only
+    structural checks passed), `applicable_not_passed` (evidence applies to what
+    is offered but none passed, such as only a known failure), `historical_only`
+    (no evidence applies to what is offered) or `unqualified`.
+    `qualified_refs` names the releases that qualify, and `known_failure`
+    covers applicable scopes only. Check versions are reported side by side,
+    not ranked.
+  - `evidence_route` is `unrecorded`: recorded scopes do not name the route or
+    operation that produced them, so the check version is the only operation
+    discriminator and a qualified state never says that the offered route
+    itself was exercised.
+  - `legacy_coverage` repeats the port-wide historical platform arrays, which
+    are never artifact-bound.
 - Definition trust eligibility and readiness are always `unknown`: a library
   and an installation decide them. Another host's result is never relabelled as
-  this target's. The format-1 report is maintenance evidence (#4129), not an
-  admission or execution decision.
+  this target's. The format-2 report is maintenance evidence (#4129), not an
+  admission or execution decision; format 1 lacked `qualification`.
 
 ### Definition delivery inspection
 

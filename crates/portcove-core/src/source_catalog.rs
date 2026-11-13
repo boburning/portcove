@@ -288,13 +288,24 @@ impl PortSourceContract {
             && artifact_sha256.len() == 64
             && artifact_sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
             && (self.release_policy == Some(SourceReleasePolicy::IntegrationContractV1)
-                || self.applicability.iter().any(|binding| {
-                    binding.upstream_ref == upstream_ref
-                        && binding
-                            .artifact_sha256
-                            .as_ref()
-                            .is_none_or(|hash| hash.eq_ignore_ascii_case(artifact_sha256))
-                }))
+                || self.reviewed_binding_covers(upstream_ref, artifact_sha256))
+    }
+
+    /// Whether a reviewed release binding names this exact release. Unlike
+    /// source admission, this never widens through `release_policy`: a release
+    /// policy admits sources for any release, but qualifies none.
+    pub(crate) fn reviewed_binding_covers(
+        &self,
+        upstream_ref: &str,
+        artifact_sha256: &str,
+    ) -> bool {
+        self.applicability.iter().any(|binding| {
+            binding.upstream_ref == upstream_ref
+                && binding
+                    .artifact_sha256
+                    .as_ref()
+                    .is_none_or(|hash| hash.eq_ignore_ascii_case(artifact_sha256))
+        })
     }
 }
 
@@ -563,6 +574,36 @@ impl SourceCatalog {
             .ok_or_else(|| {
                 PortcoveError::not_found(format!("unknown source contract: {contract_id}"))
             })?;
+        let mut targets = 0usize;
+        for identity in self.current_source_identities(contract)? {
+            targets += 1;
+            let scope = SourceEvidenceScope {
+                port_id: contract.port_id.clone(),
+                platform,
+                artifact_sha256: Some(artifact_sha256.into()),
+                upstream_ref: Some(upstream_ref.into()),
+                contract_id: Some(contract.id.clone()),
+                variant: SourceVariantScope::Exact { identity },
+                check_version: Some(check_version.into()),
+            };
+            let passed = evidence_state(
+                self.qualification
+                    .iter()
+                    .filter(|record| record.kind == kind && record.applies_to(&scope)),
+            ) == QualificationEvidenceState::Passed;
+            if !passed {
+                return Ok(false);
+            }
+        }
+        Ok(targets > 0)
+    }
+
+    /// Every source identity a contract currently supports: its profile's
+    /// supported, non-legacy variants and each of their representations.
+    pub(crate) fn current_source_identities(
+        &self,
+        contract: &PortSourceContract,
+    ) -> Result<Vec<crate::SourceIdentity>> {
         let profile = self
             .identities
             .iter()
@@ -570,38 +611,24 @@ impl SourceCatalog {
             .ok_or_else(|| {
                 PortcoveError::not_found(format!("unknown source profile: {}", contract.profile_id))
             })?;
-        let mut targets = 0usize;
-        for variant in profile.variants.iter().filter(|variant| {
-            !variant.legacy_projection_only && contract.supported_variant_ids.contains(&variant.id)
-        }) {
-            for representation in &variant.representations {
-                targets += 1;
-                let scope = SourceEvidenceScope {
-                    port_id: contract.port_id.clone(),
-                    platform,
-                    artifact_sha256: Some(artifact_sha256.into()),
-                    upstream_ref: Some(upstream_ref.into()),
-                    contract_id: Some(contract.id.clone()),
-                    variant: SourceVariantScope::Exact {
-                        identity: crate::SourceIdentity {
-                            game_id: profile.id.clone(),
-                            variant_id: variant.id.clone(),
-                            representation_id: representation.id.clone(),
-                        },
-                    },
-                    check_version: Some(check_version.into()),
-                };
-                let passed = evidence_state(
-                    self.qualification
-                        .iter()
-                        .filter(|record| record.kind == kind && record.applies_to(&scope)),
-                ) == QualificationEvidenceState::Passed;
-                if !passed {
-                    return Ok(false);
-                }
-            }
-        }
-        Ok(targets > 0)
+        Ok(profile
+            .variants
+            .iter()
+            .filter(|variant| {
+                !variant.legacy_projection_only
+                    && contract.supported_variant_ids.contains(&variant.id)
+            })
+            .flat_map(|variant| {
+                variant
+                    .representations
+                    .iter()
+                    .map(|representation| crate::SourceIdentity {
+                        game_id: profile.id.clone(),
+                        variant_id: variant.id.clone(),
+                        representation_id: representation.id.clone(),
+                    })
+            })
+            .collect())
     }
 
     fn validate_qualification(

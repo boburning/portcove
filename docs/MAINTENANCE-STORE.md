@@ -560,7 +560,10 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
 - **Stored facts:** each port's presence, declared platforms, reviewed
   acquisition hold, download restriction, and per target platform whether the
   managed install and the external registration are offered to a fresh library,
-  with Core's reason. The facts are stored changes-only as `port:<id>`.
+  with Core's reason, and Core's `qualification` match of recorded evidence to
+  the catalog-offered artifact (format 2; it carries no observation clock). The
+  facts are stored changes-only as `port:<id>`; the first format-2 collection
+  records one change per operational port.
 - **Producer binding:** the inspection names the producing Core: the source
   revision its build recorded, compiled features, the compiled catalog and
   listings digests, and whether a qualification override replaced the catalog.
@@ -596,7 +599,13 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
   facts stay current.
 - **Report:** the subjects table adds "Offered for a fresh library", for
   example "managed install on windows-x86-64, managed install on
-  linux-x86-64; trust eligibility and readiness not assessed".
+  linux-x86-64; trust eligibility and readiness not assessed", and
+  "Qualification for the offered artifact (Core)", worded from Core's state
+  only: for example "qualified for reviewed release v1.8.3 on windows-x86-64
+  only if the provider resolves it", "structural checks only", "historical
+  qualification only", a known failure, or legacy port-wide coverage marked as
+  not artifact-bound. A qualified statement always adds that the evidence does
+  not record which route it exercised.
 
 ### Hosted intake
 
