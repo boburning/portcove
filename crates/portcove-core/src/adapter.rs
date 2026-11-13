@@ -5349,7 +5349,7 @@ mod tests {
     fn ace_combat_3_japan_uses_generated_runtime_and_registered_bios_coordinates() {
         let temporary = tempfile::tempdir().unwrap();
         let (library, catalog, mut install, bios) =
-            crate::psx::bios_launch_fixture(temporary.path());
+            crate::psx::bios_launch_fixture_for(temporary.path(), "psx-scph-5500-bios");
         let port = catalog
             .port("alexbeav-ace-combat-3-electrosphere-recomp")
             .unwrap();

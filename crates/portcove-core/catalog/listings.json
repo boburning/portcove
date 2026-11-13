@@ -3488,7 +3488,7 @@
           },
           {
             "title": "Supply your original files",
-            "instruction": "Use your original Japanese edition, Disc 1 SLPS-02020 then Disc 2 SLPS-02021. Keep the two disc images together and preserve their order. Use the kit’s included OpenBIOS or follow its guide for a supported retail BIOS. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+            "instruction": "Use your original Japanese edition, Disc 1 SLPS-02020 then Disc 2 SLPS-02021. Keep the two disc images together and preserve their order. Use your own retail BIOS as the kit’s README-SETUP.txt names it, and follow that guide for the image format."
           },
           {
             "title": "Build and add the prepared player",
@@ -7732,7 +7732,7 @@
     {
       "id": "alexbeav-kings-field-recomp",
       "name": "King's Field / Alexbeav PSXRecomp",
-      "summary": "Play King's Field with a native player built from your matching original disc.",
+      "summary": "Play King's Field with a native player built from your matching original disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp",
       "issue_number": 454,
       "listed_at": "2026-10-23",
@@ -7760,7 +7760,7 @@
           },
           {
             "title": "Prepare the managed Windows or Linux player",
-            "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
+            "instruction": "Select the complete matching disc as a CHD and your own retail SCPH-5500 (Japan) BIOS in Portcove. Portcove prepares and builds the player locally. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
           },
           {
             "title": "Prepare the Mac or a separate upstream-owned copy",
@@ -7776,7 +7776,7 @@
         "references": [
           {
             "title": "Keep the data and runtime you actually use",
-            "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
+            "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc and BIOS separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
           }
         ]
       },

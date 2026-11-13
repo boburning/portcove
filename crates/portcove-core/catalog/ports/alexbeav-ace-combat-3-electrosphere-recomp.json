@@ -37,7 +37,7 @@
         },
         {
           "title": "Supply your original files",
-          "instruction": "Use your original Japanese edition, Disc 1 SLPS-02020 then Disc 2 SLPS-02021. Keep the two disc images together and preserve their order. Use the kit’s included OpenBIOS or follow its guide for a supported retail BIOS. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+          "instruction": "Use your original Japanese edition, Disc 1 SLPS-02020 then Disc 2 SLPS-02021. Keep the two disc images together and preserve their order. Use your own retail BIOS as the kit’s README-SETUP.txt names it, and follow that guide for the image format."
         },
         {
           "title": "Build and add the prepared player",
@@ -83,7 +83,12 @@
       "input.ini",
       "bios.cfg",
       "disc.cfg",
-      "mods",
+      "mods/installed",
+      "mods/packages",
+      "mods/.staging",
+      "mods/state.toml",
+      "mods/state.toml.tmp",
+      "mods/texture-packs",
       "overlay-captures"
     ],
     "runtime_mutable_paths": [
@@ -116,15 +121,15 @@
         },
         {
           "role": "bios",
-          "profile_id": "psx-scph-1001-bios",
-          "label": "PlayStation SCPH-1001 BIOS",
+          "profile_id": "psx-scph-5500-bios",
+          "label": "PlayStation SCPH-5500 BIOS (Japan)",
           "verification": "catalog-identity"
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching single-track CHDs in Disc 1 SLPS-02020 then Disc 2 SLPS-02021 order and legally obtained retail SCPH-1001 BIOS. This route uses Portcove’s registered Python/build toolchain and skips the upstream setup launcher when playing. To play Disc 2, choose it in the disc choice beside Play; the kit cannot swap discs during play, so quit and choose Play again when the game asks for the next disc. Generation, runtime, disc switching, lifecycle, minimum-host compatibility and gameplay are untested on both declared platforms. Preserve GPL-3.0-only project, PolyForm Noncommercial framework and MIT UI notices; no rights to retail game data or generated retail content are inferred."
+      "manual_preparation": "Provide your own matching single-track CHDs in Disc 1 SLPS-02020 then Disc 2 SLPS-02021 order and legally obtained retail SCPH-5500 (Japan) BIOS. A copy built with the SCPH-1001 BIOS keeps it until you update; the update needs your SCPH-5500 BIOS. This route uses Portcove’s registered Python/build toolchain and skips the upstream setup launcher when playing. To play Disc 2, choose it in the disc choice beside Play; the kit cannot swap discs during play, so quit and choose Play again when the game asks for the next disc. Generation, runtime, disc switching, lifecycle, minimum-host compatibility and gameplay are untested on both declared platforms. Preserve GPL-3.0-only project, PolyForm Noncommercial framework and MIT UI notices; no rights to retail game data or generated retail content are inferred."
     },
-    "bios_source_profile": "psx-scph-1001-bios",
+    "bios_source_profile": "psx-scph-5500-bios",
     "runtime_source_filename": "runtime-discs",
     "launch_disc_choice": "psx-settings-selected",
     "runtime_source_materialization": "psx-raw-set"

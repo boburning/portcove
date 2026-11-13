@@ -6108,6 +6108,64 @@ mod tests {
     }
 
     #[test]
+    fn scph_5500_routes_bind_the_japan_retail_bios_only_to_their_v0_3_7_kits() {
+        let catalog = Catalog::embedded().unwrap();
+        let profile = catalog.source_profile("psx-scph-5500-bios").unwrap();
+        let document = serde_json::to_value(catalog.authoritative_document()).unwrap();
+        let identity = document["source_catalog"]["identities"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|identity| identity["id"] == profile.id)
+            .unwrap();
+        assert_eq!(
+            identity["variants"][0]["representations"][0]["identities"][0]["sha256"],
+            "9c0421858e217805f4abe18698afea8d5aa36ff0727eb8484944e00eb5e7eadb"
+        );
+        for id in [
+            "alexbeav-kings-field-recomp",
+            "alexbeav-ace-combat-3-electrosphere-recomp",
+        ] {
+            let port = catalog.port(id).unwrap();
+            assert_eq!(
+                port.bios_source_profile.as_deref(),
+                Some("psx-scph-5500-bios")
+            );
+            assert_eq!(port.launch_arguments, ["--no-launcher"], "{id}");
+            assert!(!port.persistent_paths.iter().any(|path| path == "mods"));
+            assert!(
+                port.persistent_paths
+                    .iter()
+                    .any(|p| p == "mods/texture-packs")
+            );
+            let contracts = document["source_catalog"]["contracts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|contract| contract["port_id"] == id)
+                .collect::<Vec<_>>();
+            assert_eq!(contracts.len(), 2, "{id}");
+            for contract in contracts {
+                let applicability = contract["applicability"].as_array().unwrap();
+                if contract["role"] == "game" {
+                    assert_eq!(applicability.len(), 4, "{id}");
+                    assert_eq!(applicability[0]["upstream_ref"], "v0.3.6", "{id}");
+                } else {
+                    assert_eq!(contract["profile_id"], "psx-scph-5500-bios", "{id}");
+                    assert_eq!(
+                        contract["supported_variant_ids"],
+                        serde_json::json!(["japan-v3-0"])
+                    );
+                    assert_eq!(applicability.len(), 2, "{id}");
+                }
+                for binding in &applicability[applicability.len() - 2..] {
+                    assert_eq!(binding["upstream_ref"], "v0.3.7", "{id}");
+                }
+            }
+        }
+    }
+
+    #[test]
     fn alien_resurrection_and_musashi_bind_distinct_four_track_retail_bios_sources() {
         let catalog = Catalog::embedded().unwrap();
         let document = serde_json::to_value(catalog.authoritative_document()).unwrap();

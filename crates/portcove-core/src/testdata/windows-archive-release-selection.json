@@ -815,8 +815,10 @@
         "track_count": 1,
         "track_sha1": "00bfd94ce99bf214b03bdaa07de99b9ca1466550",
         "generated_executable": "King_s_Field_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5500-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-kula-world-recomp": {
