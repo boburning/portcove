@@ -1753,6 +1753,16 @@
         "live_url": null
       },
       {
+        "id": "mortal-kombat-4-recompiled-v036-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/mortal-kombat-4-recomp",
+        "authority_ref": "c0eea8a6eaf48c0b1622236f5031eba3acfb4b24",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.3.6 Windows x64 (47787823 bytes, SHA-256 45b72a23db2286e0bebcdc31bb6a0d72346ccc333346011c711bc9d0b27fdde8), Linux x64 (45956510 bytes, SHA-256 5f4144ddce73767ca6be36640086d6e28f6223cb1f2e5862444c3c9ada32e9fd), macOS x64 (43384895 bytes, SHA-256 629c40e6aaa0df4c9a472242e6918f15ee50e9aec65374ee2c697e2d14903e64) and macOS arm64 (42877092 bytes, SHA-256 cb8d3533b9cf054a4c0f88094934f0d6d3689b887db915a88ff3b38c8cd8b9a7) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. All four pin PSXRecomp 031868cc0170d260f1cb81c7cfe7ab68e8bbb424, whose runtime, recompiler, setup host and build CLI match the reviewed 7192402 framework, and recomp-ui 14799da. Each carries the tagged game.toml and CMakeLists.txt unchanged apart from line endings: game id and disc serial SLUS-00605, 1 track, data track size 718112640 and SHA-1 21515cdd9829521a2db76a83300b77e83855fa88, and the psxrecomp/bios/SCPH1001.toml BIOS configuration with OpenBIOS and bios_hle off. README-SETUP.txt requires the player's own SCPH-1001 (USA) BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3 (524288 bytes), the psx-scph-1001-bios profile. The kits use the split mod layout with build-staged mods/bundled and mods/preloaded and empty mods/texture-packs/SLUS-00605 folders, no flat mods/packages, no links and no case-colliding paths, build no playtest diagnostics, and generate the player Mortal_Kombat_4 from the window title through the psx-runtime target. The Linux and both Mac kits list the same paths. On start the runtime moves any older flat mods/packages version into mods/installed. Native generation, gameplay and saves remain unobserved on every platform.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-4-recomp/blob/c0eea8a6eaf48c0b1622236f5031eba3acfb4b24/game.toml",
+        "live_url": null
+      },
+      {
         "id": "alexbeav-kula-world-recomp-v036-managed-psx",
         "role": "upstream_support",
         "authority": "alexbeavs-ps1-ports/kula-world-recomp",
@@ -6252,7 +6262,9 @@
             "title": "Mortal Kombat 4 (USA) disc",
             "region": null,
             "revision": null,
-            "product_codes": [],
+            "product_codes": [
+              "SLUS-00605"
+            ],
             "representations": [
               {
                 "id": "normalized-track-set",
@@ -6277,7 +6289,8 @@
               }
             ],
             "evidence_ids": [
-              "alpha1-schema1-source-contracts"
+              "alpha1-schema1-source-contracts",
+              "mortal-kombat-4-recompiled-v036-static-contract"
             ]
           }
         ],
@@ -14780,14 +14793,32 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alpha1-schema1-source-contracts"
+          "alpha1-schema1-source-contracts",
+          "mortal-kombat-4-recompiled-v036-static-contract"
         ],
         "authority_ref": "9d16cf7085ad34b995bbdc2a5763beb67c7e1190",
         "reviewed_at": "2026-09-05",
         "immutable_review_url": "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json",
         "live_review_url": null,
         "evidence_gap": null,
-        "applicability": [],
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "45b72a23db2286e0bebcdc31bb6a0d72346ccc333346011c711bc9d0b27fdde8"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "5f4144ddce73767ca6be36640086d6e28f6223cb1f2e5862444c3c9ada32e9fd"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "629c40e6aaa0df4c9a472242e6918f15ee50e9aec65374ee2c697e2d14903e64"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "cb8d3533b9cf054a4c0f88094934f0d6d3689b887db915a88ff3b38c8cd8b9a7"
+          }
+        ],
         "aliases": [],
         "tombstones": []
       },
@@ -14802,14 +14833,32 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alpha1-schema1-source-contracts"
+          "alpha1-schema1-source-contracts",
+          "mortal-kombat-4-recompiled-v036-static-contract"
         ],
         "authority_ref": "9d16cf7085ad34b995bbdc2a5763beb67c7e1190",
         "reviewed_at": "2026-09-05",
         "immutable_review_url": "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json",
         "live_review_url": null,
         "evidence_gap": null,
-        "applicability": [],
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "45b72a23db2286e0bebcdc31bb6a0d72346ccc333346011c711bc9d0b27fdde8"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "5f4144ddce73767ca6be36640086d6e28f6223cb1f2e5862444c3c9ada32e9fd"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "629c40e6aaa0df4c9a472242e6918f15ee50e9aec65374ee2c697e2d14903e64"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "cb8d3533b9cf054a4c0f88094934f0d6d3689b887db915a88ff3b38c8cd8b9a7"
+          }
+        ],
         "aliases": [],
         "tombstones": []
       },

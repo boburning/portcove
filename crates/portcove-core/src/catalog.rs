@@ -3616,6 +3616,62 @@ mod tests {
         assert_eq!(mk4.release.repository, "Alexbeav/mortal-kombat-4-recomp");
         mk4.project_url = "https://github.com/alexbeavs-ps1-ports/mortal-kombat-4-recomp".into();
         mk4.release.repository = "alexbeavs-ps1-ports/mortal-kombat-4-recomp".into();
+        // The PSXRecomp 031868cc v0.3.6 kits use the reviewed managed PS1
+        // layout: split player mod paths, the runtime writer set and
+        // `--no-launcher`. No current writer uses the frozen `config` and
+        // `*.json` paths. Installations keep their retained definitions.
+        assert!(mk4.persistent_paths.iter().any(|path| path == "mods"));
+        mk4.persistent_paths = [
+            "saves",
+            "settings.toml",
+            "settings.toml.bad",
+            "input.ini",
+            "keybinds.ini",
+            "config.ini",
+            "disc.cfg",
+            "bios.cfg",
+            "mods/installed",
+            "mods/packages",
+            "mods/.staging",
+            "mods/state.toml",
+            "mods/state.toml.tmp",
+            "mods/texture-packs",
+            "overlay-captures",
+            "overlay_captures.json",
+            "overlay_captures.json.d",
+            "overlay_captures.addendum.jsonl",
+            "diagnostics-location.txt",
+        ]
+        .map(String::from)
+        .to_vec();
+        assert!(mk4.runtime_mutable_paths.is_empty());
+        mk4.runtime_mutable_paths = [
+            "cache",
+            "psx_freeze_heartbeat.json",
+            "psx_freeze_heartbeat.json.tmp",
+            "psx_last_run_report.json",
+            "psx_cps_exit_trace.json",
+            "netplay_lan_lobby.txt",
+            "psx_crash.txt",
+        ]
+        .map(String::from)
+        .to_vec();
+        mk4.runtime_mutable_file_patterns = [
+            ("psx_freeze_dump_psx-runtime_", ".json"),
+            ("overlay_captures.json.", ".tmp"),
+        ]
+        .map(|(prefix, suffix)| crate::PersistentFilePattern {
+            prefix: prefix.into(),
+            suffix: suffix.into(),
+            allow_empty_middle: false,
+        })
+        .to_vec();
+        mk4.launch_environment = [(
+            "PSX_OVERLAY_CAPTURES".to_owned(),
+            "build-portcove/overlay-captures/overlay_captures.json".to_owned(),
+        )]
+        .into();
+        mk4.launch_arguments = vec!["--no-launcher".into()];
         for (id, hint) in [
             ("zelda64-recomp", "Linux-X64.zip"),
             ("banjo-recomp", "Linux-X64."),
@@ -5674,6 +5730,90 @@ mod tests {
             bios.accepted_sha256,
             ["71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3"]
         );
+    }
+
+    #[test]
+    fn mortal_kombat_4_binds_its_v0_3_6_kits_on_all_four_platforms_with_split_mods() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("mortal-kombat-4-recompiled").unwrap();
+        assert_eq!(
+            port.platforms,
+            [
+                Platform::WindowsX86_64,
+                Platform::LinuxX86_64,
+                Platform::MacosX86_64,
+                Platform::MacosAarch64
+            ]
+        );
+        assert_eq!(port.launch_arguments, ["--no-launcher"]);
+        assert_eq!(port.runtime_subdirectory.as_deref(), Some("build-portcove"));
+        assert_eq!(
+            port.launch_environment["PSX_OVERLAY_CAPTURES"],
+            "build-portcove/overlay-captures/overlay_captures.json"
+        );
+        for path in [
+            "mods/installed",
+            "mods/packages",
+            "mods/.staging",
+            "mods/state.toml",
+            "mods/state.toml.tmp",
+            "mods/texture-packs",
+        ] {
+            assert!(port.persistent_paths.iter().any(|p| p == path), "{path}");
+        }
+        // The build-staged bundle belongs to each runtime version, and no
+        // PSXRecomp 031868cc or recomp-ui 14799da writer uses the former paths.
+        for path in [
+            "mods",
+            "config",
+            "game_options.json",
+            "graphics.json",
+            "input.json",
+            "sound.json",
+        ] {
+            assert!(!port.persistent_paths.iter().any(|p| p == path), "{path}");
+        }
+        assert!(port.runtime_mutable_paths.iter().any(|p| p == "cache"));
+
+        let document = serde_json::to_value(catalog.authoritative_document()).unwrap();
+        let variant = &document["source_catalog"]["identities"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|identity| identity["id"] == "mortal-kombat-4-psx")
+            .unwrap()["variants"][0];
+        assert_eq!(variant["product_codes"], serde_json::json!(["SLUS-00605"]));
+        let kits = [
+            "45b72a23db2286e0bebcdc31bb6a0d72346ccc333346011c711bc9d0b27fdde8",
+            "5f4144ddce73767ca6be36640086d6e28f6223cb1f2e5862444c3c9ada32e9fd",
+            "629c40e6aaa0df4c9a472242e6918f15ee50e9aec65374ee2c697e2d14903e64",
+            "cb8d3533b9cf054a4c0f88094934f0d6d3689b887db915a88ff3b38c8cd8b9a7",
+        ];
+        let source_catalog = catalog.source_catalog().unwrap();
+        let contracts = source_catalog
+            .contracts
+            .iter()
+            .filter(|contract| contract.port_id == port.id)
+            .collect::<Vec<_>>();
+        assert_eq!(contracts.len(), 2);
+        for contract in contracts {
+            assert_eq!(
+                contract.applicability.len(),
+                kits.len(),
+                "{:?}",
+                contract.role
+            );
+            for sha256 in kits {
+                assert!(contract.applies_to_release("v0.3.6", sha256));
+            }
+            assert!(!contract.applies_to_release("v0.3.5", kits[0]));
+            assert!(
+                contract
+                    .evidence_ids
+                    .iter()
+                    .any(|id| id == "mortal-kombat-4-recompiled-v036-static-contract")
+            );
+        }
     }
 
     #[test]
