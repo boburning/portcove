@@ -812,7 +812,7 @@ async function verifySettingsRows() {
   await browser
     .findElement(
       By.xpath(
-        '//*[@data-settings-group="advanced"]//button[normalize-space(.)="Create support bundle"]',
+        '//*[@data-settings-group="advanced"]//button[normalize-space(.)="Create a support report"]',
       ),
     )
     .click();

@@ -286,8 +286,15 @@ export async function artworkScenario({
           summary,
         );
         await summary.sendKeys(Key.ENTER);
+        // The slot controls mount on the disclosure's toggle event; locate before
+        // requiring the control to be enabled.
         await browser.wait(
-          until.elementIsEnabled(await browser.findElement(control("cover", "Choose local image"))),
+          until.elementIsEnabled(
+            await browser.wait(
+              until.elementLocated(control("cover", "Choose local image")),
+              10_000,
+            ),
+          ),
           10_000,
         );
       };

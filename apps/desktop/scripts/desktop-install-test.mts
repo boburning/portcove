@@ -776,7 +776,10 @@ export async function installScenarios({
     await reviewGameUpdateDisposition(browser, "prepare");
     const review = By.css("[data-game-update-review]");
     await browser.wait(until.elementLocated(review), 15_000);
-    assert.match(await browser.findElement(review).getText(), /current version stays unchanged/i);
+    assert.match(
+      await browser.findElement(review).getText(),
+      /Set up the update for later and keep using your current version/i,
+    );
     await browser.findElement(button("Prepare update for later")).click();
     const staged = await browser.wait(async () => {
       const result = object(await invoke("get_statuses"));

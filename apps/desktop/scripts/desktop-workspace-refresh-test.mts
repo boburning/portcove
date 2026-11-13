@@ -89,7 +89,7 @@ import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { copyFile, mkdir, writeFile } from "node:fs/promises";
-import { By, until } from "selenium-webdriver";
+import { By, until, type WebElement } from "selenium-webdriver";
 import { revealDetailSection, captureAccessibilityReport } from "./desktop-review-controls.mts";
 
 export const installWorkspaceRefreshProbe = (done: (value: unknown) => void) => {
@@ -405,8 +405,21 @@ export async function workspaceRefreshScenario({
         flag: "wx",
       });
       artifacts.push(screenshot);
-      await retry.click();
-      await browser.wait(until.stalenessOf(retry), 10_000);
+      // The banner can re-render during the captures above; act on the current one.
+      // An automatic refresh can still be running ("Refreshing library…", disabled);
+      // wait for the settled, enabled retry action before acting on it.
+      const currentRetry = await browser.wait<WebElement>(
+        async () => {
+          const [candidate] = await browser.findElements(
+            By.xpath('//button[normalize-space(.)="Retry refresh"]'),
+          );
+          return candidate && (await candidate.isEnabled()) ? candidate : undefined;
+        },
+        30_000,
+        "Retry refresh did not become available after the failed refresh settled",
+      );
+      await currentRetry.click();
+      await browser.wait(until.stalenessOf(currentRetry), 10_000);
       await browser.wait(
         async () =>
           executeBrowserScript(
@@ -606,7 +619,7 @@ export async function workspaceRefreshScenario({
       await executeBrowserScript(browser, installReconciliationSupportGate);
       try {
         await browser
-          .findElement(By.xpath('//button[normalize-space(.)="Create support bundle"]'))
+          .findElement(By.xpath('//button[normalize-space(.)="Create a support report"]'))
           .click();
         await browser.wait(
           async () =>

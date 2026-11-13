@@ -560,6 +560,12 @@ fn owned_preparation(args: &[String]) {
             fs::write("data/out/setup-ready", b"ready").unwrap();
             std::thread::sleep(Duration::from_secs(30));
         }
+        // Held for a scenario that cancels after slower native steps; a cancellation
+        // stops it long before it would finish.
+        "hold" => {
+            fs::write("data/out/setup-ready", b"ready").unwrap();
+            std::thread::sleep(Duration::from_secs(180));
+        }
         _ => panic!("unknown owned fixture mode"),
     }
 }

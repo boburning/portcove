@@ -2025,6 +2025,16 @@ export async function preparationScenarios({
                   );
                 await clickVisible(browser, more);
                 await browser.wait(until.elementLocated(By.css('[role="menu"]')), 5000);
+                // The menu moves focus into itself after it mounts; capture the settled
+                // focus target, not whatever held focus when the menu first appeared.
+                await browser.wait(
+                  () =>
+                    executeBrowserScript(browser, () =>
+                      Boolean(document.activeElement?.closest('[role="menu"]')),
+                    ),
+                  5000,
+                  "Opened Library menu did not take focus",
+                );
                 const menuFocus = await browser.switchTo().activeElement();
                 const feedbackBefore = await executeBrowserScript(
                   browser,
@@ -2195,7 +2205,9 @@ export async function preparationScenarios({
           await browser.wait(async () => (await measure()).zoom === "100", 10_000);
         }
         await browser.navigate().refresh();
-        await browser.wait(until.elementLocated(By.css(".collection-rows")), 15_000);
+        // Calibrated from 15 s: a full reload re-bootstraps the hosted debug build,
+        // which passed once and twice exceeded 15 s before the library rendered.
+        await browser.wait(until.elementLocated(By.css(".collection-rows")), 60_000);
         assert.equal((await measure()).query, "Jak");
       }
       for (const [index, port] of [first.port, second.port].entries()) {
@@ -2659,7 +2671,7 @@ export async function preparationScenarios({
       assert.ok(initialReviewText.includes("Confirm the release"));
       await clickVisible(browser, keepForLater[0]!);
       await browser.wait(
-        async () => (await review.getText()).includes("Your current version stays unchanged"),
+        async () => (await review.getText()).includes("keep using your current version"),
         5_000,
       );
     }
@@ -2679,9 +2691,7 @@ export async function preparationScenarios({
         "A usable update must expose its real keep-for-later action",
       );
       assert.ok(
-        reviewText.includes(
-          "This keeps the prepared update for later. Your current version stays unchanged.",
-        ),
+        reviewText.includes("Set up the update for later and keep using your current version."),
       );
     }
     assert.ok(
@@ -3259,7 +3269,9 @@ export async function preparationScenarios({
     }
   });
   const livePreparationCancellation = async (probeListener?: "late" | "reject") => {
-    const { port, install } = await seed("opengoal-jak2", "wait", true);
+    // "hold" keeps setup running past the reload and listener probes that precede
+    // the cancellation; with "wait" (30 s) hosted setup finished first.
+    const { port, install } = await seed("opengoal-jak2", "hold", true);
     const other = !probeListener ? await seed("opengoal-jak1", "success") : undefined;
     await open(port);
     interface PhaseObservation {
@@ -4008,10 +4020,24 @@ export async function preparationScenarios({
       );
     };
     const manageCollections = async () => {
-      await clickVisible(
-        browser,
-        await browser.findElement(By.css('button[aria-label="Manage collections"]')),
+      // The full-width sidebar and the compact rail each mount a trigger for the
+      // same controls; only one is displayed, and the full-width one reads
+      // "Create your first collection" until a collection exists.
+      const trigger = await browser.wait(
+        async () => {
+          for (const candidate of await browser.findElements(
+            By.css(
+              'button[aria-label="Manage collections"], button[aria-label="Create your first collection"]',
+            ),
+          ))
+            if (await candidate.isDisplayed()) return candidate;
+          return false;
+        },
+        15_000,
+        "No displayed collection-management trigger",
       );
+      assert.ok(trigger);
+      await clickVisible(browser, trigger);
       await browser.wait(
         until.elementLocated(
           By.xpath('//label[contains(normalize-space(.),"Collection name")]//input'),

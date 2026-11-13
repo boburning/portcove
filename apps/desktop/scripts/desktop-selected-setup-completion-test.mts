@@ -534,7 +534,7 @@ export async function selectedSetupCompletionScenario({
           By.xpath(
             `//*[@data-game-file-root="${second.id}"]//button[normalize-space(.)="${name}"]`,
           );
-        await click(rootAction("Relink"));
+        await click(rootAction("Update folder location"));
         report.observations.folder_picker_relink = await chooseGameFileFolder(
           "game-file-picker-relink",
           replacement,

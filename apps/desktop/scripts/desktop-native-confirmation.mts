@@ -174,7 +174,8 @@ function ownedRuntimePicker(
           ? ["-PreparedRuntimeDirectory", directoryPath]
           : []),
       ],
-      { encoding: "utf8", windowsHide: true, timeout: 15_000 },
+      // Covers the script's 30 s appearance poll and its observation.
+      { encoding: "utf8", windowsHide: true, timeout: 45_000 },
     );
     return retainPickerResult({ output, artifacts }, name, before, result);
   };
@@ -587,7 +588,8 @@ export function nativeConfirmation({
         ...(directoryPath ? ["-DirectoryPath", directoryPath] : []),
         ...(screenshot ? ["-ScreenshotPath", screenshot] : []),
       ],
-      { encoding: "utf8", windowsHide: true, timeout: filePath ? 30_000 : 15_000 },
+      // Covers the script's 30 s appearance poll plus its button and close waits.
+      { encoding: "utf8", windowsHide: true, timeout: filePath ? 60_000 : 45_000 },
     );
     if (result.status !== 0) await retainConfirmationFailure({ output, artifacts }, name, result);
     const observation = await retainPickerObservation(result, output, name, artifacts);

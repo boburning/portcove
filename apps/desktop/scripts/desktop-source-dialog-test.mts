@@ -374,14 +374,14 @@ async function progressiveScanNavigation({
               );
               return (
                 [...(row?.querySelectorAll("button") ?? [])].find(
-                  (item) => item.textContent.trim() === "Relink",
+                  (item) => item.textContent.trim() === "Update folder location",
                 ) ?? null
               );
             },
             root.path,
           ),
         5_000,
-        "The remounted saved-folder read must expose the owned root's Relink control",
+        "The remounted saved-folder read must expose the owned root's Update folder location control",
       );
       assert.ok(ownedRelink);
       assert.equal(await ownedRelink.isEnabled(), false);

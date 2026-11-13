@@ -7,6 +7,7 @@ import path from "node:path";
 import { lstat, mkdir, readdir, realpath, stat, writeFile } from "node:fs/promises";
 import { By, Key, until } from "selenium-webdriver";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
+import { workspaceVersion } from "../../../scripts/release-package-policy.mts";
 import { assertSteamEntryContext } from "./desktop-context-contract.mts";
 import {
   assertDestructiveReviewAction,
@@ -146,7 +147,8 @@ export async function steamEntryScenario(context: SteamEntryContext) {
     assert.equal(previewValue.plan_sha256.length, 64);
     assert.ok(previewValue.cli_sha256 !== null);
     assert.equal(previewValue.cli_sha256.length, 64);
-    assert.equal(previewValue.cli_product_version, "0.1.0-alpha.2");
+    // The CLI reports the workspace product version, not a fixed literal.
+    assert.equal(previewValue.cli_product_version, await workspaceVersion());
     assert.equal(previewValue.writes_required, true);
     await click(button("Review shortcut setup"));
     await browser.wait(until.elementLocated(button("Add or repair shortcut")), 15_000);
