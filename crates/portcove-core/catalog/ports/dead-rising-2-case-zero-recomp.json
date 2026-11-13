@@ -3,7 +3,7 @@
   "listing": {
     "id": "dead-rising-2-case-zero-recomp",
     "name": "Dead Rising 2 Case Zero Xenon Recomp",
-    "summary": "Register an independently permitted, prepared Case Zero native Windows player for your own XBLA game. Fresh acquisition remains held on the linked libxlive permission condition.",
+    "summary": "Add a prepared Case Zero native Windows player you already have, for your own XBLA game. Portcove downloads are paused because the package includes shader data recorded from the game.",
     "project_url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
     "issue_number": 1121,
     "listed_at": "2026-10-23",
@@ -22,8 +22,8 @@
       "help_url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/tree/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
       "steps": [
         {
-          "title": "Keep an independently permitted completed copy",
-          "instruction": "Continue only with an actual player and components you are independently permitted to use. The reviewed v1.1.3 package defers compiled-in libxlive’s licence to XenonLive, and that specific grant is not established by the retained evidence. The title’s own noncommercial grant does not settle this expressly separate scope; offline use does not remove the linked bytes. Fresh acquisition stays held. The previously delivered non-owning preparation and data-preservation guidance below remains applicable to an independently permitted copy."
+          "title": "Use a completed copy you already have",
+          "instruction": "Continue with a complete player you already have. Portcove downloads are paused because the package includes shader pre-warm data recorded from the game and recipes for patching the game’s own shaders. The reviewed v1.1.3 package also includes compiled-in libxlive, whose licence it defers to XenonLive; offline use does not remove it. The preparation and data-preservation guidance below applies to that copy."
         },
         {
           "title": "Prepare the own-game offline Windows copy upstream",
@@ -50,6 +50,6 @@
         }
       ]
     },
-    "download_block_reason": "The inspected Case Zero v1.1.3 Windows package explicitly identifies compiled-in libxlive and refers its licence to the separate XenonLive repository. An applicable grant for that linked component is not established by the retained evidence; the title’s own PolyForm grant preserves separate component licences. Fresh acquisition stays held until attributable applicable permission or a reviewed released replacement resolves this exact scope. Offline mode does not remove the linked component. This condition grants no permission to use an existing copy."
+    "download_block_reason": "Portcove downloads are paused because the package includes shader pre-warm data recorded from the game and recipes for patching the game’s own shaders. They can resume when upstream publishes a package that creates them from your own game files."
   }
 }

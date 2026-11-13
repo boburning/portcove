@@ -8,23 +8,28 @@
     "issue_number": 4130,
     "listed_at": "2026-11-05",
     "original_game_title": "Muppet RaceMania",
-    "availability": "unknown",
-    "platforms": [],
+    "availability": "packages",
+    "platforms": ["windows-x86-64"],
     "setup_url": "https://github.com/TekRantGaming/muppet-racemania-recompiled/blob/63caf5cfafe22a76cbcce5c91b055cbde861c957/README.md",
     "manual_setup": {
       "help_url": "https://github.com/TekRantGaming/muppet-racemania-recompiled/blob/63caf5cfafe22a76cbcce5c91b055cbde861c957/README.md",
       "steps": [
         {
-          "title": "Prepare your Windows copy",
-          "instruction": "Use a complete prepared copy you are permitted to use on Windows 10 or 11 (x64) with OpenGL 3.3 or newer. Optional upscalers require OpenGL 4.3. Use your own USA (SLUS-01237) or Europe (SCES-02008) PlayStation CUE/BIN with the matching regional game build. Open MuppetRaceMania.exe and choose Play to select your disc. Finish that setup before adding the launcher to Portcove. The launcher starts the player for the selected region."
+          "title": "Prepare the game",
+          "instruction": "Keep the complete Windows x64 package together. It needs Windows 10 or 11 (x64) with OpenGL 3.3 or newer. Optional upscalers require OpenGL 4.3. Use your own USA (SLUS-01237) or Europe (SCES-02008) PlayStation CUE/BIN with the matching regional game build. Open MuppetRaceMania.exe and choose Play to select your disc. Finish that setup before adding the launcher to Portcove. The launcher starts the player for the selected region."
         }
       ],
       "warnings": [
         "Keep the launcher and its matching regional game files together. When Play returns you to the launcher, close the launcher to end the Portcove session.",
-        "Portcove opens the launcher without startup updates. To update, close the Portcove Play session, then open the upstream launcher separately. Use a copy you are permitted to use."
+        "Portcove opens the launcher without startup updates. To update, close the Portcove Play session, then open the upstream launcher separately.",
+        "The package includes recompiled game code, the game logo in its launcher and an unlicensed project layer that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
       ]
     },
-    "download_block_reason": "Portcove downloads are paused until the applicable permission for the bundled translated game code is established or upstream supplies an appropriately licensed replacement package. You can add a complete copy you are permitted to use."
+    "release_url": "https://github.com/TekRantGaming/muppet-racemania-recompiled/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["MuppetRaceManiaRecompiled-", "-windows-x64.zip"]
+    },
+    "recommended_download_channel": "stable"
   },
   "route_facts_v1": {
     "format_version": 1,

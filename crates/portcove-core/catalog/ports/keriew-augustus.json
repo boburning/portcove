@@ -7,6 +7,7 @@
     "project_url": "https://github.com/Keriew/augustus",
     "issue_number": 1793,
     "listed_at": "2026-10-23",
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/Keriew/augustus#running-the-game",
     "artwork": {
@@ -19,23 +20,26 @@
     },
     "release_url": "https://github.com/Keriew/augustus/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["augustus-", "-windows.zip"]
+      "windows-x86-64": ["augustus-", "-windows.zip"],
+      "linux-x86-64": ["augustus-", "-Linux.AppImage"],
+      "macos-aarch64": ["augustus-", "-mac.dmg"],
+      "macos-x86-64": ["augustus-", "-mac.dmg"]
     },
     "manual_setup": {
       "steps": [
         {
           "title": "Use a separate Augustus copy",
-          "instruction": "Use the native package for your system in a separate folder; the Windows player is augustus.exe. On first Play, select your writable Caesar III game folder, patched to version 1.0.1.0."
+          "instruction": "Use the native package for your system in a separate folder; the Windows player is augustus.exe, Linux uses the AppImage and macOS uses augustus.app. On first Play, select your writable Caesar III game folder, patched to version 1.0.1.0."
         },
         {
           "title": "Add the game and manage your files",
-          "instruction": "Complete the upstream setup in your permitted working copy before registration. Select the actual augustus.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+          "instruction": "Complete the upstream setup in your working copy before registration. Select the actual augustus.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
         }
       ],
       "warnings": [
         "Augustus can read Caesar III and Julius saves, but Augustus saves cannot be loaded by Caesar III or Julius. Keep your original saves separate.",
         "Keep both when replacing the upstream runtime.",
-        "Portcove offers registration for Windows in this entry; Linux operation through Portcove has not been confirmed."
+        "Portcove offers registration for Windows in this entry. It downloads the Linux and macOS packages from upstream but has not run them."
       ],
       "help_url": "https://github.com/Keriew/augustus#running-the-game",
       "references": [

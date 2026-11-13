@@ -8,19 +8,20 @@
     "issue_number": 4337,
     "listed_at": "2026-11-05",
     "original_game_title": "Super Smash Bros.",
-    "availability": "unknown",
-    "platforms": [],
+    "availability": "packages",
+    "platforms": ["windows-x86-64"],
     "setup_url": "https://github.com/n64hub/super-smash-bros-recomp/blob/89f7644a08ac705a03db9a61fad77828645797b0/README.md",
     "manual_setup": {
       "help_url": "https://github.com/n64hub/super-smash-bros-recomp/blob/89f7644a08ac705a03db9a61fad77828645797b0/README.md",
       "steps": [
         {
-          "title": "Prepare your Windows copy",
-          "instruction": "Use a complete Windows x64 copy that you are permitted to use. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open SmashBrosRecompiled.exe, choose Load ROM and select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). Choose Start Game."
+          "title": "Prepare the game",
+          "instruction": "Keep the complete Windows x64 package together. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open SmashBrosRecompiled.exe, choose Load ROM and select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). Choose Start Game."
         }
       ],
       "warnings": [
-        "Keep the profile that contains your SRAM and settings. Changing portable mode does not move existing data."
+        "Keep the profile that contains your SRAM and settings. Changing portable mode does not move existing data.",
+        "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
       ],
       "references": [
         {
@@ -29,7 +30,11 @@
         }
       ]
     },
-    "download_block_reason": "Portcove downloads are paused until the applicable permission for the bundled Fontworks Chiaro fonts is established or upstream publishes a package with appropriately licensed replacements. You can add a complete copy you are permitted to use."
+    "release_url": "https://github.com/n64hub/super-smash-bros-recomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["SmashBrosRecompiled-", "-windows-x64.zip"]
+    },
+    "recommended_download_channel": "stable"
   },
   "route_facts_v1": {
     "format_version": 1,

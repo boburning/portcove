@@ -3,12 +3,12 @@
   "listing": {
     "id": "snowboard-kids",
     "name": "Snowboard Kids (SnowboardKids-Recomp)",
-    "summary": "Explore Snowboard Kids (SnowboardKids-Recomp) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "A native Snowboard Kids port with Windows and Linux beta packages. Select your own USA cartridge dump on first Play.",
     "project_url": "https://github.com/HikariLucy/SnowboardKids-Recomp",
     "issue_number": 1354,
     "listed_at": "2026-10-23",
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/HikariLucy/SnowboardKids-Recomp",
     "artwork": {
       "game_id": 3342,
@@ -18,13 +18,12 @@
       "game_slug": "snowboard-kids",
       "match_kind": "underlying-game"
     },
-    "download_block_reason": "The official RecompFrontend base now has a GPLv3 grant, but selected cdlewis/RecompFrontend e85b912d9df677b04f9358867dd010c8af27ea05 contains separately modified input/theme/frontend code beyond that licensed official tree. An attributable applicable grant for that fork-specific scope remains unestablished; the parent game-project license does not settle it. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with applicable permission for the exact selected fork or a reviewed appropriately licensed replacement package.",
     "manual_setup": {
       "help_url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/LAUNCHER-INTEGRATION.md",
       "steps": [
         {
-          "title": "Keep a complete permitted Windows player",
-          "instruction": "Use an already completed Snowboard Kids (HikariLucy) Windows copy you are permitted to use. Keep SnowboardKidsEngine.exe, the matching modules/snowboardkids-us/SnowboardKidsGame.dll, assets and runtime DLLs together. The published beta has a precompiled module; normal players do not compile anything. If your copy instead requires module generation or repair, finish that supported preparation upstream before attachment."
+          "title": "Keep the complete package for your system",
+          "instruction": "Keep the Snowboard Kids (HikariLucy) package files together. On Windows, that is SnowboardKidsEngine.exe, the matching modules/snowboardkids-us/SnowboardKidsGame.dll, assets and runtime DLLs; on Linux, SnowboardKidsEngine, modules/snowboardkids-us/SnowboardKidsGame.so and assets. The published beta has a precompiled module; normal players do not compile anything. If your copy instead requires module generation or repair, finish that supported preparation upstream before attachment."
         },
         {
           "title": "Select your own supported original on Play",
@@ -32,11 +31,11 @@
         },
         {
           "title": "Review the game, working folder and launch details",
-          "instruction": "Select the completed native SnowboardKidsEngine.exe with the established package root as working directory and only its supported literal arguments. Review the launch details, add the game, then choose Play. Keep one upstream/player owner for preparation and runtime replacement. Removing the registration preserves every external file; Core supplies no external update, backup, rollback, conversion, migration or deletion."
+          "instruction": "Select the completed native SnowboardKidsEngine.exe (SnowboardKidsEngine on Linux) with the established package root as working directory and only its supported literal arguments. Review the launch details, add the game, then choose Play. Keep one upstream/player owner for preparation and runtime replacement. Removing the registration preserves every external file; Core supplies no external update, backup, rollback, conversion, migration or deletion."
         }
       ],
       "warnings": [
-        "Use only an actual copy and components you are permitted to use. The official base frontend GPLv3 resolution does not establish the separate modified cdlewis fork grant; fresh acquisition stays held. Source/first-party checks are not gameplay, real-save, installed or protected acceptance.",
+        "The package includes a modified RecompFrontend fork by cdlewis that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files. Source and first-party checks do not confirm gameplay, real saves or installed behavior.",
         "Loading a savestate does not rewind Controller Pak storage. An explicit --module or SBK_GAME_MODULE and modules in the user-data directory take priority over the bundled module: review and preserve the actual selected module and compatible creating engine together. Package integrity does not certify an external override. Stop actual players before deliberate upstream replacement and review/relink a changed executable.",
         "An explicit --module or SBK_GAME_MODULE and modules in the user-data directory take priority over the bundled module: review and preserve the actual selected module and compatible creating engine together. Package integrity does not certify an external override."
       ],
@@ -46,6 +45,12 @@
           "instruction": "Keep the complete creating package, original and effective profile before maintenance. The normal Windows profile is %APPDATA%/SnowboardKids; SBK_USER_DATA_DIR can select another root, and resolver fallbacks must be preserved in their actual locations. Retain all configuration, remembered source paths, Controller Pak .mpk files, .sbks states, modules, logs and custom paths. Loading a savestate does not rewind Controller Pak storage. An explicit --module or SBK_GAME_MODULE and modules in the user-data directory take priority over the bundled module: review and preserve the actual selected module and compatible creating engine together. Package integrity does not certify an external override. Stop actual players before deliberate upstream replacement and review/relink a changed executable."
         }
       ]
-    }
+    },
+    "release_url": "https://github.com/HikariLucy/SnowboardKids-Recomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["SnowboardKidsRecompiled-", "-Windows-x86_64.zip"],
+      "linux-x86-64": ["SnowboardKidsRecompiled-", "-Linux-x86_64.zip"]
+    },
+    "recommended_download_channel": "beta"
   }
 }

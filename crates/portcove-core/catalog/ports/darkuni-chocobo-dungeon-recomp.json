@@ -9,16 +9,16 @@
     "issue_number": 4131,
     "listed_at": "2026-11-08",
     "platforms": ["windows-x86-64", "linux-x86-64"],
-    "availability": "unknown",
+    "availability": "packages",
     "manual_setup": {
       "steps": [
         {
           "title": "Prepare the Windows player",
-          "instruction": "For an already permitted Windows x64 copy, keep its DLLs beside chocobo.exe. Place your own NTSC-U R7FEGD ISO or CISO in that folder, or supply the matching extracted sys and files under extracted. Start chocobo.exe and allow the upstream extraction to finish."
+          "instruction": "Keep the Windows x64 package files together, with its DLLs beside chocobo.exe. Place your own NTSC-U R7FEGD ISO or CISO in that folder, or supply the matching extracted sys and files under extracted. Start chocobo.exe and allow the upstream extraction to finish."
         },
         {
           "title": "Build the windowed Linux player from your original",
-          "instruction": "Follow the tagged upstream build instructions in a source tree you are permitted to use. Obtain sys/main.dol from your own matching extracted disc and run the documented Python recompilation into a clean gen directory. Build the windowed USE_SDL=ON target with CMake, Ninja, a C++17 compiler, SDL2 and OpenGL development libraries."
+          "instruction": "Follow the tagged upstream build instructions. Obtain sys/main.dol from your own matching extracted disc and run the documented Python recompilation into a clean gen directory. Build the windowed USE_SDL=ON target with CMake, Ninja, a C++17 compiler, SDL2 and OpenGL development libraries."
         },
         {
           "title": "Keep each profile with its actual root",
@@ -26,12 +26,16 @@
         }
       ],
       "warnings": [
-        "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
+        "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
         "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data.",
         "The Linux instructions cover the windowed source route. The upstream headless EGL test build is a separate target."
       ],
       "help_url": "https://github.com/darkuni/chocobo-dungeon-recomp/blob/e5991f44fac38579c349418eb0dff6028d27ca67/README.md"
     },
-    "download_block_reason": "Fresh Portcove downloads are held because the selected Final Fantasy Fables: Chocobo’s Dungeon executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
+    "release_url": "https://github.com/darkuni/chocobo-dungeon-recomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["ChocoboDungeon-", "-win64.zip"]
+    },
+    "recommended_download_channel": "stable"
   }
 }

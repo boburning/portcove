@@ -7,7 +7,7 @@
     "project_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp",
     "issue_number": 491,
     "listed_at": "2026-10-23",
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp#readme",
     "artwork": {
@@ -22,7 +22,7 @@
       "steps": [
         {
           "title": "Finish the upstream setup package first",
-          "instruction": "Use the complete official v0.1.3 Windows x64 setup package in a separate writable folder. Its root executable is a setup host, not the completed player. Deliberately finish upstream Generate & Build with your own matching originals and its required tools before adding the player. The existing Linux setup download remains separate: use the complete Linux package and this version’s prerequisites, including CMake, Ninja, Python 3 and a C/C++ compiler where required; bundled Windows tools do not supply Linux tools. The Windows completed-player steps here do not qualify a Linux player. The standalone flow is supported; RetComM is an optional upstream manager. Portcove does not start a compiler, helper or installer while discovering a launch target."
+          "instruction": "Use the complete official setup package for your system (Windows x64, Linux x64, or macOS on Apple Silicon or Intel) in a separate writable folder. Its root executable is a setup host, not the completed player. Deliberately finish upstream Generate & Build with your own matching originals and its required tools before adding the player. On Linux, install this version’s prerequisites, including CMake, Ninja, Python 3 and a C/C++ compiler where required; bundled Windows tools do not supply Linux tools. The Windows completed-player steps here do not qualify a Linux player. The standalone flow is supported; RetComM is an optional upstream manager. Portcove does not start a compiler, helper or installer while discovering a launch target."
         },
         {
           "title": "Keep both USA discs and your BIOS",
@@ -30,7 +30,7 @@
         },
         {
           "title": "Add the completed native player",
-          "instruction": "Select build-release/Valkyrie_Profile_Recompiled.exe, or the actual completed product in your upstream-configured build directory. Use its containing directory as the normal working folder, preserving a different established working directory if your actual working launch requires it. A normally prepared product needs no extra arguments; retain any actual supported --game plus absolute configuration path, disc, BIOS or memory-card arguments used by your working copy as separate literal arguments. Do not select the root setup host, which can forward to another executable and exit. Save launch details, then choose Play separately."
+          "instruction": "Select build-release/Valkyrie_Profile_Recompiled.exe (Valkyrie_Profile_Recompiled on Linux and macOS), or the actual completed product in your upstream-configured build directory. Use its containing directory as the normal working folder, preserving a different established working directory if your actual working launch requires it. A normally prepared product needs no extra arguments; retain any actual supported --game plus absolute configuration path, disc, BIOS or memory-card arguments used by your working copy as separate literal arguments. Do not select the root setup host, which can forward to another executable and exit. Save launch details, then choose Play separately."
         },
         {
           "title": "Preserve the complete creating project and profiles",
@@ -45,7 +45,9 @@
     "release_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp/releases",
     "download_asset_hints": {
       "windows-x86-64": ["valkyrie-profile-recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["valkyrie-profile-recomp-", "-linux-x64.zip"]
+      "linux-x86-64": ["valkyrie-profile-recomp-", "-linux-x64.zip"],
+      "macos-aarch64": ["valkyrie-profile-recomp-", "-macos-arm64.zip"],
+      "macos-x86-64": ["valkyrie-profile-recomp-", "-macos-x64.zip"]
     },
     "recommended_download_channel": "stable"
   }
