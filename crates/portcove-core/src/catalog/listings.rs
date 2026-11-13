@@ -6,6 +6,12 @@ use std::{collections::BTreeMap, sync::LazyLock};
 
 // A `static` keeps one copy of the bytes; a `const` may be duplicated per use.
 static EMBEDDED_LISTINGS: &str = include_str!("../../catalog/listings.json");
+
+/// SHA-256 of the listings compiled into this binary and merged into the embedded catalog.
+pub(crate) fn embedded_listings_sha256() -> String {
+    use sha2::Digest;
+    hex::encode(sha2::Sha256::digest(EMBEDDED_LISTINGS.as_bytes()))
+}
 const MAX_LISTING_BYTES: usize = 8 * 1024 * 1024;
 
 // Keep the directory extras separate from platforms supplied by its embedded

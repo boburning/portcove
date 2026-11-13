@@ -337,7 +337,7 @@ function stubCli(root: string) {
   } else if (args.includes("inspect-targets")) {
     const ids = args.flatMap((value, index) => (args[index - 1] === "--port" ? [value] : []));
     reply({ ok: true, error: null, data: { format_version: 1, scope: "fixture", platforms: ["linux-x86-64"],
-      producer: responses.producer ?? { source_revision: null, features: [], embedded_catalog_sha256: "c".repeat(64) },
+      producer: responses.producer ?? { source_revision: null, features: [], embedded_catalog_sha256: "c".repeat(64), embedded_listings_sha256: "e".repeat(64), catalog_override: false },
       ports: ids.map((id) => ({ port_id: id, presence: responses["targets:" + id] ?? "operational",
         declared_platforms: ["linux-x86-64"], acquisition_hold: null, download_restriction: null,
         targets: (responses["targets:" + id] ?? "operational") === "operational" ? [{ platform: "linux-x86-64",
@@ -2130,7 +2130,13 @@ void test(
       JSON.stringify({
         "2ship2harkinian": report("automatic"),
         "targets:not-a-catalog-port": "not_found",
-        producer: { source_revision: head, features: [], embedded_catalog_sha256: "d".repeat(64) },
+        producer: {
+          source_revision: head,
+          features: [],
+          embedded_catalog_sha256: "d".repeat(64),
+          embedded_listings_sha256: "e".repeat(64),
+          catalog_override: false,
+        },
       }),
     );
     const transitions = () =>
@@ -2155,6 +2161,49 @@ void test(
       new RegExp(`^cli-sha256:[0-9a-f]{64};source=${head}$`, "u"),
     );
     assert.equal(transitions(), transitionsBefore, "a new binding is not a material change");
+    // The source binding is verified only for a clean checkout's own revision, the
+    // compiled catalog and no behavior-changing features. A new Core payload stores
+    // a new observation, which carries the binding.
+    const clean =
+      execFileSync("git", ["status", "--porcelain", "--", "crates", "Cargo.toml", "Cargo.lock"], {
+        encoding: "utf8",
+      }).trim() === "";
+    const binding = async (producer: Record<string, unknown>, variant: string) => {
+      writeFileSync(
+        responses,
+        JSON.stringify({
+          "2ship2harkinian": { ...report("automatic"), port_id: variant },
+          "targets:not-a-catalog-port": "not_found",
+          producer: {
+            source_revision: head,
+            features: [],
+            embedded_catalog_sha256: "d".repeat(64),
+            embedded_listings_sha256: "e".repeat(64),
+            catalog_override: false,
+            ...producer,
+          },
+        }),
+      );
+      await all(true);
+      return JSON.parse(
+        runSql(
+          store.owner,
+          `SELECT json_build_object('binding', o.scope ->> 'cli_source_binding', 'revision', o.input_revision)
+             FROM portcove_maintenance.observations o
+            WHERE o.run_id = portcove_maintenance.latest_run('core-port-capabilities-${hostPlatform()}')
+              AND o.subject_key = 'port:2ship2harkinian';`,
+        ),
+      ) as { binding: string; revision: string };
+    };
+    assert.equal((await binding({}, "a")).binding, clean ? "verified" : "unverified");
+    assert.equal((await binding({ catalog_override: true }, "b")).binding, "unverified");
+    assert.equal(
+      (await binding({ features: ["qualification-fixtures"] }, "c")).binding,
+      "unverified",
+    );
+    const malformed = await binding({ source_revision: "x".repeat(150) }, "d");
+    assert.equal(malformed.binding, "unverified");
+    assert.match(malformed.revision, /;source=unrecorded$/u, "an invalid revision is never stored");
     // A failed inspection is its own failed run; the earlier facts stay current.
     const failed = await all(() => Promise.reject(new Error("inspection refused")));
     assert.deepEqual(failed.failed_sources, ["core-target-routes"]);
@@ -2178,6 +2227,8 @@ void test("target routes are read in bounded batches and malformed entries are r
     source_revision: null,
     features: [],
     embedded_catalog_sha256: "c".repeat(64),
+    embedded_listings_sha256: "e".repeat(64),
+    catalog_override: false,
   });
   const calls = readFileSync(path.join(root, "isolation.log"), "utf8").trim().split("\n");
   assert.equal(calls.length, 3);

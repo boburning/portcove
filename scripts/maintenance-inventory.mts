@@ -573,6 +573,8 @@ export interface CoreProducer {
   source_revision: string | null;
   features: string[];
   embedded_catalog_sha256: string;
+  embedded_listings_sha256: string;
+  catalog_override: boolean;
 }
 
 export async function readTargetRoutes(
@@ -598,8 +600,17 @@ export async function readTargetRoutes(
       throw new MaintenanceStoreError(
         "Core target inspection is unavailable or uses an unsupported format",
       );
-    // One binary answers every batch; an older Core reports no producer.
-    if (isCoreProducer(data.producer)) producer = data.producer;
+    // One binary answers every batch; an older Core reports no producer. A recorded
+    // revision that is not a Git object ID is treated as unrecorded.
+    if (isCoreProducer(data.producer))
+      producer = {
+        ...data.producer,
+        source_revision:
+          data.producer.source_revision !== null &&
+          /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/u.test(data.producer.source_revision)
+            ? data.producer.source_revision
+            : null,
+      };
     for (const entry of data.ports as unknown[]) {
       const { port_id, ...fact } = (entry ?? {}) as { port_id?: unknown };
       if (typeof port_id !== "string" || !wanted.has(port_id) || facts.has(`port:${port_id}`))
@@ -626,7 +637,10 @@ function isCoreProducer(value: unknown): value is CoreProducer {
     Array.isArray(producer.features) &&
     producer.features.every((feature) => typeof feature === "string") &&
     typeof producer.embedded_catalog_sha256 === "string" &&
-    /^[0-9a-f]{64}$/u.test(producer.embedded_catalog_sha256)
+    /^[0-9a-f]{64}$/u.test(producer.embedded_catalog_sha256) &&
+    typeof producer.embedded_listings_sha256 === "string" &&
+    /^[0-9a-f]{64}$/u.test(producer.embedded_listings_sha256) &&
+    typeof producer.catalog_override === "boolean"
   );
 }
 
@@ -802,6 +816,8 @@ export function collectionSql(input: {
    * binding is verified only when that revision is the collected checkout.
    */
   producer?: CoreProducer | null;
+  /** Whether Core's sources (crates, Cargo manifest and lock) were clean in the checkout. */
+  coreSourceClean?: boolean;
   /**
    * The latest finished run of each source when `latest` was read. The store
    * refuses the transaction if any of them changed, so the diff stays exact.
@@ -926,8 +942,15 @@ export function collectionSql(input: {
         source: coreSource,
         host_platform: input.platform,
         isolation: isolationScope,
+        // Verified only for a clean checkout's own revision, the compiled catalog
+        // and no behavior-changing features; otherwise the build's claim stays a claim.
         cli_source_binding:
-          input.producer?.source_revision === input.revision ? "verified" : "unverified",
+          input.producer?.source_revision === input.revision &&
+          input.coreSourceClean === true &&
+          !input.producer.catalog_override &&
+          input.producer.features.length === 0
+            ? "verified"
+            : "unverified",
       },
       revision: coreRevision,
       payload: capabilityFact,
@@ -1353,6 +1376,8 @@ export async function collect(options: {
       "portcove capabilities are unavailable or use an unsupported port capability schema",
     );
   const apiSchema = capabilities.schema_version;
+  const coreSourceClean =
+    git(["status", "--porcelain", "--", "crates", "Cargo.toml", "Cargo.lock"]).trim() === "";
   const platform = options.platform ?? hostPlatform();
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/u.test(platform))
     throw new MaintenanceStoreError("Invalid platform label");
@@ -1451,7 +1476,7 @@ export async function collect(options: {
         : {}),
       ...(upstream ? { upstream } : {}),
       ...(hostedIntake ? { hostedIntake } : {}),
-      ...(targetsRead?.ok ? { producer: targetsRead.value.producer } : {}),
+      ...(targetsRead?.ok ? { producer: targetsRead.value.producer, coreSourceClean } : {}),
       ...(targetsRead
         ? {
             targets: targetsRead.ok

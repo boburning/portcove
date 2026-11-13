@@ -32,8 +32,13 @@ pub struct CoreProducer {
     pub source_revision: Option<&'static str>,
     /// Cargo features compiled into Core that can change catalog or archive behavior.
     pub features: Vec<&'static str>,
-    /// SHA-256 of the catalog compiled into this binary.
+    /// SHA-256 of the `catalog.json` compiled into this binary.
     pub embedded_catalog_sha256: String,
+    /// SHA-256 of the `listings.json` compiled in and merged into that catalog.
+    pub embedded_listings_sha256: String,
+    /// True when a qualification build replaced the compiled catalog at runtime;
+    /// the digests above then describe bytes that were not used.
+    pub catalog_override: bool,
 }
 
 impl CoreProducer {
@@ -50,6 +55,9 @@ impl CoreProducer {
                 .filter(|revision| !revision.is_empty()),
             features,
             embedded_catalog_sha256: crate::catalog::embedded_catalog_sha256(),
+            embedded_listings_sha256: crate::catalog::listings::embedded_listings_sha256(),
+            catalog_override: cfg!(feature = "qualification-fixtures")
+                && std::env::var_os("PORTCOVE_QUALIFICATION_CATALOG").is_some(),
         }
     }
 }
@@ -340,6 +348,14 @@ mod tests {
             .unwrap()
             .producer;
         assert_eq!(producer.embedded_catalog_sha256.len(), 64);
+        assert_eq!(producer.embedded_listings_sha256.len(), 64);
+        assert_ne!(
+            producer.embedded_catalog_sha256,
+            producer.embedded_listings_sha256
+        );
+        if !cfg!(feature = "qualification-fixtures") {
+            assert!(!producer.catalog_override);
+        }
         assert!(
             producer
                 .embedded_catalog_sha256

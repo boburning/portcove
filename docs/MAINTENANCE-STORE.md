@@ -541,15 +541,24 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
   acquisition hold, download restriction, and per target platform whether the
   managed install and the external registration are offered to a fresh library,
   with Core's reason. The facts are stored changes-only as `port:<id>`.
-- **Producer binding:** the inspection names the producing Core: its recorded
-  source revision, compiled features and embedded catalog digest. With it, every
-  Core assessment's policy binds that identity by digest
+- **Producer binding:** the inspection names the producing Core: the source
+  revision its build recorded, compiled features, the compiled catalog and
+  listings digests, and whether a qualification override replaced the catalog.
+  With it, every Core assessment's policy binds that identity by digest
   (`;producer-sha256=<digest>`), and the Core run's revision records the source
-  (`cli-sha256:<digest>;source=<revision|unrecorded>`). A host assessment's
-  `cli_source_binding` is `verified` only when the recorded revision is the
-  collected checkout. The hosted workflow builds Core with
-  `PORTCOVE_SOURCE_REVISION` set to the run's commit. A new binding with an
-  unchanged result refreshes current provenance quietly.
+  (`cli-sha256:<digest>;source=<revision|unrecorded>`). A recorded revision
+  that is not a Git object ID is stored as `unrecorded`.
+  - A host assessment's `cli_source_binding` is `verified` only when the
+    recorded revision is the collected checkout, that checkout's Core sources
+    (`crates`, `Cargo.toml`, `Cargo.lock`) are clean, no catalog override is
+    active, and no behavior-changing feature is compiled in. It records that the
+    build claims the clean checked-out source; it does not rebuild to prove it.
+    The `cli-sha256` digest still pins the exact binary.
+  - The hosted workflow builds Core with `PORTCOVE_SOURCE_REVISION` set to the
+    run's commit, in the same job and checkout that collects.
+  - A new binding with an unchanged result refreshes current provenance quietly.
+    If the target inspection fails, that run's policy carries no producer, and
+    provenance reads as unbound until the next successful read.
 - **Unknowns:** definition trust eligibility and readiness stay Core's
   `unknown`. Collecting on one host never relabels that host's own assessment as
   another platform's offering. Platforms Core does not represent, such as

@@ -76,7 +76,7 @@ jobs:
       - name: Build the Core CLI that assesses every port
         timeout-minutes: 40
         env:
-          # Core reports this revision, so assessments bind the exact source.
+          # Core reports the revision its build recorded; collection binds it.
           PORTCOVE_SOURCE_REVISION: ${{ github.sha }}
         run: |
           mkdir -p "$(dirname "$PORTCOVE_STEP_TIMES")"

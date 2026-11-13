@@ -9,7 +9,7 @@ use crate::{
     ReleaseSource, Result, RuntimeSourceMaterialization, SourceKind, SourceProfile,
 };
 
-mod listings;
+pub(crate) mod listings;
 
 // A `static` keeps one copy of the bytes; a `const` may be duplicated per use.
 static EMBEDDED_CATALOG: &str = include_str!("../catalog/catalog.json");
