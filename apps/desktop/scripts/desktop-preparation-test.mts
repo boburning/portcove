@@ -3619,7 +3619,7 @@ export async function preparationScenarios({
         15_000,
         "The retained preparation log must render after expansion",
       );
-      assert.match(await row.getText(), /Preparing source data/);
+      assert.match(await row.getText(), /Preparing game files/);
       assert.match(await row.getText(), /owned conversion began/);
       assert.doesNotMatch(
         await row.getText(),
