@@ -941,7 +941,21 @@ function useSavedFolderFocus({
       heading.current
     )?.focus();
   }, [plan, busy, scanning, snapshot]);
-  return { heading, focusAfterScan, reviewedCandidate, focusAfterReview, focusToSetup };
+  return {
+    heading,
+    rememberScanCandidate: (candidate: Pick<SourceRecord, "profile_id" | "path">) => {
+      focusAfterScan.current = candidate;
+    },
+    rememberReviewedCandidate: (candidate: Pick<SourceRecord, "profile_id" | "path">) => {
+      reviewedCandidate.current = candidate;
+    },
+    restoreReviewFocus: () => {
+      focusAfterReview.current = true;
+    },
+    focusSetupAfterReview: () => {
+      focusToSetup.current = true;
+    },
+  };
 }
 
 export function GameFileLibraries({
@@ -1022,15 +1036,20 @@ export function GameFileLibraries({
         source.sha256 === registeredSource.sha256,
     ),
   );
-  const { heading, focusAfterScan, reviewedCandidate, focusAfterReview, focusToSetup } =
-    useSavedFolderFocus({
-      scanning,
-      snapshot,
-      viewCompletion,
-      completion: scanState.completion,
-      plan,
-      busy,
-    });
+  const {
+    heading,
+    rememberScanCandidate,
+    rememberReviewedCandidate,
+    restoreReviewFocus,
+    focusSetupAfterReview,
+  } = useSavedFolderFocus({
+    scanning,
+    snapshot,
+    viewCompletion,
+    completion: scanState.completion,
+    plan,
+    busy,
+  });
   const run = (
     label: string,
     task: () => Promise<void>,
@@ -1114,7 +1133,7 @@ export function GameFileLibraries({
     run(
       "Checking game files…",
       async () => {
-        reviewedCandidate.current = candidate;
+        rememberReviewedCandidate(candidate);
         setRegisteredSource(undefined);
         setPlan(undefined);
         const reviewed = await desktopApi.planSourceImport(
@@ -1172,7 +1191,7 @@ export function GameFileLibraries({
           );
           return;
         }
-        focusAfterReview.current = true;
+        restoreReviewFocus();
         setPlan(undefined);
         setNotice(sourceImportNotice(result));
         setRefreshConfirmed(false);
@@ -1180,7 +1199,7 @@ export function GameFileLibraries({
         try {
           await onAdded?.();
           setRefreshConfirmed(true);
-          focusToSetup.current = true;
+          focusSetupAfterReview();
         } catch {
           setNotice(sourceImportRefreshNotice(result));
         }
@@ -1320,7 +1339,7 @@ export function GameFileLibraries({
       profiles={profiles}
       busy={Boolean(busy)}
       onCancel={() => {
-        focusAfterReview.current = true;
+        restoreReviewFocus();
         setPlan(undefined);
       }}
       onApply={apply}
@@ -1347,7 +1366,7 @@ export function GameFileLibraries({
       onFocusCapture={(event) => {
         const row = event.target.closest<HTMLElement>("[data-live-candidate]");
         if (row?.dataset.profileId && row.dataset.path) {
-          focusAfterScan.current = { profile_id: row.dataset.profileId, path: row.dataset.path };
+          rememberScanCandidate({ profile_id: row.dataset.profileId, path: row.dataset.path });
         }
       }}
     >
