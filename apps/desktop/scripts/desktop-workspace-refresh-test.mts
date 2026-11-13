@@ -263,9 +263,12 @@ export const releaseReconciliationSupportGate = () => {
   probe.releaseSupport?.();
 };
 
-// One 10 s visible idle refresh interval plus rendering margin; was 10 s, which
-// raced the interval itself on hosted Windows.
-const sourceFormatRefreshBudgetMs = 25_000;
+// The passive probe applies only on a full snapshot read. A visible, unchanged
+// workspace polls every 10 s but reads the full snapshot only once the previous
+// full read is 60 s old (use-workspace-data.ts canRefreshActivities). One full-read
+// cadence plus one poll and rendering margin; was 10 s, then 25 s, both of which
+// expired on hosted Windows before that read.
+const sourceFormatRefreshBudgetMs = 90_000;
 
 export const installSourceFormatProbe = (portId: string) => {
   const previous = window.fetch;
@@ -696,13 +699,12 @@ export async function workspaceRefreshScenario({
         await executeBrowserScript(browser, installSourceFormatProbe, port.id);
         const expected =
           "This runtime requires an uncompressed .z64 game file. Select and validate that file before playing.";
-        // The probe rewrites only the next snapshot read, which a visible idle
-        // workspace makes once per 10 s refresh interval (see intervals_ms).
+        // The probe rewrites only the next full snapshot read (see sourceFormatRefreshBudgetMs).
         await browser.wait(
           async () =>
             (await browser.findElement(By.css(".detail-panel")).getText()).includes(expected),
           sourceFormatRefreshBudgetMs,
-          "Injected source-format guidance did not render within one idle refresh",
+          "Injected source-format guidance did not render within one full-read cadence",
         );
         const launchControls = await browser.findElements(
           By.xpath(
@@ -752,7 +754,7 @@ export async function workspaceRefreshScenario({
             "This runtime requires an uncompressed .z64 game file.",
           ),
         sourceFormatRefreshBudgetMs,
-        "Restored Core status did not replace the injected guidance within one idle refresh",
+        "Restored Core status did not replace the injected guidance within one full-read cadence",
       );
     } finally {
       const probe = await executeBrowserScript(browser, restoreExternalReconciliationProbe);

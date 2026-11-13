@@ -1009,6 +1009,10 @@ export function desktopHarnessDeadlineMs(
       selection.setup_scenarios.includes("native-library-move-invalidates-prior-reviews")
       ? 300_000
       : 0,
+    // Calibrated from 180 s (#4879): on hosted Windows the cancellation journey took
+    // 76 s and interrupted recovery was still in its native cleanup confirmations
+    // (up to 60 s each) after 87 s when the watchdog stopped it. Harness only.
+    selection.selected_scenarios.includes("native-interrupted-preparation-recovery") ? 420_000 : 0,
   );
   const cacheConditions = selection.selected_scenarios.includes(
     "native-default-cover-cache-conditions",
