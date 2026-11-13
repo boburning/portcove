@@ -839,6 +839,12 @@ pub struct PortDefinition {
     /// Official Shipwright Windows portable packages write player data in their working directory.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub windows_shipwright_persistence: bool,
+    /// Reviewed Windows tracked handoff: the game can restart into a successor
+    /// from its own process tree, so the session also waits for job members
+    /// whose image lies in the install root. Without it, the original process
+    /// is the whole session.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub windows_tracked_handoff: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mod_package_policy: Option<ModPackagePolicy>,
     /// Optional, release-bound editable configuration. Retained installations
@@ -2376,6 +2382,11 @@ impl CapabilityDocument {
                 "saves.export".into(),
                 "saves.import-preview".into(),
                 "saves.import".into(),
+                "saves.folder-status".into(),
+                "saves.folder-push".into(),
+                "saves.folder-pull-preview".into(),
+                "saves.folder-pull".into(),
+                "saves.folder-set-aside".into(),
                 "game-settings".into(),
                 "game-settings.list".into(),
                 "game-settings.review".into(),
@@ -2383,6 +2394,13 @@ impl CapabilityDocument {
                 "artwork".into(),
                 "artwork.handoff".into(),
                 "artwork.handoff-bytes".into(),
+                "artwork.steamgriddb".into(),
+                "artwork.steamgriddb.status".into(),
+                "artwork.steamgriddb.set-key".into(),
+                "artwork.steamgriddb.clear-key".into(),
+                "artwork.steamgriddb.search".into(),
+                "artwork.steamgriddb.candidates".into(),
+                "artwork.steamgriddb.choose".into(),
                 "catalog".into(),
                 "catalog.listings".into(),
                 "catalog.listing-refresh".into(),

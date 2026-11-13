@@ -253,9 +253,9 @@ describe("Catalog channel controls", () => {
   });
   it("keeps Stable and Preview selected with compatible beta query values", async () => {
     await click("stable");
-    expect(visibleIds()).toEqual(["stable", "both"]);
+    expect(visibleIds()).toEqual(["both", "stable"]);
     await click("beta");
-    expect(visibleIds()).toEqual(["stable", "beta", "both"]);
+    expect(visibleIds()).toEqual(["beta", "both", "stable"]);
     expect(channelButton("stable").getAttribute("aria-checked")).toBe("true");
     expect(channelButton("beta").getAttribute("aria-checked")).toBe("true");
     expect(channelButton("rolling").getAttribute("aria-checked")).toBe("false");
@@ -267,7 +267,7 @@ describe("Catalog channel controls", () => {
     await click("stable");
     expect(visibleIds()).toEqual(["beta", "both"]);
     await click("beta");
-    expect(visibleIds()).toEqual(["stable", "beta", "rolling", "both"]);
+    expect(visibleIds()).toEqual(["beta", "both", "rolling", "stable"]);
     expect(
       shell.filter === "all" ||
         (typeof shell.filter !== "string" && !shell.filter.channels?.length),
@@ -275,7 +275,7 @@ describe("Catalog channel controls", () => {
     await click("rolling");
     await click("stable");
     await click("beta");
-    expect(visibleIds()).toEqual(["stable", "beta", "rolling", "both"]);
+    expect(visibleIds()).toEqual(["beta", "both", "rolling", "stable"]);
     await click("all");
     await openChannelPanel();
     for (const channel of ["stable", "beta", "rolling"])
@@ -286,7 +286,7 @@ describe("Catalog channel controls", () => {
     await restore("beta");
     expect(visibleIds()).toEqual(["beta", "both"]);
     await click("stable");
-    expect(visibleIds()).toEqual(["stable", "beta", "both"]);
+    expect(visibleIds()).toEqual(["beta", "both", "stable"]);
   });
 
   it("preserves other constraints for channel toggles and clears declared filters in the shared panel", async () => {
@@ -306,7 +306,7 @@ describe("Catalog channel controls", () => {
     expect(shell.filter).not.toBe("all");
     await click("all");
     expect(shell.filter).toBe("all");
-    expect(visibleIds()).toEqual(["stable", "beta", "rolling", "both"]);
+    expect(visibleIds()).toEqual(["beta", "both", "rolling", "stable"]);
     expect(
       shell.filter === "all" ||
         (typeof shell.filter !== "string" && !shell.filter.channels?.length),
@@ -335,17 +335,17 @@ describe("Catalog channel controls", () => {
   it("retains search, sort, selection and control focus without backend or network work", async () => {
     await act(async () => {
       shell.setQuery("port");
-      shell.setCatalogSort("name");
+      shell.setCatalogSort("name-desc");
       shell.setSelectedId("stable");
     });
     await openChannelPanel();
     channelButton("beta").focus();
     await click("beta");
     expect(document.activeElement).toBe(channelButton("beta"));
-    expect(shell).toMatchObject({ query: "port", catalogSort: "name", selectedId: "stable" });
-    expect(visibleIds()).toEqual(["beta", "both"]);
+    expect(shell).toMatchObject({ query: "port", catalogSort: "name-desc", selectedId: "stable" });
+    expect(visibleIds()).toEqual(["both", "beta"]);
     await click("stable");
-    expect(visibleIds()).toEqual(["beta", "both", "stable"]);
+    expect(visibleIds()).toEqual(["stable", "both", "beta"]);
     expect(invoke).not.toHaveBeenCalled();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
@@ -395,7 +395,7 @@ describe("Catalog channel controls", () => {
       ),
     ).toEqual(["Beta port"]);
     await act(async () => shell.setView("catalog"));
-    expect(visibleIds()).toEqual(["stable", "beta", "both"]);
+    expect(visibleIds()).toEqual(["beta", "both", "stable"]);
     await act(async () => shell.setView("library"));
     await openAdvancedFilters();
     await expect.element(readiness).toHaveAccessibleName("Readiness Needs attention (1)");

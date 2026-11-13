@@ -604,7 +604,7 @@ jobs:
       tools_attempt: ${{ needs.tools.outputs.attempt }}
       known_runs: ${{ needs.source.outputs.known_runs }}
   renewal_protection_releases:
-    if: ${{ always() && !cancelled() && (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' }}
+    if: ${{ always() && !cancelled() && ((inputs.mode == 'renew' && github.ref != 'refs/tags/portcove-production-controller-windows-20261112r86') || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' }}
     needs: [source, tools, context]
     permissions:
       contents: read
@@ -624,7 +624,7 @@ jobs:
       tools_attempt: ${{ needs.tools.outputs.attempt }}
       known_runs: ${{ needs.source.outputs.known_runs }}
   renewal_protection_preview:
-    if: ${{ always() && !cancelled() && (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' }}
+    if: ${{ always() && !cancelled() && ((inputs.mode == 'renew' && github.ref != 'refs/tags/portcove-production-controller-windows-20261112r86') || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' }}
     needs: [source, tools, context]
     permissions:
       contents: read
@@ -644,7 +644,7 @@ jobs:
       tools_attempt: ${{ needs.tools.outputs.attempt }}
       known_runs: ${{ needs.source.outputs.known_runs }}
   renewal_protection_stable:
-    if: ${{ always() && !cancelled() && (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' }}
+    if: ${{ always() && !cancelled() && ((inputs.mode == 'renew' && github.ref != 'refs/tags/portcove-production-controller-windows-20261112r86') || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' }}
     needs: [source, tools, context]
     permissions:
       contents: read
@@ -675,8 +675,8 @@ jobs:
       PORTCOVE_TUF_RELEASES_KEY: ${{ secrets.PORTCOVE_TUF_RELEASES_KEY }}
     with:
       operation: role-releases
-      phase: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 'metadata-releases' || 'metadata' }}
-      timeout_minutes: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 5 || 2 }}
+      phase: ${{ inputs.mode == 'renew' && github.ref == 'refs/tags/portcove-production-controller-windows-20261112r86' && 'served-renewal' || ((inputs.mode == 'renew' && github.ref != 'refs/tags/portcove-production-controller-windows-20261112r86') || inputs.mode == 'renew-unserved') && 'metadata-releases' || 'metadata' }}
+      timeout_minutes: ${{ ((inputs.mode == 'renew' && github.ref != 'refs/tags/portcove-production-controller-windows-20261112r86') || inputs.mode == 'renew-unserved') && 5 || 2 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -700,8 +700,8 @@ jobs:
       PORTCOVE_TUF_PREVIEW_KEY: ${{ secrets.PORTCOVE_TUF_PREVIEW_KEY }}
     with:
       operation: role-preview
-      phase: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 'metadata-preview' || 'metadata' }}
-      timeout_minutes: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 5 || 2 }}
+      phase: ${{ inputs.mode == 'renew' && github.ref == 'refs/tags/portcove-production-controller-windows-20261112r86' && 'served-renewal' || ((inputs.mode == 'renew' && github.ref != 'refs/tags/portcove-production-controller-windows-20261112r86') || inputs.mode == 'renew-unserved') && 'metadata-preview' || 'metadata' }}
+      timeout_minutes: ${{ ((inputs.mode == 'renew' && github.ref != 'refs/tags/portcove-production-controller-windows-20261112r86') || inputs.mode == 'renew-unserved') && 6 || 2 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -725,8 +725,8 @@ jobs:
       PORTCOVE_TUF_STABLE_KEY: ${{ secrets.PORTCOVE_TUF_STABLE_KEY }}
     with:
       operation: role-stable
-      phase: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 'metadata-stable' || 'metadata' }}
-      timeout_minutes: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 5 || 2 }}
+      phase: ${{ inputs.mode == 'renew' && github.ref == 'refs/tags/portcove-production-controller-windows-20261112r86' && 'served-renewal' || ((inputs.mode == 'renew' && github.ref != 'refs/tags/portcove-production-controller-windows-20261112r86') || inputs.mode == 'renew-unserved') && 'metadata-stable' || 'metadata' }}
+      timeout_minutes: ${{ ((inputs.mode == 'renew' && github.ref != 'refs/tags/portcove-production-controller-windows-20261112r86') || inputs.mode == 'renew-unserved') && 5 || 2 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -759,7 +759,7 @@ jobs:
       tools_attempt: ${{ needs.tools.outputs.attempt }}
       known_runs: ${{ needs.source.outputs.known_runs }}
   renewal_protection_snapshot:
-    if: ${{ always() && !cancelled() && (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' }}
+    if: ${{ always() && !cancelled() && ((inputs.mode == 'renew' && github.ref != 'refs/tags/portcove-production-controller-windows-20261112r86') || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' }}
     needs: [source, tools, context, releases, preview, stable]
     permissions:
       contents: read
@@ -790,8 +790,8 @@ jobs:
       PORTCOVE_TUF_SNAPSHOT_KEY: ${{ secrets.PORTCOVE_TUF_SNAPSHOT_KEY }}
     with:
       operation: role-snapshot
-      phase: snapshot
-      timeout_minutes: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 5 || 2 }}
+      phase: ${{ inputs.mode == 'renew' && github.ref == 'refs/tags/portcove-production-controller-windows-20261112r86' && 'served-renewal' || 'snapshot' }}
+      timeout_minutes: ${{ ((inputs.mode == 'renew' && github.ref != 'refs/tags/portcove-production-controller-windows-20261112r86') || inputs.mode == 'renew-unserved') && 5 || 2 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -826,7 +826,7 @@ jobs:
       tools_attempt: ${{ needs.tools.outputs.attempt }}
       known_runs: ${{ needs.source.outputs.known_runs }}
   renewal_protection_timestamp:
-    if: ${{ always() && !cancelled() && (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' && needs.snapshot.result == 'success' }}
+    if: ${{ always() && !cancelled() && ((inputs.mode == 'renew' && github.ref != 'refs/tags/portcove-production-controller-windows-20261112r86') || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' && needs.snapshot.result == 'success' }}
     needs: [source, tools, context, releases, preview, stable, snapshot]
     permissions:
       contents: read
@@ -857,8 +857,8 @@ jobs:
       PORTCOVE_TUF_TIMESTAMP_KEY: ${{ secrets.PORTCOVE_TUF_TIMESTAMP_KEY }}
     with:
       operation: role-timestamp
-      phase: timestamp
-      timeout_minutes: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 5 || 2 }}
+      phase: ${{ inputs.mode == 'renew' && github.ref == 'refs/tags/portcove-production-controller-windows-20261112r86' && 'served-renewal' || 'timestamp' }}
+      timeout_minutes: ${{ ((inputs.mode == 'renew' && github.ref != 'refs/tags/portcove-production-controller-windows-20261112r86') || inputs.mode == 'renew-unserved') && 5 || 2 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}

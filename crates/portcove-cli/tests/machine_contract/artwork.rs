@@ -95,7 +95,8 @@ fn artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle() 
     ]);
     let observed: portcove_core::DestinationArtworkHandoff =
         serde_json::from_value(handoff.clone()).unwrap();
-    assert_eq!(observed.handoff_schema, 2);
+    assert_eq!(observed.handoff_schema, 3);
+    assert_eq!(handoff["attribution"], serde_json::json!([]));
     assert_eq!(handoff["choice"], choices[0]["choice"]);
     assert_eq!(handoff["source"]["asset"], choices[0]["selection"]);
     let original = run(&[

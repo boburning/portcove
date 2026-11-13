@@ -255,7 +255,7 @@ export function ListingDetailPanel({
                 ? launch.allowed
                   ? "Ready to play"
                   : readinessUnknown
-                    ? "Readiness unavailable"
+                    ? "Can't check right now"
                     : "Launch needs attention"
                 : entry.pendingSetup
                   ? "Downloaded · finish setup"

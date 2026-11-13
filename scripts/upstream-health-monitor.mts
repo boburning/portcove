@@ -116,6 +116,24 @@ interface MonitorReport {
     latest_collection_status: "complete" | "partial";
   })[];
   collection: Collection;
+  recovery_evidence: {
+    kind: "endpoint" | "provider-metadata";
+    incident: Pick<
+      Incident,
+      | "key"
+      | "port_id"
+      | "provider"
+      | "location"
+      | "release_ref"
+      | "rule"
+      | "first_seen"
+      | "observed_at"
+      | "occurrences"
+      | "observation_contract_sha256"
+    >;
+    recovered_observed_at: string;
+    reused_observation: boolean;
+  }[];
   session?: {
     batches: {
       batch: number;
@@ -704,6 +722,53 @@ export async function advanceHealthMonitor(
     ? validateCheckpoint(candidate, completed)
     : null;
   const replayedLocations = new Set(collection.continuation?.reused_location_keys);
+  const endpointRecoveries = new Set(collection.resolved_incidents);
+  const metadataRecoveries = new Set(collection.assessment_recovered_incidents);
+  const recoveryEvidence: MonitorReport["recovery_evidence"] = [];
+  for (const port of previous?.incident_history ?? []) {
+    for (const incident of port.canonical_incidents) {
+      if (!resolved.has(incident.key)) continue;
+      const key = incidentLocationKey(incident);
+      const observation = freshObservations.get(key);
+      if (
+        !observation?.port_ids.includes(incident.port_id) ||
+        observation.observation_contract_sha256 !== incident.observation_contract_sha256
+      )
+        throw new Error("Recovery is missing its matching location observation");
+      const {
+        key: incidentKey,
+        port_id,
+        provider,
+        location,
+        release_ref,
+        rule,
+        first_seen,
+        observed_at,
+        occurrences,
+        observation_contract_sha256,
+      } = incident;
+      const evidence = {
+        incident: {
+          key: incidentKey,
+          port_id,
+          provider,
+          location,
+          release_ref,
+          rule,
+          first_seen,
+          observed_at,
+          occurrences,
+          observation_contract_sha256,
+        },
+        recovered_observed_at: observation.observed_at,
+        reused_observation: replayedLocations.has(key),
+      };
+      if (endpointRecoveries.has(incident.key))
+        recoveryEvidence.push({ kind: "endpoint", ...evidence });
+      if (metadataRecoveries.has(incident.key))
+        recoveryEvidence.push({ kind: "provider-metadata", ...evidence });
+    }
+  }
   const report: MonitorReport = {
     format_version: 1,
     authority:
@@ -718,6 +783,7 @@ export async function advanceHealthMonitor(
       oversized_port_ids: oversized,
     },
     inventory,
+    recovery_evidence: recoveryEvidence,
     known_conditions: portHealth.flatMap((port) => {
       const attempt = applicable(port.port_id);
       if (!attempt) return [];

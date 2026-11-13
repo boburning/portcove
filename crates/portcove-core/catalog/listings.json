@@ -591,8 +591,39 @@
       },
       "issue_number": 54,
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
+      "release_url": "https://github.com/ThatGuyMcd/DKR-R/releases",
+      "setup_url": "https://github.com/ThatGuyMcd/DKR-R#readme",
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "dkr-r-",
+          "-linux-x86_64.appimage"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Open the Linux AppImage",
+            "instruction": "Choose the official x86-64, ARM64 or Steam Deck package for your device. Mark the AppImage executable and open it. Check the upstream platform guide for your release’s Vulkan and system-library requirements."
+          },
+          {
+            "title": "Add your original game",
+            "instruction": "In Play, choose Add a ROM and select your own clean US v1.0 or US Rev A/v1.1 original. Some older mods need US v1.0 when you install them."
+          }
+        ],
+        "warnings": [
+          "Use DKR-R’s upstream launcher and update instructions for your Linux copy. Back up the active profile before replacing the package or switching profile locations."
+        ],
+        "help_url": "https://github.com/ThatGuyMcd/DKR-R/blob/main/docs/PLATFORMS.md",
+        "references": [
+          {
+            "title": "Find your DKR-R profile",
+            "instruction": "Linux normally uses $XDG_CONFIG_HOME/dkr-port or ~/.config/dkr-port. Portable mode uses dkr-runtime-data beside the application. Changing modes selects a different profile on the next launch. Use DKR-R’s Save Manager to export progress and back up your settings and installed content separately."
+          }
+        ]
+      },
       "availability": "unknown"
     },
     {
@@ -2248,8 +2279,48 @@
       },
       "issue_number": 321,
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
       ],
+      "release_url": "https://github.com/akratch/goldenballoon/releases",
+      "setup_url": "https://github.com/akratch/goldenballoon#readme",
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "golden-balloon-",
+          "-linux-x86_64.appimage"
+        ],
+        "macos-aarch64": [
+          "golden-balloon-",
+          "-macos-arm64-unsigned.dmg"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Open Golden Balloon on Linux",
+            "instruction": "Put the official x86-64 AppImage in a writable folder, mark it executable and open it. For the tarball, extract the whole archive and open AppRun inside Golden-Balloon.AppDir. Keep the folder together so the player can find its bundled libraries."
+          },
+          {
+            "title": "Install the Apple Silicon app",
+            "instruction": "Open the official ARM64 DMG and copy the app to Applications. If macOS blocks the unsigned app, follow the first-launch instructions in the upstream README."
+          },
+          {
+            "title": "Choose your original game",
+            "instruction": "Select your own Diddy Kong Racing US 1.1 or European 1.1 original. On Linux, browse inside the game, drag the file onto the launcher or paste its path. On Mac, use the file picker."
+          }
+        ],
+        "warnings": [
+          "Use the upstream package to install and update on Linux and Mac. Keep your saves, settings and add-ons backed up before replacing the package."
+        ],
+        "help_url": "https://github.com/akratch/goldenballoon#readme",
+        "references": [
+          {
+            "title": "Find the data you need to back up",
+            "instruction": "Keep the per-user profile or the active portable folder. On Linux, follow the upstream portable-data instructions for your package. Include saves, settings, ghosts and any custom content you want to keep."
+          }
+        ]
+      },
       "availability": "unknown"
     },
     {
@@ -4912,12 +4983,12 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Add your US game data before Play",
-            "instruction": "Open the new runtime folder and copy your own US Ace Combat 6 Xbox 360 disc image beside ac6recomp.exe as AC6.iso, or put your extracted game files in assets with assets/default.xex. Keep your original copy separately. Choose Play after adding the files; this portable package has no installer. The game checks the disc title identity, but Portcove does not verify a retail-edition checksum for this upstream setup route. Optional own DLC belongs in dlc; title-update data is a separate upstream input, not a runtime update."
+            "title": "Use your own files, or let Portcove unpack your disc image",
+            "instruction": "Play without choosing anything: put your own Ace Combat 6 Xbox 360 disc image beside ac6recomp.exe as AC6.iso, or your own extracted game files in assets with assets/default.xex. Nothing is asked of you. Or choose your own disc image once, and Portcove checks that it is the one reviewed image, then unpacks it into the assets folder. Unpacking replaces everything in assets with the verified copy, so files you added to assets by hand are not kept when it unpacks. AC6.iso, dlc, your settings and bindings, logs and saves are never touched by unpacking. A disc image you choose is used from the next runtime update of Ace Combat 6. Only that one reviewed image, labelled USA and Japan, is accepted for unpacking; other editions and regions, including Europe, are not supported. Keep your original copy separately. Choose Play after the files are ready; this portable package has no installer. Optional own DLC belongs in dlc; title-update data is a separate upstream input, not a runtime update."
           }
         ],
         "warnings": [
-          "Europe and Japan are not supported.",
+          "Only the one reviewed image is accepted for unpacking; other editions and regions, including Europe, are not supported.",
           "Keep a separate backup of the Windows Documents/ac6recomp folder before changing versions. Close the game before changing runtime files; older versions may not read newer saves.",
           "Upstream requires Windows 10/11 x64, AVX2 and a Direct3D 12-capable GPU. This experimental release has known performance and rendering limits; Portcove gameplay and minimum-system observations remain unqualified."
         ],
@@ -32992,10 +33063,20 @@
           {
             "title": "Use a prepared upstream Linux copy",
             "instruction": "For Linux, use the official Linux x64 archive as an upstream-owned copy. In its extracted player folder, deliberately run ./mgs_mobile --install \"<your Metal.Gear.Solid.n-gage>\" and wait for successful completion, then register mgs_mobile as the player with that folder as its working directory. The Linux player has no Windows-style first-Play picker. Portcove does not run this preparation command during discovery and does not manage replacement or backups of this external copy."
+          },
+          {
+            "title": "Set up the Android player",
+            "instruction": "Use the official ARM64 APK on Android 7 or later. Open the app and select your own Metal.Gear.Solid.n-gage in its file picker. Keep the original separately. The app prepares its game files in its own storage."
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1"
+        "help_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1",
+        "references": [
+          {
+            "title": "Keep the Android app data",
+            "instruction": "Install compatible updates over the same upstream app and signer. The app normally stores its files in Android/data/org.mgsmobile.port/files, with internal app storage as a fallback. Before clearing data or uninstalling, keep an accessible backup of any saves and settings you can export or copy."
+          }
+        ]
       },
       "artwork": {
         "game_id": 41041,
@@ -33006,8 +33087,15 @@
         "match_kind": "underlying-game"
       },
       "platforms": [
-        "windows-x86-64"
-      ]
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "mgs_mobile_",
+          "_linux_x64.tar.gz"
+        ]
+      }
     },
     {
       "id": "lethal-guitar-rigelengine",

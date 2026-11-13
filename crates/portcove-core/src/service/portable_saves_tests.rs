@@ -700,3 +700,628 @@ fn files_from_unqualified_platforms_are_reported_as_such() {
             .contains(&PortableSaveBlocker::UnsupportedPlatform)
     );
 }
+
+// ---- Optional folder transport (#253) ----
+
+use crate::{SaveFolderNextStep, SaveFolderStatus};
+
+fn shared_folder() -> tempfile::TempDir {
+    tempfile::tempdir().unwrap()
+}
+
+impl Device {
+    fn status(&self, folder: &Path) -> SaveFolderStatus {
+        self.service.save_folder_status(PORT, folder).unwrap()
+    }
+
+    fn push(&self, folder: &Path) -> crate::SaveFolderPushResult {
+        let preview = self.service.preview_portable_save_export(PORT).unwrap();
+        self.service
+            .push_portable_saves_to_folder(PORT, folder, preview.content_sha256.as_deref().unwrap())
+            .unwrap()
+    }
+
+    fn pull(
+        &self,
+        folder: &Path,
+        content: &str,
+        options: PortableSaveImportOptions,
+    ) -> Result<PortableSaveImportResult> {
+        let preview = self
+            .service
+            .preview_folder_save_import(PORT, folder, content, options)?;
+        let authorization = self.service.authorize_folder_save_import(
+            PORT,
+            folder,
+            content,
+            options,
+            &preview.preview_sha256,
+        )?;
+        self.service
+            .import_folder_saves(PORT, folder, content, options, &authorization.token)
+    }
+
+    fn head_excluding(&self, folder: &Path, excluded: &str) -> String {
+        self.status(folder)
+            .entries
+            .into_iter()
+            .find(|entry| entry.head && entry.content_sha256 != excluded)
+            .unwrap()
+            .content_sha256
+    }
+
+    fn head(&self, folder: &Path) -> String {
+        let status = self.status(folder);
+        let heads: Vec<_> = status.entries.iter().filter(|entry| entry.head).collect();
+        assert_eq!(heads.len(), 1, "{status:?}");
+        heads[0].content_sha256.clone()
+    }
+}
+
+fn bundle_files(folder: &Path) -> Vec<PathBuf> {
+    let directory = folder.join("portcove-saves/v1").join(PORT);
+    let mut files: Vec<_> = fs::read_dir(directory)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| {
+            path.extension()
+                .is_some_and(|extension| extension == "json")
+        })
+        .collect();
+    files.sort();
+    files
+}
+
+#[test]
+fn folder_round_trip_continues_progress_between_two_devices() {
+    let folder = shared_folder();
+    let pc = seeded_source();
+    assert_eq!(pc.status(folder.path()).next_step, SaveFolderNextStep::Push);
+    let first = pc.push(folder.path());
+    assert!(!first.already_present);
+    // A retry or duplicate observation writes nothing new.
+    assert!(pc.push(folder.path()).already_present);
+    assert_eq!(bundle_files(folder.path()).len(), 1);
+    assert_eq!(
+        pc.status(folder.path()).next_step,
+        SaveFolderNextStep::UpToDate
+    );
+
+    let deck = Device::new(VERSION);
+    deck.write("shipofharkinian.json", b"{\"window\":\"deck\"}");
+    assert_eq!(
+        deck.status(folder.path()).next_step,
+        SaveFolderNextStep::Pull
+    );
+    deck.pull(folder.path(), &first.content_sha256, Default::default())
+        .unwrap();
+    assert_eq!(
+        deck.status(folder.path()).next_step,
+        SaveFolderNextStep::UpToDate
+    );
+
+    deck.write("Save/file1.sav", b"{\"slot\":1,\"deck\":2}");
+    assert_eq!(
+        deck.status(folder.path()).next_step,
+        SaveFolderNextStep::Push
+    );
+    let second = deck.push(folder.path());
+    assert_eq!(
+        second.base_sha256.as_deref(),
+        Some(first.content_sha256.as_str())
+    );
+
+    let status = pc.status(folder.path());
+    assert_eq!(status.next_step, SaveFolderNextStep::Pull);
+    let preview = pc
+        .service
+        .preview_folder_save_import(
+            PORT,
+            folder.path(),
+            &second.content_sha256,
+            Default::default(),
+        )
+        .unwrap();
+    assert_eq!(preview.relation, PortableSaveRelation::Continues);
+    pc.pull(folder.path(), &second.content_sha256, Default::default())
+        .unwrap();
+    assert_eq!(
+        pc.read("Save/file1.sav").unwrap(),
+        b"{\"slot\":1,\"deck\":2}"
+    );
+    assert_eq!(
+        pc.read("shipofharkinian.json").unwrap(),
+        b"{\"window\":\"pc\"}"
+    );
+    assert_eq!(
+        pc.status(folder.path()).next_step,
+        SaveFolderNextStep::UpToDate
+    );
+    assert_eq!(
+        deck.status(folder.path()).next_step,
+        SaveFolderNextStep::UpToDate
+    );
+}
+
+#[test]
+fn several_offline_sessions_still_continue_through_folder_history() {
+    let folder = shared_folder();
+    let pc = seeded_source();
+    let first = pc.push(folder.path());
+    let deck = Device::new(VERSION);
+    deck.pull(folder.path(), &first.content_sha256, Default::default())
+        .unwrap();
+    // The PC plays and syncs twice while the deck is away.
+    pc.write("Save/file1.sav", b"{\"pc\":2}");
+    pc.push(folder.path());
+    pc.write("Save/file1.sav", b"{\"pc\":3}");
+    let latest = pc.push(folder.path());
+    assert_eq!(
+        deck.status(folder.path()).next_step,
+        SaveFolderNextStep::Pull
+    );
+    let preview = deck
+        .service
+        .preview_folder_save_import(
+            PORT,
+            folder.path(),
+            &latest.content_sha256,
+            Default::default(),
+        )
+        .unwrap();
+    assert_eq!(preview.relation, PortableSaveRelation::Continues);
+    assert!(preview.blockers.is_empty());
+}
+
+#[test]
+fn offline_or_removed_folder_leaves_local_play_untouched() {
+    let folder = shared_folder();
+    let pc = seeded_source();
+    let missing = folder.path().join("unplugged-drive");
+    let status = pc.status(&missing);
+    assert!(!status.available);
+    assert_eq!(status.next_step, SaveFolderNextStep::Unavailable);
+    let preview = pc.service.preview_portable_save_export(PORT).unwrap();
+    let error = pc
+        .service
+        .push_portable_saves_to_folder(PORT, &missing, preview.content_sha256.as_deref().unwrap())
+        .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::NotFound);
+    let digest = preview.content_sha256.as_deref().unwrap();
+    for error in [
+        pc.service
+            .preview_folder_save_import(PORT, &missing, digest, Default::default())
+            .unwrap_err(),
+        pc.service
+            .mark_folder_saves_superseded(PORT, &missing, digest)
+            .unwrap_err(),
+    ] {
+        assert_eq!(error.code, crate::ErrorCode::NotFound, "{error}");
+        assert!(error.to_string().contains("not available"), "{error}");
+    }
+    assert!(
+        !missing.exists(),
+        "Portcove never creates the player's folder"
+    );
+    // A failed push does not advance this device's synchronization point.
+    assert!(pc.service.portable_lineage(PORT).is_none());
+    assert_eq!(
+        pc.read("Save/file1.sav").unwrap(),
+        b"{\"slot\":1,\"hearts\":3}"
+    );
+    pc.service.create_backup(PORT).unwrap();
+}
+
+#[test]
+fn offline_divergence_offers_a_choice_and_preserves_both_branches() {
+    let folder = shared_folder();
+    let pc = seeded_source();
+    let first = pc.push(folder.path());
+    let deck = Device::new(VERSION);
+    deck.pull(folder.path(), &first.content_sha256, Default::default())
+        .unwrap();
+    pc.write("Save/file1.sav", b"{\"branch\":\"pc\"}");
+    deck.write("Save/file1.sav", b"{\"branch\":\"deck\"}");
+    let from_deck = deck.push(folder.path());
+    let from_pc = pc.push(folder.path());
+    assert_eq!(
+        pc.status(folder.path()).next_step,
+        SaveFolderNextStep::ChooseProgress
+    );
+    assert_eq!(
+        deck.status(folder.path()).next_step,
+        SaveFolderNextStep::ChooseProgress
+    );
+
+    // No silent winner: pulling without a choice is refused.
+    assert!(
+        pc.pull(folder.path(), &from_deck.content_sha256, Default::default())
+            .is_err()
+    );
+    assert_eq!(pc.read("Save/file1.sav").unwrap(), b"{\"branch\":\"pc\"}");
+
+    // The PC chooses the deck's progress.
+    let replace = PortableSaveImportOptions {
+        replace_diverged_progress: true,
+        ..Default::default()
+    };
+    let result = pc
+        .pull(folder.path(), &from_deck.content_sha256, replace)
+        .unwrap();
+    assert_eq!(pc.read("Save/file1.sav").unwrap(), b"{\"branch\":\"deck\"}");
+    assert_eq!(
+        backup_file(&result.safety_backup.unwrap(), "Save/file1.sav").unwrap(),
+        b"{\"branch\":\"pc\"}"
+    );
+    // The PC branch is set aside, not deleted, and stays importable.
+    let status = pc.status(folder.path());
+    assert_eq!(status.next_step, SaveFolderNextStep::UpToDate);
+    let set_aside = status
+        .entries
+        .iter()
+        .find(|entry| entry.content_sha256 == from_pc.content_sha256)
+        .unwrap();
+    assert!(set_aside.superseded);
+    assert_eq!(bundle_files(folder.path()).len(), 3);
+    assert_eq!(
+        deck.status(folder.path()).next_step,
+        SaveFolderNextStep::UpToDate
+    );
+    let preview = deck
+        .service
+        .preview_folder_save_import(PORT, folder.path(), &from_pc.content_sha256, replace)
+        .unwrap();
+    assert!(preview.blockers.is_empty());
+}
+
+#[test]
+fn keeping_local_progress_sets_the_other_branch_aside() {
+    let folder = shared_folder();
+    let pc = seeded_source();
+    let first = pc.push(folder.path());
+    let deck = Device::new(VERSION);
+    deck.pull(folder.path(), &first.content_sha256, Default::default())
+        .unwrap();
+    pc.write("Save/file1.sav", b"{\"branch\":\"pc\"}");
+    deck.write("Save/file1.sav", b"{\"branch\":\"deck\"}");
+    let from_deck = deck.push(folder.path());
+    pc.push(folder.path());
+    pc.service
+        .mark_folder_saves_superseded(PORT, folder.path(), &from_deck.content_sha256)
+        .unwrap();
+    assert_eq!(
+        pc.status(folder.path()).next_step,
+        SaveFolderNextStep::UpToDate
+    );
+    assert_eq!(pc.read("Save/file1.sav").unwrap(), b"{\"branch\":\"pc\"}");
+    // The deck now sees the PC branch as different progress to choose about.
+    assert_eq!(
+        deck.status(folder.path()).next_step,
+        SaveFolderNextStep::ChooseProgress
+    );
+    // A device cannot set aside its own current saves.
+    let own = pc.service.preview_portable_save_export(PORT).unwrap();
+    assert!(
+        pc.service
+            .mark_folder_saves_superseded(
+                PORT,
+                folder.path(),
+                own.content_sha256.as_deref().unwrap()
+            )
+            .is_err()
+    );
+}
+
+#[test]
+fn interrupted_or_damaged_transfers_are_ignored_and_retry_cleanly() {
+    let folder = shared_folder();
+    let pc = seeded_source();
+    let preview = pc.service.preview_portable_save_export(PORT).unwrap();
+    let content = preview.content_sha256.clone().unwrap();
+    let directory = folder.path().join("portcove-saves/v1").join(PORT);
+    fs::create_dir_all(&directory).unwrap();
+    // A private temporary left by an interrupted copy, and a truncated file
+    // that another sync tool delivered under an unrelated valid name.
+    fs::write(directory.join(".tmpA1b2C3"), b"{\"format\":").unwrap();
+    let truncated = format!("{}.json", "0".repeat(64));
+    fs::write(
+        directory.join(&truncated),
+        b"{\"format\":\"portcove-portable",
+    )
+    .unwrap();
+    let status = pc.status(folder.path());
+    assert!(status.entries.is_empty());
+    assert_eq!(status.problems.len(), 1);
+    assert_eq!(status.next_step, SaveFolderNextStep::Push);
+
+    // A damaged copy under this device's own name is preserved, never replaced.
+    fs::write(directory.join(format!("{content}.json")), b"partial").unwrap();
+    assert!(
+        pc.service
+            .push_portable_saves_to_folder(PORT, folder.path(), &content)
+            .is_err()
+    );
+    assert_eq!(
+        fs::read(directory.join(format!("{content}.json"))).unwrap(),
+        b"partial"
+    );
+    fs::remove_file(directory.join(format!("{content}.json"))).unwrap();
+    assert!(!pc.push(folder.path()).already_present);
+    assert_eq!(pc.head(folder.path()), content);
+}
+
+#[test]
+fn folder_changes_after_review_refuse_the_pull() {
+    let folder = shared_folder();
+    let pc = seeded_source();
+    let first = pc.push(folder.path());
+    let deck = Device::new(VERSION);
+    let preview = deck
+        .service
+        .preview_folder_save_import(
+            PORT,
+            folder.path(),
+            &first.content_sha256,
+            Default::default(),
+        )
+        .unwrap();
+    let authorization = deck
+        .service
+        .authorize_folder_save_import(
+            PORT,
+            folder.path(),
+            &first.content_sha256,
+            Default::default(),
+            &preview.preview_sha256,
+        )
+        .unwrap();
+    // The folder is unplugged before apply: nothing changes locally.
+    let moved = folder.path().with_extension("moved");
+    fs::rename(folder.path(), &moved).unwrap();
+    assert!(
+        deck.service
+            .import_folder_saves(
+                PORT,
+                folder.path(),
+                &first.content_sha256,
+                Default::default(),
+                &authorization.token,
+            )
+            .is_err()
+    );
+    fs::rename(&moved, folder.path()).unwrap();
+    assert!(deck.read("Save/file1.sav").is_none());
+    // A late result from another device does not overwrite newer local progress.
+    deck.write("Save/file1.sav", b"{\"deck\":\"newer\"}");
+    assert!(
+        deck.service
+            .import_folder_saves(
+                PORT,
+                folder.path(),
+                &first.content_sha256,
+                Default::default(),
+                &authorization.token,
+            )
+            .is_err()
+    );
+    assert_eq!(
+        deck.read("Save/file1.sav").unwrap(),
+        b"{\"deck\":\"newer\"}"
+    );
+}
+
+#[test]
+fn deletions_from_another_device_need_an_explicit_choice() {
+    let folder = shared_folder();
+    let pc = seeded_source();
+    pc.write("Save/file2.sav", b"{\"slot\":2}");
+    let first = pc.push(folder.path());
+    let deck = Device::new(VERSION);
+    deck.pull(folder.path(), &first.content_sha256, Default::default())
+        .unwrap();
+    fs::remove_file(deck.user().join("Save/file2.sav")).unwrap();
+    let second = deck.push(folder.path());
+    pc.pull(folder.path(), &second.content_sha256, Default::default())
+        .unwrap();
+    assert_eq!(pc.read("Save/file2.sav").unwrap(), b"{\"slot\":2}");
+}
+
+#[test]
+fn mutual_set_aside_never_reports_both_devices_settled() {
+    let folder = shared_folder();
+    let pc = seeded_source();
+    let first = pc.push(folder.path());
+    let deck = Device::new(VERSION);
+    deck.pull(folder.path(), &first.content_sha256, Default::default())
+        .unwrap();
+    pc.write("Save/file1.sav", b"{\"branch\":\"pc\"}");
+    deck.write("Save/file1.sav", b"{\"branch\":\"deck\"}");
+    let from_pc = pc.push(folder.path());
+    let from_deck = deck.push(folder.path());
+    pc.service
+        .mark_folder_saves_superseded(PORT, folder.path(), &from_deck.content_sha256)
+        .unwrap();
+    deck.service
+        .mark_folder_saves_superseded(PORT, folder.path(), &from_pc.content_sha256)
+        .unwrap();
+    for device in [&pc, &deck] {
+        let status = device.status(folder.path());
+        assert!(status.local_set_aside);
+        assert_eq!(status.next_step, SaveFolderNextStep::ChooseProgress);
+    }
+}
+
+#[test]
+fn setting_aside_a_bad_save_offers_its_base_again() {
+    let folder = shared_folder();
+    let pc = seeded_source();
+    let good = pc.push(folder.path());
+    pc.write("Save/file1.sav", b"{\"bad\":true}");
+    let bad = pc.push(folder.path());
+    let fresh = Device::new(VERSION);
+    fresh
+        .service
+        .mark_folder_saves_superseded(PORT, folder.path(), &bad.content_sha256)
+        .unwrap();
+    let status = fresh.status(folder.path());
+    assert_eq!(status.next_step, SaveFolderNextStep::Pull);
+    assert!(
+        status
+            .entries
+            .iter()
+            .any(|entry| entry.head && entry.content_sha256 == good.content_sha256)
+    );
+}
+
+#[test]
+fn add_only_pull_does_not_set_aside_local_progress() {
+    let folder = shared_folder();
+    let pc = seeded_source();
+    let from_pc = pc.push(folder.path());
+    let deck = Device::new(VERSION);
+    deck.write("Save/file2.sav", b"{\"slot\":2}");
+    let from_deck = deck.push(folder.path());
+    deck.pull(folder.path(), &from_pc.content_sha256, Default::default())
+        .unwrap();
+    let status = deck.status(folder.path());
+    let own = status
+        .entries
+        .iter()
+        .find(|entry| entry.content_sha256 == from_deck.content_sha256)
+        .unwrap();
+    assert!(!own.superseded);
+    assert_eq!(deck.read("Save/file2.sav").unwrap(), b"{\"slot\":2}");
+}
+
+#[test]
+fn replacing_after_unpublished_play_sets_aside_the_published_branch() {
+    let folder = shared_folder();
+    let pc = seeded_source();
+    let first = pc.push(folder.path());
+    let deck = Device::new(VERSION);
+    deck.pull(folder.path(), &first.content_sha256, Default::default())
+        .unwrap();
+    pc.write("Save/file1.sav", b"{\"branch\":\"pc\"}");
+    let from_pc = pc.push(folder.path());
+    deck.write("Save/file1.sav", b"{\"branch\":\"deck\"}");
+    deck.push(folder.path());
+    // The PC keeps playing without pushing, then chooses the deck's saves.
+    pc.write("Save/file1.sav", b"{\"branch\":\"pc-later\"}");
+    let deck_head = deck.head_excluding(folder.path(), &from_pc.content_sha256);
+    let replace = PortableSaveImportOptions {
+        replace_diverged_progress: true,
+        ..Default::default()
+    };
+    pc.pull(folder.path(), &deck_head, replace).unwrap();
+    let status = pc.status(folder.path());
+    assert_eq!(status.next_step, SaveFolderNextStep::UpToDate, "{status:?}");
+}
+
+#[test]
+fn heads_from_other_game_versions_are_not_offered() {
+    let folder = shared_folder();
+    let pc = seeded_source();
+    let pushed = pc.push(folder.path());
+    let path = folder
+        .path()
+        .join("portcove-saves/v1")
+        .join(PORT)
+        .join(format!("{}.json", pushed.content_sha256));
+    let text = fs::read_to_string(&path).unwrap();
+    fs::remove_file(&path).unwrap();
+    fs::write(&path, text.replacen("\"9.3.1\"", "\"9.4.0\"", 1)).unwrap();
+    let deck = Device::new(VERSION);
+    let status = deck.status(folder.path());
+    assert!(!status.entries[0].compatible);
+    assert_eq!(status.next_step, SaveFolderNextStep::UpToDate);
+}
+
+#[test]
+fn oversized_folders_report_incomplete_history() {
+    let folder = shared_folder();
+    let pc = seeded_source();
+    pc.push(folder.path());
+    let directory = folder.path().join("portcove-saves/v1").join(PORT);
+    for index in 0..300 {
+        fs::write(directory.join(format!("{index:064x}.json")), b"{}").unwrap();
+    }
+    let status = pc.status(folder.path());
+    assert!(!status.complete);
+    assert_eq!(status.next_step, SaveFolderNextStep::Incomplete);
+}
+
+#[test]
+fn setting_aside_a_middle_save_keeps_one_offered_head() {
+    let folder = shared_folder();
+    let pc = seeded_source();
+    let first = pc.push(folder.path());
+    pc.write("Save/file1.sav", b"{\"middle\":true}");
+    let middle = pc.push(folder.path());
+    pc.write("Save/file1.sav", b"{\"latest\":true}");
+    let latest = pc.push(folder.path());
+    let deck = Device::new(VERSION);
+    deck.pull(folder.path(), &first.content_sha256, Default::default())
+        .unwrap();
+    deck.service
+        .mark_folder_saves_superseded(PORT, folder.path(), &middle.content_sha256)
+        .unwrap();
+    let status = deck.status(folder.path());
+    assert_eq!(status.next_step, SaveFolderNextStep::Pull, "{status:?}");
+    assert_eq!(deck.head(folder.path()), latest.content_sha256);
+}
+
+#[test]
+fn folders_inside_the_library_are_refused_for_pulls_and_set_asides() {
+    let outside = shared_folder();
+    let pc = seeded_source();
+    let pushed = pc.push(outside.path());
+    let deck = Device::new(VERSION);
+    // A sync tool mirrors the shared folder into this device's library.
+    let mirror = deck.library.root().join("mirror");
+    let directory = mirror.join("portcove-saves/v1").join(PORT);
+    fs::create_dir_all(&directory).unwrap();
+    for file in bundle_files(outside.path()) {
+        fs::copy(&file, directory.join(file.file_name().unwrap())).unwrap();
+    }
+    let before = deck.read("Save/file1.sav");
+    let refused = |error: PortcoveError| {
+        assert!(
+            error.to_string().contains("outside the Portcove library"),
+            "{error}"
+        )
+    };
+    refused(
+        deck.service
+            .preview_folder_save_import(PORT, &mirror, &pushed.content_sha256, Default::default())
+            .unwrap_err(),
+    );
+    refused(
+        deck.service
+            .authorize_folder_save_import(
+                PORT,
+                &mirror,
+                &pushed.content_sha256,
+                Default::default(),
+                &"0".repeat(64),
+            )
+            .unwrap_err(),
+    );
+    refused(
+        deck.service
+            .import_folder_saves(
+                PORT,
+                &mirror,
+                &pushed.content_sha256,
+                Default::default(),
+                "token",
+            )
+            .unwrap_err(),
+    );
+    refused(
+        deck.service
+            .mark_folder_saves_superseded(PORT, &mirror, &pushed.content_sha256)
+            .unwrap_err(),
+    );
+    assert!(!directory.join("superseded").exists());
+    assert_eq!(deck.read("Save/file1.sav"), before);
+}

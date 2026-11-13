@@ -168,20 +168,20 @@ pub(crate) async fn browse_provider_mods(
     .await
 }
 
-/// One GameBanana mod's files. Reads only.
+/// One provider mod's files or versions. Reads only.
 #[tauri::command]
 pub(crate) async fn get_provider_project(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
     port_id: String,
-    project_id: u64,
+    project_id: String,
 ) -> DesktopResult<portcove_core::ProviderProjectView> {
     crate::blocking_async_service_at_generation(
         state.inner().clone(),
         generation,
         move |service| async move {
             service
-                .provider_project(&port_id, project_id)
+                .provider_project(&port_id, &project_id)
                 .await
                 .map_err(Into::into)
         },
@@ -189,7 +189,7 @@ pub(crate) async fn get_provider_project(
     .await
 }
 
-/// Reviews one GameBanana file for a setup: downloads it privately and inspects
+/// Reviews one provider file for a setup: downloads it privately and inspects
 /// it, changing nothing but private staging.
 #[tauri::command]
 pub(crate) async fn plan_provider_install(
@@ -197,15 +197,15 @@ pub(crate) async fn plan_provider_install(
     generation: u64,
     port_id: String,
     profile_id: String,
-    project_id: u64,
-    file_id: u64,
+    project_id: String,
+    file_id: String,
 ) -> DesktopResult<portcove_core::ProviderInstallPlan> {
     crate::blocking_async_service_at_generation(
         state.inner().clone(),
         generation,
         move |service| async move {
             service
-                .plan_provider_install(&port_id, &profile_id, project_id, file_id)
+                .plan_provider_install(&port_id, &profile_id, &project_id, &file_id)
                 .await
                 .map_err(Into::into)
         },
@@ -243,12 +243,19 @@ pub(crate) async fn apply_provider_install(
     profile_id: String,
     expected_plan_sha256: String,
     plan: portcove_core::ProviderInstallPlan,
+    allow_code: bool,
 ) -> DesktopResult<ProfileRevision> {
     require_displayed_plan(&plan, &port_id, &profile_id, &expected_plan_sha256)?;
     let state = state.inner().clone();
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
-        let authorization = service.authorize_provider_install(&plan)?;
+        // Code is allowed only when the player chose to after seeing which
+        // reviewed packages run it; Core binds that to the plan's digest.
+        let authorization = if allow_code {
+            service.authorize_provider_install_allowing_code(&plan)?
+        } else {
+            service.authorize_provider_install(&plan)?
+        };
         service
             .apply_provider_install(&plan, &authorization.token)
             .map_err(Into::into)

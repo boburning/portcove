@@ -405,11 +405,8 @@ function assertMeasured<Name extends Measurement>(
 
 async function assertUnavailableLayout(browser: WebDriver, summary: string) {
   const layout = await detailLayout(browser, summary);
-  assert.equal(layout.state, "Readiness unavailable");
-  assert.equal(
-    layout.reason,
-    "Current launch readiness is unavailable. Reopen Portcove to check again.",
-  );
+  assert.equal(layout.state, "Can't check right now");
+  assert.equal(layout.reason, "Portcove couldn't confirm whether this game is ready to play.");
   assertMeasured(layout, ["heroBottom", "reasonBottom", "actionTop"]);
   assert.ok(layout.reasonBottom >= layout.heroBottom, JSON.stringify(layout));
   assert.equal(layout.actionInHero, true);
@@ -559,7 +556,7 @@ export async function readinessScenario({
       await browser.wait(
         async () =>
           (await browser.findElement(By.css(".detail-panel")).getText()).includes(
-            "Readiness unavailable",
+            "Can't check right now",
           ),
         10_000,
       );
@@ -589,7 +586,7 @@ export async function readinessScenario({
       await browser.wait(
         async () =>
           (await browser.findElement(By.css(".detail-panel")).getText()).includes(
-            "Readiness unavailable",
+            "Can't check right now",
           ),
         10_000,
       );

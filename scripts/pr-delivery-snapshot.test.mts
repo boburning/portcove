@@ -633,6 +633,25 @@ void test("REST timeline closing observations are derived by the helper and fail
     [{ timeline_pages: pages(["not an event"]) }, /incomplete/],
     [{ relationships: [], total_count: 0 }, /differs from its raw REST timeline/],
     [{ inventory_checks: undefined }, /check list is incomplete/],
+    // filter=all keeps every attempt; past one page the latest run is unknown,
+    // so a truncated list refuses rather than judging "latest" on a partial read.
+    [
+      {
+        inventory_checks: {
+          total_count: 101,
+          check_runs: Array.from({ length: 100 }, (_, index) => ({
+            id: 90 + index,
+            name: "closing-inventory",
+            head_sha: head,
+            status: "completed",
+            conclusion: "success",
+            app: { slug: "github-actions" },
+            check_suite: { id: 91 },
+          })),
+        },
+      },
+      /check list is incomplete/,
+    ],
     [{ inventory_runs: { total_count: 0, workflow_runs: [] } }, /trusted default-branch workflow/],
   ] as const)
     assert.throws(() => prepareMergeSnapshot(snapshot(change), expected), pattern);

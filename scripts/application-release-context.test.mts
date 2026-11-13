@@ -161,6 +161,16 @@ void test("metadata renewal binds one stable public basis and its exact authenti
       },
     },
   };
+  const servedRenewal = assertApplicationRenewalContext(historicalFiles, nativeClockSource);
+  assert.equal(servedRenewal.schema_version, 3);
+  assert.equal(servedRenewal.prior_expiration_policy, "historical-online-expired-v1");
+  assert.equal(servedRenewal.prior_repository_sha256, basis.repository_sha256);
+  const changedHistoricalFiles = new Map(historicalFiles);
+  changedHistoricalFiles.set("context.json", files.get("context.json")!);
+  assert.throws(
+    () => assertApplicationRenewalContext(changedHistoricalFiles, nativeClockSource),
+    /actual signing context differs/u,
+  );
   assert.equal(assertApplicationRenewalContext(historicalFiles, member).schema_version, 3);
   assert.throws(() => assertApplicationRenewalContext(historicalFiles, source));
   assert.throws(() => assertApplicationRenewalContext(historicalFiles, forward));

@@ -503,6 +503,7 @@ export function StatusLayer({
   dismissInvocation,
   openActivity,
   preparationRecovery,
+  readyToPlay,
   onActivity = false,
 }: {
   /** Activity is open: a link may reveal a known task there but never re-open Activity. */
@@ -519,6 +520,8 @@ export function StatusLayer({
   dismissInvocation?: (id: number) => void;
   openActivity?: ((id?: string) => void) | undefined;
   preparationRecovery?: (record: InvocationRecord) => (() => void) | undefined;
+  /** Returns Play only when current readback reports the record's port launchable. */
+  readyToPlay?: (record: InvocationRecord) => (() => void) | undefined;
 }) {
   const acknowledgedSuccess = useRef(new Set<number>());
   const [latestSuccess, setLatestSuccess] = useState<number>();
@@ -557,7 +560,9 @@ export function StatusLayer({
               className={
                 record.phase === "settled" &&
                 invocationFailure(record) === undefined &&
-                record.id !== latestSuccess
+                // A successful launch needs no visible message; the game itself is the result.
+                (record.id !== latestSuccess ||
+                  (record.context.operation === "launch" && record.outcome === "succeeded"))
                   ? "sr-only"
                   : "mb-3 min-w-0"
               }
@@ -602,7 +607,36 @@ export function StatusLayer({
                 </>
               ) : (
                 invocationFailure(record) === undefined &&
-                (record.id === latestSuccess ? (
+                (record.id === latestSuccess && readyToPlay?.(record) ? (
+                  <Notice intent="success" className="mb-0 items-center">
+                    <p data-slot="notice-body">{record.context.target.label} is ready to play.</p>
+                    <div data-slot="notice-actions">
+                      <Button
+                        data-focusable
+                        variant="primary"
+                        size="sm"
+                        aria-label={`Play: ${record.context.target.label}`}
+                        onClick={() => {
+                          readyToPlay(record)?.();
+                          dismissInvocation?.(record.id);
+                        }}
+                      >
+                        Play
+                      </Button>
+                      {dismissInvocation && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Dismiss completion for ${record.context.action}`}
+                          onClick={() => dismissInvocation(record.id)}
+                        >
+                          Dismiss
+                        </Button>
+                      )}
+                    </div>
+                  </Notice>
+                ) : record.id === latestSuccess &&
+                  !(record.context.operation === "launch" && record.outcome === "succeeded") ? (
                   <Notice intent="success" className="mb-0 items-center">
                     <p data-slot="notice-body">
                       {record.context.action} · {record.context.target.label}: finished.
@@ -1921,10 +1955,12 @@ export function SettingsView(props: SettingsViewProps) {
         hasSnapshot={Boolean(doctor)}
       />
       <SettingsRow data-focus-group>
-        <h2>Report a problem</h2>
+        <h2>Report a problem or send feedback</h2>
         <p>
-          Review a pre-filled GitHub bug report before anything is sent. Portcove sends nothing
-          itself, and folder paths and your user name are replaced.
+          Tell us when something broke, or when something was hard, confusing or missing. You review
+          the pre-filled text, and nothing is sent until you choose how: from your GitHub account
+          when signed in, on GitHub, or as copied text. Folder paths and your user name are
+          replaced.
         </p>
         <ReportProblem key={generation} generation={generation} />
       </SettingsRow>

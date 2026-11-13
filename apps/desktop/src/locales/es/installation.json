@@ -117,44 +117,45 @@
     "title": "¿Usar una copia administrada de <name/>?"
   },
   "preparation": {
-    "cancel": "Cancelar la preparación",
+    "cancel": "Cancelar la configuración",
     "cancelReview": "Cancelar la revisión",
-    "checking": "Comprobando lo necesario para la preparación…",
+    "checking": "Comprobando la configuración…",
     "continue": "Seguir explorando",
     "description": {
-      "review": "Revisa los archivos y los cambios antes de empezar.",
-      "running": "Preparando la instalación y los archivos del juego revisados."
+      "review": "Comprueba qué usará y cambiará Portcove y luego termina la configuración.",
+      "running": "Terminando la configuración con la instalación y los archivos del juego revisados."
     },
     "details": "Archivos y detalles de la configuración",
     "installedVersion": "Versión instalada <version />",
-    "intro": "Portcove usará los archivos originales que seleccionaste para preparar esta versión instalada. Tu instalación actual y tus datos guardados se quedan donde están.",
+    "intro": "Portcove usa tu propia copia del juego para terminar de configurar esta versión instalada. Tus archivos originales no cambian y tus datos guardados se quedan donde están.",
     "keepOpen": "Mantén Portcove abierto. Puedes seguir explorando y volver a esta tarea en Actividad.",
-    "label": "Preparar los datos del juego",
+    "label": "Terminar la configuración",
     "plan": {
-      "activation": "Activación y recuperación",
       "activationText": "Tus archivos originales y tu instalación actual no cambian hasta que el resultado verificado se activa. La versión anterior sigue disponible para revertir.",
-      "changes": "Qué cambia",
+      "current": "Parte de",
+      "destination": "La versión terminada se guarda en una carpeta nueva junto a ella.",
       "during": "Durante la configuración",
       "duringInterrupt": "Si cancelas o se interrumpe, pueden quedar archivos de trabajo en Actividad. Al volver a empezar se conserva el trabajo sin terminar anterior.",
       "duringOpen": "Mantén Portcove abierto. Sigue explorando y vuelve a ver el progreso en Actividad.",
-      "files": "Archivos que se usan",
-      "label": "Plan de preparación",
-      "source": "Archivos del juego seleccionados",
-      "space": "Espacio libre",
-      "spaceText": "Al menos <size />, más lo que genere el juego.",
+      "ifWrong": "Detalles de configuración y recuperación",
+      "label": "Resumen de la configuración",
+      "needs": "Necesita",
+      "needsText": "Al menos <size /> libres, más lo que cree el juego",
+      "originalSafe": "Tus archivos originales del juego no cambian.",
+      "uses": "Usa",
       "window": "Si la configuración abre otra ventana",
       "windowText": "Termina la configuración en esa ventana y ciérrala sin iniciar el juego. Portcove comprobará los archivos. Si las comprobaciones son correctas, cambiará a la nueva versión."
     },
-    "prepare": "Preparar los datos del juego",
-    "review": "Revisar la configuración",
+    "prepare": "Terminar la configuración",
+    "review": "Terminar la configuración",
     "selected": "Instalación seleccionada",
     "status": {
       "cancelled": "Configuración cancelada. Consulta Actividad reciente para ver el trabajo sin terminar.",
-      "prepared": "Los datos del juego están preparados.",
-      "starting": "Iniciando la preparación…",
+      "prepared": "La configuración ha terminado.",
+      "starting": "Iniciando la configuración…",
       "unfinished": "La configuración no terminó. Comprueba los archivos del juego seleccionados antes de volver a empezar."
     },
-    "title": "Preparar los datos del juego"
+    "title": "Terminar la configuración"
   },
   "selfService": {
     "another": {

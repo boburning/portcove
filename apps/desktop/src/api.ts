@@ -16,6 +16,8 @@ import type {
   BugReportDraft,
   BugReportField,
   BugReportLink,
+  ReportKind,
+  SubmittedReport,
   InstallInput,
   LaunchResult,
   LaunchSessionView,
@@ -150,6 +152,12 @@ import type {
 export type DesktopArtworkThumbnail = Pick<ArtworkThumbnail, "asset_sha256" | "choice_revision"> & {
   png_base64: string;
 };
+
+/** Explicit player choices bound into a reviewed save import. */
+export interface PortableSaveChoices {
+  removeLocalOnlySaves: boolean;
+  replaceDivergedProgress: boolean;
+}
 
 export const desktopApi = {
   gameSettings: (portId: string, generation: number) =>
@@ -336,7 +344,7 @@ export const desktopApi = {
       page,
       generation,
     }),
-  providerProject: (portId: string, projectId: number, generation: number) =>
+  providerProject: (portId: string, projectId: string, generation: number) =>
     invoke<import("./types").ProviderProjectView>("get_provider_project", {
       portId,
       projectId,
@@ -345,8 +353,8 @@ export const desktopApi = {
   planProviderInstall: (
     portId: string,
     profileId: string,
-    projectId: number,
-    fileId: number,
+    projectId: string,
+    fileId: string,
     generation: number,
   ) =>
     invoke<import("./types").ProviderInstallPlan>("plan_provider_install", {
@@ -362,6 +370,7 @@ export const desktopApi = {
     expectedPlanSha256: string,
     plan: import("./types").ProviderInstallPlan,
     generation: number,
+    allowCode = false,
   ) =>
     invoke<import("./types").ModSetupRevision>("apply_provider_install", {
       portId,
@@ -369,6 +378,7 @@ export const desktopApi = {
       expectedPlanSha256,
       plan,
       generation,
+      allowCode,
     }),
   discardProviderInstall: (
     portId: string,
@@ -734,6 +744,49 @@ export const desktopApi = {
     invoke<RestoreResult | null>("restore_backup", {
       portId,
       backupId,
+      expectedPreview,
+      generation,
+    }),
+  previewPortableSaveExport: (portId: string, generation: number) =>
+    invoke<import("./types").PortableSaveExportPreview>("preview_portable_save_export", {
+      portId,
+      generation,
+    }),
+  exportPortableSaves: (
+    portId: string,
+    path: string,
+    expectedContent: string,
+    generation: number,
+  ) =>
+    invoke<import("./types").PortableSaveExportResult>("export_portable_saves", {
+      portId,
+      path,
+      expectedContent,
+      generation,
+    }),
+  previewPortableSaveImport: (
+    portId: string,
+    path: string,
+    choices: PortableSaveChoices,
+    generation: number,
+  ) =>
+    invoke<import("./types").PortableSaveImportPreview>("preview_portable_save_import", {
+      portId,
+      path,
+      ...choices,
+      generation,
+    }),
+  importPortableSaves: (
+    portId: string,
+    path: string,
+    choices: PortableSaveChoices,
+    expectedPreview: string,
+    generation: number,
+  ) =>
+    invoke<import("./types").PortableSaveImportResult | null>("import_portable_saves", {
+      portId,
+      path,
+      ...choices,
       expectedPreview,
       generation,
     }),
@@ -1170,9 +1223,14 @@ export const desktopApi = {
     invoke<boolean>("get_automatic_snapshots", { generation }),
   setAutomaticSnapshots: (enabled: boolean, generation: number) =>
     invoke<boolean>("set_automatic_snapshots", { enabled, generation }),
-  previewBugReport: (portId: string | undefined, generation: number) =>
-    invoke<BugReportDraft>("preview_bug_report", { portId: portId ?? null, generation }),
-  openBugReport: (fields: BugReportField[]) => invoke<BugReportLink>("open_bug_report", { fields }),
+  previewBugReport: (portId: string | undefined, generation: number, kind: ReportKind) =>
+    invoke<BugReportDraft>("preview_bug_report", { portId: portId ?? null, generation, kind }),
+  /** Opens the reviewed form, or only returns its text when `copyOnly` is set. */
+  openBugReport: (fields: BugReportField[], kind: ReportKind, copyOnly: boolean) =>
+    invoke<BugReportLink>("open_bug_report", { fields, kind, copyOnly }),
+  /** Files the reviewed text as an issue under the player's GitHub sign-in. */
+  submitReport: (fields: BugReportField[], kind: ReportKind) =>
+    invoke<SubmittedReport>("submit_report", { fields, kind }),
   launchFailure: (portId: string, generation: number) =>
     invoke<LaunchSessionView | null>("get_launch_failure", { portId, generation }),
   previewAdoption: (path: string, generation: number, portId?: string) =>

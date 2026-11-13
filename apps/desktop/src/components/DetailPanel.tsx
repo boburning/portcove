@@ -78,7 +78,11 @@ import { GameFileQueryControl } from "./GameFileQuery";
 import { GameFileFilterObservation } from "./GameFileFilterObservation";
 import type { GameFileFilterContext } from "../features/browsing/game-file-query-context";
 import { OutputLocationControl } from "./OutputLocation";
-import { PreparationControl, type RunPreparation } from "./Preparation";
+import {
+  PreparationCancellationShown,
+  PreparationControl,
+  type RunPreparation,
+} from "./Preparation";
 import {
   BIOS_BLOCKERS,
   SOURCE_BLOCKERS,
@@ -92,6 +96,7 @@ import {
   releaseChannelPresentation,
 } from "../view-model";
 import { BackupHistory } from "./BackupHistory";
+import { PortableSaves } from "./PortableSaves";
 import { ProtectionSummary } from "./ProtectionSummary";
 import { GameSettingsControl } from "./GameSettingsControl";
 import { ModSetupsControl } from "./ModSetupsControl";
@@ -187,6 +192,8 @@ interface DetailPanelProps {
   browsingBinding?: string | undefined;
   outputLocationChanged?: (() => void) | undefined;
   externalRuntimeChanged?: (() => void) | undefined;
+  /** Rereads workspace state without changing it; offered when setup or readiness is unknown. */
+  checkAgain?: (() => Promise<unknown>) | undefined;
   openSourceEvidence?: ((evidenceId: string) => void) | undefined;
   openHostTool?: ((toolId: string) => void) | undefined;
   openLibraryStorage?: (() => void) | undefined;
@@ -396,12 +403,22 @@ export function DetailPanel(props: DetailPanelProps) {
       libraryGeneration={props.libraryGeneration ?? 0}
       outputLocationChanged={props.outputLocationChanged}
       externalRuntimeChanged={props.externalRuntimeChanged}
+      checkAgain={props.checkAgain}
       outputApplying={setOutputApplying}
       actions={actions}
       openLibraryStorage={props.openLibraryStorage}
     />
   );
-  return renderDetailBody();
+  const heroCancellationIds = new Set(
+    props.cancellableActivities
+      ?.filter((activity) => !(installReviewVisible && activity.operation === "install"))
+      .map((activity) => activity.id),
+  );
+  return (
+    <PreparationCancellationShown value={(id) => heroCancellationIds.has(id)}>
+      {renderDetailBody()}
+    </PreparationCancellationShown>
+  );
 }
 
 interface DetailState {
@@ -410,6 +427,8 @@ interface DetailState {
   tone: "setup" | "available" | "ready" | "unknown";
   icon: LucideIcon;
   updateAttention?: string;
+  /** The state could not be read; a reread is the next useful action. */
+  checkAgain?: boolean;
 }
 
 function detailBodyAvailability(
@@ -483,6 +502,7 @@ function DetailBody(model: {
   libraryGeneration: number;
   outputLocationChanged?: (() => void) | undefined;
   externalRuntimeChanged?: (() => void) | undefined;
+  checkAgain?: (() => Promise<unknown>) | undefined;
   outputApplying: (applying: boolean) => void;
   actions: DetailActions;
   openLibraryStorage?: (() => void) | undefined;
@@ -539,8 +559,13 @@ function DetailBody(model: {
         ) : (
           <Button
             data-focusable
-            variant="primary"
+            variant={
+              model.state.checkAgain && model.checkAgain && !setupRoutes.promoteAlternative && !busy
+                ? "outline"
+                : "primary"
+            }
             size="lg"
+            aria-label={`${heroSetupLabel(model, directInstall, managedPreparation, setupRoutes.promoteAlternative)}: ${gameIdentityLabel(model.port)}`}
             disabled={Boolean(busy)}
             onClick={() => {
               reveal(
@@ -555,11 +580,12 @@ function DetailBody(model: {
               if (directInstall) void model.actions.reviewInstall();
             }}
           >
-            {setupRoutes.promoteAlternative
-              ? "View setup options"
-              : directInstall
-                ? "Install"
-                : "Set up"}
+            {heroSetupLabel(
+              model,
+              directInstall,
+              managedPreparation,
+              setupRoutes.promoteAlternative,
+            )}
             <Icon glyph={ArrowRight} />
           </Button>
         )
@@ -598,7 +624,7 @@ function DetailAttention({
 }: {
   model: Pick<
     Parameters<typeof DetailBody>[0],
-    "busy" | "cancellations" | "state" | "runtimeUpdateAvailable" | "stagedVersion"
+    "busy" | "cancellations" | "state" | "runtimeUpdateAvailable" | "stagedVersion" | "checkAgain"
   >;
   setupRoutes: ReturnType<typeof setupRoutePresentation>;
   reveal: import("./DetailLayout").RevealDetailSection;
@@ -625,6 +651,9 @@ function DetailAttention({
               ? `Manual setup is available. Managed setup: ${setupRoutes.managedReason}`
               : model.state.description}
           </span>
+          {model.state.checkAgain && model.checkAgain && !setupRoutes.promoteAlternative && (
+            <CheckAgainButton checkAgain={model.checkAgain} />
+          )}
         </div>
       ) : null}
       {(model.runtimeUpdateAvailable || model.stagedVersion) && (
@@ -1187,6 +1216,14 @@ function SavesStorageGroup({
         Backups cover managed saves and settings. Game-version rollback, library metadata and other
         folders are separate.
       </p>
+      <PortableSaves
+        key={`portable-saves:${port.id}:${libraryGeneration}`}
+        portId={port.id}
+        gameName={gameIdentityLabel(port)}
+        generation={libraryGeneration}
+        busy={busy}
+        onChanged={() => void retryBackupRead?.()}
+      />
       <details className="text-sm">
         <summary className="cursor-pointer py-2 font-medium">Coverage and recorded rules</summary>
         <SavesAndSettingsSummary port={port} status={status} />
@@ -2747,8 +2784,8 @@ function MaintenanceActions({
         </ManagementRow>
       )}
       <ManagementRow
-        title="Report a problem"
-        description="Review a pre-filled GitHub bug report before anything is sent."
+        title="Report a problem or send feedback"
+        description="Tell us when something broke, or when something was hard or confusing. You review the pre-filled text before anything is sent."
       >
         <ReportProblem portId={port.id} generation={libraryGeneration} />
       </ManagementRow>
@@ -2888,8 +2925,8 @@ function detailState({
     biosHealth !== "unregistered"
   )
     return {
-      title: "First-time setup needed",
-      description: "Complete the port's setup before playing.",
+      title: "Setup needed",
+      description: "Finish setup before playing.",
       tone: "setup",
       icon: Wrench,
     };
@@ -2904,8 +2941,8 @@ function detailState({
   if (selectedRequirement) return selectedRequirementState(selectedRequirement);
   if (pendingSetup)
     return {
-      title: "First-time setup needed",
-      description: "Complete the port's setup before playing.",
+      title: "Setup needed",
+      description: "Finish setup before playing.",
       tone: "setup",
       icon: Wrench,
     };
@@ -3118,10 +3155,11 @@ function presentDetailState({
   if (setup) return setup;
   return installed && typeof status?.readiness?.launchable !== "boolean"
     ? {
-        title: "Readiness unavailable",
-        description: "Launch readiness could not be confirmed. Reopen Portcove to check again.",
+        title: "Can't check right now",
+        description: "Portcove couldn't confirm whether this game is ready to play.",
         tone: "unknown",
         icon: Info,
+        checkAgain: true,
       }
     : installed &&
         launchReady &&
@@ -3179,12 +3217,13 @@ function presentSetupState(
         !missingRequirement &&
         !status?.port_actions?.some((assessment) => assessment.action === "install")
       ? {
-          title: "Setup status unknown",
+          title: "Can't check right now",
           description: selectedRequirement
-            ? `${availableInstallState(selectedRequirement).description} Setup availability could not be confirmed. Refresh the workspace to check again.`
-            : "Setup availability could not be confirmed. Refresh the workspace to check again.",
+            ? `${availableInstallState(selectedRequirement).description} Portcove couldn't confirm whether setup is available.`
+            : "Portcove couldn't confirm whether setup is available.",
           tone: "setup",
           icon: AlertTriangle,
+          checkAgain: true,
         }
       : undefined;
 }
@@ -4304,4 +4343,39 @@ function detailInstallationLabel(status: PortStatus | undefined, directInstall: 
       : directInstall
         ? "Portcove installs and updates this game. Complete upstream setup on first launch if prompted."
         : "Not installed";
+}
+
+/** Rereads state only; a failed read leaves the unknown state in place. */
+function CheckAgainButton({ checkAgain }: { checkAgain: () => Promise<unknown> }) {
+  const [checking, setChecking] = useState(false);
+  return (
+    <Button
+      data-focusable
+      variant="primary"
+      size="sm"
+      disabled={checking}
+      onClick={() => {
+        setChecking(true);
+        void checkAgain()
+          .catch(() => undefined)
+          .finally(() => setChecking(false));
+      }}
+    >
+      {checking ? "Checking…" : "Check again"}
+    </Button>
+  );
+}
+
+/** Names the actual next step; "Finish setup" only when Core reports remaining setup. */
+function heroSetupLabel(
+  model: { installed: boolean; pendingSetup: boolean; sourceReady: boolean; biosReady: boolean },
+  directInstall: boolean,
+  managedPreparation: boolean,
+  promoteAlternative: boolean,
+) {
+  if (promoteAlternative) return "View setup options";
+  if (directInstall) return "Install";
+  if (model.installed && (model.pendingSetup || managedPreparation)) return "Finish setup";
+  if (!model.sourceReady || !model.biosReady) return "Choose files";
+  return "Review game files";
 }

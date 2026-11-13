@@ -178,7 +178,8 @@ jobs:
           else {
             const role = process.env.PORTCOVE_ROLE;
             const phase = process.env.PORTCOVE_PROTECTION_PHASE;
-            if (['releases','preview','stable'].includes(role)) assert.ok(phase === 'metadata' || phase === 'metadata-'+role);
+            if (phase === 'served-renewal') assert.ok(['releases','preview','stable','snapshot','timestamp'].includes(role));
+            else if (['releases','preview','stable'].includes(role)) assert.ok(phase === 'metadata' || phase === 'metadata-'+role);
             else assert.equal(phase,process.env.PORTCOVE_OPERATION === 'payload' ? 'payload' : role === 'snapshot' || role === 'timestamp' ? role : 'metadata');
           }
           JS

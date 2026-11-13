@@ -457,7 +457,8 @@ export default interface Resources {
         "unavailable": "Installation ownership is unavailable. Check the project instructions."
       },
       "separateProjects_one": "{{count}} separate port project",
-      "separateProjects_other": "{{count}} separate port projects"
+      "separateProjects_other": "{{count}} separate port projects",
+      "unavailableFor": "Not available for {{platform}}"
     },
     "hero": {
       "continueLabel": "{{title}} recently played",
@@ -1257,9 +1258,11 @@ export default interface Resources {
       "browse": {
         "back": "Back to mods",
         "cancel": "Cancel",
-        "checkAgain": "Check GameBanana again",
-        "checking": "Checking GameBanana…",
+        "checkAgain": "Check {{provider}} again",
+        "checking": "Checking {{provider}}…",
         "close": "Close",
+        "code_one": "<names /> runs its own code inside the game. Portcove can’t tell whether that code is safe, who wrote it or whether it works with this version of the game. Install it only if you trust where it came from. Your permission covers only this exact file.",
+        "code_other": "These mods run their own code inside the game: <names />. Portcove can’t tell whether that code is safe, who wrote it or whether it works with this version of the game. Install them only if you trust where they came from. Your permission covers only these exact files.",
         "conflict": "<path />: <providers />; <winner /> wins in the current order",
         "conflictsHeading": "Changes the same files as your other mods",
         "digests": "Download SHA-256 <download />; review <review />.",
@@ -1269,25 +1272,27 @@ export default interface Resources {
         "file": "<file /> ({{size}})",
         "fileArchived": "<file /> ({{size}}); archived, so it can’t be installed",
         "filesLabel": "Files of {{name}}",
-        "heading": "Mods on GameBanana for <name />",
+        "heading": "Mods on {{provider}} for <name />",
         "ignored_one": "{{count}} other entry in the download isn’t a mod package and isn’t installed.",
         "ignored_other": "{{count}} other entries in the download aren’t mod packages and aren’t installed.",
         "inUse": "This setup is in use, so the game’s mods folder changes as soon as you install.",
         "install": "Install",
+        "installCode_one": "Allow its code and install",
+        "installCode_other": "Allow their code and install",
         "installed_one": "Installed {{added}} from {{project}} into {{name}}.",
         "installed_other": "Installed {{added}} from {{project}} into {{name}}.",
         "installing": "Installing…",
         "installs": "Installs",
-        "intro": "Names, popularity and version labels come from GameBanana and don’t show that a mod works with this game. Portcove downloads a file privately and checks it before you decide to install it.",
-        "lockNote": "Finish or cancel the GameBanana review to change other mods or setups.",
+        "intro": "Names, popularity and version labels come from {{provider}} and don’t show that a mod works with this game. Portcove downloads a file privately and checks it before you decide to install it.",
+        "lockNote": "Finish or cancel the {{provider}} review to change other mods or setups.",
         "member": "<file /> ({{size}})",
-        "modsLabel": "GameBanana mods",
+        "modsLabel": "{{provider}} mods",
         "next": "Next page",
         "noFiles": "This mod has no files Portcove can list.",
         "noMods": "No mods on this page.",
         "notInUse": "This setup isn’t in use; its mods change the next time you use it.",
         "obsolete": "Its author marked it obsolete, so Portcove won’t install it.",
-        "open": "Find mods on GameBanana…",
+        "open": "Find mods on {{provider}}…",
         "previous": "Previous page",
         "replaces": "Replaces your installed <name />",
         "review": "Review {{file}}",
@@ -1295,10 +1300,10 @@ export default interface Resources {
         "reviewFile": "File <file />, {{size}}.",
         "reviewHeading": "Review <project /> for <name />",
         "showFiles": "Show files of {{name}}",
-        "stale": "GameBanana couldn’t be reached, so this is earlier data from {{time}}. Check again before installing anything.",
+        "stale": "{{provider}} couldn’t be reached, so this is earlier data from {{time}}. Check again before installing anything.",
         "truncated": "More shared files exist than are listed here.",
-        "unreadable_one": "{{count}} more file on GameBanana couldn’t be read safely and isn’t listed.",
-        "unreadable_other": "{{count}} more files on GameBanana couldn’t be read safely and aren’t listed.",
+        "unreadable_one": "{{count}} more file on {{provider}} couldn’t be read safely and isn’t listed.",
+        "unreadable_other": "{{count}} more files on {{provider}} couldn’t be read safely and aren’t listed.",
         "unverifiedHeading": "Portcove doesn’t verify"
       },
       "busy": "Finish the current operation before changing mods.",
@@ -1322,8 +1327,8 @@ export default interface Resources {
         "intro_one": "Portcove kept the current version of a mod because its update needs your review:",
         "intro_other": "Portcove kept the current versions of some mods because their updates need your review:",
         "item": "<mods />: <reason />",
-        "next_one": "To install it anyway, find the mod with Find mods on GameBanana below and review the newer file. Or leave it: Portcove checks again when this setup changes or the mod offers another file.",
-        "next_other": "To install them anyway, find each mod with Find mods on GameBanana below and review its newer file. Or leave them: Portcove checks again when this setup changes or a mod offers another file."
+        "next_one": "To install it anyway, find the mod with Find mods on {{provider}} below and review the newer file. Or leave it: Portcove checks again when this setup changes or the mod offers another file.",
+        "next_other": "To install them anyway, find each mod with Find mods on {{provider}} below and review its newer file. Or leave them: Portcove checks again when this setup changes or a mod offers another file."
       },
       "inUse": "In use",
       "intro": "A setup is a set of mods with its own saves and settings. Switching setups puts away the current setup’s saves and settings and brings back the other setup’s. Turning a mod off removes it from the game’s mods folder; its file stays in Portcove so you can turn it on again.",
@@ -1521,44 +1526,45 @@ export default interface Resources {
       "title": "Use a managed copy of <name/>?"
     },
     "preparation": {
-      "cancel": "Cancel preparation",
+      "cancel": "Cancel setup",
       "cancelReview": "Cancel review",
-      "checking": "Checking preparation inputs…",
+      "checking": "Checking setup…",
       "continue": "Continue browsing",
       "description": {
-        "review": "Review the files and changes before starting.",
-        "running": "Preparing the reviewed installation and game files."
+        "review": "Check what Portcove will use and change, then finish setup.",
+        "running": "Finishing setup with the reviewed installation and game files."
       },
       "details": "Files and setup details",
       "installedVersion": "Installed version <version />",
-      "intro": "Portcove will use your selected original files to prepare this installed version. Your current installation and saved data will stay in place.",
+      "intro": "Portcove uses your own copy of the game to finish setting up this installed version. Your original files aren't changed, and your saved data stays in place.",
       "keepOpen": "Keep Portcove open. You can continue browsing and revisit this task in Activity.",
-      "label": "Prepare game data",
+      "label": "Finish setup",
       "plan": {
-        "activation": "Activation & recovery",
         "activationText": "Your original files and current installation remain unchanged until the verified result becomes active. The previous version stays available for rollback.",
-        "changes": "What changes",
+        "current": "Starts from",
+        "destination": "The finished version goes in a new folder beside it.",
         "during": "During setup",
         "duringInterrupt": "Cancellation or interruption may leave working files in Activity. Starting again keeps earlier unfinished work.",
         "duringOpen": "Keep Portcove open. Continue browsing and revisit progress in Activity.",
-        "files": "Files used",
-        "label": "Preparation plan",
-        "source": "Selected game files",
-        "space": "Free space",
-        "spaceText": "At least <size />, plus the output generated by the game.",
+        "ifWrong": "Setup and recovery details",
+        "label": "Setup summary",
+        "needs": "Needs",
+        "needsText": "At least <size /> free, plus what the game creates",
+        "originalSafe": "Your original game files aren't changed.",
+        "uses": "Uses",
         "window": "If setup opens another window",
         "windowText": "Finish setup in that window, then close it without starting the game. Portcove will check the files. If the checks pass, it will switch to the new version."
       },
-      "prepare": "Prepare game data",
-      "review": "Review setup",
+      "prepare": "Finish setup",
+      "review": "Finish setup",
       "selected": "Selected installation",
       "status": {
         "cancelled": "Setup cancelled. Check Recent activity for unfinished work.",
-        "prepared": "Game data is prepared.",
-        "starting": "Starting preparation…",
+        "prepared": "Setup is finished.",
+        "starting": "Starting setup…",
         "unfinished": "Setup didn’t finish. Check the selected game files before starting again."
       },
-      "title": "Prepare game data"
+      "title": "Finish setup"
     },
     "selfService": {
       "another": {
@@ -1895,16 +1901,44 @@ export default interface Resources {
     "uninstallPort": "Uninstall {{name}}"
   },
   "report": {
+    "choice": {
+      "description": "Choose what you want to tell us. You review everything before you send it.",
+      "feedback": "Something was hard or confusing, or I have an idea",
+      "open": "Report a problem or send feedback",
+      "preparing": "Preparing…",
+      "problem": "Something broke or didn't work as it should",
+      "title": "Report a problem or send feedback"
+    },
+    "copy": {
+      "button": "Copy text",
+      "copied": "The text was copied. Paste it into a new GitHub issue, or send it to the Portcove team another way.",
+      "failed": "The text could not be copied automatically. Select and copy it below.",
+      "openFailed": "The form could not be opened. Your text is still here; try again or copy it."
+    },
+    "feedback": {
+      "copied": "This feedback is too long for a link, so it was copied instead. Open the feedback form on GitHub and paste it in.",
+      "copyFailed": "This feedback is too long for a link and could not be copied automatically. Select and copy the text below, then paste it into the feedback form on GitHub.",
+      "description": "This is everything that will go into a GitHub feedback issue. Choose what you were trying to do and how far you got, then describe what happened in your own words. Nothing is sent until you choose how to send it, and folder paths and your user name are replaced.",
+      "title": "Send feedback"
+    },
     "problem": {
       "cancel": "Cancel",
       "close": "Close",
       "copied": "This report is too long for a link, so it was copied instead. Open a new bug report on GitHub and paste it in.",
       "copyFailed": "This report is too long for a link and could not be copied automatically. Select and copy the text below, then paste it into a new bug report on GitHub.",
-      "description": "This is everything that will be filled into a GitHub bug report. Portcove sends nothing itself: you review it here, then submit it on GitHub. Folder paths and your user name are replaced.",
+      "description": "This is everything that will go into a GitHub bug report. Nothing is sent until you choose how to send it: from your GitHub account if you're signed in, on GitHub, or as copied text. Folder paths and your user name are replaced.",
       "open": "Report a problem",
       "prepareFailed": "The report could not be prepared. Try again.",
       "submit": "Open on GitHub",
       "title": "Report a problem"
+    },
+    "send": {
+      "button": "Submit as {{login}}",
+      "choose": "Choose an answer",
+      "done": "Sent as issue #{{number}} from your GitHub account. Replies will appear there.",
+      "failed": "The report may not have been sent. Check GitHub for your new issue before trying again. Your text is still here, and you can also open it on GitHub or copy it.",
+      "needs": "To submit, answer each question and describe what happened.",
+      "view": "View on GitHub"
     }
   },
   "settings": {

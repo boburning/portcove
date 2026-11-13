@@ -272,8 +272,39 @@ pub(crate) fn local_declared_paths(port: &PortDefinition) -> Result<&[String]> {
     }
 }
 
+/// A persistent disc-image destination travels with its unpack marker. Without it the
+/// next version would hold the carried folder but not recognise it, and would unpack the
+/// disc image again, replacing the folder. Only a port that declares a disc image and
+/// keeps its destination persistent is affected; the marker is verified exactly as before.
+fn disc_source_marker(port: &PortDefinition) -> Result<Option<String>> {
+    let (Some(_), Some(filename)) = (&port.runtime_disc_image, &port.runtime_source_filename)
+    else {
+        return Ok(None);
+    };
+    let destination = port
+        .runtime_subdirectory
+        .as_deref()
+        .map(Path::new)
+        .unwrap_or_else(|| Path::new(""))
+        .join(filename);
+    let persistent = port.persistent_paths.iter().any(|path| {
+        let path = Path::new(path);
+        path == destination || (path.components().next().is_some() && destination.starts_with(path))
+    });
+    if !persistent {
+        return Ok(None);
+    }
+    let marker = crate::adapter::runtime_source_marker_path(&destination)?;
+    Ok(Some(
+        crate::path::unicode(&marker, "source marker")?.replace('\\', "/"),
+    ))
+}
+
 pub(crate) fn entries(port: &PortDefinition, roots: &[&Path]) -> Result<Vec<String>> {
     let mut entries: BTreeSet<String> = local_declared_paths(port)?.iter().cloned().collect();
+    if let Some(marker) = disc_source_marker(port)? {
+        entries.insert(marker);
+    }
     if port.persistent_file_patterns.is_empty() {
         return Ok(entries.into_iter().collect());
     }
@@ -323,6 +354,46 @@ pub(crate) fn entries(port: &PortDefinition, roots: &[&Path]) -> Result<Vec<Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Carrying the unpack marker is scoped to a persistent disc-image destination: every
+    /// other shipped port, including the other persistent-source and directory-source
+    /// routes, enumerates exactly its declared persistent paths as before.
+    #[test]
+    fn only_a_persistent_disc_image_destination_gains_the_unpack_marker() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut gained = Vec::new();
+        for port in catalog.ports() {
+            let declared: BTreeSet<String> = local_declared_paths(port)
+                .unwrap()
+                .iter()
+                .cloned()
+                .collect();
+            let listed: BTreeSet<String> = entries(port, &[]).unwrap().into_iter().collect();
+            if listed != declared {
+                assert!(listed.is_superset(&declared), "{}", port.id);
+                gained.push((
+                    port.id.clone(),
+                    listed.difference(&declared).cloned().collect::<Vec<_>>(),
+                ));
+            }
+        }
+        assert_eq!(
+            gained,
+            [(
+                "ace-combat-6-recomp".to_owned(),
+                vec!["assets.portcove-source.json".to_owned()]
+            )]
+        );
+        // A disc-image port that keeps its destination mutable (regenerated) is not changed.
+        let mut port = catalog.port("ace-combat-6-recomp").unwrap().clone();
+        port.persistent_paths.retain(|path| path != "assets");
+        assert!(
+            !entries(&port, &[])
+                .unwrap()
+                .iter()
+                .any(|path| path.ends_with(".portcove-source.json"))
+        );
+    }
 
     #[test]
     fn empty_middle_requires_explicit_file_pattern_opt_in() {

@@ -1,12 +1,14 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use super::{ArtworkChoice, ArtworkSlot, LocalArtworkAsset, original_bytes};
+use super::{ArtworkAttribution, ArtworkChoice, ArtworkSlot, LocalArtworkAsset, original_bytes};
 use crate::{LibraryIdentity, PortcoveError, PortcoveService, Result};
 
 /// This optional handoff evolves independently of API envelopes and events.
 /// Version 2 adds the selected landscape-oriented `detail` import as the hero banner.
-pub const ARTWORK_HANDOFF_SCHEMA: u32 = 2;
+/// Version 3 adds provider attribution for the selected image.
+pub const ARTWORK_HANDOFF_SCHEMA: u32 = 3;
+const MAX_ATTRIBUTIONS: usize = 64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -56,7 +58,7 @@ pub enum DestinationArtworkContent {
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct DestinationArtworkHandoff {
-    #[schemars(range(min = 2, max = 2))]
+    #[schemars(range(min = 3, max = 3))]
     pub handoff_schema: u32,
     pub library: LibraryIdentity,
     pub port_id: String,
@@ -65,6 +67,9 @@ pub struct DestinationArtworkHandoff {
     pub source: DestinationArtworkSource,
     pub selected_asset_sha256: Option<String>,
     pub content: DestinationArtworkContent,
+    /// Provider credits for the selected local image, shown by a destination that
+    /// presents the image; empty for a purely local import and every other source.
+    pub attribution: Vec<ArtworkAttribution>,
 }
 
 impl DestinationArtworkHandoff {
@@ -74,8 +79,14 @@ impl DestinationArtworkHandoff {
             || self.library.id.is_empty()
             || self.library.root.as_os_str().is_empty()
             || self.port_id.is_empty()
+            || self.attribution.len() > MAX_ATTRIBUTIONS
+            || (!self.attribution.is_empty()
+                && !matches!(self.source, DestinationArtworkSource::LocalImport { .. }))
         {
             return Err(invalid());
+        }
+        for attribution in &self.attribution {
+            crate::artwork_store::validate_attribution(attribution)?;
         }
         if let Some(id) = &self.selected_asset_sha256 {
             crate::artwork_store::validate_hash(id)?;
@@ -230,6 +241,7 @@ impl<'de> Deserialize<'de> for DestinationArtworkHandoff {
             source: DestinationArtworkSource,
             selected_asset_sha256: Option<String>,
             content: DestinationArtworkContent,
+            attribution: Vec<ArtworkAttribution>,
         }
         let wire = Wire::deserialize(deserializer)?;
         let value = Self {
@@ -241,6 +253,7 @@ impl<'de> Deserialize<'de> for DestinationArtworkHandoff {
             source: wire.source,
             selected_asset_sha256: wire.selected_asset_sha256,
             content: wire.content,
+            attribution: wire.attribution,
         };
         value.validate().map_err(serde::de::Error::custom)?;
         Ok(value)
@@ -371,6 +384,7 @@ impl PortcoveService {
             content: DestinationArtworkContent::Unavailable {
                 reason: DestinationArtworkUnavailableReason::RoleNotProvided,
             },
+            attribution: Vec::new(),
         };
         let mut original = None;
         let slot = match role {
@@ -383,6 +397,7 @@ impl PortcoveService {
             let choice = crate::artwork_store::choice(&connection, port_id, slot)?;
             if let Some(id) = &choice.asset_sha256 {
                 let asset = crate::artwork_store::asset(&connection, id)?;
+                handoff.attribution = crate::artwork_store::attributions(&connection, id)?;
                 handoff.source = DestinationArtworkSource::LocalImport {
                     asset: asset.clone(),
                 };

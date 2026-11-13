@@ -1,3 +1,4 @@
+import { readyToPlayAfter } from "./features/operations/ready-to-play";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { ArrowLeft, Heart } from "lucide-react";
 import { gameGroupId } from "./features/browsing/original-game";
@@ -431,9 +432,7 @@ function workspaceSourceIntakeReturnFocus(portId: string) {
   return (
     detail?.querySelector<HTMLButtonElement>(".primary-actions button:not(:disabled)") ??
     detail?.querySelector<HTMLButtonElement>(".detail-back") ??
-    document.querySelector<HTMLButtonElement>(
-      'section[aria-label="Add games workspace"]:not([hidden]) #add-games-check-files',
-    )
+    null
   );
 }
 
@@ -858,6 +857,7 @@ function useWorkspace(props: WorkspaceProps) {
           refreshAfterMutation={() => {
             void data.refreshAfterMutation();
           }}
+          checkAgain={data.refresh}
           openSourceIntake={openSourceIntake}
           openHostTool={openHostTool}
           openLibraryStorage={() => {
@@ -1074,6 +1074,19 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
                       ? () => model.openPortDetails(id, "error:preparation-review")
                       : undefined;
                   }}
+                  readyToPlay={(record) => {
+                    const { target } = record.context;
+                    const port = model.data.catalog?.ports.find((entry) => entry.id === target.id);
+                    if (!readyToPlayAfter(record, model.model.statusMap.get(target.id), port))
+                      return undefined;
+                    return () =>
+                      launchKnownPort(
+                        target.id,
+                        port,
+                        model.operations.perform,
+                        model.bootstrap.generation,
+                      );
+                  }}
                   operation={model.operations.operation}
                   busy={model.operations.busy}
                   featureNotices={
@@ -1126,7 +1139,6 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
                   perform={model.operations.perform}
                   onAdded={model.data.refreshAfterMutation}
                   onOpenPort={model.openPortDetails}
-                  onCheckFiles={model.openSourceIntake}
                   onBrowseCatalog={() => model.setPrimaryView("catalog")}
                   onCopyInstallation={() => model.ui.setAdoptOpen(true)}
                   setupSource={model.setupSource}
@@ -1757,6 +1769,7 @@ function SelectedPortPanel({
   activities,
   libraryGeneration,
   refreshAfterMutation,
+  checkAgain,
   openSourceIntake,
   openHostTool,
   openLibraryStorage,
@@ -1780,6 +1793,7 @@ function SelectedPortPanel({
   activities: ActivityRecord[];
   libraryGeneration: number;
   refreshAfterMutation: () => void;
+  checkAgain: () => Promise<unknown>;
   openSourceIntake: (portId: string, profileId: string, paths?: string[]) => void;
   openHostTool: (toolId: string) => void;
   openLibraryStorage: () => void;
@@ -1849,7 +1863,7 @@ function SelectedPortPanel({
             }),
           {
             context: {
-              action: "Prepare game data",
+              action: "Finish setup",
               target: { kind: "port", id: model.port.id, label: gameIdentityLabel(model.port) },
               libraryGeneration,
               exclusionScope: "target",
@@ -1892,6 +1906,7 @@ function SelectedPortPanel({
         installPlanning.invalidate();
         refreshAfterMutation();
       }}
+      checkAgain={checkAgain}
       pickSource={pickSource}
       pickSourceArchive={pickArchive}
       busy={operations.busy}

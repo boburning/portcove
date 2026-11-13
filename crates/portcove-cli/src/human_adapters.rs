@@ -234,6 +234,9 @@ pub(crate) fn artwork_state(state: &portcove_core::ArtworkState, catalog: &Catal
     if let Some(asset) = &state.selection {
         output.push_str(&format!("\n{}", artwork_asset(asset)));
     }
+    if let Some(credits) = artwork_credits(&state.attribution) {
+        output.push_str(&format!("\n{credits}"));
+    }
     if let Some(reason) = &state.reason {
         output.push_str(&format!(
             "\nReason: {}",
@@ -241,6 +244,29 @@ pub(crate) fn artwork_state(state: &portcove_core::ArtworkState, catalog: &Catal
         ));
     }
     output
+}
+
+/// Provider credits stay with the image wherever it is shown.
+pub(crate) fn artwork_credits(attribution: &[portcove_core::ArtworkAttribution]) -> Option<String> {
+    if attribution.is_empty() {
+        return None;
+    }
+    Some(
+        attribution
+            .iter()
+            .map(|credit| {
+                let provider = match credit.provider {
+                    portcove_core::ArtworkProvider::Steamgriddb => "SteamGridDB",
+                };
+                format!(
+                    "Image by {} on {provider} (image {})",
+                    human::clean(&credit.author_name),
+                    credit.asset_id
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n"),
+    )
 }
 
 pub(crate) fn artwork_handoff(
@@ -289,6 +315,9 @@ pub(crate) fn artwork_handoff(
                 "\nThe selected detail image is not displayed wider than tall, so it is not offered as a wide role."
             }
         }),
+    }
+    if let Some(credits) = artwork_credits(&handoff.attribution) {
+        output.push_str(&format!("\n{credits}"));
     }
     output.push_str("\nThis observation does not grant destination ownership, copyright permission, or consent to write there.");
     output
@@ -426,6 +455,14 @@ pub(crate) fn error(command: &str, error: &PortcoveError, technical: bool) -> St
         ) => Some((
             "With --non-interactive, auth set-token requires --stdin.",
             "Supply the token through standard input. You can also set PORTCOVE_GITHUB_TOKEN for this environment.",
+            false,
+        )),
+        (
+            ErrorCode::Usage,
+            "artwork steamgriddb set-key requires --stdin under --non-interactive",
+        ) => Some((
+            "With --non-interactive, artwork steamgriddb set-key requires --stdin.",
+            "Supply your SteamGridDB API key through standard input, or run the command without --non-interactive to enter it at a prompt.",
             false,
         )),
         (ErrorCode::Usage, "applying an import requires --expected-plan") => Some((
@@ -574,6 +611,7 @@ mod tests {
             content: DestinationArtworkContent::Unavailable {
                 reason: DestinationArtworkUnavailableReason::SelectedImageNotWide,
             },
+            attribution: Vec::new(),
         };
         let text = artwork_handoff(&handoff, &catalog);
         assert!(

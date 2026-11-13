@@ -164,12 +164,24 @@ authority and effects.
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Install**                            | A Portcove-managed installation is available and the review is complete.                                                                                                          |
 | **Choose file / Choose files**         | Required original game files or BIOS are missing for the selected route.                                                                                                          |
-| **Set up**                             | The port is installed and Core reports remaining setup; card and detail open the same review.                                                                                     |
+| **Finish setup**                       | The port is installed and Core reports remaining setup; card, detail, review title and confirmation use it.                                                                       |
 | **Play**                               | The current readiness assessment permits launch. Name the game in repeated controls.                                                                                              |
 | **Try launch**                         | Launch is permitted but an input is not yet confirmed.                                                                                                                            |
 | **Start setup**                        | Launch is permitted and the game opens into its own first-run setup.                                                                                                              |
 | **Check again** / **Refresh** + object | A failed, unknown or stale read can be refreshed; it reads state and repeats no mutation. Name the object when it is not obvious (“Refresh backup history”, “Check setup again”). |
 | **Repair / Import / Open installer**   | That is the actual operation.                                                                                                                                                     |
+
+Player-facing setup states use these names; internal distinctions stay in
+details. **Setup needed** pairs with **Finish setup**. **Can't check right now**
+replaces “Setup status unknown” and “Readiness unavailable”: the state stays
+unknown, **Check again** rereads it as the primary action, and Install or Finish
+setup is shown as a secondary control until the read succeeds. A missing input
+names what the player owns (“You need your own copy of Title (System)”), not the
+requirement's role; unknown titles stay generic. The setup review leads with
+**Uses**, **Starts from** (the current installation; the result goes in a new
+folder beside it) and **Needs** (“At least …”), one reassurance that original files are
+not changed, and keeps activation, rollback and interruption behavior in a
+closed “Setup and recovery details” disclosure; full paths stay visible (#5058 S1, S2, S5, S6).
 
 The card, detail action, review title and confirmation name the same action.
 One screen offers one primary control per review; subordinate controls (for

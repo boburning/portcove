@@ -54,6 +54,18 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 >(contract)),
             ),
             (
+                "save_folder_status",
+                serde_json::json!(schema_for_contract::<portcove_core::SaveFolderStatus>(
+                    contract
+                )),
+            ),
+            (
+                "save_folder_push_result",
+                serde_json::json!(schema_for_contract::<portcove_core::SaveFolderPushResult>(
+                    contract
+                )),
+            ),
+            (
                 "portable_save_import_result",
                 serde_json::json!(
                     schema_for_contract::<portcove_core::PortableSaveImportResult>(contract)
@@ -146,6 +158,24 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 serde_json::json!(
                     schema_for_contract::<Vec<portcove_core::LocalArtworkAsset>>(contract)
                 ),
+            ),
+            (
+                "steamgriddb_key_status",
+                serde_json::json!(schema_for_contract::<portcove_core::SteamGridDbKeyStatus>(
+                    contract
+                )),
+            ),
+            (
+                "steamgriddb_games",
+                serde_json::json!(schema_for_contract::<Vec<portcove_core::SteamGridDbGame>>(
+                    contract
+                )),
+            ),
+            (
+                "steamgriddb_candidates",
+                serde_json::json!(schema_for_contract::<
+                    Vec<portcove_core::SteamGridDbCandidate>,
+                >(contract)),
             ),
             (
                 "api_response_port_status",

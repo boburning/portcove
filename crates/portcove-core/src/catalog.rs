@@ -1464,10 +1464,14 @@ impl Catalog {
                     | RuntimeSourceMaterialization::Iso9660Directory => {
                         port.adapter == AdapterKind::StagedSourcePortable
                             && Path::new(filename).extension().is_none()
-                            && port
-                                .runtime_mutable_paths
-                                .iter()
-                                .any(|path| path == filename)
+                            // The unpacked folder is either kept across updates
+                            // (persistent, like other multi-gigabyte sources) or
+                            // regenerated (mutable); it must be declared as one of them.
+                            && (source_is_persistent
+                                || port
+                                    .runtime_mutable_paths
+                                    .iter()
+                                    .any(|path| path == filename))
                             && port
                                 .runtime_disc_image
                                 .as_ref()
@@ -1520,6 +1524,35 @@ impl Catalog {
                     "{} declares a PS1 settings disc choice without a managed multi-disc set and persistent settings.toml",
                     port.id
                 )));
+            }
+            if port.windows_tracked_handoff {
+                let windows = crate::Platform::WindowsX86_64;
+                let executables = port
+                    .executable_hints
+                    .get(&windows)
+                    .into_iter()
+                    .flatten()
+                    .chain(
+                        port.release
+                            .user_prepared
+                            .get(&windows)
+                            .map(|spec| &spec.executable),
+                    )
+                    .collect::<Vec<_>>();
+                // A batch launcher's root is cmd.exe outside the installation;
+                // only a reviewed native Windows executable can own the handoff.
+                if !port.platforms.contains(&windows)
+                    || executables.is_empty()
+                    || executables.iter().any(|executable| {
+                        crate::LaunchKind::for_executable(std::path::Path::new(executable.as_str()))
+                            != crate::LaunchKind::Native
+                    })
+                {
+                    return Err(PortcoveError::usage(format!(
+                        "{} declares a Windows tracked handoff without a native Windows executable launch",
+                        port.id
+                    )));
+                }
             }
             if port.runtime_disc_image.is_some()
                 && port
@@ -1987,6 +2020,59 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn windows_tracked_handoff_is_opt_in_and_requires_a_native_windows_executable() {
+        let catalog = Catalog::embedded().unwrap();
+        assert!(
+            catalog
+                .ports()
+                .iter()
+                .all(|port| !port.windows_tracked_handoff)
+        );
+        let parse = |edit: &dyn Fn(&mut PortDefinition)| {
+            let mut document = catalog.authoritative_document();
+            let port = document
+                .ports
+                .iter_mut()
+                .find(|port| port.id == "zelda64-recomp")
+                .unwrap();
+            port.windows_tracked_handoff = true;
+            edit(port);
+            Catalog::from_json(&serde_json::to_string(&document).unwrap())
+        };
+        let accepted = parse(&|_| {}).unwrap();
+        let port = accepted.port("zelda64-recomp").unwrap();
+        assert!(port.windows_tracked_handoff);
+        assert_eq!(
+            serde_json::to_value(port).unwrap()["windows_tracked_handoff"],
+            serde_json::json!(true)
+        );
+        assert!(
+            serde_json::to_value(catalog.port("zelda64-recomp").unwrap())
+                .unwrap()
+                .get("windows_tracked_handoff")
+                .is_none()
+        );
+        let batch = parse(&|port| {
+            port.executable_hints
+                .insert(Platform::WindowsX86_64, vec!["launch.bat".into()]);
+        })
+        .unwrap_err();
+        assert!(
+            batch.message.contains("Windows tracked handoff"),
+            "{}",
+            batch.message
+        );
+        assert!(
+            parse(&|port| {
+                port.platforms
+                    .retain(|platform| *platform != Platform::WindowsX86_64);
+                port.executable_hints.remove(&Platform::WindowsX86_64);
+            })
+            .is_err()
+        );
+    }
 
     #[test]
     fn bstone_original_offers_keep_complete_editions_and_native4_coordinates_separate() {
@@ -5086,6 +5172,12 @@ mod tests {
     #[test]
     fn disc_image_materializations_require_a_complete_exact_declaration() {
         disc_image_catalog(|_| {}).expect("a complete synthetic declaration is valid");
+        // A destination kept across updates is as valid as a regenerated one.
+        disc_image_catalog(|port| {
+            port.runtime_mutable_paths.retain(|path| path != "assets");
+            port.persistent_paths.push("assets".into());
+        })
+        .expect("a persistent destination is valid");
         type Mutation = fn(&mut PortDefinition);
         let rejected: [(&str, Mutation); 11] = [
             ("missing declaration", |port| port.runtime_disc_image = None),
@@ -5117,9 +5209,12 @@ mod tests {
                 port.runtime_source_hashes
                     .insert("default.xbe".into(), "not-a-digest".into());
             }),
-            ("destination not declared mutable", |port| {
-                port.runtime_mutable_paths.retain(|path| path != "assets");
-            }),
+            (
+                "destination declared neither persistent nor mutable",
+                |port| {
+                    port.runtime_mutable_paths.retain(|path| path != "assets");
+                },
+            ),
             ("declaration without disc unpacking", |port| {
                 port.runtime_source_materialization = Some(RuntimeSourceMaterialization::Copy);
             }),
@@ -5171,7 +5266,9 @@ mod tests {
             .find(|port| port.id == "nocturne-recomp")
             .unwrap()
             .optional_game_source = true;
-        let error = Catalog::from_document(document).err().expect("rejected");
+        let Err(error) = Catalog::from_document(document) else {
+            panic!("rejected");
+        };
         assert_eq!(error.code, crate::ErrorCode::Usage);
         assert!(
             error.message.contains("optional game source"),
@@ -5181,14 +5278,55 @@ mod tests {
     }
 
     #[test]
-    fn shipped_definitions_do_not_declare_disc_images_yet() {
+    fn only_ace_combat_6_ships_a_disc_image_declaration() {
         let catalog = Catalog::embedded().unwrap();
-        assert!(catalog.ports().iter().all(|port| {
-            port.runtime_disc_image.is_none()
-                && port
-                    .runtime_source_materialization
-                    .is_none_or(|materialization| materialization.disc_image_format().is_none())
-        }));
+        let declaring: Vec<_> = catalog
+            .ports()
+            .iter()
+            .filter(|port| {
+                port.runtime_disc_image.is_some()
+                    || port
+                        .runtime_source_materialization
+                        .is_some_and(|materialization| {
+                            materialization.disc_image_format().is_some()
+                        })
+            })
+            .map(|port| port.id.as_str())
+            .collect();
+        assert_eq!(declaring, ["ace-combat-6-recomp"]);
+
+        let port = catalog.port("ace-combat-6-recomp").unwrap();
+        assert_eq!(port.adapter, AdapterKind::StagedSourcePortable);
+        assert_eq!(
+            port.runtime_source_materialization,
+            Some(RuntimeSourceMaterialization::XdvdfsDirectory)
+        );
+        // The manual route keeps working: the disc image is an optional source.
+        assert!(port.optional_game_source);
+        let image = port.runtime_disc_image.as_ref().unwrap();
+        assert_eq!(image.format, crate::DiscImageFormat::Xdvdfs);
+        assert_eq!(image.product_codes, ["4E4D07D1"]);
+        assert_eq!(image.max_image_bytes, 9 * 1024 * 1024 * 1024);
+        assert_eq!(
+            port.runtime_source_hashes
+                .get("default.xex")
+                .map(String::as_str),
+            Some("6eefba42cdfe9121207e534d8d290009c98b1a8c60ae5334a33a4f15167cbbbc")
+        );
+        // The unpacked folder is the runtime's `assets`, kept across updates exactly as
+        // the entry declared it before managed unpacking, and no support claim is added.
+        assert_eq!(port.runtime_source_filename.as_deref(), Some("assets"));
+        assert!(port.persistent_paths.iter().any(|path| path == "assets"));
+        assert!(port.runtime_mutable_paths.is_empty());
+        for kept in ["AC6.iso", "dlc", "ac6recomp.toml", "ac6_input.toml"] {
+            assert!(
+                port.persistent_paths.iter().any(|path| path == kept),
+                "{kept}"
+            );
+        }
+        assert_eq!(port.support_tier, crate::SupportTier::Beta);
+        assert!(port.manually_validated_platforms.is_empty());
+        assert!(port.automated_tested_platforms.is_empty());
     }
 
     #[test]
@@ -7731,7 +7869,8 @@ mod tests {
             ]
         );
         let arena = "alexbeav-armored-core-master-of-arena-recomp";
-        let broken: [(&str, fn(&mut PortDefinition)); 3] = [
+        type Breakage = (&'static str, fn(&mut PortDefinition));
+        let broken: [Breakage; 3] = [
             // Any other adapter or source materialization.
             ("dr-mario-64-recomp", |port| {
                 port.launch_disc_choice = Some(LaunchDiscChoice::PsxSettingsSelected);

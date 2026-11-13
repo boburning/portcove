@@ -453,7 +453,7 @@ it.each([
   "preserves malformed/legacy/future/contradictory setup projection as unknown: %j",
   (port_actions) => {
     const status = { ...portStatus(), port_actions } as PortStatus;
-    expect(catalogSetupPresentation(status).label).toBe("Setup status unknown");
+    expect(catalogSetupPresentation(status).label).toBe("Can't check right now");
   },
 );
 

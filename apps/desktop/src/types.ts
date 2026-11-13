@@ -105,6 +105,10 @@ export type CatalogBrowsingContext = CatalogBrowsingSnapshot["contexts"][number]
 export type LocalePreferenceSnapshot = Generated.TransportOutputs["desktop_locale_preference"];
 
 export type BackupRecord = Generated.TransportOutputs["backup"];
+export type PortableSaveExportPreview = Generated.TransportOutputs["portable_save_export_preview"];
+export type PortableSaveExportResult = Generated.TransportOutputs["portable_save_export_result"];
+export type PortableSaveImportPreview = Generated.TransportOutputs["portable_save_import_preview"];
+export type PortableSaveImportResult = Generated.TransportOutputs["portable_save_import_result"];
 
 export type { BackupProblem } from "./transport-types.generated";
 
@@ -312,4 +316,6 @@ export type GameComparison = Generated.TransportOutputs["desktop_game_comparison
 export type BugReportDraft = Generated.TransportOutputs["desktop_bug_report_draft"];
 export type BugReportLink = Generated.TransportOutputs["desktop_bug_report_link"];
 export type BugReportField = Requests.TransportInputs["desktop_bug_report_field"];
+export type ReportKind = Requests.TransportInputs["desktop_report_kind"];
+export type SubmittedReport = Generated.TransportOutputs["desktop_submitted_report"];
 export type GameComparisonRequest = Requests.TransportInputs["desktop_game_comparison_request"];

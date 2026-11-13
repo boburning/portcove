@@ -94,6 +94,9 @@ export async function discoverPublishedApplicationCohort(
     recoverR56Feed,
   );
   const cohorts = (await transport.releaseNotes()).flatMap((release) => {
+    // Draft custody belongs to preparation and recovery. A newer draft schema
+    // must not prevent authenticating the already published serving cohort.
+    if (release.draft === true) return [];
     const notes = readApplicationRunNotes(release.body ?? "");
     const nativeTag = /^portcove-production-candidate-(?:[a-f0-9]{40}|[a-f0-9]{64})$/u.test(
       String(release.tag_name),
@@ -103,9 +106,9 @@ export async function discoverPublishedApplicationCohort(
       release.assets.some(
         (asset: unknown) => isRecord(asset) && asset.name === "application-metadata.json",
       );
-    if (!release.draft && (nativeTag || nativeAsset))
+    if (nativeTag || nativeAsset)
       assert.ok(notes, "published native cohort lost its run custody; recover before continuation");
-    if (!notes || release.draft) return [];
+    if (!notes) return [];
     assert.equal(release.immutable, true, "published native cohort is mutable");
     assert.equal(release.target_commitish, notes.custody.source, "native source anchor changed");
     assert.ok(typeof release.published_at === "string");

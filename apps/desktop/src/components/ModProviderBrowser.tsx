@@ -10,6 +10,8 @@ import { ActionRow, Notice } from "./ui/patterns";
 
 type Props = {
   portId: string;
+  /** The provider this game has a reviewed binding for (`gamebanana`, `thunderstore`). */
+  provider: string;
   generation: number;
   profileId: string;
   profileName: string;
@@ -23,26 +25,44 @@ type Props = {
   onInstalled: (message: string) => void;
 };
 
+/** The provider's own name, which is not translated. */
+export function providerName(provider: string) {
+  if (provider === "gamebanana") return "GameBanana";
+  if (provider === "thunderstore") return "Thunderstore";
+  return provider;
+}
+
 function staleNote(
   t: TFunction<"gameSettings">,
+  provider: string,
   freshness: string,
   observedAt: number,
 ): string | undefined {
   if (freshness !== "stale") return undefined;
   const time = new Date(observedAt * 1000).toLocaleString(undefined, { timeZoneName: "short" });
-  return t("mods.browse.stale", { time });
+  return t("mods.browse.stale", { time, provider });
 }
 
 /**
- * Thin view of Core's GameBanana browsing and reviewed install for one setup;
+ * Thin view of Core's provider browsing and reviewed install for one setup;
  * mounted per setup. Core checks the game binding, the provider data, the
  * downloaded bytes and the setup's revision; Desktop presents them, asks for
  * consent and sends the reviewed plan back with the setup and digest it showed.
  * Provider names, file names and digests stay exact inside bdi.
  */
 export function ModProviderBrowser(props: Props) {
-  const { portId, generation, profileId, profileName, inUse, disabled, onBusyChange, onInstalled } =
-    props;
+  const {
+    portId,
+    provider: providerId,
+    generation,
+    profileId,
+    profileName,
+    inUse,
+    disabled,
+    onBusyChange,
+    onInstalled,
+  } = props;
+  const provider = providerName(providerId);
   const { t } = useAppTranslation("gameSettings");
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState<ProviderBrowsePage>();
@@ -99,7 +119,7 @@ export function ModProviderBrowser(props: Props) {
 
   const showPage = (number: number) =>
     void run(
-      t("mods.browse.checking"),
+      t("mods.browse.checking", { provider }),
       () => desktopApi.browseProviderMods(portId, number, generation),
       (next) => {
         setPage(next);
@@ -107,9 +127,9 @@ export function ModProviderBrowser(props: Props) {
       },
     );
 
-  const showProject = (projectId: number) =>
+  const showProject = (projectId: string) =>
     void run(
-      t("mods.browse.checking"),
+      t("mods.browse.checking", { provider }),
       () => desktopApi.providerProject(portId, projectId, generation),
       setProject,
     );
@@ -130,21 +150,26 @@ export function ModProviderBrowser(props: Props) {
             showPage(1);
           }}
         >
-          {t("mods.browse.open")}
+          {t("mods.browse.open", { provider })}
         </Button>
       </ActionRow>
     );
 
   const locked = disabled || Boolean(working);
-  const projectStale = project ? staleNote(t, project.freshness, project.observed_at) : undefined;
-  const pageStale = page ? staleNote(t, page.freshness, page.observed_at) : undefined;
+  const codeMembers = (plan?.members ?? [])
+    .filter((member) => (member.runs_code ?? []).length > 0)
+    .map((member) => member.file_name);
+  const projectStale = project
+    ? staleNote(t, provider, project.freshness, project.observed_at)
+    : undefined;
+  const pageStale = page ? staleNote(t, provider, page.freshness, page.observed_at) : undefined;
   const name = <bdi>{profileName}</bdi>;
   return (
     <section aria-labelledby={headingId} className="grid gap-2">
       <h4 id={headingId} className="text-sm font-semibold">
-        <Trans t={t} i18nKey="mods.browse.heading" components={{ name }} />
+        <Trans t={t} i18nKey="mods.browse.heading" values={{ provider }} components={{ name }} />
       </h4>
-      <p className="text-sm text-pc-muted-foreground">{t("mods.browse.intro")}</p>
+      <p className="text-sm text-pc-muted-foreground">{t("mods.browse.intro", { provider })}</p>
       {error && (
         <p role="alert">
           {error.text}
@@ -240,6 +265,22 @@ export function ModProviderBrowser(props: Props) {
                 }}
               />
             </p>
+            {codeMembers.length > 0 && (
+              <Notice intent="warning">
+                <div data-slot="notice-body">
+                  <p className="[overflow-wrap:anywhere]">
+                    <Trans
+                      t={t}
+                      i18nKey="mods.browse.code"
+                      count={codeMembers.length}
+                      components={{
+                        names: <bdi>{codeMembers.join(t("mods.separator"))}</bdi>,
+                      }}
+                    />
+                  </p>
+                </div>
+              </Notice>
+            )}
             <ActionRow>
               <Button
                 disabled={locked}
@@ -250,12 +291,15 @@ export function ModProviderBrowser(props: Props) {
                       // Core owns the staging during the install; leaving now must
                       // not discard it underneath the install.
                       openPlan.current = undefined;
+                      // Code runs only after the player saw which packages run it
+                      // and chose the button that says so.
                       return desktopApi.applyProviderInstall(
                         portId,
                         profileId,
                         plan.plan_sha256,
                         plan,
                         generation,
+                        codeMembers.length > 0,
                       );
                     },
                     () => {
@@ -284,7 +328,9 @@ export function ModProviderBrowser(props: Props) {
                   })
                 }
               >
-                {t("mods.browse.install")}
+                {codeMembers.length > 0
+                  ? t("mods.browse.installCode", { count: codeMembers.length })
+                  : t("mods.browse.install")}
               </Button>
               <Button variant="outline" disabled={Boolean(working)} onClick={cancelPlan}>
                 {t("mods.browse.cancel")}
@@ -332,8 +378,8 @@ export function ModProviderBrowser(props: Props) {
                               desktopApi.planProviderInstall(
                                 portId,
                                 profileId,
-                                Number(project.project.project_id),
-                                Number(file.file_id),
+                                project.project.project_id,
+                                file.file_id,
                                 generation,
                               ),
                             showPlan,
@@ -353,7 +399,7 @@ export function ModProviderBrowser(props: Props) {
           )}
           {project.project.unreadable_files > 0 && (
             <p className="text-sm">
-              {t("mods.browse.unreadable", { count: project.project.unreadable_files })}
+              {t("mods.browse.unreadable", { count: project.project.unreadable_files, provider })}
             </p>
           )}
           <ActionRow>
@@ -361,9 +407,9 @@ export function ModProviderBrowser(props: Props) {
               <Button
                 variant="outline"
                 disabled={locked}
-                onClick={() => showProject(Number(project.project.project_id))}
+                onClick={() => showProject(project.project.project_id)}
               >
-                {t("mods.browse.checkAgain")}
+                {t("mods.browse.checkAgain", { provider })}
               </Button>
             )}
             <Button
@@ -379,7 +425,7 @@ export function ModProviderBrowser(props: Props) {
           </ActionRow>
         </section>
       ) : page ? (
-        <section aria-label={t("mods.browse.modsLabel")} className="grid gap-2">
+        <section aria-label={t("mods.browse.modsLabel", { provider })} className="grid gap-2">
           {pageStale && <p className="text-sm">{pageStale}</p>}
           {page.page.projects.length === 0 ? (
             <p className="text-sm">{t("mods.browse.noMods")}</p>
@@ -403,7 +449,7 @@ export function ModProviderBrowser(props: Props) {
                   <Button
                     variant="outline"
                     disabled={locked}
-                    onClick={() => showProject(Number(entry.project_id))}
+                    onClick={() => showProject(entry.project_id)}
                   >
                     {t("mods.browse.showFiles", { name: entry.name })}
                   </Button>
@@ -434,7 +480,7 @@ export function ModProviderBrowser(props: Props) {
       ) : working ? null : (
         <ActionRow>
           <Button variant="outline" disabled={disabled} onClick={() => showPage(1)}>
-            {t("mods.browse.checkAgain")}
+            {t("mods.browse.checkAgain", { provider })}
           </Button>
           <Button variant="outline" onClick={() => setOpen(false)}>
             {t("mods.browse.close")}

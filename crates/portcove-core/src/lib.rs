@@ -97,6 +97,8 @@ mod profile;
 mod profile_deploy;
 mod provider_auto_update;
 mod provider_browse;
+mod provider_client;
+mod provider_http;
 mod provider_install;
 mod provider_update;
 mod psx;
@@ -137,6 +139,7 @@ mod support_bundle_stage;
 mod test_fixture;
 #[cfg(test)]
 mod test_http;
+mod thunderstore;
 mod tool_process;
 mod transfer_copy;
 mod transfer_journal;
@@ -151,12 +154,15 @@ pub use application_runtime::{ApplicationRuntimeGuard, ApplicationUpdateExclusiv
 #[doc(hidden)]
 pub use archive::fuzzing as archive_fuzzing;
 pub use artwork::{
-    ARTWORK_HANDOFF_SCHEMA, ArtworkAvailability, ArtworkCacheClear, ArtworkChoice,
-    ArtworkImageFormat, ArtworkMetadata, ArtworkResolvedSource, ArtworkSlot, ArtworkState,
-    ArtworkThumbnail, DestinationArtworkBytes, DestinationArtworkContent,
-    DestinationArtworkHandoff, DestinationArtworkRole, DestinationArtworkSource,
-    DestinationArtworkUnavailableReason, GeneratedArtworkFallback, IGDB_ARTWORK_WORK_LIMIT,
-    LocalArtworkAsset,
+    ARTWORK_HANDOFF_SCHEMA, ArtworkAttribution, ArtworkAvailability, ArtworkCacheClear,
+    ArtworkChoice, ArtworkImageFormat, ArtworkMetadata, ArtworkProvider, ArtworkProviderRecord,
+    ArtworkResolvedSource, ArtworkSlot, ArtworkState, ArtworkThumbnail, DestinationArtworkBytes,
+    DestinationArtworkContent, DestinationArtworkHandoff, DestinationArtworkRole,
+    DestinationArtworkSource, DestinationArtworkUnavailableReason, GeneratedArtworkFallback,
+    IGDB_ARTWORK_WORK_LIMIT, LocalArtworkAsset, STEAMGRIDDB_API_ORIGIN, SteamGridDbAuthor,
+    SteamGridDbCandidate, SteamGridDbFailure, SteamGridDbGame, SteamGridDbKeyStatus,
+    clear_steamgriddb_key, search_steamgriddb_games, set_steamgriddb_key, steamgriddb_candidates,
+    steamgriddb_key_status,
 };
 pub use auth::{
     GithubAuthSource, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
@@ -166,7 +172,8 @@ pub use authorization::DestructiveAuthorization;
 pub use browsing_context::{CatalogBrowsingContext, CatalogBrowsingSnapshot};
 pub use bug_report::{
     BUG_REPORT_URL_LIMIT, BugReportDraft, BugReportField, BugReportInputs, BugReportLink,
-    ReportRedactions, bug_report_link, draft_bug_report, redact_report_text,
+    REPORT_REPOSITORY, ReportChoice, ReportIssue, ReportKind, ReportRedactions, SubmittedReport,
+    bug_report_link, draft_bug_report, draft_report, redact_report_text, report_issue, report_link,
 };
 pub use cancellation::{CancellationPhase, CancellationState};
 pub use cartridge_build::CartridgeBuildRecipe;
@@ -304,7 +311,8 @@ pub use portable_saves::{
     LocalDataEntry, PersistentDataRole, PortableSaveBlocker, PortableSaveExportPreview,
     PortableSaveExportResult, PortableSaveFile, PortableSaveFileChange, PortableSaveFileEffect,
     PortableSaveIdentity, PortableSaveImportOptions, PortableSaveImportPreview,
-    PortableSaveImportResult, PortableSaveRelation,
+    PortableSaveImportResult, PortableSaveRelation, SaveFolderEntry, SaveFolderNextStep,
+    SaveFolderPushResult, SaveFolderStatus,
 };
 pub use preparation::{
     PreparationCleanupPreview, PreparationInputs, PreparationMode, PreparationOptions,
@@ -408,6 +416,7 @@ pub use support_bundle_export::{
     SupportBundleSectionKind, SupportBundleSectionStatus, export_support_bundle,
     prepare_support_log_directory,
 };
+pub use thunderstore::ThunderstoreClient;
 pub use types::*;
 
 // Private parked 58/59/64 contracts remain unclaimed. Public 65 adds game-file queries.
@@ -436,7 +445,7 @@ pub use types::*;
 // library schema versions are independent and unchanged.
 // Public87 adds explicit compiled official-catalog setup for normal clients.
 // Its source-bound confirmation is separate from the unchanged CLI authority plan.
-pub const API_SCHEMA_VERSION: u32 = 88;
+pub const API_SCHEMA_VERSION: u32 = 89;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

@@ -1468,7 +1468,7 @@ function activityPresentation(activity: ActivityRecord, nowSeconds: number) {
   return {
     state: "running",
     label: "In progress",
-    time: "In progress",
+    time: `Started ${formatActivityTime(activity.started_at)}`,
     icon: LoaderCircle,
   };
 }

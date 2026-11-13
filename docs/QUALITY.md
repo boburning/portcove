@@ -78,6 +78,39 @@ heuristic: it never fails the job, selects no validation and is not a merge
 prerequisite. A new route shape or contract legitimately needs Rust; otherwise the
 named files show a test or code path that still keys on a specific port.
 
+### Single required status transition
+
+The five required contexts are jobs that must run even when their run is cancelled,
+so a superseded run keeps needing runners after it stops mattering. The replacement
+is one required commit status, `ci`, and it arrives in three steps so merge is never
+ungated.
+
+1. `.github/workflows/ci-required-status.yml` posts `ci` on the pull request head
+   when that head's `CI` run completes: `success` for a successful run, `failure`
+   for a failed, timed-out or unstartable one, and nothing for a cancelled one. It
+   runs the default branch's copy, checks out nothing and executes nothing from
+   the pull request; the pull request still supplies the `ci.yml` whose run is
+   judged, as it does for the aggregate jobs today. Only the run's current attempt
+   posts, and posts for one head run one at a time. While the five contexts remain
+   required, `ci` is informational.
+2. The owner changes the `main` ruleset to require `ci` in place of the five
+   contexts, together with `.github/repository-ruleset.json`, the protected-context
+   list in `.github/qualification-coverage.json` and the delivery readers that
+   consume them. This step needs explicit owner authority.
+3. The five aggregate jobs become one result job that a cancelled run skips, pull
+   request runs return to built-in per-pull-request cancellation, and the cancelling
+   half of the supersede workflow is removed.
+
+A later decided attempt on the same head replaces the status with its own outcome.
+A later attempt that is cancelled or still running leaves the earlier status, which
+that same head earned. A missing status blocks merge once `ci` is required; a
+skipped job cannot satisfy it.
+
+The run outcome is stricter than the five contexts in one place: no aggregate job
+needs `frontend-no-global (macos-arm64)`, so today its failure fails the run without
+failing a required context. Step two must either accept that job as required or
+exclude it from the run outcome.
+
 ### Review scope
 
 Independent non-writing review is required for substantive behavior and higher
@@ -451,6 +484,16 @@ seconds after installer start), from 15 to 30 seconds for Intel withdrawal
 retention (first copy at 15.33 seconds), and from 5 to 15 seconds for ARM
 cancellation restore (expired at 5.32 seconds before any copy). Each latch still
 requires a real partial copy, then the intervention, refusal and worker-drain checks.
+Scheduled Qualification run 43230875182 attempt 1 (source `bdc3a4d5`) then
+passed all of those cases on both Macs, but Intel job 131243259441 cut two
+other cases on their single attempt.
+`catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts`
+stopped at its 180-second Intel override after passing in 164.8 seconds in the
+earlier run; its Intel override is now 240 seconds (5s × 48), below the
+300-second no-retry line.
+`curated_rollback_withdrawal_permits_exact_retained_target` stopped at the
+120-second default after passing in 119.4 seconds earlier; Intel now has the
+same exact 180-second override as Windows.
 
 The October 2026 test audit calibrated the three maintained Node suites that
 contain fixed Linux Python child wrappers from a 30-second default to

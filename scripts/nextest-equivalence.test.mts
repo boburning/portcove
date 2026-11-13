@@ -211,8 +211,13 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     ],
     [
       "x86_64-apple-darwin",
-      "package(portcove-core) & test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/)",
+      "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target$/)",
       180,
+    ],
+    [
+      "x86_64-apple-darwin",
+      "package(portcove-core) & test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/)",
+      240,
     ],
     [
       "x86_64-pc-windows-msvc",

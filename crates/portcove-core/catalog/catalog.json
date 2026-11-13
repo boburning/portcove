@@ -2181,6 +2181,16 @@
         "immutable_url": "https://redump.info/disc/31452",
         "live_url": null,
         "claim": "Redump Fear Effect 2: Retro Helix (USA) (Disc 4) (Rev 1), SLUS-01277, has one data track: SHA-1 1665f4c71e1c399f5a6f4b9c33a979ee0cad8afd, MD5 7302dbf75f570466e1453b1337fd5a79 and CRC32 8d9b31eb. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "ace-combat-6-owner-image-disc-reader-2026-11-11",
+        "role": "portcove_qualification",
+        "authority": "boburning/portcove",
+        "authority_ref": "be7f7857243e6c897f1b471c9235c4bbdb4e1d89",
+        "reviewed_at": "2026-11-11",
+        "claim": "One owner-provided Xbox 360 image of Ace Combat 6: Fires of Liberation (USA, Japan), read with the managed disc-image reader and an independent standalone parser: XGD2 volume descriptor, 13 files in 1 directory, 5,443,410,412 file bytes, title ID 4E4D07D1, default.xex SHA-256 6eefba42cdfe9121207e534d8d290009c98b1a8c60ae5334a33a4f15167cbbbc, whole-image SHA-1 fc0796fa56149e35a50d49205233a8cc06e13f03 and SHA-256 204c5e645d79da8776699c12f17bd069f869fbdb10ae79015d1a0ef2b743c98c. A local observation of one image; no other edition, installed-application, physical-media, gameplay or Supported claim.",
+        "immutable_url": "https://github.com/boburning/portcove/blob/be7f7857243e6c897f1b471c9235c4bbdb4e1d89/docs/qualification/ace-combat-6-owner-image-disc-reader-2026-11-11.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/ace-combat-6-owner-image-disc-reader-2026-11-11.md"
       }
     ],
     "identities": [
@@ -12569,6 +12579,48 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "ace-combat-6-xbox360-usa-japan",
+        "label": "Optional: Ace Combat 6 Xbox 360 disc image (USA, Japan)",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "usa-japan",
+            "title": "Ace Combat 6: Fires of Liberation Xbox 360 disc image (USA, Japan)",
+            "region": "USA, Japan",
+            "revision": null,
+            "product_codes": [
+              "4E4D07D1"
+            ],
+            "representations": [
+              {
+                "id": "original-image",
+                "extensions": [
+                  "iso"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "fc0796fa56149e35a50d49205233a8cc06e13f03",
+                    "sha256": "204c5e645d79da8776699c12f17bd069f869fbdb10ae79015d1a0ef2b743c98c",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "ace-combat-6-owner-image-disc-reader-2026-11-11"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "ace-combat-6-owner-image-disc-reader-2026-11-11"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -19096,6 +19148,28 @@
         ],
         "aliases": [],
         "tombstones": []
+      },
+      {
+        "id": "ace-combat-6-recomp-game-source",
+        "port_id": "ace-combat-6-recomp",
+        "role": "game",
+        "profile_id": "ace-combat-6-xbox360-usa-japan",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-japan"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "ace-combat-6-owner-image-disc-reader-2026-11-11"
+        ],
+        "authority_ref": "be7f7857243e6c897f1b471c9235c4bbdb4e1d89",
+        "reviewed_at": "2026-11-11",
+        "immutable_review_url": "https://github.com/boburning/portcove/blob/be7f7857243e6c897f1b471c9235c4bbdb4e1d89/docs/qualification/ace-combat-6-owner-image-disc-reader-2026-11-11.md",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [],
+        "aliases": [],
+        "tombstones": []
       }
     ],
     "validators": [
@@ -21658,6 +21732,28 @@
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Extract the complete official Windows package into a folder you manage outside the Portcove library. Use upstream’s launcher to select your own supported Diddy Kong Racing original. Select the top-level DKR-R.exe with that release folder as its working directory; leave libexec and helpers intact. Optional --rom and --config arguments belong to your selected upstream profile. DKR-R or you manage runtime updates, saves, settings and backups. Portcove only registers, launches and removes the registration. Existing Portcove-managed installations keep their retained contracts; do not move their files into this route.",
         "original_game_title": "Diddy Kong Racing",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Open the Linux AppImage",
+              "instruction": "Choose the official x86-64, ARM64 or Steam Deck package for your device. Mark the AppImage executable and open it. Check the upstream platform guide for your release’s Vulkan and system-library requirements."
+            },
+            {
+              "title": "Add your original game",
+              "instruction": "In Play, choose Add a ROM and select your own clean US v1.0 or US Rev A/v1.1 original. Some older mods need US v1.0 when you install them."
+            }
+          ],
+          "warnings": [
+            "Use DKR-R’s upstream launcher and update instructions for your Linux copy. Back up the active profile before replacing the package or switching profile locations."
+          ],
+          "help_url": "https://github.com/ThatGuyMcd/DKR-R/blob/main/docs/PLATFORMS.md",
+          "references": [
+            {
+              "title": "Find your DKR-R profile",
+              "instruction": "Linux normally uses $XDG_CONFIG_HOME/dkr-port or ~/.config/dkr-port. Portable mode uses dkr-runtime-data beside the application. Changing modes selects a different profile on the next launch. Use DKR-R’s Save Manager to export progress and back up your settings and installed content separately."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 2723,
           "cover_id": 88723,
@@ -26750,6 +26846,32 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Diddy Kong Racing",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Open Golden Balloon on Linux",
+              "instruction": "Put the official x86-64 AppImage in a writable folder, mark it executable and open it. For the tarball, extract the whole archive and open AppRun inside Golden-Balloon.AppDir. Keep the folder together so the player can find its bundled libraries."
+            },
+            {
+              "title": "Install the Apple Silicon app",
+              "instruction": "Open the official ARM64 DMG and copy the app to Applications. If macOS blocks the unsigned app, follow the first-launch instructions in the upstream README."
+            },
+            {
+              "title": "Choose your original game",
+              "instruction": "Select your own Diddy Kong Racing US 1.1 or European 1.1 original. On Linux, browse inside the game, drag the file onto the launcher or paste its path. On Mac, use the file picker."
+            }
+          ],
+          "warnings": [
+            "Use the upstream package to install and update on Linux and Mac. Keep your saves, settings and add-ons backed up before replacing the package."
+          ],
+          "help_url": "https://github.com/akratch/goldenballoon#readme",
+          "references": [
+            {
+              "title": "Find the data you need to back up",
+              "instruction": "Keep the per-user profile or the active portable folder. On Linux, follow the upstream portable-data instructions for your package. Include saves, settings, ghosts and any custom content you want to keep."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 412063,
           "cover_id": 588536,
@@ -31930,7 +32052,7 @@
       "platforms": [
         "windows-x86-64"
       ],
-      "adapter": "native-portable",
+      "adapter": "staged-source-portable",
       "release": {
         "repository": "sal063/AC6_recomp",
         "asset_hints": {
@@ -31940,11 +32062,25 @@
           ]
         }
       },
+      "source_profile": "ace-combat-6-xbox360-usa-japan",
       "executable_hints": {
         "windows-x86-64": [
           "ac6recomp.exe"
         ]
       },
+      "runtime_source_filename": "assets",
+      "runtime_source_materialization": "xdvdfs-directory",
+      "runtime_source_hashes": {
+        "default.xex": "6eefba42cdfe9121207e534d8d290009c98b1a8c60ae5334a33a4f15167cbbbc"
+      },
+      "runtime_disc_image": {
+        "format": "xdvdfs",
+        "max_image_bytes": 9663676416,
+        "product_codes": [
+          "4E4D07D1"
+        ]
+      },
+      "optional_game_source": true,
       "persistent_paths": [
         "AC6.iso",
         "assets",
@@ -31971,19 +32107,26 @@
       ],
       "presentation": {
         "installation_method": "portable-package",
-        "source_requirements": [],
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "ace-combat-6-xbox360-usa-japan",
+            "label": "Optional: Ace Combat 6 Xbox 360 disc image (USA, Japan)",
+            "verification": "catalog-identity"
+          }
+        ],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Open the new runtime folder and copy your own US Ace Combat 6 Xbox 360 disc image beside ac6recomp.exe as AC6.iso, or put your extracted game files in assets with assets/default.xex. Keep your original copy separately. Europe and Japan are not supported. Choose Play after adding the files; this portable package has no installer. The game checks the disc title identity, but Portcove does not verify a retail-edition checksum for this upstream setup route. Optional own DLC belongs in dlc; title-update data is a separate upstream input, not a runtime update. Portcove manages the official Windows x64 runtime and preserves the declared AC6.iso, assets, dlc, local settings, bindings, logs, shader cache and reviewed diagnostic folders, including data added before first Play. Its backup covers those declared in-folder paths, not the normal Documents/ac6recomp save/mod profile or custom locations. Keep a separate backup of external saves. Runtime rollback carries current declared data and does not rewind saves or establish older-version compatibility. Upstream requires Windows 10/11 x64, AVX2 and a Direct3D 12-capable GPU. This experimental release has known performance and rendering limits; Portcove gameplay and minimum-system observations remain unqualified.",
+        "manual_preparation": "Play without choosing anything: put your own Ace Combat 6 Xbox 360 disc image beside ac6recomp.exe as AC6.iso, or put your own extracted game files in assets with assets/default.xex. Nothing is asked of you, and an install you already have keeps working as it is. Or let Portcove unpack it: choose your own disc image once, and Portcove checks that it is the one reviewed image, then unpacks its files into the assets folder. Unpacking replaces everything in assets with the verified copy, so files you added to assets by hand are not kept when it unpacks. AC6.iso, dlc, your settings and bindings, logs and saves are never touched by unpacking. It unpacks when you first choose a disc image, when you choose a different one, or when the unpacked files no longer match. After a runtime update an unchanged disc image is not unpacked again, and assets is kept as it is. A disc image you choose is used from the next runtime update of Ace Combat 6. Only that one reviewed image, labelled USA and Japan, is accepted for unpacking; other editions and regions, including Europe, are not supported. Keep your original copy separately. Choose Play after the files are ready; this portable package has no installer. Optional own DLC belongs in dlc; title-update data is a separate upstream input, not a runtime update. Portcove manages the official Windows x64 runtime and preserves the declared AC6.iso, assets, dlc, local settings, bindings, logs, shader cache and reviewed diagnostic folders, including data added before first Play. Its backup covers those declared in-folder paths, not the normal Documents/ac6recomp save/mod profile or custom locations. Keep a separate backup of external saves. Runtime rollback carries current declared data and does not rewind saves or establish older-version compatibility. Upstream requires Windows 10/11 x64, AVX2 and a Direct3D 12-capable GPU. This experimental release has known performance and rendering limits; Portcove gameplay and minimum-system observations remain unqualified.",
         "original_game_title": "Ace Combat 6: Fires of Liberation",
         "manual_setup": {
           "steps": [
             {
-              "title": "Add your US game data before Play",
-              "instruction": "Open the new runtime folder and copy your own US Ace Combat 6 Xbox 360 disc image beside ac6recomp.exe as AC6.iso, or put your extracted game files in assets with assets/default.xex. Keep your original copy separately. Choose Play after adding the files; this portable package has no installer. The game checks the disc title identity, but Portcove does not verify a retail-edition checksum for this upstream setup route. Optional own DLC belongs in dlc; title-update data is a separate upstream input, not a runtime update."
+              "title": "Use your own files, or let Portcove unpack your disc image",
+              "instruction": "Play without choosing anything: put your own Ace Combat 6 Xbox 360 disc image beside ac6recomp.exe as AC6.iso, or your own extracted game files in assets with assets/default.xex. Nothing is asked of you. Or choose your own disc image once, and Portcove checks that it is the one reviewed image, then unpacks it into the assets folder. Unpacking replaces everything in assets with the verified copy, so files you added to assets by hand are not kept when it unpacks. AC6.iso, dlc, your settings and bindings, logs and saves are never touched by unpacking. A disc image you choose is used from the next runtime update of Ace Combat 6. Only that one reviewed image, labelled USA and Japan, is accepted for unpacking; other editions and regions, including Europe, are not supported. Keep your original copy separately. Choose Play after the files are ready; this portable package has no installer. Optional own DLC belongs in dlc; title-update data is a separate upstream input, not a runtime update."
             }
           ],
           "warnings": [
-            "Europe and Japan are not supported.",
+            "Only the one reviewed image is accepted for unpacking; other editions and regions, including Europe, are not supported.",
             "Keep a separate backup of the Windows Documents/ac6recomp folder before changing versions. Close the game before changing runtime files; older versions may not read newer saves.",
             "Upstream requires Windows 10/11 x64, AVX2 and a Direct3D 12-capable GPU. This experimental release has known performance and rendering limits; Portcove gameplay and minimum-system observations remain unqualified."
           ],
@@ -47893,10 +48036,20 @@
             {
               "title": "Use a prepared upstream Linux copy",
               "instruction": "For Linux, use the official Linux x64 archive as an upstream-owned copy. In its extracted player folder, deliberately run ./mgs_mobile --install \"<your Metal.Gear.Solid.n-gage>\" and wait for successful completion, then register mgs_mobile as the player with that folder as its working directory. The Linux player has no Windows-style first-Play picker. Portcove does not run this preparation command during discovery and does not manage replacement or backups of this external copy."
+            },
+            {
+              "title": "Set up the Android player",
+              "instruction": "Use the official ARM64 APK on Android 7 or later. Open the app and select your own Metal.Gear.Solid.n-gage in its file picker. Keep the original separately. The app prepares its game files in its own storage."
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1"
+          "help_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1",
+          "references": [
+            {
+              "title": "Keep the Android app data",
+              "instruction": "Install compatible updates over the same upstream app and signer. The app normally stores its files in Android/data/org.mgsmobile.port/files, with internal app storage as a fallback. Before clearing data or uninstalling, keep an accessible backup of any saves and settings you can export or copy."
+            }
+          ]
         },
         "artwork": {
           "game_id": 41041,

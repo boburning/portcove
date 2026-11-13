@@ -122,6 +122,18 @@ void test("prior discovery joins actual feed to one immutable native cohort and 
   assert.equal(positive.release_id, 50);
   assert.deepEqual(positive.custody, custody);
   assert.equal(positive.authority, "none");
+  const draftOnly = fixture();
+  const newerDraft = {
+    ...draftOnly.release,
+    id: 51,
+    draft: true,
+    immutable: false,
+    body: notes({ ...custody, schema_version: 99 }),
+  };
+  draftOnly.releases.push(newerDraft);
+  assert.equal((await discoverPublishedApplicationCohort(draftOnly.transport)).release_id, 50);
+  newerDraft.draft = false;
+  await assert.rejects(() => discoverPublishedApplicationCohort(draftOnly.transport));
   const live = fixture();
   const routes: string[] = [];
   const priorToken = process.env.GH_TOKEN;

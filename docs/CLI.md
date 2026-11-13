@@ -19,7 +19,7 @@ for current integration development. A local candidate is not a public release.
 | Move games from GitHub Launcher or Quiver           | [Move from another launcher](#move-from-another-launcher)                                                                                                     |
 | Keep an exact local build for a stable setup        | [Retained builds and setup references](#retained-builds-and-setup-references)                                                                                 |
 | Export metadata and restore copied library content  | [Export and restore](#export-and-restore-a-library)                                                                                                           |
-| Continue a qualified game's saves on another device | [Portable saves](#portable-saves)                                                                                                                             |
+| Continue a qualified game's saves on another device | [Portable saves](#portable-saves) and the optional [save folder](#save-folder-transport)                                                                      |
 | Move a library or recover a transfer                | [Move](#move-a-library) and [interrupted transfers](#recover-an-interrupted-transfer)                                                                         |
 | Request cancellation and establish the outcome      | [Cancel work safely](#cancel-work-safely)                                                                                                                     |
 | Resolve disc-tool prerequisites or GitHub access    | [Disc tools](#disc-formats-and-optional-tools) and [authentication](#github-authentication)                                                                   |
@@ -381,7 +381,7 @@ The CLI API schema version is independent of the Portcove release version.
 
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
 current or retained listing. `capabilities` advertises `port_capability_schema`
-and `listing_formats` independently from API schema 88 and event schema 3.
+and `listing_formats` independently from API schema 89 and event schema 3.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -666,7 +666,7 @@ Authentication is optional. Anonymous operation remains supported, while a GitHu
 portcove auth login
 ```
 
-`auth login` uses GitHub's device authorization flow with Portcove's public GitHub App client ID. `PORTCOVE_GITHUB_CLIENT_ID` can override it at runtime or build time; an explicitly empty override disables device login. Its polling wait is asynchronous, follows GitHub's pending and slowdown intervals, reports expiry or denial as typed errors, and can be cancelled with Ctrl-C. Authentication calls fail after ten seconds without a connection, fifteen seconds without response progress, or sixty seconds overall; a retry starts a new intent, so an older delayed token or device completion cannot replace it or a later logout.
+`auth login` uses GitHub's device authorization flow with Portcove's public GitHub App client ID. Desktop can use this sign-in, or a configured token, to submit a reviewed bug report or feedback as an issue on `boburning/portcove` under the signed-in account, only when the player chooses Submit. `PORTCOVE_GITHUB_CLIENT_ID` can override it at runtime or build time; an explicitly empty override disables device login. Its polling wait is asynchronous, follows GitHub's pending and slowdown intervals, reports expiry or denial as typed errors, and can be cancelled with Ctrl-C. Authentication calls fail after ten seconds without a connection, fifteen seconds without response progress, or sixty seconds overall; a retry starts a new intent, so an older delayed token or device completion cannot replace it or a later logout.
 
 #### Supply a token
 
@@ -1064,11 +1064,11 @@ portcove --json source add <profile-id> <candidate-path> --expected-sha256 <cand
 
 Discovery requires explicit roots and source profiles. It never registers a match automatically. Like saved-folder scans, one-off discovery refuses roots inside the selected Portcove library or its registered managed output and visibly skips those owned subtrees within a broader root before charging scan budgets. Explicit manual inspection and reviewed source registration retain their own validation paths. Defaults are 10,000 examined entries, six nested directory levels, 2 GiB per file, 16 GiB of hashing per saved batch, and 64 combined exact matches and preliminary selections. The corresponding `--max-entries`, `--max-depth`, `--max-file-bytes`, `--max-hash-bytes`, and `--max-candidates` flags can narrow these limits; core also enforces hard ceilings. The report identifies searched scope, validated candidates, hashed bytes, reached limits, and bounded per-path issues. A partial search is not evidence that every file was considered.
 
-Exact-hash original-file, cartridge-ZIP and complete schema-2 directory/ZIP-file-set profiles participate automatically. Directory sets use the shared inspector: every required member must resolve uniquely within one completely examined directory and match one coherent variant. Member hash work shares the request-wide budget with ordinary files; raw observations are reused without sharing admission. File-set ZIPs use the same exact matcher with unique safe top-level members, bounded entry inventory and expanded member sizes, and budgeted/cancellable member plus container hashing. Their facts are shared across file-set profiles without sharing admission; missing or ambiguous member inventories consume no hashing budget. Exact schema-2 uncompressed GameCube ISO/GCM sources use the same disc matcher and bounded raw-file reader, sharing one byte observation across applicable profiles. Exact STFS LIVE compound sources, including extensionless packages, use a bounded four-byte eligibility probe, one raw hashing pass shared across applicable profiles, and the existing structural validator only after an exact compound digest match. Probe, hashing and validation use one open handle with location, object and metadata checks; structural validation adds bounded reads beyond reported hash bytes. Unrelated files are not hashed by this probe. Compressed GameCube and PSX CHD contracts participate through the shared schema-2 disc matcher. CISO uses a bounded sparse normalized stream. Tool-based GCZ/RVZ/WIA/CHD inspection requires an admitted decoder and verified process-tree closure; this route is available on Windows and on Linux kernels permitting the decoder-only user/PID namespace supervisor. Linux launch requires clone3 with an atomic namespace-init pidfd, private startup acknowledgement, and terminal waitid(P_PIDFD) closure; unavailable kernel capabilities fail inspection without falling back to a process-group proof. Other platforms report these inputs as uninspected and explain the required normalized/direct-selection route. Complete PSX sets require the full ordered directory inventory, every member and fresh original-byte verification; partial or mixed sets do not become exact candidates. Decoding uses private local snapshots and outputs, never writes to connected folders, and never registers a source. Missing tools, unsafe metadata, resource limits, changed bytes and unknown closure remain explicit failures, not known mismatches. ZIP-wrapped STFS is not accepted. Extract and select or scan the original LIVE package. Pinned-validator disc profiles also participate through read-only preliminary selection using the shared inspector. These results appear separately in optional `preliminary_selections` as full inspection records with structural admission and validator `not_run`; they are not exact matches or proof of compatibility. The `candidates` collection and progressive `source_candidate` events keep their exact-match meaning. Both result collections share the cumulative candidate allowance and byte observations. Desktop offers a deliberate current-location review that rechecks the selected bytes; discovery never invokes the pinned validator. Old reports omit the advisory collection and remain readable as an empty collection. Scan format 12 marks older coverage stale while retaining readable versions 1–11. Other source contracts still require manual selection. A reached processing limit remains partial coverage. One-off `source discover` starts anew. Saved `source roots scan` requests with the same recorded inputs and limits resume entry- or hash-limited work, including after process restart. Each batch replenishes the entry and hash processing allowances; reported hash bytes remain cumulative, including repeated inspection work. An unfinished file or directory file set is retried from fresh bytes in the existing bounded cursor. Previously emitted identical candidates are not repeated, and different source/profile/representation facts remain distinct. If one indivisible inspection cannot fit a fresh hash allowance, coverage remains explicitly limited with guidance rather than offering a no-progress retry. Candidate, checkpoint-storage, metadata-work, depth, file-size and archive/path/symlink safety limits remain cumulative or unchanged. Cancellation preserves the last published checkpoint. Scan format 12 invalidates earlier continuation semantics without discarding readable historical reports.
+Exact-hash original-file, cartridge-ZIP and complete schema-2 directory/ZIP-file-set profiles participate automatically. Directory sets use the shared inspector: every required member must resolve uniquely within one completely examined directory and match one coherent variant. Member hash work shares the request-wide budget with ordinary files; raw observations are reused without sharing admission. File-set ZIPs use the same exact matcher with unique safe top-level members, bounded entry inventory and expanded member sizes, and budgeted/cancellable member plus container hashing. Their facts are shared across file-set profiles without sharing admission; missing or ambiguous member inventories consume no hashing budget. Exact schema-2 uncompressed GameCube ISO/GCM sources use the same disc matcher and bounded raw-file reader, sharing one byte observation across applicable profiles. Exact STFS LIVE compound sources, including extensionless packages, use a bounded four-byte eligibility probe, one raw hashing pass shared across applicable profiles, and the existing structural validator only after an exact compound digest match. Probe, hashing and validation use one open handle with location, object and metadata checks; structural validation adds bounded reads beyond reported hash bytes. Unrelated files are not hashed by this probe. Compressed GameCube and PSX CHD contracts participate through the shared schema-2 disc matcher. CISO uses a bounded sparse normalized stream. Tool-based GCZ/RVZ/WIA/CHD inspection requires an admitted decoder and verified process-tree closure; this route is available on Windows and on Linux kernels permitting the decoder-only user/PID namespace supervisor. Linux launch requires clone3 with an atomic namespace-init pidfd, private startup acknowledgement, and terminal waitid(P_PIDFD) closure; unavailable kernel capabilities fail inspection without falling back to a process-group proof. Other platforms report these inputs as uninspected and explain the required normalized/direct-selection route. Complete PSX sets require the full ordered directory inventory, every member and fresh original-byte verification; partial or mixed sets do not become exact candidates. Decoding uses private local snapshots and outputs, never writes to connected folders, and never registers a source. Missing tools, unsafe metadata, resource limits, changed bytes and unknown closure remain explicit failures, not known mismatches. ZIP-wrapped STFS is not accepted. Extract and select or scan the original LIVE package. Pinned-validator disc profiles also participate through read-only preliminary selection using the shared inspector. These results appear separately in optional `preliminary_selections` as full inspection records with structural admission and validator `not_run`; they are not exact matches or proof of compatibility. The `candidates` collection and progressive `source_candidate` events keep their exact-match meaning. Both result collections share the candidate allowance and byte observations. One-off discovery applies that allowance to the whole request; a saved-folder scan applies it to each batch, checked between files or folders (one file's several matches are kept together), so a full batch continues instead of ending the scan, and a scan-wide safety ceiling of 512 retained matches ends coverage as explicitly limited, never as finished. Desktop offers a deliberate current-location review that rechecks the selected bytes; discovery never invokes the pinned validator. Old reports omit the advisory collection and remain readable as an empty collection. Scan format 12 marks older coverage stale while retaining readable versions 1–11. Other source contracts still require manual selection. A reached processing limit remains partial coverage. One-off `source discover` starts anew. Saved `source roots scan` requests with the same recorded inputs and limits resume entry- or hash-limited work, including after process restart. Each batch replenishes the entry, hash and candidate allowances; reported hash bytes remain cumulative, including repeated inspection work. An unfinished file or directory file set is retried from fresh bytes in the existing bounded cursor. Previously emitted identical candidates are not repeated, and different source/profile/representation facts remain distinct. If one indivisible inspection cannot fit a fresh hash allowance, coverage remains explicitly limited with guidance rather than offering a no-progress retry. The scan-wide match ceiling, checkpoint-storage, metadata-work, depth, file-size and archive/path/symlink safety limits remain cumulative or unchanged. Cancellation preserves the last published checkpoint. Scan format 12 invalidates earlier continuation semantics without discarding readable historical reports.
 
-Saved scan snapshots add optional `coverage` and opaque, internally validated `continuation` fields without changing API schema 57, request fields or discovery-report fields. Coverage reports cumulative batches, this batch's examined entries, re-listed entries, metadata checks, prior-batch file-set member rehashes, pending directories and whether continuation is available. Remaining entries are unknown until a frontier is exhausted without limits or issues; zero never promises coverage for unavailable or omitted inputs. Re-listing and metadata checks have a separate 100,000-work ceiling per batch. Continuations retain at most 16,384 observed paths and a conservative 4 MiB construction charge within the existing 8 MiB snapshot ceiling; Reaching a continuation storage or work bound publishes the current report as terminal partial coverage, discards the cursor, and requires narrower folders for further progress. Prior file-set hashes are never persisted as admission authority: prior-batch members are rehashed against the current batch hash allowance when their directory completes.
+Saved scan snapshots add optional `coverage` and opaque, internally validated `continuation` fields without changing API schema 57, request fields or discovery-report fields. Coverage reports cumulative batches, this batch's examined entries, re-listed entries, metadata checks, prior-batch file-set member rehashes, pending directories and whether continuation is available. Remaining entries are unknown until a frontier is exhausted without limits or issues; zero never promises coverage for unavailable or omitted inputs. Re-listing and metadata checks have a separate 100,000-work ceiling per batch. Continuations retain at most 16,384 observed paths and a conservative 4 MiB construction charge within the existing 8 MiB snapshot ceiling. After each validated batch the cursor keeps metadata only for the unfinished directory frontier, its listed entries and the retained match paths. A batch also ends, resumably, after a finished folder once the cursor passes half of either bound, so a large tree continues across batches; a single folder whose own entries exceed the bound remains terminal partial coverage; Reaching a continuation storage or work bound publishes the current report as terminal partial coverage, discards the cursor, and requires narrower folders for further progress. Prior file-set hashes are never persisted as admission authority: prior-batch members are rehashed against the current batch hash allowance when their directory completes.
 
-Saved-folder records, catalog, limits, platform, output ownership, or recorded filesystem metadata changes refuse the continuation and preserve the prior report with `restart_required`; the next explicit scan starts fresh. Invalid cursor data follows the same refusal path. Snapshot publication compares the previous raw checkpoint, saved-root records and managed-output registry in one transaction, so concurrent writers cannot overwrite each other's progress. Metadata checks detect recorded changes, but neither continuation nor snapshot readback proves current file bytes; accepting a candidate still revalidates it through the normal source path. Symlinks and entries outside the selected canonical roots are skipped. Equal profile contracts share hashing; both normalized ZIP payload and original container bytes count toward the budget. Accepting a candidate with `--expected-sha256` checks the current profile and reviewed content under the normal source locks before registration. Settings → Sources → Find source files exposes the same search, cancellation, and explicit acceptance.
+Saved-folder records, catalog, limits, platform, output ownership, or recorded filesystem metadata changes refuse the continuation and preserve the prior report with `restart_required`; the next explicit scan starts fresh. Invalid cursor data follows the same refusal path. Snapshot publication compares the previous raw checkpoint, saved-root records and managed-output registry in one transaction, so concurrent writers cannot overwrite each other's progress. Metadata checks detect recorded changes to the frontier and to each retained match's own path (not the members of a finished file set); a finished non-matching entry that changes later is seen by the next scan, as after a completed scan, but neither continuation nor snapshot readback proves current file bytes; accepting a candidate still revalidates it through the normal source path. Symlinks and entries outside the selected canonical roots are skipped. Equal profile contracts share hashing; both normalized ZIP payload and original container bytes count toward the budget. Accepting a candidate with `--expected-sha256` checks the current profile and reviewed content under the normal source locks before registration. Settings → Sources → Find source files exposes the same search, cancellation, and explicit acceptance.
 
 ## Cancel work safely
 
@@ -1187,6 +1187,46 @@ bytes. Catalog defaults, a non-wide Detail image and the unprovided landscape ro
 remain explicitly unavailable, without provider requests or disposable-cache export.
 See the [destination contract](INTEGRATION-AUTHOR.md#destination-artwork-handoff)
 for commands, strict schemas, byte validation and destination preview obligations.
+
+### SteamGridDB artwork suggestions
+
+```text
+portcove artwork steamgriddb set-key
+portcove --json --non-interactive artwork steamgriddb set-key --stdin
+portcove --json artwork steamgriddb status
+portcove --json artwork steamgriddb search "<game name>"
+portcove --json artwork steamgriddb candidates <game-id> --role portrait-cover
+portcove --json artwork steamgriddb choose <port-id> --slot cover --game <game-id> --candidate <image-id> --expected-revision <revision>
+portcove --json artwork steamgriddb clear-key
+```
+
+SteamGridDB lookups use only your own API key, created at
+steamgriddb.com/profile/preferences/api. Portcove ships no key. `set-key` prompts
+without echo, or reads standard input with `--stdin`. `--non-interactive` requires
+`--stdin`, and the key is never accepted as an argument or environment variable.
+Core keeps the key in this host's secure credential store and sends it only to the
+fixed SteamGridDB API origin. `status`, `set-key` and `clear-key` return only
+`configured`; the key is never shown.
+
+`search` returns up to 50 matching games. `candidates` returns up to 50 static PNG
+or JPEG images for `portrait-cover`, `landscape-cover` or `hero-banner`, each with
+its CDN URL, size, style and author attribution. Both are suggestions: they choose
+no artwork, establish no game identity, download no image bytes and write nothing
+to Steam. Results flagged as adult, humor or epilepsy-risk are excluded. A missing
+key or a rejected key is a usage error, and a missing game is not-found. Rate
+limiting reports `retry_after_seconds` when SteamGridDB provides it, and an
+unavailable service is a network error. Malformed responses fail verification.
+`choose` copies one listed image into your library for a port's `cover` (portrait
+images) or `detail` (hero images) slot and returns `artwork_state`. Core looks the image
+up again with your key, downloads it from SteamGridDB's image server without your key,
+and keeps it only if it decodes as a static PNG or JPEG matching its listed type and
+size. The artist credit is stored with the copy and shown in `artwork_state.attribution`
+and the destination handoff. An image no longer on the game's first listing page is
+not-found, and a changed choice revision is a conflict; in both cases the current
+artwork is kept. The copy is library artwork like a local import: `reset` returns to
+the default and `remove-unused` deletes it once nothing selects it. Library exports
+that contain chosen SteamGridDB images use metadata schema 8.
+See [the provider client limits](ARCHITECTURE.md#local-artwork-ownership).
 
 ## Export and restore a library
 
@@ -1673,6 +1713,62 @@ blockers, conflicts, deletion choices, changed input, a running game and
 interruption recovery. They do not show that the game loads moved saves; that
 remains a separate qualification for the exact device pair.
 
+### Save folder transport
+
+A save folder is an optional, player-chosen location for moving the same
+classified saves between devices: a removable drive, a network share, or a
+folder another sync tool already mirrors. Portcove adds no account, service or
+background syncing, and connecting a folder grants nothing: every push and pull
+is a separate request that names the folder.
+
+```bash
+portcove --library <path> --json saves folder-status <port-id> --folder <dir>
+portcove --library <path> --json saves folder-push <port-id> --folder <dir> --expected-content <content_sha256>
+portcove --library <path> --json saves folder-pull-preview <port-id> --folder <dir> --content <sha256> [choices]
+portcove --library <path> --json saves folder-pull <port-id> --folder <dir> --content <sha256> [choices] --expected-preview <preview_sha256> --yes
+portcove --library <path> --json saves folder-set-aside <port-id> --folder <dir> --content <sha256>
+```
+
+The folder must already exist and must be outside the library; a missing or
+unreadable folder is reported as unavailable. Portcove writes only under
+`portcove-saves/v1/<port-id>/`: each push adds one immutable saves file named by
+its content digest. Pushing the same saves again, including at the same moment
+from another device, writes nothing, so retries and duplicate copies made by other
+sync tools are harmless. Portcove never overwrites or deletes files in the
+folder. Temporary files from interrupted copies are ignored; saves files that are
+damaged or do not match their name are ignored and listed under `problems`, and
+a damaged file under this device's own name is kept for inspection and the push
+is refused. Portcove reviews at most 256 saves files and 256 set-aside records per
+game and at most 256 MiB of saves files at once; beyond that `complete` is false,
+`next_step` is `incomplete`, and pulls from the folder are refused until older
+files are moved out (a saves file can still be imported directly).
+
+`folder-status` is read-only. It lists every saves file with its source version
+and platform, whether it matches this device's qualified game version
+(`compatible`), whether it is the latest on its branch (`head`), whether it was
+set aside, whether this device already includes it, and its relation to this
+device's saves. `next_step` is `unavailable` (folder not connected; local play and
+backups are unaffected), `blocked`, `incomplete`, `up-to-date`, `push`, `pull` or
+`choose-progress`. Only compatible heads are offered. Relations follow each
+file's recorded history in the folder, so progress that continued over several
+sessions on another device still reads as `continues`. That history is recorded
+by whichever device wrote each file and is not proof: the pull review still lists
+every file it would replace, with the safety backup behind it.
+
+`folder-pull-preview` and `folder-pull` are the [portable save import](#portable-saves)
+review and apply for one file in the folder, with the same consent, locking,
+safety backup and recovery; a changed or missing folder after review refuses.
+When a pull from different progress actually replaces or removes saves on this
+device, this device's own branch in the folder (its current saves or its last
+pushed saves) is set aside; a pull that only adds slots sets nothing aside.
+`folder-set-aside` sets aside another device's saves when you keep this device's
+progress. Setting aside only adds an empty marker under `superseded/`; the saves
+file stays in the folder and can still be pulled explicitly. A device whose
+current saves were set aside elsewhere reports `local_set_aside` and
+`choose-progress`, never `up-to-date`, so mutual choices cannot hide a difference.
+Deleting slots on one device never deletes them elsewhere unless
+`--remove-local-only-saves` is chosen on the pulling device.
+
 ### Concurrency and failure-isolated batches
 
 Mutating commands, verification, and `exec` use a cross-process lock for the selected port. A second frontend targeting that same port fails immediately with `error.code: "conflict"`, exit code 14, and `details.port_id`; it should retry later rather than run a competing operation. The launch lock remains held through game exit and post-exit mutable-data collection. An unfinished durable launch request continues to block the port even if its supervisor crashes. Desktop startup or `launch recover <request-id>` recovers only the exact recorded child/start identity/install before committing a failed terminal outcome. A live supervisor, PID/start mismatch, ambiguous spawning phase, legacy missing identity, or changed install fails closed for manual review. Recovery can wait for an exact still-running child and then collect from the recorded install; it cannot claim that hard termination allowed a game to flush data. Completed request rows remain reconnectable evidence without blocking a later launch. Commands for other ports continue independently. `capabilities.port_operation_locking` is `per_port_fail_fast` when this contract is available.
@@ -1945,14 +2041,27 @@ Whether the runtime falls back to `mods.json.bak` when `mods.json` is missing or
 unreadable is not established; Portcove reads and writes only `mods.json`, and both
 files are kept with each profile.
 
-### Installing from GameBanana
+### Installing from GameBanana and Thunderstore
 
 ```text
 portcove --library PATH --json profile provider-browse PORT_ID [--page N]
 portcove --library PATH --json profile provider-project PORT_ID PROJECT_ID
 portcove --library PATH --json profile provider-plan PORT_ID PROFILE_ID PROJECT_ID FILE_ID > plan.json
-portcove --library PATH --json profile provider-apply PORT_ID PROFILE_ID plan.json --expected-plan SHA256 --yes
+portcove --library PATH --json profile provider-apply PORT_ID PROFILE_ID plan.json --expected-plan SHA256 [--allow-mod-code] --yes
 ```
+
+A game has at most one reviewed provider binding, and the same commands work for
+either provider. Ship of Harkinian is bound to GameBanana game 16121, where a mod is
+a number and a file is a number. Zelda 64: Recompiled is bound to the Thunderstore
+community `zelda-64-recompiled`, where a mod is `NAMESPACE-NAME` and a file is one
+of its versions (`1.2.0`); Thunderstore offers no digest, so the computed SHA-256 is
+the only byte identity, and a version Thunderstore no longer offers cannot be
+installed. Thunderstore listings are read once per community, conditionally and
+cached, and shown in Thunderstore's order. Desktop browses either provider the same
+way; when a reviewed file contains mods that run code, it names them, says Portcove
+can't tell whether the code is safe, and installs only through **Allow their code and
+install** (or **Allow its code and install** for one mod), which consents to exactly
+that reviewed plan.
 
 Desktop's Setups and mods panel offers the same flow for the setup in use when the
 game has a binding: find mods, show a mod's files, review a file (the same plan,
@@ -1960,20 +2069,24 @@ shown before anything changes) and install it only after an explicit Install;
 Cancel discards the review. Stale data offers no review.
 
 `provider-browse` and `provider-project` only read. `provider-browse` lists one page
-(20 mods, most downloaded first, pages 1–50) of the bound game's GameBanana mods and
-says when more pages exist; `provider-project` shows one mod's files with the file
-IDs `provider-plan` takes, refusing a mod from another game. Provider text is
+(20 mods, pages 1–50; GameBanana's most downloaded first) of the bound game's mods
+and says when more pages exist; `provider-project` shows one mod's files or versions
+with the IDs `provider-plan` takes, refusing a mod from another game. Provider text is
 sanitized presentation data: names, popularity and version labels never establish
 compatibility, and a `stale` result is earlier data from an outage.
 
-`provider-plan` needs a reviewed port-to-game binding (currently Ship of Harkinian,
-GameBanana game 16121) and a current provider observation; cached data from an
-outage never produces a plan. It refuses another game's project, an obsolete or
-archived file and a file the provider's scan reports as infected, and it checks the
-file type before downloading. It downloads privately (following only the provider's
-own hosts, enforcing the declared size), unwraps only `.o2r`/`.otr` members from a
-zip wrapper, inspects them without executing anything, and reports replacements and
-asset-path conflicts against the profile's enabled packages. The plan binds the
+`provider-plan` needs a reviewed binding and a current provider observation; cached
+data from an outage never produces a plan. It refuses another game's project, an
+obsolete or archived file and a file the provider's scan reports as infected, and it
+checks a GameBanana file's type before downloading (a Thunderstore version is always
+a zip). It downloads privately (following only the
+provider's own hosts, enforcing the declared size), unwraps only the loader's package
+members (`.o2r`/`.otr`, or `.nrm`) from a zip wrapper, inspects them without
+executing anything, and reports replacements and asset-path conflicts against the
+profile's enabled packages. Recomp members are reviewed as local installs are: named
+by manifest mod ID, another game's mod refused, and each member's `runs_code` lists
+the code it would run; their entries are not compared for conflicts, because which of
+two Recomp mods wins is not established. The plan binds the
 computed SHA-256 of the actual bytes. The provider's MD5 and scan results are shown
 as unverified claims. A displayed version label does not identify bytes; the file ID
 and computed digest do.
@@ -1987,6 +2100,9 @@ resolved by name; an outage reports `unavailable`, never "no update".
 
 `provider-apply` takes the saved plan and its `plan_sha256`, asks for confirmation
 (or `--yes`), and installs exactly the reviewed bytes under a one-use authorization.
+A plan whose members run code is refused as `usage` unless `--allow-mod-code` is
+given; then consent is recorded for exactly those members' reviewed digests, as for
+`install-package --allow-mod-code`.
 Altered staged bytes, a tampered plan or a newer profile revision that changed more
 than the mod order refuse without changing anything. Reviewed-but-unapplied staging older than a day is removed at the next review or
 when the game's setups are read, and Desktop discards a review it leaves.
@@ -2015,8 +2131,9 @@ cycles. Export applies the same rules, so a profile with, for example, an enable
 package whose requirement is disabled must be fixed before it can be shared; the
 refusal names the reason.
 `recipe-plan` reports each input as `available`, `acquirable` or `unavailable`.
-`acquirable` means a complete GameBanana file reference for a game with a reviewed
-binding; its detail names the project and file to review with `provider-plan`. Any
+`acquirable` means a complete file reference to the provider this game has a
+reviewed binding for; its detail names the project and file to review with
+`provider-plan`. Any
 other provider reference is `unavailable`. The plan holds for a different platform, a missing
 runtime, an original requirement the game does not use, an
 unregistered or different original, or package bytes not in the store.
@@ -2032,7 +2149,7 @@ recipe's identity exactly; that is not evidence of gameplay or save compatibilit
 #### Unattended updates
 
 `profile policy PORT_ID PROFILE_ID automatic-eligible` lets the standing pass
-(`games setup-ready`) install a newer GameBanana file for that setup without asking
+(`games setup-ready`) install a newer provider file for that setup without asking
 again. Desktop runs the same pass only while at least one game is set to install
 when ready or a folder has automatic setup; otherwise run `games setup-ready`. Setups with the other policies
 (`review-updates`, the default, and `keep-current`) are never contacted. The policy
@@ -2041,17 +2158,20 @@ file with the same checks as `provider-plan`, and authorizes and applies that ex
 plan at once.
 
 Updates are decided per installed provider file. One is applied only when the
-observation is current, the provider offers exactly one newer file, every mod from
+observation is current, the provider offers exactly one newer file (for Thunderstore,
+whose versions form one line, the highest of the versions published after and
+numbered above the installed one), every mod from
 the installed file is on, the newer file contains exactly the same mods, and no
 asset that two enabled mods both change gets a different winner (an overlap that
-already exists and stays the same does not hold an update). Several newer files, a
+already exists and stays the same does not hold an update). Several newer GameBanana files, a
 mod that is off and an obsolete project are held before anything is downloaded.
 Results are reported in `mod_updates`, one per installed file:
 
 - `applied`: the newer file is the setup's next revision. The earlier revision,
   with the earlier file, stays recoverable; saves and settings are not touched.
 - `held`: it needs the player's review (for example the newer file adds or drops a
-  mod, or changes which mod wins an asset); nothing changed and its staging is
+  mod, changes which mod wins an asset, or contains a mod that runs code, which
+  always waits for the player's consent); nothing changed and its staging is
   discarded. A hold found by comparing the newer file with the setup is remembered
   for that setup revision and candidate file, so it is not downloaded again until
   either changes.

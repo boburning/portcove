@@ -2181,6 +2181,16 @@
         "immutable_url": "https://redump.info/disc/31452",
         "live_url": null,
         "claim": "Redump Fear Effect 2: Retro Helix (USA) (Disc 4) (Rev 1), SLUS-01277, has one data track: SHA-1 1665f4c71e1c399f5a6f4b9c33a979ee0cad8afd, MD5 7302dbf75f570466e1453b1337fd5a79 and CRC32 8d9b31eb. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "ace-combat-6-owner-image-disc-reader-2026-11-11",
+        "role": "portcove_qualification",
+        "authority": "boburning/portcove",
+        "authority_ref": "be7f7857243e6c897f1b471c9235c4bbdb4e1d89",
+        "reviewed_at": "2026-11-11",
+        "claim": "One owner-provided Xbox 360 image of Ace Combat 6: Fires of Liberation (USA, Japan), read with the managed disc-image reader and an independent standalone parser: XGD2 volume descriptor, 13 files in 1 directory, 5,443,410,412 file bytes, title ID 4E4D07D1, default.xex SHA-256 6eefba42cdfe9121207e534d8d290009c98b1a8c60ae5334a33a4f15167cbbbc, whole-image SHA-1 fc0796fa56149e35a50d49205233a8cc06e13f03 and SHA-256 204c5e645d79da8776699c12f17bd069f869fbdb10ae79015d1a0ef2b743c98c. A local observation of one image; no other edition, installed-application, physical-media, gameplay or Supported claim.",
+        "immutable_url": "https://github.com/boburning/portcove/blob/be7f7857243e6c897f1b471c9235c4bbdb4e1d89/docs/qualification/ace-combat-6-owner-image-disc-reader-2026-11-11.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/ace-combat-6-owner-image-disc-reader-2026-11-11.md"
       }
     ],
     "identities": [
@@ -12569,6 +12579,48 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "ace-combat-6-xbox360-usa-japan",
+        "label": "Optional: Ace Combat 6 Xbox 360 disc image (USA, Japan)",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "usa-japan",
+            "title": "Ace Combat 6: Fires of Liberation Xbox 360 disc image (USA, Japan)",
+            "region": "USA, Japan",
+            "revision": null,
+            "product_codes": [
+              "4E4D07D1"
+            ],
+            "representations": [
+              {
+                "id": "original-image",
+                "extensions": [
+                  "iso"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "fc0796fa56149e35a50d49205233a8cc06e13f03",
+                    "sha256": "204c5e645d79da8776699c12f17bd069f869fbdb10ae79015d1a0ef2b743c98c",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "ace-combat-6-owner-image-disc-reader-2026-11-11"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "ace-combat-6-owner-image-disc-reader-2026-11-11"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -19094,6 +19146,28 @@
             "artifact_sha256": "57456d4d897bfc077d51243a6bc019ed4af3b76e5d01d102ff2f02b5acc32826"
           }
         ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "ace-combat-6-recomp-game-source",
+        "port_id": "ace-combat-6-recomp",
+        "role": "game",
+        "profile_id": "ace-combat-6-xbox360-usa-japan",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-japan"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "ace-combat-6-owner-image-disc-reader-2026-11-11"
+        ],
+        "authority_ref": "be7f7857243e6c897f1b471c9235c4bbdb4e1d89",
+        "reviewed_at": "2026-11-11",
+        "immutable_review_url": "https://github.com/boburning/portcove/blob/be7f7857243e6c897f1b471c9235c4bbdb4e1d89/docs/qualification/ace-combat-6-owner-image-disc-reader-2026-11-11.md",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [],
         "aliases": [],
         "tombstones": []
       }

@@ -297,8 +297,13 @@ describe("source intake dialog", () => {
         run={run}
       />,
     );
-    await page.getByRole("button", { name: "Review setup", exact: true }).click();
-    const prepare = page.getByRole("button", { name: "Prepare game data", exact: true });
+    await page
+      .getByRole("region", { name: "Finish setup", exact: true })
+      .getByRole("button", { name: "Finish setup", exact: true })
+      .click();
+    const prepare = page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Finish setup", exact: true });
     await expect.element(prepare).toBeEnabled();
     await prepare.click();
     await expect.poll(() => run.mock.calls.length).toBe(1);

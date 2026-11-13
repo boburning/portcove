@@ -155,3 +155,20 @@ export function pickSignedCatalogPath() {
     filters: [{ name: "Signed Portcove catalog", extensions: ["json"] }],
   });
 }
+
+export function pickPortableSavesExportPath(defaultName: string) {
+  return save({
+    title: "Export saves",
+    defaultPath: defaultName,
+    filters: [{ name: "Portcove saves file", extensions: ["json"] }],
+  });
+}
+
+export function pickPortableSavesImportPath() {
+  return open({
+    title: "Import saves",
+    multiple: false,
+    directory: false,
+    filters: [{ name: "Portcove saves file", extensions: ["json"] }],
+  });
+}

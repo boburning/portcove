@@ -706,15 +706,57 @@ specifies request bounds, version semantics, and independent trust checks.
 
 ## Local artwork ownership
 
-The optional destination-artwork handoff (schema 2) is also Core-owned. Read-only
+The optional destination-artwork handoff (schema 3) is also Core-owned. Read-only
 CLI adapters export exact library/port/revision/asset bindings, accepted provenance
 and explicit static-role availability. Validated durable local Cover originals
 provide portrait bytes and a Detail original displayed wider than tall provides hero-banner
 bytes, both unmodified; unavailable originals retain their selection metadata.
 Catalog display caches never supply destination bytes, and no role is synthesized,
-cropped or resized from another. There is no new durable store, provider or destination writer.
+cropped or resized from another. There is no new durable store or destination writer;
+provider provenance is recorded beside the existing assets, as described below.
 The [integration contract](INTEGRATION-AUTHOR.md#destination-artwork-handoff) owns
 consumer negotiation and preview/replacement/cleanup obligations.
+
+The optional SteamGridDB provider client is also Core-owned (#527; owner decision
+2026-11-12: player-supplied keys only). Each player's own key is stored under a
+SteamGridDB-scoped operating-system secure-store entry. It is never read back for
+display or accepted from process arguments or the environment, and it is sent as a
+bearer token only to `https://www.steamgriddb.com/api/v2` by a client that follows
+no redirects. Game search and per-role candidate listing request static PNG/JPEG
+images with `nsfw`, `humor` and `epilepsy` filtered out. Core rechecks those flags and
+the image format for each result,
+keeps only image and thumbnail URLs on `https://cdn2.steamgriddb.com`, bounds
+responses and counts, and maps missing, rejected, rate-limited (with `Retry-After`),
+unavailable and malformed responses to explicit outcomes. Responses do not mark
+animation, so the static-only filter relies on the provider until import decodes the
+image; the shared decode refuses animated PNGs. Candidates are proposals with author
+attribution; they establish no game identity or Steam write. No project key exists.
+
+Choosing a SteamGridDB image goes through the same artwork store and ingestion path
+as a local import. Cover takes the portrait role and Detail the hero role; landscape
+has no slot. Core re-lists the game's first candidate page with the player's key and
+selects the requested image, so a client-supplied URL or author is never trusted, and
+an image that has left that page is reported as no longer listed. The image is then
+fetched from the CDN through a transport method that takes no key, with no redirects,
+a 60-second limit and the 16 MiB original cap enforced while reading. Only the image
+URL and ordinary request metadata reach the CDN. All network work happens before the
+artwork lock or any transaction; the existing revision checks reject a stale choice.
+The decoded format and pixel dimensions must match the listing, so a chosen hero is
+genuinely wide.
+
+SQLite schema 52 records provenance in `artwork_asset_providers`, keyed by asset,
+provider and provider image, and marks assets that exist only because a provider image
+was chosen in `artwork_provider_only_assets`. Asset payloads are unchanged, so local
+imports keep their stored form and older writers refuse the upgraded library. Records
+are per origin and never dropped: a later local import of identical bytes clears only
+the provider-only marker, keeping the credit, first filename and import time. A
+provider-first asset is named `steamgriddb-<image-id>.<png|jpg>`. Removing an unused
+asset removes its provenance. Library metadata that carries provenance uses schema 8,
+which older readers refuse; a same-user export copies provider originals like every
+other original. `artwork_state` and the handoff expose the credits. Withdrawal
+handling and a Desktop picker are later #527 slices. The CLI's `artwork steamgriddb`
+commands are thin adapters: lookups run on a blocking task, and `choose` runs Core's
+fetch and ingestion in place on a runtime worker thread (`block_in_place`).
 
 Core owns independent cover/detail choices, copied local originals, deterministic
 generated fallbacks, bounded raster decoding and disposable thumbnails. SQLite
@@ -722,8 +764,9 @@ schema 24 records assets and monotonic choice revisions; older writers refuse th
 upgraded library. API schema 44 exposes selection and integrity metadata through
 the CLI and Desktop. The schema-49 `artwork_state` object now includes an additive
 core-resolved source and generated-fallback provenance. Catalog and signed-envelope
-formats are unchanged. Local filenames, hashes and import times record provenance;
-they establish neither copyright permission nor upstream authenticity.
+formats are unchanged. Local filenames, hashes and import times record local
+provenance, and provider records credit chosen SteamGridDB images; neither establishes
+copyright permission nor upstream authenticity.
 
 Artwork reads, thumbnails, imports, resets and destination handoffs use descriptive
 listing identity, including listings without an operational integration. Current
@@ -2233,6 +2276,8 @@ retained path rather than claiming a move.
 
 Every filesystem-mutating operation takes an operating-system advisory lock keyed by library and port. The lock is shared across CLI and desktop processes, fails immediately with a structured conflict instead of waiting indefinitely, and is released automatically if a process exits. A launch retains its lock until the game exits and the exact launched version's mutable data has been collected, so another frontend cannot update, roll back, remove, verify, or launch that port during the save-critical interval. The desktop starts a detached instance of its own native binary in a hidden supervisor mode; Tauri only forwards an identified request and observes that exact durable row. Core commits the request, exact install, supervisor PID/start identity, cancellable preparation phase, and generic activity before the adapter reports acceptance. Immediately before process creation, one conditional SQLite transition closes cancellation; a request wins that transition or child creation proceeds, never both. Core records `spawning` before process creation and then records the child PID/start identity before reporting it, writes the per-version launched marker only after child creation, waits for the child, records successful-exit history separately from in-flight state, and commits the terminal request outcome only after exact-install collection. Terminal rows remain reconnectable evidence but do not block another launch. If a supervisor disappears, the active row continues to block mutation; Desktop startup or explicit CLI recovery waits only a child with the exact recorded start identity, repeats exact-install collection, and records failure rather than success. A crash in the irreducibly ambiguous spawning window remains blocked for manual review, as do PID mismatch, missing legacy identity, and changed install identity. Different ports remain independently operable.
 
+On Windows a game can restart into a successor and exit (for example through `_wexecv`), so the original child alone does not span such a session. Only a definition that declares the reviewed `windows_tracked_handoff` integration field, with a native Windows executable, opts in; delivered definitions must require native-portable capability 28, format-1 signed catalogs cannot carry it, and a legacy installation without a retained definition cannot inherit it on Windows ([definition delivery](DEFINITION-DELIVERY.md)); every other launch on every platform keeps the original child as the whole session, with no job, suspended start or extra wait. For an opted-in managed or external Windows launch, Core resolves the install root to its final path (an unresolvable root fails the launch) and creates the game suspended inside a fresh job object named `Local\Portcove.LaunchSession.<session-id>`, assigns it and only then resumes the thread that holds exactly the creation suspension, composing that flag with the supervised process-group flag. The name accepts only plain session-ID characters, an existing object with that name is refused rather than joined, and the job's protected DACL grants only the current account. The job sets no kill-on-close, memory or UI limits, so closing Portcove leaves the game running, and it nests inside any job that already contains the supervisor; an outer job that forbids nesting fails the launch with that cause named. Ordinary children and successors stay in the job; explicit `CREATE_BREAKAWAY_FROM_JOB` remains permitted (refusing it would make such games' process creation fail) and leaves tracking, as does anything started outside the game's tree through the shell, services or scheduled tasks. After the original child exits, the session stays `running` while any job member whose image (`QueryFullProcessImageNameW`, resolved to its final path and compared case-insensitively) lies inside the session's install root still runs; members elsewhere, such as a browser or Steam client the game opened, never hold it. Each member lifetime (PID and start time) is classified once. A member that cannot be identified, an image that cannot be read or resolved, or a membership list that does not fit holds the session (fail closed). While it waits, Core writes the holding program names and process IDs to the running session record's `message`; today that is visible only through the session record and `launch show --technical-details`, not in Desktop, and the terminal outcome replaces it. The outcome and exit code remain those of the original child, because successor exit codes are not a reliable game result. A named object loses its name when its last handle closes even while members run, so Core leaves an inheritable query-only job handle in the game before resuming it and, every 250 ms while it supervises, shares one with in-install members that lack it. Recovery reopens the job by name, resolves the recorded install root (failing to resolve it keeps the session for manual review), holds the job while it waits for the recorded child identity, then applies the same in-install rule before collecting. If no handle remains, recovery falls back to the recorded child identity alone, so it misses a successor that never received the handle (for example one started without handle inheritance within the last polling interval before the supervisor exited, or after it exited, or one that refused duplication) once every handle-holding member has exited. Failing to create the job, assign the game, share the handle or resume the game terminates the game before any of its code runs and fails the launch. Linux and macOS keep the original child: an exec-based restart keeps its PID and start identity, process-group signals are unchanged, and a launcher there that spawns a successor and exits is not tracked.
+
 Every open `Library` also holds a shared operating-system lease on `locks/library.lock`, acquired before SQLite initialization and retained by every clone. Whole-library transfer must acquire that lock exclusively, so it cannot proceed while a current CLI, desktop, or launch supervisor owns the library. Per-port locks remain the normal concurrency boundary between independent games.
 
 #### Activity and readback
@@ -2684,6 +2729,16 @@ journaled recovery. Relations are decided by content digests and a lineage
 record kept inside the canonical root, so backups and restores carry it with the
 data. Timestamps never select a winner.
 
+`service::portable_save_folder` is the one optional transport: a player-named
+existing folder outside the library. It stores immutable content-addressed
+bundles, derives branch heads from recorded bases, and records explicit
+resolutions as empty `superseded/<digest>` markers; it never overwrites or
+deletes folder content. Status, push and pull are explicit requests with no
+stored folder, credential or standing apply permission. Pull passes the bundle's
+recorded (unauthenticated) folder history to the same import review and apply path, so a transport
+adds no new lock, journal or recovery owner. An unavailable folder is an offline
+status, not an error for local play.
+
 ### Library transfers
 
 [Concurrency](#concurrency) describes the shared library lease that a transfer
@@ -2749,7 +2804,7 @@ write share one database transaction. After a successful scan, core atomically
 replaces one bounded versioned snapshot containing
 the exact root identities and states, authoritative catalog digest, discovery report,
 limits and completion time. Current format 12 retains the delivered original-file/ZIP, directory/ZIP-file-set, normalized raw GameCube, exact STFS LIVE and pinned-validator preliminary discovery contracts, plus bounded normalized disc observations admitted independently through the existing schema-2 disc matcher. CISO streams the standard GameCube logical extent without materializing a full ISO. Windows decoder inspection copies one bounded original atom into private local staging, preflights fixed container headers/maps/metadata before decoder buffering, applies an OS-enforced job memory cap, supervises output growth and time, and requires positive tree closure before consuming output or cleanup. Output polling is not a hard Windows file-write quota. Original bytes are rehashed before publishing the observation. Complete PSX sets require the pre-enumeration directory handle, all ordered members, checked aggregate sizes and hashes, and final original-byte verification. No scan registers or prepares a source. On Linux, decoder inspection uses a private user/PID namespace with an atomic init pidfd and a bounded private startup gate. Positive terminal waitid(P_PIDFD) joins namespace teardown before consuming output or cleanup, including detached and nested descendants. Per-process address-space and per-file write limits are hard bounds; output-tree polling supplies the separate aggregate/depth/entry bound. Ordinary Unix process groups cannot prove escaped-descendant closure, and other Unix platforms report tool-based normalized discovery as uninspected. Unsupported Linux namespace capabilities fail explicitly without a weaker fallback. Unknown closure retains private inspection paths and aborts publication. Selected converted-disc inspection and registration on Windows/Linux reuse the same immutable observer and closure custody. Explicit selection has no scan batch/hash allowance, while individual originals and decoded discs have a 2 GiB boundary and selected PSX directories have a 16,384-entry bound. One ordered inventory, its held directory object, and final member-byte checks precede admission; storage identity is never computed from a newly enumerated set after decoding. Preliminary NotRun selections remain separate from exact matches and do not establish compatibility. Earlier formats retain their original readable evidence and become stale until rescanned; unknown historical limits are not invented.
-Saved scans retain a library-owned bounded continuation for unfinished entry or hash processing. Each explicitly requested batch replenishes only those processing allowances, while cumulative byte measurements include fresh reinspection work. Deferred files and complete file-set evaluations are checked from bytes again; saved hashes do not grant admission. Identical retry results do not duplicate progressive candidate events. An indivisible input that cannot fit a fresh hash allowance remains explicitly limited and offers a bounded larger CLI allowance or deliberate source selection, rather than a repeated no-progress continuation. Candidate/storage, metadata-work, file-size, depth, archive, symlink and path protections remain bounded. One-off discovery starts anew. Cancellation or failure preserves the last published snapshot. No client can submit a continuation as authorization.
+Saved scans retain a library-owned bounded continuation for unfinished entry or hash processing. Each explicitly requested batch replenishes those processing allowances and the per-batch match allowance (a scan-wide match ceiling remains explicitly limited), and the cursor keeps metadata only for the unfinished frontier and retained match paths, ending a batch after a finished folder before its storage bound, while cumulative byte measurements include fresh reinspection work. Deferred files and complete file-set evaluations are checked from bytes again; saved hashes do not grant admission. Identical retry results do not duplicate progressive candidate events. An indivisible input that cannot fit a fresh hash allowance remains explicitly limited and offers a bounded larger CLI allowance or deliberate source selection, rather than a repeated no-progress continuation. Candidate/storage, metadata-work, file-size, depth, archive, symlink and path protections remain bounded. One-off discovery starts anew. Cancellation or failure preserves the last published snapshot. No client can submit a continuation as authorization.
 Reads report whether catalog bytes, roots, availability, relink state and scan
 rules still match the recorded inputs. That does not claim the collection stayed byte-identical after
 the scan; the snapshot is local evidence, not a watcher, source registration, setup

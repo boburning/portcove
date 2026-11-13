@@ -95,7 +95,8 @@ export function applicationReleaseMaximumMinutes(purpose: unknown, executionPath
 export function applicationReleaseRemainingMinutes(
   purpose: unknown,
   executionPath: unknown = "ordinary",
-) {
+  servedRenewal = false,
+): Readonly<Record<string, number>> {
   const ordinary = applicationReleaseBudgetMinutes(purpose);
   assert.ok(
     executionPath === "ordinary" ||
@@ -118,18 +119,37 @@ export function applicationReleaseRemainingMinutes(
   }
   if (executionPath === "metadata-maintenance") {
     assert.equal(purpose, "metadata-renewal");
-    const payloadWork = new Set([
+    if (servedRenewal) {
+      return Object.freeze(
+        Object.fromEntries(
+          Object.entries(applicationReleaseRemainingMinutes(purpose, executionPath))
+            .filter(
+              ([name]) =>
+                !/^renewal_protection_(releases|preview|stable|snapshot|timestamp) \/ execute$/u.test(
+                  name,
+                ),
+            )
+            .map(([name, minutes]) => [
+              name,
+              /^(releases|preview|stable|snapshot|timestamp) \/ execute$/u.test(name) ? 2 : minutes,
+            ]),
+        ),
+      );
+    }
+    const applicationWork = new Set([
       "package / package",
       "package / provenance",
       "native / execute",
       "native / attest",
       "protection_payload / execute",
       "payload / execute",
+      // The installed update job admits prepare/recover, never metadata renewal.
+      "public_installed",
     ]);
     return Object.freeze(
       Object.fromEntries(
         Object.entries(ordinary)
-          .filter(([name]) => !payloadWork.has(name))
+          .filter(([name]) => !applicationWork.has(name))
           .flatMap(([name, minutes]) => {
             // Old observer names remain readable for charged historical runs.
             if (name === "protection_metadata / execute")
@@ -145,6 +165,7 @@ export function applicationReleaseRemainingMinutes(
                 [name, 0],
                 [`renewal_${name}`, 6],
               ];
+            if (name === "preview / execute") return [[name, 6]];
             if (/^(releases|preview|stable|snapshot|timestamp) \/ execute$/u.test(name))
               return [[name, 5]];
             return [[name, name.startsWith("protection_") ? 3 : minutes]];

@@ -18,9 +18,9 @@ const externalUnavailable = {
 const cases = [
   {
     name: "Unknown game",
-    label: "Setup status unknown",
+    label: "Can't check right now",
     actions: undefined,
-    reason: "Managed setup: Setup status unknown",
+    reason: "Managed setup: Can't check setup right now",
   },
   {
     name: "Held game",

@@ -1065,6 +1065,23 @@
     "title": "Array_of_PortReadinessAcknowledgement",
     "type": "array"
   },
+  "report_kind": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Which issue form a report fills.",
+    "oneOf": [
+      {
+        "const": "problem",
+        "description": "Something broke or behaved incorrectly (`bug-report.yml`).",
+        "type": "string"
+      },
+      {
+        "const": "feedback",
+        "description": "Something worked but was hard, slow or confusing, or an idea (`feedback.yml`).",
+        "type": "string"
+      }
+    ],
+    "title": "ReportKind"
+  },
   "root_setup_enrollment": {
     "$defs": {
       "RootSetupEnrollment": {

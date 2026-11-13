@@ -16,6 +16,8 @@ import {
   failedBootstrapRecovery,
   retainedServedRenewal,
   retainedServedRenewalFeed,
+  retainedV8RenewalContinuation,
+  retainedV8ServedRenewal,
   retainedV8RenewalDraft,
   retainedR55Renewal,
   retainedR56FeedRecovery,
@@ -55,10 +57,15 @@ export function inspectApplicationJobBudget(
   reserveTail = true,
   purpose: unknown = "application-release",
   executionPath: unknown = "ordinary",
+  servedRenewal = false,
 ) {
   const maximumMinutes = applicationReleaseMaximumMinutes(purpose, executionPath);
   const ceilings = applicationReleaseBudgetMinutes(purpose);
-  const remainingCeilings = applicationReleaseRemainingMinutes(purpose, executionPath);
+  const remainingCeilings = applicationReleaseRemainingMinutes(
+    purpose,
+    executionPath,
+    servedRenewal,
+  );
   assert.match(source, /^[a-f0-9]{40}$/u);
   assert.match(runId, /^[1-9][0-9]{0,15}$/u);
   assert.ok(attempts.length >= 1 && attempts.length <= 3);
@@ -521,8 +528,8 @@ export function permitsRetainedServedRenewalContinuation(
   );
 }
 
-/** A single continuation for the source refusal before draft registration. The
- * previous three provider runs still count and all their charges are reread. */
+/** Continue the exact retained v8 draft across its reviewed failed executions.
+ * Provider runs that failed before draft registration still count. */
 export function permitsRetainedV8SourceRefusalContinuation(
   runs: readonly Record<string, unknown>[],
   execution: ReturnType<typeof inspectApplicationReleaseExecution>,
@@ -532,12 +539,21 @@ export function permitsRetainedV8SourceRefusalContinuation(
   owner: ApplicationBudgetContext | undefined,
 ) {
   const retained = retainedV8RenewalDraft;
+  const successor =
+    execution.ref === retainedV8RenewalContinuation.next_ref ? retainedV8RenewalContinuation : null;
+  const served = execution.ref === retainedV8ServedRenewal.next_ref;
+  const additional = served
+    ? [retainedV8RenewalContinuation, retainedV8ServedRenewal]
+    : successor
+      ? [successor]
+      : [];
+  const predecessors = [...retained.predecessors, ...additional.map((row) => row.predecessor)];
   const custody = owner?.custody;
   if (
     opportunity !== retained.opportunity ||
     purpose !== "metadata-renewal" ||
     executionPath !== "metadata-maintenance" ||
-    execution.ref !== retained.next_ref ||
+    (execution.ref !== retained.next_ref && additional.length === 0) ||
     execution.run_attempt !== 1 ||
     owner?.release_id !== retained.release_id ||
     custody?.opportunity !== opportunity ||
@@ -545,7 +561,7 @@ export function permitsRetainedV8SourceRefusalContinuation(
     custody.source_tree !== retained.source_tree ||
     custody.preparation !== null ||
     custody.budget !== undefined ||
-    runs.length !== retained.predecessors.length + 1
+    runs.length !== predecessors.length + 1
   )
     return false;
 
@@ -556,8 +572,10 @@ export function permitsRetainedV8SourceRefusalContinuation(
   };
   const observed = new Map(runs.map((row) => [row.id, row]));
   const prior = retained.predecessors.slice(0, 2);
+  const registered = [...prior, ...additional.map((row) => row.predecessor)];
+  const contextSha256 = additional.at(-1)?.context_sha256 ?? retained.context_sha256;
   const contexts = custody.metadata_contexts ?? [];
-  const next = contexts[prior.length];
+  const next = contexts[registered.length];
   const matches = (
     actor: ApplicationBudgetContext["custody"]["runs"][number],
     status: "completed" | "in_progress",
@@ -575,12 +593,16 @@ export function permitsRetainedV8SourceRefusalContinuation(
   return (
     observed.size === runs.length &&
     matches(current, "in_progress") &&
-    retained.predecessors.every((actor) => matches(actor, "completed", actor.conclusion)) &&
+    predecessors.every((actor) => matches(actor, "completed", actor.conclusion)) &&
     isDeepStrictEqual(custody.runs, [
-      ...prior.map(({ id, control_commit, control_ref }) => ({ id, control_commit, control_ref })),
+      ...registered.map(({ id, control_commit, control_ref }) => ({
+        id,
+        control_commit,
+        control_ref,
+      })),
       current,
     ]) &&
-    prior.every((actor, index) => {
+    registered.every((actor, index) => {
       const context = contexts[index];
       return (
         context?.opportunity === opportunity &&
@@ -588,10 +610,10 @@ export function permitsRetainedV8SourceRefusalContinuation(
         context.run_attempt === 1 &&
         context.control_commit === actor.control_commit &&
         context.control_ref === actor.control_ref &&
-        context.context_sha256 === retained.context_sha256[index]
+        context.context_sha256 === contextSha256[index]
       );
     }) &&
-    contexts.length <= prior.length + 1 &&
+    contexts.length <= registered.length + 1 &&
     (next === undefined ||
       (next.opportunity === opportunity &&
         next.run_id === current.id &&
@@ -798,6 +820,60 @@ export function assertRetainedR56FeedBudget(
   );
 }
 
+async function readActiveQueuedMaintenanceAttempt(
+  provider: Pick<Awaited<ReturnType<typeof createApplicationBudgetProvider>>, "attempt" | "jobs">,
+  execution: ReturnType<typeof inspectApplicationReleaseExecution>,
+) {
+  const id = Number(execution.run_id);
+  const [context, jobs] = await Promise.all([
+    provider.attempt(id, execution.run_attempt),
+    provider.jobs(id, execution.run_attempt),
+  ]);
+  const ref = execution.ref.slice("refs/tags/".length);
+  assert.ok(
+    isRecord(context) &&
+      context.id === id &&
+      context.run_attempt === execution.run_attempt &&
+      context.head_sha === execution.source &&
+      context.head_branch === ref &&
+      context.path === ".github/workflows/application-release.yml" &&
+      context.event === "workflow_dispatch" &&
+      (context.status === "queued" || context.status === "in_progress") &&
+      context.conclusion === null,
+    "queued maintenance run has no matching current attempt",
+  );
+  const ceilings = applicationReleaseRemainingMinutes("metadata-renewal", "metadata-maintenance");
+  assert.ok(
+    isRecord(jobs) &&
+      Array.isArray(jobs.jobs) &&
+      jobs.total_count === jobs.jobs.length &&
+      jobs.jobs.length < 100 &&
+      jobs.jobs.some(
+        (job: unknown) =>
+          isRecord(job) &&
+          job.run_id === id &&
+          job.run_attempt === execution.run_attempt &&
+          job.head_sha === execution.source &&
+          job.head_branch === ref &&
+          typeof job.name === "string" &&
+          Object.hasOwn(ceilings, job.name) &&
+          ceilings[job.name]! > 0 &&
+          job.status === "in_progress" &&
+          job.conclusion === null &&
+          typeof job.runner_id === "number" &&
+          Number.isSafeInteger(job.runner_id) &&
+          job.runner_id > 0 &&
+          Array.isArray(job.steps) &&
+          job.steps.some(
+            (step: unknown) =>
+              isRecord(step) && step.status === "in_progress" && step.conclusion === null,
+          ),
+      ),
+    "queued maintenance run has no active exact-attempt job",
+  );
+  return { context, jobs };
+}
+
 export async function readApplicationJobBudget(
   registeredRunIds: readonly string[] | undefined,
   purpose: unknown,
@@ -834,7 +910,24 @@ export async function readApplicationJobBudget(
         ),
         "recorded related execution missing from provider history; no budget reset",
       );
-  assert.ok(runs.some((run) => run.id === Number(execution.run_id)));
+  const currentId = Number(execution.run_id);
+  const currentIndex = runs.findIndex((run) => run.id === currentId);
+  assert.ok(currentIndex >= 0);
+  const currentRun = runs[currentIndex]!;
+  let queuedObservation: Awaited<ReturnType<typeof readActiveQueuedMaintenanceAttempt>> | undefined;
+  // GitHub can report a queued parent while its protected jobs are executing.
+  // Use exact current job evidence for accounting and keep all other runs as reported.
+  if (
+    executionPath === "metadata-maintenance" &&
+    currentRun.status === "queued" &&
+    currentRun.conclusion === null &&
+    currentRun.head_sha === execution.source &&
+    currentRun.head_branch === execution.ref.slice("refs/tags/".length) &&
+    currentRun.run_attempt === execution.run_attempt
+  ) {
+    queuedObservation = await readActiveQueuedMaintenanceAttempt(provider, execution);
+    runs[currentIndex] = { ...currentRun, status: "in_progress" };
+  }
   const recoverR56 = execution.ref === retainedR56FeedRecovery.next_ref;
   if (recoverR56) {
     assert.equal(executionPath, "metadata-recovery");
@@ -900,9 +993,22 @@ export async function readApplicationJobBudget(
     );
   if (executionPath === "bootstrap-recovery")
     assert.ok(budgetedBootstrap, "bootstrap recovery requires its single appointed continuation");
+  const sourceRefusalContinuation = permitsRetainedV8SourceRefusalContinuation(
+    runs,
+    execution,
+    opportunity,
+    purpose,
+    executionPath,
+    owner,
+  );
+  const v8Successor =
+    sourceRefusalContinuation && execution.ref === retainedV8RenewalContinuation.next_ref;
+  const v8Served = sourceRefusalContinuation && execution.ref === retainedV8ServedRenewal.next_ref;
   assert.ok(
     Array.isArray(known) &&
       (known.length <= 3 ||
+        (v8Successor && known.length === 4) ||
+        (v8Served && known.length <= 5) ||
         budgetedBootstrap ||
         (servedRenewalContinuation && known.length <= servedRenewalPredecessors.length)) &&
       new Set(known).size === known.length,
@@ -930,22 +1036,17 @@ export async function readApplicationJobBudget(
     executionPath,
     owner,
   );
-  const sourceRefusalContinuation = permitsRetainedV8SourceRefusalContinuation(
-    runs,
-    execution,
-    opportunity,
-    purpose,
-    executionPath,
-    owner,
-  );
   const maximumAttempts = servedRenewalContinuation
     ? servedRenewalPredecessors.length + 1
-    : continuation || sourceRefusalContinuation
-      ? 4
-      : 3;
+    : v8Served
+      ? 6
+      : v8Successor
+        ? 5
+        : continuation || sourceRefusalContinuation
+          ? 4
+          : 3;
   const retainedDiagnostics =
     executionPath === "bootstrap-recovery" ? bootstrapDiagnosticCharges : [];
-  const currentId = Number(execution.run_id);
   const recoveryObservations =
     executionPath === "bootstrap-recovery"
       ? await readBootstrapRecoveryObservations(provider, [
@@ -989,25 +1090,50 @@ export async function readApplicationJobBudget(
     const observations = observed ? [observed] : [];
     if (!observed)
       for (let attempt = 1; attempt <= Number(run.run_attempt); attempt++)
-        observations.push({
-          context: await provider.attempt(Number(run.id), attempt),
-          jobs: await provider.jobs(Number(run.id), attempt),
-        });
+        observations.push(
+          (current && attempt === execution.run_attempt ? queuedObservation : undefined) ?? {
+            context: await provider.attempt(Number(run.id), attempt),
+            jobs: await provider.jobs(Number(run.id), attempt),
+          },
+        );
+    const previousMaintenance = (
+      v8Served
+        ? [retainedV8RenewalContinuation, retainedV8ServedRenewal]
+        : v8Successor
+          ? [retainedV8RenewalContinuation]
+          : []
+    ).find(({ predecessor }) => predecessor.id === String(run.id));
     const result = inspectApplicationJobBudget(
       observations,
       String(run.head_sha),
       String(run.id),
       current,
-      current || budgetedBootstrap ? purpose : "application-release",
-      current ? executionPath : "ordinary",
+      current || budgetedBootstrap || previousMaintenance ? purpose : "application-release",
+      current || previousMaintenance ? executionPath : "ordinary",
+      current && v8Served,
     );
     if (sourceRefusalContinuation && !current) {
-      const prior = retainedV8RenewalDraft.predecessors.find(
-        (actor) => actor.id === String(run.id),
-      );
+      const prior = previousMaintenance
+        ? previousMaintenance.predecessor
+        : retainedV8RenewalDraft.predecessors.find((actor) => actor.id === String(run.id));
       assert.ok(prior);
       assert.equal(result.actual_milliseconds, prior.milliseconds, "retained renewal cost changed");
       assert.deepEqual(result.feed_executions, []);
+      if (previousMaintenance) {
+        const jobs = observations[0]?.jobs;
+        assert.ok(isRecord(jobs) && Array.isArray(jobs.jobs));
+        const history: unknown[] = jobs.jobs;
+        const executed = history.flatMap((job) => {
+          assert.ok(isRecord(job) && job.status === "completed");
+          const { id, name, conclusion } = job;
+          return conclusion === "skipped" ? [] : [[id, name, conclusion]];
+        });
+        assert.deepEqual(
+          executed.sort(([left], [right]) => Number(left) - Number(right)),
+          previousMaintenance.executed_jobs,
+          "retained renewal job inventory changed",
+        );
+      }
       if (prior.id === retainedV8RenewalDraft.predecessors[2].id) {
         const jobs = observations[0]?.jobs;
         assert.ok(isRecord(jobs) && Array.isArray(jobs.jobs));

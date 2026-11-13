@@ -100,12 +100,18 @@ it.each(["orchard", "summit"])(
     const title = portId === "orchard" ? "Orchard Quest" : "Summit Racer";
     await page.getByRole("button", { name: `View details for ${title}`, exact: true }).click();
     await page.getByRole("tab", { name: "Game files", exact: true }).click();
-    await page.getByRole("button", { name: "Review setup", exact: true }).click();
+    await page
+      .getByRole("region", { name: "Finish setup", exact: true })
+      .getByRole("button", { name: "Finish setup", exact: true })
+      .click();
     expect(review).toHaveBeenCalledWith(portId, 1);
-    const dialog = page.getByRole("dialog", { name: "Prepare game data", exact: true });
+    const dialog = page.getByRole("dialog", { name: "Finish setup", exact: true });
     for (const fact of [title, install.path, plan.inputs.source.path, install.version])
       expect(dialog.element().textContent).toContain(fact);
-    await page.getByRole("button", { name: "Prepare game data", exact: true }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Finish setup", exact: true })
+      .click();
     await expect.poll(() => prepare.mock.calls.length).toBe(1);
     expect(prepare.mock.calls[0]?.slice(0, 3)).toEqual([portId, plan.plan_sha256, 1]);
     for (const fact of [title, install.path, plan.inputs.source.path])
@@ -191,8 +197,11 @@ it("leaves preparation, visits another entry, and revisits the original task wit
     })
     .click();
   await page.getByRole("tab", { name: "Game files", exact: true }).click();
-  await page.getByRole("button", { name: "Review setup", exact: true }).click();
-  await page.getByRole("button", { name: "Prepare game data", exact: true }).click();
+  await page
+    .getByRole("region", { name: "Finish setup", exact: true })
+    .getByRole("button", { name: "Finish setup", exact: true })
+    .click();
+  await page.getByRole("dialog").getByRole("button", { name: "Finish setup", exact: true }).click();
   await page.getByRole("button", { name: "Continue browsing", exact: true }).click();
   await expect.poll(() => document.querySelector('[role="dialog"]')).toBeNull();
   expect(cancel).not.toHaveBeenCalled();
@@ -204,7 +213,7 @@ it("leaves preparation, visits another entry, and revisits the original task wit
     })
     .click();
   const invocation = page.getByRole("group", {
-    name: "Prepare game data · Harbor Adventure",
+    name: "Finish setup · Harbor Adventure",
     exact: true,
   });
   await expect.element(invocation).toBeVisible();

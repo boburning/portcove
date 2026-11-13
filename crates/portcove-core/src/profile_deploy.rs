@@ -145,7 +145,7 @@ pub(crate) struct StagedPackage {
 const MAX_CODE_CONSENTS: usize = 4096;
 
 /// Digests the player allowed to run code in this library, for this game.
-fn consented_code(layout: &Layout) -> Result<BTreeSet<String>> {
+pub(crate) fn consented_code(layout: &Layout) -> Result<BTreeSet<String>> {
     let path = layout.code_consent();
     if !path.try_exists()? {
         return Ok(BTreeSet::new());
@@ -172,7 +172,7 @@ fn is_sha256(value: &str) -> bool {
             .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
 }
 
-fn record_code_consent(layout: &Layout, sha256: &str) -> Result<()> {
+pub(crate) fn record_code_consent(layout: &Layout, sha256: &str) -> Result<()> {
     let mut digests = consented_code(layout)?;
     if !digests.insert(sha256.to_owned()) {
         return Ok(());
@@ -208,7 +208,7 @@ fn describe_execution(execution: &[crate::RecompExecution]) -> String {
 /// Only recompiled game code, which runs inside the Recomp runtime, can be
 /// allowed. Host libraries and offline packages load code outside the reviewed
 /// package and stay refused.
-fn require_admissible_code(recomp: &crate::RecompModInspection) -> Result<()> {
+pub(crate) fn require_admissible_code(recomp: &crate::RecompModInspection) -> Result<()> {
     if recomp
         .holds
         .contains(&crate::RecompModHold::HostExecutableFiles)
@@ -314,11 +314,9 @@ pub struct ModCodeReview {
     pub already_allowed: bool,
 }
 
-/// Whether an inspected package may run code.
+/// Which code an inspected package may run: code the player allowed for these
+/// bytes now (`allowed`) or before (`recorded`).
 pub(crate) enum CodePolicy<'a> {
-    /// Code is refused outright (provider installs).
-    Refuse,
-    /// Code is installed when the player allowed these bytes now or before.
     Consent {
         allowed: Option<&'a str>,
         recorded: &'a BTreeSet<String>,
@@ -355,12 +353,6 @@ pub(crate) fn inspect_for_port(
     if runs_code {
         require_admissible_code(&recomp)?;
         match code {
-            CodePolicy::Refuse => {
-                return Err(PortcoveError::unsupported(
-                    "this mod runs its own code; Portcove installs mods that run code only from a file you choose and allow; nothing was installed",
-                )
-                .detail("mod", &recomp.native_id));
-            }
             CodePolicy::Consent { allowed, recorded } => {
                 if allowed != Some(recomp.sha256.as_str()) && !recorded.contains(&recomp.sha256) {
                     return Err(code_consent_required(&recomp));
@@ -1579,7 +1571,8 @@ pub struct ModSetupsView {
     /// setup's current revision.
     #[serde(default)]
     pub held_updates: Vec<crate::HeldModUpdate>,
-    /// The mod provider this game has a reviewed binding for (`gamebanana`), if any.
+    /// The mod provider this game has a reviewed binding for (`gamebanana` or
+    /// `thunderstore`), if any.
     #[serde(default)]
     pub provider: Option<String>,
     /// The game's current installation. A setup whose build differs stays on
@@ -1613,8 +1606,8 @@ impl PortcoveService {
         let current_install_id = profile::active_install_id(&self.library.connection()?, port_id)?;
         Ok(ModSetupsView {
             held_updates,
-            provider: crate::provider_install::gamebanana_game(port_id)
-                .map(|_| crate::gamebanana::PROVIDER.to_owned()),
+            provider: crate::provider_install::bound_provider(port_id)
+                .map(|(provider, _)| provider.to_owned()),
             current_install_id,
             port_id: port_id.into(),
             supported: true,

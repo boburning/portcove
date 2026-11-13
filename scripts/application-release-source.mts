@@ -40,6 +40,8 @@ import {
   retainedServedRenewal,
   retainedServedRenewalFeed,
   retainedR55Renewal,
+  retainedV8RenewalContinuation,
+  retainedV8ServedRenewal,
   retainedV8RenewalDraft,
   retainedR56FeedRecovery,
   immutableApplicationBootstrap,
@@ -809,16 +811,22 @@ async function renewPublishedMetadata() {
   if (execution.ref === retainedR55Renewal.next_ref) {
     registration = await resumeR55MetadataDraft(provider, execution, opportunity, beforeWrite);
   } else if (opportunity === retainedV8RenewalDraft.opportunity) {
+    const retained =
+      execution.ref === retainedV8RenewalContinuation.next_ref
+        ? retainedV8RenewalContinuation
+        : execution.ref === retainedV8ServedRenewal.next_ref
+          ? retainedV8ServedRenewal
+          : retainedV8RenewalDraft;
     registration = await resumeApplicationMetadataDraft(
       provider,
       execution,
       opportunity,
       {
         release_id: retainedV8RenewalDraft.release_id,
-        notes_sha256: retainedV8RenewalDraft.notes_sha256,
+        notes_sha256: retained.notes_sha256,
       },
       beforeWrite,
-      retainedV8RenewalDraft.context_sha256,
+      retained.context_sha256,
     );
   } else if (opportunity === retainedServedRenewal.opportunity) {
     registration = await resumeApplicationMetadataDraft(

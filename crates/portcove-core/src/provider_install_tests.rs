@@ -1,4 +1,5 @@
 use super::*;
+use crate::GameBananaClient;
 use crate::{
     ErrorCode, Library, ModPackageHold, retained_build::tests::fixture, test_http::serve_http_bytes,
 };

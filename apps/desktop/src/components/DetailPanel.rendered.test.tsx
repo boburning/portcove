@@ -741,10 +741,11 @@ describe("desktop components", () => {
         }}
       />,
     );
-    expect(html).toContain("First-time setup needed");
-    expect(html).toContain("Complete the port&#x27;s setup before playing.");
+    expect(html).toContain("Setup needed");
+    expect(html).toContain("Finish setup before playing.");
+    expect(html).toContain("Finish setup before playing.");
     expect(html).not.toContain("Game files required");
-    expect(html).not.toContain("Prepare game data</strong>");
+    expect(html).not.toContain("Finish setup</strong>");
     expect(html).not.toContain("Portcove will run and verify the upstream setup before play.");
   });
 
@@ -773,10 +774,11 @@ describe("desktop components", () => {
         actions,
       };
       const ready = renderToStaticMarkup(<DetailPanel {...props} />);
-      const reviewButton = ready.match(/<button\b[^>]*>Review setup<\/button>/)?.[0];
+      const reviewButton = ready.match(/<button\b[^>]*>Finish setup<\/button>/)?.[0];
       expect(reviewButton).toBeDefined();
       expect(reviewButton).not.toMatch(/\sdisabled(?:\s|=|>)/);
-      expect(ready).toContain("First-time setup needed");
+      expect(ready).toContain("Setup needed");
+      expect(ready).toContain("Finish setup before playing.");
       expect(ready).not.toContain(">Play</button>");
 
       const metadataOnly = renderToStaticMarkup(
@@ -792,7 +794,7 @@ describe("desktop components", () => {
           }}
         />,
       );
-      const metadataReview = metadataOnly.match(/<button\b[^>]*>Review setup<\/button>/)?.[0];
+      const metadataReview = metadataOnly.match(/<button\b[^>]*>Finish setup<\/button>/)?.[0];
       expect(metadataReview).toBeDefined();
       expect(metadataReview).not.toMatch(/\sdisabled(?:\s|=|>)/);
       expect(props.prepare).not.toHaveBeenCalled();
@@ -817,13 +819,13 @@ describe("desktop components", () => {
       ];
       for (const refusal of blocked.slice(0, 2)) {
         const html = renderToStaticMarkup(<DetailPanel {...refusal} />);
-        const button = html.match(/<button\b[^>]*>Review setup<\/button>/)?.[0];
+        const button = html.match(/<button\b[^>]*>Finish setup<\/button>/)?.[0];
         expect(button).toBeDefined();
         expect(button).toMatch(/\sdisabled(?:\s|=|>)/);
       }
       for (const missingRequirement of blocked.slice(2)) {
         const html = renderToStaticMarkup(<DetailPanel {...missingRequirement} />);
-        expect(html).not.toContain("Review setup");
+        expect(html).not.toMatch(/<button\b[^>]*>Finish setup<\/button>/);
         expect(html).not.toContain(">Play</button>");
         expect(html).toContain("Requirements");
         expect(html).toContain("Setup needed");
@@ -875,7 +877,7 @@ describe("desktop components", () => {
       ];
       for (const outsideContract of unavailable) {
         const html = renderToStaticMarkup(<DetailPanel {...outsideContract} />);
-        expect(html).not.toContain("Review setup");
+        expect(html).not.toMatch(/<button\b[^>]*>Finish setup<\/button>/);
       }
       expect(props.prepare).not.toHaveBeenCalled();
     },
@@ -1541,7 +1543,7 @@ describe("desktop components", () => {
     // Update ownership is stated for a Portcove-managed installation.
     expect(installed).toContain("Portcove handles updates for this installation.");
     // Reachable on the page, not just rendered by its own component test.
-    expect(buttonLabels).toContain("Report a problem");
+    expect(buttonLabels).toContain("Report a problem or send feedback");
     // The restore explanation belongs to the hidden restore control here; the retained
     // rollback cases assert it when a previous version exists.
     expect(installed).not.toContain(
@@ -2229,7 +2231,7 @@ it.each(["g-diffuser", "animal-crossing-pc-port", "openpete"])(
         actions={actions}
       />,
     );
-    const review = html.match(/<button\b[^>]*>Review setup<\/button>/)?.[0];
+    const review = html.match(/<button\b[^>]*>Finish setup<\/button>/)?.[0];
     expect(review).toBeDefined();
     expect(review).not.toMatch(/\sdisabled(?:\s|=|>)/);
     expect(html).not.toContain(">Start setup</button>");
@@ -2263,7 +2265,7 @@ it("keeps Core-permitted launch available while original bytes await an explicit
   );
   expect(html).toContain(">Try launch</button>");
   expect(html).not.toContain("Select game files");
-  expect(html).not.toContain("Review setup");
+  expect(html).not.toMatch(/<button\b[^>]*>Finish setup<\/button>/);
 });
 
 it("uses descriptive display metadata only in the shared detail shell", () => {

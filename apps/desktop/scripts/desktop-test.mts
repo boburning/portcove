@@ -1050,7 +1050,7 @@ async function verifyLongTitleCatalogDetail(theme: string) {
     assert.equal(layout.title, "Castlevania: Legacy of Darkness");
     assert.equal(layout.project, "Castlevania: Legacy of Darkness Recompiled");
     assert.equal(layout.titleFits, true, JSON.stringify(layout));
-    assert.equal(layout.action.label, "Set up");
+    assert.equal(layout.action.label, "Finish setup");
     assert.equal(layout.horizontalOverflow, false);
     assert.ok(
       layout.action.top >= 0 &&
@@ -3272,11 +3272,12 @@ try {
       ),
       5_000,
     );
-    for (const name of [
-      "Choose a game or port",
-      "Find games in a folder",
-      "Use an existing installation",
-    ])
+    assert.equal(
+      (await browser.findElements(By.css('[aria-label="Ways to add games"] button'))).length,
+      3,
+      "Add games must offer exactly three routes",
+    );
+    for (const name of ["Browse games", "Scan a folder", "Use an existing installation"])
       assert.equal(
         await browser.findElement(By.css(`button[aria-label="${name}"]`)).isDisplayed(),
         true,
@@ -4119,7 +4120,7 @@ try {
         "Manage",
       ]);
       assert.equal(hierarchy.selected, "Game files");
-      assert.equal(hierarchy.action, "Set up");
+      assert.equal(hierarchy.action, "Finish setup");
       assert.equal(hierarchy.actionInHero, true);
       assert.equal(hierarchy.titleFits, true);
       assert.equal(hierarchy.actionFits, true);

@@ -1,4 +1,5 @@
 use super::*;
+use crate::GameBananaClient;
 use crate::test_http::serve_http_bytes;
 use crate::{ProfileRevisionRequest, ResolvedPackage, retained_build::tests::fixture};
 

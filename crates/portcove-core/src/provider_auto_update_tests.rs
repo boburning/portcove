@@ -1,4 +1,5 @@
 use super::*;
+use crate::GameBananaClient;
 use crate::{retained_build::tests::fixture, test_http::serve_http_bytes};
 use std::{
     fs,

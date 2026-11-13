@@ -193,6 +193,29 @@ starts a successor and exits can end Core's supervision while the game still
 uses its files. Keep that upstream-owned route non-owning until its full lifetime
 can be tracked; bypassing useful setup or settings is not a management fix.
 
+The supported tracked handoff is a reviewed Windows opt-in. A definition that
+declares `windows_tracked_handoff: true` must offer Windows with a native `.exe`
+launch; batch launchers are refused. Without it, the original process is the
+whole session on every platform. With it, Core starts the Windows game inside
+its launch session's job object, and the session stays running after the
+original exits while any job process whose program lies inside the
+installation (the managed install or the registered external folder) still
+runs. The session record names those programs; Desktop does not show them
+yet, and `launch show --technical-details` does. Delivered definitions must
+require [native capability 28](DEFINITION-DELIVERY.md). A successor the game
+starts from its own process tree, such as a `_wexecv` restart from a menu action, is tracked. A browser, Steam client,
+editor or other program outside the installation never holds the session, even
+when the game started it. A child created with explicit job breakaway, or a
+program started outside the tree through the shell, a service, a scheduled task
+or an already running instance, is not tracked. Recovery after the supervisor
+itself exits has narrower coverage: it can only reach the job while a tracked
+process still holds the handle Core shares with it, so a successor that
+started without that handle can be missed. Qualify a route whose successor
+escapes these rules as non-owning, or require the original process to stay
+alive. On Linux and macOS an exec-based restart keeps the process ID, but a
+launcher that spawns a successor and exits is untracked there, so such a route
+stays non-owning on those platforms.
+
 Adding this route does not adopt an existing external registration. Players can
 review a separate managed copy while keeping the current copy usable. Core can
 switch a fitting fresh native-portable route after verified separate publication;
@@ -846,7 +869,9 @@ for player workflow, persistence boundaries and the removal recovery hold.
 PSP, ISO or CHD) unpack a player's original disc image into the runtime directory
 named by `runtime_source_filename`, following the same staged-source pattern as
 `stfs-directory`. They are valid only on `staged-source-portable` ports whose
-destination has no extension and appears in `runtime_mutable_paths`, with a
+destination has no extension and is declared either in `persistent_paths` (kept
+across updates, the better fit for multi-gigabyte output) or in
+`runtime_mutable_paths` (regenerated), with a
 `source_profile` of kind `file` that carries exact whole-image SHA-1 or SHA-256
 identities (for example Redump). Core reads the image read-only; it never modifies,
 locks, trims or rebuilds it.
@@ -881,11 +906,38 @@ destination folder, so anything the game wrote into it is lost. Destination drif
 outside the declared anchors is not detected, so declare every file the runtime
 cannot do without. Total directory-table bytes read while planning are bounded.
 
-ISO 9660 records may carry well-formed system-use data (CD-XA or Rock Ridge/SUSP
-entries); it is accepted but not interpreted, so alternate names are ignored and
-symbolic links are not followed. The 16 GiB image bound applies to an explicitly
-added source; source discovery and batch import still stop at 2 GiB. A definition using these values must also gate older engines with a
-staged-source capability, as other new materializations do; none ships yet.
+ISO 9660 records may carry a system-use area. Well-formed CD-XA or Rock Ridge/SUSP
+data and plain zero padding (as Sony PS2 mastering writes) are accepted but not
+interpreted, so alternate names are ignored and symbolic links are not followed; any
+other bytes are refused, so a corrupted record length can never hide the records
+after it. The 16 GiB image bound applies to an explicitly added source; source
+discovery and batch import still stop at 2 GiB.
+
+An indexed definition that declares `runtime_disc_image` must require
+`staged-source-portable` capability version 30, so older readers refuse it instead of
+misreading it ([definition delivery](DEFINITION-DELIVERY.md)); a definition bundled
+with the application ships with the build that understands it. `ace-combat-6-recomp`
+is the first shipped declaration, and it uses an [optional game
+source](#optional-game-source): a player can keep using `AC6.iso` beside the executable
+or hand-extracted files in `assets` without choosing a disc image, and nothing is asked
+of them; choosing the one reviewed image unpacks it into `assets` and replaces the
+folder's contents. It remains Cataloged at its existing `beta` tier with no Supported
+claim, accepts only the one reviewed image identity recorded in
+[its dated evidence](qualification/ace-combat-6-owner-image-disc-reader-2026-11-11.md),
+and keeps `assets` and its other declared persistent paths. An install recorded under
+its earlier definition keeps that recorded definition, so it is not rewritten and gets
+no prompt; a disc image the player chooses is used from the next runtime update.
+
+A persistent disc-image destination is carried to the next version together with its
+unpack marker (`assets.portcove-source.json`), and only for a port that declares a disc
+image; every other port's persistent entries are unchanged. The marker is verified
+exactly as before: an unchanged registered source whose marker matches and whose anchor
+files re-verify is a no-op, so a runtime update neither unpacks again nor replaces
+files already in the folder. A changed or removed source, a missing folder or a failed
+anchor still unpacks again and replaces the folder transactionally, which discards
+anything the player added to it by hand. `max_image_bytes` is a Portcove policy bound
+chosen above the observed image size (9 GiB against 7,835,492,352 bytes), not an
+evidence value.
 
 ### Optional game source
 
@@ -1335,12 +1387,14 @@ the player or selected upstream launcher. Only launch and registration removal
 are offered; external installation, save and settings files remain untouched by
 removal. The launched program can make its normal writes; this is no sandbox.
 
-Supervision and launch results describe the selected native program. An upstream
-launcher can hand off to another process and close while the game continues;
+Supervision and launch results describe the selected native program; only a
+definition with the reviewed Windows tracked handoff also waits for in-folder
+successors in its process tree. An upstream launcher can hand off and close
+while the game continues;
 activity completion or registration removal neither stops that successor nor
 establishes that external files are safe to replace or recover. Close the actual
 game and its helpers before upstream maintenance. Managed packages retain the
-full-lifetime requirement above.
+full-lifetime requirement and its tracked-handoff boundary above.
 
 This mode has empty archive/tree/executable-hint/mutable-path declarations and
 cannot combine with source invocation, managed policy, bundled runtime, setup
