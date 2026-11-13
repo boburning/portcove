@@ -2698,7 +2698,7 @@ impl PortcoveService {
         if crate::managed_runtime_policy::acquisition_hold(&self.catalog, &status.port_id).is_some()
         {
             for assessment in &mut status.port_actions {
-                if matches!(assessment.action, Action::Install | Action::Update) {
+                if crate::managed_runtime_policy::hold_withdraws(assessment.action) {
                     assessment.availability = Availability::Held;
                     assessment.reason = Reason::RouteNotOffered;
                     assessment.definition = None;

@@ -497,6 +497,32 @@ Legacy parsing tolerates unknown fields: raw input hashes bind them, but typed
 port hashes and declaration checks do not validate discarded fields.
 Malformed/duplicate-key inputs and unsupported or unsafe declarations fail.
 
+### Catalog target inspection
+
+`portcove --json catalog inspect-targets [--port ID]... [--platform P]...`
+reports, for each requested port and explicit target platform, whether the
+managed `install` and the `register_external` routes are offered to a fresh
+library, with the reason when not. It runs before host preferences or a library
+are opened and uses the embedded catalog; a library whose catalog was updated
+since can differ.
+
+- Omitted `--port` inspects every catalog listing and operational port. Every
+  request covers at most 4,096 ports; repeated IDs are inspected once.
+- Omitted `--platform` inspects every platform Core represents:
+  `windows-x86-64`, `linux-x86-64`, `macos-x86-64` and `macos-aarch64`. Any
+  other platform is a usage error, not a guess.
+- Route offering uses the same predicate as a library's action table, and a
+  reviewed acquisition hold withdraws `install` (`route_not_offered`) exactly as
+  it does there. Each port
+  also reports its catalog presence (`operational`, `listing_only` or
+  `not_found`), declared platforms, the reviewed acquisition hold, the download
+  restriction, and whether the managed route must resolve a provider release on
+  that target.
+- Definition trust eligibility and readiness are always `unknown`: a library
+  and an installation decide them. Another host's result is never relabelled as
+  this target's. The format-1 report is maintenance evidence (#4129), not an
+  admission or execution decision.
+
 ### Reviewed package layout inspection
 
 Run `portcove --json catalog inspect-package-layout ARCHIVE --platform PLATFORM --size BYTES --sha256 SHA256`

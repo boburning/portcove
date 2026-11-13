@@ -383,6 +383,47 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         return Ok(ExitCode::SUCCESS);
     }
     if let Commands::Catalog {
+        command: CatalogCommand::InspectTargets { ports, platforms },
+    } = &cli.command
+    {
+        let platforms = platforms
+            .iter()
+            .map(|platform| {
+                serde_json::from_value::<portcove_core::Platform>(serde_json::Value::String(
+                    platform.clone(),
+                ))
+                .map_err(|_| {
+                    portcove_core::PortcoveError::usage(format!(
+                        "unknown target platform: {platform}"
+                    ))
+                })
+            })
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        render_read_success(
+            mode,
+            "catalog.inspect-targets",
+            portcove_core::inspect_targets(
+                &portcove_core::Catalog::embedded()?,
+                ports,
+                &platforms,
+            )?,
+            |report| {
+                let offered = report
+                    .ports
+                    .iter()
+                    .flat_map(|port| &port.targets)
+                    .filter(|target| target.routes.iter().any(|route| route.offered))
+                    .count();
+                format!(
+                    "Inspected {} ports on {} platforms; {offered} port-platform pairs offer a route for a fresh library. Trust eligibility, installed state and readiness are not assessed.",
+                    report.ports.len(),
+                    report.platforms.len()
+                )
+            },
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
         command:
             CatalogCommand::InspectProposal {
                 file,
