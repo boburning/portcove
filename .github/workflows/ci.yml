@@ -268,7 +268,12 @@ jobs:
         with:
           # The transport job restores this same Windows cache; only this
           # superset workspace build saves it, and only from main.
-          shared-key: fast-rust-windows
+          # With a shared key the action ignores `key` and hashes only the dependency
+          # sections of manifests, so a profile change kept the old key: every build
+          # restored the stale cache, recompiled everything and, on an exact hit, never
+          # saved again (43361711247: full match, 36m build, "Cache up-to-date").
+          # Carry the whole root manifest in the shared key instead.
+          shared-key: fast-rust-windows-${{ hashFiles('Cargo.toml') }}
           save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
@@ -459,7 +464,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          shared-key: fast-rust-windows
+          shared-key: fast-rust-windows-${{ hashFiles('Cargo.toml') }}
           save-if: false
           key: ${{ hashFiles('Cargo.toml') }}
       - name: Compare live CLI and headless and native Desktop serialization
