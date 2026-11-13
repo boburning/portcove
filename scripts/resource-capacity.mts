@@ -817,6 +817,8 @@ export async function reconcileExternalCapacity(
   proveStopped: () => boolean | Promise<boolean>,
   options: { root?: string } = {},
 ) {
+  if (typeof proveStopped !== "function")
+    throw new Error("External resource stopped proof required");
   return releaseExternalRecords(
     lease,
     external,
